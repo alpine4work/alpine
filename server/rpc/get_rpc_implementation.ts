@@ -11,8 +11,6 @@ import {
  * Importing this module also imports all RPC implementations so
  * we know that all implementations exist.
  */
-export async function getRpcImplementationIfExists(
-    name: string,
-): Promise<RpcImplementation | null> {
+export function getRpcImplementationIfExists(name: string): RpcImplementation | null {
     return _getRpcImplementationIfExists(name);
 }

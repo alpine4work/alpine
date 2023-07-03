@@ -1370,6 +1370,11 @@ export class UnionSchema<Value> extends Schema<Value> {
      */
     public readonly variantSchemaByType: ReadonlyMap<string, UnionSchemaVariant<Value>>;
 
+    /**
+     * Serialize the value. Will always serialize into an object value.
+     */
+    public declare readonly serialize: (value: Value) => SchemaSerializedObjectValue;
+
     private constructor({
         variantSchemaByType,
         getDescription,
@@ -1601,8 +1606,8 @@ export class UnionSchemaVariant<Value> {
         });
     }
 
-    public serialize(value: Value): SchemaSerializedValue {
-        const serializedValue = this.schema.serialize(value);
+    public serialize(value: Value): SchemaSerializedObjectValue {
+        const serializedValue = this.schema.serialize(value) as SchemaSerializedObjectValue;
         (serializedValue as any)[this.serializedTypeKey] = this.serializedTypeValue;
         return serializedValue;
     }

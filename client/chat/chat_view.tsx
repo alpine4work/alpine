@@ -154,7 +154,7 @@ function ChatMessagingView({
 
     const {isConnected, procedures, subscribeToEvents} = useWebSocket(
         ChatRealtimeProtocol,
-        `/durable-objects/chat/${chat.id}`,
+        `/api/durable-objects/chat/${chat.id}`,
     );
 
     const hasInitializedRef = useRef(false);

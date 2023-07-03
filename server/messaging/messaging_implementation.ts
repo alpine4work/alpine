@@ -1,4 +1,3 @@
-import {SessionActionContext} from "~/server/dynamo/context/action_context.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {MessageChange} from "~/shared/messaging/message_change_schema.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
@@ -22,8 +21,8 @@ export type CreateMessageModelFunction<
 /**
  * Create a new message in a room.
  */
-export type CreateMessageFunction<RoomKey extends string> = (
-    context: SessionActionContext,
+export type CreateMessageFunction<Context, RoomKey extends string> = (
+    context: Context,
     options: {
         roomKey: RoomKey;
         parentMessageIndex: number | null;
@@ -37,8 +36,12 @@ export type CreateMessageFunction<RoomKey extends string> = (
 /**
  * Get a message.
  */
-export type GetMessageFunction<RoomKey extends string, Message extends MessageModel<RoomKey>> = (
-    context: SessionActionContext,
+export type GetMessageFunction<
+    Context,
+    RoomKey extends string,
+    Message extends MessageModel<RoomKey>,
+> = (
+    context: Context,
     options: {
         roomKey: RoomKey;
         messageIndex: number;
@@ -51,8 +54,8 @@ export type GetMessageFunction<RoomKey extends string, Message extends MessageMo
  * We will record the time at which the content was updated and show that the
  * message was edited.
  */
-export type UpdateMessageContentFunction<RoomKey extends string> = (
-    context: SessionActionContext,
+export type UpdateMessageContentFunction<Context, RoomKey extends string> = (
+    context: Context,
     options: {
         roomKey: RoomKey;
         messageIndex: number;
@@ -65,8 +68,8 @@ export type UpdateMessageContentFunction<RoomKey extends string> = (
 /**
  * Delete a message.
  */
-export type DeleteMessageFunction<RoomKey extends string> = (
-    context: SessionActionContext,
+export type DeleteMessageFunction<Context, RoomKey extends string> = (
+    context: Context,
     options: {
         roomKey: RoomKey;
         messageIndex: number;
@@ -79,8 +82,12 @@ export type DeleteMessageFunction<RoomKey extends string> = (
  * Load a range of messages starting from the beginning of the room (or
  * starting after a message ID) and loading forwards in time.
  */
-export type GetMessagesFromStart<RoomKey extends string, Message extends MessageModel<RoomKey>> = (
-    context: SessionActionContext,
+export type GetMessagesFromStart<
+    Context,
+    RoomKey extends string,
+    Message extends MessageModel<RoomKey>,
+> = (
+    context: Context,
     options: {
         roomKey: RoomKey;
         limit: number;
@@ -98,8 +105,12 @@ export type GetMessagesFromStart<RoomKey extends string, Message extends Message
  * Load a range of messages starting from the end of the room (or
  * starting before a message ID) and loading backwards in time.
  */
-export type GetMessagesFromEnd<RoomKey extends string, Message extends MessageModel<RoomKey>> = (
-    context: SessionActionContext,
+export type GetMessagesFromEnd<
+    Context,
+    RoomKey extends string,
+    Message extends MessageModel<RoomKey>,
+> = (
+    context: Context,
     options: {
         roomKey: RoomKey;
         limit: number;
@@ -120,10 +131,11 @@ export type GetMessagesFromEnd<RoomKey extends string, Message extends MessageMo
  * when data was loaded and when we connected to our realtime WebSocket.
  */
 export type BackfillMessagesFunction<
+    Context,
     RoomKey extends string,
     Message extends MessageModel<RoomKey>,
 > = (
-    context: SessionActionContext,
+    context: Context,
     options: {
         roomKey: RoomKey;
         clientMessageCount: number;
@@ -133,12 +145,12 @@ export type BackfillMessagesFunction<
 ) => Promise<{
     messageCount: number;
     lastMessageChangeTime: Date | null;
-    newMessages: Array<Message>;
-    newOtherReferencedMessages: Array<Message>;
+    newMessages: ReadonlyArray<Message>;
+    newOtherReferencedMessages: ReadonlyArray<Message>;
     messageChangesResult:
         | {
               type: "Available";
-              changes: Array<MessageChange>;
+              changes: ReadonlyArray<MessageChange>;
           }
         | {
               type: "Unavailable";

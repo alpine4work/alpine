@@ -1,5 +1,5 @@
 import {getAccount} from "~/server/dynamo/accounts_table.js";
-import {ActionContext} from "~/server/dynamo/context/action_context.js";
+import {AppActionContext} from "~/server/dynamo/context/app_action_context.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -10,7 +10,7 @@ import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_refere
  * Load all the data referenced in our task query filters.
  */
 export async function getTaskQueryFilterReferences(
-    context: ActionContext,
+    context: AppActionContext,
     spaceId: SpaceId,
     filters: ReadonlyArray<TaskQueryFilter>,
 ): Promise<TaskQueryFilterReferences> {

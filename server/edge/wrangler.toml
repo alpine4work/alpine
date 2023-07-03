@@ -1,0 +1,53 @@
+# We call this Cloudflare Worker `edge-service` to ease a future migration
+# where the edge service family is split up into different Cloudflare Workers.
+# This service will keep just the edge service piece and we'll create new
+# Cloudflare Workers.
+name = "edge-service"
+main = "edge_service.js"
+compatibility_date = "2022-07-12"
+compatibility_flags = ["streams_enable_constructors"]
+workers_dev = false
+
+[route]
+pattern = "cyberworlds.dev"
+custom_domain = true
+
+# We deploy our durable objects with our edge service but we think of our
+# durable objects as logically different services. We could choose in the
+# future to deploy them as separate Cloudflare Workers.
+#
+# We refer to the Cloudflare Worker which proxies our `AppService` as
+# `EdgeService`. We refer to the broader collection of services owned by
+# `EdgeService` as `EdgeServiceFamily`.
+
+[[durable_objects.bindings]]
+name = "DocumentCollaborationDurableObjectNamespace"
+class_name = "DocumentCollaborationDurableObject"
+
+[[durable_objects.bindings]]
+name = "PostRealtimeDurableObjectNamespace"
+class_name = "PostRealtimeDurableObject"
+
+[[durable_objects.bindings]]
+name = "ChatRealtimeDurableObjectNamespace"
+class_name = "ChatRealtimeDurableObject"
+
+[[durable_objects.bindings]]
+name = "MyAccountDurableObjectNamespace"
+class_name = "MyAccountDurableObject"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["DocumentCollaborationDurableObject"]
+
+[[migrations]]
+tag = "v2"
+new_classes = ["PostRealtimeDurableObject"]
+
+[[migrations]]
+tag = "v3"
+new_classes = ["ChatRealtimeDurableObject"]
+
+[[migrations]]
+tag = "v4"
+new_classes = ["MyAccountDurableObject"]

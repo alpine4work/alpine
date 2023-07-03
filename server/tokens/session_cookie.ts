@@ -1,0 +1,115 @@
+import {parse, serialize} from "cookie";
+import {
+    AppServiceTokenAgent,
+    SessionTokenPayload,
+    TokenAgentBase,
+} from "~/server/tokens/token_agent.js";
+import {InternalError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+
+/**
+ * Get and verify the `SessionTokenPayload` in the requests session cookie if
+ * it exists. Otherwise return null.
+ */
+export async function getSessionCookieIfExists(
+    tokenAgent: TokenAgentBase,
+    request: Request,
+): Promise<SessionTokenPayload | null> {
+    const cookieHeader = request.headers.get("cookie");
+    if (!cookieHeader) return null;
+
+    const token = parse(cookieHeader)["session"];
+    if (!token) return null;
+
+    // We delete our session cookie by setting it to an empty string.
+    if (token === "") return null;
+
+    // NOTE(calebmer, 2023-06-29): I'm changing our session cookie format to a JWT.
+    // Since we're in alpha I'm removing support for the old session cookie format
+    // which used Remix's `createCookieSessionStorage()` utility. When deployed,
+    // this will sign all users out. They can sign back in as necessary.
+    //
+    // The old cookie format was a signed base64 JSON string. It had two parts. The
+    // base64 JSON string part and the signature separated by a `.`. The new cookie
+    // format is a JWT. JWTs have three parts. The header, base 64 JSON, and
+    // signature.
+    if (token.split(".").length === 2) return null;
+
+    const payload = await tokenAgent.verifyTokenFromService("AppService", token);
+
+    if (payload.type !== "Session")
+        throw new InternalError("Unexpected token payload type in session cookie");
+
+    return payload;
+}
+
+export type SessionCookie = {
+    readonly getIfExists: () => Promise<SessionTokenPayload | null>;
+
+    /**
+     * Update the session with new data.
+     *
+     * This method is dangerous since it allows you to change the account that's
+     * identified with our service! You must take care to authenticate accounts
+     * before changing the `SessionId`.
+     */
+    readonly dangerouslySet: (token: SessionTokenPayload | null) => void;
+};
+
+/**
+ * Use this to both read the session cookie and write back to the session
+ * cookie. If you only need to read the session cookie then use
+ * `getSessionCookieIfExists()`.
+ */
+export async function withSessionCookie(
+    tokenAgent: AppServiceTokenAgent,
+    request: Request,
+    action: (sessionCookie: SessionCookie) => Promise<Response>,
+): Promise<Response> {
+    const oldTokenPromise = getSessionCookieIfExists(tokenAgent, request);
+    let canSetToken = true;
+    let newToken: SessionTokenPayload | null | "Unset" = "Unset";
+
+    const response = await action({
+        getIfExists: () => {
+            return newToken === "Unset" ? oldTokenPromise : Promise.resolve(newToken);
+        },
+        dangerouslySet: token => {
+            assert(canSetToken);
+            newToken = token;
+        },
+    });
+
+    // We are now committing the new session token. It may not be updated again.
+    canSetToken = false;
+
+    const oldSessionTokenPayload = await oldTokenPromise;
+
+    if (newToken !== "Unset" && oldSessionTokenPayload !== newToken) {
+        const cookieString = newToken
+            ? await tokenAgent.dangerouslySignEternalSessionToken(newToken)
+            : "";
+
+        response.headers.append(
+            "set-cookie",
+            serialize("session", cookieString, {
+                // The session cookie domain is not set in development because we may be
+                // accessing from a proxied domain or an IP address on a mobile device.
+                domain: process.env.NODE_ENV === "production" ? "cyberworlds.dev" : undefined,
+                httpOnly: true,
+                path: "/",
+                sameSite: "lax",
+                // Only allow the session cookie to be sent over HTTPS in production. In
+                // development we use plain HTTP.
+                secure: process.env.NODE_ENV === "production",
+                // We can't force the browser to delete a cookie so we set it to an empty string
+                // and tell the browser to expire it immediately.
+                maxAge: newToken
+                    ? 60 * 60 * 24 * 365 // 1 year
+                    : 1, // 1 second
+            }),
+        );
+    }
+
+    return response;
+}

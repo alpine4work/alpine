@@ -445,3 +445,29 @@ test("can clone into subclass and the type for other contexts will reflect that"
         otherTest: OtherTestContextModule;
     }>();
 });
+
+test("can't construct a context with a module that's already been bound", () => {
+    const contextModule = new TestContextModule();
+
+    const context1 = Context.new({
+        test: contextModule,
+    });
+
+    expect(() => {
+        Context.new({
+            test: context1.test,
+        });
+    }).toThrow();
+
+    Context.new({
+        test: contextModule,
+    });
+
+    Context.new({
+        test: context1.test.unbind(),
+    });
+
+    Context.new({
+        test: contextModule.unbind(),
+    });
+});

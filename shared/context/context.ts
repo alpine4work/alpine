@@ -217,6 +217,11 @@ const ContextImplementation = class Context {
         this._modules = modules;
 
         for (const [key, actualModule] of Object.entries(modules)) {
+            assert(
+                !Object.getOwnPropertyDescriptor(actualModule, "_context"),
+                "Can't construct a context with a module that has been bound to a different context",
+            );
+
             // Create a clone of the context module and set the context module as the
             // prototype! This way whenever you call a method on the context module you get
             // the latest context module as `this.context`.

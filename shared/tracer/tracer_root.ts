@@ -21,8 +21,8 @@ export type TracerServiceName =
     | "Adhoc"
     | "Test"
     | "AppClient"
-    | "AppServer"
-    | "AppQueue"
+    | "AppService"
+    | "EdgeService"
     | DurableObjectServiceName;
 
 /**

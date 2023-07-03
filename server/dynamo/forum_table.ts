@@ -1,9 +1,9 @@
 import {getAccount, getAccountIfExists} from "~/server/dynamo/accounts_table.js";
 import {
-    ActionContext,
-    SessionActionContext,
-    SystemActionContext,
-} from "~/server/dynamo/context/action_context.js";
+    AppActionContext,
+    AppSessionActionContext,
+    AppSystemActionContext,
+} from "~/server/dynamo/context/app_action_context.js";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants.js";
 import {getContentReferencesForNode} from "~/server/dynamo/helpers/get_content_references.js";
@@ -283,7 +283,7 @@ export async function seedTestChannels(context: DynamoContext) {
  * Create a new channel.
  */
 export async function createChannel(
-    context: ActionContext,
+    context: AppActionContext,
     {spaceId, name}: {spaceId: SpaceId; name: string},
 ): Promise<{
     id: ChannelId;
@@ -314,7 +314,7 @@ export async function createChannel(
  * doesn't exist and throws an error if the channel exists but you don't have
  * access to the channel.
  */
-export async function getChannel(context: ActionContext, id: ChannelId): Promise<ChannelModel> {
+export async function getChannel(context: AppActionContext, id: ChannelId): Promise<ChannelModel> {
     const channelItem = await ForumTable.getItem(context, {
         partitionType: "Channel",
         sortRangeType: "Attributes",
@@ -347,7 +347,7 @@ const ChannelPreviewCache = new ContextCache<ChannelId, ChannelPreviewModel>();
  * don't have access to the channel.
  */
 export function getChannelPreview(
-    context: ActionContext,
+    context: AppActionContext,
     id: ChannelId,
 ): Promise<ChannelPreviewModel> {
     return ChannelPreviewCache.get(context, id, async () => {
@@ -379,7 +379,7 @@ export function getChannelPreview(
  * that the current user has access to the space the channel is in.
  */
 export async function authorizeChannelAccess(
-    context: ActionContext,
+    context: AppActionContext,
     id: ChannelId,
 ): Promise<ChannelPreviewModel> {
     return getChannelPreview(context, id);
@@ -389,7 +389,7 @@ export async function authorizeChannelAccess(
  * Updates the name of the channel.
  */
 export async function updateChannelName(
-    context: ActionContext,
+    context: AppActionContext,
     {
         channelId,
         name,
@@ -423,7 +423,7 @@ export async function updateChannelName(
  * Updates the description of the channel.
  */
 export async function updateChannelDescription(
-    context: ActionContext,
+    context: AppActionContext,
     {
         channelId,
         description,
@@ -462,7 +462,7 @@ export type ChannelPostsCursor = {
  * post will be the first in the array.
  */
 export async function getChannelPosts(
-    context: ActionContext,
+    context: AppActionContext,
     {
         channelId,
         limit,
@@ -520,7 +520,7 @@ export async function getChannelPosts(
  * Create a new post by the current account in the provided channel.
  */
 export async function createPost(
-    context: SessionActionContext,
+    context: AppSessionActionContext,
     {channelId, content}: {channelId: ChannelId; content: PostContent},
 ): Promise<{
     id: PostId;
@@ -576,7 +576,7 @@ export async function createPost(
 /**
  * Gets the post with the provided `PostId`.
  */
-export async function getPost(context: ActionContext, id: PostId): Promise<PostModel> {
+export async function getPost(context: AppActionContext, id: PostId): Promise<PostModel> {
     const postItem = await ForumTable.getItem(context, {
         partitionType: "Post",
         sortRangeType: "Attributes",
@@ -591,7 +591,7 @@ export async function getPost(context: ActionContext, id: PostId): Promise<PostM
 }
 
 async function createPostModelFromItem(
-    context: ActionContext,
+    context: AppActionContext,
     channelPromise: MaybePromise<ChannelPreviewModel>,
     item: PostAttributesItem,
 ): Promise<PostModel> {
@@ -639,7 +639,7 @@ async function createPostModelFromItem(
  * Get the `ChannelPreviewModel` for a post and the `AccountModel` who authored
  * the post.
  */
-export async function getPostAuthorAndChannelPreview(context: ActionContext, postId: PostId) {
+export async function getPostAuthorAndChannelPreview(context: AppActionContext, postId: PostId) {
     // NOTE(calebmer): Ideally we'd use `getPartialItem()` here but it doesn't
     // batch into one network request. When we ran on Cloudflare Workers we'd find
     // ourselves hitting the sub-request limit. Consider switching back to
@@ -662,7 +662,7 @@ export async function getPostAuthorAndChannelPreview(context: ActionContext, pos
  * Get accounts subscribed to notifications for the provided `PostId`.
  */
 export async function getPostNotificationSubscribers(
-    context: SystemActionContext,
+    context: AppSystemActionContext,
     id: PostId,
 ): Promise<{
     spaceId: SpaceId;
@@ -708,7 +708,7 @@ export async function getPostNotificationSubscribers(
  * Update the contents of a post if you are the post's author.
  */
 export async function updatePostContent(
-    context: SessionActionContext,
+    context: AppSessionActionContext,
     {postId, content}: {postId: PostId; content: PostContent},
 ): Promise<{contentUpdatedTime: Date}> {
     let contentUpdatedTime: Date | null = null;
@@ -758,7 +758,7 @@ export async function updatePostContent(
  * Get all the authors on a post to a certain limit.
  */
 export async function getPostCommentAuthors(
-    context: ActionContext,
+    context: AppActionContext,
     {postId, limit}: {postId: PostId; limit: number},
 ): Promise<Array<AccountModel>> {
     const postItem = await ForumTable.getPartialItemIfExists(
@@ -790,7 +790,7 @@ export async function getPostCommentAuthors(
  * post is in and the space the channel is in.
  */
 export async function authorizePostAccess(
-    context: ActionContext,
+    context: AppActionContext,
     id: PostId,
 ): Promise<{spaceId: SpaceId}> {
     const postItem = await ForumTable.getPartialItemIfExists(
@@ -815,7 +815,7 @@ export async function authorizePostAccess(
  * Add a new comment to a post.
  */
 export async function createPostComment(
-    context: SessionActionContext,
+    context: AppSessionActionContext,
     {
         postId,
         parentCommentIndex,
@@ -936,7 +936,7 @@ export async function createPostComment(
  * Get a single post comment.
  */
 export async function getPostComment(
-    context: ActionContext,
+    context: AppActionContext,
     {postId, commentIndex}: {postId: PostId; commentIndex: number},
 ): Promise<PostCommentModel> {
     const [{spaceId}, item] = await runAllPromises([
@@ -953,7 +953,7 @@ export async function getPostComment(
 }
 
 async function createPostCommentModelFromItem(
-    context: ActionContext,
+    context: AppActionContext,
     spaceId: SpaceId,
     item: PostCommentItem,
 ): Promise<PostCommentModel> {
@@ -975,7 +975,7 @@ async function createPostCommentModelFromItem(
  * Update the content on one of your post comments.
  */
 export function updatePostCommentContent(
-    context: SessionActionContext,
+    context: AppSessionActionContext,
     {
         postId,
         commentIndex,
@@ -1089,7 +1089,7 @@ export function updatePostCommentContent(
  * Delete a single post comment.
  */
 export function deletePostComment(
-    context: SessionActionContext,
+    context: AppSessionActionContext,
     {postId, commentIndex}: {postId: PostId; commentIndex: number},
 ): Promise<{deletedTime: Date}> {
     return context.dynamo.retryTransaction(async context => {
@@ -1176,7 +1176,7 @@ export function deletePostComment(
  * one request.
  */
 export async function getPostAndInitialComments(
-    context: ActionContext,
+    context: AppActionContext,
     {
         postId,
         commentLimit,
@@ -1295,7 +1295,7 @@ export async function getPostAndInitialComments(
  * Paginate through post comments from start to finish.
  */
 export async function getPostCommentsFromStart(
-    context: ActionContext,
+    context: AppActionContext,
     {
         postId,
         limit,
@@ -1361,7 +1361,7 @@ export async function getPostCommentsFromStart(
 }
 
 async function getPostCommentsFromStartAssumingAuthorizedPost(
-    context: ActionContext,
+    context: AppActionContext,
     {
         postId,
         getSpaceId,
@@ -1452,7 +1452,7 @@ async function getPostCommentsFromStartAssumingAuthorizedPost(
  * Paginate through post comments from finish to start.
  */
 export async function getPostCommentsFromEnd(
-    context: ActionContext,
+    context: AppActionContext,
     {
         postId,
         limit,
@@ -1518,7 +1518,7 @@ export async function getPostCommentsFromEnd(
 }
 
 async function getPostCommentsFromEndAssumingAuthorizedPost(
-    context: ActionContext,
+    context: AppActionContext,
     {
         postId,
         getSpaceId,
@@ -1642,7 +1642,7 @@ export type PostCommentChangesResult =
  * your client has loaded and try loading the data again.
  */
 export async function backfillPostComments(
-    context: ActionContext,
+    context: AppActionContext,
     {
         postId,
         clientCommentCount,
@@ -1731,7 +1731,7 @@ export async function backfillPostComments(
 }
 
 async function queryPostCommentChangeLogAssumingAuthorizedPost(
-    context: ActionContext,
+    context: AppActionContext,
     {
         postItem,
         lastCommentChangeTime,

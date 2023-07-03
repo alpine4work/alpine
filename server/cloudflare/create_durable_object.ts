@@ -1,29 +1,20 @@
-import {jwtVerify} from "jose";
-import {createAwsContextModules} from "~/server/aws/create_aws_context_modules.js";
+import {
+    WorkerActionContext,
+    WorkerActionContextModules,
+    WorkerSessionActionContext,
+} from "~/server/cloudflare/context/worker_action_context.js";
+import {WorkerActorContextModule} from "~/server/cloudflare/context/worker_actor_context_module.js";
+import {
+    WorkerProcessContext,
+    WorkerProcessContextModules,
+} from "~/server/cloudflare/context/worker_process_context.js";
+import {WorkerRpcContextModule} from "~/server/cloudflare/context/worker_rpc_context_module.js";
 import {
     WebSocketServerConnectionBase,
     WebSocketServerTestConnection,
 } from "~/server/cloudflare/web_socket_server.js";
-import {Session} from "~/server/dynamo/accounts_table.js";
-import {
-    ActionContext,
-    ActionContextModules,
-    SessionActionContext,
-} from "~/server/dynamo/context/action_context.js";
-import {
-    ActorContextModule,
-    SessionActorContextModule,
-    SystemActorContextModule,
-    UnidentifiedActorContextModule,
-} from "~/server/dynamo/context/actor_context_module.js";
-import {unauthenticatedSessionError} from "~/server/dynamo/context/helpers/unauthenticated_session_error.js";
-import {NotificationsContextModule} from "~/server/dynamo/context/notifications_context_module.js";
-import {
-    ProcessContext,
-    ProcessContextModulesBase,
-} from "~/server/dynamo/context/process_context.js";
-import {DynamoBatchContextModule} from "~/server/dynamo/dynamo_context_module.js";
-import {Queue} from "~/server/helpers/types/cloudflare_queues.js";
+import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
+import {EdgeServiceFamilyTokenAgent} from "~/server/tokens/token_agent.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {traceFetchResponse} from "~/server/tracer/trace_fetch_response.js";
 import {WebSocketProtocolBase} from "~/shared/cloudflare/web_socket_protocol.js";
@@ -39,11 +30,8 @@ import {
 } from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
-import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {DurableObjectServiceName, TracerRoot} from "~/shared/tracer/tracer_root.js";
 
 /**
@@ -51,29 +39,27 @@ import {DurableObjectServiceName, TracerRoot} from "~/shared/tracer/tracer_root.
  */
 export type DurableObjectEnv = {
     MyAccountDurableObjectNamespace: DurableObjectNamespace;
-    NotificationsQueue: Queue;
-    DYNAMO_LOCAL_PORT?: string;
-    SESSION_COOKIE_SECRET?: string;
-    AWS_ACCESS_KEY_ID?: string;
-    AWS_SECRET_ACCESS_KEY?: string;
+    APP_SERVICE_PUBLIC_KEY?: string;
+    EDGE_SERVICE_FAMILY_PUBLIC_KEY?: string;
+    EDGE_SERVICE_FAMILY_PRIVATE_KEY?: string;
     HONEYCOMB_API_KEY?: string;
 };
 
 /**
  * Create a Durable Object class for our system. Features:
  *
- * - Setting up `Context` objects. We have a `ProcessContext` for the lifetime
- *   of the Durable Object and `ActionContext`s for each individual request to
- *   the Durable Object.
+ * - Setting up `Context` objects. We have a `EdgeProcessContext` for the
+ *   lifetime of the Durable Object and `EdgeActionContext`s for each individual
+ *   request to the Durable Object.
  *
  * - Session authorization. Standardized protocol for sending user
  *   authorization credentials to the Durable Object.
  */
 export function createDurableObject<
     DurableObject extends {
-        fetch(context: ActionContext, request: Request): MaybePromise<Response>;
+        fetch(context: WorkerActionContext, request: Request): MaybePromise<Response>;
         connectForTest?(
-            context: SessionActionContext,
+            context: WorkerActionContext,
         ): Promise<
             WebSocketServerTestConnection<WebSocketProtocolBase, WebSocketServerConnectionBase<any>>
         >;
@@ -84,8 +70,8 @@ export function createDurableObject<
 }: {
     serviceName: DurableObjectServiceName;
     initialize: (options: {
-        processContext: ProcessContext;
-        initializeActionContext: ActionContext;
+        processContext: WorkerProcessContext;
+        initializeActionContext: WorkerActionContext;
         idName: string;
         destroy: () => void;
     }) => Promise<DurableObject>;
@@ -94,19 +80,18 @@ export function createDurableObject<
         fetch(request: Request): Promise<Response>;
         alarm?(): Promise<void>;
     };
-    test(context: ProcessContext): {
+    test(context: WorkerProcessContext): {
         connectForTest: (
-            context: SessionActionContext,
+            context: WorkerSessionActionContext,
             idName: string,
         ) => Promise<ReturnType<NonNullable<DurableObject["connectForTest"]>>>;
     };
 } {
     return class DurableObjectWrapper {
         private readonly _state: DurableObjectState;
-        private readonly _sessionCookieSecret: string;
+        private _tokenAgent: EdgeServiceFamilyTokenAgent | Promise<EdgeServiceFamilyTokenAgent>;
         private readonly _tracer: TracerRoot;
-        private readonly _processContextModulesBase: ProcessContextModulesBase;
-        private readonly _processContext: ProcessContext;
+        private readonly _processContext: WorkerProcessContext;
         private _object: {
             readonly idName: string;
             readonly promise: Promise<DurableObject>;
@@ -115,28 +100,37 @@ export function createDurableObject<
         constructor(state: DurableObjectState, env: DurableObjectEnv) {
             this._state = state;
 
-            const sessionCookieSecret = env.SESSION_COOKIE_SECRET;
-            if (!sessionCookieSecret)
-                throw new InternalError("Missing `SESSION_COOKIE_SECRET` environment variable");
+            const appServicePublicKey = env.APP_SERVICE_PUBLIC_KEY;
+            if (!appServicePublicKey)
+                throw new InternalError("Missing `APP_SERVICE_PUBLIC_KEY` env variable");
 
-            this._sessionCookieSecret = sessionCookieSecret;
+            const edgeServiceFamilyPublicKey = env.EDGE_SERVICE_FAMILY_PUBLIC_KEY;
+            if (!edgeServiceFamilyPublicKey)
+                throw new InternalError("Missing `EDGE_SERVICE_FAMILY_PUBLIC_KEY` env variable");
+
+            const edgeServiceFamilyPrivateKey = env.EDGE_SERVICE_FAMILY_PRIVATE_KEY;
+            if (!edgeServiceFamilyPrivateKey)
+                throw new InternalError("Missing `EDGE_SERVICE_FAMILY_PRIVATE_KEY` env variable");
+
+            const tokenAgentPromise = EdgeServiceFamilyTokenAgent.new({
+                serviceName,
+                appServicePublicKey,
+                edgeServiceFamilyPublicKey,
+                edgeServiceFamilyPrivateKey,
+            });
+
+            this._tokenAgent = tokenAgentPromise;
+
+            // When the token agent has resolved, we don't need to await it anymore.
+            void tokenAgentPromise.then(tokenAgent => (this._tokenAgent = tokenAgent));
 
             this._tracer = createServerTracer({
                 serviceName,
-                // TODO(calebmer): If we are running an adhoc script against our production
-                // database then events should go to our production Honeycomb environment?
                 honeycombApiKey: env.HONEYCOMB_API_KEY,
                 waitUntil: promise => state.waitUntil(promise),
             });
 
-            const awsContextModules = createAwsContextModules({
-                awsAccessKeyId: env.AWS_ACCESS_KEY_ID,
-                awsSecretAccessKey: env.AWS_SECRET_ACCESS_KEY,
-                dynamoLocalPort: env.DYNAMO_LOCAL_PORT,
-            });
-
-            this._processContextModulesBase = {
-                ...awsContextModules,
+            this._processContext = Context.new({
                 process: new ProcessContextModule({
                     waitUntil: promise =>
                         this._state.waitUntil(
@@ -154,12 +148,6 @@ export function createDurableObject<
                         ),
                 }),
                 tracer: new TracerContextModule(this._tracer),
-                notifications: new NotificationsContextModule(env),
-            };
-
-            this._processContext = Context.new({
-                ...this._processContextModulesBase,
-                actor: new UnidentifiedActorContextModule(),
             });
         }
 
@@ -178,48 +166,34 @@ export function createDurableObject<
                         );
                     }
 
-                    const authenticationToken = authorizationHeaderMatch[1] ?? "";
+                    const authorizationHeaderToken = authorizationHeaderMatch[1] ?? "";
 
-                    const verifiedAuthenticationToken = await this._verifyAuthenticationToken(
-                        authenticationToken,
-                    );
+                    const tokenAgent =
+                        this._tokenAgent instanceof Promise
+                            ? await this._tokenAgent
+                            : this._tokenAgent;
 
-                    let actor: ActorContextModule;
-                    switch (verifiedAuthenticationToken.type) {
-                        case "Session": {
-                            const session = await Session.getIfExists(
-                                this._processContext.clone({tracer: new TracerContextModule(span)}),
-                                verifiedAuthenticationToken.sessionId,
-                                verifiedAuthenticationToken.sessionAccountId ?? null,
-                            );
-                            if (!session) {
-                                throw new InternalError(
-                                    'Could not find session from "Authorization" header',
-                                );
-                            }
-
-                            actor = new SessionActorContextModule(session);
-                            break;
-                        }
-                        case "System": {
-                            actor = new SystemActorContextModule(
-                                verifiedAuthenticationToken.spaceId,
-                            );
-                            break;
-                        }
-                        default:
-                            throw exhaustive(verifiedAuthenticationToken);
-                    }
-
-                    const response = await Context.with<ActionContextModules, Response>(
+                    const response = await this._processContext.with<
+                        Omit<
+                            WorkerActionContextModules,
+                            Exclude<keyof WorkerProcessContextModules, "tracer">
+                        >,
+                        Response
+                    >(
                         {
-                            ...this._processContextModulesBase,
                             // Replace the tracer context module with one that uses our span for
                             // this request.
                             tracer: new TracerContextModule(span),
                             cache: new CacheContextModule(),
-                            dynamoBatchContext: new DynamoBatchContextModule(),
-                            actor,
+                            actor: await WorkerActorContextModule.new(
+                                tokenAgent,
+                                authorizationHeaderToken,
+                            ),
+                            rpc: new WorkerRpcContextModule({
+                                protocol: url.protocol,
+                                host: url.host,
+                                tokenAgent,
+                            }),
                         },
                         async actionContext => {
                             const idName = request.headers.get("cyberworlds-id-name");
@@ -231,12 +205,16 @@ export function createDurableObject<
                             if (this._object === null) {
                                 this._object = {
                                     idName,
-                                    promise: initialize({
-                                        processContext: this._processContext,
-                                        initializeActionContext: actionContext,
-                                        idName,
-                                        destroy: () => (this._object = null),
-                                    }),
+                                    promise: actionContext.tracer.withSpan(
+                                        "Initialize Durable Object",
+                                        actionContext =>
+                                            initialize({
+                                                processContext: this._processContext,
+                                                initializeActionContext: actionContext,
+                                                idName,
+                                                destroy: () => (this._object = null),
+                                            }),
+                                    ),
                                 };
                             }
 
@@ -260,24 +238,14 @@ export function createDurableObject<
             });
         }
 
-        private async _verifyAuthenticationToken(token: string) {
-            const {payload} = await jwtVerify(
-                token,
-                new TextEncoder().encode(this._sessionCookieSecret),
-            );
-            return DurableObjectAuthenticationTokenSchema.deserialize(
-                payload as SchemaSerializedValue,
-            );
-        }
-
         /**
          * Creates a durable object environment for use in Jest tests. Whenever you
          * call `connectForTest()` on the returned object with the same `idName` you
          * will get the same underlying durable object instance.
          */
-        public static test(processContext: ProcessContext): {
+        public static test(processContext: WorkerProcessContext): {
             connectForTest: (
-                context: SessionActionContext,
+                context: WorkerSessionActionContext,
                 idName: string,
             ) => Promise<ReturnType<NonNullable<DurableObject["connectForTest"]>>>;
         } {
@@ -324,15 +292,3 @@ export function createDurableObject<
         }
     };
 }
-
-const DurableObjectAuthenticationTokenSchema = Schema.union({
-    Session: Schema.object({
-        type: Schema.value("Session"),
-        sessionId: Schema.id<SessionId>(),
-        sessionAccountId: Schema.id<AccountId>().optional(),
-    }),
-    System: Schema.object({
-        type: Schema.value("System"),
-        spaceId: Schema.id<SpaceId>(),
-    }),
-});

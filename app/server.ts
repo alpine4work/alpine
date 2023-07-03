@@ -2,14 +2,14 @@ import "~/app/helpers/install_remix_globals.js";
 
 import * as build from "@remix-run/dev/server-build";
 import {
-    Headers,
-    Request,
-    RequestInit,
-    Response,
+    Request as NodeRequest,
+    RequestInit as NodeRequestInit,
+    Response as NodeResponse,
     createRequestHandler,
     writeReadableStreamToWritable,
 } from "@remix-run/node";
 import {parse as parseCookieHeader} from "cookie";
+import fs from "fs-extra";
 import {
     IncomingHttpHeaders,
     IncomingMessage,
@@ -22,239 +22,372 @@ import {parseArgs} from "util";
 import {defaultClientInfo, defaultMobileClientInfo} from "~/client/remix/client_info_context.js";
 import {createAwsContextModules} from "~/server/aws/create_aws_context_modules.js";
 import {Session} from "~/server/dynamo/accounts_table.js";
-import {MaybeSessionActorContextModule} from "~/server/dynamo/context/actor_context_module.js";
+import {
+    AppSessionActorContextModule,
+    AppSystemActorContextModule,
+    AppUnknownActorContextModule,
+} from "~/server/dynamo/context/app_actor_context_module.js";
 import {NotificationsContextModule} from "~/server/dynamo/context/notifications_context_module.js";
 import {DynamoBatchContextModule} from "~/server/dynamo/dynamo_context_module.js";
 import {seedDynamo} from "~/server/dynamo/seed_dynamo.js";
+import {isAccountMemberOfSpace} from "~/server/dynamo/spaces_table.js";
 import {LoaderContextModule, LoaderContextModules} from "~/server/remix/loader_context.js";
-import {SessionCookieStorage} from "~/server/remix/session_cookie.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
+import {SessionCookie, withSessionCookie} from "~/server/tokens/session_cookie.js";
+import {AppServiceTokenAgent} from "~/server/tokens/token_agent.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {traceFetchResponse} from "~/server/tracer/trace_fetch_response.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError, InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isId} from "~/shared/id/id.js";
+import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 import {ClientInfoSchema} from "~/shared/remix/client_info.js";
 
-// NOCOMMIT: Add back durable objects and queues!
+// NOCOMMIT: Add back durable objects, static assets, and queues!
 
-const {
-    values: {
-        port: portString,
-        sessionCookieSecret,
+main().catch(error => {
+    // eslint-disable-next-line no-console
+    console.error(error);
+    process.exitCode = 1;
+});
+
+async function main() {
+    const {
+        values: {
+            port: portString,
+            appServicePublicKey: appServicePublicKeyPath,
+            edgeServiceFamilyPublicKey: edgeServiceFamilyPublicKeyPath,
+            appServicePrivateKey: appServicePrivateKeyPath,
+            awsAccessKeyId,
+            awsSecretAccessKey,
+            honeycombApiKey,
+            devServerPort,
+            dynamoLocalPort,
+            shouldSeedDynamo,
+        },
+    } = parseArgs({
+        options: {
+            port: {type: "string"},
+            appServicePublicKey: {type: "string"},
+            edgeServiceFamilyPublicKey: {type: "string"},
+            appServicePrivateKey: {type: "string"},
+            awsAccessKeyId: {type: "string"},
+            awsSecretAccessKey: {type: "string"},
+            honeycombApiKey: {type: "string"},
+            devServerPort: {type: "string"},
+            dynamoLocalPort: {type: "string"},
+            shouldSeedDynamo: {type: "boolean"},
+        },
+    });
+
+    if (!portString) throw new InternalError("Missing `port` arg");
+    if (!appServicePublicKeyPath) throw new InternalError("Missing `appServicePublicKey` arg");
+    if (!edgeServiceFamilyPublicKeyPath)
+        throw new InternalError("Missing `edgeServiceFamilyPublicKeyPath` arg");
+    if (!appServicePrivateKeyPath) throw new InternalError("Missing `appServicePrivateKey` arg");
+
+    const port = parseInt(portString, 10);
+
+    const [appServicePublicKey, edgeServiceFamilyPublicKey, appServicePrivateKey] =
+        await runAllPromises([
+            fs.readFile(appServicePublicKeyPath, "utf8"),
+            fs.readFile(edgeServiceFamilyPublicKeyPath, "utf8"),
+            fs.readFile(appServicePrivateKeyPath, "utf8"),
+        ]);
+
+    const tokenAgent = await AppServiceTokenAgent.new({
+        appServicePublicKey,
+        edgeServiceFamilyPublicKey,
+        appServicePrivateKey,
+    });
+
+    const awsContextModules = createAwsContextModules({
         awsAccessKeyId,
         awsSecretAccessKey,
-        honeycombApiKey,
-        devServerPort,
         dynamoLocalPort,
-        shouldSeedDynamo,
-    },
-} = parseArgs({
-    options: {
-        port: {type: "string"},
-        sessionCookieSecret: {type: "string"},
-        awsAccessKeyId: {type: "string"},
-        awsSecretAccessKey: {type: "string"},
-        honeycombApiKey: {type: "string"},
-        devServerPort: {type: "string"},
-        dynamoLocalPort: {type: "string"},
-        shouldSeedDynamo: {type: "boolean"},
-    },
-});
-
-if (!portString) throw new InternalError("Missing `port` arg");
-if (!sessionCookieSecret) throw new InternalError("Missing `sessionCookieSecret` arg");
-
-const port = parseInt(portString, 10);
-
-const sessionCookieStorage = new SessionCookieStorage({
-    // The session cookie domain is not set in development because we may be
-    // accessing from a proxied domain or an IP address on a mobile device.
-    domain: process.env.NODE_ENV === "production" ? "cyberworlds.dev" : null,
-    secret: sessionCookieSecret,
-});
-
-const awsContextModules = createAwsContextModules({
-    awsAccessKeyId,
-    awsSecretAccessKey,
-    dynamoLocalPort,
-});
-
-let hasSeededDynamo = false;
-
-const handleRequest = createRequestHandler(build, process.env.NODE_ENV);
-
-const server = createServer((req, res) => {
-    const request = createRequest(req);
-    const url = new URL(request.url);
-
-    // Create a new tracer for every request because we need a Honeycomb client and
-    // the Honeycomb client needs `executionContext.waitUntil()` which is request
-    // scoped. Tracers are cheap to construct so this is fine.
-    const tracer = createServerTracer({
-        serviceName: "AppServer",
-        honeycombApiKey,
-        waitUntil: promise => {
-            // We don't need to extend the lifetime of our Node.js process with a promise.
-            // If the tracer throws an error, well, there's nowhere else to send the error.
-            promise.catch(error => {
-                // eslint-disable-next-line no-console
-                console.error(error);
-            });
-        },
     });
 
-    const responsePromise = traceFetchResponse(tracer, request, url, (span, request) => {
-        return sessionCookieStorage.with(request, sessionCookiePromise => {
-            const cookieHeader = request.headers.get("cookie");
-            const clientInfoCookieString = cookieHeader
-                ? parseCookieHeader(cookieHeader)["client-info"]
-                : null;
+    let hasSeededDynamo = false;
 
-            let clientInfo = defaultClientInfo;
-            if (clientInfoCookieString) {
-                try {
-                    clientInfo = ClientInfoSchema.deserialize(JSON.parse(clientInfoCookieString));
-                } catch {
-                    // Ignore any errors when parsing the client info cookie.
-                }
-            } else {
-                // Device detection with user-agent parsing is generally bad and should be
-                // avoided. However, in the case where we don't yet have a client info cookie
-                // we use the user agent as a hint to determine what our default when
-                // server-side rendering should be. We have logic on the client to heal the
-                // cookie if we guess wrong. The user will see a quick flash of content but
-                // that's all.
-                //
-                // [MDN recommends testing for the string "Mobi" to tell if we are on a
-                // mobile device][1].
-                //
-                // [1]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Browser_detection_using_the_user_agent#mobile_tablet_or_desktop
-                if (/Mobi/i.test(request.headers.get("user-agent") ?? "")) {
-                    clientInfo = defaultMobileClientInfo;
-                }
-            }
+    const handleRequest = createRequestHandler(build, process.env.NODE_ENV);
 
-            return Context.with<LoaderContextModules, globalThis.Response>(
-                {
-                    ...awsContextModules,
-                    process: new ProcessContextModule({
-                        waitUntil: promise => {
-                            // Don't crash the process when there's an uncaught promise exception in
-                            // `waitUntil()` but definitely log it.
-                            promise.catch(error => {
-                                // eslint-disable-next-line no-console
-                                if (process.env.NODE_ENV !== "production") console.error(error);
+    const server = createServer((req, res) => {
+        const request = createRequest(req);
+        const url = new URL(request.url);
 
-                                tracer.logUncaughtException(
-                                    "Uncaught exception in `waitUntil()`",
-                                    error,
-                                );
-                            });
-                        },
-                    }),
-                    tracer: new TracerContextModule(span),
-                    rpc: new LocalRpcContextModule(),
-                    loader: new LoaderContextModule({
-                        sessionCookiePromise,
-                        clientInfo,
-                        devServerPort: devServerPort ? parseInt(devServerPort, 10) : null,
-                    }),
-                    cache: new CacheContextModule(),
-                    dynamoBatchContext: new DynamoBatchContextModule(),
-                    notifications: new NotificationsContextModule({}),
+        // Create a new tracer for every request because we need a Honeycomb client and
+        // the Honeycomb client needs `executionContext.waitUntil()` which is request
+        // scoped. Tracers are cheap to construct so this is fine.
+        const tracer = createServerTracer({
+            serviceName: "AppService",
+            honeycombApiKey,
+            waitUntil: promise => {
+                // We don't need to extend the lifetime of our Node.js process with a promise.
+                // If the tracer throws an error, well, there's nowhere else to send the error.
+                promise.catch(error => {
+                    // eslint-disable-next-line no-console
+                    console.error(error);
+                });
+            },
+        });
 
-                    actor: new MaybeSessionActorContextModule(async context => {
-                        const sessionCookie = await sessionCookiePromise;
+        const responsePromise = traceFetchResponse(tracer, request, url, (span, request) => {
+            return withSessionCookie(tokenAgent, request, sessionCookie => {
+                const cookieHeader = request.headers.get("cookie");
+                const clientInfoCookieString = cookieHeader
+                    ? parseCookieHeader(cookieHeader)["client-info"]
+                    : null;
 
-                        const {sessionId, sessionAccountId} = sessionCookie.get();
-                        if (!sessionId) return null;
-
-                        const session = await Session.getIfExists(
-                            context,
-                            sessionId,
-                            sessionAccountId ?? null,
+                let clientInfo = defaultClientInfo;
+                if (clientInfoCookieString) {
+                    try {
+                        clientInfo = ClientInfoSchema.deserialize(
+                            JSON.parse(clientInfoCookieString),
                         );
-                        if (!session) {
-                            // If the session was deleted since we stored the session in our cookie, remove
-                            // the session from the cookie.
-                            sessionCookie.unsetSessionId();
-                            return null;
+                    } catch {
+                        // Ignore any errors when parsing the client info cookie.
+                    }
+                } else {
+                    // Device detection with user-agent parsing is generally bad and should be
+                    // avoided. However, in the case where we don't yet have a client info cookie
+                    // we use the user agent as a hint to determine what our default when
+                    // server-side rendering should be. We have logic on the client to heal the
+                    // cookie if we guess wrong. The user will see a quick flash of content but
+                    // that's all.
+                    //
+                    // [MDN recommends testing for the string "Mobi" to tell if we are on a
+                    // mobile device][1].
+                    //
+                    // [1]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Browser_detection_using_the_user_agent#mobile_tablet_or_desktop
+                    if (/Mobi/i.test(request.headers.get("user-agent") ?? "")) {
+                        clientInfo = defaultMobileClientInfo;
+                    }
+                }
+
+                return Context.with<LoaderContextModules, globalThis.Response>(
+                    {
+                        ...awsContextModules,
+                        process: new ProcessContextModule({
+                            waitUntil: promise => {
+                                // Don't crash the process when there's an uncaught promise exception in
+                                // `waitUntil()` but definitely log it.
+                                promise.catch(error => {
+                                    // eslint-disable-next-line no-console
+                                    if (process.env.NODE_ENV !== "production") console.error(error);
+
+                                    tracer.logUncaughtException(
+                                        "Uncaught exception in `waitUntil()`",
+                                        error,
+                                    );
+                                });
+                            },
+                        }),
+                        tracer: new TracerContextModule(span),
+                        rpc: new LocalRpcContextModule(),
+                        loader: new LoaderContextModule({
+                            sessionCookie,
+                            clientInfo,
+                            devServerPort: devServerPort ? parseInt(devServerPort, 10) : null,
+                        }),
+                        cache: new CacheContextModule(),
+                        dynamoBatchContext: new DynamoBatchContextModule(),
+                        notifications: new NotificationsContextModule({}),
+                        actor: createActorContextModule(request, url, tokenAgent, sessionCookie),
+                    },
+                    context => {
+                        // The first time our server process runs in development, seed DynamoDB with
+                        // some initial data. The seed function should be idempotent.
+                        if (
+                            process.env.NODE_ENV !== "production" &&
+                            shouldSeedDynamo &&
+                            !hasSeededDynamo
+                        ) {
+                            hasSeededDynamo = true;
+                            context.process.waitUntil(async () => {
+                                try {
+                                    await seedDynamo(context);
+                                } catch (error) {
+                                    // If there is an error, log it but don't crash the process.
+                                    // eslint-disable-next-line no-console
+                                    console.error(
+                                        InternalError.from(error, "Failed to seed DynamoDB data"),
+                                    );
+                                }
+                            });
                         }
 
-                        // Optimization: Add the account ID for the session to our cookie which allows
-                        // us to load account data in parallel with session data in the future.
-                        if (!sessionAccountId)
-                            sessionCookie.dangerouslySetSessionId(sessionId, session.accountId);
-
-                        return session;
-                    }),
-                },
-                context => {
-                    // The first time our server process runs in development, seed DynamoDB with
-                    // some initial data. The seed function should be idempotent.
-                    if (
-                        process.env.NODE_ENV !== "production" &&
-                        shouldSeedDynamo &&
-                        !hasSeededDynamo
-                    ) {
-                        hasSeededDynamo = true;
-                        context.process.waitUntil(async () => {
-                            try {
-                                await seedDynamo(context);
-                            } catch (error) {
-                                // If there is an error, log it but don't crash the process.
-                                // eslint-disable-next-line no-console
-                                console.error(
-                                    InternalError.from(error, "Failed to seed DynamoDB data"),
-                                );
-                            }
-                        });
-                    }
-
-                    return handleRequest(request, context);
-                },
-            );
+                        return handleRequest(request, context);
+                    },
+                );
+            });
         });
+
+        responsePromise.then(
+            response => sendResponse(res, response as NodeResponse),
+            error => {
+                // Errors should be caught and handled by this point. So this error handler is
+                // for unexpected internal code failures.
+                // eslint-disable-next-line no-console
+                console.error(error);
+
+                res.writeHead(500, {"content-type": "text/plain"});
+                res.write(STATUS_CODES[res.statusCode]);
+                res.end();
+            },
+        );
     });
 
-    responsePromise.then(
-        response => sendResponse(res, response as Response),
-        error => {
-            // Errors should be caught and handled by this point. So this error handler is
-            // for unexpected internal code failures.
-            // eslint-disable-next-line no-console
-            console.error(error);
+    server.listen(port);
+}
 
-            res.writeHead(500, {"content-type": "text/plain"});
-            res.write(STATUS_CODES[res.statusCode]);
-            res.end();
-        },
-    );
-});
+function createActorContextModule(
+    request: Request,
+    url: URL,
+    tokenAgent: AppServiceTokenAgent,
+    sessionCookie: SessionCookie,
+) {
+    // Clients can authenticate with our app service in one of two ways:
+    //
+    // 1. Session cookie authentication. This is what web browsers use. We put a
+    //    token in an HTTP only cookie and that token identifies the user. Only
+    //    tokens issued by `AppService` are accepted in the session cookie. You can
+    //    only authenticate as an account session with this method.
+    //
+    // 2. Authorization header authentication. This is what HTTP clients use. They
+    //    put a token in an "Authorization" HTTP header. This is how the edge
+    //    service family executes RPCs against our app service. You can
+    //    authenticate as a session or system actor through an authorization header.
+    //
+    // We authenticate lazily. If a route doesn't need authentication this function
+    // never gets called. You can also parallelize other network requests with
+    // authentication deeper in a route. Once we authenticate it is cached for
+    // the route.
+    return new AppUnknownActorContextModule(async context => {
+        const sessionCookiePayload = await sessionCookie.getIfExists();
+        const authorizationHeader = request.headers.get("authorization");
 
-server.listen(port);
+        // Optimization: When loading our session from the database, also attempt to
+        // load whether the account associated with the session is a member of the
+        // space we're in. We try to determine the `SpaceId` we're in through various
+        // hint heuristics. It's not required that we know the `SpaceId` here, if we
+        // don't know the `SpaceId` we'll authorize the account later.
+        const getSessionIfExists = async (
+            sessionId: SessionId,
+            accountId: AccountId,
+        ): Promise<Session | null> => {
+            const spaceIdStringHint =
+                request.headers.get("cyberworlds-space-id-hint") ??
+                url.pathname.match(/^\/s\/([a-zA-Z0-9]+)(?:\/|$)/)?.[1];
+
+            const spaceIdHint =
+                spaceIdStringHint && isId<SpaceId>(spaceIdStringHint)
+                    ? spaceIdStringHint
+                    : undefined;
+
+            if (!spaceIdHint) {
+                return Session.getIfExists(context, sessionId, accountId);
+            }
+
+            const [session] = await runAllPromises([
+                Session.getIfExists(context, sessionId, accountId),
+                // This function caches its result for the duration of the request. Which is
+                // why we can call it here and ignore the output.
+                isAccountMemberOfSpace(context, spaceIdHint, accountId),
+            ]);
+
+            return session;
+        };
+
+        if (sessionCookiePayload && authorizationHeader) {
+            throw new InvalidArgumentError(
+                'Can\'t provide both an "Authorization" header and a session cookie',
+            );
+        }
+
+        // 1. Session cookie authentication
+        if (sessionCookiePayload) {
+            const session = await getSessionIfExists(
+                sessionCookiePayload.sessionId,
+                sessionCookiePayload.accountId,
+            );
+            if (!session) {
+                // Remove our session cookie if the session was deleted from the database.
+                sessionCookie.dangerouslySet(null);
+                return null;
+            }
+
+            // If we receive a session cookie, we treat the request as if it came from a
+            // user's web browser and use the `AppClient` service name.
+            return AppSessionActorContextModule.dangerouslyNew("AppClient", session);
+        }
+
+        // 2. Authorization header authentication
+        if (authorizationHeader) {
+            const authorizationHeaderMatch = authorizationHeader.match(/^bearer (.+)$/i);
+
+            if (!authorizationHeaderMatch) {
+                throw new InvalidArgumentError(
+                    'Expected "Authorization" header to have "Bearer" authentication scheme',
+                );
+            }
+
+            const authorizationHeaderToken = authorizationHeaderMatch[1] ?? "";
+            const {serviceName, payload: authorizationHeaderPayload} = await tokenAgent.verifyToken(
+                authorizationHeaderToken,
+            );
+
+            switch (authorizationHeaderPayload.type) {
+                case "Session": {
+                    const session = await getSessionIfExists(
+                        authorizationHeaderPayload.sessionId,
+                        authorizationHeaderPayload.accountId,
+                    );
+                    if (!session) {
+                        throw new PermissionDeniedError("Session not found");
+                    }
+                    return AppSessionActorContextModule.dangerouslyNew(serviceName, session);
+                }
+                case "System": {
+                    return AppSystemActorContextModule.dangerouslyNew(
+                        serviceName,
+                        authorizationHeaderPayload.spaceId,
+                    );
+                }
+                default:
+                    throw exhaustive(authorizationHeaderPayload);
+            }
+        }
+
+        return null;
+    });
+}
 
 /**
  * Convert a Node.js request object to a WhatWG fetch request object.
  */
-function createRequest(req: IncomingMessage): Request {
+function createRequest(req: IncomingMessage): NodeRequest {
     const protocol = "http";
     const host = req.headers.host;
     const url = `${protocol}://${host!}${req.url!}`;
 
-    const init: RequestInit = {
+    const init: NodeRequestInit = {
         method: req.method,
         headers: createRequestHeaders(req.headers),
     };
 
     if (req.method !== "GET" && req.method !== "HEAD") {
+        // Derived from the following. Unclear to me how the `highWaterMark` number
+        // was picked.
+        // https://github.com/mcansh/remix-node-http-server/blob/230a8b5f270231011466c6b9452c543224588603/packages/remix-raw-http/src/server.ts#L90
         init.body = req.pipe(new PassThrough({highWaterMark: 16384}));
     }
 
-    return new Request(url, init);
+    return new NodeRequest(url, init);
 }
 
 /**
@@ -282,7 +415,7 @@ function createRequestHeaders(reqHeaders: IncomingHttpHeaders): Headers {
 /**
  * Convert a WhatWG response object to a Node.js response.
  */
-async function sendResponse(res: ServerResponse, response: Response) {
+async function sendResponse(res: ServerResponse, response: NodeResponse) {
     res.statusCode = response.status;
 
     for (const [key, values] of Object.entries(response.headers.raw())) {

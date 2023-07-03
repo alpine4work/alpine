@@ -1,18 +1,22 @@
 import {ChatRealtimeConnection} from "~/server/chat/chat_realtime_connection.js";
+import {
+    WorkerActionContext,
+    WorkerSessionActionContext,
+} from "~/server/cloudflare/context/worker_action_context.js";
+import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {createDurableObject} from "~/server/cloudflare/create_durable_object.js";
 import {WebSocketServer} from "~/server/cloudflare/web_socket_server.js";
-import {authorizeChatAccess} from "~/server/dynamo/chat_table.js";
-import {ActionContext, SessionActionContext} from "~/server/dynamo/context/action_context.js";
-import {ProcessContext} from "~/server/dynamo/context/process_context.js";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
+import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
+import {authorizeChatAccess as actuallyAuthorizeChatAccess} from "~/shared/rpc/chat_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 class ChatRealtimeDurableObject {
     public static readonly serviceName = "ChatRealtimeService";
 
-    private readonly _processContext: ProcessContext;
+    private readonly _processContext: WorkerProcessContext;
     private readonly _spaceId: SpaceId;
     private readonly _chatId: ChatId;
 
@@ -26,15 +30,12 @@ class ChatRealtimeDurableObject {
         initializeActionContext,
         idName,
     }: {
-        processContext: ProcessContext;
-        initializeActionContext: ActionContext;
+        processContext: WorkerProcessContext;
+        initializeActionContext: WorkerActionContext;
         idName: string;
     }): Promise<ChatRealtimeDurableObject> {
         const chatId = Schema.id<ChatId>().deserialize(idName);
-        const {spaceId} = await authorizeChatAccess(
-            initializeActionContext.actor.authorizeSession(),
-            chatId,
-        );
+        const {spaceId} = await authorizeChatAccess(initializeActionContext, chatId);
 
         return new ChatRealtimeDurableObject({
             processContext,
@@ -48,7 +49,7 @@ class ChatRealtimeDurableObject {
         spaceId,
         chatId,
     }: {
-        processContext: ProcessContext;
+        processContext: WorkerProcessContext;
         spaceId: SpaceId;
         chatId: ChatId;
     }) {
@@ -83,7 +84,7 @@ class ChatRealtimeDurableObject {
         );
     }
 
-    public async fetch(context: ActionContext, request: Request): Promise<Response> {
+    public async fetch(context: WorkerActionContext, request: Request): Promise<Response> {
         // Propagate the chat id to all logs for this durable object.
         context = context.tracer.withPropagatedData({
             context: {spaceId: this._spaceId, chatId: this._chatId},
@@ -94,10 +95,19 @@ class ChatRealtimeDurableObject {
         return this._webSocketServer.upgrade(context.actor.authorizeSession(), request);
     }
 
-    public connectForTest(context: SessionActionContext) {
+    public connectForTest(context: WorkerSessionActionContext) {
         return this._webSocketServer.connectForTest(context);
     }
 }
 
 const ChatRealtimeDurableObjectWrapper = createDurableObject(ChatRealtimeDurableObject);
 export {ChatRealtimeDurableObjectWrapper as ChatRealtimeDurableObject};
+
+const ChatAccessCache = new ContextCache<ChatId, {spaceId: SpaceId}>();
+
+function authorizeChatAccess(context: WorkerActionContext, chatId: ChatId) {
+    // Authorize chat access once per action then cache the result.
+    return ChatAccessCache.get(context, chatId, () =>
+        actuallyAuthorizeChatAccess(context, {chatId}),
+    );
+}

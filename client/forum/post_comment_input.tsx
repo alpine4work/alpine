@@ -59,7 +59,7 @@ export function PostCommentInput({
     // realtime when comments are open so works out.
     const {isConnected, procedures, subscribeToEvents} = useWebSocket(
         PostRealtimeProtocol,
-        `/durable-objects/posts/${post.id}`,
+        `/api/durable-objects/posts/${post.id}`,
     );
 
     useImperativeHandle(

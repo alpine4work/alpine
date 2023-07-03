@@ -50,7 +50,7 @@ export async function loader({request, context: _context, params}: LoaderArgs) {
         // It's important that we check `selectedAccounts` is empty before removing the
         // current account ID. In case the user selects their own account.
         selectedAccountIds.length > 0
-            ? selectChatForAccounts(context, {
+            ? selectChatForAccounts(context.actor.authorizeSession(), {
                   spaceId,
                   otherAccountIds: selectedAccountIds,
                   messagesLimit: getInitialLoadMessageCount(context.loader.clientInfo),

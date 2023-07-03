@@ -9,12 +9,12 @@ import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schem
 import {SpaceLayoutTopBar} from "~/client/spaces/layout/space_layout_top_bar.js";
 import {SpaceContextProvider} from "~/client/spaces/space_context.js";
 import {getInbox} from "~/server/dynamo/notifications_table.js";
-import {getSpaceWithOptimisticSessionAccountId} from "~/server/dynamo/spaces_table.js";
+import {getSpace} from "~/server/dynamo/spaces_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
-import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -40,26 +40,16 @@ export function links(): Array<LinkDescriptor> {
 export const shouldRevalidate: ShouldRevalidateFunction = ({currentParams, nextParams}) =>
     currentParams.spaceId !== nextParams.spaceId;
 
-export async function loader({context, params}: LoaderArgs) {
+export async function loader({context: loaderContext, params}: LoaderArgs) {
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
 
-    const [[currentAccount, inbox], space] = await runAllPromiseThunks(
-        async () => {
-            const authenticatedContext = await context.actor.authenticate();
-            return runAllPromises([
-                authenticatedContext.actor.getAccount(),
-                getInbox(authenticatedContext, {spaceId}),
-            ]);
-        },
-        async () => {
-            const sessionCookie = await context.loader.getSessionCookie();
-            return getSpaceWithOptimisticSessionAccountId(
-                context,
-                spaceId,
-                sessionCookie.get().sessionAccountId ?? null,
-            );
-        },
-    );
+    const context = (await loaderContext.actor.authenticate()).actor.authorizeSession();
+
+    const [space, currentAccount, inbox] = await runAllPromises([
+        getSpace(context, spaceId),
+        context.actor.getAccount(),
+        getInbox(context, {spaceId}),
+    ]);
 
     const propagateEventData: TracerEventData = {
         context: {

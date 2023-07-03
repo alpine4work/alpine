@@ -3,6 +3,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "notifications",
     test_deps = [
+        "//server/dynamo:dynamo_testonly",
         "//server/dynamo/test_helpers/shared",
         "//server/dynamo/test_helpers/jest",
     ],
@@ -12,7 +13,6 @@ ts_project(
     ],
     deps = [
         "//server/cloudflare",
-        "//server/dynamo",
         "//shared/accounts",
         "//shared/error",
         "//shared/helpers",

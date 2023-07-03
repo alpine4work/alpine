@@ -1,20 +1,19 @@
+import {WorkerActionContext} from "~/server/cloudflare/context/worker_action_context.js";
+import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {createDurableObject} from "~/server/cloudflare/create_durable_object.js";
 import {WebSocketServer} from "~/server/cloudflare/web_socket_server.js";
-import {getAccountIfExists} from "~/server/dynamo/accounts_table.js";
-import {ActionContext} from "~/server/dynamo/context/action_context.js";
-import {MyAccountInboxRealtimeEventTransactionSchema} from "~/server/dynamo/context/notifications_context_module.js";
-import {ProcessContext} from "~/server/dynamo/context/process_context.js";
 import {MyAccountConnection} from "~/server/notifications/my_account_connection.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {MyAccountProtocol} from "~/shared/notifications/my_account_protocol.js";
+import {getAccountIfExists} from "~/shared/rpc/accounts_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 class MyAccountDurableObject {
     public static readonly serviceName = "MyAccountService";
 
-    private readonly _processContext: ProcessContext;
+    private readonly _processContext: WorkerProcessContext;
     private readonly _accountId: AccountId;
 
     private readonly _webSocketServer: WebSocketServer<
@@ -27,8 +26,8 @@ class MyAccountDurableObject {
         initializeActionContext,
         idName,
     }: {
-        processContext: ProcessContext;
-        initializeActionContext: ActionContext;
+        processContext: WorkerProcessContext;
+        initializeActionContext: WorkerActionContext;
         idName: string;
     }): Promise<MyAccountDurableObject> {
         const accountId = Schema.id<AccountId>().deserialize(idName);
@@ -45,7 +44,7 @@ class MyAccountDurableObject {
         processContext,
         accountId,
     }: {
-        processContext: ProcessContext;
+        processContext: WorkerProcessContext;
         accountId: AccountId;
     }) {
         // Propagate the `AccountId` to all logs for this durable object.
@@ -64,7 +63,7 @@ class MyAccountDurableObject {
         );
     }
 
-    public async fetch(context: ActionContext, request: Request): Promise<Response> {
+    public async fetch(context: WorkerActionContext, request: Request): Promise<Response> {
         // Propagate the `AccountId` to all logs for this durable object.
         context = context.tracer.withPropagatedData({
             context: {accountId: this._accountId},
@@ -76,17 +75,19 @@ class MyAccountDurableObject {
                 return this._webSocketServer.upgrade(context.actor.authorizeSession(), request);
             }
             case "/inbox-realtime-event-transaction": {
-                await authorizeMyAccountAccess(context, this._accountId);
-
-                const {readTime, eventTransaction} =
-                    MyAccountInboxRealtimeEventTransactionSchema.deserialize(await request.json());
-
-                // Forward the event transaction to all our connected clients...
-                this._webSocketServer.sendEventToAll(context, {
-                    type: "InboxRealtimeEventTransaction",
-                    readTime,
-                    eventTransaction,
-                });
+                // NOCOMMIT
+                //
+                // await authorizeMyAccountAccess(context, this._accountId);
+                //
+                // const {readTime, eventTransaction} =
+                //     MyAccountInboxRealtimeEventTransactionSchema.deserialize(await request.json());
+                //
+                // // Forward the event transaction to all our connected clients...
+                // this._webSocketServer.sendEventToAll(context, {
+                //     type: "InboxRealtimeEventTransaction",
+                //     readTime,
+                //     eventTransaction,
+                // });
 
                 return new Response();
             }
@@ -99,7 +100,7 @@ class MyAccountDurableObject {
 const MyAccountDurableObjectWrapper = createDurableObject(MyAccountDurableObject);
 export {MyAccountDurableObjectWrapper as MyAccountDurableObject};
 
-async function authorizeMyAccountAccess(context: ActionContext, accountId: AccountId) {
+async function authorizeMyAccountAccess(context: WorkerActionContext, accountId: AccountId) {
     switch (context.actor.type) {
         case "Session": {
             if (context.actor.getAccountId() !== accountId) {
@@ -110,7 +111,11 @@ async function authorizeMyAccountAccess(context: ActionContext, accountId: Accou
             break;
         }
         case "System": {
-            if (!(await getAccountIfExists(context, context.actor.getSpaceId(), accountId))) {
+            const {account} = await getAccountIfExists(context, {
+                spaceId: context.actor.getSpaceId(),
+                accountId: accountId,
+            });
+            if (!account) {
                 throw new PermissionDeniedError("Account does not exist in space");
             }
             break;

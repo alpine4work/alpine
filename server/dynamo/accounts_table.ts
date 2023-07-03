@@ -1,5 +1,8 @@
 import {differenceInHours, differenceInMinutes} from "date-fns";
-import {ActionContext, MaybeSessionActionContext} from "~/server/dynamo/context/action_context.js";
+import {
+    AppActionContext,
+    AppAmbiguousActionContext,
+} from "~/server/dynamo/context/app_action_context.js";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry.js";
@@ -297,7 +300,7 @@ export function createAccountForAlphaTransactionEntries({
  * provided email address. Sends the password to the account's email address.
  */
 export async function regenerateOneTimePasswordSignIn(
-    context: MaybeSessionActionContext,
+    context: AppAmbiguousActionContext,
     emailAddress: EmailAddress,
 ): Promise<void> {
     const generatedTime = new Date();
@@ -355,9 +358,10 @@ export async function regenerateOneTimePasswordSignIn(
     // setting a global function.
     if (
         process.env.NODE_ENV !== "production" &&
-        typeof globalThis.__logOneTimePassword === "function"
+        // NOCOMMIT: Doesn't work in Node.js!
+        typeof (globalThis as any).__logOneTimePassword === "function"
     ) {
-        globalThis.__logOneTimePassword({emailAddress, oneTimePassword: password});
+        (globalThis as any).__logOneTimePassword({emailAddress, oneTimePassword: password});
     }
 
     await context.email.send({
@@ -705,7 +709,7 @@ function createAccountModelFromItem(accountItem: AccountItem) {
  * Authorizes the account for this request has internal access. Throws a
  * `PermissionDeniedError` if not.
  */
-export async function authorizeInternalAccess(context: ActionContext) {
+export async function authorizeInternalAccess(context: AppActionContext) {
     switch (context.actor.type) {
         case "Session": {
             const account = await context.actor.getAccount();
@@ -757,7 +761,7 @@ async function getAccountIfExistsWithoutAuthorization(
  * is not a member of the provided space then we also return null.
  */
 export function getAccountIfExists(
-    context: ActionContext,
+    context: AppActionContext,
     spaceId: SpaceId,
     // You may call this function `ContentMentionAccountId` since it does not throw
     // when the account does not exist in the space.
@@ -795,7 +799,7 @@ export function getAccountIfExists(
  * with `ContentMentionAccountId`.
  */
 export async function getAccount(
-    context: ActionContext,
+    context: AppActionContext,
     spaceId: SpaceId,
     accountId: AccountId,
 ): Promise<AccountModel> {

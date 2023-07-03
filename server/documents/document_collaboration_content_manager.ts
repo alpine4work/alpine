@@ -1,23 +1,27 @@
-import {Node} from "prosemirror-model";
 import {Step} from "prosemirror-transform";
-import {DocumentCollaborationStepCache} from "~/server/documents/document_collaboration_step_cache.js";
-import {getAccount} from "~/server/dynamo/accounts_table.js";
-import {ActionContext, SessionActionContext} from "~/server/dynamo/context/action_context.js";
-import {ProcessContext} from "~/server/dynamo/context/process_context.js";
 import {
-    batchGetDocumentCommentThreadsIfExists,
-    getUpdateDocumentContentResult,
-    updateDocumentContent,
-} from "~/server/dynamo/documents_table.js";
-import {getContentReferencesForSteps} from "~/server/dynamo/helpers/get_content_references.js";
+    WorkerActionContext,
+    WorkerSessionActionContext,
+} from "~/server/cloudflare/context/worker_action_context.js";
+import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
+import {DocumentCollaborationStepCache} from "~/server/documents/document_collaboration_step_cache.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {
     DocumentCollaborationEvent,
     DocumentCollaborationPresenceState,
 } from "~/shared/documents/document_collaboration_protocol.js";
+import {
+    getDocumentContentReferencedIdsForSteps,
+    isEmptyDocumentContentReferencedIds,
+} from "~/shared/documents/document_content_referenced_ids.js";
+import {
+    DocumentContentReferences,
+    emptyDocumentContentReferences,
+} from "~/shared/documents/document_content_references.js";
 import {DocumentContent, isDocumentContent} from "~/shared/documents/document_content_schema.js";
 import {DocumentCommentThreadModel} from "~/shared/documents/document_model.js";
+import {getUpdateDocumentContentResult} from "~/shared/documents/get_update_document_content_result.js";
 import {
     FailedPreconditionError,
     InternalError,
@@ -28,10 +32,8 @@ import {AsyncMutex} from "~/shared/helpers/async/async_mutex.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {assertId} from "~/shared/id/id.js";
 import {
     AccountId,
@@ -45,9 +47,13 @@ import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema.js";
 import {
     ProsemirrorVisitor,
-    visitProsemirrorNode,
     visitProsemirrorStep,
 } from "~/shared/prosemirror/prosemirror_visitor.js";
+import {getAccounts} from "~/shared/rpc/accounts_rpc_definitions.js";
+import {
+    getDocumentContentReferences,
+    updateDocumentContent,
+} from "~/shared/rpc/documents_rpc_definitions.js";
 
 export const documentCollaborationContentManagerBeforeUpdateTestCheckpoint =
     new TestCheckpoint<DocumentId>();
@@ -73,10 +79,10 @@ export class DocumentCollaborationContentManager {
     public readonly id: DocumentId;
     public readonly stepCache: DocumentCollaborationStepCache;
     private readonly _sendEventToAll: (
-        context: ProcessContext,
+        context: WorkerProcessContext,
         event: DocumentCollaborationEvent,
     ) => void;
-    private readonly _killProcess: (context: ProcessContext) => void;
+    private readonly _killProcess: (context: WorkerProcessContext) => void;
 
     private _state: AsyncMutex<{
         readonly version: number;
@@ -136,8 +142,8 @@ export class DocumentCollaborationContentManager {
         id: DocumentId;
         initialVersion: number;
         initialContent: DocumentContent;
-        sendEventToAll: (context: ProcessContext, event: DocumentCollaborationEvent) => void;
-        killProcess: (context: ProcessContext) => void;
+        sendEventToAll: (context: WorkerProcessContext, event: DocumentCollaborationEvent) => void;
+        killProcess: (context: WorkerProcessContext) => void;
     }) {
         this.spaceId = spaceId;
         this.id = id;
@@ -191,7 +197,7 @@ export class DocumentCollaborationContentManager {
      * Gets the document content at the specified version number.
      */
     public async getContentAtVersion(
-        context: ActionContext,
+        context: WorkerActionContext,
         version: number,
     ): Promise<DocumentContent> {
         const state = this._state.get();
@@ -227,7 +233,7 @@ export class DocumentCollaborationContentManager {
      * `newSteps` applied to `content` produces `newContent`.
      */
     public async update(
-        context: SessionActionContext,
+        context: WorkerSessionActionContext,
         connectionId: WebSocketConnectionId,
         update: {
             version: number;
@@ -391,7 +397,7 @@ export class DocumentCollaborationContentManager {
                                         const {conflictingSteps} = await updateDocumentContent(
                                             context,
                                             {
-                                                id: this.id,
+                                                documentId: this.id,
                                                 version: oldVersion,
                                                 steps: nextSteps,
                                                 clientId: update.clientId,
@@ -434,12 +440,12 @@ export class DocumentCollaborationContentManager {
                                             type: "PersistedContent",
                                             newVersion: oldVersion + nextSteps.length,
                                         });
-                                    } catch (_error) {
+                                    } catch (unknownError) {
                                         // Upgrade the severity of non-internal errors to internal since the client has
                                         // already seen the update.
-                                        const error = !isSystemError(_error)
-                                            ? InternalError.from(_error)
-                                            : _error;
+                                        const error = !isSystemError(unknownError)
+                                            ? InternalError.from(unknownError)
+                                            : unknownError;
 
                                         span.addException(error);
 
@@ -477,10 +483,7 @@ export class DocumentCollaborationContentManager {
 
         if (steps.length === 0) return {presenceState, hasSentPresenceState: false};
 
-        const [stepsContentReferences, commentThreadById] = await runAllPromises([
-            getContentReferencesForSteps(context, this.spaceId, steps),
-            this.getCommentThreadByIdForSteps(context, steps),
-        ]);
+        const stepsContentReferences = await this.getContentReferencesForSteps(context, steps);
 
         // We have to wait for some async data dependencies to send
         // `UpdateContentWithoutPersistence`. We load our data without:
@@ -495,7 +498,7 @@ export class DocumentCollaborationContentManager {
             type: "UpdateContentWithoutPersistence",
             newVersion: oldVersion + steps.length,
             steps,
-            stepsContentReferences: {...stepsContentReferences, commentThreadById},
+            stepsContentReferences,
             clientId: update.clientId,
             updateOtherPresenceState: {
                 connectionId,
@@ -507,59 +510,88 @@ export class DocumentCollaborationContentManager {
     }
 
     /**
-     * Get the comment thread models in the provided node for
-     * `DocumentContentReferences`.
-     *
-     * You shouldn't use `getDocumentCommentThreads()` directly for this purpose
-     * because our durable object may have acknowledged the creation of some
-     * comment threads but they haven't been persisted in the database yet.
-     */
-    public getCommentThreadByIdForNode(context: ActionContext, content: Node) {
-        return this._getCommentThreadById(context, visitor => {
-            visitProsemirrorNode(content, visitor);
-        });
-    }
-
-    /**
      * Get the comment thread models in the provided steps for
      * `DocumentContentReferences`.
      *
-     * You shouldn't use `getDocumentCommentThreads()` directly for this purpose
-     * because our durable object may have acknowledged the creation of some
-     * comment threads but they haven't been persisted in the database yet.
+     * You shouldn't use the `getDocumentCommentReferences()` RPC directly for
+     * this purpose because our durable object may have acknowledged the creation of
+     * some comment threads but they haven't been persisted in the database yet.
      */
-    public getCommentThreadByIdForSteps(context: ActionContext, steps: ReadonlyArray<Step>) {
-        return this._getCommentThreadById(context, visitor => {
-            for (const step of steps) {
-                visitProsemirrorStep(step, visitor);
-            }
+    public async getContentReferencesForSteps(
+        context: WorkerActionContext,
+        steps: ReadonlyArray<Step>,
+    ): Promise<DocumentContentReferences> {
+        const {optimisticCommentThreadIds, getOptimisticCommentThreadById} =
+            this._getOptimisticCommentThreads(context, visitor => {
+                for (const step of steps) {
+                    visitProsemirrorStep(step, visitor);
+                }
+            });
+
+        const referencedIds = getDocumentContentReferencedIdsForSteps(steps, {
+            // Optimization: Don't send a network request to load comment threads that
+            // haven't been persisted yet. We know they don't exist.
+            ignoreCommentThreadIds: optimisticCommentThreadIds,
         });
+
+        const [references, optimisticCommentThreadById] = await runAllPromises([
+            (async () => {
+                // Optimization: If we have no referenced IDs, then we don't need to send a
+                // network request.
+                if (isEmptyDocumentContentReferencedIds(referencedIds))
+                    return emptyDocumentContentReferences;
+
+                const {references} = await getDocumentContentReferences(context, {
+                    documentId: this.id,
+                    referencedIds,
+                });
+                return references;
+            })(),
+            getOptimisticCommentThreadById(),
+        ]);
+
+        return {
+            ...references,
+            commentThreadById: new Map(
+                concatIterables(references.commentThreadById, optimisticCommentThreadById),
+            ),
+        };
     }
 
-    private async _getCommentThreadById(
-        context: ActionContext,
+    private _getOptimisticCommentThreads(
+        context: WorkerActionContext,
         visit: (visitor: ProsemirrorVisitor) => void,
-    ): Promise<
-        Map<
-            DocumentCommentThreadId,
-            {readonly commentCount: number; readonly commentAuthors: ReadonlyArray<AccountModel>}
-        >
-    > {
-        const referencedCommentThreadIds = new Set<DocumentCommentThreadId>();
+    ): {
+        optimisticCommentThreadIds: Set<DocumentCommentThreadId>;
+        getOptimisticCommentThreadById: () => Promise<
+            Map<
+                DocumentCommentThreadId,
+                {
+                    readonly commentCount: number;
+                    readonly commentAuthors: ReadonlyArray<AccountModel>;
+                }
+            >
+        >;
+    } {
+        const commentThreadIds = new Set<DocumentCommentThreadId>();
 
         visit({
             visitMark: mark => {
                 if (mark.type.name === "comment") {
-                    referencedCommentThreadIds.add(
+                    commentThreadIds.add(
                         assertId<DocumentCommentThreadId>(mark.attrs.commentThreadId),
                     );
                 }
             },
         });
 
-        const commentThreadPromises: Array<Promise<DocumentCommentThreadModel>> = [];
+        const optimisticCommentThreadIds = new Set<DocumentCommentThreadId>();
+        const optimisticCommentThreadAuthorIds = new Set<AccountId>();
+        const createOptimisticCommentThreads: Array<
+            (accountById: Map<AccountId, AccountModel>) => DocumentCommentThreadModel
+        > = [];
 
-        for (const commentThreadId of referencedCommentThreadIds) {
+        for (const commentThreadId of commentThreadIds) {
             const optimisticCommentThread = this._optimisticCommentThreadById.get(commentThreadId);
             if (!optimisticCommentThread) continue;
 
@@ -568,12 +600,13 @@ export class DocumentCollaborationContentManager {
             // to load it from the database. So return an optimistic comment thread model
             // to the client.
             if (optimisticCommentThread.persistedAfterVersion > this._persistedVersion) {
-                // Since we are able to serve this comment thread in memory remove it from this
-                // set which we'll use for loading from the database.
-                referencedCommentThreadIds.delete(commentThreadId);
+                optimisticCommentThreadIds.add(commentThreadId);
+                optimisticCommentThreadAuthorIds.add(
+                    optimisticCommentThread.initialComment.authorId,
+                );
 
-                commentThreadPromises.push(
-                    (async () =>
+                createOptimisticCommentThreads.push(
+                    accountById =>
                         new DocumentCommentThreadModel({
                             id: commentThreadId,
                             documentId: this.id,
@@ -581,39 +614,35 @@ export class DocumentCollaborationContentManager {
                             commentCount: 1,
                             lastCommentChangeTime: null,
                             commentAuthors: [
-                                await getAccount(
-                                    context,
-                                    this.spaceId,
-                                    optimisticCommentThread.initialComment.authorId,
+                                assertExists(
+                                    accountById.get(
+                                        optimisticCommentThread.initialComment.authorId,
+                                    ),
                                 ),
                             ],
-                        }))(),
+                        }),
                 );
             }
         }
 
-        const [commentThreads1, commentThreads2] = await runAllPromises([
-            runAllPromises(commentThreadPromises),
-            referencedCommentThreadIds.size > 0
-                ? batchGetDocumentCommentThreadsIfExists(context, {
-                      documentId: this.id,
-                      commentThreadIds: referencedCommentThreadIds,
-                  })
-                : [],
-        ]);
+        return {
+            optimisticCommentThreadIds,
+            getOptimisticCommentThreadById: async () => {
+                const {accounts} = await getAccounts(context, {
+                    spaceId: this.spaceId,
+                    accountIds: optimisticCommentThreadAuthorIds,
+                });
 
-        return new Map(
-            mapIterable(
-                concatIterables(commentThreads1, filterIterable(commentThreads2, isNonNullable)),
-                commentThread => [
-                    commentThread.id,
-                    {
-                        commentCount: commentThread.commentCount,
-                        commentAuthors: commentThread.commentAuthors,
-                    },
-                ],
-            ),
-        );
+                const accountById = new Map(accounts.map(account => [account.id, account]));
+
+                return new Map(
+                    createOptimisticCommentThreads.map(createOptimisticCommentThread => {
+                        const commentThread = createOptimisticCommentThread(accountById);
+                        return [commentThread.id, commentThread];
+                    }),
+                );
+            },
+        };
     }
 
     /**

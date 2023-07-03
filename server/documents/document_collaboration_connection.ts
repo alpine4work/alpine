@@ -1,27 +1,13 @@
+import {WorkerActionContext} from "~/server/cloudflare/context/worker_action_context.js";
+import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {WebSocketConnectionProcedures} from "~/server/cloudflare/web_socket_server.js";
 import {
     DocumentCollaborationContentManager,
     DocumentCollaborationContentManagerOptimisticCommentThread,
 } from "~/server/documents/document_collaboration_content_manager.js";
-import {getAccount} from "~/server/dynamo/accounts_table.js";
-import {ActionContext} from "~/server/dynamo/context/action_context.js";
-import {ProcessContext} from "~/server/dynamo/context/process_context.js";
-import {
-    backfillDocumentComments,
-    createDocumentComment,
-    deleteDocumentComment,
-    getDocumentCommentThreadAndInitialComments,
-    getDocumentCommentsFromEnd,
-    getDocumentCommentsFromStart,
-    getDocumentPreviewIfExists,
-    updateDocumentCommentContent,
-} from "~/server/dynamo/documents_table.js";
-import {
-    getContentReferencesForNode,
-    getContentReferencesForSteps,
-} from "~/server/dynamo/helpers/get_content_references.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {MessagingRealtimeConnection} from "~/server/messaging/messaging_realtime_connection.js";
+import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {
     DocumentCollaborationEvent,
     DocumentCollaborationPresenceState,
@@ -45,6 +31,17 @@ import {
     DocumentId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
+import {
+    backfillDocumentComments,
+    createDocumentComment,
+    deleteDocumentComment,
+    getDocumentCommentThreadAndInitialComments,
+    getDocumentCommentsFromEnd,
+    getDocumentCommentsFromStart,
+    getDocumentPreviewIfExists,
+    getOptimisticDocumentCommentReferences,
+    updateDocumentCommentContent,
+} from "~/shared/rpc/documents_rpc_definitions.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export const documentCollaborationConnectionBeforeBackfillMessagesTestCheckpoint =
@@ -55,15 +52,15 @@ export class DocumentCollaborationConnection {
 
     private readonly _contentManager: DocumentCollaborationContentManager;
     private readonly _sendEvent: (
-        context: ProcessContext,
+        context: WorkerProcessContext,
         message: DocumentCollaborationEvent,
     ) => void;
     private readonly _sendEventToOthers: (
-        context: ProcessContext,
+        context: WorkerProcessContext,
         message: DocumentCollaborationEvent,
     ) => void;
     private readonly _iterateOtherConnections: () => Iterable<DocumentCollaborationConnection>;
-    private readonly _killProcess: (context: ProcessContext) => void;
+    private readonly _killProcess: (context: WorkerProcessContext) => void;
 
     private _state = new AsyncMutex<{
         presenceState: DocumentCollaborationPresenceState | null;
@@ -81,10 +78,13 @@ export class DocumentCollaborationConnection {
     }: {
         connectionId: WebSocketConnectionId;
         contentManager: DocumentCollaborationContentManager;
-        sendEvent: (context: ProcessContext, message: DocumentCollaborationEvent) => void;
-        sendEventToOthers: (context: ProcessContext, message: DocumentCollaborationEvent) => void;
+        sendEvent: (context: WorkerProcessContext, message: DocumentCollaborationEvent) => void;
+        sendEventToOthers: (
+            context: WorkerProcessContext,
+            message: DocumentCollaborationEvent,
+        ) => void;
         iterateOtherConnections: () => Iterable<DocumentCollaborationConnection>;
-        killProcess: (context: ProcessContext) => void;
+        killProcess: (context: WorkerProcessContext) => void;
     }) {
         this.connectionId = connectionId;
         this._contentManager = contentManager;
@@ -147,10 +147,9 @@ export class DocumentCollaborationConnection {
                     //
                     // So load the document from our database and if its version is ahead of the
                     // one in our durable object then we want to destroy the entire durable object.
-                    const documentPreview = await getDocumentPreviewIfExists(
-                        context,
-                        this._contentManager.id,
-                    );
+                    const {documentPreview} = await getDocumentPreviewIfExists(context, {
+                        documentId: this._contentManager.id,
+                    });
                     if (!documentPreview) {
                         const error = new NotFoundError(
                             "Document was deleted since durable object started",
@@ -181,24 +180,15 @@ export class DocumentCollaborationConnection {
                             version,
                         );
 
-                        const [stepsContentReferences, commentThreadById] = await runAllPromises([
-                            getContentReferencesForSteps(
-                                context,
-                                this._contentManager.spaceId,
-                                steps.map(({step}) => step),
-                            ),
-                            this._contentManager.getCommentThreadByIdForSteps(
+                        const stepsContentReferences =
+                            await this._contentManager.getContentReferencesForSteps(
                                 context,
                                 steps.map(({step}) => step),
-                            ),
-                        ]);
+                            );
 
                         return {
                             steps,
-                            stepsContentReferences: {
-                                ...stepsContentReferences,
-                                commentThreadById,
-                            },
+                            stepsContentReferences,
                         };
                     },
                     async () =>
@@ -367,8 +357,8 @@ export class DocumentCollaborationConnection {
             // is ready.
             //
             // However, we do not want to block other document content messages with our
-            // comments processing! Which is why we don't put the `handleMessage()` call in
-            // the body of our `run()` function.
+            // comments processing! Which is why we the body of our `run()` function is
+            // a noop.
             await this._state.run(async () => {});
 
             const optimisticCommentThread = this._contentManager.getOptimisticCommentThreadIfExists(
@@ -409,8 +399,8 @@ export class DocumentCollaborationConnection {
             // is ready.
             //
             // However, we do not want to block other document content messages with our
-            // comments processing! Which is why we don't put the `handleMessage()` call in
-            // the body of our `run()` function.
+            // comments processing! Which is why we the body of our `run()` function is
+            // a noop.
             await this._state.run(async () => {});
 
             const optimisticCommentThread = this._contentManager.getOptimisticCommentThreadIfExists(
@@ -450,8 +440,8 @@ export class DocumentCollaborationConnection {
             // is ready.
             //
             // However, we do not want to block other document content messages with our
-            // comments processing! Which is why we don't put the `handleMessage()` call in
-            // the body of our `run()` function.
+            // comments processing! Which is why we the body of our `run()` function is
+            // a noop.
             await this._state.run(async () => {});
 
             const optimisticCommentThread = this._contentManager.getOptimisticCommentThreadIfExists(
@@ -485,7 +475,7 @@ export class DocumentCollaborationConnection {
         },
     };
 
-    public handleClose(context: ProcessContext) {
+    public handleClose(context: WorkerProcessContext) {
         context.process.waitUntil(
             // Make sure we run in the queue in case we're wrapping up message handling. We
             // want to send our null presence state after we send any other
@@ -513,7 +503,7 @@ export class DocumentCollaborationConnection {
     }
 
     private _sendFatalErrorMessageAndKillProcess(
-        context: ProcessContext,
+        context: WorkerProcessContext,
         span: TracerSpan,
         error: unknown,
     ) {
@@ -707,22 +697,17 @@ export class DocumentCollaborationConnection {
     });
 
     private async _getOptimisticCommentThreadComment(
-        context: ActionContext,
+        context: WorkerActionContext,
         commentThreadId: DocumentCommentThreadId,
         optimisticCommentThread: DocumentCollaborationContentManagerOptimisticCommentThread,
     ) {
-        const [author, contentReferences] = await runAllPromises([
-            getAccount(
-                context,
-                this._contentManager.spaceId,
-                optimisticCommentThread.initialComment.authorId,
-            ),
-            getContentReferencesForNode(
-                context,
-                this._contentManager.spaceId,
+        const {author, contentReferences} = await getOptimisticDocumentCommentReferences(context, {
+            spaceId: this._contentManager.spaceId,
+            authorId: optimisticCommentThread.initialComment.authorId,
+            contentReferencedIds: getContentReferencedIdsForNode(
                 optimisticCommentThread.initialComment.content,
             ),
-        ]);
+        });
 
         return new DocumentCommentModel({
             documentId: this._contentManager.id,

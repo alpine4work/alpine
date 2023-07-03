@@ -118,7 +118,7 @@ async function executeRpcs(callBatch: Array<RpcCall>): Promise<void> {
                     //
                     // This does not provide any security guarantees! This is purely a performance
                     // optimization to authorize the session and space access at once.
-                    ...(spaceIdFromUrl ? {"cyberworlds-current-space-id": spaceIdFromUrl} : {}),
+                    ...(spaceIdFromUrl ? {"cyberworlds-space-id-hint": spaceIdFromUrl} : {}),
                 },
                 body:
                     otherCalls.length === 0

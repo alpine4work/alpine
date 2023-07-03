@@ -1,5 +1,5 @@
 import {addDays, addMinutes, subDays} from "date-fns";
-import {ActionContext} from "~/server/dynamo/context/action_context.js";
+import {AppActionContext} from "~/server/dynamo/context/app_action_context.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry.js";
 import {DynamoReadConsistency} from "~/server/dynamo/internal/dynamo_client.js";
 import {DynamoCondition} from "~/server/dynamo/internal/dynamo_condition.js";
@@ -61,7 +61,7 @@ type DynamoGeneralRealtimeTableSchemaSortRangeModelConfigType<
         SortRangesConfig[Index]["name"],
         {
             build: (
-                context: ActionContext,
+                context: AppActionContext,
                 item: DynamoTableSchemaTypes.ItemType<PartitionConfig, SortRangesConfig[Index]>,
             ) => Promise<unknown>;
         },
@@ -138,7 +138,7 @@ type DynamoGeneralRealtimeInternalEvent<Item, Model> = {
     readonly item: Item;
     readonly key: DynamoItemKey;
     readonly version: number;
-    readonly getModel: (context: ActionContext) => Promise<Model>;
+    readonly getModel: (context: AppActionContext) => Promise<Model>;
 };
 
 /**
@@ -241,7 +241,7 @@ export class DynamoGeneralRealtimeTableSchema<
         DynamoTableSchemaTypes.ConfigBase["partitions"]
     >;
     private readonly _sendEventTransactionCallback: (
-        context: ActionContext,
+        context: AppActionContext,
         readTime: Date,
         eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<ModelMap[string][string]>>,
     ) => Promise<void>;
@@ -296,7 +296,7 @@ export class DynamoGeneralRealtimeTableSchema<
          * allowed to see.
          */
         sendEventTransaction: (
-            context: ActionContext,
+            context: AppActionContext,
             readTime: Date,
             eventTransaction: ReadonlyArray<
                 DynamoGeneralRealtimeEvent<DynamoGeneralRealtimeTableSchemaModelType<ModelsConfig>>
@@ -334,7 +334,7 @@ export class DynamoGeneralRealtimeTableSchema<
             DynamoTableSchemaTypes.ConfigBase["partitions"]
         >;
         sendEventTransaction: (
-            context: ActionContext,
+            context: AppActionContext,
             readTime: Date,
             eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<ModelMap[string][string]>>,
         ) => Promise<void>;
@@ -345,7 +345,7 @@ export class DynamoGeneralRealtimeTableSchema<
     }
 
     private _buildModel<Item extends Types["Item"]>(
-        context: ActionContext,
+        context: AppActionContext,
         item: Item,
     ): Promise<ModelMap[Item["partitionType"]][Item["sortRangeType"]]> {
         return this._models[item.partitionType]![item.sortRangeType]!.build(
@@ -369,7 +369,7 @@ export class DynamoGeneralRealtimeTableSchema<
     }
 
     private async _sendEventTransaction(
-        context: ActionContext,
+        context: AppActionContext,
         readTime: Date,
         eventTransaction: ReadonlyArray<
             DynamoGeneralRealtimeInternalEvent<Types["Item"], ModelMap[string][string]>
@@ -454,7 +454,7 @@ export class DynamoGeneralRealtimeTableSchema<
      * to correctly order events received out-of-order on the client.
      */
     public async createItem<Item extends Types["Item"]>(
-        context: ActionContext,
+        context: AppActionContext,
         item: Item,
     ): Promise<{
         getRealtimeItem: () => Promise<
@@ -508,7 +508,7 @@ export class DynamoGeneralRealtimeTableSchema<
     // future. See the TODO note on the top of our class for how we might implement
     // item deletion.
     public async updateItem<Key extends Types["ItemKey"]>(
-        context: ActionContext,
+        context: AppActionContext,
         itemKey: Key,
         update: (
             item: MergeObjectIntersection<Types["Item"] & Key> | null,
@@ -571,7 +571,7 @@ export class DynamoGeneralRealtimeTableSchema<
      * `updateItem()` which does it for you.
      */
     public async directlyUpdateItem<Item extends Types["Item"]>(
-        context: ActionContext,
+        context: AppActionContext,
         item: Item,
     ): Promise<{
         getRealtimeItem: () => Promise<
@@ -618,7 +618,7 @@ export class DynamoGeneralRealtimeTableSchema<
      * from `DynamoTableSchema`.
      */
     public static async executeTransaction(
-        context: ActionContext,
+        context: AppActionContext,
         entries: ReadonlyArray<DynamoTransactionEntry | DynamoGeneralRealtimeTransactionEntry>,
         options?: {clientRequestToken?: string},
     ): Promise<void> {
@@ -757,7 +757,7 @@ export class DynamoGeneralRealtimeTableSchema<
      * Get an item from the database and if it doesn't exist then return null.
      */
     public getItemIfExists<Key extends Types["ItemKey"]>(
-        context: ActionContext,
+        context: AppActionContext,
         itemKey: Key,
         options?: {consistency?: DynamoReadConsistency},
     ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null> {
@@ -773,7 +773,7 @@ export class DynamoGeneralRealtimeTableSchema<
      * Get an item from the database and if it doesn't exist then throw an error.
      */
     public getItem<Key extends Types["ItemKey"]>(
-        context: ActionContext,
+        context: AppActionContext,
         itemKey: Key,
         options?: {consistency?: DynamoReadConsistency},
     ): Promise<MergeObjectIntersection<Types["Item"] & Key>> {
@@ -791,7 +791,7 @@ export class DynamoGeneralRealtimeTableSchema<
      * data in realtime.
      */
     public async getRealtimeItemIfExists<Key extends Types["ItemKey"]>(
-        context: ActionContext,
+        context: AppActionContext,
         itemKey: Key,
         options?: {consistency?: DynamoReadConsistency},
     ): Promise<DynamoGeneralRealtimeItem<
@@ -818,7 +818,7 @@ export class DynamoGeneralRealtimeTableSchema<
      * this data in realtime.
      */
     public async getRealtimeItem<Key extends Types["ItemKey"]>(
-        context: ActionContext,
+        context: AppActionContext,
         itemKey: Key,
         options?: {consistency?: DynamoReadConsistency},
     ): Promise<DynamoGeneralRealtimeItem<ModelMap[Key["partitionType"]][Key["sortRangeType"]]>> {
@@ -841,7 +841,7 @@ export class DynamoGeneralRealtimeTableSchema<
      * collocates related data. Also returns all the auxillary information
      * necessary for a client to keep a query up-to-date in realtime.
      */
-    public async realtimeQuery(context: ActionContext, options: {}): Promise<never> {
+    public async realtimeQuery(context: AppActionContext, options: {}): Promise<never> {
         // TODO(calebmer): Leaving `realtimeQuery()` unimplemented for now since we
         // don't have any callers! We have callers for `realtimeQuery()` on indexes.
         // Once we have a caller of the main `realtimeQuery()` implement this method
@@ -1124,7 +1124,7 @@ export class DynamoGeneralRealtimeTableSchema<
     }
 
     private async _backfillRealtimeQuery(
-        context: ActionContext,
+        context: AppActionContext,
         {
             indexName,
             realtimeKey,
@@ -1284,7 +1284,7 @@ export interface DynamoGeneralRealtimeTableSchemaIndex<Model, IndexPartitionKey,
      * Query the index.
      */
     realtimeQuery(
-        context: ActionContext,
+        context: AppActionContext,
         options: {
             partitionKey: IndexPartitionKey;
             startSortKey?: IndexSortKey;
@@ -1311,7 +1311,7 @@ export interface DynamoGeneralRealtimeTableSchemaIndex<Model, IndexPartitionKey,
      * when you connect to realtime after dispatching your query.
      */
     backfillRealtimeQuery(
-        context: ActionContext,
+        context: AppActionContext,
         options: {partitionKey: IndexPartitionKey; readTime: Date},
     ): Promise<DynamoGeneralRealtimeBackfillResult<Model>>;
 }

@@ -2,7 +2,10 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "documents",
-    test_deps = ["//server/dynamo/test_helpers/shared"],
+    test_deps = [
+        "//server/dynamo:dynamo_testonly",
+        "//server/dynamo/test_helpers/shared",
+    ],
     visibility = [
         "//app:__subpackages__",
         "//server:__subpackages__",
@@ -10,7 +13,6 @@ ts_project(
     deps = [
         "//:node_modules/prosemirror-transform",
         "//server/cloudflare",
-        "//server/dynamo",
         "//server/helpers",
         "//server/messaging",
         "//server/rpc",

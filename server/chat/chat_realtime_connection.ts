@@ -1,11 +1,6 @@
+import {WorkerSessionActionContext} from "~/server/cloudflare/context/worker_action_context.js";
+import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {WebSocketConnectionProcedures} from "~/server/cloudflare/web_socket_server.js";
-import {
-    backfillChatMessages,
-    deleteChatMessage,
-    sendChatMessage,
-    updateChatMessageContent,
-} from "~/server/dynamo/chat_table.js";
-import {ProcessContext} from "~/server/dynamo/context/process_context.js";
 import {
     BackfillMessagesFunction,
     CreateMessageFunction,
@@ -18,6 +13,12 @@ import {ChatMessageModel} from "~/shared/chat/chat_model.js";
 import {ChatRealtimeEvent, ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {ChatId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {
+    backfillChatMessages,
+    deleteChatMessage,
+    sendChatMessage,
+    updateChatMessageContent,
+} from "~/shared/rpc/chat_rpc_definitions.js";
 
 export class ChatRealtimeConnection {
     private readonly _connection: MessagingRealtimeConnection<ChatId, ChatMessageModel>;
@@ -33,8 +34,8 @@ export class ChatRealtimeConnection {
         connectionId: WebSocketConnectionId;
         spaceId: SpaceId;
         chatId: ChatId;
-        sendEvent: (context: ProcessContext, event: ChatRealtimeEvent) => void;
-        sendEventToOthers: (context: ProcessContext, event: ChatRealtimeEvent) => void;
+        sendEvent: (context: WorkerProcessContext, event: ChatRealtimeEvent) => void;
+        sendEventToOthers: (context: WorkerProcessContext, event: ChatRealtimeEvent) => void;
         iterateOtherConnections: () => Iterable<ChatRealtimeConnection>;
     }) {
         this._connection = new MessagingRealtimeConnection({
@@ -67,7 +68,7 @@ export class ChatRealtimeConnection {
             this._connection.stopTypingInMessageInput(context, input),
     };
 
-    public async handleClose(context: ProcessContext) {
+    public async handleClose(context: WorkerProcessContext) {
         return this._connection.handleClose(context);
     }
 }
@@ -88,7 +89,7 @@ const createMessageModel: CreateMessageModelFunction<ChatId, ChatMessageModel> =
     });
 };
 
-const createMessage: CreateMessageFunction<ChatId> = async (
+const createMessage: CreateMessageFunction<WorkerSessionActionContext, ChatId> = async (
     context,
     {roomKey: chatId, parentMessageIndex, content},
 ) => {
@@ -99,10 +100,10 @@ const createMessage: CreateMessageFunction<ChatId> = async (
     });
 };
 
-const updateMessageContent: UpdateMessageContentFunction<ChatId> = async (
-    context,
-    {roomKey: chatId, messageIndex, content},
-) => {
+const updateMessageContent: UpdateMessageContentFunction<
+    WorkerSessionActionContext,
+    ChatId
+> = async (context, {roomKey: chatId, messageIndex, content}) => {
     return updateChatMessageContent(context, {
         chatId,
         messageIndex,
@@ -110,14 +111,18 @@ const updateMessageContent: UpdateMessageContentFunction<ChatId> = async (
     });
 };
 
-const deleteMessage: DeleteMessageFunction<ChatId> = async (
+const deleteMessage: DeleteMessageFunction<WorkerSessionActionContext, ChatId> = async (
     context,
     {roomKey: chatId, messageIndex},
 ) => {
     return deleteChatMessage(context, {chatId, messageIndex});
 };
 
-const backfillMessages: BackfillMessagesFunction<ChatId, ChatMessageModel> = async (
+const backfillMessages: BackfillMessagesFunction<
+    WorkerSessionActionContext,
+    ChatId,
+    ChatMessageModel
+> = async (
     context,
     {roomKey: chatId, clientMessageCount, clientLastMessageChangeTime, newMessageLimit},
 ) => {

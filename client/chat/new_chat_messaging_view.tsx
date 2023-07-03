@@ -27,7 +27,7 @@ export function NewChatMessagingView({
 
     const {isConnected, procedures, subscribeToEvents} = useWebSocket(
         ChatRealtimeProtocol,
-        selectedChat ? `/durable-objects/chat/${selectedChat.chat.id}` : null,
+        selectedChat ? `/api/durable-objects/chat/${selectedChat.chat.id}` : null,
     );
 
     // This ref is used to preserve the message input state across React key

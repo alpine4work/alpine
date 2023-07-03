@@ -1,4 +1,4 @@
-import {SystemActorContextModule} from "~/server/dynamo/context/actor_context_module.js";
+import {AppSystemActorContextModule} from "~/server/dynamo/context/app_actor_context_module.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space.js";
@@ -9,11 +9,15 @@ const space = createTestSpace(context);
 const session = createTestSession(context, space);
 
 test("can not escalate process context into system context", () => {
-    expect(() => context.clone({actor: new SystemActorContextModule(generateId())})).toThrow();
+    expect(() =>
+        context.clone({actor: AppSystemActorContextModule.dangerouslyNew(generateId())}),
+    ).toThrow();
 });
 
 test("can not escalate request context into system context", () => {
     expect(() =>
-        context.action(session).clone({actor: new SystemActorContextModule(generateId())}),
+        context
+            .action(session)
+            .clone({actor: AppSystemActorContextModule.dangerouslyNew(generateId())}),
     ).toThrow();
 });

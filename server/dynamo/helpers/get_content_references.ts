@@ -1,78 +1,48 @@
 import {Node} from "prosemirror-model";
 import {Step} from "prosemirror-transform";
 import {getAccountIfExists} from "~/server/dynamo/accounts_table.js";
-import {ActionContext} from "~/server/dynamo/context/action_context.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
-import {ContentMention} from "~/shared/content/content_mention.js";
+import {AppActionContext} from "~/server/dynamo/context/app_action_context.js";
+import {
+    ContentReferencedIds,
+    getContentReferencedIdsForNode,
+    getContentReferencedIdsForSteps,
+} from "~/shared/content/content_referenced_ids.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
-import {
-    ProsemirrorVisitor,
-    visitProsemirrorNode,
-    visitProsemirrorStep,
-} from "~/shared/prosemirror/prosemirror_visitor.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
 
-/**
- * Traverse our content, find any referenced data, and load that data. For
- * example, finds all mentions and loads the mentioned accounts.
- */
 export function getContentReferencesForNode(
-    context: ActionContext,
+    context: AppActionContext,
     spaceId: SpaceId,
     content: Node,
 ): Promise<ContentReferences> {
-    return getContentReferences(context, spaceId, visitor => {
-        visitProsemirrorNode(content, visitor);
-    });
+    const referencedIds = getContentReferencedIdsForNode(content);
+    return getContentReferences(context, spaceId, referencedIds);
 }
 
-/**
- * Traverse the array of steps, find any new referenced nodes, and load related
- * data to those nodes. For example, finds all mentions and loads the
- * mentioned accounts.
- */
 export function getContentReferencesForSteps(
-    context: ActionContext,
+    context: AppActionContext,
     spaceId: SpaceId,
     steps: ReadonlyArray<Step>,
 ): Promise<ContentReferences> {
-    return getContentReferences(context, spaceId, visitor => {
-        for (const step of steps) {
-            visitProsemirrorStep(step, visitor);
-        }
-    });
+    const referencedIds = getContentReferencedIdsForSteps(steps);
+    return getContentReferences(context, spaceId, referencedIds);
 }
 
-async function getContentReferences(
-    context: ActionContext,
+export async function getContentReferences(
+    context: AppActionContext,
     spaceId: SpaceId,
-    visit: (visitor: ProsemirrorVisitor) => void,
+    referencedIds: ContentReferencedIds,
 ): Promise<ContentReferences> {
-    const accountPromiseById = new Map<AccountId, Promise<AccountModel | null>>();
+    const accounts = await runAllPromises(
+        Array.from(referencedIds.accountIds, accountId => {
+            // You may have copy/pasted some content from a different space. In that case a
+            // mentioned user may not exist.
+            return getAccountIfExists(context, spaceId, accountId);
+        }),
+    );
 
-    visit({
-        visitNode: node => {
-            if (node.type.name === "mention") {
-                const mention: ContentMention = node.attrs.mention;
-
-                const accountPromise = getOrSetDefaultMapValue(
-                    accountPromiseById,
-                    mention.accountId,
-                    // You may have copy/pasted some content from a different space. In that case a
-                    // mentioned user may not exist.
-                    () => getAccountIfExists(context, spaceId, mention.accountId),
-                );
-
-                // We await all promises below.
-                void accountPromise;
-            }
-        },
-    });
-
-    const accounts = await runAllPromises(accountPromiseById.values());
     const accountById = new Map(
         filterMapIterable(accounts, account => {
             if (!account) return null;
@@ -80,7 +50,5 @@ async function getContentReferences(
         }),
     );
 
-    return {
-        accountById,
-    };
+    return {accountById};
 }

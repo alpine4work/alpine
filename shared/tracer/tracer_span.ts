@@ -1,7 +1,7 @@
 import {assert} from "~/shared/helpers/control/assert.js";
 import {LinkedList, NonEmptyLinkedList} from "~/shared/helpers/immutable/linked_list.js";
-import {generateId} from "~/shared/id/id.js";
-import {TraceId, TraceSpanId} from "~/shared/id/types/id_types.js";
+import {generateId, isId} from "~/shared/id/id.js";
+import {SpaceId, TraceId, TraceSpanId} from "~/shared/id/types/id_types.js";
 import {
     TracerEventFlatData,
     buildTracerEventFlatData,
@@ -27,6 +27,16 @@ export type TracerSpanPropagationContext = {
  * [1]: https://opentelemetry.io
  */
 export class TracerSpan extends TracerBase {
+    /**
+     * The root tracer for this span.
+     */
+    private readonly _tracer: TracerRoot;
+
+    /**
+     * The name of the trace.
+     */
+    public readonly name: string;
+
     /**
      * The ID of the trace this span is in.
      */
@@ -68,10 +78,8 @@ export class TracerSpan extends TracerBase {
     private readonly _propagatedEventFlatData: TracerEventFlatData | null;
 
     private constructor(
-        // TODO(calebmer): I'm thinking about recommending against and linting against
-        // properties of this style. Leads to classes that are hard to maintain.
-        private readonly _tracer: TracerRoot,
-        public readonly name: string,
+        tracer: TracerRoot,
+        name: string,
         parentSpan: {
             traceId: TraceId;
             parentId: TraceSpanId;
@@ -81,6 +89,8 @@ export class TracerSpan extends TracerBase {
     ) {
         super();
 
+        this._tracer = tracer;
+        this.name = name;
         this.traceId = parentSpan?.traceId ?? generateId();
         this.spanId = generateId();
         this._startTime = this._tracer.getTime();
@@ -302,5 +312,31 @@ export class TracerSpan extends TracerBase {
                 this._propagatedEventFlatData,
             ),
         );
+    }
+
+    /**
+     * Get the value of `context.spaceId` in our span's event data if it exists.
+     * If it does not exist we return null.
+     *
+     * Avoid using this for anything critical which needs access to the `SpaceId`!
+     * Your code may run in unexpected scenarios (e.g. a system context) or there
+     * may be a logging bug where `SpaceId` doesn't exist.
+     *
+     * You may use this for performance hints if useful.
+     */
+    public getContextSpaceIdIfExists(): SpaceId | null {
+        let eventData: LinkedList<TracerEventFullData> = this._eventData;
+
+        while (eventData !== null) {
+            if (eventData.value.context?.spaceId !== undefined)
+                return eventData.value.context.spaceId;
+
+            eventData = eventData.next;
+        }
+
+        const spaceId = this._propagatedEventFlatData?.["context.space_id"];
+        if (typeof spaceId === "string" && isId<SpaceId>(spaceId)) return spaceId;
+
+        return null;
     }
 }

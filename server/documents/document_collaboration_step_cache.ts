@@ -1,6 +1,5 @@
 import {Step} from "prosemirror-transform";
-import {ActionContext} from "~/server/dynamo/context/action_context.js";
-import {getDocumentContentSteps} from "~/server/dynamo/documents_table.js";
+import {WorkerActionContext} from "~/server/cloudflare/context/worker_action_context.js";
 import {
     FailedPreconditionError,
     InternalError,
@@ -8,6 +7,7 @@ import {
 } from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {ContentEditorClientId, DocumentId} from "~/shared/id/types/id_types.js";
+import {getDocumentContentSteps} from "~/shared/rpc/documents_rpc_definitions.js";
 
 /**
  * Stores steps in an in-memory cache and loads old steps into that cache as we
@@ -60,7 +60,7 @@ export class DocumentCollaborationStepCache {
      * the database and put them in our in-memory cache for future requests.
      */
     public async getSteps(
-        context: ActionContext,
+        context: WorkerActionContext,
         startVersion: number,
         endVersion: number,
     ): Promise<
@@ -100,7 +100,7 @@ export class DocumentCollaborationStepCache {
         return steps;
     }
 
-    private _loadOldSteps(context: ActionContext, newStartVersion: number): Promise<void> {
+    private _loadOldSteps(context: WorkerActionContext, newStartVersion: number): Promise<void> {
         assert(newStartVersion < this._startVersion);
 
         // If we have a promise that is already loading all the steps after
@@ -119,8 +119,8 @@ export class DocumentCollaborationStepCache {
         const endVersion = lastLoadOldStepsState?.startVersionAfterPromise ?? this._startVersion;
 
         const promise = (async () => {
-            const steps = await getDocumentContentSteps(context, {
-                id: this._id,
+            const {steps} = await getDocumentContentSteps(context, {
+                documentId: this._id,
                 startVersion: newStartVersion,
                 endVersion,
             });

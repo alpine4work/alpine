@@ -617,7 +617,7 @@ export class DocumentContentEditorWebSocketClient {
         this._client = new WebSocketClient(
             getContext,
             DocumentCollaborationProtocol,
-            `/durable-objects/documents/${initialDocument.id}`,
+            `/api/durable-objects/documents/${initialDocument.id}`,
         );
         this._state = new ValueStore(getInitialDocumentContentEditorState(initialDocument));
 

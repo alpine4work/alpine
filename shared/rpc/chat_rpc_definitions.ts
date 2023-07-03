@@ -1,5 +1,6 @@
 import {ChatMessageModel} from "~/shared/chat/chat_model.js";
-import {ChatId} from "~/shared/id/types/id_types.js";
+import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
+import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -36,6 +37,16 @@ export const getChatMessagesFromEnd = defineRpc({
     },
 });
 
+export const authorizeChatAccess = defineRpc({
+    name: "authorizeChatAccess",
+    input: {
+        chatId: Schema.id<ChatId>(),
+    },
+    output: {
+        spaceId: Schema.id<SpaceId>(),
+    },
+});
+
 export const sendChatMessage = defineRpc({
     name: "sendChatMessage",
     input: {
@@ -43,5 +54,56 @@ export const sendChatMessage = defineRpc({
         parentMessageIndex: Schema.integer.nullable(),
         content: MessageContentSchema,
     },
-    output: {},
+    output: {
+        index: Schema.integer,
+        createdTime: Schema.date,
+    },
+});
+
+export const updateChatMessageContent = defineRpc({
+    name: "updateChatMessageContent",
+    input: {
+        chatId: Schema.id<ChatId>(),
+        messageIndex: Schema.integer,
+        content: MessageContentSchema,
+    },
+    output: {
+        contentUpdatedTime: Schema.date,
+    },
+});
+
+export const deleteChatMessage = defineRpc({
+    name: "deleteChatMessage",
+    input: {
+        chatId: Schema.id<ChatId>(),
+        messageIndex: Schema.integer,
+    },
+    output: {
+        deletedTime: Schema.date,
+    },
+});
+
+export const backfillChatMessages = defineRpc({
+    name: "backfillChatMessages",
+    input: {
+        chatId: Schema.id<ChatId>(),
+        clientMessageCount: Schema.integer,
+        clientLastMessageChangeTime: Schema.date.nullable(),
+        newMessageLimit: Schema.integer,
+    },
+    output: {
+        messageCount: Schema.integer,
+        lastMessageChangeTime: Schema.date.nullable(),
+        newMessages: Schema.array(ChatMessageModel.schema()),
+        newOtherReferencedMessages: Schema.array(ChatMessageModel.schema()),
+        messageChangesResult: Schema.union({
+            Available: Schema.object({
+                type: Schema.value("Available"),
+                changes: Schema.array(MessageChangeSchema),
+            }),
+            Unavailable: Schema.object({
+                type: Schema.value("Unavailable"),
+            }),
+        }),
+    },
 });

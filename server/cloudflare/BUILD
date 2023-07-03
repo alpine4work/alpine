@@ -7,9 +7,6 @@ ts_project(
         "//server:__subpackages__",
     ],
     deps = [
-        "//:node_modules/jose",
-        "//server/aws",
-        "//server/dynamo",
         "//server/remix",
         "//server/tracer",
         "//shared/cloudflare",

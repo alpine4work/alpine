@@ -2,6 +2,20 @@ load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
 load("@aspect_rules_js//js:defs.bzl", "js_library")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
+# The `:dynamo` rule has limited visibility within the `//server` directory,
+# but you can use it in any test file. This alias expands visibility for
+# tests only.
+alias(
+    name = "dynamo_testonly",
+    testonly = True,
+    actual = ":dynamo",
+    visibility = [
+        "//admin:__subpackages__",
+        "//app:__subpackages__",
+        "//server:__subpackages__",
+    ],
+)
+
 ts_project(
     name = "dynamo",
     test_deps = [
@@ -12,15 +26,19 @@ ts_project(
     visibility = [
         "//admin:__subpackages__",
         "//app:__subpackages__",
-        "//server:__subpackages__",
+        "//server/aws:__pkg__",
+        "//server/dynamo:__subpackages__",
+        "//server/remix:__pkg__",
+        "//server/rpc:__pkg__",
+        "//server/tracer:__pkg__",  # Should only be used to generate a file
     ],
     deps = [
         ":all_dynamo_tables",
         "//:node_modules/@aws-sdk/client-dynamodb",
         "//:node_modules/@types/json-stable-stringify",
+        "//:node_modules/@types/node",
         "//:node_modules/aws4fetch",
         "//:node_modules/date-fns",
-        "//:node_modules/jose",
         "//:node_modules/json-stable-stringify",
         "//:node_modules/murmurhash",
         "//:node_modules/prosemirror-model",
@@ -28,6 +46,7 @@ ts_project(
         "//server/emails",
         "//server/helpers",
         "//server/schema",
+        "//server/tokens",
         "//shared/alpha",
         "//shared/chat",
         "//shared/content",

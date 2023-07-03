@@ -1,10 +1,7 @@
 import {getAccount} from "~/server/dynamo/accounts_table.js";
-import {
-    ActionContext,
-    ActionContextBase,
-    MaybeSessionActionContext,
-} from "~/server/dynamo/context/action_context.js";
+import {AppActionContext} from "~/server/dynamo/context/app_action_context.js";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context.js";
+import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema.js";
@@ -13,10 +10,11 @@ import {
     DynamoTableSchema,
 } from "~/server/dynamo/internal/dynamo_table_schema.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
-import {ContextCache} from "~/shared/context/cache_context_module.js";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {CacheContextModule, ContextCache} from "~/shared/context/cache_context_module.js";
+import {Context} from "~/shared/context/context.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {PermissionDeniedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
@@ -160,7 +158,11 @@ const SpaceAccountContextCache = new ContextCache<
  * Is the `accountId` a member of the provided `spaceId`?
  */
 export async function isAccountMemberOfSpace(
-    context: ActionContextBase,
+    context: Context<{
+        tracer: TracerContextModule;
+        dynamo: DynamoContextModule;
+        cache: CacheContextModule;
+    }>,
     spaceId: SpaceId,
     accountId: AccountId,
 ): Promise<boolean> {
@@ -180,7 +182,7 @@ export async function isAccountMemberOfSpace(
  * `spaceId`. Throws if the account does not have access.
  */
 export async function authorizeSpaceAccess(
-    context: ActionContext,
+    context: AppActionContext,
     spaceId: SpaceId,
 ): Promise<void> {
     switch (context.actor.type) {
@@ -206,72 +208,20 @@ export async function authorizeSpaceAccess(
 }
 
 /**
- * Authorize that the authenticated account has access to the provided
- * `spaceId`. Throws if the account does not have access.
- *
- * If you know the account ID before authenticating, you may pass it in here.
- * This will increase the parallelization of this function since we can call
- * `context.actor.authenticate()` in parallel with authorizing space access for
- * the session account.
- *
- * If you pass in the wrong account ID an error will be thrown.
- */
-export async function authorizeSpaceAccessWithOptimisticSessionAccountId(
-    context: MaybeSessionActionContext,
-    spaceId: SpaceId,
-    optimisticSessionAccountId: AccountId | null,
-): Promise<void> {
-    const actualAccountIdPromise = context.actor
-        .authenticate()
-        .then(context => context.actor.getAccountId());
-
-    const [actualAccountId] = await runAllPromises([
-        actualAccountIdPromise,
-        (async () => {
-            const accountId = optimisticSessionAccountId ?? (await actualAccountIdPromise);
-
-            if (!(await isAccountMemberOfSpace(context, spaceId, accountId))) {
-                throw new PermissionDeniedError("Account does not have access to space", {
-                    // TODO(calebmer): Add link to page that lists all spaces an account has access
-                    // to in the help part of this error message.
-                    displayMessage: errorDisplayMessage`You are not a member of this space.`,
-                });
-            }
-        })(),
-    ]);
-
-    if (optimisticSessionAccountId && optimisticSessionAccountId !== actualAccountId) {
-        throw new PermissionDeniedError(
-            "Optimistic session account ID does not match actual session account ID",
-        );
-    }
-}
-
-/**
  * Get the space with the specified ID.
  *
  * As a performance optimization, you may provide `optimisticSessionAccountId`
  * which is passed to `authorizeSpaceAccess()`. See the documentation of that
  * function for the purpose of `optimisticSessionAccountId`.
  */
-export async function getSpaceWithOptimisticSessionAccountId(
-    context: MaybeSessionActionContext,
-    spaceId: SpaceId,
-    optimisticSessionAccountId: AccountId | null,
-): Promise<SpaceModel> {
-    const [spaceItem] = await runAllPromises([
-        SpacesTable.getItemIfExists(context, {
-            partitionType: "Space",
-            sortRangeType: "Attributes",
-            spaceId,
-        }),
-        authorizeSpaceAccessWithOptimisticSessionAccountId(
-            context,
-            spaceId,
-            optimisticSessionAccountId,
-        ),
-    ]);
-    if (!spaceItem) throw new NotFoundError("Space does not exist");
+export async function getSpace(context: AppActionContext, spaceId: SpaceId): Promise<SpaceModel> {
+    await authorizeSpaceAccess(context, spaceId);
+
+    const spaceItem = await SpacesTable.getItem(context, {
+        partitionType: "Space",
+        sortRangeType: "Attributes",
+        spaceId,
+    });
 
     return new SpaceModel({
         id: spaceItem.spaceId,
@@ -292,7 +242,7 @@ export async function getSpaceWithOptimisticSessionAccountId(
  * Returns in `AccountId` order.
  */
 export async function expensivelyGetAllSpaceAccounts(
-    context: ActionContext,
+    context: AppActionContext,
     spaceId: SpaceId,
 ): Promise<Array<AccountModel>> {
     await authorizeSpaceAccess(context, spaceId);

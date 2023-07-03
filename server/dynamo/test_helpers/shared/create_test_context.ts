@@ -5,21 +5,21 @@ import path from "path";
 import {DynamoLocal, startDynamoLocal} from "~/admin/dynamo/local/start_dynamo_local.js";
 import {Session, SessionItem} from "~/server/dynamo/accounts_table.js";
 import {
-    MaybeSessionActionContext,
-    SessionActionContext,
-    SystemActionContext,
-} from "~/server/dynamo/context/action_context.js";
+    AppAmbiguousActionContext,
+    AppSessionActionContext,
+    AppSystemActionContext,
+} from "~/server/dynamo/context/app_action_context.js";
 import {
-    MaybeSessionActorContextModule,
-    SessionActorContextModule,
-    SystemActorContextModule,
-    UnidentifiedActorContextModule,
-} from "~/server/dynamo/context/actor_context_module.js";
+    AppUnknownActorContextModule,
+    AppSessionActorContextModule,
+    AppSystemActorContextModule,
+    AppUnidentifiedActorContextModule,
+} from "~/server/dynamo/context/app_actor_context_module.js";
+import {
+    AppProcessContext,
+    AppProcessContextModulesBase,
+} from "~/server/dynamo/context/app_process_context.js";
 import {TestNotificationsContextModule} from "~/server/dynamo/context/notifications_context_module.js";
-import {
-    ProcessContext,
-    ProcessContextModulesBase,
-} from "~/server/dynamo/context/process_context.js";
 import {
     DynamoBatchContextModule,
     DynamoContextModule,
@@ -41,19 +41,19 @@ import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 assert(process.release.name === "node");
 assert(process.env.NODE_ENV === "test");
 
-export type TestContext = ProcessContext & {
+export type TestContext = AppProcessContext & {
     getDynamoLocalPort(): number;
-    unauthenticatedAction(): MaybeSessionActionContext;
-    action(session: {item: SessionItem}): SessionActionContext;
-    systemAction(spaceId: SpaceId): SystemActionContext;
+    unauthenticatedAction(): AppAmbiguousActionContext;
+    action(session: {item: SessionItem}): AppSessionActionContext;
+    systemAction(spaceId: SpaceId): AppSystemActionContext;
 };
 
 /**
  * Create a mock test context for Jest tests. It executes all DynamoDB commands
  * against DynamoDB database that is local to this test.
  *
- * The context has all the modules in `ProcessContext` and you can easily
- * create `ActionContext`s.
+ * The context has all the modules in `AppProcessContext` and you can easily
+ * create `AppActionContext`s.
  */
 export function createTestContext(): TestContext {
     // Increase Jest timeout for tests using a test context since these tests
@@ -81,33 +81,33 @@ export function createTestContext(): TestContext {
         return dynamoLocal.port;
     };
 
-    const createUnauthenticatedSessionContext = (): MaybeSessionActionContext => {
-        return processContext.clone({
-            cache: new CacheContextModule(),
-            dynamoBatchContext: new DynamoBatchContextModule(),
-            actor: new MaybeSessionActorContextModule(async () => null),
-        });
-    };
-
-    const createSessionContext = (session: {item: SessionItem}): SessionActionContext => {
-        return processContext.clone({
-            cache: new CacheContextModule(),
-            dynamoBatchContext: new DynamoBatchContextModule(),
-            actor: new SessionActorContextModule(Session.test(session.item)),
-        });
-    };
-
-    const createSystemContext = (spaceId: SpaceId): SystemActionContext => {
+    const createUnauthenticatedSessionContext = (): AppAmbiguousActionContext => {
         return processContextBase.clone({
             cache: new CacheContextModule(),
             dynamoBatchContext: new DynamoBatchContextModule(),
-            actor: new SystemActorContextModule(spaceId),
+            actor: new AppUnknownActorContextModule(async () => null),
+        });
+    };
+
+    const createSessionContext = (session: {item: SessionItem}): AppSessionActionContext => {
+        return processContextBase.clone({
+            cache: new CacheContextModule(),
+            dynamoBatchContext: new DynamoBatchContextModule(),
+            actor: new AppSessionActorContextModule(Session.test(session.item)),
+        });
+    };
+
+    const createSystemContext = (spaceId: SpaceId): AppSystemActionContext => {
+        return processContextBase.clone({
+            cache: new CacheContextModule(),
+            dynamoBatchContext: new DynamoBatchContextModule(),
+            actor: AppSystemActorContextModule.dangerouslyNew(spaceId),
         });
     };
 
     const dynamoContextModule = DynamoContextModule.test();
 
-    const processContextBase = Context.new<ProcessContextModulesBase>({
+    const processContextBase = Context.new<AppProcessContextModulesBase>({
         process: ProcessContextModule.test(testSharedHooks),
         tracer: new TracerContextModule(tracer),
         dynamo: dynamoContextModule,
@@ -115,8 +115,8 @@ export function createTestContext(): TestContext {
         notifications: new TestNotificationsContextModule(createSystemContext),
     });
 
-    const processContext: ProcessContext = processContextBase.clone({
-        actor: new UnidentifiedActorContextModule(),
+    const processContext: AppProcessContext = processContextBase.clone({
+        actor: new AppUnidentifiedActorContextModule(),
     });
 
     const context = Object.assign(processContext, {

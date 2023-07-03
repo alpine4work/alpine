@@ -28,7 +28,7 @@ export async function loader({context: _context, params}: LoaderArgs) {
     const chatId = Schema.id<ChatId>().deserialize(params.chatId ?? null);
 
     const {chat, initialMessages, initialOtherReferencedMessages} = await getChatAndInitialMessages(
-        context,
+        context.actor.authorizeSession(),
         {
             chatId,
             messagesLimit: getInitialLoadMessageCount(context.loader.clientInfo),

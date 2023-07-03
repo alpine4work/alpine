@@ -1,4 +1,4 @@
-import {UnidentifiedActorContextModule} from "~/server/dynamo/context/actor_context_module.js";
+import {AppUnidentifiedActorContextModule} from "~/server/dynamo/context/app_actor_context_module.js";
 import {NotificationsContextModuleBase} from "~/server/dynamo/context/notifications_context_module.js";
 import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
@@ -7,12 +7,13 @@ import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 
 /**
- * Generic context for code running at the process level outside of the scope
- * of an individual request. Individual requests should use a `ActionContext`.
+ * Generic context for code running at the process level of our app service
+ * outside of the scope of an individual request. Individual requests should
+ * use an `AppActionContext`.
  */
-export type ProcessContext = Context<ProcessContextModules>;
+export type AppProcessContext = Context<AppProcessContextModules>;
 
-export type ProcessContextModulesBase = {
+export type AppProcessContextModulesBase = {
     process: ProcessContextModule;
     tracer: TracerContextModule;
     dynamo: DynamoContextModule;
@@ -20,7 +21,7 @@ export type ProcessContextModulesBase = {
     notifications: NotificationsContextModuleBase;
 };
 
-export type ProcessContextModules = ProcessContextModulesBase & {
+export type AppProcessContextModules = AppProcessContextModulesBase & {
     /**
      * Process contexts must contain an unidentified actor context module. This
      * stops you from doing `context.clone({actor: new SystemActorContextModule()})`
@@ -28,8 +29,8 @@ export type ProcessContextModules = ProcessContextModulesBase & {
      * module. Giving your context a system actor would be a privileges escalation!
      *
      * It's especially important that you can't escalate privileges in this way
-     * from an `ActionContext`. Again, system access should be carefully controlled
-     * starting from the top-level of your service's code.
+     * from an `AppActionContext`. Again, system access should be carefully
+     * controlled starting from the top-level of your service's code.
      */
-    actor: UnidentifiedActorContextModule;
+    actor: AppUnidentifiedActorContextModule;
 };

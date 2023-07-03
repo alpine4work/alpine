@@ -42,9 +42,10 @@ export function createServerTracer({
             // provided to us by `dev_main.ts` setting a global.
             if (
                 process.env.NODE_ENV !== "production" &&
-                typeof globalThis.__writeDevTracerEvent === "function"
+                // NOCOMMIT: Doesn't work in Node.js!
+                typeof (globalThis as any).__writeDevTracerEvent === "function"
             ) {
-                globalThis.__writeDevTracerEvent({
+                (globalThis as any).__writeDevTracerEvent({
                     time: event.time,
                     data: event.getFlatData(),
                 });

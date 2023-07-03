@@ -1,5 +1,5 @@
-import {SessionActionContext} from "~/server/dynamo/context/action_context.js";
-import {ProcessContext} from "~/server/dynamo/context/process_context.js";
+import {AppSessionActionContext} from "~/server/dynamo/context/app_action_context.js";
+import {AppProcessContext} from "~/server/dynamo/context/app_process_context.js";
 import {RoomInterface} from "~/server/dynamo/test_helpers/jest/test_messaging_implementation.js";
 import {TestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
 import {
@@ -33,7 +33,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export type TestMessagingRealtimeConnectionProcedures<Message extends MessageModel> = {
     [Key in keyof MessagingRealtimeProcedures<Message>]: (
-        context: SessionActionContext,
+        context: AppSessionActionContext,
         input: Parameters<MessagingRealtimeProcedures<Message>[Key]>[0],
         span: TracerSpan,
     ) => ReturnType<MessagingRealtimeProcedures<Message>[Key]>;
@@ -69,7 +69,7 @@ export function testMessagingRealtimeImplementation<
         deleteMessage,
     }: {
         createRoom: (
-            context: SessionActionContext,
+            context: AppSessionActionContext,
             spaceId: SpaceId,
             sessions: Array<TestSession>,
         ) => Promise<RoomInterface<RoomKey>>;
@@ -77,11 +77,11 @@ export function testMessagingRealtimeImplementation<
             spaceId: SpaceId;
             roomKey: RoomKey;
             sendEvent: (
-                context: ProcessContext,
+                context: AppProcessContext,
                 message: MessagingRealtimeEvent<MessageModel<RoomKey>>,
             ) => void;
             sendEventToOthers: (
-                context: ProcessContext,
+                context: AppProcessContext,
                 message: MessagingRealtimeEvent<MessageModel<RoomKey>>,
             ) => void;
             iterateOtherConnections: () => Iterable<Connection>;
@@ -114,7 +114,7 @@ export function testMessagingRealtimeImplementation<
         references: emptyContentReferences,
     };
 
-    const createRoom = (context: SessionActionContext, spaceId: SpaceId) =>
+    const createRoom = (context: AppSessionActionContext, spaceId: SpaceId) =>
         _createRoom(context, spaceId, [session1, session2, session3]);
 
     // TODO(calebmer): I want to convert this test to using

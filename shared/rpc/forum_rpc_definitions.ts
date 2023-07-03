@@ -2,6 +2,7 @@ import {AccountModel} from "~/shared/accounts/account_model.js";
 import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -106,5 +107,76 @@ export const getPostCommentsFromEnd = defineRpc({
         comments: Schema.array(PostCommentModel.schema()),
         otherReferencedComments: Schema.array(PostCommentModel.schema()),
         lastCommentChangeTime: Schema.date.nullable(),
+    },
+});
+
+export const authorizePostAccess = defineRpc({
+    name: "authorizePostAccess",
+    input: {
+        postId: Schema.id<PostId>(),
+    },
+    output: {
+        spaceId: Schema.id<SpaceId>(),
+    },
+});
+
+export const createPostComment = defineRpc({
+    name: "createPostComment",
+    input: {
+        postId: Schema.id<PostId>(),
+        parentCommentIndex: Schema.integer.nullable(),
+        content: MessageContentSchema,
+    },
+    output: {
+        index: Schema.integer,
+        createdTime: Schema.date,
+    },
+});
+
+export const updatePostCommentContent = defineRpc({
+    name: "updatePostCommentContent",
+    input: {
+        postId: Schema.id<PostId>(),
+        commentIndex: Schema.integer,
+        content: MessageContentSchema,
+    },
+    output: {
+        contentUpdatedTime: Schema.date,
+    },
+});
+
+export const deletePostComment = defineRpc({
+    name: "deletePostComment",
+    input: {
+        postId: Schema.id<PostId>(),
+        commentIndex: Schema.integer,
+    },
+    output: {
+        deletedTime: Schema.date,
+    },
+});
+
+export const backfillPostComments = defineRpc({
+    name: "backfillPostComments",
+    input: {
+        postId: Schema.id<PostId>(),
+        clientCommentCount: Schema.integer,
+        clientLastCommentChangeTime: Schema.date.nullable(),
+        newCommentLimit: Schema.integer,
+    },
+    output: {
+        commentCount: Schema.integer,
+        lastCommentChangeTime: Schema.date.nullable(),
+        newComments: Schema.array(PostCommentModel.schema()),
+        newOtherReferencedComments: Schema.array(PostCommentModel.schema()),
+        commentChangesResult: Schema.union({
+            Available: Schema.object({
+                type: Schema.value("Available"),
+                changes: Schema.array(MessageChangeSchema),
+            }),
+            Unavailable: Schema.object({
+                type: Schema.value("Unavailable"),
+            }),
+        }),
     },
 });

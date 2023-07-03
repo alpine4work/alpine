@@ -45,7 +45,7 @@ export async function loader({params, context}: LoaderArgs) {
     if (bucketGeneration === null || !Number.isInteger(bucketGeneration))
         throw new InvalidArgumentError("Expected bucket generation to be an integer");
 
-    const postsResult = await getInboxChannelPostsEntryPosts(await context.actor.authenticate(), {
+    const postsResult = await getInboxChannelPostsEntryPosts(context, {
         spaceId,
         channelId,
         bucketGeneration,

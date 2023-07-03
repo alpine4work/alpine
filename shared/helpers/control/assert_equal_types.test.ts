@@ -7,6 +7,18 @@ test("works with primitive types", () => {
     assertEqualTypes<number, number>();
 
     assertEqualTypes<string, string>();
+
+    // @ts-expect-error
+    assertAssignableTypes<42, number>();
+
+    // @ts-expect-error
+    assertAssignableTypes<number, 42>();
+
+    // @ts-expect-error
+    assertAssignableTypes<"foo", string>();
+
+    // @ts-expect-error
+    assertAssignableTypes<string, "foo">();
 });
 
 test("works with string unions", () => {

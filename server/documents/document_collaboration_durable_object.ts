@@ -1,20 +1,23 @@
+import {
+    WorkerActionContext,
+    WorkerSessionActionContext,
+} from "~/server/cloudflare/context/worker_action_context.js";
+import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {createDurableObject} from "~/server/cloudflare/create_durable_object.js";
 import {WebSocketServer} from "~/server/cloudflare/web_socket_server.js";
 import {DocumentCollaborationConnection} from "~/server/documents/document_collaboration_connection.js";
 import {DocumentCollaborationContentManager} from "~/server/documents/document_collaboration_content_manager.js";
-import {ActionContext, SessionActionContext} from "~/server/dynamo/context/action_context.js";
-import {ProcessContext} from "~/server/dynamo/context/process_context.js";
-import {authorizeDocumentAccess, getDocument} from "~/server/dynamo/documents_table.js";
 import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {authorizeDocumentAccess, getDocument} from "~/shared/rpc/documents_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 class DocumentCollaborationDurableObject {
     public static readonly serviceName = "DocumentCollaborationService";
 
-    private readonly _processContext: ProcessContext;
+    private readonly _processContext: WorkerProcessContext;
     public readonly spaceId: SpaceId;
     public readonly id: DocumentId;
     private readonly _contentManager: DocumentCollaborationContentManager;
@@ -31,14 +34,14 @@ class DocumentCollaborationDurableObject {
         idName,
         destroy,
     }: {
-        processContext: ProcessContext;
-        initializeActionContext: ActionContext;
+        processContext: WorkerProcessContext;
+        initializeActionContext: WorkerActionContext;
         idName: string;
         destroy: () => void;
     }): Promise<DocumentCollaborationDurableObject> {
         const documentId = Schema.id<DocumentId>().deserialize(idName);
 
-        const document = await getDocument(initializeActionContext, documentId);
+        const {document} = await getDocument(initializeActionContext, {documentId});
 
         return new DocumentCollaborationDurableObject({
             processContext,
@@ -58,7 +61,7 @@ class DocumentCollaborationDurableObject {
         initialContent,
         destroy,
     }: {
-        processContext: ProcessContext;
+        processContext: WorkerProcessContext;
         spaceId: SpaceId;
         id: DocumentId;
         initialVersion: number;
@@ -94,7 +97,7 @@ class DocumentCollaborationDurableObject {
                 sendEventToOthers,
                 iterateOtherConnections,
             }) => {
-                await authorizeDocumentAccess(connectActionContext, id);
+                await authorizeDocumentAccess(connectActionContext, {documentId: id});
 
                 return new DocumentCollaborationConnection({
                     connectionId,
@@ -108,7 +111,7 @@ class DocumentCollaborationDurableObject {
         );
     }
 
-    public fetch(context: ActionContext, request: Request): Promise<Response> {
+    public fetch(context: WorkerActionContext, request: Request): Promise<Response> {
         // Propagate the document id to all logs for this durable object.
         context = context.tracer.withPropagatedData({
             context: {spaceId: this.spaceId, documentId: this.id},
@@ -119,11 +122,11 @@ class DocumentCollaborationDurableObject {
         return this._webSocketServer.upgrade(context.actor.authorizeSession(), request);
     }
 
-    public connectForTest(context: SessionActionContext) {
+    public connectForTest(context: WorkerSessionActionContext) {
         return this._webSocketServer.connectForTest(context);
     }
 
-    private _destroy(context: ProcessContext) {
+    private _destroy(context: WorkerProcessContext) {
         this._webSocketServer.closeAll(context);
         this._destroyCallback();
     }

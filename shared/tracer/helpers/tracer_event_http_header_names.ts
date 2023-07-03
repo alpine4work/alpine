@@ -64,6 +64,9 @@ type TracerEventHttpHeaderNameMap = {
     "x-powered-by": true;
     "x-ua-compatible": true;
     "x-xss-protection": true;
+    // Cyberworlds custom headers
+    "cyberworlds-id-name": true;
+    "cyberworlds-space-id-hint": true;
 };
 
 const tracerEventHttpHeaderNameMap: TracerEventHttpHeaderNameMap = {
@@ -115,6 +118,8 @@ const tracerEventHttpHeaderNameMap: TracerEventHttpHeaderNameMap = {
     "x-powered-by": true,
     "x-ua-compatible": true,
     "x-xss-protection": true,
+    "cyberworlds-id-name": true,
+    "cyberworlds-space-id-hint": true,
 };
 
 /**

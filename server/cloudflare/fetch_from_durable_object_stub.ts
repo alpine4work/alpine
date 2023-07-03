@@ -1,7 +1,8 @@
-import {SignJWT} from "jose";
-import {unauthenticatedSessionError} from "~/server/dynamo/context/helpers/unauthenticated_session_error.js";
-import {SessionCookieStorage} from "~/server/remix/session_cookie.js";
+import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
+import {getSessionCookieIfExists} from "~/server/tokens/session_cookie.js";
+import {TokenAgentBase} from "~/server/tokens/token_agent.js";
 import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.js";
+import {DurableObjectServiceName} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 /**
@@ -11,16 +12,16 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
  */
 export async function fetchFromDurableObjectStub({
     durableObjectNamespace,
-    sessionCookieSecret,
-    sessionCookieStorage,
+    serviceName,
+    tokenAgent,
     request,
     pathname,
     idName,
     span,
 }: {
     durableObjectNamespace: DurableObjectNamespace;
-    sessionCookieSecret: string;
-    sessionCookieStorage: SessionCookieStorage;
+    serviceName: DurableObjectServiceName;
+    tokenAgent: TokenAgentBase;
     request: Request;
     pathname: string;
     idName: string;
@@ -35,26 +36,14 @@ export async function fetchFromDurableObjectStub({
     newRequest.headers.set("cyberworlds-id-name", idName);
     addTracerPropagationContextHeader(newRequest.headers, span);
 
-    const sessionCookie = await sessionCookieStorage.get(request);
-    if (!sessionCookie.sessionId) throw unauthenticatedSessionError();
+    const sessionCookieToken = await getSessionCookieIfExists(tokenAgent, request);
+    if (!sessionCookieToken) throw unauthenticatedSessionError();
 
-    // Create a short-lived JWT for sharing the `sessionId` with the durable object.
-    //
-    // We use a JWT to ensure that it's our app worker sending the `sessionId`. If
-    // an attacker got access to the Durable Object URL then they could send a
-    // request with whatever `sessionId` they have access to! Using a signed JWT
-    // prevents that.
-    const authenticationToken = await new SignJWT({
-        type: "Session",
-        sessionId: sessionCookie.sessionId,
-        sessionAccountId: sessionCookie.sessionAccountId,
-    })
-        .setProtectedHeader({alg: "HS256"})
-        .setIssuedAt()
-        .setExpirationTime("2m")
-        .sign(new TextEncoder().encode(sessionCookieSecret));
-
-    newRequest.headers.set("authorization", `bearer ${authenticationToken}`);
+    const requestToken = await tokenAgent.dangerouslySignShortLivedToken(
+        serviceName,
+        sessionCookieToken,
+    );
+    newRequest.headers.set("authorization", `bearer ${requestToken}`);
 
     return durableObjectStub.fetch(newRequest);
 }

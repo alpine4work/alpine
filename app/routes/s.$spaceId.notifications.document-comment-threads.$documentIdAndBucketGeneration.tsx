@@ -56,7 +56,7 @@ export async function loader({params, context}: LoaderArgs) {
 
     const {document, commentThreads, initialCommentsByCommentThreadId} =
         await getInboxDocumentNewCommentThreadsEntryCommentThreads(
-            await context.actor.authenticate(),
+            (await context.actor.authenticate()).actor.authorizeSession(),
             {
                 spaceId,
                 documentId,

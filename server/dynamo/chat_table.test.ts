@@ -15,7 +15,7 @@ import {
     sendChatMessageToAccountsBeforeCreateChatTestCheckpoint,
     updateChatMessageContent,
 } from "~/server/dynamo/chat_table.js";
-import {SessionActionContext} from "~/server/dynamo/context/action_context.js";
+import {AppSessionActionContext} from "~/server/dynamo/context/app_action_context.js";
 import {getSpacesTableForTest} from "~/server/dynamo/spaces_table.js";
 import {testMessagingImplementation} from "~/server/dynamo/test_helpers/jest/test_messaging_implementation.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
@@ -385,7 +385,7 @@ function sortSharedChats(
 // `getOrCreateChatForAccounts()` and `sendChatMessage()`. To avoid rewriting
 // tests the function is reconstructed here.
 async function sendChatMessageToAccounts(
-    context: SessionActionContext,
+    context: AppSessionActionContext,
     {
         spaceId,
         otherAccountIds,

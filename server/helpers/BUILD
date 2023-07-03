@@ -7,10 +7,10 @@ ts_project(
         "//server:__subpackages__",
     ],
     deps = [
-        "//:node_modules/@cloudflare/workers-types",
-        "//:node_modules/@remix-run/dev",
+        "//:node_modules/@types/cookie",
         "//:node_modules/@types/jest",
         "//:node_modules/@types/json-stable-stringify",
+        "//:node_modules/cookie",
         "//:node_modules/json-stable-stringify",
         "//shared/error",
         "//shared/helpers",

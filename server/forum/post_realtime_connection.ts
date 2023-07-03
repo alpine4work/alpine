@@ -1,11 +1,6 @@
+import {WorkerSessionActionContext} from "~/server/cloudflare/context/worker_action_context.js";
+import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {WebSocketConnectionProcedures} from "~/server/cloudflare/web_socket_server.js";
-import {ProcessContext} from "~/server/dynamo/context/process_context.js";
-import {
-    backfillPostComments,
-    createPostComment,
-    deletePostComment,
-    updatePostCommentContent,
-} from "~/server/dynamo/forum_table.js";
 import {
     BackfillMessagesFunction,
     CreateMessageFunction,
@@ -18,6 +13,12 @@ import {PostCommentModel} from "~/shared/forum/post_model.js";
 import {PostRealtimeEvent, PostRealtimeProtocol} from "~/shared/forum/post_realtime_protocol.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {PostId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {
+    backfillPostComments,
+    createPostComment,
+    deletePostComment,
+    updatePostCommentContent,
+} from "~/shared/rpc/forum_rpc_definitions.js";
 
 export class PostRealtimeConnection {
     private readonly _connection: MessagingRealtimeConnection<PostId, PostCommentModel>;
@@ -33,8 +34,8 @@ export class PostRealtimeConnection {
         connectionId: WebSocketConnectionId;
         spaceId: SpaceId;
         postId: PostId;
-        sendEvent: (context: ProcessContext, event: PostRealtimeEvent) => void;
-        sendEventToOthers: (context: ProcessContext, event: PostRealtimeEvent) => void;
+        sendEvent: (context: WorkerProcessContext, event: PostRealtimeEvent) => void;
+        sendEventToOthers: (context: WorkerProcessContext, event: PostRealtimeEvent) => void;
         iterateOtherConnections: () => Iterable<PostRealtimeConnection>;
     }) {
         this._connection = new MessagingRealtimeConnection({
@@ -103,7 +104,7 @@ export class PostRealtimeConnection {
             this._connection.stopTypingInMessageInput(context, input),
     };
 
-    public async handleClose(context: ProcessContext) {
+    public async handleClose(context: WorkerProcessContext) {
         return this._connection.handleClose(context);
     }
 }
@@ -124,7 +125,7 @@ const createMessageModel: CreateMessageModelFunction<PostId, PostCommentModel> =
     });
 };
 
-const createMessage: CreateMessageFunction<PostId> = async (
+const createMessage: CreateMessageFunction<WorkerSessionActionContext, PostId> = async (
     context,
     {roomKey: postId, parentMessageIndex: parentCommentIndex, content},
 ) => {
@@ -140,10 +141,10 @@ const createMessage: CreateMessageFunction<PostId> = async (
     };
 };
 
-const updateMessageContent: UpdateMessageContentFunction<PostId> = async (
-    context,
-    {roomKey: postId, messageIndex: commentIndex, content},
-) => {
+const updateMessageContent: UpdateMessageContentFunction<
+    WorkerSessionActionContext,
+    PostId
+> = async (context, {roomKey: postId, messageIndex: commentIndex, content}) => {
     return updatePostCommentContent(context, {
         postId,
         commentIndex,
@@ -151,14 +152,18 @@ const updateMessageContent: UpdateMessageContentFunction<PostId> = async (
     });
 };
 
-const deleteMessage: DeleteMessageFunction<PostId> = async (
+const deleteMessage: DeleteMessageFunction<WorkerSessionActionContext, PostId> = async (
     context,
     {roomKey: postId, messageIndex: commentIndex},
 ) => {
     return deletePostComment(context, {postId, commentIndex});
 };
 
-const backfillMessages: BackfillMessagesFunction<PostId, PostCommentModel> = async (
+const backfillMessages: BackfillMessagesFunction<
+    WorkerSessionActionContext,
+    PostId,
+    PostCommentModel
+> = async (
     context,
     {
         roomKey: postId,

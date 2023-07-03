@@ -4,13 +4,13 @@ import type * as types from "@aws-sdk/client-ses";
 import {AwsClient} from "aws4fetch";
 import {EmailAddress} from "~/server/emails/email_address.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
+import {encodeAwsUrlencodedFormat} from "~/server/emails/encode_aws_urlencoded_format.js";
 import {
     FromEmailAddress,
     getFromEmailAddress,
     getFromEmailAddressName,
 } from "~/server/emails/from_email_address.js";
 import {RenderedEmail} from "~/server/emails/internal/email_templates.js";
-import {encodeAwsUrlencodedFormat} from "~/server/helpers/aws/encode_aws_urlencoded_format.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {UnknownError} from "~/shared/error/error.js";
 

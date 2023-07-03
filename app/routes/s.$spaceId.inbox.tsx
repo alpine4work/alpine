@@ -66,15 +66,16 @@ export async function loader({params, context, request, serverRoutes: routes}: L
     ];
 
     const [entriesResult, _peekData] = await runAllPromises([
-        getInboxEntries(await context.actor.authenticate(), {
-            spaceId,
-            filter,
-            limit: getInitialVirtualizedScrollViewRenderedItemCount(
-                context.loader.clientInfo,
-                inboxEntryViewMinHeight,
-            ),
-            afterCursor: null,
-        }),
+        (async () =>
+            getInboxEntries((await context.actor.authenticate()).actor.authorizeSession(), {
+                spaceId,
+                filter,
+                limit: getInitialVirtualizedScrollViewRenderedItemCount(
+                    context.loader.clientInfo,
+                    inboxEntryViewMinHeight,
+                ),
+                afterCursor: null,
+            }))(),
         (() => {
             if (!selectedParam) return null;
 

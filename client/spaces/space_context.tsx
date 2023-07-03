@@ -52,7 +52,7 @@ export function SpaceContextProvider({
 }) {
     const {isConnected, subscribeToEvents, toggleShouldConnect} = useWebSocket(
         MyAccountProtocol,
-        `/durable-objects/my-account/${currentAccount.id}`,
+        `/api/durable-objects/my-account/${currentAccount.id}`,
     );
 
     useDevConsoleTool("myAccount", () => ({toggleShouldConnect}));

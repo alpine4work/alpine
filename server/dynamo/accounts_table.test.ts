@@ -8,7 +8,7 @@ import {
     getAccountsTableForTest,
     regenerateOneTimePasswordSignIn,
 } from "~/server/dynamo/accounts_table.js";
-import {ActionContext} from "~/server/dynamo/context/action_context.js";
+import {AppActionContext} from "~/server/dynamo/context/app_action_context.js";
 import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session.js";
@@ -994,7 +994,7 @@ test("can not get accounts through a space we don't have access to even if we ha
 test("can not call `getAccount()` with `ContentMentionAccountId`", () => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async function testTypes(
-        context: ActionContext,
+        context: AppActionContext,
         spaceId: SpaceId,
         accountId: ContentMentionAccountId,
     ) {
@@ -1010,7 +1010,7 @@ test("can not call `getAccount()` with `ContentMentionAccountId`", () => {
 test("can call `getAccountIfExists()` with `ContentMentionAccountId`", () => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async function testTypes(
-        context: ActionContext,
+        context: AppActionContext,
         spaceId: SpaceId,
         accountId: ContentMentionAccountId,
     ) {

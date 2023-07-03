@@ -35,7 +35,9 @@ const LoaderSchema = Schema.object({
     }).nullable(),
 });
 
-export async function loader({params, context, request}: LoaderArgs) {
+export async function loader({params, context: _context, request}: LoaderArgs) {
+    const context = (await _context.actor.authenticate()).actor.authorizeSession();
+
     const url = new URL(request.url);
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
     const documentId = Schema.id<DocumentId>().deserialize(params.documentId ?? null);
@@ -52,7 +54,7 @@ export async function loader({params, context, request}: LoaderArgs) {
                 try {
                     const content = emptyDocumentContent;
 
-                    const newDocument = await createDocument(await context.actor.authenticate(), {
+                    const newDocument = await createDocument(context, {
                         id: documentId,
                         spaceId,
                         content,
@@ -75,10 +77,10 @@ export async function loader({params, context, request}: LoaderArgs) {
                 }
             }
 
-            return getDocument(await context.actor.authenticate(), documentId);
+            return getDocument(context, documentId);
         })(),
         commentThreadId
-            ? getDocumentCommentThreadAndInitialComments(await context.actor.authenticate(), {
+            ? getDocumentCommentThreadAndInitialComments(context, {
                   documentId,
                   commentThreadId,
                   limit: getInitialLoadMessageCount(context.loader.clientInfo),

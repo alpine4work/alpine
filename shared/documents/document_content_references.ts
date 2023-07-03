@@ -1,7 +1,9 @@
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {
+    ContentReferences,
     ContentReferencesSchema,
     emptyContentReferences,
+    isEmptyContentReferences,
 } from "~/shared/content/content_references.js";
 import {DocumentContentSchema} from "~/shared/documents/document_content_schema.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
@@ -41,9 +43,12 @@ export const emptyDocumentContentReferences: DocumentContentReferences = {
 export function isEmptyDocumentContentReferences(references: DocumentContentReferences): boolean {
     // If you add more data to `DocumentContentReferences` in the future, you'll
     // need to come back and update this function.
-    assertEqualTypes<keyof DocumentContentReferences, "accountById" | "commentThreadById">();
+    assertEqualTypes<
+        Exclude<keyof DocumentContentReferences, keyof ContentReferences>,
+        "commentThreadById"
+    >();
 
-    return references.accountById.size === 0 && references.commentThreadById.size === 0;
+    return isEmptyContentReferences(references) && references.commentThreadById.size === 0;
 }
 
 export function mergeDocumentContentReferences(

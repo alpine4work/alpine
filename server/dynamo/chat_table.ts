@@ -2,7 +2,10 @@ import {createHash} from "crypto";
 import {subDays} from "date-fns";
 import murmurhash from "murmurhash";
 import {getAccount} from "~/server/dynamo/accounts_table.js";
-import {ActionContext, SessionActionContext} from "~/server/dynamo/context/action_context.js";
+import {
+    AppActionContext,
+    AppSessionActionContext,
+} from "~/server/dynamo/context/app_action_context.js";
 import {getContentReferencesForNode} from "~/server/dynamo/helpers/get_content_references.js";
 import {getMentionedAccountIdsInContent} from "~/server/dynamo/helpers/get_mentioned_account_ids_in_content.js";
 import {createMessagePayloadModel} from "~/server/dynamo/helpers/messaging/create_message_payload_model.js";
@@ -222,7 +225,7 @@ export const sendChatMessageToAccountsBeforeCreateChatTestCheckpoint =
  * to create chats.
  */
 export async function createChatForTest(
-    context: SessionActionContext,
+    context: AppSessionActionContext,
     {
         id = generateId<ChatId>(),
         spaceId,
@@ -339,7 +342,7 @@ function hashMd5(data: ArrayBuffer): ArrayBuffer {
  * succession and get the same result.
  */
 export function getOrCreateChatForAccounts(
-    context: SessionActionContext,
+    context: AppSessionActionContext,
     {
         spaceId,
         otherAccountIds,
@@ -372,7 +375,7 @@ export function getOrCreateChatForAccounts(
  * component's UX.
  */
 export function selectChatForAccounts(
-    context: SessionActionContext,
+    context: AppSessionActionContext,
     {
         spaceId,
         otherAccountIds,
@@ -452,7 +455,7 @@ export function selectChatForAccounts(
 }
 
 function actuallyGetOrCreateChatForAccounts(
-    context: SessionActionContext,
+    context: AppSessionActionContext,
     {
         spaceId,
         otherAccountIds,
@@ -655,7 +658,7 @@ function actuallyGetOrCreateChatForAccounts(
  * Send a message to to the provided chat.
  */
 export function sendChatMessage(
-    context: SessionActionContext,
+    context: AppSessionActionContext,
     {
         chatId,
         parentMessageIndex,
@@ -670,6 +673,8 @@ export function sendChatMessage(
     index: number;
     createdTime: Date;
 }> {
+    // NOCOMMIT: Only allow edge service to send chat messages!
+
     return context.dynamo.retryTransaction(async context => {
         const [chatItem] = await runAllPromiseThunks(
             async () => {
@@ -757,7 +762,7 @@ export function sendChatMessage(
 /**
  * Authorize that the current account is allowed to access the chat.
  */
-export function authorizeChatAccess(context: SessionActionContext, chatId: ChatId) {
+export function authorizeChatAccess(context: AppSessionActionContext, chatId: ChatId) {
     return authorizeChatAccessForAccount(context, chatId, context.actor.getAccountId());
 }
 
@@ -771,7 +776,7 @@ export function authorizeChatAccess(context: SessionActionContext, chatId: ChatI
  * query for.
  */
 export async function authorizeChatAccessForAccount(
-    context: ActionContext,
+    context: AppActionContext,
     chatId: ChatId,
     accountId: AccountId,
 ): Promise<{spaceId: SpaceId; chatAccountCount: number}> {
@@ -828,7 +833,7 @@ export async function authorizeChatAccessForAccount(
 }
 
 async function authorizeChatAccessWithItem(
-    context: SessionActionContext,
+    context: AppSessionActionContext,
     chatItem: Pick<ChatAttributesItem, "chatId" | "spaceId">,
 ) {
     const [, chatAccountItem] = await runAllPromises([
@@ -866,7 +871,7 @@ async function authorizeChatAccessWithItem(
  * function.
  */
 function getSharedChats(
-    context: SessionActionContext,
+    context: AppSessionActionContext,
     {
         spaceId,
         otherAccountIds,
@@ -962,7 +967,7 @@ function getSharedChats(
  * Allow tests to call the `getSharedChats()` from a test.
  */
 export function getSharedChatsForTest(
-    context: SessionActionContext,
+    context: AppSessionActionContext,
     {
         spaceId,
         otherAccountIds,
@@ -978,7 +983,7 @@ export function getSharedChatsForTest(
 /**
  * Get the provided chat `ChatId`. Returning null if the chat does not exist.
  */
-export async function getChat(context: ActionContext, chatId: ChatId): Promise<ChatModel> {
+export async function getChat(context: AppActionContext, chatId: ChatId): Promise<ChatModel> {
     let chatItem: ChatAttributesItem | undefined;
     const accountPromises: Array<Promise<AccountModel>> = [];
 
@@ -1058,7 +1063,7 @@ export async function getChat(context: ActionContext, chatId: ChatId): Promise<C
  * Get a single chat message comment.
  */
 export async function getChatMessage(
-    context: SessionActionContext,
+    context: AppSessionActionContext,
     {chatId, messageIndex}: {chatId: ChatId; messageIndex: number},
 ): Promise<ChatMessageModel> {
     const [{spaceId}, item] = await runAllPromises([
@@ -1075,7 +1080,7 @@ export async function getChatMessage(
 }
 
 async function createChatMessageModelFromItem(
-    context: ActionContext,
+    context: AppActionContext,
     spaceId: SpaceId,
     item: ChatMessageItem,
 ): Promise<ChatMessageModel> {
@@ -1097,7 +1102,7 @@ async function createChatMessageModelFromItem(
  * Update the contents of a chat message.
  */
 export function updateChatMessageContent(
-    context: SessionActionContext,
+    context: AppSessionActionContext,
     {
         chatId,
         messageIndex,
@@ -1193,7 +1198,7 @@ export function updateChatMessageContent(
  * Delete a single chat message.
  */
 export function deleteChatMessage(
-    context: SessionActionContext,
+    context: AppSessionActionContext,
     {chatId, messageIndex}: {chatId: ChatId; messageIndex: number},
 ): Promise<{deletedTime: Date}> {
     return context.dynamo.retryTransaction(async context => {
@@ -1272,7 +1277,7 @@ export function deleteChatMessage(
  * Get our chat and initial messages that come with it efficiently at once.
  */
 export async function getChatAndInitialMessages(
-    context: SessionActionContext,
+    context: AppSessionActionContext,
     {chatId, messagesLimit}: {chatId: ChatId; messagesLimit: number},
 ): Promise<{
     chat: ChatModel;
@@ -1312,7 +1317,7 @@ export async function getChatAndInitialMessages(
  * Paginate through chat messages from start to finish.
  */
 export async function getChatMessagesFromStart(
-    context: SessionActionContext,
+    context: AppSessionActionContext,
     {
         chatId,
         limit,
@@ -1368,7 +1373,7 @@ export async function getChatMessagesFromStart(
 }
 
 async function getChatMessagesFromStartAssumingAuthorizedChat(
-    context: ActionContext,
+    context: AppActionContext,
     {
         chatId,
         getSpaceId,
@@ -1459,7 +1464,7 @@ async function getChatMessagesFromStartAssumingAuthorizedChat(
  * Paginate through chat messages from finish to start.
  */
 export async function getChatMessagesFromEnd(
-    context: SessionActionContext,
+    context: AppSessionActionContext,
     {
         chatId,
         limit,
@@ -1515,7 +1520,7 @@ export async function getChatMessagesFromEnd(
 }
 
 async function getChatMessagesFromEndAssumingAuthorizedChat(
-    context: ActionContext,
+    context: AppActionContext,
     {
         chatId,
         getSpaceId,
@@ -1639,7 +1644,7 @@ export type ChatMessageChangesResult =
  * your client has loaded and try loading the data again.
  */
 export async function backfillChatMessages(
-    context: SessionActionContext,
+    context: AppSessionActionContext,
     {
         chatId,
         clientMessageCount,
@@ -1718,7 +1723,7 @@ export async function backfillChatMessages(
 }
 
 async function queryChatMessageChangeLogAssumingAuthorizedPost(
-    context: ActionContext,
+    context: AppActionContext,
     {
         chatItem,
         lastMessageChangeTime,

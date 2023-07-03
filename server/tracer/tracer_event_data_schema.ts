@@ -1,7 +1,4 @@
-import {
-    getAllDynamoTableSchemaIndexNames,
-    getAllDynamoTableSchemas,
-} from "~/server/dynamo/get_all_dynamo_table_schemas.js";
+import {tracerEventDataDynamoConsumedCapacityKeys} from "~/server/tracer/internal/tracer_event_data_dynamo_consumed_capacity_keys.js";
 import {DateString, isDateString} from "~/shared/helpers/date/date_string.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
@@ -149,17 +146,8 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         consistentRead: Schema.boolean,
         consumedCapacity: {
             ...Object.fromEntries(
-                getAllDynamoTableSchemas().map(tableSchema => [
-                    tableSchema.getName(),
-                    {
-                        readCapacityUnits: Schema.float,
-                        writeCapacityUnits: Schema.float,
-                    },
-                ]),
-            ),
-            ...Object.fromEntries(
-                getAllDynamoTableSchemaIndexNames().map(({tableName, indexName}) => [
-                    `${tableName}_${indexName}`,
+                tracerEventDataDynamoConsumedCapacityKeys.map(key => [
+                    key,
                     {
                         readCapacityUnits: Schema.float,
                         writeCapacityUnits: Schema.float,

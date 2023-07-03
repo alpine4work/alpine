@@ -1,8 +1,11 @@
 import {differenceInMinutes} from "date-fns";
 import {Node} from "prosemirror-model";
-import {Mapping, Step} from "prosemirror-transform";
+import {Step} from "prosemirror-transform";
 import {getAccount, getAccountIfExists} from "~/server/dynamo/accounts_table.js";
-import {ActionContext, SessionActionContext} from "~/server/dynamo/context/action_context.js";
+import {
+    AppActionContext,
+    AppSessionActionContext,
+} from "~/server/dynamo/context/app_action_context.js";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry.js";
 import {getContentReferencesForNode} from "~/server/dynamo/helpers/get_content_references.js";
@@ -23,6 +26,7 @@ import {getNotificationMessageContentSnippet} from "~/server/dynamo/notification
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
+import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {
     DocumentContent,
     DocumentContentSchema,
@@ -36,6 +40,7 @@ import {
     DocumentPreviewModel,
     getDocumentContentTitleWithoutFallback,
 } from "~/shared/documents/document_model.js";
+import {getUpdateDocumentContentResult} from "~/shared/documents/get_update_document_content_result.js";
 import {
     DataLossError,
     FailedPreconditionError,
@@ -50,7 +55,6 @@ import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
-import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
@@ -74,7 +78,6 @@ import {
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
 import {MessageContent, MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {MessagePayloadSchema} from "~/shared/messaging/message_model.js";
-import {ExhaustiveStep} from "~/shared/prosemirror/prosemirror_exhaustive_step.js";
 import {
     visitProsemirrorNode,
     visitProsemirrorStep,
@@ -477,7 +480,7 @@ type DocumentCommentItem = DynamoTableItemType<
  * Creates a new document with no history using the initial content provided.
  */
 export async function createDocument(
-    context: SessionActionContext,
+    context: AppSessionActionContext,
     {
         id = generateId<DocumentId>(),
         spaceId,
@@ -530,31 +533,35 @@ export async function createDocument(
     };
 }
 
+const DocumentPreviewContextCache = new ContextCache<DocumentId, DocumentPreviewModel | null>();
+
 /**
  * Get a preview of the document with the provided id.
  *
  * Cheaper than `getDocument()` since we don't return the full content.
  */
-export async function getDocumentPreviewIfExists(
-    context: ActionContext,
+export function getDocumentPreviewIfExists(
+    context: AppActionContext,
     id: DocumentId,
 ): Promise<DocumentPreviewModel | null> {
-    const attributes = await DocumentsTable.getItemIfExists(context, {
-        partitionType: "Document",
-        documentId: id,
-        sortRangeType: "Attributes",
-    });
+    return DocumentPreviewContextCache.get(context, id, async () => {
+        const attributes = await DocumentsTable.getItemIfExists(context, {
+            partitionType: "Document",
+            documentId: id,
+            sortRangeType: "Attributes",
+        });
 
-    if (!attributes) return null;
+        if (!attributes) return null;
 
-    await authorizeSpaceAccess(context, attributes.spaceId);
+        await authorizeSpaceAccess(context, attributes.spaceId);
 
-    return new DocumentPreviewModel({
-        id,
-        createdTime: attributes.createdTime,
-        spaceId: attributes.spaceId,
-        version: attributes.version,
-        titleWithoutFallback: attributes.titleWithoutFallback,
+        return new DocumentPreviewModel({
+            id,
+            createdTime: attributes.createdTime,
+            spaceId: attributes.spaceId,
+            version: attributes.version,
+            titleWithoutFallback: attributes.titleWithoutFallback,
+        });
     });
 }
 
@@ -564,7 +571,7 @@ export async function getDocumentPreviewIfExists(
  * Cheaper than `getDocument()` since we don't return the full content.
  */
 export async function getDocumentPreview(
-    context: ActionContext,
+    context: AppActionContext,
     id: DocumentId,
 ): Promise<DocumentPreviewModel> {
     const document = await getDocumentPreviewIfExists(context, id);
@@ -576,11 +583,12 @@ export async function getDocumentPreview(
  * Authorizes that the current request can access the document.
  */
 export async function authorizeDocumentAccess(
-    context: ActionContext,
-    id: DocumentId,
-): Promise<void> {
-    const document = await getDocumentPreviewIfExists(context, id);
+    context: AppActionContext,
+    documentId: DocumentId,
+): Promise<{spaceId: SpaceId}> {
+    const document = await getDocumentPreviewIfExists(context, documentId);
     if (!document) throw new NotFoundError("Document not found");
+    return {spaceId: document.spaceId};
 }
 
 type InternalDocument = {
@@ -594,7 +602,7 @@ type InternalDocument = {
 export const getInternalDocumentTestCounter = new TestCounter();
 
 async function getInternalDocumentIfExists(
-    context: ActionContext,
+    context: AppActionContext,
     id: DocumentId,
 ): Promise<InternalDocument | null> {
     getInternalDocumentTestCounter.incrementForTest(id);
@@ -705,7 +713,7 @@ async function getInternalDocumentIfExists(
  * Get the full document with the provided id.
  */
 export async function getDocument(
-    context: ActionContext,
+    context: AppActionContext,
     documentId: DocumentId,
 ): Promise<DocumentModel> {
     return (await getDocumentAndCommentThreads(context, {documentId, commentThreadIds: []}))
@@ -720,7 +728,7 @@ export async function getDocument(
  * in the `archivedCommentThreadById` map.
  */
 export async function getDocumentAndCommentThreads(
-    context: ActionContext,
+    context: AppActionContext,
     {
         documentId,
         commentThreadIds: _requestedCommentThreadIds,
@@ -970,7 +978,7 @@ function getReferencedDocumentCommentThreadIds(content: Node): Set<DocumentComme
 }
 
 async function createDocumentCommentThreadModelFromItem(
-    context: ActionContext,
+    context: AppActionContext,
     spaceId: SpaceId,
     item: DocumentReferencedCommentThreadItem | DocumentArchivedCommentThreadItem,
 ) {
@@ -1001,7 +1009,7 @@ async function createDocumentCommentThreadModelFromItem(
  * thread separately. Use it sparingly.
  */
 export async function batchGetDocumentCommentThreadsIfExists(
-    context: ActionContext,
+    context: AppActionContext,
     {
         documentId,
         commentThreadIds,
@@ -1010,35 +1018,19 @@ export async function batchGetDocumentCommentThreadsIfExists(
         commentThreadIds: Iterable<DocumentCommentThreadId>;
     },
 ): Promise<Array<DocumentCommentThreadModel | null>> {
-    const documentItemPromise = DocumentsTable.getItem(context, {
-        partitionType: "Document",
-        documentId,
-        sortRangeType: "Attributes",
-    });
+    const {spaceId} = await authorizeDocumentAccess(context, documentId);
 
-    const [, commentThreadItems] = await runAllPromises([
-        (async () => {
-            const documentItem = await documentItemPromise;
-            await authorizeSpaceAccess(context, documentItem.spaceId);
-        })(),
-        runAllPromises(
-            mapIterable(commentThreadIds, async commentThreadId => {
-                const commentThreadItem = await getDocumentCommentThreadItemIfExists(context, {
-                    documentId,
-                    commentThreadId,
-                });
-                if (!commentThreadItem) return null;
+    const commentThreadItems = await runAllPromises(
+        mapIterable(commentThreadIds, async commentThreadId => {
+            const commentThreadItem = await getDocumentCommentThreadItemIfExists(context, {
+                documentId,
+                commentThreadId,
+            });
+            if (!commentThreadItem) return null;
 
-                const {spaceId} = await documentItemPromise;
-
-                return createDocumentCommentThreadModelFromItem(
-                    context,
-                    spaceId,
-                    commentThreadItem,
-                );
-            }),
-        ),
-    ]);
+            return createDocumentCommentThreadModelFromItem(context, spaceId, commentThreadItem);
+        }),
+    );
 
     return commentThreadItems;
 }
@@ -1072,7 +1064,7 @@ export class DocumentContentCacheForUpdate {
     private readonly _entries = new DocumentContentCacheForUpdateEntries();
 
     public async getAndCacheDocument(
-        context: ActionContext,
+        context: AppActionContext,
         id: DocumentId,
     ): Promise<{
         readonly createdTime: Date;
@@ -1561,7 +1553,7 @@ declare module "prosemirror-transform" {
 // object we should throw an error or restart the durable object or something.
 // Because the durable object's internal state will be wrong.
 export async function updateDocumentContent(
-    context: SessionActionContext,
+    context: AppSessionActionContext,
     {
         id,
         version: clientVersion,
@@ -1899,285 +1891,6 @@ export async function updateDocumentContent(
 }
 
 /**
- * Gets the result of applying an update to some document content.
- *
- * If an update is for an old version then we rebase the update steps with
- * conflicting steps in the document.
- *
- * We return the rebased steps. It's possible the rebased steps array will be
- * empty! This happens if while rebasing, the ranges edited by the update steps
- * were completely removed.
- *
- * You need to provide a `getSteps` function which, when called, returns the
- * array of steps in that range. You can assume the range passed into this
- * function is a valid range of steps.
- */
-export async function getUpdateDocumentContentResult({
-    currentVersion,
-    currentContent,
-    clientVersion,
-    clientSteps,
-    getSteps,
-}: {
-    currentVersion: number;
-    currentContent: DocumentContent;
-    clientVersion: number;
-    clientSteps: ReadonlyArray<Step>;
-    getSteps: (
-        startVersion: number,
-        endVersion: number,
-    ) => Promise<Array<{step: Step; invertedStep: Step; clientId: ContentEditorClientId}>>;
-}): Promise<{
-    newContent: DocumentContent;
-    steps: ReadonlyArray<Step>;
-    invertedSteps: ReadonlyArray<Step>;
-    conflictingSteps: ReadonlyArray<{
-        step: Step;
-        invertedStep: Step;
-        clientId: ContentEditorClientId;
-    }>;
-    clientContent: DocumentContent;
-    // Mapping from client positions to positions in the final document. Will
-    // not map anything if there were no conflicting steps.
-    mapping: Mapping;
-}> {
-    assert(clientVersion >= 0);
-
-    if (clientVersion > currentVersion)
-        throw new FailedPreconditionError(
-            "Can not update document with steps at version ahead of the document's current version",
-        );
-
-    let content = currentContent;
-    let steps: ReadonlyArray<Step>;
-    let invertedSteps: Array<Step>;
-    let conflictingSteps: ReadonlyArray<{
-        step: Step;
-        invertedStep: Step;
-        clientId: ContentEditorClientId;
-    }>;
-    let clientContent: DocumentContent;
-
-    const mapping = new Mapping();
-
-    // If the client's version is the same as our server version then we can
-    // directly apply the client's steps to the content.
-    if (clientVersion === currentVersion) {
-        invertedSteps = [];
-
-        for (const step of clientSteps) {
-            const stepResult = step.apply(content);
-            if (!stepResult.doc)
-                throw new FailedPreconditionError(
-                    `Could not apply step to document: ${stepResult.failed!}`,
-                );
-
-            invertedSteps.push(step.invert(content));
-
-            assert(isDocumentContent(stepResult.doc));
-            content = stepResult.doc;
-        }
-
-        steps = clientSteps;
-        conflictingSteps = [];
-        clientContent = content;
-    }
-
-    // If the client is trying to update an older document version then we need to
-    // rebase the client steps against steps which were applied before it.
-    else {
-        assert(clientVersion < currentVersion);
-
-        conflictingSteps = await getSteps(clientVersion, currentVersion);
-        assert(conflictingSteps.length === currentVersion - clientVersion);
-
-        const invertedClientSteps: Array<Step> = [];
-
-        // Make sure all steps from the client were valid against the document at
-        // `clientVersion`. So revert back to to that version and try applying our
-        // client steps.
-        //
-        // We will drop any steps we can't rebase. But we still want to validate that
-        // the original steps were ok.
-        {
-            clientContent = content;
-
-            for (let i = conflictingSteps.length - 1; i >= 0; i--) {
-                const {invertedStep} = conflictingSteps[i]!;
-                const invertedStepResult = invertedStep.apply(clientContent);
-                if (!invertedStepResult.doc)
-                    throw new DataLossError(
-                        `Could not apply inverse of saved document step: ${invertedStepResult.failed!}`,
-                    );
-
-                assert(isDocumentContent(invertedStepResult.doc));
-                clientContent = invertedStepResult.doc;
-            }
-
-            for (const step of clientSteps) {
-                const stepResult = step.apply(clientContent);
-                if (!stepResult.doc)
-                    throw new FailedPreconditionError(
-                        `Could not apply step to document: ${stepResult.failed!}`,
-                    );
-
-                invertedClientSteps.push(step.invert(clientContent));
-
-                assert(isDocumentContent(stepResult.doc));
-                clientContent = stepResult.doc;
-            }
-        }
-
-        // See the guide for information on how to rebase a chain of steps against
-        // another chain of steps:
-        // https://prosemirror.net/docs/guide/#transform.rebasing
-        //
-        // Also see the client-side rebasing implementation:
-        // https://github.com/ProseMirror/prosemirror-collab/blob/ed039eb7e62fd0079b51406863931c6f67046881/src/collab.ts#L14-L27
-
-        for (let i = invertedClientSteps.length - 1; i >= 0; i--)
-            mapping.appendMap(invertedClientSteps[i]!.getMap());
-        for (let i = 0; i < conflictingSteps.length; i++)
-            mapping.appendMap(conflictingSteps[i]!.step.getMap());
-
-        const rebasedSteps = [];
-        invertedSteps = [];
-        let mapFrom = clientSteps.length;
-
-        for (let i = 0; i < clientSteps.length; i++) {
-            const rebasedStep = clientSteps[i]!.map(mapping.slice(mapFrom));
-            mapFrom--;
-
-            // Silently ignore steps we can't rebase. That's what the client
-            // implementation does:
-            // https://github.com/ProseMirror/prosemirror-collab/blob/ed039eb7e62fd0079b51406863931c6f67046881/src/collab.ts#L21
-            if (!rebasedStep) continue;
-
-            const rebasedStepResult = rebasedStep.apply(content);
-
-            // Silently ignore steps we can't rebase. That's what the client
-            // implementation does:
-            // https://github.com/ProseMirror/prosemirror-collab/blob/ed039eb7e62fd0079b51406863931c6f67046881/src/collab.ts#L21
-            if (!rebasedStepResult.doc) continue;
-
-            invertedSteps.push(rebasedStep.invert(content));
-
-            assert(isDocumentContent(rebasedStepResult.doc));
-            content = rebasedStepResult.doc;
-            rebasedSteps.push(rebasedStep);
-            mapping.appendMap(rebasedStep.getMap());
-            mapping.setMirror(mapFrom, mapping.maps.length - 1);
-        }
-
-        steps = rebasedSteps;
-    }
-
-    // Validate that our steps left the document in a good state.
-    //
-    // We collect all ranges touched by a step and we validate the content of
-    // the nodes in those ranges.
-    {
-        const rangesToValidate: Array<{start: number; end: number}> = [];
-        const mapping = new Mapping(steps.map(step => step.getMap()));
-
-        for (const [stepIndex, _step] of steps.entries()) {
-            const step = _step as ExhaustiveStep;
-            const remainingMapping = mapping.slice(stepIndex);
-
-            const addRangeToValidate = (start: number, end: number) => {
-                // Make sure start/end represent positions in our new content.
-                start = remainingMapping.map(start, -1);
-                end = remainingMapping.map(end, 1);
-                assert(start <= end);
-
-                let hasInsertedRange = false;
-
-                for (const [rangeIndex, range] of rangesToValidate.entries()) {
-                    assert(range.start <= range.end);
-
-                    if (areRangesOverlapping(range.start, range.end, start, end)) {
-                        range.start = Math.min(range.start, start);
-                        range.end = Math.min(range.end, end);
-                        hasInsertedRange = true;
-                        break;
-                    }
-
-                    if (end < range.start) {
-                        rangesToValidate.splice(rangeIndex, 0, {start, end: end});
-                        hasInsertedRange = true;
-                        break;
-                    }
-                }
-
-                if (!hasInsertedRange) rangesToValidate.push({start, end});
-            };
-
-            switch (step.jsonID) {
-                case "attr":
-                case "addNodeMark":
-                case "removeNodeMark": {
-                    addRangeToValidate(step.pos, step.pos);
-                    break;
-                }
-                case "addMark":
-                case "removeMark":
-                case "replace":
-                case "replaceAround": {
-                    addRangeToValidate(step.from, step.to);
-                    break;
-                }
-                case "removeAllMarks": {
-                    // Remove valid marks does not affect the validity of the document's structure.
-                    break;
-                }
-                case "addMarksAfterRemoveAll": {
-                    for (const range of step.ranges) {
-                        addRangeToValidate(range.from, range.to);
-                    }
-                    break;
-                }
-                default:
-                    throw exhaustive(step);
-            }
-        }
-
-        const validatedNodes = new Set<Node>();
-        for (const range of rangesToValidate) {
-            content.nodesBetween(range.start, range.end, (node, pos, parentNode) => {
-                // Make sure we validate the parent nodes of any updated nodes as well. In case
-                // changing the type of our node made it unacceptable for its parent's content.
-                if (parentNode && !validatedNodes.has(parentNode)) {
-                    validatedNodes.add(parentNode);
-
-                    if (!parentNode.type.validContent(parentNode.content))
-                        throw new FailedPreconditionError(
-                            `Updated content for "${parentNode.type.name}" node is not valid`,
-                        );
-                }
-
-                // If we have already validated this node in a different range, don't validate again.
-                if (validatedNodes.has(node)) return false;
-                validatedNodes.add(node);
-
-                if (!node.type.validContent(node.content))
-                    throw new FailedPreconditionError(
-                        `Updated content for "${node.type.name}" node is not valid`,
-                    );
-            });
-        }
-    }
-
-    return {
-        newContent: content,
-        steps,
-        invertedSteps,
-        conflictingSteps,
-        clientContent,
-        mapping,
-    };
-}
-
-/**
  * The number of steps between document content snapshots.
  *
  * This isn't the exact number of steps between document content snapshots
@@ -2439,7 +2152,7 @@ async function updateDocumentSnapshotAfterUpdatingContent(
  * Force an update of the document's snapshot in a test environment.
  */
 export async function updateDocumentSnapshotForTest(
-    context: ActionContext,
+    context: AppActionContext,
     documentId: DocumentId,
 ): Promise<void> {
     assert(import.meta.jest);
@@ -2464,7 +2177,7 @@ export const getDocumentContentStepsTestCounter = new TestCounter<{
  * Reads all steps between `startVersion` (inclusive) and `endVersion` (exclusive).
  */
 export async function getDocumentContentSteps(
-    context: ActionContext,
+    context: AppActionContext,
     {
         id,
         startVersion,
@@ -2901,7 +2614,7 @@ export const getDocumentCommentThreadItemAfterFirstGetItemTestCheckpoint =
  * This function should not be exported! It does not implement authorization.
  */
 async function getDocumentCommentThreadItemIfExists(
-    context: ActionContext,
+    context: AppActionContext,
     {
         documentId,
         commentThreadId,
@@ -2970,7 +2683,7 @@ async function getDocumentCommentThreadItemIfExists(
 }
 
 async function getDocumentCommentThreadItem(
-    context: ActionContext,
+    context: AppActionContext,
     {
         documentId,
         commentThreadId,
@@ -2988,7 +2701,7 @@ async function getDocumentCommentThreadItem(
  * Add a new comment to a document comment thread.
  */
 export async function createDocumentComment(
-    context: SessionActionContext,
+    context: AppSessionActionContext,
     {
         documentId,
         commentThreadId,
@@ -3096,7 +2809,7 @@ export async function createDocumentComment(
  * Get a single document comment.
  */
 export async function getDocumentComment(
-    context: ActionContext,
+    context: AppActionContext,
     {
         documentId,
         commentThreadId,
@@ -3120,7 +2833,7 @@ export async function getDocumentComment(
  * Get a document comment's author.
  */
 export async function getDocumentCommentAuthorId(
-    context: ActionContext,
+    context: AppActionContext,
     {
         documentId,
         commentThreadId,
@@ -3141,7 +2854,7 @@ export async function getDocumentCommentAuthorId(
 }
 
 async function getDocumentCommentItem(
-    context: ActionContext,
+    context: AppActionContext,
     {
         documentId,
         commentThreadId,
@@ -3180,7 +2893,7 @@ async function getDocumentCommentItem(
 }
 
 async function createDocumentCommentModelFromItem(
-    context: ActionContext,
+    context: AppActionContext,
     spaceId: SpaceId,
     item: DocumentCommentItem,
 ): Promise<DocumentCommentModel> {
@@ -3203,7 +2916,7 @@ async function createDocumentCommentModelFromItem(
  * Update the content on one of your document comments.
  */
 export function updateDocumentCommentContent(
-    context: SessionActionContext,
+    context: AppSessionActionContext,
     {
         documentId,
         commentThreadId,
@@ -3315,7 +3028,7 @@ export function updateDocumentCommentContent(
  * Delete a single document comment.
  */
 export function deleteDocumentComment(
-    context: SessionActionContext,
+    context: AppSessionActionContext,
     {
         documentId,
         commentThreadId,
@@ -3416,7 +3129,7 @@ export function deleteDocumentComment(
  * Get a document comment thread and some initial comments for that thread.
  */
 export async function getDocumentCommentThreadAndInitialComments(
-    context: ActionContext,
+    context: AppActionContext,
     {
         documentId,
         commentThreadId,
@@ -3488,7 +3201,7 @@ export async function getDocumentCommentThreadAndInitialComments(
  * contain.
  */
 export async function getDocumentAndCommentThreadsWithInitialComments(
-    context: ActionContext,
+    context: AppActionContext,
     {
         documentId,
         commentThreadIds,
@@ -3599,7 +3312,7 @@ export async function getDocumentAndCommentThreadsWithInitialComments(
  * Paginate through document comments from start to finish.
  */
 export async function getDocumentCommentsFromStart(
-    context: ActionContext,
+    context: AppActionContext,
     {
         documentId,
         commentThreadId,
@@ -3662,7 +3375,7 @@ export async function getDocumentCommentsFromStart(
 }
 
 async function getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
-    context: ActionContext,
+    context: AppActionContext,
     {
         documentId,
         commentThreadId,
@@ -3764,7 +3477,7 @@ async function getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
  * Paginate through document comments from finish to start.
  */
 export async function getDocumentCommentsFromEnd(
-    context: ActionContext,
+    context: AppActionContext,
     {
         documentId,
         commentThreadId,
@@ -3827,7 +3540,7 @@ export async function getDocumentCommentsFromEnd(
 }
 
 async function getDocumentCommentsFromEndAssumingAuthorizedCommentThread(
-    context: ActionContext,
+    context: AppActionContext,
     {
         documentId,
         commentThreadId,
@@ -3962,7 +3675,7 @@ export type DocumentCommentChangesResult =
  * your client has loaded and try loading the data again.
  */
 export async function backfillDocumentComments(
-    context: ActionContext,
+    context: AppActionContext,
     {
         documentId,
         commentThreadId,
@@ -4052,7 +3765,7 @@ export async function backfillDocumentComments(
 }
 
 async function queryDocumentCommentChangeLogAssumingAuthorizedDocumentCommentThread(
-    context: ActionContext,
+    context: AppActionContext,
     {
         documentItem,
         commentThreadItem,
@@ -4145,7 +3858,7 @@ async function queryDocumentCommentChangeLogAssumingAuthorizedDocumentCommentThr
  * also considered a subscriber.
  */
 export async function getDocumentCommentThreadNotificationSubscribers(
-    context: ActionContext,
+    context: AppActionContext,
     {
         documentId,
         commentThreadId,

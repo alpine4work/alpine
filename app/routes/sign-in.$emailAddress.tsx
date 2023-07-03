@@ -9,6 +9,7 @@ import {Spacer} from "~/client/design/spacer.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useActionDataWithSchema} from "~/client/remix/use_action_data_with_schema.js";
 import {attemptOneTimePasswordSignIn} from "~/server/dynamo/accounts_table.js";
+import {AppSessionActorContextModule} from "~/server/dynamo/context/app_actor_context_module.js";
 import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -31,7 +32,8 @@ export async function loader({request, context}: LoaderArgs) {
     const toPath = url.searchParams.get("to");
 
     // Can not access this page while signed in.
-    if (await context.actor.isAuthenticated()) {
+    const authenticatedContext = await context.actor.authenticate();
+    if (authenticatedContext instanceof AppSessionActorContextModule) {
         if (toPath?.startsWith("/")) return redirect(toPath);
         return redirectToAuthenticatedHome(context);
     }
@@ -73,10 +75,11 @@ export async function action({request, context, params}: LoaderArgs) {
             },
         );
 
-        (await context.loader.getSessionCookie()).dangerouslySetSessionId(
+        context.loader.sessionCookie.dangerouslySet({
+            type: "Session",
             sessionId,
-            sessionAccountId,
-        );
+            accountId: sessionAccountId,
+        });
 
         if (toPath?.startsWith("/")) return redirect(toPath);
         return redirectToAuthenticatedHome(context);
