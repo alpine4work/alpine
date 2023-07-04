@@ -23,10 +23,10 @@ index f76c5bab53a3d925d6b9b6450268508a6f78576c..6a8d785c98201964945ccd4ce38b9679
    }), esbuildPluginsNodeModulesPolyfill.nodeModulesPolyfillPlugin(), external.externalPlugin(/^node:.*/, {
      sideEffects: false
 diff --git a/dist/compiler/manifest.js b/dist/compiler/manifest.js
-index 1adfd7ee810bf08fd87cdcbc3d39e9e19526a9fa..e7dd56a4589d362de36a105f52f86f3753ac309e 100644
+index 1adfd7ee810bf08fd87cdcbc3d39e9e19526a9fa..4e3241908713bbe23ce850460cc64b2d273c5d83 100644
 --- a/dist/compiler/manifest.js
 +++ b/dist/compiler/manifest.js
-@@ -60,7 +60,12 @@ async function create({
+@@ -60,7 +60,13 @@ async function create({
    for (let key of Object.keys(metafile.outputs).sort()) {
      let output = metafile.outputs[key];
      if (!output.entryPoint) continue;
@@ -34,14 +34,15 @@ index 1adfd7ee810bf08fd87cdcbc3d39e9e19526a9fa..e7dd56a4589d362de36a105f52f86f37
 +    // NOTE(calebmer): Bazel makes symlinks to files in runfiles directory
 +    // so these two paths may be in different directories. Only look for whether
 +    // the path after `/bazel-out/` is the same name as our entry client file.
-+    const splitResolvedEntryPoint = path__namespace.resolve(output.entryPoint).split("/bazel-out/");
-+    const splitEntryClientFilePath = config.entryClientFilePath.split("/bazel-out/");
++    // If the path is in a `.runfiles` directory we also want to ignore that.
++    const splitResolvedEntryPoint = path__namespace.resolve(output.entryPoint).split(/\/bazel-out\/[^/]+\/bin\/(?:.+\.runfiles\/[^/]+\/)?/);
++    const splitEntryClientFilePath = config.entryClientFilePath.split(/\/bazel-out\/[^/]+\/bin\/(?:.+\.runfiles\/[^/]+\/)?/);
 +    if (splitResolvedEntryPoint.length === splitEntryClientFilePath.length && splitResolvedEntryPoint[splitResolvedEntryPoint.length - 1] === splitEntryClientFilePath[splitEntryClientFilePath.length - 1]) {
        entry = {
          module: resolveUrl(key),
          imports: resolveImports(output.imports)
 diff --git a/dist/compiler/server/compiler.js b/dist/compiler/server/compiler.js
-index 10850b2ec9650954dab23be2fd838ae41354e911..583b8bfdbbf6415a956f605f3997a873c9147828 100644
+index 10850b2ec9650954dab23be2fd838ae41354e911..8fa4e8d05d7288f3dca57c7631d631b22bcdf468 100644
 --- a/dist/compiler/server/compiler.js
 +++ b/dist/compiler/server/compiler.js
 @@ -29,6 +29,7 @@ var entry = require('./plugins/entry.js');
@@ -65,6 +66,21 @@ index 10850b2ec9650954dab23be2fd838ae41354e911..583b8bfdbbf6415a956f605f3997a873
    };
  };
  const create = async (ctx, refs) => {
+diff --git a/dist/compiler/server/plugins/bareImports.js b/dist/compiler/server/plugins/bareImports.js
+index 54f469ac40950ace84f0ccb9f8b40376b305b860..2fa03a1019217f49be1ce0d51774d5c2f33b6e41 100644
+--- a/dist/compiler/server/plugins/bareImports.js
++++ b/dist/compiler/server/plugins/bareImports.js
+@@ -109,7 +109,9 @@ function serverBareModulesPlugin(ctx) {
+             return undefined;
+           }
+         }
+-        if (!isNodeBuiltIn(packageName) && kind !== "dynamic-import" && ctx.config.serverPlatform === "node") {
++        // NOTE(calebmer): If our server module format is `esm` then it is ok to
++        // import an ESM-only package.
++        if (!isNodeBuiltIn(packageName) && kind !== "dynamic-import" && ctx.config.serverPlatform === "node" && ctx.config.serverModuleFormat !== "esm") {
+           warnOnceIfEsmOnlyPackage(ctx, packageName, path$1, importer);
+         }
+ 
 diff --git a/dist/compiler/server/write.js b/dist/compiler/server/write.js
 index aa35b4b724b363a955a1a6091c0ce4f523d5b0d6..aa783ead0ca1357e34adadec3ebc71b72b9e7d47 100644
 --- a/dist/compiler/server/write.js

@@ -37,7 +37,7 @@ patchedDependencies:
     hash: ykd4naedzjmzggcdstyfvaxp2e
     path: admin/patches/@react-aria__ssr@3.6.0.patch
   '@remix-run/dev@1.18.0':
-    hash: 2b4lo7irltdih4s3nag4wq6vva
+    hash: hdi2mp5xjxi5yxyimpo75ntdfe
     path: admin/patches/@remix-run__dev@1.18.0.patch
   '@remix-run/react@1.18.0':
     hash: tq6lzw5uol6zuaek2c4ohjysse
@@ -157,7 +157,7 @@ dependencies:
     version: 3.18.1(react@18.2.0)
   '@remix-run/dev':
     specifier: 1.18.0
-    version: 1.18.0(patch_hash=2b4lo7irltdih4s3nag4wq6vva)(@types/node@20.3.2)
+    version: 1.18.0(patch_hash=hdi2mp5xjxi5yxyimpo75ntdfe)(@types/node@20.3.2)
   '@remix-run/eslint-config':
     specifier: 1.18.0
     version: 1.18.0(eslint@8.20.0)(jest@28.1.3)(react@18.2.0)(typescript@5.1.3)
@@ -6439,7 +6439,7 @@ packages:
       react: 18.2.0
     dev: false
 
-  /@remix-run/dev@1.18.0(patch_hash=2b4lo7irltdih4s3nag4wq6vva)(@types/node@20.3.2):
+  /@remix-run/dev@1.18.0(patch_hash=hdi2mp5xjxi5yxyimpo75ntdfe)(@types/node@20.3.2):
     resolution: {integrity: sha512-hKoLRjkKuuspJep+cGQv3OmQ4FJDuz4EpePSQe2cGoVjOHDryKm8ikVD/cM5MaGdAMYXj6Ka+LBQRhWwqZnbcw==}
     engines: {node: '>=14.0.0'}
     hasBin: true

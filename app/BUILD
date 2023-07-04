@@ -65,20 +65,32 @@ filegroup(
     srcs = glob(["public/**/*"]),
 )
 
+APP_FILES = [
+    ":app_lib",
+    ":app_public_files",
+    "//:package_light_json_file",
+    "//:remix_config_files",
+    "//:node_modules/dotenv",
+    "//:node_modules/fs-extra",
+]
+
+remix_bin.remix_binary(
+    name = "app_dev",
+    args = [
+        "dev",
+        "--command",
+        "'node ./app/build/server.js'",
+    ],
+    data = APP_FILES,
+)
+
 # `remix build` will always be a minified `NODE_ENV=production` build. So we
 # want to always use an `opt` Bazel compilation mode. This is accomplished with
 # the `opt_compilation_mode()` transition below. You should avoid building this
 # directly since you may end up using a `fastbuild` Bazel compilation mode.
 remix_bin.remix(
     name = "app_build_without_opt",
-    srcs = [
-        ":app_lib",
-        ":app_public_files",
-        "//:node_modules/dotenv",
-        "//:node_modules/fs-extra",
-        "//:package_light_json_file",
-        "//:remix_config_files",
-    ],
+    srcs = APP_FILES,
     outs = ["build/server.js"],
     args = ["build"],
     out_dirs = ["public/build"],
