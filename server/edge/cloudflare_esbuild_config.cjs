@@ -6,5 +6,4 @@ module.exports = {
     format: "esm",
     mainFields: ["browser", "module", "main"],
     conditions: ["worker"],
-    splitting: false,
 };

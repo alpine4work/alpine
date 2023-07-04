@@ -21,4 +21,5 @@ esbuild(
     config = "cloudflare_esbuild_config.cjs",
     entry_point = "edge_service.js",
     output = "edge_service_bundle.js",
+    splitting = False,
 )

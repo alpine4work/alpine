@@ -4,4 +4,4 @@ workspace_path=$(cd $(dirname $0)/../.. && pwd)
 cd $workspace_path
 
 bazel build --ui_event_filters=-info @npm__at_bazel_ibazel__0.16.2//:pkg
-"./bazel-cyberworlds/external/npm__at_bazel_ibazel__0.16.2/package/bin/$(uname -s | tr '[:upper:]' '[:lower:]')_$("$workspace_path/admin/scripts/get_bazelisk_arch_suffix")/ibazel" $@
+"./bazel-cyberworlds/external/npm__at_bazel_ibazel__0.16.2/package/bin/$(uname -s | tr '[:upper:]' '[:lower:]')_$("$workspace_path/admin/vendor/bazelisk/get_bazelisk_arch_suffix.sh")/ibazel" $@

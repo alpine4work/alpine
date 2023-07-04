@@ -74,6 +74,13 @@ APP_FILES = [
     "//:node_modules/fs-extra",
 ]
 
+# We have this command for running `remix dev` but we never really run it.
+# Notably while it successfully builds the app, it doesn't pass any arguments
+# we need for running the app like `--port`.
+#
+# Instead `//admin/dev` runs `remix dev` inside this executable's runfiles
+# directory. We constantly rebuild the rule but don't restart `remix dev` so
+# the browser successfully hot reloads.
 remix_bin.remix_binary(
     name = "app_dev",
     args = [

@@ -101,9 +101,6 @@ dependencies:
   '@aws-sdk/credential-providers':
     specifier: ^3.303.0
     version: 3.303.0
-  '@bazel/ibazel':
-    specifier: ^0.16.2
-    version: 0.16.2
   '@bazel/worker':
     specifier: ^5.7.1
     version: 5.7.1
@@ -308,12 +305,18 @@ dependencies:
   change-case:
     specifier: ^4.1.2
     version: 4.1.2
+  chokidar:
+    specifier: ^3.5.3
+    version: 3.5.3
   classnames:
     specifier: ^2.3.2
     version: 2.3.2
   color:
     specifier: ^4.2.3
     version: 4.2.3
+  colorette:
+    specifier: ^2.0.20
+    version: 2.0.20
   constructs:
     specifier: ^10.1.143
     version: 10.1.143
@@ -3990,11 +3993,6 @@ packages:
 
   /@balena/dockerignore@1.0.2:
     resolution: {integrity: sha512-wMue2Sy4GAVTk6Ic4tJVcnfdau+gx2EnG7S+uAEe+TWJFqE4YoWN4/H8MSLj4eYJKxGg26lZwboEniNiNwZQ6Q==}
-    dev: false
-
-  /@bazel/ibazel@0.16.2:
-    resolution: {integrity: sha512-KgqAWMH0emL6f3xH6nqyTryoBMqlJ627LBIe9PT1PRRQPz2FtHib3FIHJPukp1slzF3hJYZvdiVwgPnHbaSOOA==}
-    hasBin: true
     dev: false
 
   /@bazel/worker@5.7.1:
@@ -8376,6 +8374,10 @@ packages:
     dependencies:
       color-convert: 2.0.1
       color-string: 1.9.1
+    dev: false
+
+  /colorette@2.0.20:
+    resolution: {integrity: sha512-IfEDxwoWIjkeXL1eXcDiow4UbKjhLdq6/EuSVR9GMN7KVH3r9gQ83e73hsz1Nd1T3ijd5xv1wcWRYO+D6kCI2w==}
     dev: false
 
   /combined-stream@1.0.8:
