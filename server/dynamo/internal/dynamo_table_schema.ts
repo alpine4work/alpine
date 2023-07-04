@@ -4123,12 +4123,12 @@ function getAndCheckDynamoTableSchemaDescriptions(
         } catch (error) {
             writeCompatibilityError = InternalError.from(
                 error,
-                "Can not write to table with new schema until you run `bazel run //server/dynamo:write_schema`",
+                "Can not write to table with new schema until you run `bazel run //admin/dynamo:write_schema`",
             );
         }
     } else {
         writeCompatibilityError = new InternalError(
-            "Can not write to table with new schema until you run `bazel run //server/dynamo:write_schema`",
+            "Can not write to table with new schema until you run `bazel run //admin/dynamo:write_schema`",
         );
     }
 

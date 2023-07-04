@@ -30,7 +30,6 @@ ts_project(
         "//server/dynamo:__subpackages__",
         "//server/remix:__pkg__",
         "//server/rpc:__pkg__",
-        "//server/tracer:__pkg__",  # Should only be used to generate a file
     ],
     deps = [
         ":all_dynamo_tables",
@@ -100,8 +99,9 @@ js_library(
 )
 
 write_source_files(
-    name = "write_schema",
+    name = "write_dynamo_schema_description",
     files = {
         "internal/dynamo_generated_schema_description.ts": "//admin/dynamo:dynamo_schema_description",
     },
+    visibility = ["//admin/dynamo:__pkg__"],
 )

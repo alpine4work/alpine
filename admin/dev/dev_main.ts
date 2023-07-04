@@ -225,8 +225,10 @@ function processFileUpdate(path: string) {
     }
 }
 
-main().catch(error => {
+main().catch(scheduleUncaughtError);
+
+// Log uncaught exceptions, don't kill the process.
+process.on("uncaughtException", error => {
     // eslint-disable-next-line no-console
     console.error(error);
-    process.exitCode = 1;
 });
