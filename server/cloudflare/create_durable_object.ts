@@ -38,7 +38,6 @@ import {DurableObjectServiceName, TracerRoot} from "~/shared/tracer/tracer_root.
  * Environment object provided to a Durable Object.
  */
 export type DurableObjectEnv = {
-    MyAccountDurableObjectNamespace: DurableObjectNamespace;
     APP_SERVICE_PUBLIC_KEY?: string;
     EDGE_SERVICE_FAMILY_PUBLIC_KEY?: string;
     EDGE_SERVICE_FAMILY_PRIVATE_KEY?: string;
@@ -59,7 +58,7 @@ export function createDurableObject<
     DurableObject extends {
         fetch(context: WorkerActionContext, request: Request): MaybePromise<Response>;
         connectForTest?(
-            context: WorkerActionContext,
+            context: WorkerSessionActionContext,
         ): Promise<
             WebSocketServerTestConnection<WebSocketProtocolBase, WebSocketServerConnectionBase<any>>
         >;

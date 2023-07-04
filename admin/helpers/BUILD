@@ -7,7 +7,6 @@ ts_project(
         "//admin:__subpackages__",
         "//app/dev:__pkg__",
         "//app/integration_tests:__pkg__",
-        "//app/local:__pkg__",
         "//server/dynamo/test_helpers:__subpackages__",
     ],
     deps = [

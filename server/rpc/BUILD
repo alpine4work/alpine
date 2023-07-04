@@ -5,7 +5,8 @@ ts_project(
     name = "rpc",
     visibility = [
         "//app:__subpackages__",
-        "//server:__subpackages__",
+        "//server/dynamo:__subpackages__",
+        "//server/remix:__subpackages__",
     ],
     deps = [
         ":all_rpc_implementations",

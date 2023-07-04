@@ -1,13 +1,10 @@
 import {BrowserContext, test} from "@playwright/test";
 import getPort from "get-port";
 import {parse as parseSetCookie} from "set-cookie-parser";
-import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
-import {LocalServer, createLocalServer} from "~/app/local/create_local_server.js";
 import {TestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
 import {TestSession} from "~/server/dynamo/test_helpers/shared/create_test_session.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 // This file can only run in tests.
 assert(process.env.NODE_ENV === "test");
@@ -31,8 +28,8 @@ export function createTestServer(
     context: TestContext,
     {globals}: {globals?: {[key: string]: unknown}} = {},
 ): TestServer {
-    const env = parseDotenv();
-    let localServer: LocalServer | null = null;
+    // const env = parseDotenv();
+    // let localServer: LocalServer | null = null;
 
     const portPromise = getPort();
     let port: number | null = null;
@@ -46,30 +43,34 @@ export function createTestServer(
     });
 
     test.beforeAll(async () => {
-        const port = await portPromise;
-
-        const _localServer = createLocalServer({
-            bindings: {
-                NODE_ENV: "test",
-                DYNAMO_LOCAL_PORT: context.getDynamoLocalPort(),
-            },
-            globals,
-        });
-
-        await new Promise<void>(resolve => {
-            _localServer.server.listen(port, () => resolve());
-        });
-
-        localServer = _localServer;
+        // NOCOMMIT
+        //
+        // const port = await portPromise;
+        //
+        // const _localServer = createLocalServer({
+        //     bindings: {
+        //         NODE_ENV: "test",
+        //         DYNAMO_LOCAL_PORT: context.getDynamoLocalPort(),
+        //     },
+        //     globals,
+        // });
+        //
+        // await new Promise<void>(resolve => {
+        //     _localServer.server.listen(port, () => resolve());
+        // });
+        //
+        // localServer = _localServer;
     });
 
     test.afterAll(async () => {
-        assert(localServer !== null);
-        localServer.server.close();
-        await localServer.miniflare.dispose();
+        // NOCOMMIT
+        //
+        // assert(localServer !== null);
+        // localServer.server.close();
+        // await localServer.miniflare.dispose();
     });
 
-    const sessionCookieSecret = assertExists(env.SESSION_COOKIE_SECRET);
+    // const sessionCookieSecret = assertExists(env.SESSION_COOKIE_SECRET);
 
     // NOCOMMIT
     const sessionCookieStorage = null as any;

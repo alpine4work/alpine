@@ -9,16 +9,16 @@ test("works with primitive types", () => {
     assertEqualTypes<string, string>();
 
     // @ts-expect-error
-    assertAssignableTypes<42, number>();
+    assertEqualTypes<42, number>();
 
     // @ts-expect-error
-    assertAssignableTypes<number, 42>();
+    assertEqualTypes<number, 42>();
 
     // @ts-expect-error
-    assertAssignableTypes<"foo", string>();
+    assertEqualTypes<"foo", string>();
 
     // @ts-expect-error
-    assertAssignableTypes<string, "foo">();
+    assertEqualTypes<string, "foo">();
 });
 
 test("works with string unions", () => {

@@ -101,9 +101,6 @@ dependencies:
   '@aws-sdk/credential-providers':
     specifier: ^3.303.0
     version: 3.303.0
-  '@axe-core/react':
-    specifier: 4.4.3
-    version: 4.4.3
   '@bazel/ibazel':
     specifier: ^0.16.2
     version: 0.16.2
@@ -2614,13 +2611,6 @@ packages:
       '@aws-sdk/abort-controller': 3.226.0
       '@aws-sdk/types': 3.226.0
       tslib: 2.5.0
-    dev: false
-
-  /@axe-core/react@4.4.3:
-    resolution: {integrity: sha512-3eIqDoGVTK20kbY+hD0S9n+ALdZ9FOzV692eD2iyyGMq7on6TCISEv8TljvirSBwWcWIxuUnI69KX/mMQBqtFA==}
-    dependencies:
-      axe-core: 4.4.3
-      requestidlecallback: 0.3.0
     dev: false
 
   /@babel/code-frame@7.22.5:
@@ -13944,10 +13934,6 @@ packages:
       '@types/mdast': 3.0.10
       mdast-util-to-hast: 11.3.0
       unified: 10.1.2
-    dev: false
-
-  /requestidlecallback@0.3.0:
-    resolution: {integrity: sha512-TWHFkT7S9p7IxLC5A1hYmAYQx2Eb9w1skrXmQ+dS1URyvR8tenMLl4lHbqEOUnpEYxNKpkVMXUgknVpBZWXXfQ==}
     dev: false
 
   /require-directory@2.1.1:

@@ -4,19 +4,16 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "app_lib",
-    test_deps = [
-        "//:node_modules/@types/fs-extra",
-        "//:node_modules/fs-extra",
-    ],
     deps = [
-        "//:node_modules/@axe-core/react",
         "//:node_modules/@remix-run/dev",
         "//:node_modules/@remix-run/node",
         "//:node_modules/@remix-run/server-runtime",
         "//:node_modules/@types/cookie",
+        "//:node_modules/@types/fs-extra",
         "//:node_modules/@types/mjml-react",
         "//:node_modules/@types/react",
         "//:node_modules/cookie",
+        "//:node_modules/fs-extra",
         "//:node_modules/immer",
         "//:node_modules/mjml-react",
         "//:node_modules/react",
@@ -40,7 +37,6 @@ ts_project(
         "//client/tracer",
         "//client/virtualized",
         "//server/aws",
-        "//server/cloudflare",
         "//server/dynamo",
         "//server/emails",
         "//server/remix",

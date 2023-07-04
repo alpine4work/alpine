@@ -1500,17 +1500,6 @@ export const updateDocumentContentBeforeExecuteTransactionTestCheckpoint = new T
     clientId: ContentEditorClientId;
 }>();
 
-declare module "prosemirror-transform" {
-    interface Mapping {
-        // We know this exists but `prosemirror-transform` marks it as internal:
-        // https://github.com/ProseMirror/prosemirror-transform/blob/4372fb6de489ee6c8c6a8756682a9464ecde8f1b/src/map.ts#L221-L225
-        //
-        // We want to call this function in the same place as `prosemirror-collab`:
-        // https://github.com/ProseMirror/prosemirror-collab/blob/94df0cc9288960e7e64dc9721abbf8f656df444f/src/collab.ts#L22
-        setMirror(n: number, m: number): void;
-    }
-}
-
 /**
  * Updates our document by applying some steps.
  *

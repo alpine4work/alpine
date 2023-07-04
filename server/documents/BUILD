@@ -6,16 +6,12 @@ ts_project(
         "//server/dynamo:dynamo_testonly",
         "//server/dynamo/test_helpers/shared",
     ],
-    visibility = [
-        "//app:__subpackages__",
-        "//server:__subpackages__",
-    ],
+    visibility = ["//server/edge:__subpackages__"],
     deps = [
         "//:node_modules/prosemirror-transform",
         "//server/cloudflare",
         "//server/helpers",
         "//server/messaging",
-        "//server/rpc",
         "//server/tracer",
         "//shared/content",
         "//shared/context",

@@ -1,7 +1,12 @@
-import {WorkerSessionActionContext} from "~/server/cloudflare/context/worker_action_context.js";
+import {
+    WorkerActionContextModules,
+    WorkerSessionActionContext,
+} from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerSessionActorContextModule} from "~/server/cloudflare/context/worker_actor_context_module.js";
-import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
-import {DynamoBatchContextModule} from "~/server/dynamo/dynamo_context_module.js";
+import {
+    WorkerProcessContext,
+    WorkerProcessContextModules,
+} from "~/server/cloudflare/context/worker_process_context.js";
 import {validateTracerEventFlatDataForPropagation} from "~/server/tracer/validate_tracer_event_flat_data.js";
 import {webSocketExpirationTimeoutMs} from "~/shared/cloudflare/web_socket_expiration_timeout_ms.js";
 import {
@@ -450,13 +455,10 @@ export class WebSocketServer<
 
         const connection = new WebSocketServerTestConnectionWrapper({
             id: connectionId,
-            processContext: connectionProcessContext,
-            rpcContextModule: connectActionContext.rpc.clone(),
+            actionContext: connectActionContext,
             messageFromClientSchema: this._messageFromClientSchema,
             messageFromServerSchema: this._messageFromServerSchema,
             connection: actualConnection,
-            sessionId: connectActionContext.actor.getSessionId(),
-            sessionAccountId: connectActionContext.actor.getAccountId(),
         });
 
         assert(!this._connections.has(connection.id));
@@ -931,12 +933,9 @@ class WebSocketServerTestConnectionWrapper<
 {
     public readonly id: WebSocketConnectionId;
     public readonly connection: Connection;
-    private readonly _processContext: WorkerProcessContext;
-    private readonly _rpcContextModule: RpcContextModuleBase;
+    private readonly _actionContext: WorkerSessionActionContext;
     private readonly _messageFromClientSchema: Schema<WebSocketMessageFromClient<Protocol>>;
     private readonly _messageFromServerSchema: Schema<WebSocketMessageFromServer<Protocol>>;
-    private readonly _sessionId: SessionId;
-    private readonly _sessionAccountId: AccountId;
     private _isClosed = false;
     private readonly _closeEvent = new EventEmitter();
     private _bufferedEvents: Array<WebSocketProtocolEventType<Protocol>> = [];
@@ -944,34 +943,25 @@ class WebSocketServerTestConnectionWrapper<
 
     constructor({
         id,
-        processContext,
-        rpcContextModule,
+        actionContext,
         messageFromClientSchema,
         messageFromServerSchema,
         connection,
-        sessionId,
-        sessionAccountId,
     }: {
         id: WebSocketConnectionId;
-        processContext: WorkerProcessContext;
-        rpcContextModule: RpcContextModuleBase;
+        actionContext: WorkerSessionActionContext;
         messageFromClientSchema: Schema<WebSocketMessageFromClient<Protocol>>;
         messageFromServerSchema: Schema<WebSocketMessageFromServer<Protocol>>;
         connection: Connection;
-        sessionId: SessionId;
-        sessionAccountId: AccountId;
     }) {
         // Can only use test connections in Jest.
         assert(import.meta.jest);
 
         this.id = id;
         this.connection = connection;
-        this._processContext = processContext;
-        this._rpcContextModule = rpcContextModule;
+        this._actionContext = actionContext;
         this._messageFromClientSchema = messageFromClientSchema;
         this._messageFromServerSchema = messageFromServerSchema;
-        this._sessionId = sessionId;
-        this._sessionAccountId = sessionAccountId;
     }
 
     public async executeProcedure<
@@ -980,18 +970,24 @@ class WebSocketServerTestConnectionWrapper<
         name: Name,
         input: WebSocketProtocolProceduresType<Protocol>[Name]["input"],
     ): Promise<WebSocketProtocolProceduresType<Protocol>[Name]["output"]> {
-        const output = await this._processContext.tracer.withSpan(
+        const output = await this._actionContext.tracer.withSpan(
             "Received test WebSocket message",
             async (context, span) => {
-                return context.with(
+                return context.with<
+                    // Reset non-process action modules when going to execute a procedure. In tests
+                    // the context will actually be a `TestSessionActionContext`. Hopefully there
+                    // aren't other relevant modules on the action we need to reset.
+                    //
+                    // Notably, we are inheriting the lifetime of whatever test action established
+                    // the connection.
+                    Omit<
+                        WorkerActionContextModules,
+                        keyof WorkerProcessContextModules | "actor" | "rpc"
+                    >,
+                    unknown
+                >(
                     {
                         cache: new CacheContextModule(),
-                        dynamoBatchContext: new DynamoBatchContextModule(),
-                        actor: WorkerSessionActorContextModule.dangerouslyNew(
-                            this._sessionId,
-                            this._sessionAccountId,
-                        ),
-                        rpc: this._rpcContextModule,
                     },
                     (context: WorkerSessionActionContext) => {
                         // Thrown errors should be handled by the test. We do not send acknowledgement

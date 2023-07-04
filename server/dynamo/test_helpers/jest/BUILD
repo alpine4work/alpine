@@ -2,6 +2,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "jest",
+    testonly = True,
     visibility = ["//server:__subpackages__"],
     deps = [
         "//:node_modules/@types/jest",

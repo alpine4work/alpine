@@ -6,10 +6,7 @@ ts_project(
         "//server/dynamo:dynamo_testonly",
         "//server/dynamo/test_helpers/shared",
     ],
-    visibility = [
-        "//app:__subpackages__",
-        "//server:__subpackages__",
-    ],
+    visibility = ["//server:__subpackages__"],
     deps = [
         "//server/cloudflare",
         "//shared/error",

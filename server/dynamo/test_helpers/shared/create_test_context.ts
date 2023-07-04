@@ -9,21 +9,20 @@ import {
 } from "~/server/cloudflare/context/worker_action_context.js";
 import {Session, SessionItem} from "~/server/dynamo/accounts_table.js";
 import {
-    AppUnknownActionContext,
     AppSessionActionContext,
     AppSessionActionContextModules,
     AppSystemActionContext,
     AppSystemActionContextModules,
+    AppUnknownActionContext,
 } from "~/server/dynamo/context/app_action_context.js";
 import {
     AppSessionActorContextModule,
     AppSystemActorContextModule,
-    AppUnidentifiedActorContextModule,
     AppUnknownActorContextModule,
 } from "~/server/dynamo/context/app_actor_context_module.js";
 import {
     AppProcessContext,
-    AppProcessContextModulesBase,
+    AppProcessContextModules,
 } from "~/server/dynamo/context/app_process_context.js";
 import {TestNotificationsContextModule} from "~/server/dynamo/context/notifications_context_module.js";
 import {
@@ -117,7 +116,7 @@ export function createTestContext(): TestContext {
     };
 
     const createUnauthenticatedSessionContext = (): AppUnknownActionContext => {
-        return processContextBase.clone({
+        return processContext.clone({
             cache: new CacheContextModule(),
             dynamoBatchContext: new DynamoBatchContextModule(),
             actor: new AppUnknownActorContextModule(async () => null),
@@ -125,7 +124,7 @@ export function createTestContext(): TestContext {
     };
 
     const createSessionContext = (session: {item: SessionItem}): TestSessionActionContext => {
-        return processContextBase.clone({
+        return processContext.clone({
             cache: new CacheContextModule(),
             dynamoBatchContext: new DynamoBatchContextModule(),
             actor: AppSessionActorContextModule.dangerouslyNew("Test", Session.test(session.item)),
@@ -134,7 +133,7 @@ export function createTestContext(): TestContext {
     };
 
     const createSystemContext = (spaceId: SpaceId): TestSystemActionContext => {
-        return processContextBase.clone({
+        return processContext.clone({
             cache: new CacheContextModule(),
             dynamoBatchContext: new DynamoBatchContextModule(),
             actor: AppSystemActorContextModule.dangerouslyNew("Test", spaceId),
@@ -144,16 +143,12 @@ export function createTestContext(): TestContext {
 
     const dynamoContextModule = DynamoContextModule.test();
 
-    const processContextBase = Context.new<AppProcessContextModulesBase>({
+    const processContext = Context.new<AppProcessContextModules>({
         process: ProcessContextModule.test(testSharedHooks),
         tracer: new TracerContextModule(tracer),
         dynamo: dynamoContextModule,
         email: new NoopEmailContextModule(),
         notifications: new TestNotificationsContextModule(createSystemContext),
-    });
-
-    const processContext: AppProcessContext = processContextBase.clone({
-        actor: new AppUnidentifiedActorContextModule(),
     });
 
     const context = Object.assign(processContext, {

@@ -8,12 +8,6 @@ const context = createTestContext();
 const space = createTestSpace(context);
 const session = createTestSession(context, space);
 
-test("can not escalate process context into system context", () => {
-    expect(() =>
-        context.clone({actor: AppSystemActorContextModule.dangerouslyNew("Test", generateId())}),
-    ).toThrow();
-});
-
 test("can not escalate request context into system context", () => {
     expect(() =>
         context

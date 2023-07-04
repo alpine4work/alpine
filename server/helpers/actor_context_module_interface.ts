@@ -35,11 +35,13 @@ export interface ActorContextModuleBase extends ContextModuleBase {
 
 export interface SessionActorContextModule extends ActorContextModuleBase {
     readonly type: "Session";
+
     getSessionId(): SessionId;
     getAccountId(): AccountId;
 }
 
 export interface SystemActorContextModule extends ActorContextModuleBase {
     readonly type: "System";
+
     getSpaceId(): SpaceId;
 }

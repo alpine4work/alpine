@@ -60,6 +60,7 @@ def ts_playwright_tests(
             # We lint and format everything with the above `ts_lint_and_format_test()`.
             lint_and_format_srcs = [],
             deps = deps,
+            testonly = True,
         )
 
         deps = deps + [

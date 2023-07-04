@@ -29,7 +29,6 @@ ts_playwright_tests(
         "//:node_modules/set-cookie-parser",
         "//:node_modules/ws",
         "//admin/helpers",
-        "//app/local",
         "//server/dynamo/test_helpers/shared",
         "//server/remix",
     ],

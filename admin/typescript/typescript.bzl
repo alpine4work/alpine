@@ -206,6 +206,7 @@ def ts_lint_and_format_test(
     _ts_typings(
         name = "{}_deps_typings".format(name),
         srcs = deps,
+        testonly = True,
     )
 
     eslint_bin.eslint_test(
@@ -264,6 +265,7 @@ def ts_typecheck_test(
         name = "{}_tsconfig".format(name),
         outs = ["{}_tsconfig.json".format(name)],
         srcs = ["//:tsconfig.bazel.json"] + srcs,
+        testonly = True,
         cmd = """\
 cat <<EOF >> $@
 {{
@@ -281,6 +283,7 @@ EOF
     _ts_typings(
         name = "{}_deps_typings".format(name),
         srcs = deps,
+        testonly = True,
     )
 
     typescript_bin.tsc_test(

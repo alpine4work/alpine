@@ -2,10 +2,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "remix",
-    visibility = [
-        "//app:__subpackages__",
-        "//server:__subpackages__",
-    ],
+    visibility = ["//app:__subpackages__"],
     deps = [
         "//:node_modules/@remix-run/dev",
         "//:node_modules/@remix-run/node",

@@ -76,7 +76,7 @@ test("app service can sign short lived tokens for app service", async () => {
     });
 
     expect(await appServiceTokenAgent.verifyToken(token)).toEqual({
-        issuer: "AppService",
+        serviceName: "AppService",
         payload: {
             type: "Session",
             sessionId,
@@ -124,7 +124,7 @@ test("edge service can sign short lived tokens for edge service", async () => {
     });
 
     expect(await edgeServiceTokenAgent.verifyToken(token)).toEqual({
-        issuer: "EdgeService",
+        serviceName: "EdgeService",
         payload: {
             type: "Session",
             sessionId,
@@ -175,7 +175,7 @@ test("document collaboration service can sign short lived tokens for app service
     );
 
     expect(await appServiceTokenAgent.verifyToken(token)).toEqual({
-        issuer: "DocumentCollaborationService",
+        serviceName: "DocumentCollaborationService",
         payload: {
             type: "Session",
             sessionId,
@@ -228,7 +228,7 @@ test("app service can sign short lived tokens for app service and edge service",
     );
 
     expect(await appServiceTokenAgent.verifyToken(token)).toEqual({
-        issuer: "AppService",
+        serviceName: "AppService",
         payload: {
             type: "Session",
             sessionId,
@@ -247,7 +247,7 @@ test("app service can sign short lived tokens for app service and edge service",
     );
 
     expect(await edgeServiceTokenAgent.verifyToken(token)).toEqual({
-        issuer: "AppService",
+        serviceName: "AppService",
         payload: {
             type: "Session",
             sessionId,
@@ -290,7 +290,7 @@ test("edge service can sign short lived tokens for app service and edge service"
     );
 
     expect(await appServiceTokenAgent.verifyToken(token)).toEqual({
-        issuer: "EdgeService",
+        serviceName: "EdgeService",
         payload: {
             type: "Session",
             sessionId,
@@ -309,7 +309,7 @@ test("edge service can sign short lived tokens for app service and edge service"
     );
 
     expect(await edgeServiceTokenAgent.verifyToken(token)).toEqual({
-        issuer: "EdgeService",
+        serviceName: "EdgeService",
         payload: {
             type: "Session",
             sessionId,
@@ -349,7 +349,7 @@ test("app service can sign eternal tokens for app service and edge service", asy
     });
 
     expect(await appServiceTokenAgent.verifyToken(token)).toEqual({
-        issuer: "AppService",
+        serviceName: "AppService",
         payload: {
             type: "Session",
             sessionId,
@@ -368,7 +368,7 @@ test("app service can sign eternal tokens for app service and edge service", asy
     );
 
     expect(await edgeServiceTokenAgent.verifyToken(token)).toEqual({
-        issuer: "AppService",
+        serviceName: "AppService",
         payload: {
             type: "Session",
             sessionId,

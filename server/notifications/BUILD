@@ -7,10 +7,7 @@ ts_project(
         "//server/dynamo/test_helpers/shared",
         "//server/dynamo/test_helpers/jest",
     ],
-    visibility = [
-        "//app:__subpackages__",
-        "//server:__subpackages__",
-    ],
+    visibility = ["//server/edge:__subpackages__"],
     deps = [
         "//server/cloudflare",
         "//shared/accounts",

@@ -31,7 +31,7 @@ export function implementRpc<Input, Output>(
     implementation: (context: AppActionContext, input: Input) => Promise<BlockInference<Output>>,
 ) {
     const visibility =
-        visibilityArray === "Public" ? null : new Set<AppActorServiceName>(visibilityArray);
+        visibilityArray === "Public" ? "Public" : new Set<AppActorServiceName>(visibilityArray);
 
     assert(
         !rpcImplementationByName.has(definition.name),
@@ -48,7 +48,13 @@ export function implementRpc<Input, Output>(
             // anyone else was able to call `updateDocumentContent()` then it would break
             // `DocumentCollaborationService`'s centralized knowledge of the current
             // document version.
-            if (visibility && !visibility.has(context.actor.serviceName)) {
+            const isVisible =
+                visibility === "Public" ||
+                visibility.has(context.actor.serviceName) ||
+                // In a test environment, tests can execute any RPC.
+                (process.env.NODE_ENV === "test" && context.actor.serviceName === "Test");
+
+            if (!isVisible) {
                 throw new PermissionDeniedError(
                     quote`Can't execute RPC ${definition.name} from ${context.actor.serviceName}`,
                 );

@@ -20,7 +20,6 @@ import {
     emptyDocumentContentReferences,
 } from "~/shared/documents/document_content_references.js";
 import {DocumentContent, isDocumentContent} from "~/shared/documents/document_content_schema.js";
-import {DocumentCommentThreadModel} from "~/shared/documents/document_model.js";
 import {getUpdateDocumentContentResult} from "~/shared/documents/get_update_document_content_result.js";
 import {
     FailedPreconditionError,
@@ -588,7 +587,13 @@ export class DocumentCollaborationContentManager {
         const optimisticCommentThreadIds = new Set<DocumentCommentThreadId>();
         const optimisticCommentThreadAuthorIds = new Set<AccountId>();
         const createOptimisticCommentThreads: Array<
-            (accountById: Map<AccountId, AccountModel>) => DocumentCommentThreadModel
+            (accountById: Map<AccountId, AccountModel>) => [
+                DocumentCommentThreadId,
+                {
+                    readonly commentCount: number;
+                    readonly commentAuthors: ReadonlyArray<AccountModel>;
+                },
+            ]
         > = [];
 
         for (const commentThreadId of commentThreadIds) {
@@ -605,23 +610,17 @@ export class DocumentCollaborationContentManager {
                     optimisticCommentThread.initialComment.authorId,
                 );
 
-                createOptimisticCommentThreads.push(
-                    accountById =>
-                        new DocumentCommentThreadModel({
-                            id: commentThreadId,
-                            documentId: this.id,
-                            createdTime: optimisticCommentThread.createdTime,
-                            commentCount: 1,
-                            lastCommentChangeTime: null,
-                            commentAuthors: [
-                                assertExists(
-                                    accountById.get(
-                                        optimisticCommentThread.initialComment.authorId,
-                                    ),
-                                ),
-                            ],
-                        }),
-                );
+                createOptimisticCommentThreads.push(accountById => [
+                    commentThreadId,
+                    {
+                        commentCount: 1,
+                        commentAuthors: [
+                            assertExists(
+                                accountById.get(optimisticCommentThread.initialComment.authorId),
+                            ),
+                        ],
+                    },
+                ]);
             }
         }
 
@@ -636,10 +635,9 @@ export class DocumentCollaborationContentManager {
                 const accountById = new Map(accounts.map(account => [account.id, account]));
 
                 return new Map(
-                    createOptimisticCommentThreads.map(createOptimisticCommentThread => {
-                        const commentThread = createOptimisticCommentThread(accountById);
-                        return [commentThread.id, commentThread];
-                    }),
+                    createOptimisticCommentThreads.map(createOptimisticCommentThread =>
+                        createOptimisticCommentThread(accountById),
+                    ),
                 );
             },
         };

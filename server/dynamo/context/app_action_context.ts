@@ -1,10 +1,10 @@
 import {
     AppActorContextModule,
-    AppUnknownActorContextModule,
     AppSessionActorContextModule,
     AppSystemActorContextModule,
+    AppUnknownActorContextModule,
 } from "~/server/dynamo/context/app_actor_context_module.js";
-import {AppProcessContextModulesBase} from "~/server/dynamo/context/app_process_context.js";
+import {AppProcessContextModules} from "~/server/dynamo/context/app_process_context.js";
 import {DynamoBatchContextModule} from "~/server/dynamo/dynamo_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -16,7 +16,7 @@ import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_inter
  */
 export type AppActionContextBase = Context<AppActionContextModulesBase>;
 
-export type AppActionContextModulesBase = AppProcessContextModulesBase & {
+export type AppActionContextModulesBase = AppProcessContextModules & {
     /**
      * Action-level caching. Cached values only live for the span of the action and
      * are not shared across actions.

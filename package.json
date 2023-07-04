@@ -7,7 +7,6 @@
         "@aws-sdk/client-dynamodb": "^3.201.0",
         "@aws-sdk/client-ses": "^3.226.0",
         "@aws-sdk/credential-providers": "^3.303.0",
-        "@axe-core/react": "4.4.3",
         "@bazel/ibazel": "^0.16.2",
         "@bazel/worker": "^5.7.1",
         "@cloudflare/workers-types": "^3.18.0",

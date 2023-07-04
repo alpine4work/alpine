@@ -55,17 +55,6 @@ interface AppActorContextModuleBase extends ActorContextModuleBase {
 }
 
 /**
- * No one is interacting with our system. They get no privileges and we should
- * always error when you try to access data.
- *
- * If you have an unidentified actor in your context then you may not swap it
- * with any other actors which would be a privilege escalation.
- */
-export class AppUnidentifiedActorContextModule<
-    Modules extends {[key: string]: ContextModuleBase} = {},
-> extends ContextModuleBase<Modules> {}
-
-/**
  * We are in a context that may have associated authorization but we're not
  * entirely sure yet. Calling `authenticate()` will upgrade to an
  * `AppActorContextModule` if we have a session (maybe it's in our cookies)
