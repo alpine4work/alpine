@@ -1,6 +1,16 @@
-load("@npm//:@remix-run/dev/package_json.bzl", remix_bin = "bin")
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_run_binary")
 load("//admin/bazel:opt_compilation_mode.bzl", "opt_compilation_mode")
 load("//admin/typescript:typescript.bzl", "ts_project")
+load("//app:remix.bzl", "remix_app")
+
+remix_app(
+    name = "app",
+)
+
+opt_compilation_mode(
+    name = "app_opt",
+    src = ":app",
+)
 
 ts_project(
     name = "app_lib",
@@ -65,45 +75,45 @@ filegroup(
     srcs = glob(["public/**/*"]),
 )
 
-APP_FILES = [
-    ":app_lib",
-    ":app_public_files",
-    "//:package_light_json_file",
-    "//:remix_config_files",
-    "//:node_modules/dotenv",
-    "//:node_modules/fs-extra",
-]
-
-# We have this command for running `remix dev` but we never really run it.
-# Notably while it successfully builds the app, it doesn't pass any arguments
-# we need for running the app like `--port`.
-#
-# Instead `//admin/dev` runs `remix dev` inside this executable's runfiles
-# directory. We constantly rebuild the rule but don't restart `remix dev` so
-# the browser successfully hot reloads.
-remix_bin.remix_binary(
-    name = "app_dev",
-    args = [
-        "dev",
-        "--command",
-        "'node ./app/build/server.js'",
+filegroup(
+    name = "remix_config_files",
+    srcs = [
+        "//:node_modules/dotenv",
+        "//:node_modules/fs-extra",
+        "//:package_light_json_file",
+        "//:remix_config_files",
     ],
-    data = APP_FILES,
 )
 
-# `remix build` will always be a minified `NODE_ENV=production` build. So we
-# want to always use an `opt` Bazel compilation mode. This is accomplished with
-# the `opt_compilation_mode()` transition below. You should avoid building this
-# directly since you may end up using a `fastbuild` Bazel compilation mode.
-remix_bin.remix(
-    name = "app_build_without_opt",
-    srcs = APP_FILES,
-    outs = ["build/server.js"],
-    args = ["build"],
-    out_dirs = ["public/build"],
+js_binary(
+    name = "read_remix_resolved_config",
+    data = [
+        "entry.client.js",
+        "entry.server.js",
+        "root.js",
+        ":remix_config_files",
+        "//:node_modules/@remix-run/dev",
+        # Make sure we use the `.js` version of route files, not the `.ts` version. We
+        # transpile with Bazel before building with Remix.
+    ] + ["{}.js".format(src[:src.rindex(".")]) for src in glob([
+        "routes/**/*.ts",
+        "routes/**/*.tsx",
+    ])],
+    entry_point = "read_remix_resolved_config.cjs",
 )
 
-opt_compilation_mode(
-    name = "app_build",
-    src = ":app_build_without_opt",
+js_run_binary(
+    name = "remix_resolved_config",
+    stdout = "remix_resolved_config.json",
+    tool = ":read_remix_resolved_config",
+)
+
+js_binary(
+    name = "remix_compiler",
+    data = [
+        "//:node_modules/@bazel/worker",
+        "//:node_modules/@remix-run/dev",
+        "//:node_modules/fs-extra",
+    ],
+    entry_point = "remix_compiler.cjs",
 )
