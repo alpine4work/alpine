@@ -161,7 +161,7 @@ export default function SignInEmailCodePage() {
     }, []);
 
     return (
-        <Box display="flex" justifyContent="center" backgroundColor="grey-0" height="full">
+        <Box display="flex" justifyContent="center" backgroundColor="grey-0" minHeight="full">
             <main
                 className={sprinkles({
                     width: "full",

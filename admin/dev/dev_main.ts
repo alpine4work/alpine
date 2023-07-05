@@ -17,8 +17,8 @@ import {
 import {spawnWithCoordinatedStdio} from "~/admin/dev/stdio_coordinator.js";
 import {startDynamoLocal} from "~/admin/dynamo/local/start_dynamo_local.js";
 import {devEnvPaths} from "~/admin/helpers/dev_env_paths.js";
-import {forceKillProcessTree} from "~/admin/helpers/force_kill_process_tree.js";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
+import {waitForProcessExit} from "~/admin/helpers/wait_for_process_exit.js";
 import {waitForProcessSpawn} from "~/admin/helpers/wait_for_process_spawn.js";
 import {workspacePath} from "~/admin/helpers/workspace_path.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
@@ -29,6 +29,7 @@ import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_er
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {Id} from "~/shared/id/id.js";
 
 assert(process.env.NODE_ENV === "development");
 
@@ -43,8 +44,14 @@ const dynamoLocalPort = parseInt(assertExists(env.DYNAMO_LOCAL_PORT), 10);
 type Artifact = {
     readonly bazelTarget: string;
     readonly executablePath: string;
-    readonly env?: {readonly [key: string]: string};
-    readonly args?: ReadonlyArray<string>;
+    readonly env: {readonly [key: string]: string};
+    readonly args: ReadonlyArray<string>;
+    readonly server: AsyncMutex<ArtifactServer | null>;
+};
+
+type ArtifactServer = {
+    readonly buildId: Id;
+    readonly subprocess: ChildProcess;
 };
 
 const artifacts: ReadonlyArray<Artifact> = [
@@ -62,6 +69,7 @@ const artifacts: ReadonlyArray<Artifact> = [
             "--shouldSeedDynamo",
             ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
         ],
+        server: new AsyncMutex<ArtifactServer | null>(null),
     },
     // {
     //     bazelTarget: "//server/edge:edge_service_bundle_file",
@@ -70,51 +78,39 @@ const artifacts: ReadonlyArray<Artifact> = [
 
 let artifactServerSetupPromise: Promise<unknown> | undefined;
 
-const artifactByBazelTarget = new Map(artifacts.map(artifact => [artifact.bazelTarget, artifact]));
-
-const artifactServerByBazelTarget = new Map<
-    string,
-    AsyncMutex<{subprocess: ChildProcess | null}>
->();
-
 /**
- * Restart the server for the artifact with the specified Bazel target. If a
- * server is already running then we force kill it and start a new server.
+ * Build the artifact and restart the server associated with the artifact.
  */
-function restartArtifactServer(bazelTarget: string) {
-    const artifact = assertExists(artifactByBazelTarget.get(bazelTarget));
+async function rebuildArtifact(artifact: Artifact) {
+    const {buildId} = await buildBazelTarget(artifact.bazelTarget);
 
-    const artifactServerMutex = getOrSetDefaultMapValue(
-        artifactServerByBazelTarget,
-        bazelTarget,
-        () => new AsyncMutex<{subprocess: ChildProcess | null}>({subprocess: null}),
-    );
+    await artifact.server.run(async (artifactServer, setArtifactServer) => {
+        // If the current artifact server corresponds to the current `buildId` then we
+        // don't need to restart it.
+        if (artifactServer?.buildId === buildId) return;
 
-    artifactServerMutex
-        .run(async artifactServer => {
-            if (artifactServer.subprocess) {
-                if (artifactServer.subprocess.pid !== undefined) {
-                    await forceKillProcessTree(artifactServer.subprocess.pid);
-                }
-                artifactServer.subprocess = null;
-            }
+        if (artifactServer) {
+            const exitPromise = waitForProcessExit(artifactServer.subprocess);
+            artifactServer.subprocess.kill("SIGINT");
+            await exitPromise;
+            setArtifactServer(null);
+        }
 
-            // Make sure our setup promise has resolved before spawning our server.
-            await artifactServerSetupPromise;
+        // Make sure our setup promise has resolved before spawning our server.
+        await artifactServerSetupPromise;
 
-            const subprocess = spawnWithCoordinatedStdio(
-                joinPath(
-                    `${workspacePath}/bazel-out/${bazelBuildTargetCpu}-${bazelBuildCompilationMode}/bin`,
-                    artifact.executablePath,
-                ),
-                artifact.args ?? [],
-                {env: {...process.env, ...artifact.env}},
-            );
+        const subprocess = spawnWithCoordinatedStdio(
+            joinPath(
+                `${workspacePath}/bazel-out/${bazelBuildTargetCpu}-${bazelBuildCompilationMode}/bin`,
+                artifact.executablePath,
+            ),
+            artifact.args ?? [],
+            {env: {...process.env, ...artifact.env}},
+        );
 
-            await waitForProcessSpawn(subprocess);
-            artifactServer.subprocess = subprocess;
-        })
-        .catch(scheduleUncaughtError);
+        await waitForProcessSpawn(subprocess);
+        setArtifactServer({buildId, subprocess});
+    });
 }
 
 async function main() {
@@ -140,11 +136,8 @@ async function main() {
         runAllPromises(
             artifacts.map(async artifact => {
                 await runAllPromises([
-                    (async () => {
-                        await buildBazelTarget(artifact.bazelTarget);
-                        restartArtifactServer(artifact.bazelTarget);
-                    })(),
-                    updateBazelTargetDependencyPackagePaths(artifact.bazelTarget),
+                    rebuildArtifact(artifact),
+                    updateArtifactDependencyBazelPackagePaths(artifact),
                 ]);
             }),
         ),
@@ -153,7 +146,7 @@ async function main() {
 
 type BazelPackage = {
     readonly path: string;
-    readonly dependentTargets: Set<string>;
+    readonly dependentArtifactByBazelTarget: Map<string, Artifact>;
 };
 
 // `null` entries are paths that are definitely not packages. Entries that
@@ -195,7 +188,7 @@ function getBazelPackageByRelativeDirectoryPath(path: string): BazelPackage {
                 fs.pathExistsSync(joinPath(absolutePath, "BUILD"));
 
             if (!isBazelPackage) return null;
-            return {path, dependentTargets: new Set()};
+            return {path, dependentArtifactByBazelTarget: new Map()};
         },
     );
 
@@ -214,22 +207,23 @@ function getBazelPackageByRelativeDirectoryPath(path: string): BazelPackage {
 const lastDependencyBazelPackagePathsByTarget = new Map<string, ReadonlySet<string>>();
 
 /**
- * Populate `dependentTargets` in `bazelPackageByPath` for the provided target.
- * Pauses file update events while processing to avoid race conditions.
+ * Populate `dependentArtifactByBazelTarget` in `bazelPackageByPath` for the
+ * provided target. Pauses file update events while processing to avoid race
+ * conditions.
  *
- * If we've already populated `dependentTargets` for this target then we remove
- * any old dependencies which are no longer needed.
+ * If we've already populated `dependentArtifactByBazelTarget` for this target
+ * then we remove any old dependencies which are no longer needed.
  */
-function updateBazelTargetDependencyPackagePaths(target: string) {
+function updateArtifactDependencyBazelPackagePaths(artifact: Artifact) {
     return pauseFileUpdates(async () => {
         const dependencyPackagePaths = new Set(
-            await queryBazelTargetDependencyPackagePaths(target),
+            await queryBazelTargetDependencyPackagePaths(artifact.bazelTarget),
         );
 
         const lastDependencyPackagePaths =
-            lastDependencyBazelPackagePathsByTarget.get(target) ?? new Set();
+            lastDependencyBazelPackagePathsByTarget.get(artifact.bazelTarget) ?? new Set();
 
-        lastDependencyBazelPackagePathsByTarget.set(target, dependencyPackagePaths);
+        lastDependencyBazelPackagePathsByTarget.set(artifact.bazelTarget, dependencyPackagePaths);
 
         const dependencyPackagePathsToAdd = dependencyPackagePaths;
         const dependencyPackagePathsToRemove = new Set<string>();
@@ -244,16 +238,19 @@ function updateBazelTargetDependencyPackagePaths(target: string) {
             let bazelPackage = bazelPackageByPath.get(dependencyPackagePath);
 
             if (!bazelPackage) {
-                bazelPackage = {path: dependencyPackagePath, dependentTargets: new Set()};
+                bazelPackage = {
+                    path: dependencyPackagePath,
+                    dependentArtifactByBazelTarget: new Map(),
+                };
                 bazelPackageByPath.set(dependencyPackagePath, bazelPackage);
             }
 
-            bazelPackage.dependentTargets.add(target);
+            bazelPackage.dependentArtifactByBazelTarget.set(artifact.bazelTarget, artifact);
         }
 
         for (const dependencyPackagePath of dependencyPackagePathsToRemove) {
             const bazelPackage = bazelPackageByPath.get(dependencyPackagePath);
-            bazelPackage?.dependentTargets.delete(target);
+            bazelPackage?.dependentArtifactByBazelTarget.delete(artifact.bazelTarget);
         }
     });
 }
@@ -310,10 +307,7 @@ function processFileUpdate(path: string) {
     // Rebuild all targets that depend on this package...
     runPromiseWithoutAwaiting(async () => {
         await runAllPromises(
-            Array.from(bazelPackage.dependentTargets, async bazelTarget => {
-                await buildBazelTarget(bazelTarget);
-                restartArtifactServer(bazelTarget);
-            }),
+            Array.from(bazelPackage.dependentArtifactByBazelTarget.values(), rebuildArtifact),
         );
     });
 
@@ -330,7 +324,10 @@ function processFileUpdate(path: string) {
 
         runPromiseWithoutAwaiting(async () => {
             await runAllPromises(
-                Array.from(bazelPackage.dependentTargets, updateBazelTargetDependencyPackagePaths),
+                Array.from(
+                    bazelPackage.dependentArtifactByBazelTarget.values(),
+                    updateArtifactDependencyBazelPackagePaths,
+                ),
             );
         });
     }

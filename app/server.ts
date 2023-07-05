@@ -17,6 +17,8 @@ import {
     ServerResponse,
     createServer,
 } from "http";
+import {join as joinPath} from "path";
+import createServeStaticMiddleware from "serve-static";
 import {PassThrough} from "stream";
 import {parseArgs} from "util";
 import {defaultClientInfo, defaultMobileClientInfo} from "~/client/remix/client_info_context.js";
@@ -43,12 +45,58 @@ import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError, InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 import {ClientInfoSchema} from "~/shared/remix/client_info.js";
 
-// NOCOMMIT: Add back durable objects, static assets, and queues!
+// NOCOMMIT: Add back durable objects and queues!
+
+const runfilesPath = assertExists(process.env.RUNFILES);
+
+const assetsBuildDirectory = joinPath(runfilesPath, "cyberworlds/app/public/build");
+
+// Serve static assets from our `public` directory. These assets will be cached
+// by Cloudflare which sits in front of our Node.js HTTP server.
+//
+// TODO(calebmer): Verify Cloudflare is actually caching these assets in
+// production.
+//
+// TODO(calebmer): We should keep around historical assets for the last N
+// server versions so that if an old client tries to load an asset we don't
+// fail. (We should only delete assets when no clients can reach it.)
+// Cloudflare may do some of this for us automatically but it still may try to
+// reload an asset from our web server and get a 404. We want assets to live
+// forever. Arguably, because of this, static assets shouldn't be served from
+// our app service. Maybe instead we upload static assets to Cloudflare storage
+// and our edge service serves them?
+const serveStaticMiddleware = createServeStaticMiddleware(
+    joinPath(runfilesPath, "cyberworlds/app/public"),
+    {
+        setHeaders: (res, path) => {
+            // Remix fingerprints its assets so we can cache forever. Other assets (like `favicon.ico`)
+            if (path.startsWith(assetsBuildDirectory)) {
+                // - `public`: Means we can store the asset in a shared cache since they don't
+                //   depend on authorization.
+                // - `max-age=31536000`: The asset lives for one year.
+                // - `immutable`: Indicates the response will never update.
+                res.setHeader("cache-control", "public, max-age=31536000, immutable");
+            } else {
+                // - `public`: Means we can store the asset in a shared cache since they don't
+                //   depend on authorization.
+                // - `max-age=86400`: The asset lives for one day.
+                // - `stale-while-revalidate=31536000`: When the asset is stale, the cache is
+                //   allowed to continue using it for a year as long as the cache revalidates
+                //   the asset in the background.
+                res.setHeader(
+                    "cache-control",
+                    "public, max-age=86400, stale-while-revalidate=31536000",
+                );
+            }
+        },
+    },
+);
 
 main().catch(error => {
     // eslint-disable-next-line no-console
@@ -117,131 +165,143 @@ async function main() {
     const handleRequest = createRequestHandler(build, process.env.NODE_ENV);
 
     const server = createServer((req, res) => {
-        const request = createRequest(req);
-        const url = new URL(request.url);
+        serveStaticMiddleware(req, res, () => {
+            const request = createRequest(req);
+            const url = new URL(request.url);
 
-        // Create a new tracer for every request because we need a Honeycomb client and
-        // the Honeycomb client needs `executionContext.waitUntil()` which is request
-        // scoped. Tracers are cheap to construct so this is fine.
-        const tracer = createServerTracer({
-            serviceName: "AppService",
-            honeycombApiKey,
-            waitUntil: promise => {
-                // We don't need to extend the lifetime of our Node.js process with a promise.
-                // If the tracer throws an error, well, there's nowhere else to send the error.
-                promise.catch(error => {
+            // Create a new tracer for every request because we need a Honeycomb client and
+            // the Honeycomb client needs `executionContext.waitUntil()` which is request
+            // scoped. Tracers are cheap to construct so this is fine.
+            const tracer = createServerTracer({
+                serviceName: "AppService",
+                honeycombApiKey,
+                waitUntil: promise => {
+                    // We don't need to extend the lifetime of our Node.js process with a promise.
+                    // If the tracer throws an error, well, there's nowhere else to send the error.
+                    promise.catch(error => {
+                        // eslint-disable-next-line no-console
+                        console.error(error);
+                    });
+                },
+            });
+
+            const responsePromise = traceFetchResponse(tracer, request, url, (span, request) => {
+                return withSessionCookie(tokenAgent, request, sessionCookie => {
+                    const cookieHeader = request.headers.get("cookie");
+                    const clientInfoCookieString = cookieHeader
+                        ? parseCookieHeader(cookieHeader)["client-info"]
+                        : null;
+
+                    let clientInfo = defaultClientInfo;
+                    if (clientInfoCookieString) {
+                        try {
+                            clientInfo = ClientInfoSchema.deserialize(
+                                JSON.parse(clientInfoCookieString),
+                            );
+                        } catch {
+                            // Ignore any errors when parsing the client info cookie.
+                        }
+                    } else {
+                        // Device detection with user-agent parsing is generally bad and should be
+                        // avoided. However, in the case where we don't yet have a client info cookie
+                        // we use the user agent as a hint to determine what our default when
+                        // server-side rendering should be. We have logic on the client to heal the
+                        // cookie if we guess wrong. The user will see a quick flash of content but
+                        // that's all.
+                        //
+                        // [MDN recommends testing for the string "Mobi" to tell if we are on a
+                        // mobile device][1].
+                        //
+                        // [1]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Browser_detection_using_the_user_agent#mobile_tablet_or_desktop
+                        if (/Mobi/i.test(request.headers.get("user-agent") ?? "")) {
+                            clientInfo = defaultMobileClientInfo;
+                        }
+                    }
+
+                    return Context.with<LoaderContextModules, globalThis.Response>(
+                        {
+                            ...awsContextModules,
+                            process: new ProcessContextModule({
+                                waitUntil: promise => {
+                                    // Don't crash the process when there's an uncaught promise exception in
+                                    // `waitUntil()` but definitely log it.
+                                    promise.catch(error => {
+                                        if (process.env.NODE_ENV !== "production") {
+                                            // eslint-disable-next-line no-console
+                                            console.error(error);
+                                        }
+
+                                        tracer.logUncaughtException(
+                                            "Uncaught exception in `waitUntil()`",
+                                            error,
+                                        );
+                                    });
+                                },
+                            }),
+                            tracer: new TracerContextModule(span),
+                            rpc: new LocalRpcContextModule(),
+                            loader: new LoaderContextModule({
+                                sessionCookie,
+                                clientInfo,
+                                devServerPort: remixDevServerPort
+                                    ? parseInt(remixDevServerPort, 10)
+                                    : null,
+                            }),
+                            cache: new CacheContextModule(),
+                            dynamoBatchContext: new DynamoBatchContextModule(),
+                            notifications: new NotificationsContextModule({}),
+                            actor: createActorContextModule(
+                                request,
+                                url,
+                                tokenAgent,
+                                sessionCookie,
+                            ),
+                        },
+                        context => {
+                            // The first time our server process runs in development, seed DynamoDB with
+                            // some initial data. The seed function should be idempotent.
+                            if (
+                                process.env.NODE_ENV !== "production" &&
+                                shouldSeedDynamo &&
+                                !hasSeededDynamo
+                            ) {
+                                hasSeededDynamo = true;
+                                context.process.waitUntil(async () => {
+                                    try {
+                                        await seedDynamo(context);
+                                    } catch (error) {
+                                        // If there is an error, log it but don't crash the process.
+                                        // eslint-disable-next-line no-console
+                                        console.error(
+                                            InternalError.from(
+                                                error,
+                                                "Failed to seed DynamoDB data",
+                                            ),
+                                        );
+                                    }
+                                });
+                            }
+
+                            return handleRequest(request, context);
+                        },
+                    );
+                });
+            });
+
+            responsePromise.then(
+                response => sendResponse(res, response as NodeResponse),
+                error => {
+                    // Errors should be caught and handled by this point. So this error handler is
+                    // for unexpected internal code failures.
                     // eslint-disable-next-line no-console
                     console.error(error);
-                });
-            },
+
+                    res.writeHead(500, {"content-type": "text/plain"});
+                    res.write(STATUS_CODES[res.statusCode]);
+                    res.end();
+                },
+            );
         });
-
-        const responsePromise = traceFetchResponse(tracer, request, url, (span, request) => {
-            return withSessionCookie(tokenAgent, request, sessionCookie => {
-                const cookieHeader = request.headers.get("cookie");
-                const clientInfoCookieString = cookieHeader
-                    ? parseCookieHeader(cookieHeader)["client-info"]
-                    : null;
-
-                let clientInfo = defaultClientInfo;
-                if (clientInfoCookieString) {
-                    try {
-                        clientInfo = ClientInfoSchema.deserialize(
-                            JSON.parse(clientInfoCookieString),
-                        );
-                    } catch {
-                        // Ignore any errors when parsing the client info cookie.
-                    }
-                } else {
-                    // Device detection with user-agent parsing is generally bad and should be
-                    // avoided. However, in the case where we don't yet have a client info cookie
-                    // we use the user agent as a hint to determine what our default when
-                    // server-side rendering should be. We have logic on the client to heal the
-                    // cookie if we guess wrong. The user will see a quick flash of content but
-                    // that's all.
-                    //
-                    // [MDN recommends testing for the string "Mobi" to tell if we are on a
-                    // mobile device][1].
-                    //
-                    // [1]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Browser_detection_using_the_user_agent#mobile_tablet_or_desktop
-                    if (/Mobi/i.test(request.headers.get("user-agent") ?? "")) {
-                        clientInfo = defaultMobileClientInfo;
-                    }
-                }
-
-                return Context.with<LoaderContextModules, globalThis.Response>(
-                    {
-                        ...awsContextModules,
-                        process: new ProcessContextModule({
-                            waitUntil: promise => {
-                                // Don't crash the process when there's an uncaught promise exception in
-                                // `waitUntil()` but definitely log it.
-                                promise.catch(error => {
-                                    // eslint-disable-next-line no-console
-                                    if (process.env.NODE_ENV !== "production") console.error(error);
-
-                                    tracer.logUncaughtException(
-                                        "Uncaught exception in `waitUntil()`",
-                                        error,
-                                    );
-                                });
-                            },
-                        }),
-                        tracer: new TracerContextModule(span),
-                        rpc: new LocalRpcContextModule(),
-                        loader: new LoaderContextModule({
-                            sessionCookie,
-                            clientInfo,
-                            devServerPort: remixDevServerPort
-                                ? parseInt(remixDevServerPort, 10)
-                                : null,
-                        }),
-                        cache: new CacheContextModule(),
-                        dynamoBatchContext: new DynamoBatchContextModule(),
-                        notifications: new NotificationsContextModule({}),
-                        actor: createActorContextModule(request, url, tokenAgent, sessionCookie),
-                    },
-                    context => {
-                        // The first time our server process runs in development, seed DynamoDB with
-                        // some initial data. The seed function should be idempotent.
-                        if (
-                            process.env.NODE_ENV !== "production" &&
-                            shouldSeedDynamo &&
-                            !hasSeededDynamo
-                        ) {
-                            hasSeededDynamo = true;
-                            context.process.waitUntil(async () => {
-                                try {
-                                    await seedDynamo(context);
-                                } catch (error) {
-                                    // If there is an error, log it but don't crash the process.
-                                    // eslint-disable-next-line no-console
-                                    console.error(
-                                        InternalError.from(error, "Failed to seed DynamoDB data"),
-                                    );
-                                }
-                            });
-                        }
-
-                        return handleRequest(request, context);
-                    },
-                );
-            });
-        });
-
-        responsePromise.then(
-            response => sendResponse(res, response as NodeResponse),
-            error => {
-                // Errors should be caught and handled by this point. So this error handler is
-                // for unexpected internal code failures.
-                // eslint-disable-next-line no-console
-                console.error(error);
-
-                res.writeHead(500, {"content-type": "text/plain"});
-                res.write(STATUS_CODES[res.statusCode]);
-                res.end();
-            },
-        );
     });
 
     server.listen(port, () => {

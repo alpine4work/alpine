@@ -17,6 +17,7 @@ ts_project(
         "//admin/helpers",
         "//shared/error",
         "//shared/helpers",
+        "//shared/id",
     ],
 )
 

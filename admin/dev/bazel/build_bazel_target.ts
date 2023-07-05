@@ -8,6 +8,7 @@ import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
+import {Id, generateId} from "~/shared/id/id.js";
 
 /**
  * The target CPU used by `bazel build`.
@@ -21,13 +22,15 @@ export const bazelBuildCompilationMode = "fastbuild";
 
 let isBuildScheduled = false;
 
-let nextBuildByTarget = new DefaultMap<string, PromiseResolver<void>>(createPromiseResolver);
+let nextBuildByTarget = new DefaultMap<string, PromiseResolver<{buildId: Id}>>(
+    createPromiseResolver,
+);
 
 const lastBuildByTarget = new Map<
     string,
     {
         startTime: number;
-        promise: Promise<void>;
+        promise: Promise<{buildId: Id}>;
     }
 >();
 
@@ -38,7 +41,7 @@ const lastBuildByTarget = new Map<
  * targets and build them together. If we are already running a Bazel build then we'll
  * batch targets together and build them immediately after.
  */
-export function buildBazelTarget(target: string): Promise<void> {
+export function buildBazelTarget(target: string): Promise<{buildId: Id}> {
     // If it has been less than 1000ms since the user last built a target, we assume
     // our previous work is still valid.
     const lastBuild = lastBuildByTarget.get(target);
@@ -76,10 +79,12 @@ function scheduleBuildBazelTargets() {
                     });
                 }
 
+                const buildId = generateId();
+
                 actuallyBuildBazelTargets([...buildByTarget.keys()])
                     // Resolve the targets we built this run.
                     .then(
-                        () => buildByTarget.forEach(({resolve}) => resolve()),
+                        () => buildByTarget.forEach(({resolve}) => resolve({buildId})),
                         error => buildByTarget.forEach(({reject}) => reject(error)),
                     )
                     .finally(() => {
