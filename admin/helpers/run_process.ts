@@ -3,7 +3,6 @@ import path from "path";
 import {workspacePath} from "~/admin/helpers/workspace_path.js";
 import {UnknownError} from "~/shared/error/error.js";
 import {isNonNullableOrFalse} from "~/shared/helpers/control/is_non_nullable_or_false.js";
-import {noop} from "~/shared/helpers/control/noop.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
 type ProcessArgs = Array<string | undefined | null | false | ProcessArgs>;
@@ -23,8 +22,6 @@ export async function runProcess(
     args: ProcessArgs,
     {
         cwd = workspacePath,
-        onStdoutData = noop,
-        onStderrData = noop,
         env,
     }: {
         /**
@@ -32,14 +29,6 @@ export async function runProcess(
          * directory of our code repository.
          */
         cwd?: string;
-        /**
-         * Called when the process writes to stdout.
-         */
-        onStdoutData?: (data: string) => void;
-        /**
-         * Called when the process writes to stderr.
-         */
-        onStderrData?: (data: string) => void;
         /**
          * Extra environment variables to set when running the subprocess.
          */
@@ -59,16 +48,14 @@ export async function runProcess(
     let stdout = "";
     let stderr = "";
 
-    subprocess.stdout.on("data", chunk => {
+    subprocess.stdout.on("data", (chunk: Buffer) => {
         const string = chunk.toString("utf8");
         stdout += string;
-        onStdoutData(string);
     });
 
-    subprocess.stderr.on("data", chunk => {
+    subprocess.stderr.on("data", (chunk: Buffer) => {
         const string = chunk.toString("utf8");
         stderr += string;
-        onStderrData(string);
     });
 
     await new Promise<void>((resolve, reject) => {

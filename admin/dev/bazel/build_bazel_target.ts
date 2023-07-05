@@ -1,12 +1,23 @@
-import {spawn} from "child_process";
 import * as colorette from "colorette";
 import {bazelExecutablePath, lockBazelExecutable} from "~/admin/dev/bazel/bazel_executable.js";
+import {spawnWithBlockingStdio} from "~/admin/dev/stdio_coordinator.js";
 import {waitForProcessExit} from "~/admin/helpers/wait_for_process_exit.js";
 import {workspacePath} from "~/admin/helpers/workspace_path.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
+
+/**
+ * The target CPU used by `bazel build`.
+ */
+export const bazelBuildTargetCpu = assertExists(process.env.JS_BINARY__TARGET_CPU);
+
+/**
+ * The compilation mode used by `bazel build`.
+ */
+export const bazelBuildCompilationMode = "fastbuild";
 
 let isBuildScheduled = false;
 
@@ -96,11 +107,21 @@ async function actuallyBuildBazelTargets(targets: Array<string>) {
     // eslint-disable-next-line no-console
     console.log(`${colorette.dim("$")} bazel build ${colorette.bold(targets.join(" "))}`);
 
-    const subprocess = spawn(bazelExecutablePath, ["build", ...targets], {
-        cwd: workspacePath,
-        env: process.env, // Needs to inherit `process.env` so we get the TTY style
-        stdio: ["ignore", "inherit", "inherit"],
-    });
+    const subprocess = spawnWithBlockingStdio(
+        bazelExecutablePath,
+        [
+            "build",
+            `--cpu=${bazelBuildTargetCpu}`,
+            `--compilation_mode=${bazelBuildCompilationMode}`,
+            `--color=${colorette.isColorSupported ? "yes" : "no"}`,
+            `--curses=${colorette.isColorSupported ? "yes" : "no"}`,
+            ...targets,
+        ],
+        {
+            cwd: workspacePath,
+            env: process.env,
+        },
+    );
 
     await waitForProcessExit(subprocess);
 }

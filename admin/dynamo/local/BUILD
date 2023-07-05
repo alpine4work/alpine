@@ -8,7 +8,7 @@ ts_project(
         ":local_data",
     ],
     visibility = [
-        "//app/dev:__pkg__",
+        "//admin/dev:__pkg__",
         "//server/dynamo/test_helpers:__subpackages__",
     ],
     deps = [
