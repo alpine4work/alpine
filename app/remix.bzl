@@ -46,8 +46,8 @@ def _remix_app_impl(ctx):
 
     return [
         DefaultInfo(
-            files = depset(outputs),
-            runfiles = ctx.attr._app_lib[DefaultInfo].default_runfiles,
+            files = depset([server_build_output]),
+            runfiles = ctx.runfiles([assets_build_output]).merge(ctx.attr._app_lib[DefaultInfo].default_runfiles),
         ),
     ]
 

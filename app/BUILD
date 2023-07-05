@@ -1,16 +1,6 @@
 load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_run_binary")
-load("//admin/bazel:opt_compilation_mode.bzl", "opt_compilation_mode")
 load("//admin/typescript:typescript.bzl", "ts_project")
 load("//app:remix.bzl", "remix_app")
-
-remix_app(
-    name = "app",
-)
-
-opt_compilation_mode(
-    name = "app_opt",
-    src = ":app",
-)
 
 ts_project(
     name = "app_lib",
@@ -116,4 +106,19 @@ js_binary(
         "//:node_modules/fs-extra",
     ],
     entry_point = "remix_compiler.cjs",
+)
+
+remix_app(
+    name = "app_build",
+)
+
+js_binary(
+    name = "app",
+    data = [
+        ":app_build",
+        ":app_lib",
+        ":app_public_files",
+        ":remix_config_files",
+    ],
+    entry_point = ":app_build",
 )
