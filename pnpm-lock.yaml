@@ -458,6 +458,9 @@ dependencies:
   phosphor-react:
     specifier: ^1.4.1
     version: 1.4.1(patch_hash=rehavg4vjut6avpq34cx6ugszq)(react@18.2.0)
+  pidtree:
+    specifier: ^0.6.0
+    version: 0.6.0
   playwright-core:
     specifier: ^1.31.1
     version: 1.31.1

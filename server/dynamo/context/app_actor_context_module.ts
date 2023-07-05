@@ -95,6 +95,11 @@ export class AppUnknownActorContextModule<
         return this._contextModuleRef.current;
     }
 
+    public async isAuthenticatedSession() {
+        const contextModule = await this._getContextModule();
+        return contextModule instanceof AppSessionActorContextModule;
+    }
+
     public async authenticate<
         Modules extends {
             tracer: TracerContextModule;
@@ -144,6 +149,10 @@ export class AppSessionActorContextModule
      */
     public static dangerouslyNew(serviceName: AppActorServiceName, session: Session) {
         return new AppSessionActorContextModule(serviceName, session);
+    }
+
+    public override async isAuthenticatedSession() {
+        return true;
     }
 
     public override async authenticate<
@@ -230,6 +239,10 @@ export class AppSystemActorContextModule
      */
     public static dangerouslyNew(serviceName: "Test" | TokenServiceName, spaceId: SpaceId) {
         return new AppSystemActorContextModule(serviceName, spaceId);
+    }
+
+    public override async isAuthenticatedSession() {
+        return false;
     }
 
     public override async authenticate<

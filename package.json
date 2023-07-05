@@ -126,6 +126,7 @@
         "node-fetch": "2.6.11",
         "outdent": "0.8.0",
         "phosphor-react": "^1.4.1",
+        "pidtree": "^0.6.0",
         "playwright-core": "^1.31.1",
         "prettier": "^2.8.7",
         "pretty-ms": "7",

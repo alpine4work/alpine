@@ -16,7 +16,6 @@ import {Spacer} from "~/client/design/spacer.js";
 import {TextInput} from "~/client/design/text_input.js";
 import {useActionDataWithSchema} from "~/client/remix/use_action_data_with_schema.js";
 import {requestAlphaAccess} from "~/server/dynamo/alpha_access_table.js";
-import {AppSessionActorContextModule} from "~/server/dynamo/context/app_actor_context_module.js";
 import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -40,8 +39,7 @@ export function meta() {
 
 export async function loader({context}: LoaderArgs) {
     // Can not access this page while signed in.
-    const authenticatedContext = await context.actor.authenticate();
-    if (authenticatedContext.actor instanceof AppSessionActorContextModule) {
+    if (await context.actor.isAuthenticatedSession()) {
         return redirectToAuthenticatedHome(context);
     }
 

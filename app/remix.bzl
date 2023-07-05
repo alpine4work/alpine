@@ -24,6 +24,10 @@ def _remix_app_impl(ctx):
     server_build_output = ctx.actions.declare_file("build/server.js")
     outputs = [assets_build_output, server_build_output]
 
+    server_map_build_output = ctx.actions.declare_file("build/server.js.map") if ctx.var["COMPILATION_MODE"] != "opt" else None
+    if server_map_build_output:
+        outputs.append(server_map_build_output)
+
     # Bundle all our JavaScript together. This bundles multiple entry points
     # together, creating chunks for shared code.
     ctx.actions.run(
@@ -47,7 +51,12 @@ def _remix_app_impl(ctx):
     return [
         DefaultInfo(
             files = depset([server_build_output]),
-            runfiles = ctx.runfiles([assets_build_output]).merge(ctx.attr._app_lib[DefaultInfo].default_runfiles),
+            runfiles = ctx.runfiles(
+                [assets_build_output] +
+                ([server_map_build_output] if server_map_build_output else []),
+            ).merge(
+                ctx.attr._app_lib[DefaultInfo].default_runfiles,
+            ),
         ),
     ]
 

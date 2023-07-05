@@ -15,6 +15,7 @@ ts_project(
         "//:node_modules/dotenv",
         "//:node_modules/env-paths",
         "//:node_modules/fs-extra",
+        "//:node_modules/pidtree",
         "//shared/error",
         "//shared/helpers",
     ],

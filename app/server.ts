@@ -5,7 +5,6 @@ import {
     Request as NodeRequest,
     RequestInit as NodeRequestInit,
     Response as NodeResponse,
-    broadcastDevReady,
     createRequestHandler,
     writeReadableStreamToWritable,
 } from "@remix-run/node";
@@ -246,9 +245,11 @@ async function main() {
     });
 
     server.listen(port, () => {
-        if (process.env.NODE_ENV === "development") {
-            broadcastDevReady(build);
-        }
+        // NOCOMMIT: Do we need this?
+        //
+        // if (process.env.NODE_ENV === "development") {
+        //     broadcastDevReady(build);
+        // }
     });
 }
 
