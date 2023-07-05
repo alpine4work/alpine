@@ -93,8 +93,13 @@ export function spawnWithBlockingStdio(
     if (blockingStdioSubprocesses.length === 1) {
         runPromiseWithoutAwaiting(async () => {
             while (blockingStdioSubprocesses.length > 0) {
-                const block = blockingStdioSubprocesses.shift()!;
-                await block();
+                const block = blockingStdioSubprocesses[0]!;
+                try {
+                    await block();
+                } catch {
+                    // Do nothing...
+                }
+                blockingStdioSubprocesses.shift();
             }
 
             // Once all blocking processes have finished, write buffered coordinated

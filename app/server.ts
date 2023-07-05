@@ -67,7 +67,7 @@ async function main() {
             awsAccessKeyId,
             awsSecretAccessKey,
             honeycombApiKey,
-            devServerPort,
+            remixDevServerPort,
             dynamoLocalPort,
             shouldSeedDynamo,
         },
@@ -80,7 +80,7 @@ async function main() {
             awsAccessKeyId: {type: "string"},
             awsSecretAccessKey: {type: "string"},
             honeycombApiKey: {type: "string"},
-            devServerPort: {type: "string"},
+            remixDevServerPort: {type: "string"},
             dynamoLocalPort: {type: "string"},
             shouldSeedDynamo: {type: "boolean"},
         },
@@ -193,7 +193,9 @@ async function main() {
                         loader: new LoaderContextModule({
                             sessionCookie,
                             clientInfo,
-                            devServerPort: devServerPort ? parseInt(devServerPort, 10) : null,
+                            devServerPort: remixDevServerPort
+                                ? parseInt(remixDevServerPort, 10)
+                                : null,
                         }),
                         cache: new CacheContextModule(),
                         dynamoBatchContext: new DynamoBatchContextModule(),

@@ -15,7 +15,6 @@ beforeAll(async () => {
             generateKeyPair(
                 "rsa",
                 {
-                    // IMPORTANT: 2048 bit length is not secure enough for production! Ok for tests.
                     modulusLength: 2048,
                     publicKeyEncoding: {type: "spki", format: "pem"},
                     privateKeyEncoding: {type: "pkcs8", format: "pem"},
@@ -30,7 +29,6 @@ beforeAll(async () => {
             generateKeyPair(
                 "rsa",
                 {
-                    // IMPORTANT: 2048 bit length is not secure enough for production! Ok for tests.
                     modulusLength: 2048,
                     publicKeyEncoding: {type: "spki", format: "pem"},
                     privateKeyEncoding: {type: "pkcs8", format: "pem"},
