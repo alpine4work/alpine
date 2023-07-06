@@ -3,7 +3,10 @@ import {createServer} from "http";
 import prettyMs from "pretty-ms";
 import {WebSocket, WebSocketServer} from "ws";
 import {subscribeToBazelBuildEvents} from "~/admin/dev/bazel/build_bazel_target.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+
+let queuedRemixDevServerBroadcasts: Array<() => void> | null = null;
 
 /**
  * We maintain our own Remix dev server which speaks the Remix dev server
@@ -23,7 +26,14 @@ export async function startRemixDevServer({remixDevServerPort}: {remixDevServerP
     remixDevServer.use(express.raw({type: "application/json"}));
 
     remixDevServer.post("/broadcast", (req, res) => {
-        broadcast(req.body.toString());
+        const message = req.body.toString();
+
+        if (queuedRemixDevServerBroadcasts) {
+            queuedRemixDevServerBroadcasts.push(() => broadcast(message));
+        } else {
+            broadcast(message);
+        }
+
         res.status(200).json({});
     });
 
@@ -34,7 +44,7 @@ export async function startRemixDevServer({remixDevServerPort}: {remixDevServerP
         server: actualRemixDevServer,
     });
 
-    function broadcast(message: unknown) {
+    function broadcast(message: string) {
         remixDevWebSocketServer.clients.forEach(client => {
             if (client.readyState === WebSocket.OPEN) {
                 client.send(message);
@@ -43,6 +53,7 @@ export async function startRemixDevServer({remixDevServerPort}: {remixDevServerP
     }
 
     function log(messageText: string) {
+        // Logs are not paused. Only reload and HMR messages.
         broadcast(
             JSON.stringify({
                 type: "LOG",
@@ -92,4 +103,21 @@ export async function startRemixDevServer({remixDevServerPort}: {remixDevServerP
     }
 
     return {close};
+}
+
+export function pauseRemixDevServerBroadcasts() {
+    queuedRemixDevServerBroadcasts ??= [];
+}
+
+export function unpauseRemixDevServerBroadcasts() {
+    if (queuedRemixDevServerBroadcasts) {
+        for (const broadcast of queuedRemixDevServerBroadcasts) {
+            try {
+                broadcast();
+            } catch (error) {
+                scheduleUncaughtError(error);
+            }
+        }
+        queuedRemixDevServerBroadcasts = null;
+    }
 }

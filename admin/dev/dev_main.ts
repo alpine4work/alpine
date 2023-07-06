@@ -15,7 +15,11 @@ import {
     ensureDevKeys,
 } from "~/admin/dev/dev_keys.js";
 import {createDevProxyServer} from "~/admin/dev/dev_proxy_server.js";
-import {startRemixDevServer} from "~/admin/dev/remix_dev_server.js";
+import {
+    pauseRemixDevServerBroadcasts,
+    startRemixDevServer,
+    unpauseRemixDevServerBroadcasts,
+} from "~/admin/dev/remix_dev_server.js";
 import {spawnWithCoordinatedStdio} from "~/admin/dev/stdio_coordinator.js";
 import {startDynamoLocal} from "~/admin/dynamo/local/start_dynamo_local.js";
 import {devEnvPaths} from "~/admin/helpers/dev_env_paths.js";
@@ -50,9 +54,11 @@ type Artifact = {
     readonly executablePath: string;
     readonly port: number;
     readonly privatePort: number;
-    readonly env: {readonly [key: string]: string};
-    readonly args: ReadonlyArray<string>;
+    readonly env?: {readonly [key: string]: string};
+    readonly args?: ReadonlyArray<string>;
     readonly server: AsyncMutex<ArtifactServer | null>;
+    readonly onBuildStart?: () => void;
+    readonly onServerRestart?: () => void;
 };
 
 type ArtifactServer = {
@@ -77,6 +83,10 @@ const artifacts: ReadonlyArray<Artifact> = [
             ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
         ],
         server: new AsyncMutex<ArtifactServer | null>(null),
+        // Don't send reload events until after we've finished building and have killed
+        // the old process.
+        onBuildStart: pauseRemixDevServerBroadcasts,
+        onServerRestart: unpauseRemixDevServerBroadcasts,
     },
     // {
     //     bazelTarget: "//server/edge:edge_service_bundle_file",
@@ -137,6 +147,8 @@ process.on("uncaughtException", error => {
  * Build the artifact and restart the server associated with the artifact.
  */
 async function rebuildArtifact(artifact: Artifact) {
+    artifact.onBuildStart?.();
+
     const {buildId} = await buildBazelTarget(artifact.bazelTarget);
 
     await artifact.server.run(async (artifactServer, setArtifactServer) => {
@@ -153,6 +165,8 @@ async function rebuildArtifact(artifact: Artifact) {
 
         // Make sure our setup promise has resolved before spawning our server.
         await setupPromise;
+
+        artifact.onServerRestart?.();
 
         const subprocess = spawnWithCoordinatedStdio(
             joinPath(
