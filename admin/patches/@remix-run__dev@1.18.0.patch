@@ -22,30 +22,6 @@ index f76c5bab53a3d925d6b9b6450268508a6f78576c..c28ade31fe7d57e38be50a53e44c6c5d
      includeNodeModules: true
    }), esbuildPluginsNodeModulesPolyfill.nodeModulesPolyfillPlugin(), external.externalPlugin(/^node:.*/, {
      sideEffects: false
-diff --git a/dist/compiler/js/plugins/hmr.js b/dist/compiler/js/plugins/hmr.js
-index 17f3086da877fdba38d5e7ba00baa99616e9cb0a..abe28ade28e81d4cb1038b1248272437ebe82a35 100644
---- a/dist/compiler/js/plugins/hmr.js
-+++ b/dist/compiler/js/plugins/hmr.js
-@@ -152,13 +152,17 @@ declare global {
-         filter: /.*/,
-         namespace: "file"
-       }, async args => {
--        if (!args.path.match(/@remix-run[/\\]react[/\\]dist[/\\]esm[/\\]browser.js$/) && !args.path.match(/react-router[-dom]?[/\\]$/) && (!args.path.match(/\.[tj]sx?$/) || !fs__namespace.existsSync(args.path) || !args.path.startsWith(config.appDirectory))) {
-+        // NOTE(calebmer): Explicitly test for `node_modules` in the path. The
-+        // bulk of our code lives outside of the `app` directory where it's
-+        // important that empty modules transforms still apply.
-+        let isExternal = /(^|\/)node_modules(\/|$)/.test(path__namespace.resolve(args.resolveDir, args.path));
-+        if (!args.path.match(/@remix-run[/\\]react[/\\]dist[/\\]esm[/\\]browser.js$/) && !args.path.match(/react-router[-dom]?[/\\]$/) && (!args.path.match(/\.[tj]sx?$/) || !fs__namespace.existsSync(args.path) || isExternal)) {
-           return undefined;
-         }
-         let sourceCode = fs__namespace.readFileSync(args.path, "utf8");
-         let value = cache.get(args.path);
-         if (!value || value.sourceCode !== sourceCode) {
--          let resultCode = await applyHMR(sourceCode, args, config, !!build.initialOptions.sourcemap, args.path.startsWith(config.appDirectory) ? fs__namespace.statSync(args.path).mtimeMs : undefined);
-+          let resultCode = await applyHMR(sourceCode, args, config, !!build.initialOptions.sourcemap, !isExternal ? fs__namespace.statSync(args.path).mtimeMs : undefined);
-           value = {
-             sourceCode,
-             output: {
 diff --git a/dist/compiler/manifest.js b/dist/compiler/manifest.js
 index 1adfd7ee810bf08fd87cdcbc3d39e9e19526a9fa..4e3241908713bbe23ce850460cc64b2d273c5d83 100644
 --- a/dist/compiler/manifest.js
@@ -82,31 +58,6 @@ index 7d9a287a4f58b2ca35ce829f18a7a3b5ace3f78a..f2ac850cd22032616ac619e56dad07da
            return {
              path: args.path,
              namespace: "empty-module"
-diff --git a/dist/compiler/server/compiler.js b/dist/compiler/server/compiler.js
-index 10850b2ec9650954dab23be2fd838ae41354e911..8fa4e8d05d7288f3dca57c7631d631b22bcdf468 100644
---- a/dist/compiler/server/compiler.js
-+++ b/dist/compiler/server/compiler.js
-@@ -29,6 +29,7 @@ var entry = require('./plugins/entry.js');
- var routes = require('./plugins/routes.js');
- var external = require('../plugins/external.js');
- var cssBundlePlugin = require('../plugins/cssBundlePlugin.js');
-+var fs = require('fs');
- 
- function _interopNamespace(e) {
-   if (e && e.__esModule) return e;
-@@ -117,7 +118,11 @@ const createEsbuildConfig = (ctx, refs) => {
- 
-     jsx: "automatic",
-     jsxDev: ctx.options.mode !== "production",
--    plugins
-+    plugins,
-+    // NOTE(calebmer): Cloudflare uses this weird module import syntax to
-+    // support worker site static assets.
-+    // See: https://github.com/cloudflare/wrangler/pull/2126
-+    external: ctx.config.serverConditions && ctx.config.serverConditions.includes("worker") ? ["__STATIC_CONTENT_MANIFEST"] : undefined,
-   };
- };
- const create = async (ctx, refs) => {
 diff --git a/dist/compiler/server/plugins/bareImports.js b/dist/compiler/server/plugins/bareImports.js
 index 54f469ac40950ace84f0ccb9f8b40376b305b860..2fa03a1019217f49be1ce0d51774d5c2f33b6e41 100644
 --- a/dist/compiler/server/plugins/bareImports.js
