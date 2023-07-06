@@ -44,6 +44,8 @@ const honeycombApiKey = env.HONEYCOMB_API_KEY;
 const remixDevServerPort = parseInt(assertExists(env.REMIX_DEV_SERVER_PORT), 10);
 const dynamoDataDirectoryPath = joinPath(devEnvPaths.data, "dynamo");
 const dynamoLocalPort = parseInt(assertExists(env.DYNAMO_LOCAL_PORT), 10);
+const edgePort = parseInt(assertExists(env.EDGE_PORT), 10);
+const edgeDevPrivatePort = parseInt(assertExists(env.EDGE_DEV_PRIVATE_PORT), 10);
 
 type Artifact = {
     readonly bazelTarget: string;
@@ -83,9 +85,14 @@ const artifacts: ReadonlyArray<Artifact> = [
             remixDevServer.reload();
         },
     },
-    // {
-    //     bazelTarget: "//server/edge:edge_service_bundle_file",
-    // },
+    {
+        bazelTarget: "//server/edge",
+        executablePath: "server/edge/edge.sh",
+        port: edgePort,
+        privatePort: edgeDevPrivatePort,
+        args: [`--appPort=${appPort}`],
+        server: new AsyncMutex<ArtifactServer | null>(null),
+    },
 ];
 
 // `null` entries are paths that are definitely not packages. Entries that

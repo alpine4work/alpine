@@ -3,12 +3,6 @@ load("//admin/playwright:playwright.bzl", "ts_playwright_tests")
 ts_playwright_tests(
     name = "integration_tests",
     data = ["//app"],
-    node_options = [
-        # NOCOMMIT: Do I need this?
-        # Support for Cloudflare modules format.
-        # https://miniflare.dev/core/modules
-        "--experimental-vm-modules",
-    ],
     skip_projects_by_src = {
         # Peeks only work on desktop.
         "chat/chat_peek.spec.ts": ["webkit_mobile"],
@@ -24,7 +18,6 @@ ts_playwright_tests(
         "//:node_modules/@types/set-cookie-parser",
         "//:node_modules/@types/ws",
         "//:node_modules/get-port",
-        "//:node_modules/miniflare",
         "//:node_modules/serve-static",
         "//:node_modules/set-cookie-parser",
         "//:node_modules/ws",
