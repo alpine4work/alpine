@@ -1,7 +1,4 @@
 import http from "http";
-import {WebSocket, WebSocketServer} from "ws";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 
 // This will be ~20s of retrying.
 const retryDurationMs = 50;
@@ -59,105 +56,77 @@ export async function createDevProxyServer(port1: number, port2: number) {
         }
     });
 
-    const proxyWebSocketServer = new WebSocketServer({server: proxyServer});
+    proxyServer.on("upgrade", (proxyReq, proxySocket, proxyHead) => {
+        let requestAttemptCount = 0;
+        request();
 
-    proxyWebSocketServer.on("connection", (proxySocket, proxyReq) => {
-        let connectAttemptCount = 0;
+        function request() {
+            requestAttemptCount++;
 
-        let state:
-            | {type: "Open"; socket: WebSocket}
-            | {type: "Connecting"; callbacks: Array<(socket: WebSocket) => void>} = {
-            type: "Connecting",
-            callbacks: [],
-        };
-
-        proxySocket.on("message", (rawData, isBinary) => {
-            const data = isBinary ? rawData : rawData.toString();
-
-            if (state.type === "Connecting") {
-                state.callbacks.push(socket => socket.send(data));
-            } else if (state.socket.readyState === WebSocket.OPEN) {
-                state.socket.send(data);
-            }
-        });
-
-        proxySocket.on("close", (code, reason) => {
-            if (code === 1005 || code === 1006) code = 1011;
-
-            if (state.type === "Connecting") {
-                state.callbacks.push(socket => socket.close(code, reason));
-            } else if (state.socket.readyState === WebSocket.OPEN) {
-                state.socket.close(code, reason);
-            }
-        });
-
-        connect();
-
-        function connect() {
-            assert(state.type === "Connecting");
-            connectAttemptCount++;
-            let isRetrying = false;
-
-            const socket = new WebSocket(`ws://localhost:${port2}${proxyReq.url ?? ""}`, {
-                headers: proxyReq.headers,
-            });
-
-            socket.on("open", () => {
-                if (isRetrying) return;
-
-                if (state.type === "Connecting") {
-                    for (const callback of state.callbacks) {
-                        try {
-                            callback(socket);
-                        } catch (error) {
-                            scheduleUncaughtError(error);
-                        }
+            const req = http.request(
+                {
+                    hostname: "localhost",
+                    port: port2,
+                    path: proxyReq.url,
+                    method: proxyReq.method,
+                    headers: proxyReq.headers,
+                },
+                res => {
+                    const headers = [];
+                    for (let i = 0; i < res.rawHeaders.length; i += 2) {
+                        headers.push(`${res.rawHeaders[i]!}: ${res.rawHeaders[i + 1]!}`);
                     }
 
-                    state = {type: "Open", socket};
-                }
-            });
+                    proxySocket.write(
+                        `HTTP/1.1 ${res.statusCode!} ${http.STATUS_CODES[res.statusCode!]!}\r\n` +
+                            `${headers.join("\r\n")}\r\n` +
+                            "\r\n",
+                    );
+                    res.pipe(proxySocket, {end: true});
+                },
+            );
 
-            socket.on("error", error => {
-                if (isRetrying) return;
-
+            req.on("error", error => {
                 // If we get an `ECONNREFUSED` error then the server may not have started yet.
                 // Try again for a bit. If we still can't connect write an error.
                 if (
-                    state.type === "Connecting" &&
                     "code" in error &&
                     (error.code === "ECONNREFUSED" || error.code === "ECONNRESET") &&
-                    connectAttemptCount < maxRetryAttemptCount
+                    requestAttemptCount < maxRetryAttemptCount
                 ) {
-                    isRetrying = true;
-                    setTimeout(connect, retryDurationMs);
+                    setTimeout(request, retryDurationMs);
                     return;
                 }
 
                 // eslint-disable-next-line no-console
-                console.error("Failed to connect to proxied WebSocket server:", error);
+                console.error("Failed request to proxied server:", error);
 
-                proxySocket.close(1011);
+                proxySocket.write(
+                    "HTTP/1.1 504 Web Gateway Timeout\r\n" +
+                        "Content-Type: text/plain\r\n" +
+                        "\r\n" +
+                        "Gateway Timeout\r\n",
+                );
             });
 
-            socket.on("message", (rawData, isBinary) => {
-                if (isRetrying) return;
+            proxyReq.pipe(req, {end: true});
 
-                const data = isBinary ? rawData : rawData.toString();
-
-                if (proxySocket.readyState === WebSocket.OPEN) {
-                    proxySocket.send(data);
+            req.on("upgrade", (res, socket, head) => {
+                const headers = [];
+                for (let i = 0; i < res.rawHeaders.length; i += 2) {
+                    headers.push(`${res.rawHeaders[i]!}: ${res.rawHeaders[i + 1]!}`);
                 }
-            });
 
-            socket.on("close", (code, reason) => {
-                if (isRetrying) return;
+                proxySocket.write(
+                    `HTTP/1.1 ${res.statusCode!} ${http.STATUS_CODES[res.statusCode!]!}\r\n` +
+                        `${headers.join("\r\n")}\r\n` +
+                        "\r\n",
+                );
 
-                if (code === 1005 || code === 1006) code = 1011;
-
-                if (proxySocket.readyState === WebSocket.OPEN) {
-                    proxySocket.close(code, reason);
-                }
+                proxySocket.write(head);
+                socket.write(proxyHead);
+                proxySocket.pipe(socket, {end: true});
+                socket.pipe(proxySocket, {end: true});
             });
         }
     });
