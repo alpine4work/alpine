@@ -168,7 +168,7 @@ export class WebSocketServer<
         connectActionContext: WorkerSessionActionContext,
         request: Request,
     ): Promise<Response> {
-        if (request.headers.get("Upgrade") !== "websocket")
+        if (request.headers.get("upgrade") !== "websocket")
             throw new InvalidArgumentError("Not a WebSocket request");
 
         const socketPair = new WebSocketPair();

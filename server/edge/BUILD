@@ -31,6 +31,7 @@ js_binary(
         "wrangler.toml",
         ":edge_lib",
         ":edge_service_bundle_file",
+        "//:node_modules/fs-extra",
         "//:node_modules/miniflare",
         "//:package_light_json_file",
     ],

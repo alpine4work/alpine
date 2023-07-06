@@ -11,6 +11,7 @@ import {queryBazelTargetDependencyPackagePaths} from "~/admin/dev/bazel/query_ba
 import {
     devAppServicePrivateKeyPath,
     devAppServicePublicKeyPath,
+    devEdgeServiceFamilyPrivateKeyPath,
     devEdgeServiceFamilyPublicKeyPath,
     ensureDevKeys,
 } from "~/admin/dev/dev_keys.js";
@@ -90,7 +91,13 @@ const artifacts: ReadonlyArray<Artifact> = [
         executablePath: "server/edge/edge.sh",
         port: edgePort,
         privatePort: edgeDevPrivatePort,
-        args: [`--appPort=${appPort}`],
+        args: [
+            `--appPort=${appPort}`,
+            `--appServicePublicKey=${devAppServicePublicKeyPath}`,
+            `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
+            `--edgeServiceFamilyPrivateKey=${devEdgeServiceFamilyPrivateKeyPath}`,
+            ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
+        ],
         server: new AsyncMutex<ArtifactServer | null>(null),
     },
 ];

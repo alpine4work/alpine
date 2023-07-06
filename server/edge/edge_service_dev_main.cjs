@@ -2,7 +2,7 @@
 
 const {parseArgs} = require("util");
 const {join: joinPath} = require("path");
-const fs = require("fs");
+const fs = require("fs-extra");
 const {Miniflare} = require("miniflare");
 const toml = require("toml");
 
@@ -13,16 +13,39 @@ main().catch(error => {
 
 async function main() {
     const {
-        values: {port: portString, appPort: appPortString},
+        values: {
+            port: portString,
+            appPort: appPortString,
+            appServicePublicKey: appServicePublicKeyPath,
+            edgeServiceFamilyPublicKey: edgeServiceFamilyPublicKeyPath,
+            edgeServiceFamilyPrivateKey: edgeServiceFamilyPrivateKeyPath,
+            honeycombApiKey,
+        },
     } = parseArgs({
         options: {
             port: {type: "string"},
             appPort: {type: "string"},
+            appServicePublicKey: {type: "string"},
+            edgeServiceFamilyPublicKey: {type: "string"},
+            edgeServiceFamilyPrivateKey: {type: "string"},
+            honeycombApiKey: {type: "string"},
         },
     });
 
     if (!portString) throw new Error("Missing `port` arg");
     if (!appPortString) throw new Error("Missing `appPort` arg");
+    if (!appServicePublicKeyPath) throw new Error("Missing `appServicePublicKey` arg");
+    if (!edgeServiceFamilyPublicKeyPath)
+        throw new Error("Missing `edgeServiceFamilyPublicKeyPath` arg");
+    if (!edgeServiceFamilyPrivateKeyPath)
+        throw new Error("Missing `edgeServiceFamilyPrivateKey` arg");
+
+    const [appServicePublicKey, edgeServiceFamilyPublicKey, edgeServiceFamilyPrivateKey] =
+        await Promise.all([
+            fs.readFile(appServicePublicKeyPath, "utf8"),
+            fs.readFile(edgeServiceFamilyPublicKeyPath, "utf8"),
+            fs.readFile(edgeServiceFamilyPrivateKeyPath, "utf8"),
+        ]);
 
     const port = parseInt(portString, 10);
     const appPort = parseInt(appPortString, 10);
@@ -41,6 +64,12 @@ async function main() {
         scriptPath: joinPath(runfilesPath, "cyberworlds/server/edge/edge_service_bundle.js"),
         wranglerConfigPath: joinPath(runfilesPath, "cyberworlds/server/edge/wrangler.toml"),
         upstream: `http://localhost:${appPort}`,
+        bindings: {
+            APP_SERVICE_PUBLIC_KEY: appServicePublicKey,
+            EDGE_SERVICE_FAMILY_PUBLIC_KEY: edgeServiceFamilyPublicKey,
+            EDGE_SERVICE_FAMILY_PRIVATE_KEY: edgeServiceFamilyPrivateKey,
+            HONEYCOMB_API_KEY: honeycombApiKey,
+        },
     });
 
     const server = await miniflare.createServer();

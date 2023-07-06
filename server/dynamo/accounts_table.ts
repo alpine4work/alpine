@@ -27,6 +27,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId} from "~/shared/id/id.js";
 import {
     AccountId,
@@ -356,12 +357,9 @@ export async function regenerateOneTimePasswordSignIn(
 
     // We allow integration tests to capture one time password emails by
     // setting a global function.
-    if (
-        process.env.NODE_ENV !== "production" &&
-        // NOCOMMIT: Doesn't work in Node.js!
-        typeof (globalThis as any).__logOneTimePassword === "function"
-    ) {
-        (globalThis as any).__logOneTimePassword({emailAddress, oneTimePassword: password});
+    if (process.env.NODE_ENV === "development") {
+        // eslint-disable-next-line no-console
+        console.log(quote`✉️  The one time password for ${emailAddress} is ${password}`);
     }
 
     await context.email.send({
