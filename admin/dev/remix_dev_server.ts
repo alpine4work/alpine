@@ -3,10 +3,7 @@ import {createServer} from "http";
 import prettyMs from "pretty-ms";
 import {WebSocket, WebSocketServer} from "ws";
 import {subscribeToBazelBuildEvents} from "~/admin/dev/bazel/build_bazel_target.js";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-
-let queuedRemixDevServerBroadcasts: Array<() => void> | null = null;
 
 /**
  * We maintain our own Remix dev server which speaks the Remix dev server
@@ -23,20 +20,6 @@ let queuedRemixDevServerBroadcasts: Array<() => void> | null = null;
 export async function startRemixDevServer({remixDevServerPort}: {remixDevServerPort: number}) {
     const remixDevServer = express();
 
-    remixDevServer.use(express.raw({type: "application/json"}));
-
-    remixDevServer.post("/broadcast", (req, res) => {
-        const message = req.body.toString();
-
-        if (queuedRemixDevServerBroadcasts) {
-            queuedRemixDevServerBroadcasts.push(() => broadcast(message));
-        } else {
-            broadcast(message);
-        }
-
-        res.status(200).json({});
-    });
-
     const actualRemixDevServer = createServer();
     actualRemixDevServer.on("request", remixDevServer);
 
@@ -44,22 +27,23 @@ export async function startRemixDevServer({remixDevServerPort}: {remixDevServerP
         server: actualRemixDevServer,
     });
 
-    function broadcast(message: string) {
+    function broadcast(message: unknown) {
         remixDevWebSocketServer.clients.forEach(client => {
             if (client.readyState === WebSocket.OPEN) {
-                client.send(message);
+                client.send(JSON.stringify(message));
             }
         });
     }
 
     function log(messageText: string) {
-        // Logs are not paused. Only reload and HMR messages.
-        broadcast(
-            JSON.stringify({
-                type: "LOG",
-                message: `[remix] ${messageText}`,
-            }),
-        );
+        broadcast({
+            type: "LOG",
+            message: `[remix] ${messageText}`,
+        });
+    }
+
+    function reload() {
+        broadcast({type: "RELOAD"});
     }
 
     const unsubscribe = subscribeToBazelBuildEvents(event => {
@@ -102,22 +86,9 @@ export async function startRemixDevServer({remixDevServerPort}: {remixDevServerP
         });
     }
 
-    return {close};
-}
-
-export function pauseRemixDevServerBroadcasts() {
-    queuedRemixDevServerBroadcasts ??= [];
-}
-
-export function unpauseRemixDevServerBroadcasts() {
-    if (queuedRemixDevServerBroadcasts) {
-        for (const broadcast of queuedRemixDevServerBroadcasts) {
-            try {
-                broadcast();
-            } catch (error) {
-                scheduleUncaughtError(error);
-            }
-        }
-        queuedRemixDevServerBroadcasts = null;
-    }
+    return {
+        log,
+        reload,
+        close,
+    };
 }

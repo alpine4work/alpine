@@ -96,7 +96,6 @@ js_binary(
         "//:node_modules/@bazel/worker",
         "//:node_modules/@remix-run/dev",
         "//:node_modules/fs-extra",
-        "//:node_modules/node-fetch",
     ],
     entry_point = "remix_compiler.cjs",
 )

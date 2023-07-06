@@ -2,13 +2,10 @@
 
 const path = require("path");
 const fs = require("fs-extra");
-const fetch = require("node-fetch");
 const worker = require("@bazel/worker");
 const {create: createCompiler} = require("@remix-run/dev/dist/compiler/compiler");
 const {logger} = require("@remix-run/dev/dist/tux/logger");
 const {logThrown} = require("@remix-run/dev/dist/compiler/utils/log");
-const HDR = require("@remix-run/dev/dist/devServer_unstable/hdr");
-const HMR = require("@remix-run/dev/dist/devServer_unstable/hmr");
 
 let state;
 
@@ -38,89 +35,19 @@ async function run(args) {
                 configString,
                 context,
                 compilerPromise: createCompiler(context),
-
-                // For HMR + HDR
-                manifest: undefined,
-                previousManifest: undefined,
-                loaderChanges: undefined,
-                previousLoaderChanges: undefined,
             };
         }
     }
 
     try {
-        const {context, compilerPromise} = state;
-        const compiler = await compilerPromise;
+        const compiler = await state.compilerPromise;
 
-        const loaderChangesPromise = HDR.detectLoaderChanges(context).then(
-            value => ({ok: true, value}),
-            error => ({ok: false, error}),
-        );
-
-        await compiler.compile({
-            onManifest: manifest => {
-                state.manifest = manifest;
-            },
-        });
-
-        // We manually implement Remix's HMR and HDR support to work with Bazel. You
-        // can see their original source code here:
-        // https://github.com/remix-run/remix/blob/fae7cd1931e21ed1196a1d59bd168cba6898ac78/packages/remix-dev/devServer_unstable/index.ts#L231-L255
-        const newState = {previousManifest: state.manifest};
-        try {
-            const loaderChanges = await loaderChangesPromise;
-            if (loaderChanges.ok) {
-                newState.previousLoaderChanges = loaderChanges.value;
-            }
-            if (loaderChanges.ok && state.manifest && state.previousManifest) {
-                const updates = HMR.updates(
-                    context.config,
-                    state.manifest,
-                    state.previousManifest,
-                    loaderChanges.value,
-                    state.previousLoaderChanges,
-                );
-
-                // Don't await dev server message which would delay the Bazel build.
-                void broadcastFromRemixDevServer(context, {
-                    type: "HMR",
-                    assetsManifest: state.manifest,
-                    updates,
-                });
-            } else {
-                // Don't await dev server message which would delay the Bazel build.
-                void broadcastFromRemixDevServer(context, {type: "RELOAD"});
-            }
-        } finally {
-            Object.assign(state, newState);
-        }
+        await compiler.compile();
 
         return true;
     } catch (error) {
         logThrown(error);
         return false;
-    }
-}
-
-async function broadcastFromRemixDevServer(context, message) {
-    try {
-        // eslint-disable-next-line no-global-fetch
-        const response = await fetch(`http://localhost:${context.config.devServerPort}/broadcast`, {
-            method: "POST",
-            headers: {"content-type": "application/json"},
-            body: JSON.stringify(message),
-        });
-
-        if (response.status === 200) return;
-
-        throw new Error(`HTTP status: ${response.status}`);
-    } catch (error) {
-        // If the dev server isn't running we'll get an `ECONNREFUSED` error code. It's
-        // ok if we are compiling when the dev server isn't running.
-        if (error.code === "ECONNREFUSED") return;
-
-        // eslint-disable-next-line no-console
-        console.error("Broadcast from Remix dev server failed:", error);
     }
 }
 

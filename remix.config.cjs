@@ -9,12 +9,20 @@ const env = parseDotenv();
 /** @type {import('@remix-run/dev').AppConfig} */
 module.exports = {
     future: {
-        v2_dev: true,
         v2_routeConvention: true,
         v2_errorBoundary: true,
         v2_normalizeFormMethod: true,
         v2_meta: true,
         v2_headers: true,
+        // NOTE(calebmer): We intentionally don't turn on v2 dev with HMR support since
+        // it enables expensive transforms. Also after looking at the Remix HMR
+        // implementation it doesn't look complete? Individual modules are not reloaded
+        // only route modules. It also doesn't add performance benefits since Remix
+        // still needs to bundle everything.
+        //
+        // To get the best development performance I think we'll need to switch out the
+        // Remix compiler for Vite.
+        v2_dev: false,
     },
     appDirectory: "./app",
     assetsBuildDirectory: "./app/public/build",

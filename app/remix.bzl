@@ -45,9 +45,6 @@ def _remix_app_impl(ctx):
             # Use workers in development for fast builds. Do not use workers for an
             # optimized build so we know the build is correct.
             "supports-workers": "1" if ctx.var["COMPILATION_MODE"] != "opt" else "0",
-            # Allow the compiler to send out a message on `localhost` to the Remix dev
-            # server to tell the browser to reload. (Or do a hot module reload.)
-            "requires-network": "1",
         },
     )
 
