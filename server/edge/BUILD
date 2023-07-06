@@ -34,7 +34,7 @@ js_binary(
         "//:node_modules/miniflare",
         "//:package_light_json_file",
     ],
-    entry_point = "edge_dev_main.cjs",
+    entry_point = "edge_service_dev_main.cjs",
     env = {"NODE_ENV": "development"},
     node_options = ["--experimental-vm-modules"],
 )
