@@ -1,5 +1,5 @@
 diff --git a/dist/compiler/js/compiler.js b/dist/compiler/js/compiler.js
-index f76c5bab53a3d925d6b9b6450268508a6f78576c..6a8d785c98201964945ccd4ce38b9679cea5421e 100644
+index f76c5bab53a3d925d6b9b6450268508a6f78576c..c28ade31fe7d57e38be50a53e44c6c5d1c70d444 100644
 --- a/dist/compiler/js/compiler.js
 +++ b/dist/compiler/js/compiler.js
 @@ -31,6 +31,7 @@ var cssSideEffectImports = require('../plugins/cssSideEffectImports.js');
@@ -18,7 +18,7 @@ index f76c5bab53a3d925d6b9b6450268508a6f78576c..6a8d785c98201964945ccd4ce38b9679
 +  // NOTE(calebmer): Don't include files in a `/server/` directory in the
 +  // browser build in addition to not including files with a `.server.js`
 +  // extension.
-+  }), mdx.mdxPlugin(ctx), emptyModules.emptyModulesPlugin(ctx, /(\.server|\/server\/.*)(\.[mc]?[jt]sx?)?$/), emptyModules.emptyModulesPlugin(ctx, /^@remix-run\/(deno|cloudflare|node)(\/.*)?$/, {
++  }), mdx.mdxPlugin(ctx), emptyModules.emptyModulesPlugin(ctx, /(\.server|(^|\/)server\/.*)(\.[mc]?[jt]sx?)?$/), emptyModules.emptyModulesPlugin(ctx, /^@remix-run\/(deno|cloudflare|node)(\/.*)?$/, {
      includeNodeModules: true
    }), esbuildPluginsNodeModulesPolyfill.nodeModulesPolyfillPlugin(), external.externalPlugin(/^node:.*/, {
      sideEffects: false
@@ -41,6 +41,23 @@ index 1adfd7ee810bf08fd87cdcbc3d39e9e19526a9fa..4e3241908713bbe23ce850460cc64b2d
        entry = {
          module: resolveUrl(key),
          imports: resolveImports(output.imports)
+diff --git a/dist/compiler/plugins/emptyModules.js b/dist/compiler/plugins/emptyModules.js
+index 7d9a287a4f58b2ca35ce829f18a7a3b5ace3f78a..f2ac850cd22032616ac619e56dad07dab98c1f7b 100644
+--- a/dist/compiler/plugins/emptyModules.js
++++ b/dist/compiler/plugins/emptyModules.js
+@@ -53,7 +53,11 @@ function emptyModulesPlugin({
+         // Limit this behavior to modules found in only the `app` directory.
+         // This allows node_modules to use the `.server.js` and `.client.js`
+         // naming conventions with different semantics.
+-        path__namespace.resolve(args.resolveDir, args.path).startsWith(config.appDirectory)) {
++        //
++        // NOTE(calebmer): Explicitly test for `node_modules` in the path. The
++        // bulk of our code lives outside of the `app` directory where it's
++        // important that empty modules transforms still apply.
++        !/(^|\/)node_modules(\/|$)/.test(path__namespace.resolve(args.resolveDir, args.path))) {
+           return {
+             path: args.path,
+             namespace: "empty-module"
 diff --git a/dist/compiler/server/compiler.js b/dist/compiler/server/compiler.js
 index 10850b2ec9650954dab23be2fd838ae41354e911..8fa4e8d05d7288f3dca57c7631d631b22bcdf468 100644
 --- a/dist/compiler/server/compiler.js
@@ -135,3 +152,20 @@ index ca84eda743956c49910b1083fe6d02f390f20495..cdb48c77efba15b81ee349b2d1bcc80e
      throw new Error(`Invalid route module file: ${path__namespace.join(appDir, "routes", file)}`);
    });
    let routeIds = Object.keys(files).sort(byLongestFirst);
+diff --git a/dist/config.js b/dist/config.js
+index c3cad77d4e848d8e327cbcef66e7deb264f39c68..42a9b86d190e2d14a9dace2a93ff5afaddcb4b45 100644
+--- a/dist/config.js
++++ b/dist/config.js
+@@ -233,9 +233,9 @@ async function readConfig(remixRoot, serverMode = serverModes.ServerMode.Product
+   }
+   let assetsBuildDirectory = appConfig.assetsBuildDirectory || appConfig.browserBuildDirectory || path__default["default"].join("public", "build");
+   let absoluteAssetsBuildDirectory = path__default["default"].resolve(rootDirectory, assetsBuildDirectory);
+-  let devServerPort = Number(process.env.REMIX_DEV_SERVER_WS_PORT) || (await getPort__default["default"]({
+-    port: Number(appConfig.devServerPort) || 8002
+-  }));
++  // NOTE(calebmer): If a port was provided in `remix.config.js` then always use
++  // that exactly as is. Never try to guess a new port.
++  let devServerPort = Number(process.env.REMIX_DEV_SERVER_WS_PORT) || Number(appConfig.devServerPort) || (await getPort__default["default"]({port: 8002}));
+   // set env variable so un-bundled servers can use it
+   process.env.REMIX_DEV_SERVER_WS_PORT = String(devServerPort);
+   let devServerBroadcastDelay = appConfig.devServerBroadcastDelay || 0;

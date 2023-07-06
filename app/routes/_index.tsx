@@ -113,9 +113,6 @@ export async function action({request, context}: LoaderArgs) {
     }
 }
 
-const randomSeed = Math.random().toString();
-const themeColor = randomArrayItem(themeColors);
-
 export default function HomePage() {
     const id = useId().replace(/:/g, "_");
     const [name, setName] = useState("");
@@ -130,6 +127,11 @@ export default function HomePage() {
     const [dismissedActionData, setDismissedActionData] = useState<SchemaType<
         typeof ActionSchema
     > | null>(null);
+
+    const [{randomSeed, themeColor}] = useState(() => ({
+        randomSeed: Math.random().toString(),
+        themeColor: randomArrayItem(themeColors),
+    }));
 
     const blobSettings = useDocumentBlobSettings({defaultSeed: randomSeed});
 
@@ -156,7 +158,7 @@ export default function HomePage() {
             <DocumentBlobFactory
                 settings={useMemo(
                     () => ({...blobSettings, textFillEnabled: false, baseThemeColor: themeColor}),
-                    [blobSettings],
+                    [blobSettings, themeColor],
                 )}
                 containerId={id}
             />

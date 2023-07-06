@@ -23,7 +23,7 @@ module.exports = {
     serverMainFields: ["module", "main"],
     serverModuleFormat: "esm",
     serverPlatform: "node",
-    devServerPort: env.DEV_SERVER_PORT ? parseInt(env.DEV_SERVER_PORT, 10) : undefined,
+    devServerPort: env.REMIX_DEV_SERVER_PORT ? parseInt(env.REMIX_DEV_SERVER_PORT, 10) : undefined,
     ignoredRouteFiles: ["**/.*"],
 };
 

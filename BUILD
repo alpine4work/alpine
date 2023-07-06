@@ -68,10 +68,21 @@ alias(
 package_light_json(visibility = ["//visibility:public"])
 
 copy_to_bin(
-    name = "remix_config_files",
+    name = "remix_config_files_copy_to_bin",
     srcs = [
         "remix.config.cjs",
         "tsconfig.json",
+    ],
+)
+
+filegroup(
+    name = "remix_config_files",
+    srcs = [
+        "//:env_files",
+        "//:node_modules/dotenv",
+        "//:node_modules/fs-extra",
+        "//:package_light_json_file",
+        "//:remix_config_files_copy_to_bin",
     ],
     visibility = ["//visibility:public"],
 )

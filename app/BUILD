@@ -67,24 +67,14 @@ filegroup(
     srcs = glob(["public/**/*"]),
 )
 
-filegroup(
-    name = "remix_config_files",
-    srcs = [
-        "//:node_modules/dotenv",
-        "//:node_modules/fs-extra",
-        "//:package_light_json_file",
-        "//:remix_config_files",
-    ],
-)
-
 js_binary(
     name = "read_remix_resolved_config",
     data = [
         "entry.client.js",
         "entry.server.js",
         "root.js",
-        ":remix_config_files",
         "//:node_modules/@remix-run/dev",
+        "//:remix_config_files",
         # Make sure we use the `.js` version of route files, not the `.ts` version. We
         # transpile with Bazel before building with Remix.
     ] + ["{}.js".format(src[:src.rindex(".")]) for src in glob([
@@ -106,6 +96,7 @@ js_binary(
         "//:node_modules/@bazel/worker",
         "//:node_modules/@remix-run/dev",
         "//:node_modules/fs-extra",
+        "//:node_modules/node-fetch",
     ],
     entry_point = "remix_compiler.cjs",
 )
@@ -120,7 +111,7 @@ js_binary(
         ":app_build",
         ":app_lib",
         ":app_public_files",
-        ":remix_config_files",
+        "//:remix_config_files",
     ],
     entry_point = ":app_build",
 )

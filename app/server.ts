@@ -10,13 +10,7 @@ import {
 } from "@remix-run/node";
 import {parse as parseCookieHeader} from "cookie";
 import fs from "fs-extra";
-import {
-    IncomingHttpHeaders,
-    IncomingMessage,
-    STATUS_CODES,
-    ServerResponse,
-    createServer,
-} from "http";
+import {IncomingHttpHeaders, IncomingMessage, ServerResponse, createServer} from "http";
 import {join as joinPath} from "path";
 import createServeStaticMiddleware from "serve-static";
 import {PassThrough} from "stream";
@@ -100,7 +94,7 @@ const serveStaticMiddleware = createServeStaticMiddleware(
 
 main().catch(error => {
     // eslint-disable-next-line no-console
-    console.error(error);
+    console.error("Uncaught exception from app service startup:", error);
     process.exitCode = 1;
 });
 
@@ -180,7 +174,7 @@ async function main() {
                     // If the tracer throws an error, well, there's nowhere else to send the error.
                     promise.catch(error => {
                         // eslint-disable-next-line no-console
-                        console.error(error);
+                        console.error("Uncaught exception from server tracer:", error);
                     });
                 },
             });
@@ -228,11 +222,14 @@ async function main() {
                                     promise.catch(error => {
                                         if (process.env.NODE_ENV !== "production") {
                                             // eslint-disable-next-line no-console
-                                            console.error(error);
+                                            console.error(
+                                                "Uncaught exception from HTTP server:",
+                                                error,
+                                            );
                                         }
 
                                         tracer.logUncaughtException(
-                                            "Uncaught exception in `waitUntil()`",
+                                            "Uncaught exception from HTTP server",
                                             error,
                                         );
                                     });
@@ -272,12 +269,7 @@ async function main() {
                                     } catch (error) {
                                         // If there is an error, log it but don't crash the process.
                                         // eslint-disable-next-line no-console
-                                        console.error(
-                                            InternalError.from(
-                                                error,
-                                                "Failed to seed DynamoDB data",
-                                            ),
-                                        );
+                                        console.error("Failed to seed DynamoDB data:", error);
                                     }
                                 });
                             }
@@ -294,23 +286,16 @@ async function main() {
                     // Errors should be caught and handled by this point. So this error handler is
                     // for unexpected internal code failures.
                     // eslint-disable-next-line no-console
-                    console.error(error);
+                    console.error("Uncaught exception from HTTP server:", error);
 
                     res.writeHead(500, {"content-type": "text/plain"});
-                    res.write(STATUS_CODES[res.statusCode]);
-                    res.end();
+                    res.end("Internal Server Error");
                 },
             );
         });
     });
 
-    server.listen(port, () => {
-        // NOCOMMIT: Do we need this?
-        //
-        // if (process.env.NODE_ENV === "development") {
-        //     broadcastDevReady(build);
-        // }
-    });
+    server.listen(port);
 }
 
 function createActorContextModule(

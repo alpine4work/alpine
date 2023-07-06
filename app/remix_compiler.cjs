@@ -2,6 +2,7 @@
 
 const path = require("path");
 const fs = require("fs-extra");
+const fetch = require("node-fetch");
 const worker = require("@bazel/worker");
 const {create: createCompiler} = require("@remix-run/dev/dist/compiler/compiler");
 const {logger} = require("@remix-run/dev/dist/tux/logger");
@@ -30,7 +31,7 @@ async function run(args) {
                     sourcemap: process.env.BAZEL_COMPILATION_MODE === "opt" ? false : true,
                 },
                 // TODO(calebmer): We don't use a file watcher so we need some other way to
-                // invalidate this cache. Probably ctime.
+                // invalidate this cache. Probably file ctime.
                 fileWatchCache: createFileWatchCache(),
                 logger,
             };
@@ -83,9 +84,15 @@ async function run(args) {
                     state.previousLoaderChanges,
                 );
 
-                // TODO(calebmer): HMR
-            } else if (state.previousManifest !== undefined) {
-                // TODO(calebmer): Live reload
+                // Don't await dev server message which would delay the Bazel build.
+                void broadcastFromRemixDevServer(context, {
+                    type: "HMR",
+                    assetsManifest: state.manifest,
+                    updates,
+                });
+            } else {
+                // Don't await dev server message which would delay the Bazel build.
+                void broadcastFromRemixDevServer(context, {type: "RELOAD"});
             }
         } finally {
             Object.assign(state, newState);
@@ -95,6 +102,28 @@ async function run(args) {
     } catch (error) {
         logThrown(error);
         return false;
+    }
+}
+
+async function broadcastFromRemixDevServer(context, message) {
+    try {
+        // eslint-disable-next-line no-global-fetch
+        const response = await fetch(`http://localhost:${context.config.devServerPort}/broadcast`, {
+            method: "POST",
+            headers: {"content-type": "application/json"},
+            body: JSON.stringify(message),
+        });
+
+        if (response.status === 200) return;
+
+        throw new Error(`HTTP status: ${response.status}`);
+    } catch (error) {
+        // If the dev server isn't running we'll get an `ECONNREFUSED` error code. It's
+        // ok if we are compiling when the dev server isn't running.
+        if (error.code === "ECONNREFUSED") return;
+
+        // eslint-disable-next-line no-console
+        console.error("Broadcast from Remix dev server failed:", error);
     }
 }
 
@@ -111,7 +140,7 @@ if (!worker.runAsWorker(process.argv)) {
         error => {
             // eslint-disable-next-line no-console
             console.error(error);
-            process.exit(1);
+            process.exitCode = 1;
         },
     );
 } else {

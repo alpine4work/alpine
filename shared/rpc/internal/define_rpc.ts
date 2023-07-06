@@ -36,7 +36,13 @@ export function defineRpc<
     assert(isIdentifier(name), "RPC name should be a valid identifier");
     assert(name[0] === name[0]?.toLowerCase(), "RPC name should start with a lower case letter");
 
-    assert(!definedRpcNames.has(name), quote`A definition for an RPC named ${name} already exists`);
+    assert(
+        // In development on the browser we have hot module reloading. This means we
+        // will call `defineRpc()` multiple times for the same RPC.
+        (typeof window !== "undefined" && process.env.NODE_ENV === "development") ||
+            !definedRpcNames.has(name),
+        quote`A definition for an RPC named ${name} already exists`,
+    );
     definedRpcNames.add(name);
 
     const inputSchema = Schema.object(inputConfig);

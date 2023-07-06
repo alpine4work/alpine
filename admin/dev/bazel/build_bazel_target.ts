@@ -7,6 +7,7 @@ import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/pro
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {Id, generateId} from "~/shared/id/id.js";
 
@@ -112,6 +113,9 @@ async function actuallyBuildBazelTargets(targets: Array<string>) {
     // eslint-disable-next-line no-console
     console.log(`${colorette.dim("$")} bazel build ${colorette.bold(targets.join(" "))}`);
 
+    const startTime = Date.now();
+    bazelBuildEvents.emit({type: "BuildStart", targets});
+
     const subprocess = spawnWithBlockingStdio(
         bazelExecutablePath,
         [
@@ -129,4 +133,28 @@ async function actuallyBuildBazelTargets(targets: Array<string>) {
     );
 
     await waitForProcessExit(subprocess);
+
+    const durationMs = Date.now() - startTime;
+    bazelBuildEvents.emit({type: "BuildFinish", targets, durationMs});
+}
+
+export type BazelBuildEvent =
+    | {
+          readonly type: "BuildStart";
+          readonly targets: ReadonlyArray<string>;
+      }
+    | {
+          readonly type: "BuildFinish";
+          readonly targets: ReadonlyArray<string>;
+          readonly durationMs: number;
+      };
+
+const bazelBuildEvents = new EventEmitter<BazelBuildEvent>();
+
+/**
+ * Subscribe to Bazel build events. Useful if you want to log when a Bazel
+ * build starts or ends.
+ */
+export function subscribeToBazelBuildEvents(listener: (event: BazelBuildEvent) => void) {
+    return bazelBuildEvents.subscribe(listener);
 }

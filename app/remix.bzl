@@ -45,6 +45,9 @@ def _remix_app_impl(ctx):
             # Use workers in development for fast builds. Do not use workers for an
             # optimized build so we know the build is correct.
             "supports-workers": "1" if ctx.var["COMPILATION_MODE"] != "opt" else "0",
+            # Allow the compiler to send out a message on `localhost` to the Remix dev
+            # server to tell the browser to reload. (Or do a hot module reload.)
+            "requires-network": "1",
         },
     )
 
@@ -63,7 +66,7 @@ def _remix_app_impl(ctx):
 remix_app = rule(
     _remix_app_impl,
     attrs = {
-        "_remix_config_files": attr.label(default = "//app:remix_config_files"),
+        "_remix_config_files": attr.label(default = "//:remix_config_files"),
         "_remix_resolved_config": attr.label(default = "//app:remix_resolved_config"),
         "_remix_compiler": attr.label(executable = True, cfg = "exec", default = "//app:remix_compiler"),
         "_app_lib": attr.label(default = "//app:app_lib", providers = [JsInfo]),

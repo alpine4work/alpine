@@ -14,6 +14,8 @@ import {
     devEdgeServiceFamilyPublicKeyPath,
     ensureDevKeys,
 } from "~/admin/dev/dev_keys.js";
+import {createDevProxyServer} from "~/admin/dev/dev_proxy_server.js";
+import {startRemixDevServer} from "~/admin/dev/remix_dev_server.js";
 import {spawnWithCoordinatedStdio} from "~/admin/dev/stdio_coordinator.js";
 import {startDynamoLocal} from "~/admin/dynamo/local/start_dynamo_local.js";
 import {devEnvPaths} from "~/admin/helpers/dev_env_paths.js";
@@ -29,6 +31,7 @@ import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_er
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {Id} from "~/shared/id/id.js";
 
 assert(process.env.NODE_ENV === "development");
@@ -36,6 +39,7 @@ assert(process.env.NODE_ENV === "development");
 const env = parseDotenv();
 
 const appPort = parseInt(assertExists(env.APP_PORT), 10);
+const appDevPrivatePort = parseInt(assertExists(env.APP_DEV_PRIVATE_PORT), 10);
 const honeycombApiKey = env.HONEYCOMB_API_KEY;
 const remixDevServerPort = parseInt(assertExists(env.REMIX_DEV_SERVER_PORT), 10);
 const dynamoDataDirectoryPath = joinPath(devEnvPaths.data, "dynamo");
@@ -44,6 +48,8 @@ const dynamoLocalPort = parseInt(assertExists(env.DYNAMO_LOCAL_PORT), 10);
 type Artifact = {
     readonly bazelTarget: string;
     readonly executablePath: string;
+    readonly port: number;
+    readonly privatePort: number;
     readonly env: {readonly [key: string]: string};
     readonly args: ReadonlyArray<string>;
     readonly server: AsyncMutex<ArtifactServer | null>;
@@ -59,8 +65,9 @@ const artifacts: ReadonlyArray<Artifact> = [
         bazelTarget: "//app",
         executablePath: "app/app.sh",
         env: {BAZEL_BINDIR: "."},
+        port: appPort,
+        privatePort: appDevPrivatePort,
         args: [
-            `--port=${appPort}`,
             `--appServicePublicKey=${devAppServicePublicKeyPath}`,
             `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
             `--appServicePrivateKey=${devAppServicePrivateKeyPath}`,
@@ -76,7 +83,55 @@ const artifacts: ReadonlyArray<Artifact> = [
     // },
 ];
 
-let artifactServerSetupPromise: Promise<unknown> | undefined;
+// `null` entries are paths that are definitely not packages. Entries that
+// don't exist in the map we don't know whether they are a package or not.
+const bazelPackageByPath = new Map<string, BazelPackage | null>();
+
+const lastDependencyBazelPackagePathsByTarget = new Map<string, ReadonlySet<string>>();
+
+const watcher = chokidar.watch(workspacePath, {
+    ignoreInitial: true,
+    ignored: /(^|\/)(node_modules|bazel-[^/]+|\.git|\.DS_Store)(\/|$)/,
+});
+
+watcher.on("add", processFileUpdate);
+watcher.on("change", processFileUpdate);
+watcher.on("unlink", processFileUpdate);
+
+let fileUpdateQueue: {
+    pauserCount: number;
+    paths: Array<string>;
+} | null = null;
+
+const setupPromise = runAllPromises([
+    ensureDevKeys(),
+    startDynamoLocal({
+        dataPath: dynamoDataDirectoryPath,
+        port: dynamoLocalPort,
+    }),
+    startRemixDevServer({remixDevServerPort}),
+]);
+
+const mainPromise = runAllPromises([
+    setupPromise,
+    runAllPromises(
+        artifacts.map(async artifact => {
+            await runAllPromises([
+                rebuildArtifact(artifact),
+                updateArtifactDependencyBazelPackagePaths(artifact),
+                createDevProxyServer(artifact.port, artifact.privatePort),
+            ]);
+        }),
+    ),
+]);
+
+mainPromise.catch(scheduleUncaughtError);
+
+// Log uncaught exceptions, don't kill the process.
+process.on("uncaughtException", error => {
+    // eslint-disable-next-line no-console
+    console.error("Uncaught exception from dev process manager:", error);
+});
 
 /**
  * Build the artifact and restart the server associated with the artifact.
@@ -97,14 +152,14 @@ async function rebuildArtifact(artifact: Artifact) {
         }
 
         // Make sure our setup promise has resolved before spawning our server.
-        await artifactServerSetupPromise;
+        await setupPromise;
 
         const subprocess = spawnWithCoordinatedStdio(
             joinPath(
                 `${workspacePath}/bazel-out/${bazelBuildTargetCpu}-${bazelBuildCompilationMode}/bin`,
                 artifact.executablePath,
             ),
-            artifact.args ?? [],
+            [`--port=${artifact.privatePort}`, ...(artifact.args ?? [])],
             {env: {...process.env, ...artifact.env}},
         );
 
@@ -113,45 +168,10 @@ async function rebuildArtifact(artifact: Artifact) {
     });
 }
 
-async function main() {
-    const watcher = chokidar.watch(workspacePath, {
-        ignoreInitial: true,
-        ignored: /(^|\/)(node_modules|bazel-[^/]+|\.git|\.DS_Store)(\/|$)/,
-    });
-
-    watcher.on("add", processFileUpdate);
-    watcher.on("change", processFileUpdate);
-    watcher.on("unlink", processFileUpdate);
-
-    artifactServerSetupPromise = runAllPromises([
-        ensureDevKeys(),
-        startDynamoLocal({
-            dataPath: dynamoDataDirectoryPath,
-            port: dynamoLocalPort,
-        }),
-    ]);
-
-    await runAllPromises([
-        artifactServerSetupPromise,
-        runAllPromises(
-            artifacts.map(async artifact => {
-                await runAllPromises([
-                    rebuildArtifact(artifact),
-                    updateArtifactDependencyBazelPackagePaths(artifact),
-                ]);
-            }),
-        ),
-    ]);
-}
-
 type BazelPackage = {
     readonly path: string;
     readonly dependentArtifactByBazelTarget: Map<string, Artifact>;
 };
-
-// `null` entries are paths that are definitely not packages. Entries that
-// don't exist in the map we don't know whether they are a package or not.
-const bazelPackageByPath = new Map<string, BazelPackage | null>();
 
 /**
  * Get the Bazel package for an absolute file path like
@@ -160,10 +180,18 @@ const bazelPackageByPath = new Map<string, BazelPackage | null>();
 function getBazelPackageByAbsoluteFilePath(path: string): BazelPackage {
     const absoluteDirectoryPath = dirname(path);
 
-    if (!absoluteDirectoryPath.startsWith(`${workspacePath}/`))
-        throw new InvalidArgumentError("File path is not in Bazel workspace");
+    if (
+        absoluteDirectoryPath !== workspacePath &&
+        !absoluteDirectoryPath.startsWith(`${workspacePath}/`)
+    ) {
+        throw new InvalidArgumentError(quote`File path is not in Bazel workspace: ${path}`);
+    }
 
-    const relativeDirectoryPath = absoluteDirectoryPath.slice(workspacePath.length + 1);
+    const relativeDirectoryPath =
+        absoluteDirectoryPath === workspacePath
+            ? "."
+            : absoluteDirectoryPath.slice(workspacePath.length + 1);
+
     return getBazelPackageByRelativeDirectoryPath(relativeDirectoryPath);
 }
 
@@ -203,8 +231,6 @@ function getBazelPackageByRelativeDirectoryPath(path: string): BazelPackage {
 
     return getBazelPackageByRelativeDirectoryPath(parentPath);
 }
-
-const lastDependencyBazelPackagePathsByTarget = new Map<string, ReadonlySet<string>>();
 
 /**
  * Populate `dependentArtifactByBazelTarget` in `bazelPackageByPath` for the
@@ -254,11 +280,6 @@ function updateArtifactDependencyBazelPackagePaths(artifact: Artifact) {
         }
     });
 }
-
-let fileUpdateQueue: {
-    pauserCount: number;
-    paths: Array<string>;
-} | null = null;
 
 /**
  * Pauses the processing of files by `processFileUpdate()` until the promise
@@ -332,11 +353,3 @@ function processFileUpdate(path: string) {
         });
     }
 }
-
-main().catch(scheduleUncaughtError);
-
-// Log uncaught exceptions, don't kill the process.
-process.on("uncaughtException", error => {
-    // eslint-disable-next-line no-console
-    console.error(error);
-});
