@@ -673,21 +673,10 @@ export function sendChatMessage(
     index: number;
     createdTime: Date;
 }> {
-    // NOCOMMIT: Only allow edge service to send chat messages!
-
     return context.dynamo.retryTransaction(async context => {
-        const [chatItem] = await runAllPromiseThunks(
-            async () => {
-                const chatItem = await ChatTable.getItem(context, {
-                    partitionType: "Chat",
-                    sortRangeType: "Attributes",
-                    chatId,
-                });
-
-                await authorizeChatAccessWithItem(context, chatItem);
-                return chatItem;
-            },
-            async () => {
+        const [chatItem] = await runAllPromises([
+            getChatItemAndAuthorizeAccess(context, chatId),
+            (async () => {
                 if (typeof parentMessageIndex !== "number") return;
 
                 const parentMessageItem = await ChatTable.getPartialItemIfExists(
@@ -703,8 +692,8 @@ export function sendChatMessage(
                     },
                 );
                 if (!parentMessageItem) throw new NotFoundError("Post parent comment not found");
-            },
-        );
+            })(),
+        ]);
 
         const messageIndex = chatItem.messagesSummary.nextMessageIndex;
         // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock
@@ -833,21 +822,35 @@ export async function authorizeChatAccessForAccount(
     };
 }
 
-async function authorizeChatAccessWithItem(
+async function getChatItemIfExistsAndAuthorizeAccess(
     context: AppSessionActionContext,
-    chatItem: Pick<ChatAttributesItem, "chatId" | "spaceId">,
+    chatId: ChatId,
 ) {
-    const [, chatAccountItem] = await runAllPromises([
-        authorizeSpaceAccess(context, chatItem.spaceId),
+    const [chatItem, chatAccountItem] = await runAllPromises([
+        ChatTable.getItemIfExists(context, {
+            partitionType: "Chat",
+            sortRangeType: "Attributes",
+            chatId,
+        }),
         ChatTable.getItemIfExists(context, {
             partitionType: "Chat",
             sortRangeType: "Account",
-            chatId: chatItem.chatId,
+            chatId,
             accountId: context.actor.getAccountId(),
         }),
     ]);
+    if (!chatItem) return null;
 
+    await authorizeSpaceAccess(context, chatItem.spaceId);
     if (!chatAccountItem) throw new PermissionDeniedError("Account does not have access to chat");
+
+    return chatItem;
+}
+
+async function getChatItemAndAuthorizeAccess(context: AppSessionActionContext, chatId: ChatId) {
+    const chatItem = await getChatItemIfExistsAndAuthorizeAccess(context, chatId);
+    if (!chatItem) throw new NotFoundError("Chat not found");
+    return chatItem;
 }
 
 /**
@@ -1118,11 +1121,7 @@ export function updateChatMessageContent(
 }> {
     return context.dynamo.retryTransaction(async context => {
         const [chatItem, chatMessageItem] = await runAllPromises([
-            ChatTable.getItem(context, {
-                partitionType: "Chat",
-                sortRangeType: "Attributes",
-                chatId,
-            }),
+            getChatItemAndAuthorizeAccess(context, chatId),
             ChatTable.getItem(context, {
                 partitionType: "Chat",
                 sortRangeType: "Messages",
@@ -1130,8 +1129,6 @@ export function updateChatMessageContent(
                 messageIndex,
             }),
         ]);
-
-        await authorizeChatAccessWithItem(context, chatItem);
 
         if (chatMessageItem.authorId !== context.actor.getAccountId())
             throw new PermissionDeniedError("Can only update chat messages you authored");
@@ -1201,11 +1198,7 @@ export function deleteChatMessage(
 ): Promise<{deletedTime: Date}> {
     return context.dynamo.retryTransaction(async context => {
         const [chatItem, chatMessageItem] = await runAllPromises([
-            ChatTable.getItemIfExists(context, {
-                partitionType: "Chat",
-                sortRangeType: "Attributes",
-                chatId,
-            }),
+            getChatItemIfExistsAndAuthorizeAccess(context, chatId),
             ChatTable.getItemIfExists(context, {
                 partitionType: "Chat",
                 sortRangeType: "Messages",
@@ -1216,8 +1209,6 @@ export function deleteChatMessage(
 
         if (!chatItem) throw new NotFoundError("Chat not found");
         if (!chatMessageItem) throw new NotFoundError("Chat message not found");
-
-        await authorizeChatAccessWithItem(context, chatItem);
 
         if (chatMessageItem.authorId !== context.actor.getAccountId())
             throw new PermissionDeniedError("Can only delete chat messages you authored");
@@ -1333,15 +1324,7 @@ export async function getChatMessagesFromStart(
     otherReferencedMessages: Array<ChatMessageModel>;
     lastMessageChangeTime: Date | null;
 }> {
-    const chatItemPromise = (async () => {
-        const chatItem = await ChatTable.getItemIfExists(context, {
-            partitionType: "Chat",
-            sortRangeType: "Attributes",
-            chatId,
-        });
-        if (!chatItem) throw new NotFoundError("Chat not found");
-        return chatItem;
-    })();
+    const chatItemPromise = getChatItemAndAuthorizeAccess(context, chatId);
 
     const [chatItem, {messages, otherReferencedMessages}] = await runAllPromises([
         chatItemPromise,
@@ -1352,7 +1335,6 @@ export async function getChatMessagesFromStart(
             afterMessageIndex,
             beforeMessageIndex,
         }),
-        chatItemPromise.then(chatItem => authorizeChatAccessWithItem(context, chatItem)),
     ]);
 
     const lastMessageIndex = messages.length > 0 ? messages[messages.length - 1]!.index : -1;
@@ -1480,15 +1462,7 @@ export async function getChatMessagesFromEnd(
     otherReferencedMessages: Array<ChatMessageModel>;
     lastMessageChangeTime: Date | null;
 }> {
-    const chatItemPromise = (async () => {
-        const chatItem = await ChatTable.getItemIfExists(context, {
-            partitionType: "Chat",
-            sortRangeType: "Attributes",
-            chatId,
-        });
-        if (!chatItem) throw new NotFoundError("Post not found");
-        return chatItem;
-    })();
+    const chatItemPromise = getChatItemAndAuthorizeAccess(context, chatId);
 
     const [chatItem, {messages, otherReferencedMessages}] = await runAllPromises([
         chatItemPromise,
@@ -1499,7 +1473,6 @@ export async function getChatMessagesFromEnd(
             afterMessageIndex,
             beforeMessageIndex,
         }),
-        chatItemPromise.then(chatItem => authorizeChatAccessWithItem(context, chatItem)),
     ]);
 
     const lastMessageIndex = messages.length > 0 ? messages[messages.length - 1]!.index : -1;
@@ -1661,15 +1634,7 @@ export async function backfillChatMessages(
     newOtherReferencedMessages: Array<ChatMessageModel>;
     messageChangesResult: ChatMessageChangesResult;
 }> {
-    const chatItemPromise = (async () => {
-        const chatItem = await ChatTable.getItemIfExists(context, {
-            partitionType: "Chat",
-            sortRangeType: "Attributes",
-            chatId,
-        });
-        if (!chatItem) throw new NotFoundError("Chat not found");
-        return chatItem;
-    })();
+    const chatItemPromise = getChatItemAndAuthorizeAccess(context, chatId);
 
     const [chatItem, {messages, otherReferencedMessages}, messageChangesResult] =
         await runAllPromises([
@@ -1701,7 +1666,6 @@ export async function backfillChatMessages(
                     },
                 ),
             ),
-            chatItemPromise.then(chatItem => authorizeChatAccessWithItem(context, chatItem)),
         ]);
 
     const lastMessageIndex = messages.length > 0 ? messages[messages.length - 1]!.index : -1;
