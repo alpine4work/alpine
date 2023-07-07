@@ -225,9 +225,9 @@ export class AppSystemActorContextModule
      * Name of the service which initiated the current action. Only services that
      * can sign tokens can create a system actor context.
      */
-    public readonly serviceName: "Test" | TokenServiceName;
+    public readonly serviceName: AppActorServiceName;
 
-    private constructor(serviceName: "Test" | TokenServiceName, spaceId: SpaceId) {
+    private constructor(serviceName: AppActorServiceName, spaceId: SpaceId) {
         super(() => Promise.resolve(this));
         this.serviceName = serviceName;
         this._spaceId = spaceId;
@@ -237,7 +237,7 @@ export class AppSystemActorContextModule
      * Dangerous since if an attacker can pass arbitrary input they can get
      * wide ranging information about any space.
      */
-    public static dangerouslyNew(serviceName: "Test" | TokenServiceName, spaceId: SpaceId) {
+    public static dangerouslyNew(serviceName: AppActorServiceName, spaceId: SpaceId) {
         return new AppSystemActorContextModule(serviceName, spaceId);
     }
 

@@ -3746,44 +3746,6 @@ export const dynamoGeneratedSchemaDescription: {
                 }
             ]
         },
-        "Notifications": {
-            "name": "Notifications",
-            "partitionByType": {
-                "NotificationEvent": {
-                    "id": 0,
-                    "partitionKeyAttributeByKey": {
-                        "eventId": {
-                            "type": "Id"
-                        }
-                    },
-                    "sortRangeByType": {
-                        "Receipt": {
-                            "id": 0,
-                            "orderKey": "a0",
-                            "sortKeyAttributeByKey": {},
-                            "attributesSchema": {
-                                "type": "Object",
-                                "propertySchemaByKey": {
-                                    "updateLockVersion": {
-                                        "valueSchema": {
-                                            "type": "Integer"
-                                        },
-                                        "optional": true
-                                    },
-                                    "expirationTime": {
-                                        "valueSchema": {
-                                            "type": "Integer"
-                                        },
-                                        "optional": false
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            "indexes": []
-        },
         "Spaces": {
             "name": "Spaces",
             "partitionByType": {

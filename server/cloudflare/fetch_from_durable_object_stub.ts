@@ -36,14 +36,16 @@ export async function fetchFromDurableObjectStub({
     newRequest.headers.set("cyberworlds-id-name", idName);
     addTracerPropagationContextHeader(newRequest.headers, span);
 
-    const sessionCookieToken = await getSessionCookieIfExists(tokenAgent, request);
-    if (!sessionCookieToken) throw unauthenticatedSessionError();
+    if (!newRequest.headers.has("authorization")) {
+        const sessionCookieToken = await getSessionCookieIfExists(tokenAgent, request);
+        if (!sessionCookieToken) throw unauthenticatedSessionError();
 
-    const requestToken = await tokenAgent.dangerouslySignShortLivedToken(
-        serviceName,
-        sessionCookieToken,
-    );
-    newRequest.headers.set("authorization", `bearer ${requestToken}`);
+        const requestToken = await tokenAgent.dangerouslySignShortLivedToken(
+            serviceName,
+            sessionCookieToken,
+        );
+        newRequest.headers.set("authorization", `bearer ${requestToken}`);
+    }
 
     return durableObjectStub.fetch(newRequest);
 }

@@ -1,6 +1,5 @@
 import "~/app/helpers/install_remix_globals.js";
 
-import {SQSClient} from "@aws-sdk/client-sqs";
 import * as build from "@remix-run/dev/server-build";
 import {
     Request as NodeRequest,
@@ -199,11 +198,6 @@ async function main() {
 
     const awsHttpClient = new AwsClient(awsCredentials);
 
-    const awsSqsClient = new SQSClient({
-        region: "us-east-1",
-        credentials: awsCredentials,
-    });
-
     const processContext = Context.new<AppProcessContextModules>({
         process: new ProcessContextModule({
             waitUntil: promise => {
@@ -300,10 +294,9 @@ async function main() {
                                 sessionCookie,
                             ),
                             notifications: new NotificationsContextModule({
+                                processContext,
                                 edgeServiceUrl,
                                 tokenAgent,
-                                awsSqsClient,
-                                awsQueueUrl: `https://sqs.us-east-1.amazonaws.com/${awsAccountId}/Notifications`,
                             }),
                         },
                         context => {

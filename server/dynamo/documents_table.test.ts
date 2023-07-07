@@ -5133,7 +5133,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session2.account]);
 
             expect(
@@ -5141,7 +5141,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session2.account]);
 
             expect(
@@ -5149,7 +5149,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session2.account]);
 
             expect(
@@ -5157,7 +5157,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session2.account]);
         });
 
@@ -5194,7 +5194,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session2.account]);
 
             expect(
@@ -5202,7 +5202,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session2.account]);
 
             expect(
@@ -5210,7 +5210,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session2.account]);
 
             expect(
@@ -5218,7 +5218,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session2.account]);
 
             await createDocumentComment(context.action(session3), {
@@ -5233,7 +5233,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session2.account, session3.account]);
 
             expect(
@@ -5241,7 +5241,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session2.account, session3.account]);
 
             expect(
@@ -5249,7 +5249,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session2.account, session3.account]);
 
             expect(
@@ -5257,7 +5257,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session2.account, session3.account]);
 
             await createDocumentComment(context.action(session4), {
@@ -5272,7 +5272,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session2.account, session3.account, session4.account]);
 
             expect(
@@ -5280,7 +5280,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session2.account, session3.account, session4.account]);
 
             expect(
@@ -5288,7 +5288,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session2.account, session3.account, session4.account]);
 
             expect(
@@ -5296,7 +5296,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session2.account, session3.account, session4.account]);
 
             await createDocumentComment(context.action(session2), {
@@ -5311,7 +5311,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session2.account, session3.account, session4.account]);
 
             expect(
@@ -5319,7 +5319,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session2.account, session3.account, session4.account]);
 
             expect(
@@ -5327,7 +5327,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session2.account, session3.account, session4.account]);
 
             expect(
@@ -5335,7 +5335,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session2.account, session3.account, session4.account]);
         });
 
@@ -5372,7 +5372,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session2.account]);
 
             expect(
@@ -5380,7 +5380,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session2.account]);
 
             expect(
@@ -5388,7 +5388,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session2.account]);
 
             expect(
@@ -5396,7 +5396,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session2.account]);
 
             await createDocumentComment(context.action(session3), {
@@ -5411,7 +5411,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session2.account, session3.account]);
 
             expect(
@@ -5419,7 +5419,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session2.account, session3.account]);
 
             expect(
@@ -5427,7 +5427,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session2.account, session3.account]);
 
             expect(
@@ -5435,7 +5435,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session2.account, session3.account]);
 
             await deleteDocumentComment(context.action(session3), {
@@ -5449,7 +5449,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session2.account, session3.account]);
 
             expect(
@@ -5457,7 +5457,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session2.account, session3.account]);
 
             expect(
@@ -5465,7 +5465,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session2.account, session3.account]);
 
             expect(
@@ -5473,7 +5473,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session2.account, session3.account]);
         });
 
@@ -5510,7 +5510,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account]);
 
             expect(
@@ -5518,7 +5518,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account]);
 
             expect(
@@ -5526,7 +5526,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account]);
 
             expect(
@@ -5534,7 +5534,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account]);
 
             await createDocumentComment(context.action(session3), {
@@ -5559,7 +5559,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session3.account, session4.account]);
 
             expect(
@@ -5567,7 +5567,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session3.account, session4.account]);
 
             expect(
@@ -5575,7 +5575,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session3.account, session4.account]);
         });
 
@@ -5612,7 +5612,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account]);
 
             expect(
@@ -5620,7 +5620,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account]);
 
             expect(
@@ -5628,7 +5628,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account]);
 
             expect(
@@ -5636,7 +5636,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account]);
 
             await createDocumentComment(context.action(session3), {
@@ -5661,7 +5661,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session3.account]);
 
             expect(
@@ -5669,7 +5669,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session3.account]);
 
             expect(
@@ -5677,7 +5677,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session3.account]);
         });
 
@@ -5714,7 +5714,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account]);
 
             expect(
@@ -5722,7 +5722,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account]);
 
             expect(
@@ -5730,7 +5730,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account]);
 
             expect(
@@ -5738,7 +5738,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account]);
 
             await createDocumentComment(context.action(session3), {
@@ -5763,7 +5763,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session3.account]);
 
             expect(
@@ -5771,7 +5771,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session3.account]);
 
             expect(
@@ -5779,7 +5779,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session3.account]);
         });
 
@@ -5816,7 +5816,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account]);
 
             expect(
@@ -5824,7 +5824,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account]);
 
             expect(
@@ -5832,7 +5832,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account]);
 
             expect(
@@ -5840,7 +5840,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account]);
 
             await createDocumentComment(context.action(session3), {
@@ -5865,7 +5865,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session3.account, session4.account]);
 
             expect(
@@ -5873,7 +5873,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session3.account, session4.account]);
 
             expect(
@@ -5881,7 +5881,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session3.account, session4.account]);
 
             await updateDocumentCommentContent(context.action(session3), {
@@ -5902,7 +5902,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session3.account, session4.account]);
 
             expect(
@@ -5910,7 +5910,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session3.account, session4.account]);
 
             expect(
@@ -5918,7 +5918,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session3.account, session4.account]);
         });
 
@@ -5955,7 +5955,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account]);
 
             expect(
@@ -5963,7 +5963,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account]);
 
             expect(
@@ -5971,7 +5971,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account]);
 
             expect(
@@ -5979,7 +5979,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account]);
 
             await createDocumentComment(context.action(session3), {
@@ -6004,7 +6004,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session3.account, session4.account]);
 
             expect(
@@ -6012,7 +6012,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session3.account, session4.account]);
 
             expect(
@@ -6020,7 +6020,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session3.account, session4.account]);
 
             await deleteDocumentComment(context.action(session3), {
@@ -6034,7 +6034,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session3.account, session4.account]);
 
             expect(
@@ -6042,7 +6042,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session3.account, session4.account]);
 
             expect(
@@ -6050,7 +6050,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session3.account, session4.account]);
         });
 
@@ -6087,7 +6087,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account]);
 
             expect(
@@ -6095,7 +6095,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account]);
 
             expect(
@@ -6103,7 +6103,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account]);
 
             expect(
@@ -6111,7 +6111,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account]);
 
             await createDocumentComment(context.action(session3), {
@@ -6132,7 +6132,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session3.account]);
 
             expect(
@@ -6140,7 +6140,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session3.account]);
 
             expect(
@@ -6148,7 +6148,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session3.account]);
 
             await updateDocumentCommentContent(context.action(session3), {
@@ -6173,7 +6173,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session3.account, session4.account]);
 
             expect(
@@ -6181,7 +6181,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session3.account, session4.account]);
 
             expect(
@@ -6189,7 +6189,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session3.account, session4.account]);
         });
 
@@ -6236,7 +6236,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session5.account, session2.account]);
 
             expect(
@@ -6244,7 +6244,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session5.account, session2.account]);
 
             expect(
@@ -6252,7 +6252,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session5.account, session2.account]);
 
             expect(
@@ -6260,7 +6260,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session5.account, session2.account]);
 
             await createDocumentComment(context.action(session1), {
@@ -6281,7 +6281,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session5.account, session2.account]);
 
             expect(
@@ -6289,7 +6289,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session5.account, session1.account, session2.account]);
 
             expect(
@@ -6297,7 +6297,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session5.account, session2.account]);
 
             expect(
@@ -6305,7 +6305,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session5.account, session1.account, session2.account]);
 
             await createDocumentComment(context.action(session3), {
@@ -6330,7 +6330,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session5.account, session3.account, session2.account]);
 
             expect(
@@ -6338,7 +6338,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session5.account, session1.account, session3.account, session2.account]);
 
             expect(
@@ -6346,7 +6346,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session1.account, session5.account, session3.account, session2.account]);
 
             expect(
@@ -6354,7 +6354,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([session5.account, session1.account, session3.account, session2.account]);
 
             const comment = await createDocumentComment(context.action(session2), {
@@ -6379,7 +6379,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([
                 session1.account,
                 session5.account,
@@ -6393,7 +6393,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([
                 session5.account,
                 session1.account,
@@ -6407,7 +6407,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([
                 session1.account,
                 session5.account,
@@ -6421,7 +6421,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([
                 session5.account,
                 session1.account,
@@ -6452,7 +6452,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([
                 session1.account,
                 session5.account,
@@ -6467,7 +6467,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([
                 session5.account,
                 session1.account,
@@ -6482,7 +6482,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: true,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([
                 session1.account,
                 session5.account,
@@ -6497,7 +6497,7 @@ describe("Comments", () => {
                     documentId: document.id,
                     commentThreadId,
                     isFirstComment: false,
-                }).then(({accounts}) => accounts),
+                }),
             ).toEqual([
                 session5.account,
                 session1.account,

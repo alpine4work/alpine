@@ -3,6 +3,7 @@ import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_c
 import {createDurableObject} from "~/server/cloudflare/create_durable_object.js";
 import {WebSocketServer} from "~/server/cloudflare/web_socket_server.js";
 import {MyAccountConnection} from "~/server/notifications/my_account_connection.js";
+import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
@@ -103,27 +104,31 @@ class MyAccountDurableObject {
 const MyAccountDurableObjectWrapper = createDurableObject(MyAccountDurableObject);
 export {MyAccountDurableObjectWrapper as MyAccountDurableObject};
 
-async function authorizeMyAccountAccess(context: WorkerActionContext, accountId: AccountId) {
-    switch (context.actor.type) {
-        case "Session": {
-            if (context.actor.getAccountId() !== accountId) {
-                throw new PermissionDeniedError(
-                    "Can only access the durable object for your own account",
-                );
+const MyAccountAccessCache = new ContextCache<AccountId, void>();
+
+function authorizeMyAccountAccess(context: WorkerActionContext, accountId: AccountId) {
+    return MyAccountAccessCache.get(context, accountId, async () => {
+        switch (context.actor.type) {
+            case "Session": {
+                if (context.actor.getAccountId() !== accountId) {
+                    throw new PermissionDeniedError(
+                        "Can only access the durable object for your own account",
+                    );
+                }
+                break;
             }
-            break;
-        }
-        case "System": {
-            const {account} = await getAccountIfExists(context, {
-                spaceId: context.actor.getSpaceId(),
-                accountId: accountId,
-            });
-            if (!account) {
-                throw new PermissionDeniedError("Account does not exist in space");
+            case "System": {
+                const {account} = await getAccountIfExists(context, {
+                    spaceId: context.actor.getSpaceId(),
+                    accountId: accountId,
+                });
+                if (!account) {
+                    throw new PermissionDeniedError("Account does not exist in space");
+                }
+                break;
             }
-            break;
+            default:
+                throw exhaustive(context.actor);
         }
-        default:
-            throw exhaustive(context.actor);
-    }
+    });
 }

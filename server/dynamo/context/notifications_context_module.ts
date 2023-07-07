@@ -1,7 +1,19 @@
-import {SQSClient, SendMessageCommand} from "@aws-sdk/client-sqs";
-import {AppSystemActionContext} from "~/server/dynamo/context/app_action_context.js";
-import {AppActorContextModule} from "~/server/dynamo/context/app_actor_context_module.js";
-import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module.js";
+import {
+    AppSystemActionContext,
+    AppSystemActionContextModules,
+} from "~/server/dynamo/context/app_action_context.js";
+import {
+    AppActorContextModule,
+    AppSystemActorContextModule,
+} from "~/server/dynamo/context/app_actor_context_module.js";
+import {
+    AppProcessContext,
+    AppProcessContextModules,
+} from "~/server/dynamo/context/app_process_context.js";
+import {
+    DynamoBatchContextModule,
+    DynamoContextModule,
+} from "~/server/dynamo/dynamo_context_module.js";
 import {
     NotificationEvent,
     NotificationEventSchema,
@@ -61,76 +73,88 @@ export abstract class NotificationsContextModuleBase extends ContextModuleBase<{
 }
 
 export class NotificationsContextModule extends NotificationsContextModuleBase {
+    private readonly _processContext: AppProcessContext;
     private readonly _edgeServiceUrl: string;
     private readonly _tokenAgent: TokenAgentBase;
-    private readonly _awsSqsClient: SQSClient;
-    private readonly _awsQueueUrl: string;
 
     constructor({
+        processContext,
         edgeServiceUrl,
         tokenAgent,
-        awsSqsClient,
-        awsQueueUrl,
     }: {
+        processContext: AppProcessContext;
         edgeServiceUrl: string;
         tokenAgent: TokenAgentBase;
-        awsSqsClient: SQSClient;
-        awsQueueUrl: string;
     }) {
         super();
+        this._processContext = processContext;
         this._edgeServiceUrl = edgeServiceUrl;
         this._tokenAgent = tokenAgent;
-        this._awsSqsClient = awsSqsClient;
-        this._awsQueueUrl = awsQueueUrl;
     }
 
     public override sendNotificationEvent(event: NotificationEvent) {
+        // Don't block the current action on sending out a notification event. Send it
+        // asynchronously.
+        //
+        // We create a new system action context from our process context to make sure
+        // our notification event processing is isolated from the original action.
+        // Since processing a notification event is acting on behalf of many users, we
+        // need broader permissions than the currently authenticated user.
+        //
+        // There is no means of error recovery at the moment. It is essential
+        // notification events are processed and it's essential they are processed
+        // fast. If our Node.js process crashes while we are handling a notification
+        // event we will lose the notification! Processing notifications in a queue
+        // like AWS SQS would help with this but might hurt latency.
+        //
+        // We'll wait to have problems with notification delivery and decide on the
+        // best solution then.
+        //
+        // NOTE(calebmer, 2023-07-07): When this code was running on Cloudflare Workers
+        // we were processing notification events in Cloudflare Queues. That's because
+        // at the time I thought `executionContext.waitUntil()` had a ~30s execution
+        // time limit. But re-reading [the documentation][1] I might have been mistaken
+        // and `executionContext.waitUntil()` is, in fact, unbounded. That's part of
+        // the reason the code was structured this way. We effectively had a separate
+        // `AppQueue` service that constructed its own context. Leaving the
+        // construction of a system context in since the permission escalation is still
+        // necessary and it will help us migrate notification processing to a separate
+        // service someday if we need.
+        //
+        // [1]: https://developers.cloudflare.com/workers/platform/limits/#cpu-runtime
         this._context.process.waitUntil(
-            this._context.tracer.withSpan("Send notification event", async (context, span) => {
-                const lastPathSegmentIndex = this._awsQueueUrl.lastIndexOf("/");
-                const queueName =
-                    lastPathSegmentIndex !== -1
-                        ? this._awsQueueUrl.slice(lastPathSegmentIndex + 1)
-                        : undefined;
-
-                span.addData({
-                    notifications: {
-                        eventType: event.type,
-                        eventId: event.id,
-                    },
-                    aws: {
-                        sqs: {
-                            queue: queueName,
-                        },
-                    },
-                });
-
-                try {
-                    const output = await this._awsSqsClient.send(
-                        new SendMessageCommand({
-                            QueueUrl: this._awsQueueUrl,
-                            MessageBody: JSON.stringify(
-                                NotificationsQueueMessageSchema.serialize({
-                                    event,
-                                    tracerContext: span.getPropagationContext(),
-                                }),
-                            ),
-                        }),
-                    );
-
-                    span.addData({
-                        aws: {
-                            sqs: {
-                                messageId: output.MessageId,
-                            },
-                        },
-                    });
-                } catch (error) {
-                    // Escalate any failed message delivery errors to data loss errors since it
-                    // means we won't see notifications for this event.
-                    throw DataLossError.from(error);
-                }
-            }),
+            this._processContext.with<
+                Omit<
+                    AppSystemActionContextModules,
+                    Exclude<keyof AppProcessContextModules, "tracer">
+                >,
+                // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
+                void
+            >(
+                {
+                    tracer: new TracerContextModule(this._context.tracer.getTracer()),
+                    cache: new CacheContextModule(),
+                    dynamoBatchContext: new DynamoBatchContextModule(),
+                    notifications: new NotificationsContextModule({
+                        processContext: this._processContext,
+                        edgeServiceUrl: this._edgeServiceUrl,
+                        tokenAgent: this._tokenAgent,
+                    }),
+                    actor: AppSystemActorContextModule.dangerouslyNew(
+                        this._context.actor.serviceName,
+                        event.spaceId,
+                    ),
+                },
+                async context => {
+                    try {
+                        await processNotificationEvent(context, event);
+                    } catch (error) {
+                        // Escalate notification processing errors to `DataLossError` since it means we
+                        // failed to deliver a notification but the user doesn't know.
+                        throw DataLossError.from(error);
+                    }
+                },
+            ),
         );
     }
 
@@ -168,9 +192,7 @@ export class NotificationsContextModule extends NotificationsContextModuleBase {
                     assert(spaceId && isId<SpaceId>(spaceId));
                     assert(accountId && isId<AccountId>(accountId));
 
-                    // We're allowed to broadcast realtime events to `MyAccountService` if we are
-                    // system actor with space access.
-                    this._context.actor.authorizeSystem();
+                    // Double check that we're allowed to escalate to system privileges.
                     await authorizeSpaceAccess(this._context, spaceId);
 
                     const token = await this._tokenAgent.dangerouslySignShortLivedToken(

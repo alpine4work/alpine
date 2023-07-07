@@ -6,7 +6,7 @@ export const tracerPropagationContextHeaderName = "cyberworlds-tracer-propagatio
  * Adds the tracer HTTP propagation header to a request.
  */
 export function addTracerPropagationContextHeader(requestHeaders: Headers, span: TracerSpan) {
-    requestHeaders.append(
+    requestHeaders.set(
         tracerPropagationContextHeaderName,
         JSON.stringify(span.getPropagationContext()),
     );

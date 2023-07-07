@@ -680,7 +680,6 @@ export async function getPostNotificationSubscribers(
     context: AppSystemActionContext,
     id: PostId,
 ): Promise<{
-    spaceId: SpaceId;
     accounts: ReadonlyArray<AccountModel>;
     postCreatedTime: Date;
 }> {
@@ -713,7 +712,6 @@ export async function getPostNotificationSubscribers(
     );
 
     return {
-        spaceId: postItem.spaceId,
         accounts: accounts.filter(isNonNullable),
         postCreatedTime: postItem.createdTime,
     };

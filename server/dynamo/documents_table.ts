@@ -3906,8 +3906,5 @@ export async function getDocumentCommentThreadNotificationSubscribers(
         ),
     );
 
-    return {
-        spaceId: documentItem.spaceId,
-        accounts: accounts.filter(isNonNullable),
-    };
+    return accounts.filter(isNonNullable);
 }

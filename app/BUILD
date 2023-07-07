@@ -5,8 +5,6 @@ load("//app:remix.bzl", "remix_app")
 ts_project(
     name = "app_lib",
     deps = [
-        "//:node_modules/@aws-sdk/client-sqs",
-        "//:node_modules/@aws-sdk/credential-providers",
         "//:node_modules/@remix-run/dev",
         "//:node_modules/@remix-run/node",
         "//:node_modules/@remix-run/server-runtime",

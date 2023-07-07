@@ -73,8 +73,24 @@ export function NewChatMessagingView({
             createMessage={procedures.createMessage}
             updateMessageContent={procedures.updateMessageContent}
             deleteMessage={procedures.deleteMessage}
-            startTypingInMessageInput={procedures.startTypingInMessageInput}
-            stopTypingInMessageInput={procedures.stopTypingInMessageInput}
+            startTypingInMessageInput={useCallback(
+                async input => {
+                    // May be called when we don't have a selected chat.
+                    if (!selectedChat) return {};
+
+                    return procedures.startTypingInMessageInput(input);
+                },
+                [procedures, selectedChat],
+            )}
+            stopTypingInMessageInput={useCallback(
+                async input => {
+                    // May be called when we don't have a selected chat.
+                    if (!selectedChat) return {};
+
+                    return procedures.stopTypingInMessageInput(input);
+                },
+                [procedures, selectedChat],
+            )}
             isConnected={isConnected}
             subscribeToEvents={subscribeToEvents}
             getMessageUrl={useCallback(

@@ -1,4 +1,4 @@
-import {addMinutes, differenceInMinutes} from "date-fns";
+import {differenceInMinutes} from "date-fns";
 import {getAccount} from "~/server/dynamo/accounts_table.js";
 import {authorizeChatAccessForAccount, getChat} from "~/server/dynamo/chat_table.js";
 import {
@@ -24,8 +24,6 @@ import {
     DynamoGeneralRealtimeTableSchemaGetTypes,
 } from "~/server/dynamo/internal/dynamo_general_realtime_table_schema.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema.js";
-import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema.js";
-import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error.js";
 import {
     authorizeSpaceAccess,
     expensivelyGetAllSpaceAccounts,
@@ -44,7 +42,7 @@ import {
     DynamoGeneralRealtimeItem,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings.js";
-import {CancelledError, NotFoundError} from "~/shared/error/error.js";
+import {NotFoundError} from "~/shared/error/error.js";
 import {
     PostContent,
     PostContentSchema,
@@ -856,32 +854,6 @@ export function getInboxEntriesIndexForTest() {
     return InboxEntriesIndex;
 }
 
-const NotificationsTable = DynamoTableSchema.new({
-    name: "Notifications",
-    partitions: [
-        /**
-         * For every notification event we record a receipt when we start processing it
-         * so we only process it once.
-         *
-         * Receipts eventually expire so we don't have unbounded storage growth.
-         */
-        {
-            name: "NotificationEvent",
-            partitionKeyAttributes: {
-                eventId: DynamoKeyAttributeSchema.id<NotificationEventId>(),
-            },
-            sortRanges: [
-                {
-                    name: "Receipt",
-                    sortKeyAttributes: {},
-                    withExpirationTime: "Required",
-                    attributes: Schema.object({}),
-                },
-            ],
-        },
-    ],
-});
-
 /**
  * When the inbox is observed, we increment the inbox's generation counter by
  * this amount. New entries will use the generation from the inbox's generation
@@ -1453,10 +1425,7 @@ function actuallyProcessNotificationEvent(
  * - Reads subscribers with strong consistency so we don't miss new subscribers
  * - Implements notification fan-out
  */
-function createNotificationEventProcessor<
-    Event extends NotificationEvent,
-    Info extends {spaceId: SpaceId},
->({
+function createNotificationEventProcessor<Event extends NotificationEvent, Info>({
     getSubscribers,
     updateInboxEntry,
 }: {
@@ -1489,48 +1458,16 @@ function createNotificationEventProcessor<
                 notifications: {
                     eventType: event.type,
                     eventId: event.id,
+                    inbox: {spaceId: event.spaceId},
                 },
             });
 
-            const [{hasReceiptAlready}, {info, accounts}] = await runAllPromises([
-                (async () => {
-                    try {
-                        await NotificationsTable.createItem(context, {
-                            partitionType: "NotificationEvent",
-                            sortRangeType: "Receipt",
-                            eventId: event.id,
-                            // Expire receipts after 10 minutes. This is the [same expiration as DynamoDB
-                            // idempotent transactions][1].
-                            //
-                            // [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html#API_TransactWriteItems_RequestSyntax
-                            expirationTime: addMinutes(new Date(), 10),
-                        });
-
-                        return {hasReceiptAlready: false};
-                    } catch (error) {
-                        // If the receipt already exists then we already started processing this event.
-                        if (isDynamoConditionCheckError(error)) return {hasReceiptAlready: true};
-
-                        throw error;
-                    }
-                })(),
-                getSubscribers(
-                    // Use a strong read consistency when getting subscribers so we don't miss
-                    // any subscribers added as a part of the notification event.
-                    context.dynamo.setDefaultReadConsistency("Strong"),
-                    event,
-                ),
-            ]);
-
-            span.addData({notifications: {inbox: {spaceId: info.spaceId}}});
-
-            // If a receipt exists for this notification then it is being double processed.
-            // To make sure this function is idempotent, cancel further execution. Mark our
-            // span with an error so it's easy to tell something abnormal happened here.
-            if (hasReceiptAlready) {
-                span.addException(new CancelledError("Notification has already been processed"));
-                return;
-            }
+            const {info, accounts} = await getSubscribers(
+                // Use a strong read consistency when getting subscribers so we don't miss
+                // any subscribers added as a part of the notification event.
+                context.dynamo.setDefaultReadConsistency("Strong"),
+                event,
+            );
 
             await runAllPromises(
                 accounts.map(async account => {
@@ -1539,7 +1476,7 @@ function createNotificationEventProcessor<
                             notifications: {
                                 eventType: event.type,
                                 eventId: event.id,
-                                inbox: {spaceId: info.spaceId, accountId: account.id},
+                                inbox: {spaceId: event.spaceId, accountId: account.id},
                             },
                         });
                         return updateInboxEntry(context, event, {info, account});
@@ -1859,26 +1796,26 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
 
 const processNotificationCreatePostCommentEvent = createNotificationEventProcessor<
     NotificationCreatePostCommentEvent,
-    {spaceId: SpaceId; postCreatedTime: Date}
+    {postCreatedTime: Date}
 >({
     getSubscribers: async (context, event) => {
-        const {spaceId, accounts, postCreatedTime} = await getPostNotificationSubscribers(
+        const {accounts, postCreatedTime} = await getPostNotificationSubscribers(
             context,
             event.postId,
         );
         return {
-            info: {spaceId, postCreatedTime},
+            info: {postCreatedTime},
             accounts,
         };
     },
-    updateInboxEntry: async (context, event, {info: {spaceId, postCreatedTime}, account}) => {
+    updateInboxEntry: async (context, event, {info: {postCreatedTime}, account}) => {
         await updateInboxEntry(
             context,
             event,
             {
                 partitionType: "Inbox",
                 sortRangeType: "PostCommentsEntry",
-                spaceId,
+                spaceId: event.spaceId,
                 accountId: account.id,
                 postId: event.postId,
             },
@@ -1969,7 +1906,7 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
 
 const processNotificationCreatePostEvent = createNotificationEventProcessor<
     NotificationCreatePostEvent,
-    {spaceId: SpaceId}
+    {}
 >({
     getSubscribers: async (context, event) => {
         // TODO(calebmer): For now, until we implement channel subscriptions, every
@@ -1979,11 +1916,11 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
         const accounts = await expensivelyGetAllSpaceAccounts(context, event.spaceId);
 
         return {
-            info: {spaceId: event.spaceId},
+            info: {},
             accounts,
         };
     },
-    updateInboxEntry: async (context, event, {info: {spaceId}, account}) => {
+    updateInboxEntry: async (context, event, {info: {}, account}) => {
         // Don't update an entry for the account who created the post.
         if (event.authorId === account.id) return;
 
@@ -1996,7 +1933,7 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
                 {
                     partitionType: "Inbox",
                     sortRangeType: "PostCommentsEntry",
-                    spaceId,
+                    spaceId: event.spaceId,
                     accountId: account.id,
                     postId: event.postId,
                 },
@@ -2028,7 +1965,7 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
         const inboxItem = await InboxTable.getItemIfExists(context, {
             partitionType: "Inbox",
             sortRangeType: "Attributes",
-            spaceId,
+            spaceId: event.spaceId,
             accountId: account.id,
         });
 
@@ -2038,7 +1975,7 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
             {
                 partitionType: "Inbox",
                 sortRangeType: "ChannelPostsEntry",
-                spaceId,
+                spaceId: event.spaceId,
                 accountId: account.id,
                 channelId: event.channelId,
                 bucketGeneration: inboxItem?.generation ?? initialInboxGeneration,
@@ -2066,21 +2003,21 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
 
 const processNotificationCreateDocumentCommentEvent = createNotificationEventProcessor<
     NotificationCreateDocumentCommentEvent,
-    {spaceId: SpaceId}
+    {}
 >({
     getSubscribers: async (context, event) => {
-        const {spaceId, accounts} = await getDocumentCommentThreadNotificationSubscribers(context, {
+        const accounts = await getDocumentCommentThreadNotificationSubscribers(context, {
             documentId: event.documentId,
             commentThreadId: event.commentThreadId,
             isFirstComment: event.commentIndex === 0,
         });
 
         return {
-            info: {spaceId},
+            info: {},
             accounts,
         };
     },
-    updateInboxEntry: async (context, event, {info: {spaceId}, account}) => {
+    updateInboxEntry: async (context, event, {info: {}, account}) => {
         const isFirstComment = event.commentIndex === 0;
 
         // The first comment in a thread (if it doesn't contain a mention of our user)
@@ -2094,7 +2031,7 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
             const inboxItem = await InboxTable.getItemIfExists(context, {
                 partitionType: "Inbox",
                 sortRangeType: "Attributes",
-                spaceId,
+                spaceId: event.spaceId,
                 accountId: account.id,
             });
 
@@ -2104,7 +2041,7 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
                 {
                     partitionType: "Inbox",
                     sortRangeType: "DocumentNewCommentThreadsEntry",
-                    spaceId,
+                    spaceId: event.spaceId,
                     accountId: account.id,
                     documentId: event.documentId,
                     bucketGeneration: inboxItem?.generation ?? initialInboxGeneration,
@@ -2143,7 +2080,7 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
             {
                 partitionType: "Inbox",
                 sortRangeType: "DocumentCommentThreadEntry",
-                spaceId,
+                spaceId: event.spaceId,
                 accountId: account.id,
                 documentId: event.documentId,
                 commentThreadId: event.commentThreadId,
