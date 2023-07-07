@@ -241,7 +241,21 @@ export class TracerRoot extends TracerBase {
      * ignores exceptions on span events. It expects exceptions only on spans or
      * events outside of a span.
      */
-    public logUncaughtException(name: string, error: unknown, data: TracerEventData = {}) {
+    public logUncaughtException(
+        name: string,
+        error: unknown,
+        data: TracerEventData = {},
+        {disableConsoleLog}: {disableConsoleLog?: boolean} = {},
+    ) {
+        // We don't normally log errors to the console in development because relevant
+        // errors should be presented in the app to the developer inline where they
+        // occurred. However, uncaught exceptions may not be associated with anything
+        // in the app. So log uncaught exceptions in development.
+        if (!disableConsoleLog && process.env.NODE_ENV !== "production") {
+            // eslint-disable-next-line no-console
+            console.error(error);
+        }
+
         this.log(name, {
             ...data,
             exception: getExceptionTracerEventData(error),

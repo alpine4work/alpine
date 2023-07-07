@@ -213,9 +213,6 @@ function AsyncTooltip({
                 const content = await getContent();
                 setContentState({isLoaded: true, loadTime, content});
             } catch (error) {
-                // eslint-disable-next-line no-console
-                console.error(error);
-
                 // TODO(calebmer): This does not show the exception to the user! We should show
                 // some kind of banner on error.
                 context.tracer

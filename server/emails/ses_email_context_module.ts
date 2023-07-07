@@ -18,11 +18,14 @@ import {UnknownError} from "~/shared/error/error.js";
  * Send an email with AWS SES. Used in production to send emails.
  */
 export class SesEmailContextModule extends EmailContextModuleBase<{tracer: TracerContextModule}> {
-    private readonly _client: AwsClient;
+    // TODO(calebmer): When this code was written, all server code ran on
+    // Cloudflare Workers which could not run the AWS SDK. Now that this module
+    // only runs on Node.js we should switch to using the AWS SDK SES client.
+    private readonly _awsHttpClient: AwsClient;
 
-    constructor(client: AwsClient) {
+    constructor(awsHttpClient: AwsClient) {
         super();
-        this._client = client;
+        this._awsHttpClient = awsHttpClient;
     }
 
     protected _send(
@@ -37,13 +40,15 @@ export class SesEmailContextModule extends EmailContextModuleBase<{tracer: Trace
             span.addData({
                 email: {
                     template: email.templateName,
+                },
+                aws: {
                     ses: {
                         source: actualFromEmailAddress,
                     },
                 },
             });
 
-            const output = await executeSesSendEmailCommand(this._client, {
+            const output = await executeSesSendEmailCommand(this._awsHttpClient, {
                 Source: `"${fromEmailAddressName}" <${actualFromEmailAddress}>`,
                 Destination: {ToAddresses: [toEmailAddress]},
                 Message: {
@@ -54,7 +59,7 @@ export class SesEmailContextModule extends EmailContextModuleBase<{tracer: Trace
             });
 
             span.addData({
-                email: {
+                aws: {
                     ses: {
                         messageId: output.MessageId,
                     },

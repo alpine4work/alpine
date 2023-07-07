@@ -31,7 +31,9 @@ export async function createDevProxyServer(port1: number, port2: number) {
                 res => {
                     res.on("error", error => {
                         // eslint-disable-next-line no-console
-                        console.error("Exception in response from proxied server:", error);
+                        console.error("Exception in response from proxied server:");
+                        // eslint-disable-next-line no-console
+                        console.error(error);
                     });
 
                     proxyRes.writeHead(res.statusCode!, res.headers);
@@ -52,7 +54,9 @@ export async function createDevProxyServer(port1: number, port2: number) {
                 }
 
                 // eslint-disable-next-line no-console
-                console.error("Failed request to proxied server:", error);
+                console.error("Failed request to proxied server:");
+                // eslint-disable-next-line no-console
+                console.error(error);
 
                 proxyRes.writeHead(504, {"content-type": "text/plain"});
                 proxyRes.end("Gateway Timeout");
@@ -89,7 +93,9 @@ export async function createDevProxyServer(port1: number, port2: number) {
                 res => {
                     res.on("error", error => {
                         // eslint-disable-next-line no-console
-                        console.error("Exception in response from proxied server:", error);
+                        console.error("Exception in response from proxied server:");
+                        // eslint-disable-next-line no-console
+                        console.error(error);
                     });
 
                     const headers = [];
@@ -119,7 +125,9 @@ export async function createDevProxyServer(port1: number, port2: number) {
                 }
 
                 // eslint-disable-next-line no-console
-                console.error("Failed request to proxied server:", error);
+                console.error("Failed request to proxied server:");
+                // eslint-disable-next-line no-console
+                console.error(error);
 
                 proxySocket.write(
                     "HTTP/1.1 504 Web Gateway Timeout\r\n" +
@@ -134,7 +142,9 @@ export async function createDevProxyServer(port1: number, port2: number) {
             req.on("upgrade", (res, socket, head) => {
                 res.on("error", error => {
                     // eslint-disable-next-line no-console
-                    console.error("Exception in (upgraded) response from proxied server:", error);
+                    console.error("Exception in (upgraded) response from proxied server:");
+                    // eslint-disable-next-line no-console
+                    console.error(error);
                 });
 
                 const headers = [];

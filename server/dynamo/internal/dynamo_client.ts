@@ -57,8 +57,8 @@ export class DynamoClient {
      */
     private readonly _writeItemBatcher: DynamoClientWriteItemBatcher;
 
-    constructor(client: AwsClient, url: string) {
-        this._client = new DynamoClientInternal(client, url);
+    constructor(options: {awsHttpClient: AwsClient; awsDynamoUrl: string}) {
+        this._client = new DynamoClientInternal(options);
         this._getItemBatcherByConsistency = {
             Eventual: new DynamoClientGetItemBatcher(this._client, "Eventual"),
             Strong: new DynamoClientGetItemBatcher(this._client, "Strong"),

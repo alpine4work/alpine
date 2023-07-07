@@ -1,5 +1,6 @@
 import "~/app/helpers/install_remix_globals.js";
 
+import {SQSClient} from "@aws-sdk/client-sqs";
 import * as build from "@remix-run/dev/server-build";
 import {
     Request as NodeRequest,
@@ -8,6 +9,7 @@ import {
     createRequestHandler,
     writeReadableStreamToWritable,
 } from "@remix-run/node";
+import {AwsClient} from "aws4fetch";
 import {parse as parseCookieHeader} from "cookie";
 import fs from "fs-extra";
 import {IncomingHttpHeaders, IncomingMessage, ServerResponse, createServer} from "http";
@@ -16,17 +18,22 @@ import createServeStaticMiddleware from "serve-static";
 import {PassThrough} from "stream";
 import {parseArgs} from "util";
 import {defaultClientInfo, defaultMobileClientInfo} from "~/client/remix/client_info_context.js";
-import {createAwsContextModules} from "~/server/aws/create_aws_context_modules.js";
 import {Session} from "~/server/dynamo/accounts_table.js";
 import {
     AppSessionActorContextModule,
     AppSystemActorContextModule,
     AppUnknownActorContextModule,
 } from "~/server/dynamo/context/app_actor_context_module.js";
+import {AppProcessContextModules} from "~/server/dynamo/context/app_process_context.js";
 import {NotificationsContextModule} from "~/server/dynamo/context/notifications_context_module.js";
-import {DynamoBatchContextModule} from "~/server/dynamo/dynamo_context_module.js";
+import {
+    DynamoBatchContextModule,
+    DynamoContextModule,
+} from "~/server/dynamo/dynamo_context_module.js";
 import {seedDynamo} from "~/server/dynamo/seed_dynamo.js";
 import {isAccountMemberOfSpace} from "~/server/dynamo/spaces_table.js";
+import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
+import {SesEmailContextModule} from "~/server/emails/ses_email_context_module.js";
 import {LoaderContextModule, LoaderContextModules} from "~/server/remix/loader_context.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {SessionCookie, withSessionCookie} from "~/server/tokens/session_cookie.js";
@@ -45,8 +52,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 import {ClientInfoSchema} from "~/shared/remix/client_info.js";
-
-// NOCOMMIT: Add back queues!
+import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
 const runfilesPath = assertExists(process.env.RUNFILES);
 
@@ -93,27 +99,39 @@ const serveStaticMiddleware = createServeStaticMiddleware(
     },
 );
 
+let tracer: TracerRoot;
+
 main().catch(error => {
-    // eslint-disable-next-line no-console
-    console.error("Uncaught exception from app service during startup:", error);
+    if (!tracer) {
+        // eslint-disable-next-line no-console
+        console.error(error);
+    } else {
+        tracer.logUncaughtException("Uncaught exception during startup", error);
+    }
     process.exitCode = 1;
 });
 
 // Log uncaught exceptions, don't kill the process.
 process.on("uncaughtException", error => {
-    // eslint-disable-next-line no-console
-    console.error("Uncaught exception from app service:", error);
+    if (!tracer) {
+        // eslint-disable-next-line no-console
+        console.error(error);
+    } else {
+        tracer.logUncaughtException("Uncaught exception", error);
+    }
 });
 
 async function main() {
     const {
         values: {
             port: portString,
+            edgeServiceUrl,
             appServicePublicKey: appServicePublicKeyPath,
             edgeServiceFamilyPublicKey: edgeServiceFamilyPublicKeyPath,
             appServicePrivateKey: appServicePrivateKeyPath,
-            awsAccessKeyId,
-            awsSecretAccessKey,
+            awsAccountId = process.env.NODE_ENV !== "production" ? "local" : undefined,
+            awsAccessKeyId = process.env.NODE_ENV !== "production" ? "local" : undefined,
+            awsSecretAccessKey = process.env.NODE_ENV !== "production" ? "local" : undefined,
             honeycombApiKey,
             remixDevServerPort,
             dynamoLocalPort,
@@ -122,9 +140,11 @@ async function main() {
     } = parseArgs({
         options: {
             port: {type: "string"},
+            edgeServiceUrl: {type: "string"},
             appServicePublicKey: {type: "string"},
             edgeServiceFamilyPublicKey: {type: "string"},
             appServicePrivateKey: {type: "string"},
+            awsAccountId: {type: "string"},
             awsAccessKeyId: {type: "string"},
             awsSecretAccessKey: {type: "string"},
             honeycombApiKey: {type: "string"},
@@ -134,11 +154,28 @@ async function main() {
         },
     });
 
+    tracer = createServerTracer({
+        serviceName: "AppService",
+        honeycombApiKey,
+        waitUntil: promise => {
+            // We don't need to extend the lifetime of our Node.js process with a promise.
+            // If the tracer throws an error, well, there's nowhere else to send the error.
+            promise.catch(scheduleUncaughtError);
+        },
+    });
+
     if (!portString) throw new InternalError("Missing `port` arg");
+    if (!edgeServiceUrl) throw new InternalError("Missing `edgeServiceUrl` arg");
+
     if (!appServicePublicKeyPath) throw new InternalError("Missing `appServicePublicKey` arg");
     if (!edgeServiceFamilyPublicKeyPath)
         throw new InternalError("Missing `edgeServiceFamilyPublicKeyPath` arg");
     if (!appServicePrivateKeyPath) throw new InternalError("Missing `appServicePrivateKey` arg");
+
+    if (!awsAccountId) throw new InternalError("Must provide `awsAccountId` arg in production");
+    if (!awsAccessKeyId) throw new InternalError("Must provide `awsAccessKeyId` arg in production");
+    if (!awsSecretAccessKey)
+        throw new InternalError("Must provide `awsSecretAccessKey` arg in production");
 
     const port = parseInt(portString, 10);
 
@@ -155,10 +192,44 @@ async function main() {
         appServicePrivateKey,
     });
 
-    const awsContextModules = createAwsContextModules({
-        awsAccessKeyId,
-        awsSecretAccessKey,
-        dynamoLocalPort,
+    const awsCredentials = {
+        accessKeyId: awsAccessKeyId,
+        secretAccessKey: awsSecretAccessKey,
+    };
+
+    const awsHttpClient = new AwsClient(awsCredentials);
+
+    const awsSqsClient = new SQSClient({
+        region: "us-east-1",
+        credentials: awsCredentials,
+    });
+
+    const processContext = Context.new<AppProcessContextModules>({
+        process: new ProcessContextModule({
+            waitUntil: promise => {
+                promise.catch(error => {
+                    tracer.logUncaughtException("Uncaught exception from `waitUntil()`", error);
+                });
+            },
+        }),
+        tracer: new TracerContextModule(tracer),
+        dynamo: DynamoContextModule.new({
+            awsHttpClient,
+            awsDynamoUrl:
+                awsHttpClient.accessKeyId !== "local"
+                    ? `https://dynamodb.us-east-1.amazonaws.com`
+                    : `http://localhost:${parseInt(
+                          assertExists(
+                              dynamoLocalPort,
+                              "DynamoDB local port must be provided when running DynamoDB locally",
+                          ),
+                          10,
+                      )}`,
+        }),
+        email:
+            awsHttpClient.accessKeyId !== "local"
+                ? new SesEmailContextModule(awsHttpClient)
+                : new NoopEmailContextModule(),
     });
 
     let hasSeededDynamo = false;
@@ -169,19 +240,6 @@ async function main() {
         serveStaticMiddleware(req, res, () => {
             const request = createRequest(req);
             const url = new URL(request.url);
-
-            // Create a new tracer for every request because we need a Honeycomb client and
-            // the Honeycomb client needs `executionContext.waitUntil()` which is request
-            // scoped. Tracers are cheap to construct so this is fine.
-            const tracer = createServerTracer({
-                serviceName: "AppService",
-                honeycombApiKey,
-                waitUntil: promise => {
-                    // We don't need to extend the lifetime of our Node.js process with a promise.
-                    // If the tracer throws an error, well, there's nowhere else to send the error.
-                    promise.catch(scheduleUncaughtError);
-                },
-            });
 
             const responsePromise = traceFetchResponse(tracer, request, url, (span, request) => {
                 return withSessionCookie(tokenAgent, request, sessionCookie => {
@@ -216,29 +274,14 @@ async function main() {
                         }
                     }
 
-                    return Context.with<LoaderContextModules, globalThis.Response>(
+                    return processContext.with<
+                        Omit<
+                            LoaderContextModules,
+                            Exclude<keyof AppProcessContextModules, "tracer">
+                        >,
+                        globalThis.Response
+                    >(
                         {
-                            ...awsContextModules,
-                            process: new ProcessContextModule({
-                                waitUntil: promise => {
-                                    // Don't crash the process when there's an uncaught promise exception in
-                                    // `waitUntil()` but definitely log it.
-                                    promise.catch(error => {
-                                        if (process.env.NODE_ENV !== "production") {
-                                            // eslint-disable-next-line no-console
-                                            console.error(
-                                                "Uncaught exception from `waitUntil()`:",
-                                                error,
-                                            );
-                                        }
-
-                                        tracer.logUncaughtException(
-                                            "Uncaught exception from `waitUntil()`",
-                                            error,
-                                        );
-                                    });
-                                },
-                            }),
                             tracer: new TracerContextModule(span),
                             rpc: new LocalRpcContextModule(),
                             loader: new LoaderContextModule({
@@ -250,13 +293,18 @@ async function main() {
                             }),
                             cache: new CacheContextModule(),
                             dynamoBatchContext: new DynamoBatchContextModule(),
-                            notifications: new NotificationsContextModule({}),
                             actor: createActorContextModule(
                                 request,
                                 url,
                                 tokenAgent,
                                 sessionCookie,
                             ),
+                            notifications: new NotificationsContextModule({
+                                edgeServiceUrl,
+                                tokenAgent,
+                                awsSqsClient,
+                                awsQueueUrl: `https://sqs.us-east-1.amazonaws.com/${awsAccountId}/Notifications`,
+                            }),
                         },
                         context => {
                             // The first time our server process runs in development, seed DynamoDB with
@@ -289,8 +337,7 @@ async function main() {
                 error => {
                     // Errors should be caught and handled by this point. So this error handler is
                     // for unexpected internal code failures.
-                    // eslint-disable-next-line no-console
-                    console.error("Uncaught exception from HTTP server:", error);
+                    scheduleUncaughtError(error);
 
                     res.writeHead(500, {"content-type": "text/plain"});
                     res.end("Internal Server Error");

@@ -25,20 +25,31 @@ import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
  * interface to DynamoDB with batching, pagination, and camelCase names instead
  * of PascalCase.
  */
+// NOTE(calebmer): Originally, all our server code ran on Cloudflare Workers
+// which could not use the AWS SDK. That means we had to use `aws4fetch` to
+// make requests to DynamoDB. Now that all our code that runs against DynamoDB
+// is in Node.js we could use the AWS SDK for DynamoDB but a migration doesn't
+// make sense for now.
+//
+// This class abstraction is still useful because it adds tracing. Maybe it's
+// also slightly more efficient since it's so low level?
+//
+// If/when we migrate there may be some retries we've had to manually implement
+// that the SDK does automatically we'd have to sus out.
 export class DynamoClientInternal {
-    private readonly _client: AwsClient;
-    private readonly _url: string;
+    private readonly _awsHttpClient: AwsClient;
+    private readonly _awsDynamoUrl: string;
 
-    constructor(client: AwsClient, url: string) {
-        this._client = client;
-        this._url = url;
+    constructor({awsHttpClient, awsDynamoUrl}: {awsHttpClient: AwsClient; awsDynamoUrl: string}) {
+        this._awsHttpClient = awsHttpClient;
+        this._awsDynamoUrl = awsDynamoUrl;
     }
 
     /**
      * Is running against a local DynamoDB?
      */
     public isLocal(): boolean {
-        return this._client.accessKeyId === "local";
+        return this._awsHttpClient.accessKeyId === "local";
     }
 
     private async _execute<Input = never, Output = unknown>(
@@ -46,7 +57,7 @@ export class DynamoClientInternal {
         command: string,
         input: Input,
     ): Promise<Output> {
-        const response = await this._client.fetch(this._url, {
+        const response = await this._awsHttpClient.fetch(this._awsDynamoUrl, {
             method: "POST",
             headers: {
                 "Content-Type": "application/x-amz-json-1.0",

@@ -1,4 +1,3 @@
-import {NotificationsContextModuleBase} from "~/server/dynamo/context/notifications_context_module.js";
 import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {Context} from "~/shared/context/context.js";
@@ -17,5 +16,4 @@ export type AppProcessContextModules = {
     tracer: TracerContextModule;
     dynamo: DynamoContextModule;
     email: EmailContextModuleBase;
-    notifications: NotificationsContextModuleBase;
 };

@@ -68,8 +68,8 @@ export class DynamoContextModule<Modules extends {} = {}> extends ContextModuleB
         this._retryTransaction = retryTransaction;
     }
 
-    public static new(client: AwsClient, url: string) {
-        return new DynamoContextModule(new DynamoClient(client, url), {
+    public static new(options: {awsHttpClient: AwsClient; awsDynamoUrl: string}) {
+        return new DynamoContextModule(new DynamoClient(options), {
             defaultReadConsistency: "Eventual",
             retryTransaction: null,
         });
@@ -82,7 +82,7 @@ export class DynamoContextModule<Modules extends {} = {}> extends ContextModuleB
      * May only run in a test environment.
      */
     public static test(): DynamoContextModule & {
-        initialize: (client: AwsClient, url: string) => void;
+        initialize: (awsHttpClient: AwsClient, awsDynamoUrl: string) => void;
     } {
         assert(process.env.NODE_ENV === "test");
 
@@ -92,7 +92,7 @@ export class DynamoContextModule<Modules extends {} = {}> extends ContextModuleB
         });
 
         return Object.assign(contextModule, {
-            initialize: (client: AwsClient, url: string) => {
+            initialize: (awsHttpClient: AwsClient, awsDynamoUrl: string) => {
                 let hasInitialized = false;
                 try {
                     // eslint-disable-next-line @typescript-eslint/no-unused-expressions
@@ -104,7 +104,7 @@ export class DynamoContextModule<Modules extends {} = {}> extends ContextModuleB
                 assert(!hasInitialized, "Can not initialize DynamoDB client twice");
 
                 Object.defineProperty(contextModule, "_client", {
-                    value: new DynamoClient(client, url),
+                    value: new DynamoClient(awsHttpClient, awsDynamoUrl),
                     writable: false,
                 });
             },

@@ -1,32 +1,34 @@
+import {SQSClient, SendMessageCommand} from "@aws-sdk/client-sqs";
 import {AppSystemActionContext} from "~/server/dynamo/context/app_action_context.js";
+import {AppActorContextModule} from "~/server/dynamo/context/app_actor_context_module.js";
+import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module.js";
 import {
     NotificationEvent,
     NotificationEventSchema,
     processNotificationEvent,
 } from "~/server/dynamo/notifications_table.js";
+import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table.js";
+import {TokenAgentBase} from "~/server/tokens/token_agent.js";
+import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {
-    DynamoGeneralRealtimeEvent,
-    createDynamoGeneralRealtimeEventSchema,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {DataLossError} from "~/shared/error/error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {isId} from "~/shared/id/id.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxItemModelSchema} from "~/shared/notifications/inbox_model.js";
+import {MyAccountInboxRealtimeEventTransactionSchema} from "~/shared/notifications/my_account_inbox_realtime_event_transaction_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 import {TracerPropagationContextSchema} from "~/shared/tracer/tracer_propagation_context_schema.js";
-
-// NOCOMMIT: Notifications need to work in a new way not that they're on Node.js?
 
 export const NotificationsQueueMessageSchema = Schema.object({
     event: NotificationEventSchema,
     tracerContext: TracerPropagationContextSchema,
-});
-
-export const MyAccountInboxRealtimeEventTransactionSchema = Schema.object({
-    readTime: Schema.date,
-    eventTransaction: Schema.array(createDynamoGeneralRealtimeEventSchema(InboxItemModelSchema)),
 });
 
 /**
@@ -36,6 +38,9 @@ export const MyAccountInboxRealtimeEventTransactionSchema = Schema.object({
 export abstract class NotificationsContextModuleBase extends ContextModuleBase<{
     process: ProcessContextModule;
     tracer: TracerContextModule;
+    dynamo: DynamoContextModule;
+    cache: CacheContextModule;
+    actor: AppActorContextModule;
 }> {
     /**
      * Send a notification event to be processed asynchronously by our notification
@@ -56,48 +61,77 @@ export abstract class NotificationsContextModuleBase extends ContextModuleBase<{
 }
 
 export class NotificationsContextModule extends NotificationsContextModuleBase {
-    // NOCOMMIT
-    // private readonly _notificationQueue: Queue;
-    // private readonly _myAccountDurableObjectNamespace: DurableObjectNamespace;
-    // private readonly _sessionCookieSecret: string;
+    private readonly _edgeServiceUrl: string;
+    private readonly _tokenAgent: TokenAgentBase;
+    private readonly _awsSqsClient: SQSClient;
+    private readonly _awsQueueUrl: string;
 
-    constructor(env: {
-        // NOCOMMIT
-        // NotificationsQueue: Queue;
-        // MyAccountDurableObjectNamespace: DurableObjectNamespace;
-        // SESSION_COOKIE_SECRET?: string;
+    constructor({
+        edgeServiceUrl,
+        tokenAgent,
+        awsSqsClient,
+        awsQueueUrl,
+    }: {
+        edgeServiceUrl: string;
+        tokenAgent: TokenAgentBase;
+        awsSqsClient: SQSClient;
+        awsQueueUrl: string;
     }) {
         super();
-        // this._notificationQueue = env.NotificationsQueue;
-        // this._myAccountDurableObjectNamespace = env.MyAccountDurableObjectNamespace;
-        //
-        // const sessionCookieSecret = env.SESSION_COOKIE_SECRET;
-        // if (!sessionCookieSecret)
-        //     throw new InternalError("Missing `SESSION_COOKIE_SECRET` environment variable");
-        //
-        // this._sessionCookieSecret = sessionCookieSecret;
+        this._edgeServiceUrl = edgeServiceUrl;
+        this._tokenAgent = tokenAgent;
+        this._awsSqsClient = awsSqsClient;
+        this._awsQueueUrl = awsQueueUrl;
     }
 
     public override sendNotificationEvent(event: NotificationEvent) {
-        // NOCOMMIT
-        //
-        // this._context.process.waitUntil(
-        //     this._context.tracer.withSpan("Send notification event", (context, span) => {
-        //         span.addData({
-        //             notifications: {
-        //                 eventType: event.type,
-        //                 eventId: event.id,
-        //             },
-        //         });
-        //
-        //         return this._notificationQueue.send(
-        //             NotificationsQueueMessageSchema.serialize({
-        //                 event,
-        //                 tracerContext: span.getPropagationContext(),
-        //             }),
-        //         );
-        //     }),
-        // );
+        this._context.process.waitUntil(
+            this._context.tracer.withSpan("Send notification event", async (context, span) => {
+                const lastPathSegmentIndex = this._awsQueueUrl.lastIndexOf("/");
+                const queueName =
+                    lastPathSegmentIndex !== -1
+                        ? this._awsQueueUrl.slice(lastPathSegmentIndex + 1)
+                        : undefined;
+
+                span.addData({
+                    notifications: {
+                        eventType: event.type,
+                        eventId: event.id,
+                    },
+                    aws: {
+                        sqs: {
+                            queue: queueName,
+                        },
+                    },
+                });
+
+                try {
+                    const output = await this._awsSqsClient.send(
+                        new SendMessageCommand({
+                            QueueUrl: this._awsQueueUrl,
+                            MessageBody: JSON.stringify(
+                                NotificationsQueueMessageSchema.serialize({
+                                    event,
+                                    tracerContext: span.getPropagationContext(),
+                                }),
+                            ),
+                        }),
+                    );
+
+                    span.addData({
+                        aws: {
+                            sqs: {
+                                messageId: output.MessageId,
+                            },
+                        },
+                    });
+                } catch (error) {
+                    // Escalate any failed message delivery errors to data loss errors since it
+                    // means we won't see notifications for this event.
+                    throw DataLossError.from(error);
+                }
+            }),
+        );
     }
 
     public override async sendInboxRealtimeEventTransaction(
@@ -106,87 +140,67 @@ export class NotificationsContextModule extends NotificationsContextModuleBase {
             DynamoGeneralRealtimeEvent<SchemaType<typeof InboxItemModelSchema>>
         >,
     ) {
-        // NOCOMMIT
+        // Split up event transactions by unique `SpaceId` and `AccountId`
+        // combinations. By splitting a transaction it may not be applied atomically.
+        // We split by `AccountId` since events need to go to different durable
+        // objects.
         //
-        // // Split up event transactions by unique `SpaceId` and `AccountId`
-        // // combinations. By splitting a transaction it may not be applied atomically.
-        // // We split by `AccountId` since events need to go to different durable
-        // // objects.
-        // //
-        // // Having a transaction across two accounts or two spaces isn't theoretically
-        // // impossible but would be weird and doesn't currently happen in practice.
-        // const eventTransactionBySpaceIdAndAccountId = new Map<
-        //     `${SpaceId}:${AccountId}`,
-        //     Array<DynamoGeneralRealtimeEvent<SchemaType<typeof InboxItemModelSchema>>>
-        // >();
-        //
-        // for (const event of eventTransaction) {
-        //     getOrSetDefaultMapValue(
-        //         eventTransactionBySpaceIdAndAccountId,
-        //         `${event.item.model.spaceId}:${event.item.model.accountId}`,
-        //         () => [],
-        //     ).push(event);
-        // }
-        //
-        // await runAllPromises(
-        //     Array.from(
-        //         eventTransactionBySpaceIdAndAccountId,
-        //         async ([spaceIdAndAccountId, eventTransaction]) => {
-        //             const [spaceId, accountId] = spaceIdAndAccountId.split(":");
-        //             assert(spaceId && isId<SpaceId>(spaceId));
-        //             assert(accountId && isId<AccountId>(accountId));
-        //
-        //             const durableObjectId =
-        //                 this._myAccountDurableObjectNamespace.idFromName(accountId);
-        //             const durableObjectStub =
-        //                 this._myAccountDurableObjectNamespace.get(durableObjectId);
-        //
-        //             // Create a short-lived JWT for authenticating as a system actor when
-        //             // executing the durable object.
-        //             //
-        //             // We use a JWT to ensure that it's our app worker sending the token. If
-        //             // an attacker got access to the Durable Object URL then they could use
-        //             // `type: "System"` with any arbitrary `SpaceId`! Using a signed JWT
-        //             // prevents that.
-        //             const authenticationToken = await new SignJWT({
-        //                 type: "System",
-        //                 spaceId,
-        //             })
-        //                 .setProtectedHeader({alg: "HS256"})
-        //                 .setIssuedAt()
-        //                 .setExpirationTime("2m")
-        //                 .sign(new TextEncoder().encode(this._sessionCookieSecret));
-        //
-        //             await fetchWithTracer(
-        //                 this._context.tracer.getTracer(),
-        //                 "/inbox-realtime-event-transaction",
-        //                 {
-        //                     fetch: (url, requestInit) =>
-        //                         durableObjectStub.fetch(
-        //                             (typeof url === "string"
-        //                                 ? // NOTE(calebmer): Dummy domain owned by Cloudflare. We seem to get an error
-        //                                   // when just passing in a path? Maybe this is a Miniflare only bug.
-        //                                   new URL(url, "https://workers.dev")
-        //                                 : url) as any,
-        //                             requestInit,
-        //                         ),
-        //                     method: "POST",
-        //                     headers: {
-        //                         authorization: `bearer ${authenticationToken}`,
-        //                         "cyberworlds-id-name": accountId,
-        //                         "content-type": "application/json",
-        //                     },
-        //                     body: JSON.stringify(
-        //                         MyAccountInboxRealtimeEventTransactionSchema.serialize({
-        //                             readTime,
-        //                             eventTransaction,
-        //                         }),
-        //                     ),
-        //                 },
-        //             );
-        //         },
-        //     ),
-        // );
+        // Having a transaction across two accounts or two spaces isn't theoretically
+        // impossible but would be weird and doesn't currently happen in practice.
+        const eventTransactionBySpaceIdAndAccountId = new Map<
+            `${SpaceId}:${AccountId}`,
+            Array<DynamoGeneralRealtimeEvent<SchemaType<typeof InboxItemModelSchema>>>
+        >();
+
+        for (const event of eventTransaction) {
+            getOrSetDefaultMapValue(
+                eventTransactionBySpaceIdAndAccountId,
+                `${event.item.model.spaceId}:${event.item.model.accountId}`,
+                () => [],
+            ).push(event);
+        }
+
+        await runAllPromises(
+            Array.from(
+                eventTransactionBySpaceIdAndAccountId,
+                async ([spaceIdAndAccountId, eventTransaction]) => {
+                    const [spaceId, accountId] = spaceIdAndAccountId.split(":");
+                    assert(spaceId && isId<SpaceId>(spaceId));
+                    assert(accountId && isId<AccountId>(accountId));
+
+                    // We're allowed to broadcast realtime events to `MyAccountService` if we are
+                    // system actor with space access.
+                    this._context.actor.authorizeSystem();
+                    await authorizeSpaceAccess(this._context, spaceId);
+
+                    const token = await this._tokenAgent.dangerouslySignShortLivedToken(
+                        "MyAccountService",
+                        {type: "System", spaceId},
+                    );
+
+                    await fetchWithTracer(
+                        this._context.tracer.getTracer(),
+                        new URL(
+                            `/api/durable-objects/my-account/${accountId}/inbox-realtime-event-transaction`,
+                            this._edgeServiceUrl,
+                        ),
+                        {
+                            method: "POST",
+                            headers: {
+                                authorization: `bearer ${token}`,
+                                "content-type": "application/json",
+                            },
+                            body: JSON.stringify(
+                                MyAccountInboxRealtimeEventTransactionSchema.serialize({
+                                    readTime,
+                                    eventTransaction,
+                                }),
+                            ),
+                        },
+                    );
+                },
+            ),
+        );
     }
 }
 

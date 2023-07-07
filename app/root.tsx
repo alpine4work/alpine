@@ -11,7 +11,7 @@ import {
 import {LinkDescriptor} from "@remix-run/server-runtime";
 import {IconContext} from "phosphor-react";
 import prosemirrorStylesHref from "prosemirror-view/style/prosemirror.css";
-import {Context, useCallback, useContext, useEffect, useMemo, useState} from "react";
+import {Context, useCallback, useContext, useEffect, useMemo} from "react";
 import {
     DataRouteObject,
     UNSAFE_DataRouterContext as DataRouterContext,
@@ -55,7 +55,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {generateId} from "~/shared/id/id.js";
 import {ClientInfoSchema} from "~/shared/remix/client_info.js";
 import {propagatedEventDataKey} from "~/shared/remix/json_with_schema_shared.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -142,7 +141,15 @@ export default function Root() {
     // or not.
     useEffect(() => {
         const handleError = (event: ErrorEvent) => {
-            context.tracer.getRoot().logUncaughtException("Uncaught error", event.error);
+            context.tracer.getRoot().logUncaughtException(
+                "Uncaught exception",
+                event.error,
+                {},
+                {
+                    // Uncaught browser errors were already logged. We don't need to do it again.
+                    disableConsoleLog: true,
+                },
+            );
         };
 
         window.addEventListener("error", handleError);

@@ -63,12 +63,16 @@ export async function startRemixDevServer({remixDevServerPort}: {remixDevServerP
 
     actualRemixDevServer.on("error", error => {
         // eslint-disable-next-line no-console
-        console.error("Uncaught exception from Remix dev server:", error);
+        console.error("Uncaught exception from Remix dev server:");
+        // eslint-disable-next-line no-console
+        console.error(error);
     });
 
     remixDevWebSocketServer.on("error", error => {
         // eslint-disable-next-line no-console
-        console.error("Uncaught exception from Remix dev WebSocket server:", error);
+        console.error("Uncaught exception from Remix dev server:");
+        // eslint-disable-next-line no-console
+        console.error(error);
     });
 
     await new Promise<void>(resolve => {

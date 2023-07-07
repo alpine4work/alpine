@@ -6,6 +6,7 @@ import {MyAccountConnection} from "~/server/notifications/my_account_connection.
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
+import {MyAccountInboxRealtimeEventTransactionSchema} from "~/shared/notifications/my_account_inbox_realtime_event_transaction_schema.js";
 import {MyAccountProtocol} from "~/shared/notifications/my_account_protocol.js";
 import {getAccountIfExists} from "~/shared/rpc/accounts_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -75,19 +76,21 @@ class MyAccountDurableObject {
                 return this._webSocketServer.upgrade(context.actor.authorizeSession(), request);
             }
             case "/inbox-realtime-event-transaction": {
-                // NOCOMMIT
-                //
-                // await authorizeMyAccountAccess(context, this._accountId);
-                //
-                // const {readTime, eventTransaction} =
-                //     MyAccountInboxRealtimeEventTransactionSchema.deserialize(await request.json());
-                //
-                // // Forward the event transaction to all our connected clients...
-                // this._webSocketServer.sendEventToAll(context, {
-                //     type: "InboxRealtimeEventTransaction",
-                //     readTime,
-                //     eventTransaction,
-                // });
+                await authorizeMyAccountAccess(context, this._accountId);
+
+                // Only system requests can send a realtime event transaction. This prevents a
+                // user from sending a POST request from their browser.
+                context.actor.authorizeSystem();
+
+                const {readTime, eventTransaction} =
+                    MyAccountInboxRealtimeEventTransactionSchema.deserialize(await request.json());
+
+                // Forward the event transaction to all our connected clients...
+                this._webSocketServer.sendEventToAll(context, {
+                    type: "InboxRealtimeEventTransaction",
+                    readTime,
+                    eventTransaction,
+                });
 
                 return new Response();
             }

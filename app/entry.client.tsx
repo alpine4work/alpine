@@ -27,10 +27,6 @@ function main() {
                 // log. The trace will always point to our error message renderer which
                 // isn't useful.
                 scheduleMicrotask(() => {
-                    // Log the error to the console to make the error easier to debug.
-                    // eslint-disable-next-line no-console
-                    console.error(error);
-
                     context.tracer.getRoot().logUncaughtException("Rendered error", error);
                 });
             },

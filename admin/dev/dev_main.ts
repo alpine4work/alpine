@@ -72,6 +72,7 @@ const artifacts: ReadonlyArray<Artifact> = [
         port: appPort,
         privatePort: appDevPrivatePort,
         args: [
+            `--edgeServiceUrl=http://localhost:${edgePort}`,
             `--appServicePublicKey=${devAppServicePublicKeyPath}`,
             `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
             `--appServicePrivateKey=${devAppServicePrivateKeyPath}`,
@@ -92,7 +93,7 @@ const artifacts: ReadonlyArray<Artifact> = [
         port: edgePort,
         privatePort: edgeDevPrivatePort,
         args: [
-            `--appPort=${appPort}`,
+            `--appServiceUrl=http://localhost:${appPort}`,
             `--appServicePublicKey=${devAppServicePublicKeyPath}`,
             `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
             `--edgeServiceFamilyPrivateKey=${devEdgeServiceFamilyPrivateKeyPath}`,
@@ -151,7 +152,9 @@ mainPromise.catch(scheduleUncaughtError);
 // Log uncaught exceptions, don't kill the process.
 process.on("uncaughtException", error => {
     // eslint-disable-next-line no-console
-    console.error("Uncaught exception from dev process manager:", error);
+    console.error("Uncaught exception from dev process manager:");
+    // eslint-disable-next-line no-console
+    console.error(error);
 });
 
 /**
@@ -166,7 +169,11 @@ async function rebuildArtifact(artifact: Artifact) {
         if (artifactServer?.buildId === buildId) return;
 
         if (artifactServer) {
-            const exitPromise = waitForProcessExit(artifactServer.subprocess);
+            const exitPromise = waitForProcessExit(artifactServer.subprocess).catch(() => {
+                // Ignore errors. As long as the last process exits we can start the
+                // new process.
+            });
+
             artifactServer.subprocess.kill("SIGINT");
             await exitPromise;
             setArtifactServer(null);

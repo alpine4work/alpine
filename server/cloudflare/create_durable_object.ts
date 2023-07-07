@@ -133,14 +133,7 @@ export function createDurableObject<
                 process: new ProcessContextModule({
                     waitUntil: promise =>
                         this._state.waitUntil(
-                            // Don't crash the process when there's an uncaught promise exception in
-                            // `waitUntil()` but definitely log it.
                             promise.catch(error => {
-                                if (process.env.NODE_ENV !== "production") {
-                                    // eslint-disable-next-line no-console
-                                    console.error("Uncaught exception from `waitUntil()`:", error);
-                                }
-
                                 this._tracer.logUncaughtException(
                                     "Uncaught exception from `waitUntil()`",
                                     error,

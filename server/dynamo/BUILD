@@ -26,7 +26,6 @@ ts_project(
     visibility = [
         "//admin:__subpackages__",
         "//app:__subpackages__",
-        "//server/aws:__pkg__",
         "//server/dynamo:__subpackages__",
         "//server/remix:__pkg__",
         "//server/rpc:__pkg__",

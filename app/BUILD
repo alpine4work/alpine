@@ -5,6 +5,8 @@ load("//app:remix.bzl", "remix_app")
 ts_project(
     name = "app_lib",
     deps = [
+        "//:node_modules/@aws-sdk/client-sqs",
+        "//:node_modules/@aws-sdk/credential-providers",
         "//:node_modules/@remix-run/dev",
         "//:node_modules/@remix-run/node",
         "//:node_modules/@remix-run/server-runtime",
@@ -13,6 +15,7 @@ ts_project(
         "//:node_modules/@types/mjml-react",
         "//:node_modules/@types/react",
         "//:node_modules/@types/serve-static",
+        "//:node_modules/aws4fetch",
         "//:node_modules/cookie",
         "//:node_modules/fs-extra",
         "//:node_modules/immer",
@@ -38,7 +41,6 @@ ts_project(
         "//client/tasks",
         "//client/tracer",
         "//client/virtualized",
-        "//server/aws",
         "//server/dynamo",
         "//server/emails",
         "//server/remix",

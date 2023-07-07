@@ -1,5 +1,6 @@
 import {getAccount} from "~/server/dynamo/accounts_table.js";
 import {AppActionContext} from "~/server/dynamo/context/app_action_context.js";
+import {AppActorContextModule} from "~/server/dynamo/context/app_actor_context_module.js";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context.js";
 import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants.js";
@@ -182,7 +183,12 @@ export async function isAccountMemberOfSpace(
  * `spaceId`. Throws if the account does not have access.
  */
 export async function authorizeSpaceAccess(
-    context: AppActionContext,
+    context: Context<{
+        tracer: TracerContextModule;
+        dynamo: DynamoContextModule;
+        cache: CacheContextModule;
+        actor: AppActorContextModule;
+    }>,
     spaceId: SpaceId,
 ): Promise<void> {
     switch (context.actor.type) {

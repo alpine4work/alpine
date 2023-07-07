@@ -1,6 +1,6 @@
 workspace(name = "cyberworlds")
 
-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
 
 # =========================================================================== #
 #                                Bazel Skylib                                 #
@@ -174,4 +174,15 @@ load("//admin/playwright:playwright_browsers.bzl", "playwright_browsers_reposito
 playwright_browsers_repository(
     name = "playwright_browsers",
     playwright_version = "1.31.1",
+)
+
+# =========================================================================== #
+#                       ElasticMQ (for AWS SQS mocking)                       #
+# =========================================================================== #
+
+http_file(
+    name = "elasticmq",
+    downloaded_file_path = "elasticmq-server.jar",
+    sha256 = "ef51a55fccf0882e6d666d8b19251d39ae190d9510409f734d8f2f8aed8c40b9",
+    url = "https://s3-eu-west-1.amazonaws.com/softwaremill-public/elasticmq-server-1.4.2.jar",
 )

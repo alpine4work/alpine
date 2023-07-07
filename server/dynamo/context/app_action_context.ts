@@ -5,6 +5,7 @@ import {
     AppUnknownActorContextModule,
 } from "~/server/dynamo/context/app_actor_context_module.js";
 import {AppProcessContextModules} from "~/server/dynamo/context/app_process_context.js";
+import {NotificationsContextModuleBase} from "~/server/dynamo/context/notifications_context_module.js";
 import {DynamoBatchContextModule} from "~/server/dynamo/dynamo_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -31,6 +32,11 @@ export type AppActionContextModulesBase = AppProcessContextModules & {
      * We batch at the action level so that unrelated requests do not share IO.
      */
     dynamoBatchContext: DynamoBatchContextModule;
+
+    /**
+     * Send notification events to our queue for processing.
+     */
+    notifications: NotificationsContextModuleBase;
 };
 
 /**

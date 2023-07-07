@@ -8,21 +8,21 @@ const toml = require("toml");
 
 main().catch(error => {
     // eslint-disable-next-line no-console
-    console.error("Uncaught exception from edge service:", error);
+    console.error(error);
     process.exitCode = 1;
 });
 
 // Log uncaught exceptions, don't kill the process.
 process.on("uncaughtException", error => {
     // eslint-disable-next-line no-console
-    console.error("Uncaught exception from edge service:", error);
+    console.error(error);
 });
 
 async function main() {
     const {
         values: {
             port: portString,
-            appPort: appPortString,
+            appServiceUrl,
             appServicePublicKey: appServicePublicKeyPath,
             edgeServiceFamilyPublicKey: edgeServiceFamilyPublicKeyPath,
             edgeServiceFamilyPrivateKey: edgeServiceFamilyPrivateKeyPath,
@@ -31,7 +31,7 @@ async function main() {
     } = parseArgs({
         options: {
             port: {type: "string"},
-            appPort: {type: "string"},
+            appServiceUrl: {type: "string"},
             appServicePublicKey: {type: "string"},
             edgeServiceFamilyPublicKey: {type: "string"},
             edgeServiceFamilyPrivateKey: {type: "string"},
@@ -40,7 +40,7 @@ async function main() {
     });
 
     if (!portString) throw new Error("Missing `port` arg");
-    if (!appPortString) throw new Error("Missing `appPort` arg");
+    if (!appServiceUrl) throw new Error("Missing `appServiceUrl` arg");
     if (!appServicePublicKeyPath) throw new Error("Missing `appServicePublicKey` arg");
     if (!edgeServiceFamilyPublicKeyPath)
         throw new Error("Missing `edgeServiceFamilyPublicKeyPath` arg");
@@ -55,7 +55,6 @@ async function main() {
         ]);
 
     const port = parseInt(portString, 10);
-    const appPort = parseInt(appPortString, 10);
 
     const runfilesPath = process.env.RUNFILES;
     if (!runfilesPath) throw new Error("Missing runfiles env variable");
@@ -70,7 +69,7 @@ async function main() {
         modules: true,
         scriptPath: joinPath(runfilesPath, "cyberworlds/server/edge/edge_service_bundle.js"),
         wranglerConfigPath: joinPath(runfilesPath, "cyberworlds/server/edge/wrangler.toml"),
-        upstream: `http://localhost:${appPort}`,
+        upstream: appServiceUrl,
         bindings: {
             APP_SERVICE_PUBLIC_KEY: appServicePublicKey,
             EDGE_SERVICE_FAMILY_PUBLIC_KEY: edgeServiceFamilyPublicKey,
