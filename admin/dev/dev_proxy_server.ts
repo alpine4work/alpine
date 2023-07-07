@@ -1,4 +1,5 @@
 import http from "http";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 
 // This will be ~20s of retrying.
 const retryDurationMs = 50;
@@ -28,6 +29,11 @@ export async function createDevProxyServer(port1: number, port2: number) {
                     headers: proxyReq.headers,
                 },
                 res => {
+                    res.on("error", error => {
+                        // eslint-disable-next-line no-console
+                        console.error("Exception in response from proxied server:", error);
+                    });
+
                     proxyRes.writeHead(res.statusCode!, res.headers);
                     res.pipe(proxyRes, {end: true});
                 },
@@ -57,6 +63,15 @@ export async function createDevProxyServer(port1: number, port2: number) {
     });
 
     proxyServer.on("upgrade", (proxyReq, proxySocket, proxyHead) => {
+        proxySocket.on("error", error => {
+            // Thrown when the other side of the socket closes. This is normal. Ignore
+            // the error.
+            // https://stackoverflow.com/questions/2974021/what-does-econnreset-mean-in-the-context-of-an-af-local-socket
+            if ("code" in error && (error.code === "ECONNRESET" || error.code === "EPIPE")) return;
+
+            scheduleUncaughtError(error);
+        });
+
         let requestAttemptCount = 0;
         request();
 
@@ -72,6 +87,11 @@ export async function createDevProxyServer(port1: number, port2: number) {
                     headers: proxyReq.headers,
                 },
                 res => {
+                    res.on("error", error => {
+                        // eslint-disable-next-line no-console
+                        console.error("Exception in response from proxied server:", error);
+                    });
+
                     const headers = [];
                     for (let i = 0; i < res.rawHeaders.length; i += 2) {
                         headers.push(`${res.rawHeaders[i]!}: ${res.rawHeaders[i + 1]!}`);
@@ -112,6 +132,11 @@ export async function createDevProxyServer(port1: number, port2: number) {
             proxyReq.pipe(req, {end: true});
 
             req.on("upgrade", (res, socket, head) => {
+                res.on("error", error => {
+                    // eslint-disable-next-line no-console
+                    console.error("Exception in (upgraded) response from proxied server:", error);
+                });
+
                 const headers = [];
                 for (let i = 0; i < res.rawHeaders.length; i += 2) {
                     headers.push(`${res.rawHeaders[i]!}: ${res.rawHeaders[i + 1]!}`);

@@ -170,8 +170,20 @@ async function handleFetch(
                     });
                 }
                 default:
-                    return new Response("Durable object not found", {status: 404});
+                    return new Response("Not Found: Durable object not found", {
+                        status: 404,
+                        headers: {"content-type": "text/plain"},
+                    });
             }
+        });
+    }
+
+    // Can't forward a request to upgrade to a WebSocket connection. All WebSocket
+    // connections are handled by Cloudflare Durable Objects.
+    if (request.headers.has("upgrade")) {
+        return new Response("Bad Request: Can't upgrade to WebSocket connection", {
+            status: 400,
+            headers: {"content-type": "text/plain"},
         });
     }
 

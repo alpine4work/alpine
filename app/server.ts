@@ -98,6 +98,12 @@ main().catch(error => {
     process.exitCode = 1;
 });
 
+// Log uncaught exceptions, don't kill the process.
+process.on("uncaughtException", error => {
+    // eslint-disable-next-line no-console
+    console.error("Uncaught exception from app service:", error);
+});
+
 async function main() {
     const {
         values: {
