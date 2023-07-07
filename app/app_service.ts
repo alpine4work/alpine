@@ -39,13 +39,14 @@ import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError, InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 import {ClientInfoSchema} from "~/shared/remix/client_info.js";
 
-// NOCOMMIT: Add back durable objects and queues!
+// NOCOMMIT: Add back queues!
 
 const runfilesPath = assertExists(process.env.RUNFILES);
 
@@ -94,7 +95,7 @@ const serveStaticMiddleware = createServeStaticMiddleware(
 
 main().catch(error => {
     // eslint-disable-next-line no-console
-    console.error("Uncaught exception from app service startup:", error);
+    console.error("Uncaught exception from app service during startup:", error);
     process.exitCode = 1;
 });
 
@@ -178,10 +179,7 @@ async function main() {
                 waitUntil: promise => {
                     // We don't need to extend the lifetime of our Node.js process with a promise.
                     // If the tracer throws an error, well, there's nowhere else to send the error.
-                    promise.catch(error => {
-                        // eslint-disable-next-line no-console
-                        console.error("Uncaught exception from server tracer:", error);
-                    });
+                    promise.catch(scheduleUncaughtError);
                 },
             });
 
@@ -229,13 +227,13 @@ async function main() {
                                         if (process.env.NODE_ENV !== "production") {
                                             // eslint-disable-next-line no-console
                                             console.error(
-                                                "Uncaught exception from HTTP server:",
+                                                "Uncaught exception from `waitUntil()`:",
                                                 error,
                                             );
                                         }
 
                                         tracer.logUncaughtException(
-                                            "Uncaught exception from HTTP server",
+                                            "Uncaught exception from `waitUntil()`",
                                             error,
                                         );
                                     });

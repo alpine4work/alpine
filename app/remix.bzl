@@ -21,10 +21,10 @@ def _remix_app_impl(ctx):
     )
 
     assets_build_output = ctx.actions.declare_directory("public/build")
-    server_build_output = ctx.actions.declare_file("build/server.js")
+    server_build_output = ctx.actions.declare_file("build/app_service_bundle.js")
     outputs = [assets_build_output, server_build_output]
 
-    server_map_build_output = ctx.actions.declare_file("build/server.js.map") if ctx.var["COMPILATION_MODE"] != "opt" else None
+    server_map_build_output = ctx.actions.declare_file("build/app_service_bundle.js.map") if ctx.var["COMPILATION_MODE"] != "opt" else None
     if server_map_build_output:
         outputs.append(server_map_build_output)
 

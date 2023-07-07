@@ -138,11 +138,11 @@ export function createDurableObject<
                             promise.catch(error => {
                                 if (process.env.NODE_ENV !== "production") {
                                     // eslint-disable-next-line no-console
-                                    console.error("Uncaught exception from durable object:", error);
+                                    console.error("Uncaught exception from `waitUntil()`:", error);
                                 }
 
                                 this._tracer.logUncaughtException(
-                                    "Uncaught exception from durable object",
+                                    "Uncaught exception from `waitUntil()`",
                                     error,
                                 );
                             }),
