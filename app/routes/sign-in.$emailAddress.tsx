@@ -63,12 +63,11 @@ export async function action({request, context, params}: LoaderArgs) {
             await validateEmailAddress(context, emailAddress),
             oneTimePassword,
             {
-                // NOCOMMIT: We need to get this in some other way???
-                //
-                // We depend on Cloudflare to set the `cf-connecting-ip` header on our request
-                // to get the IP address.
+                // We depend on Cloudflare to set `x-real-ip` or `cf-connecting-ip` header on
+                // our request to get the IP address.
                 // https://developers.cloudflare.com/fundamentals/get-started/reference/http-request-headers
-                ipAddress: request.headers.get("cf-connecting-ip"),
+                ipAddress:
+                    request.headers.get("x-real-ip") ?? request.headers.get("cf-connecting-ip"),
                 userAgent: request.headers.get("user-agent"),
             },
         );
