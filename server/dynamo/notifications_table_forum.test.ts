@@ -1,6 +1,8 @@
+import {addMinutes, subMinutes} from "date-fns";
 import {createChannel, createPost, createPostComment} from "~/server/dynamo/forum_table.js";
 import {
     archiveInboxEntry,
+    backfillInboxEntries,
     getInbox,
     getInboxChannelPostsEntryPosts,
     getInboxEntries,
@@ -11031,4 +11033,154 @@ test("can paginate getting inbox entries", async () => {
             afterPostId: post9.id,
         }),
     ).rejects.toThrow(NotFoundError);
+});
+
+test.only("account can't backfill in a space it can't access", async () => {
+    const scenario = await createNotificationsScenario(context);
+
+    const _channel = await createChannel(context.action(scenario.session1), {
+        spaceId: scenario.space.id,
+        name: "Test",
+    });
+
+    const channel = new ChannelPreviewModel({
+        id: _channel.id,
+        spaceId: scenario.space.id,
+        createdTime: _channel.createdTime,
+        name: "Test",
+    });
+
+    const post = await createPost(context.action(scenario.session1), {
+        channelId: channel.id,
+        content: emptyPostContent,
+    });
+
+    const otherChannel = await createChannel(context.action(scenario.otherSession), {
+        spaceId: scenario.otherSpace.id,
+        name: "Test",
+    });
+
+    await createPost(context.action(scenario.otherSession), {
+        channelId: otherChannel.id,
+        content: emptyPostContent,
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        await backfillInboxEntries(context.action(scenario.session3), {
+            spaceId: scenario.space.id,
+            readTime: new Date(),
+        }),
+    ).toEqual({
+        type: "Available",
+        readTime: expect.any(Date),
+        eventTransaction: [
+            {
+                type: "PutItem",
+                item: {
+                    key: expect.any(String),
+                    version: 1,
+                    model: new InboxChannelPostsEntryModel({
+                        spaceId: scenario.space.id,
+                        accountId: scenario.session3.account.id,
+                        loudNotificationCount: 0,
+                        channel,
+                        bucketGeneration: 0,
+                        postCount: 1,
+                        postAuthorCount: 1,
+                        latestPost: {
+                            author: scenario.session1.account,
+                            createdTime: post.createdTime,
+                            contentSnippet: {
+                                doc: emptyPostContent,
+                                references: emptyContentReferences,
+                            },
+                        },
+                        otherPostAuthor: null,
+                    }),
+                },
+                cursorByIndexName: expect.any(Map),
+            },
+        ],
+    });
+
+    await expect(
+        backfillInboxEntries(context.action(scenario.session3), {
+            spaceId: scenario.otherSpace.id,
+            readTime: new Date(),
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+});
+
+test.only("won't backfill events that happened far in the past", async () => {
+    const scenario = await createNotificationsScenario(context);
+
+    const _channel = await createChannel(context.action(scenario.session1), {
+        spaceId: scenario.space.id,
+        name: "Test",
+    });
+
+    const channel = new ChannelPreviewModel({
+        id: _channel.id,
+        spaceId: scenario.space.id,
+        createdTime: _channel.createdTime,
+        name: "Test",
+    });
+
+    const post = await createPost(context.action(scenario.session1), {
+        channelId: channel.id,
+        content: emptyPostContent,
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        await backfillInboxEntries(context.action(scenario.session3), {
+            spaceId: scenario.space.id,
+            readTime: subMinutes(new Date(), 30),
+        }),
+    ).toEqual({
+        type: "Available",
+        readTime: expect.any(Date),
+        eventTransaction: [
+            {
+                type: "PutItem",
+                item: {
+                    key: expect.any(String),
+                    version: 1,
+                    model: new InboxChannelPostsEntryModel({
+                        spaceId: scenario.space.id,
+                        accountId: scenario.session3.account.id,
+                        loudNotificationCount: 0,
+                        channel,
+                        bucketGeneration: 0,
+                        postCount: 1,
+                        postAuthorCount: 1,
+                        latestPost: {
+                            author: scenario.session1.account,
+                            createdTime: post.createdTime,
+                            contentSnippet: {
+                                doc: emptyPostContent,
+                                references: emptyContentReferences,
+                            },
+                        },
+                        otherPostAuthor: null,
+                    }),
+                },
+                cursorByIndexName: expect.any(Map),
+            },
+        ],
+    });
+
+    expect(
+        await backfillInboxEntries(context.action(scenario.session3), {
+            spaceId: scenario.space.id,
+            readTime: addMinutes(new Date(), 30),
+        }),
+    ).toEqual({
+        type: "Available",
+        readTime: expect.any(Date),
+        eventTransaction: [],
+    });
 });

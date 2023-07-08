@@ -120,6 +120,7 @@ export function createTestContext(): TestContext {
             cache: new CacheContextModule(),
             dynamoBatchContext: new DynamoBatchContextModule(),
             actor: new AppUnknownActorContextModule(async () => null),
+            notifications: new TestNotificationsContextModule(createSystemContext),
         });
     };
 
@@ -129,6 +130,7 @@ export function createTestContext(): TestContext {
             dynamoBatchContext: new DynamoBatchContextModule(),
             actor: AppSessionActorContextModule.dangerouslyNew("Test", Session.test(session.item)),
             rpc: new LocalRpcContextModule(),
+            notifications: new TestNotificationsContextModule(createSystemContext),
         });
     };
 
@@ -138,6 +140,7 @@ export function createTestContext(): TestContext {
             dynamoBatchContext: new DynamoBatchContextModule(),
             actor: AppSystemActorContextModule.dangerouslyNew("Test", spaceId),
             rpc: new LocalRpcContextModule(),
+            notifications: new TestNotificationsContextModule(createSystemContext),
         });
     };
 
@@ -148,7 +151,6 @@ export function createTestContext(): TestContext {
         tracer: new TracerContextModule(tracer),
         dynamo: dynamoContextModule,
         email: new NoopEmailContextModule(),
-        notifications: new TestNotificationsContextModule(createSystemContext),
     });
 
     const context = Object.assign(processContext, {

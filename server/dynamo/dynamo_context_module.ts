@@ -104,7 +104,7 @@ export class DynamoContextModule<Modules extends {} = {}> extends ContextModuleB
                 assert(!hasInitialized, "Can not initialize DynamoDB client twice");
 
                 Object.defineProperty(contextModule, "_client", {
-                    value: new DynamoClient(awsHttpClient, awsDynamoUrl),
+                    value: new DynamoClient({awsHttpClient, awsDynamoUrl}),
                     writable: false,
                 });
             },
