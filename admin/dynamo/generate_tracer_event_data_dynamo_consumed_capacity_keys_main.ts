@@ -20,15 +20,14 @@ process.stdout.write(
  * either which our dev server would see and rebuild \`//server/tracer\`
  * dependents on \`//server/dynamo\` changes.
  */
-export const tracerEventDataDynamoConsumedCapacityKeys = ${JSON.stringify(
-        [
-            ...getAllDynamoTableSchemas().map(tableSchema => tableSchema.getName()),
-            ...getAllDynamoTableSchemaIndexNames().map(
-                ({tableName, indexName}) => `${tableName}_${indexName}`,
-            ),
-        ],
-        null,
-        4,
-    )};
+export const tracerEventDataDynamoConsumedCapacityKeys = [
+${[
+    ...getAllDynamoTableSchemas().map(tableSchema => tableSchema.getName()),
+    ...getAllDynamoTableSchemaIndexNames().map(
+        ({tableName, indexName}) => `${tableName}_${indexName}`,
+    ),
+]
+    .map(key => `    ${JSON.stringify(key)},\n`)
+    .join("")}];
 `,
 );
