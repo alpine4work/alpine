@@ -62,6 +62,7 @@ async function handleFetch(
         // scoped. Tracers are cheap to construct so this is fine.
         const tracer = createServerTracer({
             serviceName: "EdgeService",
+            jsHost: "CloudflareWorker",
             honeycombApiKey: env.HONEYCOMB_API_KEY,
             waitUntil: promise => executionContext.waitUntil(promise),
 

@@ -13,6 +13,7 @@ import {DynamoClientInternal} from "~/server/dynamo/internal/dynamo_client_inter
 import {DeadlineExceededError, InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
@@ -102,13 +103,12 @@ export class DynamoClient {
             expressionAttributeNames?: ReadonlyMap<string, string>;
         },
     ): Promise<SchemaSerializedObjectValue | null> {
-        // Reads without a projection expression may be batched.
-        //
-        // NOTE: If we end up using `projectionExpression` a lot, consider in the
-        // future sending batch requests with `projectionExpression`.
-        if (batchContext !== null && projectionExpression === undefined) {
+        if (batchContext !== null) {
             const batcher = this._getItemBatcherByConsistency[consistency];
-            return batcher.getItem(tracer, batchContext, tableName, key);
+            return batcher.getItem(tracer, batchContext, tableName, key, {
+                projectionExpression,
+                expressionAttributeNames,
+            });
         }
 
         const output = await this._client.GetItem(tracer, {
@@ -699,20 +699,21 @@ export class DynamoClient {
     }
 }
 
-type DynamoClientBatch<Input, Output> = {
+type DynamoClientBatch<TableInput, ItemInput, ItemOutput> = {
     itemCount: number;
-    tableBatches: Map<string, DynamoClientTableBatch<Input, Output>>;
+    tableBatches: Map<string, DynamoClientTableBatch<TableInput, ItemInput, ItemOutput>>;
 };
 
-type DynamoClientTableBatch<Input, Output> = {
+type DynamoClientTableBatch<TableInput, ItemInput, ItemOutput> = {
+    input: TableInput;
     keyAttributes: Set<string>;
-    keyBatches: Map<string, DynamoClientKeyBatch<Input, Output>>;
+    keyBatches: Map<string, DynamoClientKeyBatch<ItemInput, ItemOutput>>;
 };
 
-type DynamoClientKeyBatch<Input, Output> = {
+type DynamoClientKeyBatch<ItemInput, ItemOutput> = {
     key: SchemaSerializedObjectValue;
-    input: Input;
-    promiseResolvers: Array<{tracer: TracerBase; promiseResolver: PromiseResolver<Output>}>;
+    inputs: Array<ItemInput>;
+    promiseResolvers: Array<{tracer: TracerBase; promiseResolver: PromiseResolver<ItemOutput>}>;
 };
 
 /**
@@ -724,14 +725,14 @@ type DynamoClientKeyBatch<Input, Output> = {
  */
 export class DynamoClientBatchContext {
     private readonly _scheduledBatchByBatcher = new Map<
-        DynamoClientItemBatcherBase<any, any>,
-        DynamoClientBatch<any, any>
+        DynamoClientItemBatcherBase<any, any, any, any>,
+        DynamoClientBatch<null, any, any>
     >();
 
-    public getScheduledBatch<Input, Output>(
-        batcher: DynamoClientItemBatcherBase<Input, Output>,
+    public getScheduledBatch<TableInput, ItemInput1, ItemInput2, ItemOutput>(
+        batcher: DynamoClientItemBatcherBase<TableInput, ItemInput1, ItemInput2, ItemOutput>,
         tracer: TracerBase,
-    ): DynamoClientBatch<Input, Output> {
+    ): DynamoClientBatch<null, ItemInput1, ItemOutput> {
         return getOrSetDefaultMapValue(this._scheduledBatchByBatcher, batcher, () => {
             const scheduledBatch = {
                 itemCount: 0,
@@ -754,7 +755,7 @@ export class DynamoClientBatchContext {
     }
 }
 
-abstract class DynamoClientItemBatcherBase<Input, Output> {
+abstract class DynamoClientItemBatcherBase<TableInput, ItemInput1, ItemInput2, ItemOutput> {
     private readonly _maxBatchItemCount: number;
 
     constructor({maxBatchItemCount}: {maxBatchItemCount: number}) {
@@ -766,14 +767,15 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
         batchContext: DynamoClientBatchContext,
         tableName: string,
         key: SchemaSerializedObjectValue,
-        input: Input,
-    ): Promise<Output> {
+        input: ItemInput1,
+    ): Promise<ItemOutput> {
         const scheduledBatch = batchContext.getScheduledBatch(this, tracer);
 
         const keyAttributes = new Set(Object.keys(key));
-        const promiseResolver = createPromiseResolver<Output>();
+        const promiseResolver = createPromiseResolver<ItemOutput>();
 
         const tableBatch = getOrSetDefaultMapValue(scheduledBatch.tableBatches, tableName, () => ({
+            input: null,
             keyAttributes,
             keyBatches: new Map(),
         }));
@@ -791,27 +793,30 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
 
                 return {
                     key,
-                    input,
+                    inputs: [],
                     promiseResolvers: [],
                 };
             },
         );
 
-        // Always override with the latest input.
-        keyBatch.input = input;
-
+        keyBatch.inputs.push(input);
         keyBatch.promiseResolvers.push({tracer, promiseResolver});
 
         return promiseResolver.promise;
     }
 
     // Public since this method needs to be called from `DynamoClientBatchContext`.
-    public _executeFullBatch(tracer: TracerBase, fullBatch: DynamoClientBatch<Input, Output>) {
+    public _executeFullBatch(
+        tracer: TracerBase,
+        fullBatch: DynamoClientBatch<null, ItemInput1, ItemOutput>,
+    ) {
         // This batch execution is performed in a microtask, so if an error is thrown
         // it's thrown into the void. Add a try/catch so that errors reject the promise
         // resolvers in our batch.
         try {
-            const batches = splitDynamoClientBatch(fullBatch, this._maxBatchItemCount);
+            const batches = this._reorganizeBatch(fullBatch).flatMap(batch =>
+                splitDynamoClientBatch(batch, this._maxBatchItemCount),
+            );
 
             for (const batch of batches) {
                 void this._executeBatch(tracer, batch, 1);
@@ -829,7 +834,7 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
 
     private async _executeBatch(
         tracer: TracerBase,
-        batch: DynamoClientBatch<Input, Output>,
+        batch: DynamoClientBatch<TableInput, ItemInput2, ItemOutput>,
         attemptNumber: number,
     ) {
         // This function is async but called from a synchronous function. So if an
@@ -869,6 +874,10 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
         }
     }
 
+    protected abstract _reorganizeBatch(
+        batch: DynamoClientBatch<null, ItemInput1, ItemOutput>,
+    ): Array<DynamoClientBatch<TableInput, ItemInput2, ItemOutput>>;
+
     /**
      * Send a batch command to DynamoDB for the provided batch.
      *
@@ -878,8 +887,8 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
      */
     protected abstract _sendBatchCommand(
         tracer: TracerBase,
-        batch: DynamoClientBatch<Input, Output>,
-    ): Promise<{unprocessedBatch: DynamoClientBatch<Input, Output>}>;
+        batch: DynamoClientBatch<TableInput, ItemInput2, ItemOutput>,
+    ): Promise<{unprocessedBatch: DynamoClientBatch<TableInput, ItemInput2, ItemOutput>}>;
 }
 
 /**
@@ -888,16 +897,16 @@ abstract class DynamoClientItemBatcherBase<Input, Output> {
  *
  * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
  */
-function splitDynamoClientBatch<Input, Output>(
-    fullBatch: DynamoClientBatch<Input, Output>,
+function splitDynamoClientBatch<TableInput, ItemInput, ItemOutput>(
+    fullBatch: DynamoClientBatch<TableInput, ItemInput, ItemOutput>,
     maxBatchItemCount: number,
-): Array<DynamoClientBatch<Input, Output>> {
+): Array<DynamoClientBatch<TableInput, ItemInput, ItemOutput>> {
     if (fullBatch.itemCount < maxBatchItemCount) {
         return [fullBatch];
     }
 
-    const batches: Array<DynamoClientBatch<Input, Output>> = [];
-    let currentBatch: DynamoClientBatch<Input, Output>;
+    const batches: Array<DynamoClientBatch<TableInput, ItemInput, ItemOutput>> = [];
+    let currentBatch: DynamoClientBatch<TableInput, ItemInput, ItemOutput>;
 
     while (fullBatch.itemCount > 0) {
         currentBatch = {
@@ -924,6 +933,7 @@ function splitDynamoClientBatch<Input, Output>(
                     currentBatch.tableBatches,
                     tableName,
                     () => ({
+                        input: fullTableBatch.input,
                         keyAttributes: fullTableBatch.keyAttributes,
                         keyBatches: new Map(),
                     }),
@@ -957,6 +967,11 @@ function splitDynamoClientBatch<Input, Output>(
     return batches;
 }
 
+type DynamoClientGetItemBatchItemInput = {
+    readonly projectionExpression?: string;
+    readonly expressionAttributeNames?: ReadonlyMap<string, string>;
+};
+
 /**
  * Responsible for batching multiple `getItem()` calls into one
  * [`BatchGetItem`][1] command for DynamoDB.
@@ -971,6 +986,8 @@ function splitDynamoClientBatch<Input, Output>(
  * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
  */
 class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
+    DynamoClientGetItemBatchItemInput,
+    DynamoClientGetItemBatchItemInput,
     null,
     SchemaSerializedObjectValue | null
 > {
@@ -988,13 +1005,28 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
         batchContext: DynamoClientBatchContext,
         tableName: string,
         key: SchemaSerializedObjectValue,
+        input: DynamoClientGetItemBatchItemInput,
     ) {
-        return this._addItem(tracer, batchContext, tableName, key, null);
+        return this._addItem(tracer, batchContext, tableName, key, input);
+    }
+
+    protected override _reorganizeBatch(
+        batch: DynamoClientBatch<
+            null,
+            DynamoClientGetItemBatchItemInput,
+            SchemaSerializedObjectValue | null
+        >,
+    ) {
+        return reorganizeDynamoClientGetItemBatch(batch);
     }
 
     protected async _sendBatchCommand(
         tracer: TracerBase,
-        batch: DynamoClientBatch<null, SchemaSerializedObjectValue | null>,
+        batch: DynamoClientBatch<
+            DynamoClientGetItemBatchItemInput,
+            null,
+            SchemaSerializedObjectValue | null
+        >,
     ) {
         // If we are only reading exactly one item in our batch then we will send a
         // `GetItem` command instead of a `BatchGetItem` command. That way our traces
@@ -1032,13 +1064,47 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
             {
                 RequestItems: Object.fromEntries(
                     Array.from(batch.tableBatches, ([tableName, tableBatch]) => {
+                        let projectionExpression;
+
+                        // Make sure `keyAttributes` are included in `projectionExpression` since we'll
+                        // need them for resolving the right output promise. This is the [DynamoDB
+                        // recommendation][1]:
+                        //
+                        // > To help parse the response by item, include the primary key values for the
+                        // > items in your request in the `ProjectionExpression` parameter.
+                        //
+                        // [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
+                        if (tableBatch.input.projectionExpression) {
+                            const projectionAttributeExpressions =
+                                tableBatch.input.projectionExpression
+                                    .split(",")
+                                    .map(attribute => attribute.trim());
+
+                            for (const keyAttribute of tableBatch.keyAttributes) {
+                                if (!projectionAttributeExpressions.includes(keyAttribute)) {
+                                    projectionAttributeExpressions.push(keyAttribute);
+                                }
+                            }
+
+                            projectionExpression = projectionAttributeExpressions.join(", ");
+                        }
+
                         return [
                             tableName,
                             {
-                                ConsistentRead: this._consistency === "Strong",
                                 Keys: Array.from(tableBatch.keyBatches.values(), ({key}) =>
                                     intoDynamoAttributeValueObject(key),
                                 ),
+                                ConsistentRead: this._consistency === "Strong",
+                                ProjectionExpression: projectionExpression,
+                                ExpressionAttributeNames:
+                                    projectionExpression &&
+                                    tableBatch.input.expressionAttributeNames &&
+                                    tableBatch.input.expressionAttributeNames.size > 0
+                                        ? Object.fromEntries(
+                                              tableBatch.input.expressionAttributeNames,
+                                          )
+                                        : undefined,
                             },
                         ];
                     }),
@@ -1083,7 +1149,11 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
             if (tableBatch.keyBatches.size === 0) batch.tableBatches.delete(tableName);
         }
 
-        const unprocessedBatch: DynamoClientBatch<null, SchemaSerializedObjectValue | null> = {
+        const unprocessedBatch: DynamoClientBatch<
+            DynamoClientGetItemBatchItemInput,
+            null,
+            SchemaSerializedObjectValue | null
+        > = {
             itemCount: 0,
             tableBatches: new Map(),
         };
@@ -1105,6 +1175,7 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
                         unprocessedBatch.tableBatches,
                         tableName,
                         () => ({
+                            input: tableBatch.input,
                             keyAttributes: tableBatch.keyAttributes,
                             keyBatches: new Map(),
                         }),
@@ -1149,6 +1220,120 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
     }
 }
 
+/**
+ * Take a batch with inputs at the item level and move those inputs to the
+ * table level since that's the format expected by DynamoDB's `BatchGetItem`
+ * command.
+ */
+function reorganizeDynamoClientGetItemBatch(
+    batch: DynamoClientBatch<
+        null,
+        DynamoClientGetItemBatchItemInput,
+        SchemaSerializedObjectValue | null
+    >,
+): Array<
+    DynamoClientBatch<DynamoClientGetItemBatchItemInput, null, SchemaSerializedObjectValue | null>
+> {
+    const newTableBatchesByTableName = new Map<
+        string,
+        Array<
+            DynamoClientTableBatch<
+                DynamoClientGetItemBatchItemInput,
+                null,
+                SchemaSerializedObjectValue | null
+            >
+        >
+    >();
+
+    // We start with a batch where each item has an input. We want to move inputs
+    // to the table level and keep all items with the same input in the same batch.
+    for (const [tableName, tableBatch] of batch.tableBatches) {
+        const newTableBatches = getOrSetDefaultMapValue(
+            newTableBatchesByTableName,
+            tableName,
+            () => [],
+        );
+
+        for (const [key, keyBatch] of tableBatch.keyBatches) {
+            for (let i = 0; i < keyBatch.inputs.length; i++) {
+                const input = keyBatch.inputs[i]!;
+                const promiseResolver = keyBatch.promiseResolvers[i]!;
+
+                let wasAdded = false;
+                for (const newTableBatch of newTableBatches) {
+                    if (!isDeepEqual(newTableBatch.input, input)) continue;
+
+                    // Make sure all keys for a table use the same attributes.
+                    assert(isDeepEqual(newTableBatch.keyAttributes, tableBatch.keyAttributes));
+
+                    const newKeyBatch = getOrSetDefaultMapValue(
+                        newTableBatch.keyBatches,
+                        key,
+                        () => ({
+                            key: keyBatch.key,
+                            inputs: [],
+                            promiseResolvers: [],
+                        }),
+                    );
+
+                    newKeyBatch.inputs.push(null);
+                    newKeyBatch.promiseResolvers.push(promiseResolver);
+                    wasAdded = true;
+                    break;
+                }
+
+                // If we did not add our key's promise resolver to an existing batch then
+                // create a new batch.
+                if (!wasAdded) {
+                    newTableBatches.push({
+                        input,
+                        keyAttributes: tableBatch.keyAttributes,
+                        keyBatches: new Map([
+                            [
+                                key,
+                                {
+                                    key: keyBatch.key,
+                                    inputs: [null],
+                                    promiseResolvers: [promiseResolver],
+                                },
+                            ],
+                        ]),
+                    });
+                }
+            }
+        }
+    }
+
+    const finalBatches: Array<
+        DynamoClientBatch<
+            DynamoClientGetItemBatchItemInput,
+            null,
+            SchemaSerializedObjectValue | null
+        >
+    > = [];
+
+    for (const [tableName, newTableBatches] of newTableBatchesByTableName) {
+        for (const newTableBatch of newTableBatches) {
+            let wasAdded = false;
+            for (const finalBatch of finalBatches) {
+                if (finalBatch.tableBatches.has(tableName)) continue;
+                finalBatch.itemCount += newTableBatch.keyBatches.size;
+                finalBatch.tableBatches.set(tableName, newTableBatch);
+                wasAdded = true;
+                break;
+            }
+            if (!wasAdded) {
+                finalBatches.push({
+                    itemCount: newTableBatch.keyBatches.size,
+                    tableBatches: new Map([[tableName, newTableBatch]]),
+                });
+            }
+        }
+    }
+
+    return finalBatches;
+}
+
 type DynamoClientWriteItemBatchAction =
     | {action: "Put"; item: SchemaSerializedObjectValue}
     | {action: "Delete"};
@@ -1160,6 +1345,8 @@ type DynamoClientWriteItemBatchAction =
  * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
  */
 class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
+    null,
+    DynamoClientWriteItemBatchAction,
     DynamoClientWriteItemBatchAction,
     void
 > {
@@ -1189,9 +1376,15 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
         return this._addItem(tracer, batchContext, tableName, key, {action: "Delete"});
     }
 
+    protected override _reorganizeBatch(
+        batch: DynamoClientBatch<null, DynamoClientWriteItemBatchAction, void>,
+    ) {
+        return [batch];
+    }
+
     protected async _sendBatchCommand(
         tracer: TracerBase,
-        batch: DynamoClientBatch<DynamoClientWriteItemBatchAction, void>,
+        batch: DynamoClientBatch<null, DynamoClientWriteItemBatchAction, void>,
     ) {
         // If we are only writing exactly one item in our batch then we will send a
         // `PutItem` or `DeleteItem` command instead of a `BatchWriteItem` command.
@@ -1199,7 +1392,10 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
         if (batch.tableBatches.size === 1) {
             const [tableName, tableBatch] = [...batch.tableBatches.entries()][0]!;
             if (tableBatch.keyBatches.size === 1) {
-                const {key, input, promiseResolvers} = [...tableBatch.keyBatches.values()][0]!;
+                const {key, inputs, promiseResolvers} = [...tableBatch.keyBatches.values()][0]!;
+
+                // We only write the last input.
+                const input = assertExists(inputs[inputs.length - 1]);
 
                 switch (input.action) {
                     case "Put": {
@@ -1243,7 +1439,10 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
                     Array.from(batch.tableBatches, ([tableName, tableBatch]) => {
                         return [
                             tableName,
-                            Array.from(tableBatch.keyBatches.values(), ({key, input}) => {
+                            Array.from(tableBatch.keyBatches.values(), ({key, inputs}) => {
+                                // We only write the last input.
+                                const input = assertExists(inputs[inputs.length - 1]);
+
                                 switch (input.action) {
                                     case "Put": {
                                         return {
@@ -1269,7 +1468,7 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
             },
         );
 
-        const unprocessedBatch: DynamoClientBatch<DynamoClientWriteItemBatchAction, void> = {
+        const unprocessedBatch: DynamoClientBatch<null, DynamoClientWriteItemBatchAction, void> = {
             itemCount: 0,
             tableBatches: new Map(),
         };
@@ -1288,6 +1487,7 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
                     unprocessedBatch.tableBatches,
                     tableName,
                     () => ({
+                        input: tableBatch.input,
                         keyAttributes: tableBatch.keyAttributes,
                         keyBatches: new Map(),
                     }),

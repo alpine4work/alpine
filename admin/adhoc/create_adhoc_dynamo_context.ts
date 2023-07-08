@@ -19,6 +19,7 @@ export async function createAdhocDynamoContext({
 } = {}): Promise<DynamoContext> {
     const tracer = createServerTracer({
         serviceName: "Adhoc",
+        jsHost: "Node",
         // TODO(calebmer): If we are running an adhoc script against our production
         // database then events should go to our production Honeycomb environment?
         honeycombApiKey: env.HONEYCOMB_API_KEY,

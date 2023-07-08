@@ -640,19 +640,6 @@ async function createPostModelFromItem(
  * the post.
  */
 export async function getPostAuthorAndChannelPreview(context: AppActionContext, postId: PostId) {
-    // TODO(calebmer): Implement batching for `getPartialItem()` right now it bails
-    // out of batching.
-    //
-    // Two ways I'd like batching to work:
-    //
-    // 1. If requesting different keys with the same attributes, batch into one
-    //    request. This solves inbox which loads many post authors and channel
-    //    previews at once to render inbox entries.
-    //
-    // 2. If requesting one key with two different sets of attributes (or an
-    //    attribute subset of another batch), batch into one request. This solves
-    //    an `authorizePostAccess()` and `updatePostCommentContent()` running in
-    //    parallel which both get the same item but different attributes.
     const postItem = await ForumTable.getPartialItem(
         context,
         {

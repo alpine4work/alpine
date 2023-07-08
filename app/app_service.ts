@@ -156,6 +156,7 @@ async function main() {
 
     tracer = createServerTracer({
         serviceName: "AppService",
+        jsHost: "Node",
         honeycombApiKey,
         waitUntil: promise => {
             // We don't need to extend the lifetime of our Node.js process with a promise.

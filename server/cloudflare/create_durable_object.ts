@@ -126,6 +126,7 @@ export function createDurableObject<
 
             this._tracer = createServerTracer({
                 serviceName,
+                jsHost: "CloudflareWorker",
                 honeycombApiKey: env.HONEYCOMB_API_KEY,
                 waitUntil: promise => state.waitUntil(promise),
 

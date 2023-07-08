@@ -11035,7 +11035,7 @@ test("can paginate getting inbox entries", async () => {
     ).rejects.toThrow(NotFoundError);
 });
 
-test.only("account can't backfill in a space it can't access", async () => {
+test("account can't backfill in a space it can't access", async () => {
     const scenario = await createNotificationsScenario(context);
 
     const _channel = await createChannel(context.action(scenario.session1), {
@@ -11113,7 +11113,7 @@ test.only("account can't backfill in a space it can't access", async () => {
     ).rejects.toThrow(PermissionDeniedError);
 });
 
-test.only("won't backfill events that happened far in the past", async () => {
+test("won't backfill events that happened far in the past", async () => {
     const scenario = await createNotificationsScenario(context);
 
     const _channel = await createChannel(context.action(scenario.session1), {

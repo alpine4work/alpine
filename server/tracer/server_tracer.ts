@@ -1,5 +1,6 @@
 import {HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client.js";
 import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.js";
+import {TracerEventJsHost} from "~/shared/tracer/types/tracer_event_data.js";
 
 /**
  * Create a tracer for a service running in a server Cloudflare
@@ -7,11 +8,13 @@ import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.js";
  */
 export function createServerTracer({
     serviceName,
+    jsHost,
     honeycombApiKey,
     waitUntil,
     writeEventToFileInDev,
 }: {
     serviceName: TracerServiceName;
+    jsHost: TracerEventJsHost;
     honeycombApiKey: string | undefined;
     waitUntil: (promise: Promise<unknown>) => void;
     writeEventToFileInDev: (event: unknown) => void;
@@ -20,7 +23,7 @@ export function createServerTracer({
 
     const tracer = TracerRoot.new({
         serviceName,
-        jsHost: "CloudflareWorker",
+        jsHost,
         untrusted: false,
         // In Cloudflare Workers, `Date.now()` only moves forward on I/O as a part of
         // their security model. This means timers won't be perfectly accurate.
