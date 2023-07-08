@@ -3,6 +3,7 @@ import {EdgeServiceFamilyTokenAgent} from "~/server/tokens/token_agent.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {traceFetchResponse} from "~/server/tracer/trace_fetch_response.js";
 import {InternalError} from "~/shared/error/error.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 type EdgeServiceEnv = {
@@ -63,6 +64,15 @@ async function handleFetch(
             serviceName: "EdgeService",
             honeycombApiKey: env.HONEYCOMB_API_KEY,
             waitUntil: promise => executionContext.waitUntil(promise),
+
+            // Provided as a Miniflare global.
+            writeEventToFileInDev:
+                process.env.NODE_ENV !== "production"
+                    ? assertExists(
+                          (globalThis as any).__writeTracerEventToFileInDev,
+                          "Expected `__writeTracerEventToFileInDev` global",
+                      )
+                    : undefined,
         });
 
         return traceFetchResponse(tracer, request, url, async (span, request) => {

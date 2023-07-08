@@ -1,10 +1,10 @@
-"use strict";
-
-const {parseArgs} = require("util");
-const {join: joinPath} = require("path");
-const fs = require("fs-extra");
-const {Miniflare} = require("miniflare");
-const toml = require("toml");
+import fs from "fs-extra";
+import {Miniflare} from "miniflare";
+import {join as joinPath} from "path";
+import toml from "toml";
+import {parseArgs} from "util";
+// eslint-disable-next-line sort-imports-by-source
+import {writeTracerEventToFileInDev} from "../tracer/write_tracer_event_to_file_in_dev.js";
 
 main().catch(error => {
     // eslint-disable-next-line no-console
@@ -75,6 +75,9 @@ async function main() {
             EDGE_SERVICE_FAMILY_PUBLIC_KEY: edgeServiceFamilyPublicKey,
             EDGE_SERVICE_FAMILY_PRIVATE_KEY: edgeServiceFamilyPrivateKey,
             HONEYCOMB_API_KEY: honeycombApiKey,
+        },
+        globals: {
+            __writeTracerEventToFileInDev: writeTracerEventToFileInDev,
         },
     });
 

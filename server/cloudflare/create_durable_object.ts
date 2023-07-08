@@ -30,6 +30,7 @@ import {
 } from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {DurableObjectServiceName, TracerRoot} from "~/shared/tracer/tracer_root.js";
@@ -127,6 +128,15 @@ export function createDurableObject<
                 serviceName,
                 honeycombApiKey: env.HONEYCOMB_API_KEY,
                 waitUntil: promise => state.waitUntil(promise),
+
+                // Provided as a Miniflare global.
+                writeEventToFileInDev:
+                    process.env.NODE_ENV !== "production"
+                        ? assertExists(
+                              (globalThis as any).__writeTracerEventToFileInDev,
+                              "Expected `__writeTracerEventToFileInDev` global",
+                          )
+                        : undefined,
             });
 
             this._processContext = Context.new({

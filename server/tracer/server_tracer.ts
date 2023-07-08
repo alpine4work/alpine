@@ -9,10 +9,12 @@ export function createServerTracer({
     serviceName,
     honeycombApiKey,
     waitUntil,
+    writeEventToFileInDev,
 }: {
     serviceName: TracerServiceName;
     honeycombApiKey: string | undefined;
     waitUntil: (promise: Promise<unknown>) => void;
+    writeEventToFileInDev: (event: unknown) => void;
 }): TracerRoot {
     let lastTime: number | null = null;
 
@@ -38,14 +40,8 @@ export function createServerTracer({
         sendEvent: event => {
             honeycombClient?.sendEvent(event);
 
-            // In development, we write every event to a log file. This function is
-            // provided to us by `dev_main.ts` setting a global.
-            if (
-                process.env.NODE_ENV !== "production" &&
-                // NOCOMMIT: Doesn't work in Node.js!
-                typeof (globalThis as any).__writeDevTracerEvent === "function"
-            ) {
-                (globalThis as any).__writeDevTracerEvent({
+            if (process.env.NODE_ENV !== "production") {
+                writeEventToFileInDev({
                     time: event.time,
                     data: event.getFlatData(),
                 });

@@ -9,6 +9,9 @@ ts_project(
         "//server:__subpackages__",
     ],
     deps = [
+        "//:node_modules/@types/fs-extra",
+        "//:node_modules/env-paths",
+        "//:node_modules/fs-extra",
         "//shared/error",
         "//shared/helpers",
         "//shared/schema",

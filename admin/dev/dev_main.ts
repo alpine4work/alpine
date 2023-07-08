@@ -1,6 +1,8 @@
 import {ChildProcess} from "child_process";
 import chokidar from "chokidar";
+import * as colorette from "colorette";
 import fs from "fs-extra";
+import {networkInterfaces} from "os";
 import {basename, dirname, join as joinPath} from "path";
 import {
     bazelBuildCompilationMode,
@@ -147,7 +149,48 @@ const mainPromise = runAllPromises([
     ),
 ]);
 
-mainPromise.catch(scheduleUncaughtError);
+mainPromise
+    .then(() => {
+        const externalHost = (() => {
+            for (const [name, nets] of Object.entries(networkInterfaces())) {
+                if (!nets) continue;
+                for (const networkInterface of nets) {
+                    // Skip over non-IPv4 and internal (i.e. 127.0.0.1) addresses
+                    // 'IPv4' is in Node <= 17, from 18 it's a number 4 or 6
+                    const familyV4Value = typeof networkInterface.family === "string" ? "IPv4" : 4;
+                    if (networkInterface.family === familyV4Value && !networkInterface.internal) {
+                        if (name === "en0") {
+                            return networkInterface.address;
+                        }
+                    }
+                }
+            }
+            return null;
+        })();
+
+        const tracerLogDirectoryPath = joinPath(devEnvPaths.log, "tracer");
+
+        process.stdout.write(`\
+
+
+Development environment running on ${colorette.underline(
+            colorette.bold(`http://localhost:${edgePort}`),
+        )}
+
+- Start the Chrome debugger at: ${colorette.underline("chrome://inspect")}
+${
+    externalHost
+        ? `- Other devices on your network can access: ${colorette.underline(
+              `http://${externalHost}:${edgePort}`,
+          )}\n`
+        : ""
+}\
+- Tracer logs are available at: ${colorette.underline(tracerLogDirectoryPath)}
+
+
+`);
+    })
+    .catch(scheduleUncaughtError);
 
 // Log uncaught exceptions, don't kill the process.
 process.on("uncaughtException", error => {

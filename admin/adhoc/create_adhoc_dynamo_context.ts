@@ -3,6 +3,7 @@ import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context.js";
 import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
+import {writeTracerEventToFileInDev} from "~/server/tracer/write_tracer_event_to_file_in_dev.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 
@@ -29,12 +30,16 @@ export async function createAdhocDynamoContext({
                 console.error(error);
             });
         },
+        writeEventToFileInDev: writeTracerEventToFileInDev,
     });
 
-    const awsClient = await createAdhocAwsClient({profile: awsProfile});
+    const awsHttpClient = await createAdhocAwsClient({profile: awsProfile});
 
     return Context.new({
         tracer: new TracerContextModule(tracer),
-        dynamo: DynamoContextModule.new(awsClient, "https://dynamodb.us-east-1.amazonaws.com"),
+        dynamo: DynamoContextModule.new({
+            awsHttpClient,
+            awsDynamoUrl: "https://dynamodb.us-east-1.amazonaws.com",
+        }),
     });
 }

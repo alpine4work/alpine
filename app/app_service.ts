@@ -39,6 +39,7 @@ import {SessionCookie, withSessionCookie} from "~/server/tokens/session_cookie.j
 import {AppServiceTokenAgent} from "~/server/tokens/token_agent.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {traceFetchResponse} from "~/server/tracer/trace_fetch_response.js";
+import {writeTracerEventToFileInDev} from "~/server/tracer/write_tracer_event_to_file_in_dev.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -161,6 +162,7 @@ async function main() {
             // If the tracer throws an error, well, there's nowhere else to send the error.
             promise.catch(scheduleUncaughtError);
         },
+        writeEventToFileInDev: writeTracerEventToFileInDev,
     });
 
     if (!portString) throw new InternalError("Missing `port` arg");
