@@ -1,5 +1,5 @@
 import {expect, test} from "@playwright/test";
-import {createTestServer} from "~/app/integration_tests/helpers/create_test_server.js";
+import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {createDocument} from "~/server/dynamo/documents_table.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session.js";
@@ -11,7 +11,7 @@ import {
 } from "~/shared/documents/document_content_schema.js";
 
 const context = createTestContext();
-const server = createTestServer(context);
+const services = createTestServices(context);
 const space = createTestSpace(context);
 const session = createTestSession(context, space);
 
@@ -32,7 +32,7 @@ test("clicking a link will open a peek", async ({context: browserContext, page, 
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 2", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${server.getBaseUrl()}/s/${space.id}/documents/${document2.id}`,
+                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document2.id}`,
                         }),
                     ]),
                 ]),
@@ -40,7 +40,7 @@ test("clicking a link will open a peek", async ({context: browserContext, page, 
         ),
     });
 
-    await server.signIn(browserContext, session);
+    await services.signIn(browserContext, session);
     await page.goto(`/s/${space.id}/documents/${document1.id}`);
 
     await expect(page.getByText("Test document content 2")).toBeHidden();
@@ -69,7 +69,7 @@ test("clicking close will close a peek", async ({context: browserContext, page})
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 2", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${server.getBaseUrl()}/s/${space.id}/documents/${document2.id}`,
+                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document2.id}`,
                         }),
                     ]),
                 ]),
@@ -77,7 +77,7 @@ test("clicking close will close a peek", async ({context: browserContext, page})
         ),
     });
 
-    await server.signIn(browserContext, session);
+    await services.signIn(browserContext, session);
     await page.goto(`/s/${space.id}/documents/${document1.id}`);
 
     await expect(page.getByText("Test document content 2")).toBeHidden();
@@ -111,7 +111,7 @@ test("clicking expand will expand a peek", async ({context: browserContext, page
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 2", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${server.getBaseUrl()}/s/${space.id}/documents/${document2.id}`,
+                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document2.id}`,
                         }),
                     ]),
                 ]),
@@ -119,7 +119,7 @@ test("clicking expand will expand a peek", async ({context: browserContext, page
         ),
     });
 
-    await server.signIn(browserContext, session);
+    await services.signIn(browserContext, session);
     await page.goto(`/s/${space.id}/documents/${document1.id}`);
 
     await expect(page.getByText("Test document content 2")).toBeHidden();
@@ -153,7 +153,7 @@ test("can navigate within peek", async ({context: browserContext, page}) => {
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 4", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${server.getBaseUrl()}/s/${space.id}/documents/${document4.id}`,
+                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document4.id}`,
                         }),
                     ]),
                 ]),
@@ -172,7 +172,7 @@ test("can navigate within peek", async ({context: browserContext, page}) => {
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 3", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${server.getBaseUrl()}/s/${space.id}/documents/${document3.id}`,
+                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document3.id}`,
                         }),
                     ]),
                 ]),
@@ -191,7 +191,7 @@ test("can navigate within peek", async ({context: browserContext, page}) => {
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 2", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${server.getBaseUrl()}/s/${space.id}/documents/${document2.id}`,
+                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document2.id}`,
                         }),
                     ]),
                 ]),
@@ -199,7 +199,7 @@ test("can navigate within peek", async ({context: browserContext, page}) => {
         ),
     });
 
-    await server.signIn(browserContext, session);
+    await services.signIn(browserContext, session);
     await page.goto(`/s/${space.id}/documents/${document1.id}`);
 
     await expect(page.getByText("Test document content 4")).toBeHidden();
@@ -270,21 +270,21 @@ test("can open multiple peeks", async ({context: browserContext, page}) => {
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 2", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${server.getBaseUrl()}/s/${space.id}/documents/${document2.id}`,
+                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document2.id}`,
                         }),
                     ]),
                 ]),
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 3", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${server.getBaseUrl()}/s/${space.id}/documents/${document3.id}`,
+                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document3.id}`,
                         }),
                     ]),
                 ]),
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 4", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${server.getBaseUrl()}/s/${space.id}/documents/${document4.id}`,
+                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document4.id}`,
                         }),
                     ]),
                 ]),
@@ -292,7 +292,7 @@ test("can open multiple peeks", async ({context: browserContext, page}) => {
         ),
     });
 
-    await server.signIn(browserContext, session);
+    await services.signIn(browserContext, session);
     await page.goto(`/s/${space.id}/documents/${document1.id}`);
 
     await expect(page.getByText("Test document content 4")).toBeHidden();
@@ -370,21 +370,21 @@ test("can close all peeks with a shift click", async ({context: browserContext, 
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 2", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${server.getBaseUrl()}/s/${space.id}/documents/${document2.id}`,
+                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document2.id}`,
                         }),
                     ]),
                 ]),
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 3", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${server.getBaseUrl()}/s/${space.id}/documents/${document3.id}`,
+                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document3.id}`,
                         }),
                     ]),
                 ]),
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 4", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${server.getBaseUrl()}/s/${space.id}/documents/${document4.id}`,
+                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document4.id}`,
                         }),
                     ]),
                 ]),
@@ -392,7 +392,7 @@ test("can close all peeks with a shift click", async ({context: browserContext, 
         ),
     });
 
-    await server.signIn(browserContext, session);
+    await services.signIn(browserContext, session);
     await page.goto(`/s/${space.id}/documents/${document1.id}`);
 
     await expect(page.getByText("Test document content 4")).toBeHidden();
@@ -453,7 +453,7 @@ test("remembers peek state across page reloads", async ({context: browserContext
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 4", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${server.getBaseUrl()}/s/${space.id}/documents/${document4.id}`,
+                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document4.id}`,
                         }),
                     ]),
                 ]),
@@ -477,21 +477,21 @@ test("remembers peek state across page reloads", async ({context: browserContext
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 2", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${server.getBaseUrl()}/s/${space.id}/documents/${document2.id}`,
+                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document2.id}`,
                         }),
                     ]),
                 ]),
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 3", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${server.getBaseUrl()}/s/${space.id}/documents/${document3.id}`,
+                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document3.id}`,
                         }),
                     ]),
                 ]),
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 5", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${server.getBaseUrl()}/s/${space.id}/documents/${document5.id}`,
+                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document5.id}`,
                         }),
                     ]),
                 ]),
@@ -499,7 +499,7 @@ test("remembers peek state across page reloads", async ({context: browserContext
         ),
     });
 
-    await server.signIn(browserContext, session);
+    await services.signIn(browserContext, session);
     await page.goto(`/s/${space.id}/documents/${document1.id}`);
 
     await expect(page.getByText("Test document content 5")).toBeHidden();
@@ -622,21 +622,21 @@ test("expand remembers peeks on the previous page except for the expanded peek",
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 2", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${server.getBaseUrl()}/s/${space.id}/documents/${document2.id}`,
+                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document2.id}`,
                         }),
                     ]),
                 ]),
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 3", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${server.getBaseUrl()}/s/${space.id}/documents/${document3.id}`,
+                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document3.id}`,
                         }),
                     ]),
                 ]),
                 DocumentContentProsemirrorSchema.node("paragraph", {}, [
                     DocumentContentProsemirrorSchema.text("Link to 4", [
                         DocumentContentProsemirrorSchema.mark("link", {
-                            url: `${server.getBaseUrl()}/s/${space.id}/documents/${document4.id}`,
+                            url: `${services.getBaseUrl()}/s/${space.id}/documents/${document4.id}`,
                         }),
                     ]),
                 ]),
@@ -644,7 +644,7 @@ test("expand remembers peeks on the previous page except for the expanded peek",
         ),
     });
 
-    await server.signIn(browserContext, session);
+    await services.signIn(browserContext, session);
     await page.goto(`/s/${space.id}/documents/${document1.id}`);
 
     await expect(page.getByText("Test document content 4")).toBeHidden();

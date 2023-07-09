@@ -86,30 +86,42 @@ export async function withSessionCookie(
     const oldSessionTokenPayload = await oldTokenPromise;
 
     if (newToken !== "Unset" && oldSessionTokenPayload !== newToken) {
-        const cookieString = newToken
-            ? await tokenAgent.dangerouslySignEternalSessionToken(newToken)
-            : "";
-
-        response.headers.append(
-            "set-cookie",
-            serialize("session", cookieString, {
-                // The session cookie domain is not set in development because we may be
-                // accessing from a proxied domain or an IP address on a mobile device.
-                domain: process.env.NODE_ENV === "production" ? "cyberworlds.dev" : undefined,
-                httpOnly: true,
-                path: "/",
-                sameSite: "lax",
-                // Only allow the session cookie to be sent over HTTPS in production. In
-                // development we use plain HTTP.
-                secure: process.env.NODE_ENV === "production",
-                // We can't force the browser to delete a cookie so we set it to an empty string
-                // and tell the browser to expire it immediately.
-                maxAge: newToken
-                    ? 60 * 60 * 24 * 365 // 1 year
-                    : 1, // 1 second
-            }),
-        );
+        const header = await getSessionCookieSetCookieHeader(tokenAgent, newToken);
+        response.headers.append("set-cookie", header);
     }
 
     return response;
+}
+
+async function getSessionCookieSetCookieHeader(
+    tokenAgent: AppServiceTokenAgent,
+    token: SessionTokenPayload | null,
+) {
+    const cookieString = token ? await tokenAgent.dangerouslySignEternalSessionToken(token) : "";
+
+    return serialize("session", cookieString, {
+        // The session cookie domain is not set in development because we may be
+        // accessing from a proxied domain or an IP address on a mobile device.
+        domain: process.env.NODE_ENV === "production" ? "cyberworlds.dev" : undefined,
+        httpOnly: true,
+        path: "/",
+        sameSite: "lax",
+        // Only allow the session cookie to be sent over HTTPS in production. In
+        // development we use plain HTTP.
+        secure: process.env.NODE_ENV === "production",
+        // We can't force the browser to delete a cookie so we set it to an empty string
+        // and tell the browser to expire it immediately.
+        maxAge: token
+            ? 60 * 60 * 24 * 365 // 1 year
+            : 1, // 1 second
+    });
+}
+
+// Let tests call this function directly.
+export function getSessionCookieSetCookieHeaderForTest(
+    tokenAgent: AppServiceTokenAgent,
+    token: SessionTokenPayload | null,
+) {
+    assert(process.env.NODE_ENV === "test");
+    return getSessionCookieSetCookieHeader(tokenAgent, token);
 }

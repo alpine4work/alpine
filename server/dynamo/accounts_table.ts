@@ -355,11 +355,12 @@ export async function regenerateOneTimePasswordSignIn(
         oneTimePasswordSignInEmailsForTest.push({emailAddress, oneTimePassword: password});
     }
 
-    // We allow integration tests to capture one time password emails by
-    // setting a global function.
+    // In development, log the one time password so developers can sign in. In
+    // integration tests we watch the app service stdout for this log line and
+    // capture it so we can use the one time password to log in.
     if (process.env.NODE_ENV === "development") {
         // eslint-disable-next-line no-console
-        console.log(quote`✉️  The one time password for ${emailAddress} is ${password}`);
+        console.log(quote`The one time password for ${emailAddress} is ${password}`);
     }
 
     await context.email.send({

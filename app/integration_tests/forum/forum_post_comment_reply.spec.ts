@@ -1,5 +1,5 @@
 import {expect, test} from "@playwright/test";
-import {createTestServer} from "~/app/integration_tests/helpers/create_test_server.js";
+import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {createChannel, createPost, createPostComment} from "~/server/dynamo/forum_table.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session.js";
@@ -8,7 +8,7 @@ import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 
 const context = createTestContext();
-const server = createTestServer(context);
+const services = createTestServices(context);
 const space = createTestSpace(context);
 const session1 = createTestSession(context, space);
 const session2 = createTestSession(context, space);
@@ -36,7 +36,7 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
         content: createSimpleMessageContent("Test post comment content 2"),
     });
 
-    await server.signIn(browserContext, session1);
+    await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/posts/${post.id}`);
 
     // Existing messages aren't replying to anything.
@@ -196,7 +196,7 @@ test("clicking a reply bubble will scroll to the comment", async ({
         content: createSimpleMessageContent("Test post comment content 101"),
     });
 
-    await server.signIn(browserContext, session1);
+    await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/posts/${post.id}`);
 
     // Make sure our scroll view is focused so pressing `End` will scroll the

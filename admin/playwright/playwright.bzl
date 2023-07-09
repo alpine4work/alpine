@@ -128,6 +128,7 @@ def playwright_test(
             "--require=./admin/jest/jest_setup_server.cjs",
             "--import=./admin/playwright/playwright_setup.mjs",
         ],
+        testonly = True,
     )
 
     # Alias that defaults to running our Chromium test for the file.

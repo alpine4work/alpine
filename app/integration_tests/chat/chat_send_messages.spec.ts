@@ -1,12 +1,12 @@
 import {expect, test} from "@playwright/test";
-import {createTestServer} from "~/app/integration_tests/helpers/create_test_server.js";
+import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {getOrCreateChatForAccounts} from "~/server/dynamo/chat_table.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space.js";
 
 const context = createTestContext();
-const server = createTestServer(context);
+const services = createTestServices(context);
 const space = createTestSpace(context);
 const session1 = createTestSession(context, space, {name: "Logan Roy"});
 const session2 = createTestSession(context, space, {name: "Siobahn Roy"});
@@ -14,7 +14,7 @@ const session3 = createTestSession(context, space, {name: "Kendall Roy"});
 const session4 = createTestSession(context, space, {name: "Roman Roy"});
 
 test("chat message stays when changing chat selection", async ({page, context: browserContext}) => {
-    await server.signIn(browserContext, session1);
+    await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/chat/new`);
 
     await expect(page.getByRole("button", {name: "Send message"})).toBeDisabled();
@@ -81,7 +81,7 @@ test("chat message stays when changing chat selection", async ({page, context: b
 });
 
 test("send chat message to another account", async ({page, context: browserContext}) => {
-    await server.signIn(browserContext, session1);
+    await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/chat/new`);
 
     await expect(page.getByText("Siobahn Roy")).toBeHidden();
@@ -115,7 +115,7 @@ test("send chat message to another account", async ({page, context: browserConte
 });
 
 test("can see chat message from recipient account", async ({page, context: browserContext}) => {
-    await server.signIn(browserContext, session2);
+    await services.signIn(browserContext, session2);
     await page.goto(`/s/${space.id}/chat/new`);
 
     await expect(page.getByText("Test message content 1")).toBeHidden();
@@ -130,7 +130,7 @@ test("can not see chat message from non-recipient account but can send a differe
     page,
     context: browserContext,
 }) => {
-    await server.signIn(browserContext, session3);
+    await services.signIn(browserContext, session3);
     await page.goto(`/s/${space.id}/chat/new`);
 
     await expect(page.getByText("Test message content 1")).toBeHidden();
@@ -155,7 +155,7 @@ test("can not see chat message from non-recipient account but can send a differe
 });
 
 test("send chat message to multiple accounts", async ({page, context: browserContext}) => {
-    await server.signIn(browserContext, session1);
+    await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/chat/new`);
 
     await expect(page.getByText("Siobahn Roy")).toBeHidden();
@@ -207,7 +207,7 @@ test("send chat message to multiple accounts", async ({page, context: browserCon
 });
 
 test("reloading the page will keep the chat selection", async ({page, context: browserContext}) => {
-    await server.signIn(browserContext, session2);
+    await services.signIn(browserContext, session2);
     await page.goto(`/s/${space.id}/chat/new`);
 
     await expect(page.getByText("Test message content 1")).toBeHidden();
@@ -242,7 +242,7 @@ test("reloading the page will keep the chat selection", async ({page, context: b
 });
 
 test("can remove selected chat accounts", async ({page, context: browserContext}) => {
-    await server.signIn(browserContext, session1);
+    await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/chat/new`);
 
     await expect(page.getByText("Test message content 1")).toBeHidden();
@@ -312,7 +312,7 @@ test("includes recommended group chats for autocomplete", async ({
     page,
     context: browserContext,
 }) => {
-    await server.signIn(browserContext, session1);
+    await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/chat/new`);
 
     await expect(page.getByText("Test message content 1")).toBeHidden();
@@ -418,7 +418,7 @@ test("can open chat directly by id", async ({page, context: browserContext}) => 
         otherAccountIds: [session2.accountId, session3.accountId],
     });
 
-    await server.signIn(browserContext, session1);
+    await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/chat/${chatId1}`);
 
     await expect(page.getByRole("heading", {name: "Siobahn", exact: true})).toBeVisible();
@@ -451,7 +451,7 @@ test("can open chat directly by id", async ({page, context: browserContext}) => 
 });
 
 test("can send self a message", async ({page, context: browserContext}) => {
-    await server.signIn(browserContext, session1);
+    await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/chat/new`);
 
     await expect(page.getByTestId("ChatAccountPickerInput").getByText("Logan Roy")).toBeHidden();
@@ -504,11 +504,11 @@ test("two accounts can look at an empty chat and see new messages appear in real
     context: browserContext1,
     page: page1,
 }) => {
-    await server.signIn(browserContext1, session1);
+    await services.signIn(browserContext1, session1);
     await page1.goto(`/s/${space.id}/chat/new`);
 
     const browserContext2 = await browser.newContext();
-    await server.signIn(browserContext2, session4);
+    await services.signIn(browserContext2, session4);
     const page2 = await browserContext2.newPage();
     await page2.goto(`/s/${space.id}/chat/new`);
 

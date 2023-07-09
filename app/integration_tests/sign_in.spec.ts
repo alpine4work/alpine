@@ -1,5 +1,5 @@
 import {expect, test} from "@playwright/test";
-import {createTestServer} from "~/app/integration_tests/helpers/create_test_server.js";
+import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {approveAlphaAccessRequest} from "~/server/dynamo/alpha_access_table.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants.js";
 import {seedDynamo} from "~/server/dynamo/seed_dynamo.js";
@@ -10,17 +10,7 @@ import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {generateId} from "~/shared/id/id.js";
 
 const context = createTestContext();
-
-let oneTimePasswords: Array<string> = [];
-
-createTestServer(context, {
-    globals: {
-        __logOneTimePassword: ({oneTimePassword}: {oneTimePassword: string}) => {
-            oneTimePasswords.push(oneTimePassword);
-        },
-    },
-});
-
+const services = createTestServices(context);
 const space = createTestSpace(context);
 const adminSession = createTestSession(context, space, {hasInternalAccess: true});
 
@@ -69,16 +59,17 @@ test("can sign in after access is approved", async ({page}) => {
     await page.getByLabel("Email address").type(emailAddress);
     await expect(page.getByRole("button", {name: "Sign in"})).toBeEnabled();
 
-    expect(oneTimePasswords.length).toEqual(0);
+    expect(services.getOneTimePasswords().length).toEqual(0);
     await expect(page.getByText("Could not sign in")).toBeHidden();
     await expect(page.getByText("We sent a sign in code to")).toBeHidden();
     await page.getByRole("button", {name: "Sign in"}).click();
     await expect(page.getByText("Could not sign in")).toBeHidden();
     await expect(page.getByText("We sent a sign in code to")).toBeVisible();
-    expect(oneTimePasswords.length).toEqual(1);
+    expect(services.getOneTimePasswords().length).toEqual(1);
 
-    const oneTimePassword = oneTimePasswords[0]!;
-    oneTimePasswords = [];
+    const {emailAddress: oneTimePasswordEmailAddress, oneTimePassword} =
+        services.getOneTimePasswords()[0]!;
+    expect(oneTimePasswordEmailAddress).toEqual(emailAddress);
 
     await expect(page).not.toHaveURL(new RegExp(getDynamoSeedConstants().defaultSpaceId));
     await page.getByLabel("Sign in code").type(oneTimePassword);

@@ -22,7 +22,7 @@ export const devEdgeServiceFamilyPublicKeyPath = joinPath(
  * Make sure our development key files exist. If our key files do not exist
  * then we generate new keys. Otherwise this function does nothing.
  */
-export async function ensureDevKeys() {
+export async function ensureDevServiceKeys() {
     await runAllPromises([
         (async () => {
             if (await fs.pathExists(devAppServicePrivateKeyPath)) return;

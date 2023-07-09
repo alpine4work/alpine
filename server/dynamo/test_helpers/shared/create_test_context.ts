@@ -32,6 +32,7 @@ import {
 import {testSharedHooks} from "~/server/dynamo/test_helpers/shared/test_shared_hooks.js";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
+import {writeTracerEventToFileInDev} from "~/server/tracer/write_tracer_event_to_file_in_dev.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -102,10 +103,7 @@ export function createTestContext(): TestContext {
         jsHost: "Node",
         untrusted: false,
         getTime: () => Date.now(),
-        sendEvent: () => {
-            // We ignore all events generated in tests. Maybe we should write them to
-            // a log file?
-        },
+        sendEvent: writeTracerEventToFileInDev,
     });
 
     let dynamoLocal: DynamoLocal | null = null;

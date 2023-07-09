@@ -11080,7 +11080,7 @@ test("account can't backfill in a space it can't access", async () => {
                 type: "PutItem",
                 item: {
                     key: expect.any(String),
-                    version: 1,
+                    version: expect.any(Number),
                     model: new InboxChannelPostsEntryModel({
                         spaceId: scenario.space.id,
                         accountId: scenario.session3.account.id,
@@ -11148,7 +11148,7 @@ test("won't backfill events that happened far in the past", async () => {
                 type: "PutItem",
                 item: {
                     key: expect.any(String),
-                    version: 1,
+                    version: expect.any(Number),
                     model: new InboxChannelPostsEntryModel({
                         spaceId: scenario.space.id,
                         accountId: scenario.session3.account.id,

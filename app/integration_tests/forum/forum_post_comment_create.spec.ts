@@ -1,5 +1,5 @@
 import {Page, expect, test} from "@playwright/test";
-import {createTestServer} from "~/app/integration_tests/helpers/create_test_server.js";
+import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {createChannel, createPost, createPostComment} from "~/server/dynamo/forum_table.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session.js";
@@ -8,7 +8,7 @@ import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 
 const context = createTestContext();
-const server = createTestServer(context);
+const services = createTestServices(context);
 const space = createTestSpace(context);
 const session1 = createTestSession(context, space, {name: "Logan Roy"});
 const session2 = createTestSession(context, space, {name: "Siobahn Roy"});
@@ -47,7 +47,7 @@ test("can open and close post comments in channel", async ({page, context: brows
         content: createSimpleMessageContent("Test post comment content 3"),
     });
 
-    await server.signIn(browserContext, session1);
+    await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/channels/${channel.id}`);
 
     await expect(page.getByText("Test post content 1")).toBeVisible();
@@ -99,7 +99,7 @@ test("comments are always open at a direct post url", async ({page, context: bro
         content: createSimpleMessageContent("Test post comment content 3"),
     });
 
-    await server.signIn(browserContext, session1);
+    await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/posts/${post.id}`);
 
     await expect(page.getByText("Test post content 1")).toBeVisible();
@@ -129,7 +129,7 @@ test("can comment on a post", async ({page, context: browserContext, isMobile}) 
         content: createSimplePostContent("Test post content 1"),
     });
 
-    await server.signIn(browserContext, session2);
+    await services.signIn(browserContext, session2);
     await page.goto(`/s/${space.id}/channels/${channel.id}`);
 
     await expect(page.getByRole("textbox", {name: "New comment"})).toBeHidden();
@@ -194,7 +194,7 @@ test("can see comments appear in realtime", async ({
         content: createSimplePostContent("Test post content 1"),
     });
 
-    await server.signIn(browserContext1, session1);
+    await services.signIn(browserContext1, session1);
     await page1.goto(`/s/${space.id}/posts/${post.id}`);
 
     await expect(page1.getByText("0 comments")).toBeVisible();
@@ -208,7 +208,7 @@ test("can see comments appear in realtime", async ({
     await expect(page1.getByText("Test post comment content 4")).toBeHidden();
 
     const browserContext2 = await browser.newContext();
-    await server.signIn(browserContext2, session2);
+    await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
     await page2.goto(`/s/${space.id}/posts/${post.id}`);
 
@@ -234,7 +234,7 @@ test("can see comments appear in realtime", async ({
     await expect(page1.getByText("Test post comment content 4")).toBeHidden();
 
     const browserContext3 = await browser.newContext();
-    await server.signIn(browserContext3, session3);
+    await services.signIn(browserContext3, session3);
     const page3 = await browserContext3.newPage();
     await page3.goto(`/s/${space.id}/posts/${post.id}`);
 
@@ -321,7 +321,7 @@ test("can see new comments when opening post comments", async ({
         content: createSimplePostContent("Test post content 1"),
     });
 
-    await server.signIn(browserContext1, session1);
+    await services.signIn(browserContext1, session1);
     await page1.goto(`/s/${space.id}/channels/${channel.id}`);
 
     await page1.getByRole("button", {name: "0 comments"}).click();
@@ -337,7 +337,7 @@ test("can see new comments when opening post comments", async ({
     await expect(page1.getByText("Test post comment content 4")).toBeHidden();
 
     const browserContext2 = await browser.newContext();
-    await server.signIn(browserContext2, session2);
+    await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
     await page2.goto(`/s/${space.id}/posts/${post.id}`);
 
@@ -376,7 +376,7 @@ test("can see new comments when opening post comments", async ({
     await expect(page1.getByText("Test post comment content 4")).toBeHidden();
 
     const browserContext3 = await browser.newContext();
-    await server.signIn(browserContext3, session3);
+    await services.signIn(browserContext3, session3);
     const page3 = await browserContext3.newPage();
     await page3.goto(`/s/${space.id}/posts/${post.id}`);
 

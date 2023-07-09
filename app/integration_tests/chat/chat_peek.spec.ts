@@ -1,5 +1,5 @@
 import {expect, test} from "@playwright/test";
-import {createTestServer} from "~/app/integration_tests/helpers/create_test_server.js";
+import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {createDocument} from "~/server/dynamo/documents_table.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session.js";
@@ -7,7 +7,7 @@ import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_s
 import {createSimpleDocumentContent} from "~/shared/documents/document_content_schema.js";
 
 const context = createTestContext();
-const server = createTestServer(context);
+const services = createTestServices(context);
 const space = createTestSpace(context);
 const session1 = createTestSession(context, space, {name: "Logan Roy"});
 createTestSession(context, space, {name: "Siobahn Roy"});
@@ -22,7 +22,7 @@ test("will remember the account being messaged in a chat peek", async ({
         content: createSimpleDocumentContent("Test document content 1"),
     });
 
-    await server.signIn(browserContext, session1);
+    await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/documents/${document.id}`);
 
     await page.getByRole("button", {name: "Create"}).click();
@@ -94,7 +94,7 @@ test("will expand chat peek on top of chat peek with different selection", async
     context: browserContext,
     page,
 }) => {
-    await server.signIn(browserContext, session1);
+    await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/chat/new`);
 
     await expect(page.getByText("Siobahn Roy")).toBeHidden();

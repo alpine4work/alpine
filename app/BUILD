@@ -113,4 +113,5 @@ js_binary(
         "//:remix_config_files",
     ],
     entry_point = ":app_build",
+    visibility = ["//app/integration_tests:__pkg__"],
 )

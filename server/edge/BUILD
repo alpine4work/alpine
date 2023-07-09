@@ -33,10 +33,12 @@ js_binary(
         ":edge_service_bundle_file",
         "//:node_modules/fs-extra",
         "//:node_modules/miniflare",
+        "//:node_modules/toml",
         "//:package_light_json_file",
         "//server/helpers",
     ],
     entry_point = "edge_service_dev_main.mjs",
     env = {"NODE_ENV": "development"},
     node_options = ["--experimental-vm-modules"],
+    visibility = ["//app/integration_tests:__pkg__"],
 )

@@ -1,5 +1,5 @@
 import {expect, test} from "@playwright/test";
-import {createTestServer} from "~/app/integration_tests/helpers/create_test_server.js";
+import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {getOrCreateChatForAccounts} from "~/server/dynamo/chat_table.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session.js";
@@ -7,7 +7,7 @@ import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_s
 import {wait} from "~/shared/helpers/async/wait.js";
 
 const context = createTestContext();
-const server = createTestServer(context);
+const services = createTestServices(context);
 const space = createTestSpace(context);
 const session1 = createTestSession(context, space, {name: "Logan Roy"});
 const session2 = createTestSession(context, space, {name: "Siobahn Roy"});
@@ -28,16 +28,16 @@ test("can see new chat notifications on inbox button and preview", async ({
         otherAccountIds: [session1.accountId],
     });
 
-    await server.signIn(browserContext1, session2);
+    await services.signIn(browserContext1, session2);
     await page1.goto(`/s/${space.id}/chat/${chat1Id}`);
 
     const browserContext2 = await browser.newContext();
-    await server.signIn(browserContext2, session3);
+    await services.signIn(browserContext2, session3);
     const page2 = await browserContext2.newPage();
     await page2.goto(`/s/${space.id}/chat/${chat2Id}`);
 
     const browserContext3 = await browser.newContext();
-    await server.signIn(browserContext3, session1);
+    await services.signIn(browserContext3, session1);
     const page3 = await browserContext3.newPage();
     await page3.goto(`/s/${space.id}`);
 
@@ -183,16 +183,16 @@ test("can see new chat notifications from inbox", async ({
         otherAccountIds: [session1.accountId],
     });
 
-    await server.signIn(browserContext1, session2);
+    await services.signIn(browserContext1, session2);
     await page1.goto(`/s/${space.id}/chat/${chat1Id}`);
 
     const browserContext2 = await browser.newContext();
-    await server.signIn(browserContext2, session3);
+    await services.signIn(browserContext2, session3);
     const page2 = await browserContext2.newPage();
     await page2.goto(`/s/${space.id}/chat/${chat2Id}`);
 
     const browserContext3 = await browser.newContext();
-    await server.signIn(browserContext3, session1);
+    await services.signIn(browserContext3, session1);
     const page3 = await browserContext3.newPage();
     await page3.goto(`/s/${space.id}`);
 
@@ -327,16 +327,16 @@ test("can go offline then when reconnecting notifications catch up", async ({
         otherAccountIds: [session1.accountId],
     });
 
-    await server.signIn(browserContext1, session2);
+    await services.signIn(browserContext1, session2);
     await page1.goto(`/s/${space.id}/chat/${chat1Id}`);
 
     const browserContext2 = await browser.newContext();
-    await server.signIn(browserContext2, session1);
+    await services.signIn(browserContext2, session1);
     const page2 = await browserContext2.newPage();
     await page2.goto(`/s/${space.id}`);
 
     const browserContext3 = await browser.newContext();
-    await server.signIn(browserContext3, session1);
+    await services.signIn(browserContext3, session1);
     const page3 = await browserContext3.newPage();
     await page3.goto(`/s/${space.id}/inbox`);
 

@@ -1,5 +1,5 @@
 import {expect, test} from "@playwright/test";
-import {createTestServer} from "~/app/integration_tests/helpers/create_test_server.js";
+import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {createDocument} from "~/server/dynamo/documents_table.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session.js";
@@ -12,7 +12,7 @@ import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 
 const context = createTestContext();
-const server = createTestServer(context);
+const services = createTestServices(context);
 const space = createTestSpace(context);
 const session1 = createTestSession(context, space);
 const session2 = createTestSession(context, space);
@@ -33,11 +33,11 @@ test("can write collaboratively in a document", async ({
         content: emptyDocumentContent,
     });
 
-    await server.signIn(browserContext1, session1);
+    await services.signIn(browserContext1, session1);
     await page1.goto(`/s/${space.id}/documents/${document.id}`);
 
     const browserContext2 = await browser.newContext();
-    await server.signIn(browserContext2, session2);
+    await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
     await page2.goto(`/s/${space.id}/documents/${document.id}`);
 
@@ -112,11 +112,11 @@ test("can write collaboratively at the same time in a document", async ({
         content: emptyDocumentContent,
     });
 
-    await server.signIn(browserContext1, session1);
+    await services.signIn(browserContext1, session1);
     await page1.goto(`/s/${space.id}/documents/${document.id}`);
 
     const browserContext2 = await browser.newContext();
-    await server.signIn(browserContext2, session2);
+    await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
     await page2.goto(`/s/${space.id}/documents/${document.id}`);
 

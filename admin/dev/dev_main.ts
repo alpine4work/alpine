@@ -10,18 +10,18 @@ import {
     buildBazelTarget,
 } from "~/admin/dev/bazel/build_bazel_target.js";
 import {queryBazelTargetDependencyPackagePaths} from "~/admin/dev/bazel/query_bazel_target_dependency_package_paths.js";
-import {
-    devAppServicePrivateKeyPath,
-    devAppServicePublicKeyPath,
-    devEdgeServiceFamilyPrivateKeyPath,
-    devEdgeServiceFamilyPublicKeyPath,
-    ensureDevKeys,
-} from "~/admin/dev/dev_keys.js";
 import {createDevProxyServer} from "~/admin/dev/dev_proxy_server.js";
 import {startRemixDevServer} from "~/admin/dev/remix_dev_server.js";
 import {spawnWithCoordinatedStdio} from "~/admin/dev/stdio_coordinator.js";
 import {startDynamoLocal} from "~/admin/dynamo/local/start_dynamo_local.js";
 import {devEnvPaths} from "~/admin/helpers/dev_env_paths.js";
+import {
+    devAppServicePrivateKeyPath,
+    devAppServicePublicKeyPath,
+    devEdgeServiceFamilyPrivateKeyPath,
+    devEdgeServiceFamilyPublicKeyPath,
+    ensureDevServiceKeys,
+} from "~/admin/helpers/dev_service_keys.js";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
 import {waitForProcessExit} from "~/admin/helpers/wait_for_process_exit.js";
 import {waitForProcessSpawn} from "~/admin/helpers/wait_for_process_spawn.js";
@@ -128,7 +128,7 @@ let fileUpdateQueue: {
 const remixDevServerPromise = startRemixDevServer({remixDevServerPort});
 
 const setupPromise = runAllPromises([
-    ensureDevKeys(),
+    ensureDevServiceKeys(),
     startDynamoLocal({
         dataPath: dynamoDataDirectoryPath,
         port: dynamoLocalPort,

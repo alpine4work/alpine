@@ -1,5 +1,5 @@
 import {Page, expect, test} from "@playwright/test";
-import {createTestServer} from "~/app/integration_tests/helpers/create_test_server.js";
+import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {createChannel, createPost, createPostComment} from "~/server/dynamo/forum_table.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session.js";
@@ -8,7 +8,7 @@ import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 
 const context = createTestContext();
-const server = createTestServer(context);
+const services = createTestServices(context);
 const space = createTestSpace(context);
 const session1 = createTestSession(context, space, {name: "Logan Roy"});
 const session2 = createTestSession(context, space, {name: "Siobahn Roy"});
@@ -34,7 +34,7 @@ test("can edit a post comment", async ({page, context: browserContext, isMobile}
         content: createSimpleMessageContent("Test post comment content 1"),
     });
 
-    await server.signIn(browserContext, session1);
+    await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/posts/${post.id}`);
 
     await expect(page.getByText("Test post comment content 1")).toBeVisible();
@@ -90,7 +90,7 @@ test("can not edit a post comment that's not yours", async ({page, context: brow
         content: createSimpleMessageContent("Test post comment content 1"),
     });
 
-    await server.signIn(browserContext, session1);
+    await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/posts/${post.id}`);
 
     await expect(page.getByText("Test post comment content 1")).toBeVisible();
@@ -127,13 +127,13 @@ test("can see a post comment edited in realtime", async ({
         content: createSimpleMessageContent("Test post comment content 1"),
     });
 
-    await server.signIn(browserContext1, session2);
+    await services.signIn(browserContext1, session2);
     await page1.goto(`/s/${space.id}/posts/${post.id}`);
 
     await expect(page1.getByText("Test post comment content 1")).toBeVisible();
 
     const browserContext2 = await browser.newContext();
-    await server.signIn(browserContext2, session2);
+    await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
     await page2.goto(`/s/${space.id}/posts/${post.id}`);
 
@@ -181,7 +181,7 @@ test("can delete a post comment", async ({page, context: browserContext}) => {
         content: createSimpleMessageContent("Test post comment content 1"),
     });
 
-    await server.signIn(browserContext, session1);
+    await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/posts/${post.id}`);
 
     await expect(page.getByText("Test post comment content 1")).toBeVisible();
@@ -230,7 +230,7 @@ test("can not delete a post comment that's not yours", async ({page, context: br
         content: createSimpleMessageContent("Test post comment content 1"),
     });
 
-    await server.signIn(browserContext, session1);
+    await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/posts/${post.id}`);
 
     await expect(page.getByText("Test post comment content 1")).toBeVisible();
@@ -266,7 +266,7 @@ test("can see a post comment deleted in realtime", async ({
         content: createSimpleMessageContent("Test post comment content 1"),
     });
 
-    await server.signIn(browserContext1, session2);
+    await services.signIn(browserContext1, session2);
     await page1.goto(`/s/${space.id}/posts/${post.id}`);
 
     await expect(page1.getByText("Test post comment content 1")).toBeVisible();
@@ -277,7 +277,7 @@ test("can see a post comment deleted in realtime", async ({
     await expect(page1.getByText("Comment deleted")).toBeHidden();
 
     const browserContext2 = await browser.newContext();
-    await server.signIn(browserContext2, session2);
+    await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
     await page2.goto(`/s/${space.id}/posts/${post.id}`);
 
@@ -323,11 +323,11 @@ test("will backfill an edit in realtime when comments are reopened", async ({
         content: createSimpleMessageContent("Test post comment content 1"),
     });
 
-    await server.signIn(browserContext1, session2);
+    await services.signIn(browserContext1, session2);
     await page1.goto(`/s/${space.id}/channels/${channel.id}`);
 
     const browserContext2 = await browser.newContext();
-    await server.signIn(browserContext2, session2);
+    await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
     await page2.goto(`/s/${space.id}/posts/${post.id}`);
 
@@ -384,11 +384,11 @@ test("will backfill a delete in realtime when comments are reopened", async ({
         content: createSimpleMessageContent("Test post comment content 1"),
     });
 
-    await server.signIn(browserContext1, session2);
+    await services.signIn(browserContext1, session2);
     await page1.goto(`/s/${space.id}/channels/${channel.id}`);
 
     const browserContext2 = await browser.newContext();
-    await server.signIn(browserContext2, session2);
+    await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
     await page2.goto(`/s/${space.id}/posts/${post.id}`);
 

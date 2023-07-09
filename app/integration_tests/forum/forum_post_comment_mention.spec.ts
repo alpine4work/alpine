@@ -1,5 +1,5 @@
 import {expect, test} from "@playwright/test";
-import {createTestServer} from "~/app/integration_tests/helpers/create_test_server.js";
+import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {createChannel, createPost} from "~/server/dynamo/forum_table.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session.js";
@@ -9,7 +9,7 @@ import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 const modifier = process.platform === "darwin" ? "Meta" : "Control";
 
 const context = createTestContext();
-const server = createTestServer(context);
+const services = createTestServices(context);
 const space = createTestSpace(context);
 const session1 = createTestSession(context, space, {name: "Logan Roy"});
 createTestSession(context, space, {name: "Siobahn Roy"});
@@ -33,7 +33,7 @@ test("can search for an account in mention menu", async ({
         content: createSimplePostContent("Test post content 1"),
     });
 
-    await server.signIn(browserContext, session1);
+    await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/posts/${post.id}`);
 
     await expect(page.getByTestId("ContentEditorMentionFloater")).toBeHidden();
@@ -105,7 +105,7 @@ test("can undo to get the full mention when a short mention was inferred", async
         content: createSimplePostContent("Test post content 1"),
     });
 
-    await server.signIn(browserContext, session1);
+    await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/posts/${post.id}`);
 
     await page.getByRole("textbox", {name: "New comment"}).type("@");
@@ -162,7 +162,7 @@ test("if a name is ambiguous you get the full mention and pressing backspace wil
         content: createSimplePostContent("Test post content 1"),
     });
 
-    await server.signIn(browserContext, session1);
+    await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/posts/${post.id}`);
 
     await page.getByRole("textbox", {name: "New comment"}).type("@");

@@ -1,5 +1,5 @@
 import {expect, test} from "@playwright/test";
-import {createTestServer} from "~/app/integration_tests/helpers/create_test_server.js";
+import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {createChannel, createPost} from "~/server/dynamo/forum_table.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session.js";
@@ -9,7 +9,7 @@ import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 const modifier = process.platform === "darwin" ? "Meta" : "Control";
 
 const context = createTestContext();
-const server = createTestServer(context);
+const services = createTestServices(context);
 const space = createTestSpace(context);
 const session1 = createTestSession(context, space);
 const session2 = createTestSession(context, space);
@@ -20,7 +20,7 @@ test("can create posts", async ({page, context: browserContext}) => {
         name: "Test Channel",
     });
 
-    await server.signIn(browserContext, session1);
+    await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/channels/${channel.id}`);
 
     await expect(page.getByText("Test Channel")).toBeVisible();
@@ -52,7 +52,7 @@ test("can create multiline formatted posts", async ({page, context: browserConte
         name: "Test Channel",
     });
 
-    await server.signIn(browserContext, session1);
+    await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/channels/${channel.id}`);
 
     await expect(page.getByText("Test Channel")).toBeVisible();
@@ -82,7 +82,7 @@ test("can edit a post", async ({page, context: browserContext}) => {
         content: createSimplePostContent("Test post content 1"),
     });
 
-    await server.signIn(browserContext, session1);
+    await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/channels/${channel.id}`);
 
     await expect(page.getByText("Test post content 1")).toBeVisible();
@@ -132,7 +132,7 @@ test("asks for confirmation when closing edit post modal", async ({
         content: createSimplePostContent("Test post content 1"),
     });
 
-    await server.signIn(browserContext, session2);
+    await services.signIn(browserContext, session2);
     await page.goto(`/s/${space.id}/channels/${channel.id}`);
 
     await expect(page.getByRole("menuitem", {name: "Copy link"})).toBeHidden();
