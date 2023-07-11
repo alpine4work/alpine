@@ -1,5 +1,4 @@
-import * as cdk from "aws-cdk-lib";
-import {Construct} from "constructs";
+import {Stack, aws_dynamodb as dynamodb} from "aws-cdk-lib";
 import {getAllDynamoTableSchemas} from "~/server/dynamo/get_all_dynamo_table_schemas.js";
 
 /**
@@ -9,20 +8,20 @@ import {getAllDynamoTableSchemas} from "~/server/dynamo/get_all_dynamo_table_sch
  * `server/dynamo` and finding all the `DynamoTableSchema`s that were
  * constructed by those imported modules.
  */
-export async function addAllDynamoAwsResources(scope: Construct) {
+export function addAllDynamoAwsResources(stack: Stack) {
     for (const tableSchema of getAllDynamoTableSchemas()) {
         const tableName = tableSchema.getName();
         const tableDescription = tableSchema.getDescription();
 
-        const table = new cdk.aws_dynamodb.Table(scope, `${tableName}Table`, {
+        const table = new dynamodb.Table(stack, `${tableName}Table`, {
             tableName,
             partitionKey: {
                 name: "partitionKey",
-                type: cdk.aws_dynamodb.AttributeType.STRING,
+                type: dynamodb.AttributeType.STRING,
             },
             sortKey: {
                 name: "sortKey",
-                type: cdk.aws_dynamodb.AttributeType.STRING,
+                type: dynamodb.AttributeType.STRING,
             },
             timeToLiveAttribute: "expirationTime",
 
@@ -33,7 +32,7 @@ export async function addAllDynamoAwsResources(scope: Construct) {
             // Reconsider billing mode when we have traffic.
             //
             // https://www.serverless.com/blog/dynamodb-on-demand-serverless
-            billingMode: cdk.aws_dynamodb.BillingMode.PAY_PER_REQUEST,
+            billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
         });
 
         for (const [i, indexDescription] of tableDescription.indexes.entries()) {
@@ -42,16 +41,16 @@ export async function addAllDynamoAwsResources(scope: Construct) {
             table.addGlobalSecondaryIndex({
                 indexName: `Index${indexNumber}`,
                 projectionType: {
-                    KeysOnly: cdk.aws_dynamodb.ProjectionType.KEYS_ONLY,
-                    All: cdk.aws_dynamodb.ProjectionType.ALL,
+                    KeysOnly: dynamodb.ProjectionType.KEYS_ONLY,
+                    All: dynamodb.ProjectionType.ALL,
                 }[indexDescription.projection],
                 partitionKey: {
                     name: `index${indexNumber}PartitionKey`,
-                    type: cdk.aws_dynamodb.AttributeType.STRING,
+                    type: dynamodb.AttributeType.STRING,
                 },
                 sortKey: {
                     name: `index${indexNumber}SortKey`,
-                    type: cdk.aws_dynamodb.AttributeType.STRING,
+                    type: dynamodb.AttributeType.STRING,
                 },
             });
         }

@@ -103,6 +103,8 @@ export function createTestContext(): TestContext {
         jsHost: "Node",
         untrusted: false,
         getTime: () => Date.now(),
+        // Don't send events from tests to Honeycomb. That feels like too much. But do
+        // write events to our dev files. This can help developers debug.
         sendEvent: writeTracerEventToFileInDev,
     });
 

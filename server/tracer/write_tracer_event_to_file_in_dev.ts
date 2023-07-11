@@ -1,27 +1,62 @@
-import createEnvPaths from "env-paths";
-import fs from "fs-extra";
-import {join as joinPath} from "path";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {cast} from "~/shared/helpers/control/cast.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
 
-// Can only import this file in Node.js. It won't work in Cloudflare.
-assert(process.versions.node);
+const isNode = typeof process !== "undefined" && !!process.versions.node;
 
-// TODO(calebmer): This is copied from `admin/helpers/dev_env_paths.ts` which
-// isn't great. Using `fs` in a package used by Cloudflare also isn't great. We
-// should see if there's a better package structure we can setup for
-// Cloudflare/Node.js shared stuff and have a Node.js specific helpers folder.
-const devEnvPaths = createEnvPaths("cyberworlds-development", {suffix: ""});
+const nodeSetupPromise = new Lazy(async () => {
+    assert(isNode);
 
-const tracerLogDirectoryPath = joinPath(devEnvPaths.log, "tracer");
-fs.ensureDirSync(tracerLogDirectoryPath);
+    const [{join: joinPath}, {default: fs}, {default: createEnvPaths}]: [
+        typeof import("path"),
+        {default: typeof import("fs-extra")},
+        typeof import("env-paths"),
+    ] = await runAllPromises([
+        // These imports are carefully written so they can't be statically analyzed
+        // and bundled by esbuild into a Cloudflare Workers bundle. It should only work
+        // on Node.js.
+        //
+        // `cast()` does nothing and directly returns its argument. But static
+        // analyzers aren't currently smart enough to know that. They think `cast()`
+        // could do anything.
+        import("pa" + cast("th")),
+        import("fs-" + cast("extra")),
+        import("env-" + cast("paths")),
+    ]);
+
+    const devEnvPaths = createEnvPaths("cyberworlds-development", {suffix: ""});
+    const tracerLogDirectoryPath = joinPath(devEnvPaths.log, "tracer");
+
+    await fs.ensureDir(tracerLogDirectoryPath);
+
+    return {joinPath, fs, tracerLogDirectoryPath};
+});
 
 /**
  * Writes a tracer event to a file on the developer's computer. Helpful if they
- * want to debug events locally instead of Honeycomb.
+ * want to debug events locally instead of in Honeycomb.
+ *
+ * In Node.js we have access to the file system so we write the file. Outside
+ * of Node.js (like Cloudflare Workers) we expect a global function to be
+ * provided.
  */
 export function writeTracerEventToFileInDev(event: unknown) {
+    assert(process.env.NODE_ENV !== "production");
+
+    if (!isNode) {
+        const globalWriteTracerEventToFileInDev = (globalThis as any).__writeTracerEventToFileInDev;
+        assert(
+            globalWriteTracerEventToFileInDev,
+            "Expected `__writeTracerEventToFileInDev` global in non-Node.js environments",
+        );
+        return globalWriteTracerEventToFileInDev(event);
+    }
+
     runPromiseWithoutAwaiting(async () => {
+        const {joinPath, fs, tracerLogDirectoryPath} = await nodeSetupPromise.get();
+
         const date = new Date();
         const dateString =
             date.getUTCFullYear().toString().padStart(4, "0") +

@@ -1,5 +1,6 @@
 import "~/app/helpers/install_remix_globals.js";
 
+import {fromContainerMetadata} from "@aws-sdk/credential-providers";
 import * as build from "@remix-run/dev/server-build";
 import {
     Request as NodeRequest,
@@ -8,10 +9,13 @@ import {
     createRequestHandler,
     writeReadableStreamToWritable,
 } from "@remix-run/node";
+import {AwsCredentialIdentity} from "@smithy/types";
 import {AwsClient} from "aws4fetch";
+import cluster from "cluster";
 import {parse as parseCookieHeader} from "cookie";
 import fs from "fs-extra";
 import {IncomingHttpHeaders, IncomingMessage, ServerResponse, createServer} from "http";
+import * as os from "os";
 import {join as joinPath} from "path";
 import createServeStaticMiddleware from "serve-static";
 import {PassThrough} from "stream";
@@ -39,7 +43,6 @@ import {SessionCookie, withSessionCookie} from "~/server/tokens/session_cookie.j
 import {AppServiceTokenAgent} from "~/server/tokens/token_agent.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {traceFetchResponse} from "~/server/tracer/trace_fetch_response.js";
-import {writeTracerEventToFileInDev} from "~/server/tracer/write_tracer_event_to_file_in_dev.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -49,10 +52,10 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 import {ClientInfoSchema} from "~/shared/remix/client_info.js";
-import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
 const runfilesPath = assertExists(process.env.RUNFILES);
 
@@ -99,39 +102,53 @@ const serveStaticMiddleware = createServeStaticMiddleware(
     },
 );
 
-let tracer: TracerRoot;
+// Kill the process if we get an uncaught exception before the
+// tracer initializes.
+function handleUncaughtExceptionBeforeTracerInitialization(error: unknown) {
+    // eslint-disable-next-line no-console
+    console.error(error);
+    process.exit(1);
+}
 
-main().catch(error => {
-    if (!tracer) {
+process.on("uncaughtException", handleUncaughtExceptionBeforeTracerInitialization);
+
+// In production, run our service across all available CPUs so we get full
+// CPU utilization.
+//
+// TODO(calebmer): Could we detect the `SpaceId` and route requests from that
+// `SpaceId` to the same process? So we can use in-memory caches for the space.
+if (cluster.isPrimary) {
+    const workerCount = process.env.NODE_ENV !== "production" ? 1 : os.cpus().length;
+
+    for (let i = 0; i < workerCount; i++) {
+        cluster.fork();
+    }
+
+    // If any worker in the cluster dies, kill all other workers and exit the
+    // process with an error.
+    cluster.on("exit", () => {
+        process.exit(1);
+    });
+} else {
+    main().catch(error => {
         // eslint-disable-next-line no-console
         console.error(error);
-    } else {
-        tracer.logUncaughtException("Uncaught exception during startup", error);
-    }
-    process.exitCode = 1;
-});
-
-// Log uncaught exceptions, don't kill the process.
-process.on("uncaughtException", error => {
-    if (!tracer) {
-        // eslint-disable-next-line no-console
-        console.error(error);
-    } else {
-        tracer.logUncaughtException("Uncaught exception", error);
-    }
-});
+        process.exit(1);
+    });
+}
 
 async function main() {
     const {
         values: {
             port: portString,
             edgeServiceUrl,
-            appServicePublicKey: appServicePublicKeyPath,
-            edgeServiceFamilyPublicKey: edgeServiceFamilyPublicKeyPath,
-            appServicePrivateKey: appServicePrivateKeyPath,
-            awsAccountId = process.env.NODE_ENV !== "production" ? "local" : undefined,
-            awsAccessKeyId = process.env.NODE_ENV !== "production" ? "local" : undefined,
-            awsSecretAccessKey = process.env.NODE_ENV !== "production" ? "local" : undefined,
+            appServicePublicKey: appServicePublicKeyArg,
+            edgeServiceFamilyPublicKey: edgeServiceFamilyPublicKeyArg,
+            appServicePrivateKey: appServicePrivateKeyArg,
+            awsAccessKeyId: awsAccessKeyIdArg,
+            awsSecretAccessKey: awsSecretAccessKeyArg = process.env.NODE_ENV !== "production"
+                ? "local"
+                : undefined,
             honeycombApiKey,
             remixDevServerPort,
             dynamoLocalPort,
@@ -144,7 +161,6 @@ async function main() {
             appServicePublicKey: {type: "string"},
             edgeServiceFamilyPublicKey: {type: "string"},
             appServicePrivateKey: {type: "string"},
-            awsAccountId: {type: "string"},
             awsAccessKeyId: {type: "string"},
             awsSecretAccessKey: {type: "string"},
             honeycombApiKey: {type: "string"},
@@ -154,7 +170,20 @@ async function main() {
         },
     });
 
-    tracer = createServerTracer({
+    if (!portString) throw new InternalError("Missing `port` arg");
+    if (!edgeServiceUrl) throw new InternalError("Missing `edgeServiceUrl` arg");
+
+    if (!appServicePublicKeyArg) throw new InternalError("Missing `appServicePublicKey` arg");
+    if (!edgeServiceFamilyPublicKeyArg)
+        throw new InternalError("Missing `edgeServiceFamilyPublicKeyPath` arg");
+    if (!appServicePrivateKeyArg) throw new InternalError("Missing `appServicePrivateKey` arg");
+
+    // If a Honeycomb API key is not provided in production then we get no logging
+    // from our service.
+    if (!honeycombApiKey && process.env.NODE_ENV === "production")
+        throw new InternalError("Must provide `honeycombApiKey` arg in production");
+
+    const tracer = createServerTracer({
         serviceName: "AppService",
         jsHost: "Node",
         honeycombApiKey,
@@ -163,29 +192,116 @@ async function main() {
             // If the tracer throws an error, well, there's nowhere else to send the error.
             promise.catch(scheduleUncaughtError);
         },
-        writeEventToFileInDev: writeTracerEventToFileInDev,
     });
 
-    if (!portString) throw new InternalError("Missing `port` arg");
-    if (!edgeServiceUrl) throw new InternalError("Missing `edgeServiceUrl` arg");
+    let isLocalAws = false;
+    let getAwsCredentials: () => Promise<AwsCredentialIdentity & {httpClient?: AwsClient}>;
+    if (process.env.NODE_ENV !== "production") {
+        isLocalAws = !awsAccessKeyIdArg;
+        getAwsCredentials = async () => ({
+            accessKeyId: awsAccessKeyIdArg ?? "local",
+            secretAccessKey: awsSecretAccessKeyArg ?? "local",
+        });
+    }
+    // In production, we load our AWS credentials from container metadata with an
+    // API request. These are short-lived credentials so we need to continuously
+    // refetch the credentials.
+    //
+    // Normally this is handled by the AWS SDK but because we use `aws4fetch` we
+    // need direct access to the AWS credentials outside of the SDK so we have to
+    // implement refresh manually.
+    //
+    // See: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html
+    else {
+        if (awsAccessKeyIdArg || awsSecretAccessKeyArg) {
+            throw new InternalError(
+                "Not allowed to provide `awsAccessKeyIdArg` and `awsSecretAccessKeyArg` arg in production",
+            );
+        }
 
-    if (!appServicePublicKeyPath) throw new InternalError("Missing `appServicePublicKey` arg");
-    if (!edgeServiceFamilyPublicKeyPath)
-        throw new InternalError("Missing `edgeServiceFamilyPublicKeyPath` arg");
-    if (!appServicePrivateKeyPath) throw new InternalError("Missing `appServicePrivateKey` arg");
+        const actuallyFetchAwsCredentials = fromContainerMetadata();
 
-    if (!awsAccountId) throw new InternalError("Must provide `awsAccountId` arg in production");
-    if (!awsAccessKeyId) throw new InternalError("Must provide `awsAccessKeyId` arg in production");
-    if (!awsSecretAccessKey)
-        throw new InternalError("Must provide `awsSecretAccessKey` arg in production");
+        const fetchAwsCredentials = () =>
+            tracer.withSpan("Fetching AWS credentials from container metadata", async () => {
+                try {
+                    const credentials = await actuallyFetchAwsCredentials();
+                    return credentials;
+                } catch (error) {
+                    // Escalate to internal error! If this isn't resolved requests will
+                    // start failing.
+                    throw InternalError.from(error);
+                }
+            });
+
+        let currentAwsCredentialsPromise: Promise<AwsCredentialIdentity> = fetchAwsCredentials();
+        let nextAwsCredentialsPromise: Promise<AwsCredentialIdentity> | null;
+
+        getAwsCredentials = async () => {
+            const awsCredentials = await currentAwsCredentialsPromise;
+
+            if (
+                awsCredentials.expiration &&
+                // Wait until four minutes before our current AWS credentials expire to fetch
+                // new credentials. The docs say new credentials are available five minutes
+                // before the expiration time. We fetch four minutes before the expiration time
+                // to account for clock drift.
+                Date.now() > awsCredentials.expiration.getTime() - 1000 * 60 * 4 &&
+                !nextAwsCredentialsPromise
+            ) {
+                const ourAwsCredentialsPromise = fetchAwsCredentials();
+                nextAwsCredentialsPromise = ourAwsCredentialsPromise;
+
+                ourAwsCredentialsPromise.then(
+                    () => {
+                        if (nextAwsCredentialsPromise === ourAwsCredentialsPromise) {
+                            currentAwsCredentialsPromise = ourAwsCredentialsPromise;
+                            nextAwsCredentialsPromise = null;
+                        }
+                    },
+                    () => {
+                        if (nextAwsCredentialsPromise === ourAwsCredentialsPromise) {
+                            // If there was an error, clear our promise which will cause us to try fetching
+                            // credentials again. Errors should already be reported by `tracer.withSpan()`.
+                            nextAwsCredentialsPromise = null;
+                        }
+                    },
+                );
+            }
+
+            return awsCredentials;
+        };
+    }
 
     const port = parseInt(portString, 10);
 
+    // Our key args may either be a file path or an environment variable name. We
+    // first test the environment variable name then try to load as a file path.
+    function getKeyFromArg(arg: string) {
+        if (arg.startsWith("$")) {
+            const envKey = arg.slice(1);
+            const envValue = process.env[envKey];
+
+            if (envValue === undefined)
+                throw new InternalError(quote`Env variable ${envKey} does not exist`);
+
+            // Don't allow access to the environment variable anywhere else in the program.
+            // Force key usage to be controlled here from the top of the program.
+            //
+            // Also secures against attacks where an attacker finds a way to inspect
+            // `process.env`.
+            delete process.env[envKey];
+
+            return envValue;
+        } else {
+            return fs.readFile(arg, "utf8");
+        }
+    }
+
     const [appServicePublicKey, edgeServiceFamilyPublicKey, appServicePrivateKey] =
         await runAllPromises([
-            fs.readFile(appServicePublicKeyPath, "utf8"),
-            fs.readFile(edgeServiceFamilyPublicKeyPath, "utf8"),
-            fs.readFile(appServicePrivateKeyPath, "utf8"),
+            getKeyFromArg(appServicePublicKeyArg),
+            getKeyFromArg(edgeServiceFamilyPublicKeyArg),
+            getKeyFromArg(appServicePrivateKeyArg),
         ]);
 
     const tokenAgent = await AppServiceTokenAgent.new({
@@ -194,12 +310,15 @@ async function main() {
         appServicePrivateKey,
     });
 
-    const awsCredentials = {
-        accessKeyId: awsAccessKeyId,
-        secretAccessKey: awsSecretAccessKey,
-    };
+    const getAwsHttpClient = async () => {
+        const awsCredentials = await getAwsCredentials();
 
-    const awsHttpClient = new AwsClient(awsCredentials);
+        return (awsCredentials.httpClient ??= new AwsClient({
+            accessKeyId: awsCredentials.accessKeyId,
+            secretAccessKey: awsCredentials.secretAccessKey,
+            sessionToken: awsCredentials.sessionToken,
+        }));
+    };
 
     const processContext = Context.new<AppProcessContextModules>({
         process: new ProcessContextModule({
@@ -211,27 +330,32 @@ async function main() {
         }),
         tracer: new TracerContextModule(tracer),
         dynamo: DynamoContextModule.new({
-            awsHttpClient,
-            awsDynamoUrl:
-                awsHttpClient.accessKeyId !== "local"
-                    ? `https://dynamodb.us-east-1.amazonaws.com`
-                    : `http://localhost:${parseInt(
-                          assertExists(
-                              dynamoLocalPort,
-                              "DynamoDB local port must be provided when running DynamoDB locally",
-                          ),
-                          10,
-                      )}`,
+            getAwsHttpClient,
+            awsDynamoUrl: !isLocalAws
+                ? `https://dynamodb.us-east-1.amazonaws.com`
+                : `http://localhost:${parseInt(
+                      assertExists(
+                          dynamoLocalPort,
+                          "DynamoDB local port must be provided when running DynamoDB locally",
+                      ),
+                      10,
+                  )}`,
         }),
-        email:
-            awsHttpClient.accessKeyId !== "local"
-                ? new SesEmailContextModule(awsHttpClient)
-                : new NoopEmailContextModule(),
+        email: !isLocalAws
+            ? new SesEmailContextModule(getAwsHttpClient)
+            : new NoopEmailContextModule(),
     });
 
     let hasSeededDynamo = false;
 
     const handleRequest = createRequestHandler(build, process.env.NODE_ENV);
+
+    // Now that we've initialized our tracer, don't crash the process on uncaught
+    // exceptions and instead log the exception with our tracer.
+    process.off("uncaughtException", handleUncaughtExceptionBeforeTracerInitialization);
+    process.on("uncaughtException", error => {
+        tracer.logUncaughtException("Uncaught exception", error);
+    });
 
     const server = createServer((req, res) => {
         serveStaticMiddleware(req, res, () => {
@@ -342,7 +466,13 @@ async function main() {
         });
     });
 
-    server.listen(port);
+    server.listen(port, () => {
+        // Log when ready in production to help show debugging container startup.
+        if (process.env.NODE_ENV === "production") {
+            // eslint-disable-next-line no-console
+            console.log(`Listening on port ${port}`);
+        }
+    });
 }
 
 function createActorContextModule(

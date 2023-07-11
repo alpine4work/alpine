@@ -21,11 +21,11 @@ export class SesEmailContextModule extends EmailContextModuleBase<{tracer: Trace
     // TODO(calebmer): When this code was written, all server code ran on
     // Cloudflare Workers which could not run the AWS SDK. Now that this module
     // only runs on Node.js we should switch to using the AWS SDK SES client.
-    private readonly _awsHttpClient: AwsClient;
+    private readonly _getAwsHttpClient: () => Promise<AwsClient>;
 
-    constructor(awsHttpClient: AwsClient) {
+    constructor(getAwsHttpClient: () => Promise<AwsClient>) {
         super();
-        this._awsHttpClient = awsHttpClient;
+        this._getAwsHttpClient = getAwsHttpClient;
     }
 
     protected _send(
@@ -48,7 +48,8 @@ export class SesEmailContextModule extends EmailContextModuleBase<{tracer: Trace
                 },
             });
 
-            const output = await executeSesSendEmailCommand(this._awsHttpClient, {
+            const client = await this._getAwsHttpClient();
+            const output = await executeSesSendEmailCommand(client, {
                 Source: `"${fromEmailAddressName}" <${actualFromEmailAddress}>`,
                 Destination: {ToAddresses: [toEmailAddress]},
                 Message: {

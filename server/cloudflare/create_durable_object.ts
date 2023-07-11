@@ -129,15 +129,6 @@ export function createDurableObject<
                 jsHost: "CloudflareWorker",
                 honeycombApiKey: env.HONEYCOMB_API_KEY,
                 waitUntil: promise => state.waitUntil(promise),
-
-                // Provided as a Miniflare global.
-                writeEventToFileInDev:
-                    process.env.NODE_ENV !== "production"
-                        ? assertExists(
-                              (globalThis as any).__writeTracerEventToFileInDev,
-                              "Expected `__writeTracerEventToFileInDev` global",
-                          )
-                        : undefined,
             });
 
             this._processContext = Context.new({

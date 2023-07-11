@@ -1,4 +1,5 @@
 import {DataLossError} from "~/shared/error/error.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {TracerEvent} from "~/shared/tracer/tracer_event.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
@@ -13,10 +14,8 @@ export class HoneycombTracerClient {
     private readonly _apiKey: string;
 
     /**
-     * If there was an error sending events to Honeycomb, we will log an
-     * exception. The exception event will be sent right back to our Honeycomb
-     * client. We may get stuck in an error loop if we absolutely can't communicate
-     * with Honeycomb.
+     * The tracer our Honeycomb client is sending events for. If there was an error
+     * sending events to Honeycomb then we attempt to send an error event.
      */
     private readonly _tracer: TracerRoot;
 
@@ -51,15 +50,15 @@ export class HoneycombTracerClient {
         if (this._scheduledEventBatch === null) {
             this._scheduledEventBatch = [];
 
-            this._waitUntil(
-                (async () => {
-                    // We send events in a batch to Honeycomb every second.
-                    await wait(1000);
+            const promise = (async () => {
+                // We send events in a batch to Honeycomb every second.
+                await wait(1000);
 
-                    const eventBatch = this._scheduledEventBatch;
-                    this._scheduledEventBatch = null;
-                    if (eventBatch === null) return;
+                const eventBatch = this._scheduledEventBatch;
+                this._scheduledEventBatch = null;
+                if (eventBatch === null) return;
 
+                await retryWithExponentialBackoff(async retry => {
                     try {
                         // eslint-disable-next-line no-global-fetch
                         const response = await fetch("https://api.honeycomb.io/1/batch/tracer", {
@@ -77,8 +76,7 @@ export class HoneycombTracerClient {
                         });
 
                         if (response.status >= 400) {
-                            this._tracer.logUncaughtException(
-                                "Failed to send event batch to Honeycomb",
+                            retry(
                                 new DataLossError(
                                     `Failed to send event batch to Honeycomb (status code: ${response.status})`,
                                 ),
@@ -101,12 +99,22 @@ export class HoneycombTracerClient {
                             }
                         }
                     } catch (error) {
-                        this._tracer.logUncaughtException(
-                            "Failed to send event batch to Honeycomb",
-                            DataLossError.from(error, "Failed to send event batch to Honeycomb"),
-                        );
+                        retry(DataLossError.from(error, "Failed to send event batch to Honeycomb"));
                     }
-                })(),
+                });
+            })();
+
+            this._waitUntil(
+                promise.catch(error => {
+                    // `waitUntil()` errors will probably end up back in `sendEvent()`. So don't
+                    // throw any errors from this promise. Instead log to the console.
+                    //
+                    // This is a pretty critical error. We should consider having some kind of
+                    // backup alerting system if sending events to Honeycomb is failing?
+                    //
+                    // eslint-disable-next-line no-console
+                    console.error(error);
+                }),
             );
         }
 

@@ -47,7 +47,7 @@ const honeycombApiKey = env.HONEYCOMB_API_KEY;
 const remixDevServerPort = parseInt(assertExists(env.REMIX_DEV_SERVER_PORT), 10);
 const dynamoDataDirectoryPath = joinPath(devEnvPaths.data, "dynamo");
 const dynamoLocalPort = parseInt(assertExists(env.DYNAMO_LOCAL_PORT), 10);
-const edgePort = parseInt(assertExists(env.EDGE_PORT), 10);
+const edgeDevPort = parseInt(assertExists(env.EDGE_DEV_PORT), 10);
 const edgeDevPrivatePort = parseInt(assertExists(env.EDGE_DEV_PRIVATE_PORT), 10);
 
 type Artifact = {
@@ -74,7 +74,7 @@ const artifacts: ReadonlyArray<Artifact> = [
         port: appPort,
         privatePort: appDevPrivatePort,
         args: [
-            `--edgeServiceUrl=http://localhost:${edgePort}`,
+            `--edgeServiceUrl=http://localhost:${edgeDevPort}`,
             `--appServicePublicKey=${devAppServicePublicKeyPath}`,
             `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
             `--appServicePrivateKey=${devAppServicePrivateKeyPath}`,
@@ -92,7 +92,7 @@ const artifacts: ReadonlyArray<Artifact> = [
     {
         bazelTarget: "//server/edge",
         executablePath: "server/edge/edge.sh",
-        port: edgePort,
+        port: edgeDevPort,
         privatePort: edgeDevPrivatePort,
         args: [
             `--appServiceUrl=http://localhost:${appPort}`,
@@ -174,14 +174,14 @@ mainPromise
 
 
 Development environment running on ${colorette.underline(
-            colorette.bold(`http://localhost:${edgePort}`),
+            colorette.bold(`http://localhost:${edgeDevPort}`),
         )}
 
 - Start the Chrome debugger at: ${colorette.underline("chrome://inspect")}
 ${
     externalHost
         ? `- Other devices on your network can access: ${colorette.underline(
-              `http://${externalHost}:${edgePort}`,
+              `http://${externalHost}:${edgeDevPort}`,
           )}\n`
         : ""
 }\

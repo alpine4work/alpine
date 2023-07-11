@@ -1,13 +1,17 @@
-load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_run_binary")
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_image_layer", "js_run_binary")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball")
+load("//admin/bazel:linux_x86_64_platform_and_opt_compilation_mode.bzl", "linux_x86_64_platform_and_opt_compilation_mode")
 load("//admin/typescript:typescript.bzl", "ts_project")
 load("//app:remix.bzl", "remix_app")
 
 ts_project(
     name = "app_lib",
     deps = [
+        "//:node_modules/@aws-sdk/credential-providers",
         "//:node_modules/@remix-run/dev",
         "//:node_modules/@remix-run/node",
         "//:node_modules/@remix-run/server-runtime",
+        "//:node_modules/@smithy/types",
         "//:node_modules/@types/cookie",
         "//:node_modules/@types/fs-extra",
         "//:node_modules/@types/mjml-react",
@@ -114,4 +118,31 @@ js_binary(
     ],
     entry_point = ":app_build",
     visibility = ["//app/integration_tests:__pkg__"],
+)
+
+js_image_layer(
+    name = "app_image_layer",
+    binary = ":app",
+    root = "/var/www",
+)
+
+oci_image(
+    name = "app_image",
+    base = "@debian",
+    tars = [":app_image_layer"],
+    # For security, use the `www-data` user which exists on our Linux image. It
+    # only has read access and execute access to files on our system.
+    user = "www-data",
+)
+
+oci_tarball(
+    name = "app_image_tarball",
+    image = ":app_image",
+    repo_tags = ["cyberworlds-app-service:latest"],
+)
+
+linux_x86_64_platform_and_opt_compilation_mode(
+    name = "app_image_tarball_linux_x86_64_opt",
+    src = ":app_image_tarball",
+    visibility = ["//admin/aws:__pkg__"],
 )

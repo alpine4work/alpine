@@ -587,7 +587,7 @@ function actuallyGetOrCreateChatForAccounts(
                         isDynamoConditionCheckError(error) ||
                         isDynamoIdempotentParameterMismatchError(error)
                     ) {
-                        retry();
+                        retry(error);
                     }
 
                     throw error;

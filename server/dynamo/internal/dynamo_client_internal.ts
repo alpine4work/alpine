@@ -37,11 +37,17 @@ import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 // If/when we migrate there may be some retries we've had to manually implement
 // that the SDK does automatically we'd have to sus out.
 export class DynamoClientInternal {
-    private readonly _awsHttpClient: AwsClient;
+    private readonly _getAwsHttpClient: () => Promise<AwsClient>;
     private readonly _awsDynamoUrl: string;
 
-    constructor({awsHttpClient, awsDynamoUrl}: {awsHttpClient: AwsClient; awsDynamoUrl: string}) {
-        this._awsHttpClient = awsHttpClient;
+    constructor({
+        getAwsHttpClient,
+        awsDynamoUrl,
+    }: {
+        getAwsHttpClient: () => Promise<AwsClient>;
+        awsDynamoUrl: string;
+    }) {
+        this._getAwsHttpClient = getAwsHttpClient;
         this._awsDynamoUrl = awsDynamoUrl;
     }
 
@@ -49,7 +55,7 @@ export class DynamoClientInternal {
      * Is running against a local DynamoDB?
      */
     public isLocal(): boolean {
-        return this._awsHttpClient.accessKeyId === "local";
+        return /^https?:\/\/localhost(\/|:|$)/.test(this._awsDynamoUrl);
     }
 
     private async _execute<Input = never, Output = unknown>(
@@ -57,7 +63,8 @@ export class DynamoClientInternal {
         command: string,
         input: Input,
     ): Promise<Output> {
-        const response = await this._awsHttpClient.fetch(this._awsDynamoUrl, {
+        const client = await this._getAwsHttpClient();
+        const response = await client.fetch(this._awsDynamoUrl, {
             method: "POST",
             headers: {
                 "Content-Type": "application/x-amz-json-1.0",

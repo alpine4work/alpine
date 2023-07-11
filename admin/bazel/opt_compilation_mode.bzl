@@ -12,7 +12,7 @@ _opt_compilation_mode_transition = transition(
     outputs = ["//command_line_option:compilation_mode"],
 )
 
-def _opt_compilation_model_impl(ctx):
+def _opt_compilation_mode_impl(ctx):
     if len(ctx.attr.src) != 1:
         fail("expect one source target")
 
@@ -22,7 +22,7 @@ def _opt_compilation_model_impl(ctx):
     )]
 
 opt_compilation_mode = rule(
-    _opt_compilation_model_impl,
+    _opt_compilation_mode_impl,
     attrs = {
         "src": attr.label(cfg = _opt_compilation_mode_transition),
         "_allowlist_function_transition": attr.label(

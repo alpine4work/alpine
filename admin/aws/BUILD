@@ -1,9 +1,11 @@
-load("@aspect_rules_js//js:defs.bzl", "js_binary")
 load("@npm//:aws-cdk/package_json.bzl", cdk_bin = "bin")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "aws",
+    data = [
+        "//app:app_image_tarball_linux_x86_64_opt",
+    ],
     visibility = ["//app/dev:__pkg__"],
     deps = [
         "//:node_modules/aws-cdk-lib",
@@ -16,13 +18,6 @@ ts_project(
     ],
 )
 
-js_binary(
-    name = "aws_synth",
-    data = [":aws"],
-    entry_point = "aws_synth_main.js",
-    env = {"NODE_ENV": "development"},
-)
-
 cdk_bin.cdk_binary(
     name = "cdk",
     data = [
@@ -30,6 +25,6 @@ cdk_bin.cdk_binary(
         "//:cdk_files",
     ],
     env = {
-        "NODE_ENV": "development",
+        "NODE_ENV": "production",
     },
 )

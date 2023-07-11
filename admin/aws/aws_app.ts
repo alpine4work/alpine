@@ -1,17 +1,18 @@
-import * as cdk from "aws-cdk-lib";
-import {Construct} from "constructs";
-import path from "path";
+import {App, Stack} from "aws-cdk-lib";
+import {fileURLToPath} from "url";
+import {addAllContainerAwsResources} from "~/admin/aws/internal/add_all_container_aws_resources.js";
 import {addAllDynamoAwsResources} from "~/admin/aws/internal/add_all_dynamo_aws_resources.js";
 
-const outputDirectoryPath = path.join(__dirname, "output");
+const outputDirectoryPath = fileURLToPath(new URL("output", import.meta.url));
 
-export async function createAwsApp() {
-    const app = new cdk.App({autoSynth: false, outdir: outputDirectoryPath});
-    const stack = new cdk.Stack(app, "CyberworldsStack");
-    await addAwsResources(stack);
+export function createAwsApp() {
+    const app = new App({autoSynth: false, outdir: outputDirectoryPath});
+    const stack = new Stack(app, "CyberworldsStack", {env: {region: "us-east-1"}});
+    addAwsResources(stack);
     return app;
 }
 
-async function addAwsResources(scope: Construct) {
-    await addAllDynamoAwsResources(scope);
+function addAwsResources(stack: Stack) {
+    addAllDynamoAwsResources(stack);
+    addAllContainerAwsResources(stack);
 }

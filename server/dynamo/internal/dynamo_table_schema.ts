@@ -674,7 +674,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 } catch (error) {
                     // A concurrent process may be racing to create this table. Try again...
                     if (isDynamoResourceInUseError(error)) {
-                        retry();
+                        retry(error);
                     } else {
                         throw error;
                     }
@@ -693,7 +693,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 } catch (error) {
                     // A concurrent process may be racing to create this table. Try again...
                     if (isDynamoValidationError(error)) {
-                        retry();
+                        retry(error);
                     } else {
                         throw error;
                     }
@@ -2452,7 +2452,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     ): Promise<{
         [Index in keyof Keys]: MergeObjectIntersection<Types["Item"] & Keys[Index]> | null;
     }> {
-        const run = async (retry: () => never) => {
+        const run = async (retry: (error?: unknown) => never) => {
             const client = await this._getClient(context, false);
             const serializedKeys = keys.map(key => this._serializeItemKey(key));
 

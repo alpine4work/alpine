@@ -36,7 +36,7 @@ export class DynamoContextModule<Modules extends {} = {}> extends ContextModuleB
      * If we are in a DynamoDB transaction then this will be set to a function
      * which when called will retry the transaction.
      */
-    private readonly _retryTransaction: (() => never) | null;
+    private readonly _retryTransaction: ((error?: unknown) => never) | null;
 
     private constructor(
         client: DynamoClient | null,
@@ -45,7 +45,7 @@ export class DynamoContextModule<Modules extends {} = {}> extends ContextModuleB
             retryTransaction,
         }: {
             defaultReadConsistency: DynamoReadConsistency;
-            retryTransaction: (() => never) | null;
+            retryTransaction: ((error?: unknown) => never) | null;
         },
     ) {
         super();
@@ -68,7 +68,7 @@ export class DynamoContextModule<Modules extends {} = {}> extends ContextModuleB
         this._retryTransaction = retryTransaction;
     }
 
-    public static new(options: {awsHttpClient: AwsClient; awsDynamoUrl: string}) {
+    public static new(options: {getAwsHttpClient: () => Promise<AwsClient>; awsDynamoUrl: string}) {
         return new DynamoContextModule(new DynamoClient(options), {
             defaultReadConsistency: "Eventual",
             retryTransaction: null,
@@ -104,7 +104,10 @@ export class DynamoContextModule<Modules extends {} = {}> extends ContextModuleB
                 assert(!hasInitialized, "Can not initialize DynamoDB client twice");
 
                 Object.defineProperty(contextModule, "_client", {
-                    value: new DynamoClient({awsHttpClient, awsDynamoUrl}),
+                    value: new DynamoClient({
+                        getAwsHttpClient: async () => awsHttpClient,
+                        awsDynamoUrl,
+                    }),
                     writable: false,
                 });
             },

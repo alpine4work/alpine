@@ -26,7 +26,7 @@ import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
-import {DataLossError} from "~/shared/error/error.js";
+import {DataLossError, InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -200,7 +200,7 @@ export class NotificationsContextModule extends NotificationsContextModuleBase {
                         {type: "System", spaceId},
                     );
 
-                    await fetchWithTracer(
+                    const response = await fetchWithTracer(
                         this._context.tracer.getTracer(),
                         new URL(
                             `/api/durable-objects/my-account/${accountId}/inbox-realtime-event-transaction`,
@@ -220,6 +220,12 @@ export class NotificationsContextModule extends NotificationsContextModuleBase {
                             ),
                         },
                     );
+
+                    if (response.status !== 200) {
+                        throw new InternalError(
+                            "Failed to broadcast inbox realtime events from `MyAccountService`",
+                        );
+                    }
                 },
             ),
         );

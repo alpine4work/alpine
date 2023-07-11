@@ -58,7 +58,7 @@ export class DynamoClient {
      */
     private readonly _writeItemBatcher: DynamoClientWriteItemBatcher;
 
-    constructor(options: {awsHttpClient: AwsClient; awsDynamoUrl: string}) {
+    constructor(options: {getAwsHttpClient: () => Promise<AwsClient>; awsDynamoUrl: string}) {
         this._client = new DynamoClientInternal(options);
         this._getItemBatcherByConsistency = {
             Eventual: new DynamoClientGetItemBatcher(this._client, "Eventual"),
@@ -160,7 +160,7 @@ export class DynamoClient {
             conditionExpression?: string;
             expressionAttributeValues?: ReadonlyMap<string, SchemaSerializedValue>;
             expressionAttributeNames?: ReadonlyMap<string, string>;
-            retryConditionCheckError?: (() => never) | null;
+            retryConditionCheckError?: ((error?: unknown) => never) | null;
         },
     ): Promise<void> {
         // Make sure that all the properties in our `key` also exist in our `item`.
@@ -202,7 +202,7 @@ export class DynamoClient {
                 errorCause = errorCause.cause;
 
             if (isObject(errorCause) && errorCause.__type === "ConditionalCheckFailedException")
-                retryConditionCheckError?.();
+                retryConditionCheckError?.(error);
 
             throw error;
         }
@@ -235,7 +235,7 @@ export class DynamoClient {
             conditionExpression?: string;
             expressionAttributeValues?: ReadonlyMap<string, SchemaSerializedValue>;
             expressionAttributeNames?: ReadonlyMap<string, string>;
-            retryConditionCheckError?: (() => never) | null;
+            retryConditionCheckError?: ((error?: unknown) => never) | null;
         },
     ): Promise<void> {
         // Writes without a condition may be batched.
@@ -269,7 +269,7 @@ export class DynamoClient {
                 errorCause = errorCause.cause;
 
             if (isObject(errorCause) && errorCause.__type === "ConditionalCheckFailedException")
-                retryConditionCheckError?.();
+                retryConditionCheckError?.(error);
 
             throw error;
         }
@@ -290,7 +290,7 @@ export class DynamoClient {
             retryConditionCheckError = null,
         }: {
             clientRequestToken?: string;
-            retryConditionCheckError?: (() => never) | null;
+            retryConditionCheckError?: ((error?: unknown) => never) | null;
         } = {},
     ): Promise<void> {
         try {
@@ -315,7 +315,7 @@ export class DynamoClient {
                                 cancellationReason.Code === "ConditionalCheckFailed")),
                 )
             ) {
-                retryConditionCheckError?.();
+                retryConditionCheckError?.(error);
             }
 
             throw error;
@@ -495,7 +495,7 @@ export class DynamoClient {
         }: {
             tableName: string;
             keys: ReadonlyArray<SchemaSerializedObjectValue>;
-            retryTransactionConflictError: () => never;
+            retryTransactionConflictError: (error?: unknown) => never;
         },
     ): Promise<Array<SchemaSerializedObjectValue | null>> {
         try {
@@ -527,7 +527,7 @@ export class DynamoClient {
                             cancellationReason.Code === "TransactionConflict"),
                 )
             ) {
-                retryTransactionConflictError();
+                retryTransactionConflictError(error);
             }
 
             throw error;

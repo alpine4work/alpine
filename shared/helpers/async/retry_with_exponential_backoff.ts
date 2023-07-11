@@ -1,6 +1,7 @@
 import {CancelledError, DeadlineExceededError} from "~/shared/error/error.js";
 
 const originalSetTimeout = setTimeout;
+const retrySymbol = Symbol("retry");
 
 /**
  * Retries an action with exponential backoff with jitter. Since we use
@@ -33,10 +34,11 @@ const originalSetTimeout = setTimeout;
  * [2]: https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
  */
 export function retryWithExponentialBackoff<Value>(
-    action: (retry: () => never) => Promise<Value>,
+    action: (retry: (error?: unknown) => never) => Promise<Value>,
 ): Promise<Value> {
-    const retryError = new CancelledError("Retry");
-    const retry = (): never => {
+    const retry = (error?: unknown): never => {
+        const retryError = new CancelledError("Retry", {cause: error});
+        (retryError as any)[retrySymbol] = true;
         throw retryError;
     };
 
@@ -46,14 +48,16 @@ export function retryWithExponentialBackoff<Value>(
             return value;
         } catch (error) {
             // Is this an error we should retry?
-            if (error !== retryError) throw error;
+            if (typeof error !== "object" || error === null || !(error as any)[retrySymbol]) {
+                throw error;
+            }
 
             const delayMs = 10 * 2 ** (attemptNumber - 1);
 
             if (delayMs > 1000 * 10)
                 throw new DeadlineExceededError(
                     `Retry with exponential backoff failed after ${attemptNumber} attempts`,
-                    {cause: error},
+                    {cause: (error as Error).cause},
                 );
 
             // We add jitter to our exponential backoff so that many requests retried at

@@ -1,4 +1,5 @@
 import {HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client.js";
+import {writeTracerEventToFileInDev} from "~/server/tracer/write_tracer_event_to_file_in_dev.js";
 import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.js";
 import {TracerEventJsHost} from "~/shared/tracer/types/tracer_event_data.js";
 
@@ -11,13 +12,11 @@ export function createServerTracer({
     jsHost,
     honeycombApiKey,
     waitUntil,
-    writeEventToFileInDev,
 }: {
     serviceName: TracerServiceName;
     jsHost: TracerEventJsHost;
     honeycombApiKey: string | undefined;
     waitUntil: (promise: Promise<unknown>) => void;
-    writeEventToFileInDev: (event: unknown) => void;
 }): TracerRoot {
     let lastTime: number | null = null;
 
@@ -44,7 +43,7 @@ export function createServerTracer({
             honeycombClient?.sendEvent(event);
 
             if (process.env.NODE_ENV !== "production") {
-                writeEventToFileInDev({
+                writeTracerEventToFileInDev({
                     time: event.time,
                     data: event.getFlatData(),
                 });
