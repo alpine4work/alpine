@@ -2,6 +2,7 @@ import {EmailAddress} from "~/server/emails/email_address.js";
 import {FromEmailAddress} from "~/server/emails/from_email_address.js";
 import {EmailTemplates, RenderedEmail} from "~/server/emails/internal/email_templates.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 
 /**
  * Context module for sending an email.
@@ -12,7 +13,7 @@ import {ContextModuleBase} from "~/shared/context/context_module_base.js";
  * [1]: https://aws.amazon.com/ses/
  */
 export abstract class EmailContextModuleBase<
-    Modules extends {[key: string]: ContextModuleBase} = {},
+    Modules extends {tracer: TracerContextModule} = {tracer: TracerContextModule},
 > extends ContextModuleBase<Modules> {
     /**
      * Sends an email. In production uses the AWS SES [`SendEmail`][1] command.
@@ -38,8 +39,15 @@ export abstract class EmailContextModuleBase<
         templateName: Template;
         templateProps: Parameters<EmailTemplates[Template]>[0];
     }) {
-        const {emailTemplates} = await import("~/server/emails/internal/email_templates.js");
-        const renderedEmail = emailTemplates[templateName](templateProps);
+        const renderedEmail = await this._context.tracer.withSpan(
+            "React email render",
+            async () => {
+                const {emailTemplates} = await import(
+                    "~/server/emails/internal/email_templates.js"
+                );
+                return emailTemplates[templateName](templateProps);
+            },
+        );
 
         await this._send(fromEmailAddress, toEmailAddress, renderedEmail);
     }

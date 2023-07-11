@@ -1,15 +1,33 @@
-import {
-    Stack,
-    aws_ec2 as ec2,
-    aws_ecs as ecs,
-    aws_secretsmanager as secretsmanager,
-} from "aws-cdk-lib";
+import {Stack} from "aws-cdk-lib";
 import {AutoScalingGroup} from "aws-cdk-lib/aws-autoscaling";
+import {Certificate, CertificateValidation} from "aws-cdk-lib/aws-certificatemanager";
+import {Table} from "aws-cdk-lib/aws-dynamodb";
+import {InstanceType, SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
+import {
+    AsgCapacityProvider,
+    Cluster,
+    ContainerImage,
+    Ec2Service,
+    Ec2TaskDefinition,
+    EcsOptimizedImage,
+    Secret as EcsSecret,
+    LogDrivers,
+    NetworkMode,
+} from "aws-cdk-lib/aws-ecs";
+import {ApplicationLoadBalancer, ApplicationProtocol} from "aws-cdk-lib/aws-elasticloadbalancingv2";
+import {PolicyStatement} from "aws-cdk-lib/aws-iam";
 import {RetentionDays} from "aws-cdk-lib/aws-logs";
+import {Secret} from "aws-cdk-lib/aws-secretsmanager";
 import {join as joinPath} from "path";
 import {runfilesPath} from "~/admin/helpers/runfiles_path.js";
+import {DynamoClientAction} from "~/server/dynamo/helpers/dynamo_client_action.js";
+import {cast} from "~/shared/helpers/control/cast.js";
+import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
 
-export function addAllContainerAwsResources(stack: Stack) {
+export function addAllContainerAwsResources(
+    stack: Stack,
+    {dynamoTables}: {dynamoTables: ReadonlyArray<Table>},
+) {
     // TODO(calebmer): Write decision log entries on infrastructure choices here.
     // Some quotes from blog posts that helped me:
     //
@@ -52,20 +70,20 @@ export function addAllContainerAwsResources(stack: Stack) {
     // We choose great services like DynamoDB and Cloudflare Durable Objects
     // despite the lock-in. This should apply to our container strategy too.
 
-    const vpc = new ec2.Vpc(stack, "Vpc", {
+    const vpc = new Vpc(stack, "Vpc", {
         // NAT gateways are expensive, don't run any. Right now our EC2 instances use
         // the public subnet. See why below.
         natGateways: 0,
     });
 
-    const cluster = new ecs.Cluster(stack, "Cluster", {vpc});
+    const cluster = new Cluster(stack, "Cluster", {vpc});
 
     const defaultAutoScalingGroup = new AutoScalingGroup(stack, "DefaultAutoScalingGroup", {
         vpc,
         // First 750 hours per month of this instance type are free. That effectively
         // translates to 1 free capacity of this instance type.
-        instanceType: new ec2.InstanceType("t3.micro"),
-        machineImage: ecs.EcsOptimizedImage.amazonLinux2(),
+        instanceType: new InstanceType("t3.micro"),
+        machineImage: EcsOptimizedImage.amazonLinux2(),
         // We haven't configured auto scaling parameters yet so stay within our
         // desired capacity.
         maxCapacity: 2,
@@ -99,10 +117,10 @@ export function addAllContainerAwsResources(stack: Stack) {
         // DynamoDB) + [PrivateLink][1] to connect to external partners.
         //
         // [1]: https://docs.honeycomb.io/integrations/aws/aws-privatelink/
-        vpcSubnets: {subnetType: ec2.SubnetType.PUBLIC},
+        vpcSubnets: {subnetType: SubnetType.PUBLIC},
     });
 
-    const defaultAutoScalingGroupCapacityProvider = new ecs.AsgCapacityProvider(
+    const defaultAutoScalingGroupCapacityProvider = new AsgCapacityProvider(
         stack,
         "DefaultAutoScalingGroupCapacityProvider",
         {autoScalingGroup: defaultAutoScalingGroup},
@@ -111,13 +129,13 @@ export function addAllContainerAwsResources(stack: Stack) {
     cluster.addAsgCapacityProvider(defaultAutoScalingGroupCapacityProvider);
 
     const appServicePort = 4000;
-    const appServiceSecrets = secretsmanager.Secret.fromSecretNameV2(
+    const appServiceSecrets = Secret.fromSecretNameV2(
         stack,
         "AppServiceSecretsImport",
         "AppServiceSecrets",
     );
 
-    const appServiceTaskDefinition = new ecs.Ec2TaskDefinition(stack, "AppServiceTaskDefinition", {
+    const appServiceTaskDefinition = new Ec2TaskDefinition(stack, "AppServiceTaskDefinition", {
         // According to the docs:
         //
         // > The host and awsvpc network modes offer the highest networking performance
@@ -133,11 +151,11 @@ export function addAllContainerAwsResources(stack: Stack) {
         // instance.
         //
         // https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html
-        networkMode: ecs.NetworkMode.HOST,
+        networkMode: NetworkMode.HOST,
     });
 
     appServiceTaskDefinition.addContainer("AppServiceContainer", {
-        image: ecs.ContainerImage.fromTarball(
+        image: ContainerImage.fromTarball(
             joinPath(runfilesPath, "cyberworlds/app/app_image_tarball/tarball.tar"),
         ),
         // This appears to be the available memory for our containers. Unclear how we
@@ -146,7 +164,7 @@ export function addAllContainerAwsResources(stack: Stack) {
         memoryLimitMiB: 944,
         // Send logs to AWS. Container logs are short-lived and used for debugging
         // obscure machine-level issues. Our long-lived logs are in Honeycomb.
-        logging: ecs.LogDrivers.awsLogs({
+        logging: LogDrivers.awsLogs({
             streamPrefix: stack.stackName,
             logRetention: RetentionDays.TWO_WEEKS,
         }),
@@ -155,19 +173,19 @@ export function addAllContainerAwsResources(stack: Stack) {
         user: "www-data",
         portMappings: [{containerPort: appServicePort, hostPort: appServicePort}],
         secrets: {
-            APP_SERVICE_PUBLIC_KEY: ecs.Secret.fromSecretsManager(
+            APP_SERVICE_PUBLIC_KEY: EcsSecret.fromSecretsManager(
                 appServiceSecrets,
                 "appServicePublicKey",
             ),
-            APP_SERVICE_PRIVATE_KEY: ecs.Secret.fromSecretsManager(
+            APP_SERVICE_PRIVATE_KEY: EcsSecret.fromSecretsManager(
                 appServiceSecrets,
                 "appServicePrivateKey",
             ),
-            EDGE_SERVICE_FAMILY_PUBLIC_KEY: ecs.Secret.fromSecretsManager(
+            EDGE_SERVICE_FAMILY_PUBLIC_KEY: EcsSecret.fromSecretsManager(
                 appServiceSecrets,
                 "edgeServiceFamilyPublicKey",
             ),
-            HONEYCOMB_API_KEY: ecs.Secret.fromSecretsManager(appServiceSecrets, "honeycombApiKey"),
+            HONEYCOMB_API_KEY: EcsSecret.fromSecretsManager(appServiceSecrets, "honeycombApiKey"),
         },
         environment: {
             BAZEL_BINDIR: ".",
@@ -192,11 +210,81 @@ export function addAllContainerAwsResources(stack: Stack) {
         ],
     });
 
-    new ecs.Ec2Service(stack, "AppService", {
+    // Allow sending emails from `AppService`.
+    appServiceTaskDefinition.addToTaskRolePolicy(
+        new PolicyStatement({
+            actions: ["ses:SendEmail"],
+            resources: ["arn:aws:ses:*:*:identity/cyberworlds.dev"],
+        }),
+    );
+
+    // Allow DynamoDB usage in `AppService`.
+    {
+        const allowedDynamoClientActionsForAppService = filterMapArray(
+            Object.entries(
+                cast<{[K in DynamoClientAction]: boolean}>({
+                    // Allowed
+                    GetItem: true,
+                    BatchGetItem: true,
+                    PutItem: true,
+                    DeleteItem: true,
+                    BatchWriteItem: true,
+                    TransactWriteItems: true,
+                    TransactGetItems: true,
+                    Query: true,
+                    // Not allowed
+                    Scan: false,
+                    CreateTable: false,
+                    DescribeTable: false,
+                    DescribeTimeToLive: false,
+                    UpdateTimeToLive: false,
+                }),
+            ),
+            ([action, isAllowed]) => (isAllowed ? action : null),
+        );
+
+        appServiceTaskDefinition.addToTaskRolePolicy(
+            new PolicyStatement({
+                actions: [
+                    ...allowedDynamoClientActionsForAppService,
+                    // Not an action. Actions like `PutItem` may perform a condition check which
+                    // counts as a read which is why it's a non-action permission.
+                    // https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ConditionCheck.html
+                    "ConditionCheckItem",
+                ].map(action => `dynamodb:${action}`),
+                resources: dynamoTables.flatMap(dynamoTable => [
+                    dynamoTable.tableArn,
+                    `${dynamoTable.tableArn}/index/*`,
+                ]),
+            }),
+        );
+    }
+
+    new Ec2Service(stack, "AppService", {
         cluster,
         taskDefinition: appServiceTaskDefinition,
         desiredCount: 2,
     });
 
-    // NOCOMMIT: Security group?
+    const loadBalancer = new ApplicationLoadBalancer(stack, "LoadBalancer", {
+        vpc,
+        internetFacing: true,
+    });
+
+    const listener = loadBalancer.addListener("Listener", {
+        protocol: ApplicationProtocol.HTTPS,
+        port: 443,
+        certificates: [
+            new Certificate(stack, "Certificate", {
+                domainName: "aws.cyberworlds.dev",
+                validation: CertificateValidation.fromDns(),
+            }),
+        ],
+    });
+
+    listener.addTargets("TargetGroup", {
+        port: appServicePort,
+        protocol: ApplicationProtocol.HTTP,
+        targets: [defaultAutoScalingGroup],
+    });
 }

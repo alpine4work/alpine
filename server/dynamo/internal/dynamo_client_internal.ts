@@ -15,6 +15,11 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 /**
+ * Actions supported by our DynamoDB client.
+ */
+export type DynamoClientAction = Exclude<keyof DynamoClientInternal, "isLocal">;
+
+/**
  * Type-safe DynamoDB client. We initially created this abstraction when our
  * app server ran in Cloudflare Workers so couldn't use the AWS SDK. Now we
  * probably still need this class (because it implements tracing) but we can
@@ -60,7 +65,7 @@ export class DynamoClientInternal {
 
     private async _execute<Input = never, Output = unknown>(
         span: TracerSpan,
-        command: string,
+        action: DynamoClientAction,
         input: Input,
     ): Promise<Output> {
         const client = await this._getAwsHttpClient();
@@ -68,7 +73,7 @@ export class DynamoClientInternal {
             method: "POST",
             headers: {
                 "Content-Type": "application/x-amz-json-1.0",
-                "X-Amz-Target": `DynamoDB_20120810.${command}`,
+                "X-Amz-Target": `DynamoDB_20120810.${action}`,
             },
             body: JSON.stringify(input),
         });

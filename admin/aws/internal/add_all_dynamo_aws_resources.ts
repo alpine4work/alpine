@@ -1,4 +1,5 @@
-import {Stack, aws_dynamodb as dynamodb} from "aws-cdk-lib";
+import {Stack} from "aws-cdk-lib";
+import {AttributeType, BillingMode, ProjectionType, Table} from "aws-cdk-lib/aws-dynamodb";
 import {getAllDynamoTableSchemas} from "~/server/dynamo/get_all_dynamo_table_schemas.js";
 
 /**
@@ -8,22 +9,26 @@ import {getAllDynamoTableSchemas} from "~/server/dynamo/get_all_dynamo_table_sch
  * `server/dynamo` and finding all the `DynamoTableSchema`s that were
  * constructed by those imported modules.
  */
-export function addAllDynamoAwsResources(stack: Stack) {
+export function addAllDynamoAwsResources(stack: Stack): {dynamoTables: ReadonlyArray<Table>} {
+    const tables: Array<Table> = [];
+
     for (const tableSchema of getAllDynamoTableSchemas()) {
         const tableName = tableSchema.getName();
         const tableDescription = tableSchema.getDescription();
 
-        const table = new dynamodb.Table(stack, `${tableName}Table`, {
+        const table = new Table(stack, `${tableName}Table`, {
             tableName,
             partitionKey: {
                 name: "partitionKey",
-                type: dynamodb.AttributeType.STRING,
+                type: AttributeType.STRING,
             },
             sortKey: {
                 name: "sortKey",
-                type: dynamodb.AttributeType.STRING,
+                type: AttributeType.STRING,
             },
             timeToLiveAttribute: "expirationTime",
+            // Don't allow our tables to be deleted. They contain critical data!
+            deletionProtection: true,
 
             // If we have predictable traffic patterns then provisioned billing mode may be
             // cheaper. If we're consistently utilizing 100% provisioned capacity (very
@@ -32,8 +37,10 @@ export function addAllDynamoAwsResources(stack: Stack) {
             // Reconsider billing mode when we have traffic.
             //
             // https://www.serverless.com/blog/dynamodb-on-demand-serverless
-            billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+            billingMode: BillingMode.PAY_PER_REQUEST,
         });
+
+        tables.push(table);
 
         for (const [i, indexDescription] of tableDescription.indexes.entries()) {
             const indexNumber = i + 1;
@@ -41,18 +48,20 @@ export function addAllDynamoAwsResources(stack: Stack) {
             table.addGlobalSecondaryIndex({
                 indexName: `Index${indexNumber}`,
                 projectionType: {
-                    KeysOnly: dynamodb.ProjectionType.KEYS_ONLY,
-                    All: dynamodb.ProjectionType.ALL,
+                    KeysOnly: ProjectionType.KEYS_ONLY,
+                    All: ProjectionType.ALL,
                 }[indexDescription.projection],
                 partitionKey: {
                     name: `index${indexNumber}PartitionKey`,
-                    type: dynamodb.AttributeType.STRING,
+                    type: AttributeType.STRING,
                 },
                 sortKey: {
                     name: `index${indexNumber}SortKey`,
-                    type: dynamodb.AttributeType.STRING,
+                    type: AttributeType.STRING,
                 },
             });
         }
     }
+
+    return {dynamoTables: tables};
 }

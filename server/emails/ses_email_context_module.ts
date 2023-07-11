@@ -11,13 +11,12 @@ import {
     getFromEmailAddressName,
 } from "~/server/emails/from_email_address.js";
 import {RenderedEmail} from "~/server/emails/internal/email_templates.js";
-import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {UnknownError} from "~/shared/error/error.js";
 
 /**
  * Send an email with AWS SES. Used in production to send emails.
  */
-export class SesEmailContextModule extends EmailContextModuleBase<{tracer: TracerContextModule}> {
+export class SesEmailContextModule extends EmailContextModuleBase {
     // TODO(calebmer): When this code was written, all server code ran on
     // Cloudflare Workers which could not run the AWS SDK. Now that this module
     // only runs on Node.js we should switch to using the AWS SDK SES client.

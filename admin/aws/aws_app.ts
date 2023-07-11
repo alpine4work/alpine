@@ -13,6 +13,6 @@ export function createAwsApp() {
 }
 
 function addAwsResources(stack: Stack) {
-    addAllDynamoAwsResources(stack);
-    addAllContainerAwsResources(stack);
+    const {dynamoTables} = addAllDynamoAwsResources(stack);
+    addAllContainerAwsResources(stack, {dynamoTables});
 }
