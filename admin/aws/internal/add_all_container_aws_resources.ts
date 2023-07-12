@@ -28,48 +28,6 @@ export function addAllContainerAwsResources(
     stack: Stack,
     {dynamoTables}: {dynamoTables: ReadonlyArray<Table>},
 ) {
-    // TODO(calebmer): Write decision log entries on infrastructure choices here.
-    // Some quotes from blog posts that helped me:
-    //
-    // > **Where AWS Fargate is best**
-    // >
-    // > If you are working in a startup that has not yet acheived product market
-    // > fit then the most important thing for engineers to be working on is new
-    // > features, and iterating on new features. Spending significant effort on
-    // > infrastructure is wasteful and can reduce your chance of finding that
-    // > crucial product market fit. In this situation AWS Fargate is better than
-    // > using EC2 capacity.
-    // >
-    // > Additionally, even if you have acheived product market fit, if the most
-    // > expensive part of the infrastructure is still the paychecks for your
-    // > engineers, then AWS Fargate is also a good choice, as it reduces the
-    // > burden on your engineers, allowing them to focus on other high value
-    // > things which grow the business.
-    //
-    // Source: https://containersonaws.com/blog/2023/ec2-or-aws-fargate/
-    //
-    // > Companies often choose EKS over ECS because they fear cloud vendor
-    // > lock-in.
-    // >
-    // > They believe that if they build their applications using only the building
-    // > blocks provided by Kubernetes, they will have maximum portability. In
-    // > other words, if there’s an issue with their cloud provider, they can pick
-    // > up all their containers and move to a different cloud provider.
-    // >
-    // > However, the most cost-effective, efficient, and well-architected systems
-    // > are the ones that instead treat the cloud provider as the operating system
-    // > and they make a clear commitment to the platform.
-    // >
-    // > Making this definitive choice will save the team a lot of engineering time
-    // > that would have otherwise gone into pursuing a multi-cloud strategy. The
-    // > time saved would allow them to build functionality faster and deliver more
-    // > features to market.
-    //
-    // Source: https://www.cloudzero.com/blog/ecs-vs-eks
-    //
-    // We choose great services like DynamoDB and Cloudflare Durable Objects
-    // despite the lock-in. This should apply to our container strategy too.
-
     const vpc = new Vpc(stack, "Vpc", {
         // NAT gateways are expensive, don't run any. Right now our EC2 instances use
         // the public subnet. See why below.
@@ -247,9 +205,8 @@ export function addAllContainerAwsResources(
             new PolicyStatement({
                 actions: [
                     ...allowedDynamoClientActionsForAppService,
-                    // Not an action. Actions like `PutItem` may perform a condition check which
-                    // counts as a read which is why it's a non-action permission.
-                    // https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ConditionCheck.html
+                    // Write transaction entries that aren't top-level DynamoDB actions.
+                    "UpdateItem",
                     "ConditionCheckItem",
                 ].map(action => `dynamodb:${action}`),
                 resources: dynamoTables.flatMap(dynamoTable => [
@@ -276,7 +233,7 @@ export function addAllContainerAwsResources(
         port: 443,
         certificates: [
             new Certificate(stack, "Certificate", {
-                domainName: "aws.cyberworlds.dev",
+                domainName: "cyberworlds.dev",
                 validation: CertificateValidation.fromDns(),
             }),
         ],

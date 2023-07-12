@@ -1,5 +1,7 @@
 load("@aspect_rules_esbuild//esbuild:defs.bzl", "esbuild")
 load("@aspect_rules_js//js:defs.bzl", "js_binary")
+load("@npm//:wrangler/package_json.bzl", wrangler_bin = "bin")
+load("//admin/bazel:opt_compilation_mode.bzl", "opt_compilation_mode")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
@@ -41,4 +43,19 @@ js_binary(
     env = {"NODE_ENV": "development"},
     node_options = ["--experimental-vm-modules"],
     visibility = ["//app/integration_tests:__pkg__"],
+)
+
+opt_compilation_mode(
+    name = "edge_service_bundle_file_opt",
+    src = ":edge_service_bundle_file",
+)
+
+wrangler_bin.wrangler_binary(
+    name = "wrangler_deploy",
+    args = ["deploy"],
+    chdir = package_name(),
+    data = [
+        "wrangler.toml",
+        ":edge_service_bundle_file_opt",
+    ],
 )

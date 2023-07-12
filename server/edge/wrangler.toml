@@ -4,13 +4,15 @@
 # Cloudflare Workers.
 name = "edge-service"
 main = "edge_service_bundle.js"
+no_bundle = true
+usage_model = "bundled"
 compatibility_date = "2022-07-12"
 compatibility_flags = ["streams_enable_constructors"]
 workers_dev = false
 
 [route]
-pattern = "cyberworlds.dev"
-custom_domain = true
+pattern = "cyberworlds.dev/*"
+zone_name = "cyberworlds.dev"
 
 # We deploy our durable objects with our edge service but we think of our
 # durable objects as logically different services. We could choose in the
