@@ -14,17 +14,6 @@ export const getAccount = defineRpc({
     },
 });
 
-export const getAccountIfExists = defineRpc({
-    name: "getAccountIfExists",
-    input: {
-        spaceId: Schema.id<SpaceId>(),
-        accountId: Schema.id<AccountId>(),
-    },
-    output: {
-        account: AccountModel.schema().nullable(),
-    },
-});
-
 export const getAccounts = defineRpc({
     name: "getAccounts",
     input: {

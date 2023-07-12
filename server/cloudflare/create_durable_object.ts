@@ -81,6 +81,11 @@ export function createDurableObject<
         alarm?(): Promise<void>;
     };
     test(context: WorkerProcessContext): {
+        fetchForTest: (
+            context: WorkerActionContext,
+            idName: string,
+            request: Request,
+        ) => Promise<Response>;
         connectForTest: (
             context: WorkerSessionActionContext,
             idName: string,
@@ -240,6 +245,11 @@ export function createDurableObject<
          * will get the same underlying durable object instance.
          */
         public static test(processContext: WorkerProcessContext): {
+            fetchForTest: (
+                context: WorkerActionContext,
+                idName: string,
+                request: Request,
+            ) => Promise<Response>;
             connectForTest: (
                 context: WorkerSessionActionContext,
                 idName: string,
@@ -261,6 +271,18 @@ export function createDurableObject<
             });
 
             return {
+                fetchForTest: async (actionContext, idName, request) => {
+                    const object = await getOrSetDefaultMapValue(objectByIdName, idName, () =>
+                        initialize({
+                            processContext,
+                            initializeActionContext: actionContext,
+                            idName,
+                            destroy: () => objectByIdName.delete(idName),
+                        }),
+                    );
+
+                    return object.fetch(actionContext, request);
+                },
                 connectForTest: async (actionContext, idName) => {
                     const object = await getOrSetDefaultMapValue(objectByIdName, idName, () =>
                         initialize({
