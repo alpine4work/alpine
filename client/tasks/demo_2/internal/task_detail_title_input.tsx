@@ -9,7 +9,7 @@ import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_prio
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {fontSizes, sprinkles, tasksStyles} from "~/shared/styles/styles.js";
-import {TaskTitle, assertTaskTitle} from "~/shared/tasks/task_title_schema.js";
+import {TaskTitle, assertTaskTitle} from "~/shared/tasks/task_title_schema_old.js";
 
 const taskDetailTitleInputAriaLabel = "Title";
 

@@ -13,7 +13,7 @@ import {generateId} from "~/shared/id/id.js";
 import {LocalTaskId} from "~/shared/id/types/id_types.js";
 import {OrderKeySchema} from "~/shared/schema/order_key_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {TaskTitle, TaskTitleSchema, emptyTaskTitle} from "~/shared/tasks/task_title_schema.js";
+import {TaskTitle, TaskTitleSchema, emptyTaskTitle} from "~/shared/tasks/task_title_schema_old.js";
 
 // TODO(calebmer): We store state locally for our task prototype. Once we land
 // on an interaction experience we like, this should all be moved to a

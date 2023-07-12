@@ -32,7 +32,7 @@ import {LocalTaskId} from "~/shared/id/types/id_types.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {contentSchemaStyles, pressOpacityOverlayClassName} from "~/shared/styles/styles.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
-import {TaskTitle} from "~/shared/tasks/task_title_schema.js";
+import {TaskTitle} from "~/shared/tasks/task_title_schema_old.js";
 
 export const taskCardViewMaxWidth = "96";
 

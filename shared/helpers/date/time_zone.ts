@@ -1,3 +1,5 @@
+import {assert} from "~/shared/helpers/control/assert.js";
+
 /**
  * A time zone identifier. We determine if a string is a valid time zone by
  * trying to use it with `Intl.DateTimeFormat()`.
@@ -22,6 +24,14 @@ export function isTimeZone(string: string): string is TimeZone {
     } catch (ex) {
         return false;
     }
+}
+
+/**
+ * Assert that a string is actually a valid time zone.
+ */
+export function assertTimeZone(string: string): TimeZone {
+    assert(isTimeZone(string));
+    return string;
 }
 
 /**

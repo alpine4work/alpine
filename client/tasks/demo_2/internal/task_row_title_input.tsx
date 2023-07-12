@@ -31,7 +31,7 @@ import {
     sprinkles,
     tasksStyles,
 } from "~/shared/styles/styles.js";
-import {TaskTitle, assertTaskTitle} from "~/shared/tasks/task_title_schema.js";
+import {TaskTitle, assertTaskTitle} from "~/shared/tasks/task_title_schema_old.js";
 
 const taskRowTitleInputSingleLineHeight: Spacing = taskRowViewMinHeight;
 

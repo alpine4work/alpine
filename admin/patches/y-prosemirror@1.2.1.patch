@@ -1,0 +1,28 @@
+diff --git a/package.json b/package.json
+index 6767536abd7947ea0e02c8f8ecc9ec190d362123..044c83561cbdc0e5bc2bdde22dc462d6f1db6f63 100644
+--- a/package.json
++++ b/package.json
+@@ -23,7 +23,8 @@
+   "exports": {
+     ".": {
+       "import": "./src/y-prosemirror.js",
+-      "require": "./dist/y-prosemirror.cjs"
++      "require": "./dist/y-prosemirror.cjs",
++      "types": "./dist/src/y-prosemirror.d.ts"
+     }
+   },
+   "files": [
+diff --git a/src/lib.js b/src/lib.js
+index 964f8affdad7519e6681064fbcc42d804de31317..fb5bd7457374579e7f67431f3385b26942745236 100644
+--- a/src/lib.js
++++ b/src/lib.js
+@@ -372,6 +372,8 @@ export function yXmlFragmentToProsemirrorJSON (xmlFragment) {
+ 
+   return {
+     type: 'doc',
+-    content: items.map(serialize)
++    // NOTE(calebmer): We need a `flat()` call here for inline content at the
++    // top level just like we need a flat on line 366.
++    content: items.map(serialize).flat()
+   }
+ }

@@ -34,7 +34,7 @@ import {
     sprinkles,
     tasksStyles,
 } from "~/shared/styles/styles.js";
-import {assertTaskTitle, emptyTaskTitle} from "~/shared/tasks/task_title_schema.js";
+import {assertTaskTitle, emptyTaskTitle} from "~/shared/tasks/task_title_schema_old.js";
 
 export const taskRowTitleInputHeight: Spacing = "9";
 

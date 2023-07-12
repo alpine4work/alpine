@@ -46,7 +46,7 @@ import {noop} from "~/shared/helpers/control/noop.js";
 import {LocalTaskCollectionId} from "~/shared/id/types/id_types.js";
 import {colorSchemeVars} from "~/shared/styles/styles.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
-import {TaskTitle, emptyTaskTitle} from "~/shared/tasks/task_title_schema.js";
+import {TaskTitle, emptyTaskTitle} from "~/shared/tasks/task_title_schema_old.js";
 
 export const minTaskCountToShowTopGhostTask = 7;
 

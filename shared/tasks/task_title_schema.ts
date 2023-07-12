@@ -1,9 +1,20 @@
 import {Node, Schema as ProsemirrorSchema} from "prosemirror-model";
+import {prosemirrorToYXmlFragment, yXmlFragmentToProsemirror} from "y-prosemirror";
+import * as Y from "yjs";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {createSchemaForProsemirrorSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
+
+export const TaskTitleProsemirrorSchema = new ProsemirrorSchema({
+    nodes: {
+        doc: {content: "text*"},
+        text: {inline: true},
+    },
+});
 
 /**
+ * The title of a task which is a Y.js doc containing a PromiseMirror doc.
+ *
  * We use ProseMirror for task titles. Task titles are short single line
  * strings with no formatting options. So why bother with the complexity of
  * ProseMirror?
@@ -19,33 +30,63 @@ import {Schema} from "~/shared/schema/schema.js";
  *
  * Overall, using a programmatic text editor allows us to super-power this
  * input for long into the future.
+ *
+ * We use the CRDT library Y.js to support collaborative editing of task
+ * titles. Our task system depends on actions being commutative and idempotent
+ * so that clients can make optimistic updates and so that our backend
+ * distributed systems does not need to maintain any ordering guarantees. No
+ * matter what order actions are applied in our clients should always converge
+ * to the same state.
  */
-const TaskTitleProsemirrorSchema = new ProsemirrorSchema({
-    nodes: {
-        doc: {content: "text*"},
-        text: {inline: true},
+export type TaskTitle = Uint8Array & {readonly _TaskTitle: never};
+
+function isTaskTitle(title: Uint8Array): title is TaskTitle {
+    try {
+        const doc = new Y.Doc();
+        Y.applyUpdateV2(doc, title);
+        yXmlFragmentToProsemirror(TaskTitleProsemirrorSchema, doc.getXmlFragment("doc"));
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+export const TaskTitleSchema = Schema.bytes.transform<TaskTitle>({
+    serialize: title => {
+        assert(isTaskTitle(title), "Expected a `TaskTitle` Y.js update");
+        return title;
+    },
+    deserialize: title => {
+        if (!isTaskTitle(title))
+            throw new SchemaDeserializationError("Expected a `TaskTitle` Y.js update");
+
+        return title;
     },
 });
 
-export type TaskTitle = Node & {readonly _TaskTitle: never};
+export const emptyTaskTitle = new Lazy(() => {
+    const node = TaskTitleProsemirrorSchema.node("doc", {}, []);
+    const doc = new Y.Doc();
+    prosemirrorToYXmlFragment(node, doc.getXmlFragment("doc"));
+    return Y.encodeStateAsUpdateV2(doc) as TaskTitle;
+});
 
-export function isTaskTitle(node: Node): node is TaskTitle {
-    return node.type.schema === TaskTitleProsemirrorSchema && node.type.name === "doc";
+export function getTaskTitleProsemirrorNode(title: TaskTitle): Node {
+    const doc = new Y.Doc();
+    Y.applyUpdateV2(doc, title);
+    return yXmlFragmentToProsemirror(TaskTitleProsemirrorSchema, doc.getXmlFragment("doc"));
 }
 
-export function assertTaskTitle(node: Node): TaskTitle {
-    assert(isTaskTitle(node));
-    return node;
-}
+/**
+ * A Y.js update to a `TaskTitle`.
+ */
+export type TaskTitleUpdate = Uint8Array & {readonly _TaskTitleUpdate: never};
 
-const taskTitleSchemas = createSchemaForProsemirrorSchema(TaskTitleProsemirrorSchema);
+export const TaskTitleUpdateSchema = Schema.bytes.transform<TaskTitleUpdate>({
+    serialize: update => update,
+    deserialize: update => update as TaskTitleUpdate,
+});
 
-export const TaskTitleSchema = taskTitleSchemas.TopNodeType as Schema<any> as Schema<TaskTitle>;
-
-export const emptyTaskTitle = TaskTitleProsemirrorSchema.node("doc", {}, []) as TaskTitle;
-
-export function createSimpleTaskTitle(text: string): TaskTitle {
-    return assertTaskTitle(
-        TaskTitleProsemirrorSchema.node("doc", {}, [TaskTitleProsemirrorSchema.text(text)]),
-    );
+export function applyTaskTitleUpdate(title: TaskTitle, titleUpdate: TaskTitleUpdate): TaskTitle {
+    return Y.mergeUpdatesV2([title, titleUpdate]) as TaskTitle;
 }

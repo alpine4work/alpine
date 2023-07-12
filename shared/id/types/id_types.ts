@@ -32,6 +32,7 @@ export type ContentEditorClientId = NominalIdType<"ContentEditorClient">;
 export type PeekId = NominalIdType<"Peek">;
 export type ChatId = NominalIdType<"Chat">;
 export type NotificationEventId = NominalIdType<"NotificationEvent">;
+export type TaskId = NominalIdType<"Task">;
 
 /**
  * A specialization of `AccountId`. We use this as the type of a

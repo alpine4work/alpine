@@ -79,6 +79,9 @@ patchedDependencies:
   swr@2.1.0:
     hash: fjssuecdvmfeujlug2i3x2lofe
     path: admin/patches/swr@2.1.0.patch
+  y-prosemirror@1.2.1:
+    hash: t5jeqsjsho2xiqouqfojkcxvhq
+    path: admin/patches/y-prosemirror@1.2.1.patch
 
 dependencies:
   '@aws-sdk/client-dynamodb':
@@ -540,9 +543,15 @@ dependencies:
   ws:
     specifier: ^8.10.0
     version: 8.10.0
+  y-prosemirror:
+    specifier: ^1.2.1
+    version: 1.2.1(patch_hash=t5jeqsjsho2xiqouqfojkcxvhq)(prosemirror-model@1.18.1)(prosemirror-state@1.4.2)(prosemirror-view@1.27.2)(y-protocols@1.0.5)(yjs@13.6.6)
   yargs:
     specifier: ^17.6.2
     version: 17.6.2
+  yjs:
+    specifier: ^13.6.6
+    version: 13.6.6
 
 packages:
 
@@ -9837,6 +9846,10 @@ packages:
     resolution: {integrity: sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw==}
     dev: false
 
+  /isomorphic.js@0.2.5:
+    resolution: {integrity: sha512-PIeMbHqMt4DnUP3MA/Flc0HElYjMXArsw1qwJZcm9sqR8mq3l8NYizFMty0pWwE/tzIGH3EKK5+jes5mAr85yw==}
+    dev: false
+
   /istanbul-lib-coverage@3.2.0:
     resolution: {integrity: sha512-eOeJ5BHCmHYvQK7xt9GkdHuzuCGS1Y6g9Gvnx3Ym33fz/HpLRYxiS0wHNr+m/MBC8B647Xt608vCDEvhl9c6Mw==}
     engines: {node: '>=8'}
@@ -10550,6 +10563,14 @@ packages:
     dependencies:
       prelude-ls: 1.2.1
       type-check: 0.4.0
+    dev: false
+
+  /lib0@0.2.78:
+    resolution: {integrity: sha512-SV2nU43/6eaYnGH3l0lg2wg1ziB/TH3sAd2E8quXPGwrqo+aX98SNT2ZKucpUr5B8A52jD7ZMjAl+r87Fa/bLQ==}
+    engines: {node: '>=16'}
+    hasBin: true
+    dependencies:
+      isomorphic.js: 0.2.5
     dev: false
 
   /lilconfig@2.1.0:
@@ -14731,6 +14752,30 @@ packages:
     resolution: {integrity: sha512-ibF0Or+FivM9lNrg+HGJfVX8WJqgo+kCLDc4vx6xMeTce7Aj+DLttKbxxRR/gNLSAelRc1omAPlJ77N/Jem07A==}
     dev: false
 
+  /y-prosemirror@1.2.1(patch_hash=t5jeqsjsho2xiqouqfojkcxvhq)(prosemirror-model@1.18.1)(prosemirror-state@1.4.2)(prosemirror-view@1.27.2)(y-protocols@1.0.5)(yjs@13.6.6):
+    resolution: {integrity: sha512-czMBfB1eL2awqmOSxQM8cS/fsUOGE6fjvyPLInrh4crPxFiw67wDpwIW+EGBYKRa04sYbS0ScGj7ZgvWuDrmBQ==}
+    peerDependencies:
+      prosemirror-model: ^1.7.1
+      prosemirror-state: ^1.2.3
+      prosemirror-view: ^1.9.10
+      y-protocols: ^1.0.1
+      yjs: ^13.5.38
+    dependencies:
+      lib0: 0.2.78
+      prosemirror-model: 1.18.1
+      prosemirror-state: 1.4.2
+      prosemirror-view: 1.27.2(patch_hash=ep5td2fcl7fty7i23lgflvirku)
+      y-protocols: 1.0.5
+      yjs: 13.6.6
+    dev: false
+    patched: true
+
+  /y-protocols@1.0.5:
+    resolution: {integrity: sha512-Wil92b7cGk712lRHDqS4T90IczF6RkcvCwAD0A2OPg+adKmOe+nOiT/N2hvpQIWS3zfjmtL4CPaH5sIW1Hkm/A==}
+    dependencies:
+      lib0: 0.2.78
+    dev: false
+
   /y18n@5.0.8:
     resolution: {integrity: sha512-0pfFzegeDWJHJIAmTLRP2DwHjdF5s7jo9tuztdQxAhINCdvS+3nGINqPd00AphqJR/0LhANUS6/+7SCb98YOfA==}
     engines: {node: '>=10'}
@@ -14792,6 +14837,13 @@ packages:
       string-width: 4.2.3
       y18n: 5.0.8
       yargs-parser: 21.1.1
+    dev: false
+
+  /yjs@13.6.6:
+    resolution: {integrity: sha512-VTvezMeMuOra9jKG1Ym5XuQ2H4xXOubIIIupv/B5oygasa9IqDE7Ufv93QTSe9uz69J5VZGMQb2WTEmJv4kJFQ==}
+    engines: {node: '>=16.0.0', npm: '>=8.0.0'}
+    dependencies:
+      lib0: 0.2.78
     dev: false
 
   /yocto-queue@0.1.0:

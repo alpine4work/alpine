@@ -57,7 +57,7 @@ import {
 } from "~/shared/tasks/task_notes_content_schema.js";
 import {TaskPriority, TaskPrioritySchema} from "~/shared/tasks/task_priority.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
-import {TaskTitle, TaskTitleSchema, emptyTaskTitle} from "~/shared/tasks/task_title_schema.js";
+import {TaskTitle, TaskTitleSchema, emptyTaskTitle} from "~/shared/tasks/task_title_schema_old.js";
 
 const LocalTaskIdByOrderKeySchema = Schema.map(OrderKeySchema, Schema.id<LocalTaskId>()).transform<
     ImmutableMap<OrderKey, LocalTaskId>

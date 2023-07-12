@@ -50,7 +50,7 @@ import {LocalTaskCollectionId} from "~/shared/id/types/id_types.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
-import {TaskTitle} from "~/shared/tasks/task_title_schema.js";
+import {TaskTitle} from "~/shared/tasks/task_title_schema_old.js";
 
 export const taskDetailPresentationalViewMaxWidth: Spacing = "160";
 

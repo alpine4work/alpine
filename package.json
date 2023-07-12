@@ -157,7 +157,9 @@
         "undici": "5.20.0",
         "wrangler": "^3.1.2",
         "ws": "^8.10.0",
-        "yargs": "^17.6.2"
+        "y-prosemirror": "^1.2.1",
+        "yargs": "^17.6.2",
+        "yjs": "^13.6.6"
     },
     "pnpm": {
         "updateNotifier": false,
@@ -188,7 +190,8 @@
             "@remix-run/router@1.7.0": "admin/patches/@remix-run__router@1.7.0.patch",
             "@remix-run/server-runtime@1.18.0": "admin/patches/@remix-run__server-runtime@1.18.0.patch",
             "@remix-run/react@1.18.0": "admin/patches/@remix-run__react@1.18.0.patch",
-            "react-router-dom@6.14.0": "admin/patches/react-router-dom@6.14.0.patch"
+            "react-router-dom@6.14.0": "admin/patches/react-router-dom@6.14.0.patch",
+            "y-prosemirror@1.2.1": "admin/patches/y-prosemirror@1.2.1.patch"
         },
         "allowedDeprecatedVersions": {
             "@types/keyv": "4.2.0",

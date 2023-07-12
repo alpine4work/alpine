@@ -38,13 +38,13 @@ interface ModelInterface<Value> {
  * We recommend extending the model object class so you can add helper methods.
  *
  * If you extend the model object class be careful about overriding the
- * constructor. The model knows how to clone itself and will pass `Value` into
+ * constructor. The model knows how to clone itself and will pass `Data` into
  * the constructor.
  *
  * This is a simple helper on top of our schema library which is why it lives
  * in `~/shared/schema`.
  */
-export function Model<Value>(schema: ObjectSchema<Value>): ModelClass<Value> {
+export function Model<Data>(schema: ObjectSchema<Data>): ModelClass<Data> {
     class Model {
         private static _schema?: Schema<Model>;
 
@@ -57,21 +57,21 @@ export function Model<Value>(schema: ObjectSchema<Value>): ModelClass<Value> {
             if (!hasOwnProperty(this, "_schema")) {
                 this._schema = schema.transform<Model>({
                     serialize: model => {
-                        const value: any = {};
+                        const data: any = {};
 
                         for (const key of schema.propertySchemaByKey.keys()) {
                             if (!hasOwnProperty(model, key)) continue;
-                            value[key] = (model as any)[key];
+                            data[key] = (model as any)[key];
                         }
 
-                        return value;
+                        return data;
                     },
-                    deserialize: value => {
+                    deserialize: data => {
                         // We call `new this()` instead of `new Model()` so that we use the subclass
                         // instead of the base model class.
                         //
                         // This does depend on subclasses not mucking with the constructor function.
-                        return new this(value);
+                        return new this(data);
                     },
                 });
             }
@@ -79,19 +79,23 @@ export function Model<Value>(schema: ObjectSchema<Value>): ModelClass<Value> {
             return this._schema!;
         }
 
-        constructor(value: Value) {
+        constructor(data: Data) {
             for (const key of schema.propertySchemaByKey.keys()) {
-                if (!hasOwnProperty(value, key)) continue;
-                (this as any)[key] = (value as any)[key];
+                if (!hasOwnProperty(data, key)) continue;
+                (this as any)[key] = (data as any)[key];
             }
         }
 
-        public clone(partialValue: Partial<Value>): this {
-            const newValue: any = {};
+        public clone(partialData: Partial<Data>): this {
+            // We use `this.constructor.prototype` instead of `Model.prototype` so that we
+            // use the subclass instead of the base model class.
+            //
+            // This does depend on subclasses not mucking with the constructor function.
+            const newModel: any = Object.create(this.constructor.prototype);
 
             for (const key of schema.propertySchemaByKey.keys()) {
-                if (hasOwnProperty(partialValue, key)) {
-                    const keyValue = (partialValue as any)[key];
+                if (hasOwnProperty(partialData, key)) {
+                    const value = (partialData as any)[key];
 
                     // Treat an `undefined` value and a missing property as the same since the
                     // `Partial` type allows `undefined` for any key (not jut optional keys).
@@ -99,23 +103,19 @@ export function Model<Value>(schema: ObjectSchema<Value>): ModelClass<Value> {
                     // This does mean you can't remove an optional property by setting it to
                     // `undefined`. We need some other tactic for that. (Maybe we should encourage
                     // `schema.nullable().default(null)` instead of `schema.optional()`?)
-                    if (keyValue !== undefined) {
-                        newValue[key] = keyValue;
+                    if (value !== undefined) {
+                        newModel[key] = value;
                         continue;
                     }
                 }
 
                 if (hasOwnProperty(this, key)) {
-                    newValue[key] = (this as any)[key];
+                    newModel[key] = (this as any)[key];
                     continue;
                 }
             }
 
-            // We call `new this.constructor()` instead of `new Model()` so that we use the
-            // subclass instead of the base model class.
-            //
-            // This does depend on subclasses not mucking with the constructor function.
-            return new (this.constructor as any)(newValue);
+            return newModel;
         }
     }
 
