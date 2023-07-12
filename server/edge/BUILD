@@ -51,11 +51,11 @@ opt_compilation_mode(
 )
 
 wrangler_bin.wrangler_binary(
-    name = "wrangler_deploy",
-    args = ["deploy"],
+    name = "wrangler",
     chdir = package_name(),
     data = [
         "wrangler.toml",
         ":edge_service_bundle_file_opt",
     ],
+    visibility = ["//admin/deploy:__pkg__"],
 )

@@ -27,4 +27,5 @@ cdk_bin.cdk_binary(
     env = {
         "NODE_ENV": "production",
     },
+    visibility = ["//admin/deploy:__pkg__"],
 )
