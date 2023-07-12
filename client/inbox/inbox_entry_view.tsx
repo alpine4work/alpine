@@ -387,13 +387,8 @@ function InboxDocumentCommentThreadEntryView({
                     </>
                 )}{" "}
                 thread on “
-                <span className={boldClassName}>
-                    {useMemo(
-                        () => truncateDocumentTitle(entry.document.getTitle()),
-                        [entry.document],
-                    )}
-                </span>
-                ” has new comments
+                {useMemo(() => truncateDocumentTitle(entry.document.getTitle()), [entry.document])}”
+                has new comments
             </Box>
             <InboxEntryLatestMessagePreview
                 time={entry.latestComment.createdTime}
@@ -421,10 +416,7 @@ function InboxDocumentNewCommentThreadsEntryView({
         >
             <Box>
                 New {entry.commentThreadCount > 1 ? "threads" : "thread"} on “
-                <span className={boldClassName}>
-                    {truncateDocumentTitle(entry.document.getTitle())}
-                </span>
-                ” by{" "}
+                {truncateDocumentTitle(entry.document.getTitle())}” by{" "}
                 {!secondAccount ? (
                     <span className={boldClassName}>
                         <AccountShortName account={firstAccount} />
