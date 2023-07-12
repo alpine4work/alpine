@@ -58,6 +58,7 @@ import {isId} from "~/shared/id/id.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 import {ClientInfoSchema} from "~/shared/remix/client_info.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 const runfilesPath = assertExists(process.env.RUNFILES);
 
@@ -225,8 +226,11 @@ async function main() {
 
         const actuallyFetchAwsCredentials = fromContainerMetadata();
 
-        const fetchAwsCredentials = (tracer: TracerBase) =>
-            tracer.withSpan("Fetching AWS credentials from container metadata", async span => {
+        const fetchAwsCredentials = (initiatingSpan: TracerSpan | null) =>
+            tracer.withSpan("Fetching AWS credentials", async span => {
+                // Link this span to the span which initiated it.
+                if (initiatingSpan) span.link(initiatingSpan);
+
                 try {
                     const credentials = await actuallyFetchAwsCredentials();
 
@@ -249,39 +253,51 @@ async function main() {
             });
 
         let currentAwsCredentialsPromise: Promise<AwsCredentialIdentity> =
-            fetchAwsCredentials(tracer);
+            fetchAwsCredentials(null);
         let nextAwsCredentialsPromise: Promise<AwsCredentialIdentity> | null;
 
         getAwsCredentials = async (tracer: TracerBase) => {
             const awsCredentials = await currentAwsCredentialsPromise;
 
-            if (
-                awsCredentials.expiration &&
+            if (awsCredentials.expiration) {
+                const expirationMs = awsCredentials.expiration.getTime() - Date.now();
+
                 // Wait until four minutes before our current AWS credentials expire to fetch
                 // new credentials. The docs say new credentials are available five minutes
                 // before the expiration time. We fetch four minutes before the expiration time
                 // to account for clock drift.
-                Date.now() > awsCredentials.expiration.getTime() - 1000 * 60 * 4 &&
-                !nextAwsCredentialsPromise
-            ) {
-                const ourAwsCredentialsPromise = fetchAwsCredentials(tracer);
-                nextAwsCredentialsPromise = ourAwsCredentialsPromise;
+                if (expirationMs < 1000 * 60 * 4) {
+                    if (!nextAwsCredentialsPromise) {
+                        const ourAwsCredentialsPromise = fetchAwsCredentials(
+                            tracer instanceof TracerSpan ? tracer : null,
+                        );
+                        nextAwsCredentialsPromise = ourAwsCredentialsPromise;
 
-                ourAwsCredentialsPromise.then(
-                    () => {
-                        if (nextAwsCredentialsPromise === ourAwsCredentialsPromise) {
-                            currentAwsCredentialsPromise = ourAwsCredentialsPromise;
-                            nextAwsCredentialsPromise = null;
-                        }
-                    },
-                    () => {
-                        if (nextAwsCredentialsPromise === ourAwsCredentialsPromise) {
-                            // If there was an error, clear our promise which will cause us to try fetching
-                            // credentials again. Errors should already be reported by `tracer.withSpan()`.
-                            nextAwsCredentialsPromise = null;
-                        }
-                    },
-                );
+                        ourAwsCredentialsPromise.then(
+                            () => {
+                                if (nextAwsCredentialsPromise === ourAwsCredentialsPromise) {
+                                    currentAwsCredentialsPromise = ourAwsCredentialsPromise;
+                                    nextAwsCredentialsPromise = null;
+                                }
+                            },
+                            () => {
+                                if (nextAwsCredentialsPromise === ourAwsCredentialsPromise) {
+                                    // If there was an error, clear our promise which will cause us to try fetching
+                                    // credentials again. Errors should already be reported by `tracer.withSpan()`.
+                                    nextAwsCredentialsPromise = null;
+                                }
+                            },
+                        );
+                    }
+
+                    // One minute before our expiration time (to account for clock drift) switch to
+                    // the new credentials even if we haven't finished fetching them yet.
+                    if (expirationMs < 1000 * 60) {
+                        currentAwsCredentialsPromise = nextAwsCredentialsPromise;
+                        nextAwsCredentialsPromise = null;
+                        return currentAwsCredentialsPromise;
+                    }
+                }
             }
 
             return awsCredentials;
