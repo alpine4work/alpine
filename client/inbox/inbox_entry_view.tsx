@@ -202,6 +202,8 @@ const boldClassName = sprinkles({
 });
 
 function InboxChatEntryView({entry}: {entry: InboxChatEntryModel}) {
+    const {currentAccount} = useSpaceContext();
+
     const firstAccount = entry.otherChatAccount ?? entry.latestMessage.author;
 
     const secondAccount =
@@ -213,27 +215,49 @@ function InboxChatEntryView({entry}: {entry: InboxChatEntryModel}) {
             secondAccount={secondAccount}
             loudNotificationCount={entry.loudNotificationCount}
         >
-            <Box>
-                <span className={boldClassName}>
-                    <AccountShortName account={entry.latestMessage.author} />
-                </span>{" "}
-                sent you
-                {entry.chatAccountCount === 3 && entry.otherChatAccount ? (
-                    <>
-                        {" "}
-                        and{" "}
+            {entry.latestMessage.author.id !== currentAccount.id ? (
+                <Box>
+                    <span className={boldClassName}>
+                        <AccountShortName account={entry.latestMessage.author} />
+                    </span>{" "}
+                    sent you
+                    {entry.chatAccountCount === 3 && entry.otherChatAccount ? (
+                        <>
+                            {" "}
+                            and{" "}
+                            <span className={boldClassName}>
+                                <AccountShortName account={entry.otherChatAccount} />
+                            </span>
+                        </>
+                    ) : entry.chatAccountCount > 2 ? (
+                        <>
+                            {" "}
+                            and <PrettyNumber number={entry.chatAccountCount - 2} label="other" />
+                        </>
+                    ) : null}{" "}
+                    a chat message
+                </Box>
+            ) : (
+                <Box>
+                    You send a chat message to{" "}
+                    {entry.chatAccountCount === 1 ? (
+                        "yourself"
+                    ) : entry.chatAccountCount === 2 && entry.otherChatAccount ? (
                         <span className={boldClassName}>
                             <AccountShortName account={entry.otherChatAccount} />
                         </span>
-                    </>
-                ) : entry.chatAccountCount > 2 ? (
-                    <>
-                        {" "}
-                        and <PrettyNumber number={entry.chatAccountCount - 2} label="other" />
-                    </>
-                ) : null}{" "}
-                a chat message
-            </Box>
+                    ) : entry.otherChatAccount ? (
+                        <>
+                            <span className={boldClassName}>
+                                <AccountShortName account={entry.otherChatAccount} />
+                            </span>{" "}
+                            and <PrettyNumber number={entry.chatAccountCount - 2} label="other" />
+                        </>
+                    ) : (
+                        <PrettyNumber number={entry.chatAccountCount - 1} label="other" />
+                    )}
+                </Box>
+            )}
             <InboxEntryLatestMessagePreview
                 time={entry.latestMessage.createdTime}
                 latestMessage={entry.latestMessage}
