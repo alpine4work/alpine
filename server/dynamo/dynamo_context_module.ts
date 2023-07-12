@@ -10,6 +10,7 @@ import {InternalError} from "~/shared/error/error.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 /**
  * Context module for DynamoDB. Holds a DynamoDB client which is accessible to
@@ -68,7 +69,10 @@ export class DynamoContextModule<Modules extends {} = {}> extends ContextModuleB
         this._retryTransaction = retryTransaction;
     }
 
-    public static new(options: {getAwsHttpClient: () => Promise<AwsClient>; awsDynamoUrl: string}) {
+    public static new(options: {
+        getAwsHttpClient: (tracer: TracerBase) => Promise<AwsClient>;
+        awsDynamoUrl: string;
+    }) {
         return new DynamoContextModule(new DynamoClient(options), {
             defaultReadConsistency: "Eventual",
             retryTransaction: null,

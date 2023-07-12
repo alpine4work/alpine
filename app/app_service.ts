@@ -52,10 +52,12 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 import {ClientInfoSchema} from "~/shared/remix/client_info.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 const runfilesPath = assertExists(process.env.RUNFILES);
 
@@ -195,7 +197,9 @@ async function main() {
     });
 
     let isLocalAws = false;
-    let getAwsCredentials: () => Promise<AwsCredentialIdentity & {httpClient?: AwsClient}>;
+    let getAwsCredentials: (
+        tracer: TracerBase,
+    ) => Promise<AwsCredentialIdentity & {httpClient?: AwsClient}>;
     if (process.env.NODE_ENV !== "production") {
         isLocalAws = !awsAccessKeyIdArg;
         getAwsCredentials = async () => ({
@@ -221,10 +225,21 @@ async function main() {
 
         const actuallyFetchAwsCredentials = fromContainerMetadata();
 
-        const fetchAwsCredentials = () =>
-            tracer.withSpan("Fetching AWS credentials from container metadata", async () => {
+        const fetchAwsCredentials = (tracer: TracerBase) =>
+            tracer.withSpan("Fetching AWS credentials from container metadata", async span => {
                 try {
                     const credentials = await actuallyFetchAwsCredentials();
+
+                    if (credentials.expiration) {
+                        span.addData({
+                            aws: {
+                                credentials: {
+                                    expirationTime: serializeDateString(credentials.expiration),
+                                },
+                            },
+                        });
+                    }
+
                     return credentials;
                 } catch (error) {
                     // Escalate to internal error! If this isn't resolved requests will
@@ -233,10 +248,11 @@ async function main() {
                 }
             });
 
-        let currentAwsCredentialsPromise: Promise<AwsCredentialIdentity> = fetchAwsCredentials();
+        let currentAwsCredentialsPromise: Promise<AwsCredentialIdentity> =
+            fetchAwsCredentials(tracer);
         let nextAwsCredentialsPromise: Promise<AwsCredentialIdentity> | null;
 
-        getAwsCredentials = async () => {
+        getAwsCredentials = async (tracer: TracerBase) => {
             const awsCredentials = await currentAwsCredentialsPromise;
 
             if (
@@ -248,7 +264,7 @@ async function main() {
                 Date.now() > awsCredentials.expiration.getTime() - 1000 * 60 * 4 &&
                 !nextAwsCredentialsPromise
             ) {
-                const ourAwsCredentialsPromise = fetchAwsCredentials();
+                const ourAwsCredentialsPromise = fetchAwsCredentials(tracer);
                 nextAwsCredentialsPromise = ourAwsCredentialsPromise;
 
                 ourAwsCredentialsPromise.then(
@@ -310,8 +326,8 @@ async function main() {
         appServicePrivateKey,
     });
 
-    const getAwsHttpClient = async () => {
-        const awsCredentials = await getAwsCredentials();
+    const getAwsHttpClient = async (tracer: TracerBase) => {
+        const awsCredentials = await getAwsCredentials(tracer);
 
         return (awsCredentials.httpClient ??= new AwsClient({
             accessKeyId: awsCredentials.accessKeyId,

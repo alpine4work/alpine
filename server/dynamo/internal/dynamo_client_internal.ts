@@ -42,14 +42,14 @@ export type DynamoClientAction = Exclude<keyof DynamoClientInternal, "isLocal">;
 // If/when we migrate there may be some retries we've had to manually implement
 // that the SDK does automatically we'd have to sus out.
 export class DynamoClientInternal {
-    private readonly _getAwsHttpClient: () => Promise<AwsClient>;
+    private readonly _getAwsHttpClient: (tracer: TracerBase) => Promise<AwsClient>;
     private readonly _awsDynamoUrl: string;
 
     constructor({
         getAwsHttpClient,
         awsDynamoUrl,
     }: {
-        getAwsHttpClient: () => Promise<AwsClient>;
+        getAwsHttpClient: (tracer: TracerBase) => Promise<AwsClient>;
         awsDynamoUrl: string;
     }) {
         this._getAwsHttpClient = getAwsHttpClient;
@@ -68,7 +68,7 @@ export class DynamoClientInternal {
         action: DynamoClientAction,
         input: Input,
     ): Promise<Output> {
-        const client = await this._getAwsHttpClient();
+        const client = await this._getAwsHttpClient(span);
         const response = await client.fetch(this._awsDynamoUrl, {
             method: "POST",
             headers: {

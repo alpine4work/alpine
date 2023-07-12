@@ -1,9 +1,14 @@
 import {tracerEventDataDynamoConsumedCapacityKeys} from "~/server/tracer/internal/tracer_event_data_dynamo_consumed_capacity_keys.js";
+import {DateString, isDateString} from "~/shared/helpers/date/date_string.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 import {IdentifierStringSchema} from "~/shared/schema/identifier_string_schema.js";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema.js";
-import {Schema, SchemaWithOnlyDeserialization} from "~/shared/schema/schema.js";
+import {
+    Schema,
+    SchemaDeserializationError,
+    SchemaWithOnlyDeserialization,
+} from "~/shared/schema/schema.js";
 import {
     TracerEventFlatData,
     convertCamelCaseToSnakeCase,
@@ -27,6 +32,14 @@ type TracerEventDataSchemaBase = {
         | SchemaWithOnlyDeserialization<boolean>
         | TracerEventDataSchemaBase;
 };
+
+const DateStringSchema = Schema.string.transform<DateString>({
+    serialize: string => string,
+    deserialize: string => {
+        if (!isDateString(string)) throw new SchemaDeserializationError("Expected date string");
+        return string;
+    },
+});
 
 /**
  * Schemas for all the properties in `TracerEventFullData`. This is in `server`
@@ -173,6 +186,9 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         },
     },
     aws: {
+        credentials: {
+            expirationTime: DateStringSchema,
+        },
         ses: {
             source: LabelStringSchema,
             messageId: Schema.string,

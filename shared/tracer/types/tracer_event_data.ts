@@ -1,3 +1,4 @@
+import {DateString} from "~/shared/helpers/date/date_string.js";
 import {
     AccountId,
     ChannelId,
@@ -515,6 +516,12 @@ export type TracerEventData = {
      * attributes before we had this `aws` namespace.
      */
     readonly aws?: {
+        /** Information associated with AWS credentials. */
+        readonly credentials?: {
+            /** The time at which our credentials session token is set to expire. */
+            readonly expirationTime?: DateString;
+        };
+
         /**
          * Information regarding our use of Amazon SES for sending email.
          */
