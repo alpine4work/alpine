@@ -6,6 +6,7 @@ import {LabelStringSchema} from "~/shared/schema/label_string_schema.js";
 import {Model} from "~/shared/schema/model/model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TimeZoneSchema} from "~/shared/schema/time_zone_schema.js";
+import {TaskCollectionSet} from "~/shared/tasks/task_collection_set_schema.js";
 import {TaskTitleSchema} from "~/shared/tasks/task_title_schema.js";
 
 /**
@@ -143,6 +144,9 @@ export class TaskModel extends Model(
 
         /** The title of the task. */
         title: TaskTitleSchema,
+
+        /** The collections our task is in. */
+        collections: TaskCollectionSet.schema,
     }),
 ) {
     // Lets us use `TaskModel` as a member of a union.

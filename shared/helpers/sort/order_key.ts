@@ -51,6 +51,14 @@ export function isOrderKey(string: string): string is OrderKey {
     return true;
 }
 
+/**
+ * Asserts that the provided string is an `OrderKey`.
+ */
+export function assertOrderKey(string: string): OrderKey {
+    assert(isOrderKey(string));
+    return string;
+}
+
 const zeroOrderKey = "a0" as OrderKey;
 export const minOrderKey = "A00000000000000000000000000" as OrderKey;
 export const maxOrderKey = "zzzzzzzzzzzzzzzzzzzzzzzzzzz" as OrderKey;

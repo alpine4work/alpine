@@ -8,10 +8,12 @@ import {AccountModel} from "~/shared/accounts/account_model.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertTimeZone, defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
+import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskActionModel} from "~/shared/tasks/task_action_model.js";
 import {TaskClientDatabase} from "~/shared/tasks/task_client_database.js";
+import {TaskCollectionSet} from "~/shared/tasks/task_collection_set_schema.js";
 import {TaskAccountModel, TaskDateModel, TaskModel} from "~/shared/tasks/task_model.js";
 import {
     TaskTitle,
@@ -53,6 +55,8 @@ const createdTime3 = new TaskDateModel({
 });
 
 const taskId = generateId<TaskId>();
+const taskCollectionId1 = generateId<TaskCollectionId>();
+const taskCollectionId2 = generateId<TaskCollectionId>();
 
 function generateTaskTitleUpdates() {
     function textSlice(text: string) {
@@ -124,6 +128,7 @@ const testCases: Array<{
             creator: account1,
             createdTime: createdTime1,
             title: emptyTaskTitle.get(),
+            collections: TaskCollectionSet.empty,
         }),
     },
     {
@@ -192,6 +197,7 @@ const testCases: Array<{
             creator: account1,
             createdTime: createdTime1,
             title: titles.title1,
+            collections: TaskCollectionSet.empty,
         }),
     },
     {
@@ -216,6 +222,7 @@ const testCases: Array<{
             creator: account2,
             createdTime: createdTime1,
             title: titles.title2,
+            collections: TaskCollectionSet.empty,
         }),
     },
     {
@@ -248,6 +255,204 @@ const testCases: Array<{
             creator: account1,
             createdTime: createdTime2,
             title: titles.title4,
+            collections: TaskCollectionSet.empty,
+        }),
+    },
+    {
+        name: "add and remove collection",
+        actions: [
+            {
+                type: "Create",
+                creator: account1,
+                createdTime: createdTime1,
+            },
+            {
+                type: "UpdateCollections",
+                action: {
+                    type: "Set",
+                    collectionId: taskCollectionId1,
+                    orderKey: assertOrderKey("a0"),
+                    updatedTime: new Date("2023-07-13T15:21:45.430Z"),
+                },
+            },
+            {
+                type: "UpdateCollections",
+                action: {
+                    type: "Set",
+                    collectionId: taskCollectionId2,
+                    orderKey: assertOrderKey("a1"),
+                    updatedTime: new Date("2023-07-13T15:22:45.430Z"),
+                },
+            },
+            {
+                type: "UpdateCollections",
+                action: {
+                    type: "Delete",
+                    collectionId: taskCollectionId1,
+                    updatedTime: new Date("2023-07-13T15:23:45.430Z"),
+                },
+            },
+        ],
+        task: new TaskModel({
+            id: taskId,
+            creator: account1,
+            createdTime: createdTime1,
+            title: emptyTaskTitle.get(),
+            collections: TaskCollectionSet.schema.deserialize([
+                [
+                    taskCollectionId1,
+                    {
+                        type: "Absent",
+                        updatedTime: "2023-07-13T15:23:45.430Z",
+                    },
+                ],
+                [
+                    taskCollectionId2,
+                    {
+                        type: "Present",
+                        updatedTime: "2023-07-13T15:22:45.430Z",
+                        orderKey: "a1",
+                    },
+                ],
+            ]),
+        }),
+    },
+    {
+        name: "add, remove, and add collection",
+        actions: [
+            {
+                type: "Create",
+                creator: account1,
+                createdTime: createdTime1,
+            },
+            {
+                type: "UpdateCollections",
+                action: {
+                    type: "Set",
+                    collectionId: taskCollectionId1,
+                    orderKey: assertOrderKey("a0"),
+                    updatedTime: new Date("2023-07-13T15:21:45.430Z"),
+                },
+            },
+            {
+                type: "UpdateCollections",
+                action: {
+                    type: "Delete",
+                    collectionId: taskCollectionId1,
+                    updatedTime: new Date("2023-07-13T15:22:45.430Z"),
+                },
+            },
+            {
+                type: "UpdateCollections",
+                action: {
+                    type: "Set",
+                    collectionId: taskCollectionId1,
+                    orderKey: assertOrderKey("a0"),
+                    updatedTime: new Date("2023-07-13T15:23:45.430Z"),
+                },
+            },
+        ],
+        task: new TaskModel({
+            id: taskId,
+            creator: account1,
+            createdTime: createdTime1,
+            title: emptyTaskTitle.get(),
+            collections: TaskCollectionSet.schema.deserialize([
+                [
+                    taskCollectionId1,
+                    {
+                        type: "Present",
+                        updatedTime: "2023-07-13T15:23:45.430Z",
+                        orderKey: "a0",
+                    },
+                ],
+            ]),
+        }),
+    },
+    {
+        name: "collection updated time conflict, remove wins",
+        actions: [
+            {
+                type: "Create",
+                creator: account1,
+                createdTime: createdTime1,
+            },
+            {
+                type: "UpdateCollections",
+                action: {
+                    type: "Set",
+                    collectionId: taskCollectionId1,
+                    orderKey: assertOrderKey("a0"),
+                    updatedTime: new Date("2023-07-13T15:21:45.430Z"),
+                },
+            },
+            {
+                type: "UpdateCollections",
+                action: {
+                    type: "Delete",
+                    collectionId: taskCollectionId1,
+                    updatedTime: new Date("2023-07-13T15:21:45.430Z"),
+                },
+            },
+        ],
+        task: new TaskModel({
+            id: taskId,
+            creator: account1,
+            createdTime: createdTime1,
+            title: emptyTaskTitle.get(),
+            collections: TaskCollectionSet.schema.deserialize([
+                [
+                    taskCollectionId1,
+                    {
+                        type: "Absent",
+                        updatedTime: "2023-07-13T15:21:45.430Z",
+                    },
+                ],
+            ]),
+        }),
+    },
+    {
+        name: "collection updated time conflict, higher order key wins",
+        actions: [
+            {
+                type: "Create",
+                creator: account1,
+                createdTime: createdTime1,
+            },
+            {
+                type: "UpdateCollections",
+                action: {
+                    type: "Set",
+                    collectionId: taskCollectionId1,
+                    orderKey: assertOrderKey("a0"),
+                    updatedTime: new Date("2023-07-13T15:21:45.430Z"),
+                },
+            },
+            {
+                type: "UpdateCollections",
+                action: {
+                    type: "Set",
+                    collectionId: taskCollectionId1,
+                    orderKey: assertOrderKey("a1"),
+                    updatedTime: new Date("2023-07-13T15:21:45.430Z"),
+                },
+            },
+        ],
+        task: new TaskModel({
+            id: taskId,
+            creator: account1,
+            createdTime: createdTime1,
+            title: emptyTaskTitle.get(),
+            collections: TaskCollectionSet.schema.deserialize([
+                [
+                    taskCollectionId1,
+                    {
+                        type: "Present",
+                        updatedTime: "2023-07-13T15:21:45.430Z",
+                        orderKey: "a1",
+                    },
+                ],
+            ]),
         }),
     },
 ];

@@ -37,6 +37,25 @@ export const TaskTitleProsemirrorSchema = new ProsemirrorSchema({
  * distributed systems does not need to maintain any ordering guarantees. No
  * matter what order actions are applied in our clients should always converge
  * to the same state.
+ *
+ * ## Limitations
+ *
+ * While Y.js gives us the commutative/idempotent properties we need for
+ * working with the task system, [`y-prosemirror` has some important
+ * limitations][1]. Remote updates don't use the ProseMirror step API (which
+ * generates a position `Mapping`) and instead replaces state. This breaks some
+ * ProseMirror plugins. The author has [asked for funding][2] to implement a v2
+ * of `y-prosemirror` based on learnings.
+ *
+ * We are fine with these limitations for our very simple task title
+ * ProseMirror schema but should hesitate before using Y.js to power
+ * collaborative editing in `<ContentEditor>`.
+ *
+ * Also, as with any text editing CRDT there's also the gravestone problem.
+ * Y.js is well optimized to avoid gravestones but there are still some.
+ *
+ * [1]: https://discuss.prosemirror.net/t/offline-peer-to-peer-collaborative-editing-using-yjs/2488
+ * [2]: https://discuss.prosemirror.net/t/offline-peer-to-peer-collaborative-editing-using-yjs/2488/32
  */
 export type TaskTitle = Uint8Array & {readonly _TaskTitle: never};
 

@@ -92,6 +92,7 @@ export function Model<Data>(schema: ObjectSchema<Data>): ModelClass<Data> {
             //
             // This does depend on subclasses not mucking with the constructor function.
             const newModel: any = Object.create(this.constructor.prototype);
+            let hasChanged = false;
 
             for (const key of schema.propertySchemaByKey.keys()) {
                 if (hasOwnProperty(partialData, key)) {
@@ -104,6 +105,12 @@ export function Model<Data>(schema: ObjectSchema<Data>): ModelClass<Data> {
                     // `undefined`. We need some other tactic for that. (Maybe we should encourage
                     // `schema.nullable().default(null)` instead of `schema.optional()`?)
                     if (value !== undefined) {
+                        // If nothing changes during the clone, we return `this` to maintain
+                        // referential identity.
+                        if (!Object.is((this as any)[key], value)) {
+                            hasChanged = true;
+                        }
+
                         newModel[key] = value;
                         continue;
                     }
@@ -115,6 +122,7 @@ export function Model<Data>(schema: ObjectSchema<Data>): ModelClass<Data> {
                 }
             }
 
+            if (!hasChanged) return this;
             return newModel;
         }
     }

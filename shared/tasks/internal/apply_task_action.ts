@@ -9,8 +9,10 @@ import {
 import {
     TaskActionModel,
     TaskCreateActionModel,
+    TaskUpdateCollectionsActionModel,
     TaskUpdateTitleActionModel,
 } from "~/shared/tasks/task_action_model.js";
+import {TaskCollectionSet} from "~/shared/tasks/task_collection_set_schema.js";
 import {TaskModel} from "~/shared/tasks/task_model.js";
 import {applyTaskTitleUpdate, emptyTaskTitle} from "~/shared/tasks/task_title_schema.js";
 
@@ -43,6 +45,8 @@ function actuallyApplyTaskAction(
     switch (action.type) {
         case "UpdateTitle":
             return applyTaskUpdateTitleAction(task, action);
+        case "UpdateCollections":
+            return applyTaskUpdateCollectionsAction(task, action);
         default:
             throw exhaustive(action);
     }
@@ -65,6 +69,7 @@ function applyTaskCreateAction(
         creator,
         createdTime,
         title: emptyTaskTitle.get(),
+        collections: TaskCollectionSet.empty,
     });
 
     newTask = task.actions.reduce((task, action) => actuallyApplyTaskAction(task, action), newTask);
@@ -74,9 +79,18 @@ function applyTaskCreateAction(
 
 function applyTaskUpdateTitleAction(
     task: TaskModel,
-    action: TaskUpdateTitleActionModel,
+    {titleUpdate}: TaskUpdateTitleActionModel,
 ): TaskModel {
     return task.clone({
-        title: applyTaskTitleUpdate(task.title, action.titleUpdate),
+        title: applyTaskTitleUpdate(task.title, titleUpdate),
+    });
+}
+
+function applyTaskUpdateCollectionsAction(
+    task: TaskModel,
+    {action}: TaskUpdateCollectionsActionModel,
+): TaskModel {
+    return task.clone({
+        collections: task.collections.apply(action),
     });
 }

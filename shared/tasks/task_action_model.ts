@@ -1,4 +1,5 @@
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {TaskCollectionSetActionSchema} from "~/shared/tasks/task_collection_set_schema.js";
 import {TaskAccountModel, TaskDateModel} from "~/shared/tasks/task_model.js";
 import {TaskTitleUpdateSchema} from "~/shared/tasks/task_title_schema.js";
 
@@ -52,7 +53,17 @@ const TaskUpdateTitleActionModelSchema = Schema.object({
     titleUpdate: TaskTitleUpdateSchema,
 });
 
+export type TaskUpdateCollectionsActionModel = SchemaType<
+    typeof TaskUpdateCollectionsActionModelSchema
+>;
+
+const TaskUpdateCollectionsActionModelSchema = Schema.object({
+    type: Schema.value("UpdateCollections"),
+    action: TaskCollectionSetActionSchema,
+});
+
 export const TaskActionModelSchema = Schema.union({
     Create: TaskCreateActionModelSchema,
     UpdateTitle: TaskUpdateTitleActionModelSchema,
+    UpdateCollections: TaskUpdateCollectionsActionModelSchema,
 });
