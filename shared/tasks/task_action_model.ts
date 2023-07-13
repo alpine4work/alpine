@@ -1,7 +1,7 @@
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {TaskCollectionSetActionSchema} from "~/shared/tasks/task_collection_set_schema.js";
+import {TaskCollectionSetActionSchema} from "~/shared/tasks/task_collection_set.js";
 import {TaskAccountModel, TaskDateModel} from "~/shared/tasks/task_model.js";
-import {TaskTitleUpdateSchema} from "~/shared/tasks/task_title_schema.js";
+import {TaskTitleUpdateSchema} from "~/shared/tasks/task_title.js";
 
 /**
  * All updates to the task database in a space are done through task actions.

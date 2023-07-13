@@ -48,7 +48,7 @@ import {ThemeColor} from "~/shared/design/theme_colors.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {LocalTaskCollectionId} from "~/shared/id/types/id_types.js";
 import {sprinkles} from "~/shared/styles/styles.js";
-import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
+import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 import {TaskTitle} from "~/shared/tasks/task_title_schema_old.js";
 

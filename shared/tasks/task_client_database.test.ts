@@ -13,7 +13,7 @@ import {generateId} from "~/shared/id/id.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskActionModel} from "~/shared/tasks/task_action_model.js";
 import {TaskClientDatabase} from "~/shared/tasks/task_client_database.js";
-import {TaskCollectionSet} from "~/shared/tasks/task_collection_set_schema.js";
+import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskAccountModel, TaskDateModel, TaskModel} from "~/shared/tasks/task_model.js";
 import {
     TaskTitle,
@@ -21,7 +21,7 @@ import {
     TaskTitleUpdate,
     emptyTaskTitle,
     getTaskTitleProsemirrorNode,
-} from "~/shared/tasks/task_title_schema.js";
+} from "~/shared/tasks/task_title.js";
 
 const accountCreatedTime = new Date("2023-07-10T21:06:29.897Z");
 

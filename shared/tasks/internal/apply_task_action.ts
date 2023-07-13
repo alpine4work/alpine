@@ -12,9 +12,9 @@ import {
     TaskUpdateCollectionsActionModel,
     TaskUpdateTitleActionModel,
 } from "~/shared/tasks/task_action_model.js";
-import {TaskCollectionSet} from "~/shared/tasks/task_collection_set_schema.js";
+import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskModel} from "~/shared/tasks/task_model.js";
-import {applyTaskTitleUpdate, emptyTaskTitle} from "~/shared/tasks/task_title_schema.js";
+import {applyTaskTitleUpdate, emptyTaskTitle} from "~/shared/tasks/task_title.js";
 
 export function applyTaskAction(
     state: TaskClientState,

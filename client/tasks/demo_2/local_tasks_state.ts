@@ -54,7 +54,7 @@ import {
     TaskNotesContentWithReferences,
     TaskNotesContentWithReferencesSchema,
     emptyTaskNotesContentWithReferences,
-} from "~/shared/tasks/task_notes_content_schema.js";
+} from "~/shared/tasks/task_notes_content.js";
 import {TaskPriority, TaskPrioritySchema} from "~/shared/tasks/task_priority.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {TaskTitle, TaskTitleSchema, emptyTaskTitle} from "~/shared/tasks/task_title_schema_old.js";

@@ -7,7 +7,7 @@ import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_prio
 import {Spacing, assertSpacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {sprinkles} from "~/shared/styles/styles.js";
-import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
+import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content.js";
 
 export function TaskDetailNotesField({
     notesContent,
