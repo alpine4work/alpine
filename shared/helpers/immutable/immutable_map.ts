@@ -341,7 +341,7 @@ export class ImmutableMap<Key extends string | number, Value> implements Readonl
      *
      * Iterates in key order, not insertion order.
      */
-    [Symbol.iterator](): IterableIterator<[Key, Value]> {
+    public [Symbol.iterator](): IterableIterator<[Key, Value]> {
         return this.entries();
     }
 

@@ -440,12 +440,14 @@ export class DynamoClient {
         conditionExpression,
         expressionAttributeValues,
         expressionAttributeNames,
+        isConditionCheckErrorRetriable = false,
     }: {
         tableName: string;
         key: SchemaSerializedObjectValue;
         conditionExpression: string;
         expressionAttributeValues?: ReadonlyMap<string, SchemaSerializedValue>;
         expressionAttributeNames?: ReadonlyMap<string, string>;
+        isConditionCheckErrorRetriable?: boolean;
     }): DynamoTransactionEntry {
         return DynamoTransactionEntry._newFromClient(DynamoClient, {
             transactItem: {
@@ -472,7 +474,7 @@ export class DynamoClient {
                             : undefined,
                 },
             },
-            isConditionCheckErrorRetriable: false,
+            isConditionCheckErrorRetriable,
         });
     }
 

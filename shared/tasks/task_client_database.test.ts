@@ -1,12 +1,5 @@
-import {Fragment, Slice} from "prosemirror-model";
-import {EditorState} from "prosemirror-state";
-import {ReplaceStep} from "prosemirror-transform";
-import {EditorView} from "prosemirror-view";
-import {prosemirrorToYXmlFragment, ySyncPlugin} from "y-prosemirror";
-import * as Y from "yjs";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {assertTimeZone, defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
@@ -14,14 +7,10 @@ import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskActionModel} from "~/shared/tasks/task_action_model.js";
 import {TaskClientDatabase} from "~/shared/tasks/task_client_database.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
-import {TaskAccountModel, TaskDateModel, TaskModel} from "~/shared/tasks/task_model.js";
-import {
-    TaskTitle,
-    TaskTitleProsemirrorSchema,
-    TaskTitleUpdate,
-    emptyTaskTitle,
-    getTaskTitleProsemirrorNode,
-} from "~/shared/tasks/task_title.js";
+import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
+import {TaskAccountModel, TaskModel} from "~/shared/tasks/task_model.js";
+import {emptyTaskTitle, getTaskTitleProsemirrorNode} from "~/shared/tasks/task_title.js";
+import {taskTitleTestScenario} from "~/shared/tasks/task_title_test_helpers.js";
 
 const accountCreatedTime = new Date("2023-07-10T21:06:29.897Z");
 
@@ -39,17 +28,17 @@ const account2 = asTaskAccountModel(
     new AccountModel({id: generateId(), name: "Test 2", createdTime: accountCreatedTime}),
 );
 
-const createdTime1 = new TaskDateModel({
+const createdTime1 = new TaskFilterableTime({
     absoluteTime: new Date("2023-07-12T21:06:52.460Z"),
     setterTimeZone: defaultTimeZone,
 });
 
-const createdTime2 = new TaskDateModel({
+const createdTime2 = new TaskFilterableTime({
     absoluteTime: new Date("2023-07-11T21:07:11.096Z"),
     setterTimeZone: defaultTimeZone,
 });
 
-const createdTime3 = new TaskDateModel({
+const createdTime3 = new TaskFilterableTime({
     absoluteTime: createdTime1.absoluteTime,
     setterTimeZone: assertTimeZone("America/Denver"),
 });
@@ -57,57 +46,6 @@ const createdTime3 = new TaskDateModel({
 const taskId = generateId<TaskId>();
 const taskCollectionId1 = generateId<TaskCollectionId>();
 const taskCollectionId2 = generateId<TaskCollectionId>();
-
-function generateTaskTitleUpdates() {
-    function textSlice(text: string) {
-        if (text.length === 0) return Slice.empty;
-        return new Slice(Fragment.from(TaskTitleProsemirrorSchema.text(text)), 0, 0);
-    }
-
-    const node = TaskTitleProsemirrorSchema.node("doc", {}, []);
-    const doc = new Y.Doc();
-    const xmlFragment = doc.getXmlFragment("doc");
-    prosemirrorToYXmlFragment(node, xmlFragment);
-
-    const updates: Array<TaskTitleUpdate> = [];
-
-    doc.on("updateV2", update => {
-        updates.push(update);
-    });
-
-    const view = new EditorView(document.createElement("div"), {
-        state: EditorState.create({
-            schema: TaskTitleProsemirrorSchema,
-            plugins: [ySyncPlugin(xmlFragment)],
-        }),
-    });
-
-    const title0 = Y.encodeStateAsUpdateV2(doc) as TaskTitle;
-    view.dispatch(view.state.tr.step(new ReplaceStep(0, 0, textSlice("h"))));
-    const title1 = Y.encodeStateAsUpdateV2(doc) as TaskTitle;
-    view.dispatch(view.state.tr.step(new ReplaceStep(1, 1, textSlice("e"))));
-    const title2 = Y.encodeStateAsUpdateV2(doc) as TaskTitle;
-    view.dispatch(view.state.tr.step(new ReplaceStep(2, 2, textSlice("llo"))));
-    const title3 = Y.encodeStateAsUpdateV2(doc) as TaskTitle;
-    view.dispatch(view.state.tr.step(new ReplaceStep(0, 1, textSlice("H"))));
-    const title4 = Y.encodeStateAsUpdateV2(doc) as TaskTitle;
-
-    assert(updates.length === 4);
-
-    return {
-        title0,
-        update0: updates[0]!,
-        title1,
-        update1: updates[1]!,
-        title2,
-        update2: updates[2]!,
-        title3,
-        update3: updates[3]!,
-        title4,
-    };
-}
-
-const titles = generateTaskTitleUpdates();
 
 const testCases: Array<{
     name: string;
@@ -189,14 +127,14 @@ const testCases: Array<{
             },
             {
                 type: "UpdateTitle",
-                titleUpdate: titles.update0,
+                titleUpdate: taskTitleTestScenario.update0,
             },
         ],
         task: new TaskModel({
             id: taskId,
             creator: account1,
             createdTime: createdTime1,
-            title: titles.title1,
+            title: taskTitleTestScenario.title1,
             collections: TaskCollectionSet.empty,
         }),
     },
@@ -210,18 +148,18 @@ const testCases: Array<{
             },
             {
                 type: "UpdateTitle",
-                titleUpdate: titles.update0,
+                titleUpdate: taskTitleTestScenario.update0,
             },
             {
                 type: "UpdateTitle",
-                titleUpdate: titles.update1,
+                titleUpdate: taskTitleTestScenario.update1,
             },
         ],
         task: new TaskModel({
             id: taskId,
             creator: account2,
             createdTime: createdTime1,
-            title: titles.title2,
+            title: taskTitleTestScenario.title2,
             collections: TaskCollectionSet.empty,
         }),
     },
@@ -235,26 +173,26 @@ const testCases: Array<{
             },
             {
                 type: "UpdateTitle",
-                titleUpdate: titles.update0,
+                titleUpdate: taskTitleTestScenario.update0,
             },
             {
                 type: "UpdateTitle",
-                titleUpdate: titles.update1,
+                titleUpdate: taskTitleTestScenario.update1,
             },
             {
                 type: "UpdateTitle",
-                titleUpdate: titles.update2,
+                titleUpdate: taskTitleTestScenario.update2,
             },
             {
                 type: "UpdateTitle",
-                titleUpdate: titles.update3,
+                titleUpdate: taskTitleTestScenario.update3,
             },
         ],
         task: new TaskModel({
             id: taskId,
             creator: account1,
             createdTime: createdTime2,
-            title: titles.title4,
+            title: taskTitleTestScenario.title4,
             collections: TaskCollectionSet.empty,
         }),
     },

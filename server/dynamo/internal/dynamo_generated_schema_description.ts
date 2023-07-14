@@ -3821,6 +3821,651 @@ export const dynamoGeneratedSchemaDescription: {
                 }
             },
             "indexes": []
+        },
+        "TaskActions": {
+            "name": "TaskActions",
+            "partitionByType": {
+                "TaskActions": {
+                    "id": 0,
+                    "partitionKeyAttributeByKey": {
+                        "spaceId": {
+                            "type": "Id"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "ActionTransaction": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {
+                                "actionTransactionTime": {
+                                    "type": "Date"
+                                },
+                                "actionTransactionId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "actionTransaction": {
+                                        "valueSchema": {
+                                            "type": "Array",
+                                            "itemSchema": {
+                                                "type": "Union",
+                                                "typeKey": "type",
+                                                "variantSchemaByTypeValue": {
+                                                    "UpdateTask": {
+                                                        "type": "Object",
+                                                        "propertySchemaByKey": {
+                                                            "type": {
+                                                                "valueSchema": {
+                                                                    "type": "Value",
+                                                                    "value": "UpdateTask"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "taskId": {
+                                                                "valueSchema": {
+                                                                    "type": "Id"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "taskAction": {
+                                                                "valueSchema": {
+                                                                    "type": "Union",
+                                                                    "typeKey": "type",
+                                                                    "variantSchemaByTypeValue": {
+                                                                        "Create": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "Create"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "creator": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Object",
+                                                                                        "propertySchemaByKey": {
+                                                                                            "accountId": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Id"
+                                                                                                },
+                                                                                                "optional": false
+                                                                                            },
+                                                                                            "workingAccountName": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "String"
+                                                                                                },
+                                                                                                "optional": false
+                                                                                            }
+                                                                                        }
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "createdTime": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Object",
+                                                                                        "propertySchemaByKey": {
+                                                                                            "absoluteTime": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Date"
+                                                                                                },
+                                                                                                "optional": false
+                                                                                            },
+                                                                                            "setterTimeZone": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "String"
+                                                                                                },
+                                                                                                "optional": false
+                                                                                            }
+                                                                                        }
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "Delete": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "Delete"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "deletedTime": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Date"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "Undelete": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "Undelete"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "undeletedTime": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Date"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "UpdateTitle": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "UpdateTitle"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "titleUpdate": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Bytes"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "UpdateCollections": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "UpdateCollections"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "collectionsAction": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Union",
+                                                                                        "typeKey": "type",
+                                                                                        "variantSchemaByTypeValue": {
+                                                                                            "Set": {
+                                                                                                "type": "Object",
+                                                                                                "propertySchemaByKey": {
+                                                                                                    "type": {
+                                                                                                        "valueSchema": {
+                                                                                                            "type": "Value",
+                                                                                                            "value": "Set"
+                                                                                                        },
+                                                                                                        "optional": false
+                                                                                                    },
+                                                                                                    "key": {
+                                                                                                        "valueSchema": {
+                                                                                                            "type": "Id"
+                                                                                                        },
+                                                                                                        "optional": false
+                                                                                                    },
+                                                                                                    "value": {
+                                                                                                        "valueSchema": {
+                                                                                                            "type": "String"
+                                                                                                        },
+                                                                                                        "optional": false
+                                                                                                    },
+                                                                                                    "updatedTime": {
+                                                                                                        "valueSchema": {
+                                                                                                            "type": "Date"
+                                                                                                        },
+                                                                                                        "optional": false
+                                                                                                    }
+                                                                                                }
+                                                                                            },
+                                                                                            "Delete": {
+                                                                                                "type": "Object",
+                                                                                                "propertySchemaByKey": {
+                                                                                                    "type": {
+                                                                                                        "valueSchema": {
+                                                                                                            "type": "Value",
+                                                                                                            "value": "Delete"
+                                                                                                        },
+                                                                                                        "optional": false
+                                                                                                    },
+                                                                                                    "key": {
+                                                                                                        "valueSchema": {
+                                                                                                            "type": "Id"
+                                                                                                        },
+                                                                                                        "optional": false
+                                                                                                    },
+                                                                                                    "deletedTime": {
+                                                                                                        "valueSchema": {
+                                                                                                            "type": "Date"
+                                                                                                        },
+                                                                                                        "optional": false
+                                                                                                    }
+                                                                                                }
+                                                                                            }
+                                                                                        }
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                },
+                                                                "optional": false
+                                                            }
+                                                        }
+                                                    },
+                                                    "UpdateTaskCollection": {
+                                                        "type": "Object",
+                                                        "propertySchemaByKey": {
+                                                            "type": {
+                                                                "valueSchema": {
+                                                                    "type": "Value",
+                                                                    "value": "UpdateTaskCollection"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "collectionId": {
+                                                                "valueSchema": {
+                                                                    "type": "Id"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "collectionAction": {
+                                                                "valueSchema": {
+                                                                    "type": "Union",
+                                                                    "typeKey": "type",
+                                                                    "variantSchemaByTypeValue": {
+                                                                        "Create": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "Create"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "creatorId": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Id"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "createdTime": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Date"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "accessPolicy": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Object",
+                                                                                        "propertySchemaByKey": {
+                                                                                            "value": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Object",
+                                                                                                    "propertySchemaByKey": {
+                                                                                                        "accountGrantById": {
+                                                                                                            "valueSchema": {
+                                                                                                                "type": "Map",
+                                                                                                                "keySchema": {
+                                                                                                                    "type": "Id"
+                                                                                                                },
+                                                                                                                "valueSchema": {
+                                                                                                                    "type": "Object",
+                                                                                                                    "propertySchemaByKey": {
+                                                                                                                        "level": {
+                                                                                                                            "valueSchema": {
+                                                                                                                                "type": "Enum",
+                                                                                                                                "values": [
+                                                                                                                                    "View",
+                                                                                                                                    "Comment",
+                                                                                                                                    "Edit",
+                                                                                                                                    "Manage"
+                                                                                                                                ]
+                                                                                                                            },
+                                                                                                                            "optional": false
+                                                                                                                        }
+                                                                                                                    }
+                                                                                                                }
+                                                                                                            },
+                                                                                                            "optional": false
+                                                                                                        },
+                                                                                                        "defaultGrant": {
+                                                                                                            "valueSchema": {
+                                                                                                                "type": "Nullable",
+                                                                                                                "schema": {
+                                                                                                                    "type": "Union",
+                                                                                                                    "typeKey": "type",
+                                                                                                                    "variantSchemaByTypeValue": {
+                                                                                                                        "Space": {
+                                                                                                                            "type": "Object",
+                                                                                                                            "propertySchemaByKey": {
+                                                                                                                                "type": {
+                                                                                                                                    "valueSchema": {
+                                                                                                                                        "type": "Value",
+                                                                                                                                        "value": "Space"
+                                                                                                                                    },
+                                                                                                                                    "optional": false
+                                                                                                                                },
+                                                                                                                                "level": {
+                                                                                                                                    "valueSchema": {
+                                                                                                                                        "type": "Enum",
+                                                                                                                                        "values": [
+                                                                                                                                            "View",
+                                                                                                                                            "Comment",
+                                                                                                                                            "Edit",
+                                                                                                                                            "Manage"
+                                                                                                                                        ]
+                                                                                                                                    },
+                                                                                                                                    "optional": false
+                                                                                                                                }
+                                                                                                                            }
+                                                                                                                        }
+                                                                                                                    }
+                                                                                                                }
+                                                                                                            },
+                                                                                                            "optional": false
+                                                                                                        }
+                                                                                                    },
+                                                                                                    "referenceId": "04689929"
+                                                                                                },
+                                                                                                "optional": false
+                                                                                            },
+                                                                                            "updatedTime": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Date"
+                                                                                                },
+                                                                                                "optional": false
+                                                                                            }
+                                                                                        },
+                                                                                        "referenceId": "51af058f"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "Delete": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "Delete"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "deletedTime": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Date"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "Undelete": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "Undelete"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "undeletedTime": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Date"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "UpdateName": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "UpdateName"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "nameAction": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Object",
+                                                                                        "propertySchemaByKey": {
+                                                                                            "value": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "String"
+                                                                                                },
+                                                                                                "optional": false
+                                                                                            },
+                                                                                            "updatedTime": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Date"
+                                                                                                },
+                                                                                                "optional": false
+                                                                                            }
+                                                                                        }
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "UpdateAccessPolicy": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "UpdateAccessPolicy"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "accessPolicyAction": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Object",
+                                                                                        "propertySchemaByKey": {
+                                                                                            "value": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Reference",
+                                                                                                    "reuseReferenceId": "04689929"
+                                                                                                },
+                                                                                                "optional": false
+                                                                                            },
+                                                                                            "updatedTime": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Date"
+                                                                                                },
+                                                                                                "optional": false
+                                                                                            }
+                                                                                        }
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                },
+                                                                "optional": false
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "indexes": []
+        },
+        "Tasks": {
+            "name": "Tasks",
+            "partitionByType": {
+                "TaskCollection": {
+                    "id": 0,
+                    "partitionKeyAttributeByKey": {
+                        "collectionId": {
+                            "type": "Id"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "EssentialAttributes": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {},
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "spaceId": {
+                                        "valueSchema": {
+                                            "type": "Id"
+                                        },
+                                        "optional": false
+                                    },
+                                    "creatorId": {
+                                        "valueSchema": {
+                                            "type": "Id"
+                                        },
+                                        "optional": false
+                                    },
+                                    "createdTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "deletedTime": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Date"
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "accessPolicy": {
+                                        "valueSchema": {
+                                            "type": "Reference",
+                                            "reuseReferenceId": "51af058f"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "Task": {
+                    "id": 1,
+                    "partitionKeyAttributeByKey": {
+                        "taskId": {
+                            "type": "Id"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "EssentialAttributes": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {},
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "spaceId": {
+                                        "valueSchema": {
+                                            "type": "Id"
+                                        },
+                                        "optional": false
+                                    },
+                                    "creatorId": {
+                                        "valueSchema": {
+                                            "type": "Id"
+                                        },
+                                        "optional": false
+                                    },
+                                    "createdTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "deletedTime": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Date"
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "collections": {
+                                        "valueSchema": {
+                                            "type": "Map",
+                                            "keySchema": {
+                                                "type": "Id"
+                                            },
+                                            "valueSchema": {
+                                                "type": "Object",
+                                                "propertySchemaByKey": {
+                                                    "value": {
+                                                        "valueSchema": {
+                                                            "type": "Nullable",
+                                                            "schema": {
+                                                                "type": "String"
+                                                            }
+                                                        },
+                                                        "optional": false
+                                                    },
+                                                    "updatedTime": {
+                                                        "valueSchema": {
+                                                            "type": "Date"
+                                                        },
+                                                        "optional": false
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "indexes": []
         }
     }
 }`)) as any;

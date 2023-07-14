@@ -148,7 +148,7 @@ export class ImmutableSet<Value extends string | number> implements ReadonlySet<
      *
      * Iterates in value order, not insertion order.
      */
-    [Symbol.iterator](): IterableIterator<Value> {
+    public [Symbol.iterator](): IterableIterator<Value> {
         return this.values();
     }
 

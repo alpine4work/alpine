@@ -2281,6 +2281,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     public transactionConditionCheck<Key extends Types["ItemKey"]>(
         key: Key,
         condition?: DynamoCondition<Types["Item"] & Key>,
+        {isConditionCheckErrorRetriable = false}: {isConditionCheckErrorRetriable?: boolean} = {},
     ): DynamoTransactionEntry {
         const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
 
@@ -2305,7 +2306,37 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             conditionExpression: conditionExpressionString,
             expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
             expressionAttributeNames: new Map(conditionCompilationContext.iterateAttributeNames()),
+            isConditionCheckErrorRetriable,
         });
+    }
+
+    /**
+     * Creates a transaction entry that checks the provided item exists and checks
+     * the item has the version provided by `updateLockVersion`.
+     *
+     * Convenience method on top of `transactionConditionCheck()`.
+     *
+     * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
+     */
+    public transactionUpdateLockVersionConditionCheck<Key extends Types["ItemKey"]>(
+        key: Key,
+        updateLockVersion: number | undefined,
+    ): DynamoTransactionEntry {
+        return this.transactionConditionCheck(
+            key,
+            {
+                // Verify that the lock version was not changed by a concurrent writer.
+                updateLockVersion:
+                    typeof updateLockVersion === "number"
+                        ? DynamoConditionExpression.eq(updateLockVersion)
+                        : DynamoConditionExpression.exists().not(),
+            },
+            {
+                // This operation implements an optimistic locking scheme. Retrying the
+                // operation should read the latest item version and eventually succeed.
+                isConditionCheckErrorRetriable: true,
+            },
+        );
     }
 
     /**

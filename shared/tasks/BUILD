@@ -14,6 +14,7 @@ ts_project(
         "//:node_modules/yjs",
         "//shared/accounts",
         "//shared/content",
+        "//shared/crdt",
         "//shared/error",
         "//shared/helpers",
         "//shared/id",
