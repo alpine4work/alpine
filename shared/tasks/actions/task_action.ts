@@ -1,6 +1,9 @@
+import {CalendarDate, parseDate} from "@internationalized/date";
+import {createCrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
+import {TaskPriorityRegister} from "~/shared/tasks/task_priority.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {TaskTitleUpdateSchema} from "~/shared/tasks/task_title.js";
 
@@ -75,10 +78,33 @@ const TaskUpdateCollectionsActionSchema = Schema.object({
     collectionsAction: TaskCollectionSet.actionSchema,
 });
 
+const CalendarDateSchema = Schema.string.transform<CalendarDate>({
+    serialize: date => date.toString(),
+    deserialize: date => parseDate(date),
+});
+
+export const CalendarDateRegister = createCrdtRegister(CalendarDateSchema);
+
+export type TaskUpdateDueDateAction = SchemaType<typeof TaskUpdateDueDateActionSchema>;
+
+const TaskUpdateDueDateActionSchema = Schema.object({
+    type: Schema.value("UpdateDueDate"),
+    dueDateAction: CalendarDateRegister.actionSchema,
+});
+
+export type TaskUpdatePriorityAction = SchemaType<typeof TaskUpdatePriorityActionSchema>;
+
+const TaskUpdatePriorityActionSchema = Schema.object({
+    type: Schema.value("UpdatePriority"),
+    priorityAction: TaskPriorityRegister.actionSchema,
+});
+
 export const TaskActionSchema = Schema.union({
     Create: TaskCreateActionSchema,
     Delete: TaskDeleteActionSchema,
     Undelete: TaskUndeleteActionSchema,
     UpdateTitle: TaskUpdateTitleActionSchema,
     UpdateCollections: TaskUpdateCollectionsActionSchema,
+    UpdateDueDate: TaskUpdateDueDateActionSchema,
+    UpdatePriority: TaskUpdatePriorityActionSchema,
 });

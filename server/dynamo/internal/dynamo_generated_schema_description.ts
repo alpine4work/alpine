@@ -4055,6 +4055,76 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     "optional": false
                                                                                 }
                                                                             }
+                                                                        },
+                                                                        "UpdateDueDate": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "UpdateDueDate"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "dueDateAction": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Object",
+                                                                                        "propertySchemaByKey": {
+                                                                                            "value": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "String"
+                                                                                                },
+                                                                                                "optional": false
+                                                                                            },
+                                                                                            "updatedTime": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Date"
+                                                                                                },
+                                                                                                "optional": false
+                                                                                            }
+                                                                                        }
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "UpdatePriority": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "UpdatePriority"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "priorityAction": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Object",
+                                                                                        "propertySchemaByKey": {
+                                                                                            "value": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Enum",
+                                                                                                    "values": [
+                                                                                                        "Low",
+                                                                                                        "Medium",
+                                                                                                        "High",
+                                                                                                        "Urgent"
+                                                                                                    ]
+                                                                                                },
+                                                                                                "optional": false
+                                                                                            },
+                                                                                            "updatedTime": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Date"
+                                                                                                },
+                                                                                                "optional": false
+                                                                                            }
+                                                                                        }
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
                                                                         }
                                                                     }
                                                                 },

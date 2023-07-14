@@ -1,3 +1,4 @@
+import {CalendarDate} from "@internationalized/date";
 import {addDays} from "date-fns";
 import {
     commitTaskSpaceActionTransaction,
@@ -4117,4 +4118,128 @@ test("can't update task when collection you have access to removes your access i
     unpause();
 
     await expect(commitPromise).rejects.toThrow(PermissionDeniedError);
+});
+
+test("can update task due date", async () => {
+    const taskId = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "UpdateDueDate",
+                dueDateAction: {
+                    value: new CalendarDate(2023, 7, 12),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+});
+
+test("can't update task due date with unreasonable updated time", async () => {
+    const taskId = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                taskId,
+                taskAction: {
+                    type: "UpdateDueDate",
+                    dueDateAction: {
+                        value: new CalendarDate(2023, 7, 12),
+                        updatedTime: getUnreasonableTime(),
+                    },
+                },
+            },
+        ]),
+    ).rejects.toThrow(InvalidArgumentError);
+});
+
+test("can update task priority", async () => {
+    const taskId = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "UpdatePriority",
+                priorityAction: {
+                    value: "Medium",
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+});
+
+test("can't update priority with unreasonable updated time", async () => {
+    const taskId = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                taskId,
+                taskAction: {
+                    type: "UpdatePriority",
+                    priorityAction: {
+                        value: "Medium",
+                        updatedTime: getUnreasonableTime(),
+                    },
+                },
+            },
+        ]),
+    ).rejects.toThrow(InvalidArgumentError);
 });

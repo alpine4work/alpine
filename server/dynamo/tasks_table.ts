@@ -492,6 +492,24 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                 });
                                 break;
                             }
+                            case "UpdateDueDate": {
+                                if (!isChangeTimeReasonable(taskAction.dueDateAction.updatedTime)) {
+                                    throw new InvalidArgumentError(
+                                        "Action `updatedTime` is too far in the future",
+                                    );
+                                }
+                                break;
+                            }
+                            case "UpdatePriority": {
+                                if (
+                                    !isChangeTimeReasonable(taskAction.priorityAction.updatedTime)
+                                ) {
+                                    throw new InvalidArgumentError(
+                                        "Action `updatedTime` is too far in the future",
+                                    );
+                                }
+                                break;
+                            }
                             default:
                                 throw exhaustive(taskAction);
                         }
