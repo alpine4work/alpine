@@ -6,7 +6,7 @@ async function main() {
     try {
         await import("./adhoc_local.js");
     } catch (error) {
-        throw new InternalError('Could not find "adhoc_local.ts" file');
+        throw InternalError.from(error, 'Could not import "adhoc_local.ts" file');
     }
 
     const {run} = await import("./adhoc_local.js");
