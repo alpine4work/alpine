@@ -163,13 +163,6 @@ module.exports = {
         // across files.
         "import/no-default-export": "warn",
 
-        // Don't allow importing packages that aren't explicitly declared in our
-        // `package.json`. While technically possible to import a transitive
-        // dependency at runtime, we don't want to implicitly depend on this
-        // behavior since we don't control the versions of those transitive
-        // dependencies.
-        "import/no-extraneous-dependencies": "error",
-
         // Don't import files outside of the repository.
         "import/no-absolute-path": "warn",
 
@@ -188,6 +181,12 @@ module.exports = {
         // Require a line to deliniate import declarations from the code which will
         // actually be evaluated.
         "import/newline-after-import": "warn",
+
+        // Bazel and TypeScript take care of this. Including a package in
+        // `package.json` isn't enough. You need to also include it in the relevant
+        // `BUILD` file. As of 2023-07-24 we need a lint that makes sure imported
+        // dependencies are in `BUILD` files.
+        "import/no-extraneous-dependencies": "off",
 
         // Restrict the use of some imports and recommend alternatives for our
         // codebase.

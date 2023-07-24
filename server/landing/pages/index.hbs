@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <title>Alpine</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+        <meta name="og:url" content="https://alpine.inc" />
+        <meta name="og:title" content="Alpine" />
+        <meta name="og:type" content="website" />
+        <meta
+            name="og:description"
+            content="The modern, fast, craft obsessed workplace productivity suite. Coming summer 2024."
+        />
+        <meta name="og:image" content="https://alpine.inc/og_image.png" />
+
+        <link rel="icon" href="/favicon.svg" />
+        <link rel="apple-touch-icon" href="icon.png" />
+
+        <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.css"
+        />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            rel="stylesheet"
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap"
+        />
+
+        <style>
+            body {
+                font-family: "Inter", sans-serif;
+                color: #0b0b0d;
+            }
+
+            * {
+                box-sizing: border-box;
+            }
+
+            ::placeholder {
+                font-weight: 300;
+                color: #a6a6ab;
+            }
+        </style>
+    </head>
+
+    <body style="background-color: #ffffff">
+        <div style="width: 100%; max-width: 720px; padding: 0 24px; margin: 75px auto 0px auto">
+            <div style="margin-right: 6px">
+                <div>{{> logo}}</div>
+                <div
+                    style="
+                        margin-top: 16px;
+                        margin-bottom: 12px;
+                        color: #2f2f33;
+                        font-weight: 700;
+                        white-space: nowrap;
+                    "
+                >
+                    <span style="display: inline-block">Tools that get out of your way</span>
+                </div>
+                <div style="color: #57575c">
+                    <span style="display: inline-block">
+                        The modern, fast, craft obsessed workplace productivity suite. Coming summer
+                        2024.
+                    </span>
+                </div>
+                <script>
+                    var textElement2 = document.currentScript.previousElementSibling;
+                    var textElement1 = textElement2.previousElementSibling;
+
+                    function fit() {
+                        fitElement(textElement1);
+                        fitElement(textElement2);
+                    }
+
+                    function fitElement(element) {
+                        var availableWidth = element.parentElement.clientWidth - 1;
+                        var currentWidth = element.firstElementChild.clientWidth;
+                        var previousFontSize = parseFloat(getComputedStyle(element).fontSize);
+                        var currentFontSize = Math.floor(
+                            Math.max(16, (availableWidth / currentWidth) * previousFontSize),
+                        );
+                        element.style.fontSize = currentFontSize + "px";
+                    }
+
+                    fit();
+                    window.addEventListener("resize", fit);
+                    if (document.fonts) document.fonts.ready.then(fit);
+                </script>
+            </div>
+            <form method="post" action="/register" style="margin: 60px 0">
+                <div
+                    style="
+                        display: none;
+                        padding: 0.625rem 0.75rem;
+                        border-radius: 0.375rem;
+                        border: 2px solid #4bc72e;
+                        background-color: #ffffff;
+                        font-size: 14px;
+                        line-height: 1.5;
+                    "
+                >
+                    <strong>Thanks for signing up.</strong> We’ll send you an email when the product
+                    is ready for you to use. If there’s enough interest, we might also send you the
+                    occasional progress update email.
+                </div>
+                <script>
+                    var regex = /(^\?|&)registered(&|$)/;
+                    if (regex.test(window.location.search)) {
+                        document.currentScript.previousElementSibling.style.display = "block";
+                        history.replaceState(
+                            null,
+                            "",
+                            window.location.href.replace(
+                                window.location.search,
+                                window.location.search.replace(regex, ""),
+                            ),
+                        );
+                    }
+                </script>
+                <input
+                    class="register-input"
+                    name="email"
+                    aria-label="Email"
+                    type="email"
+                    autocomplete="email"
+                    placeholder="anthony.mose@company.com"
+                    required
+                />
+                <button class="register-button">Email me when it’s ready</button>
+                <style>
+                    .register-input {
+                        display: block;
+                        width: 100%;
+                        height: 2.5rem;
+                        padding: 0 0.75rem;
+                        border: none;
+                        box-shadow: 0px 1px 2px 0px rgb(18 18 20 / 0.05), 0 0 0 1px rgb(0 0 0 / 0.1);
+                        border-radius: 0.375rem;
+                        margin: 8px 0;
+                        font-size: 14px;
+                        -webkit-appearance: none;
+                    }
+
+                    @media screen and (max-width: 786px) {
+                        .register-input {
+                            font-size: 16px;
+                        }
+                    }
+
+                    .register-button {
+                        width: 100%;
+                        height: 2.5rem;
+                        padding: 0;
+                        border: 0;
+                        border-radius: 0.375rem;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        color: #ffffff;
+                        background-color: #2a64d1;
+                        font-size: 14px;
+                    }
+
+                    .register-button:active {
+                        color: #cbcbcc;
+                        background-color: #2452aa;
+                    }
+                </style>
+            </form>
+            <div class="screenshot">
+                <div class="screenshot-title">Documents</div>
+                <img
+                    class="screenshot-image"
+                    alt="Alpine documents screenshot"
+                    src="/images/screenshot_documents_full.png"
+                    srcset="{{imgSrcset '/images/screenshot_documents_{}w.webp'}}"
+                    sizes="720px"
+                    width="3362"
+                    height="1947"
+                />
+            </div>
+            <div class="screenshot">
+                <div class="screenshot-title">Tasks</div>
+                <img
+                    class="screenshot-image"
+                    alt="Alpine tasks screenshot"
+                    src="/images/screenshot_tasks_full.png"
+                    srcset="{{imgSrcset '/images/screenshot_tasks_{}w.webp'}}"
+                    sizes="720px"
+                    width="3362"
+                    height="1947"
+                />
+            </div>
+            <div class="screenshot">
+                <div class="screenshot-title">Inbox</div>
+                <img
+                    class="screenshot-image"
+                    alt="Alpine inbox screenshot"
+                    src="/images/screenshot_inbox_full.png"
+                    srcset="{{imgSrcset '/images/screenshot_inbox_{}w.webp'}}"
+                    sizes="720px"
+                    width="3362"
+                    height="1947"
+                />
+            </div>
+            <div class="screenshot">
+                <div class="screenshot-title">Forum</div>
+                <img
+                    class="screenshot-image"
+                    alt="Alpine forum screenshot"
+                    src="/images/screenshot_forum_full.png"
+                    srcset="{{imgSrcset '/images/screenshot_forum_{}w.webp'}}"
+                    sizes="720px"
+                    width="3362"
+                    height="1947"
+                />
+            </div>
+            <div class="screenshot">
+                <div class="screenshot-title">Chat</div>
+                <img
+                    class="screenshot-image"
+                    alt="Alpine chat screenshot"
+                    src="/images/screenshot_chat_full.png"
+                    srcset="{{imgSrcset '/images/screenshot_chat_{}w.webp'}}"
+                    sizes="720px"
+                    width="3362"
+                    height="1947"
+                />
+            </div>
+            <style>
+                .screenshot {
+                    margin: 48px 0;
+                }
+
+                .screenshot-title {
+                    font-weight: 700;
+                    margin-bottom: 8px;
+                }
+
+                .screenshot-image {
+                    display: block;
+                    width: 100%;
+                    height: auto;
+                    box-shadow: 0px 4px 8px -2px rgb(18 18 20 / 0.1),
+                        0px 2px 4px -2px rgb(18 18 20 / 0.06), 0 0 0 1px rgb(0 0 0 / 0.08);
+                    border-radius: 0.25rem;
+                    overflow: hidden;
+                    background-color: #ffffff;
+                }
+            </style>
+            <div
+                style="
+                    margin-top: 100px;
+                    margin-bottom: 16px;
+                    font-size: 0.75rem;
+                    color: #6d6d73;
+                    display: flex;
+                    justify-content: space-between;
+                    flex-wrap: wrap;
+                    column-gap: 16px;
+                    row-gap: 8px;
+                "
+            >
+                <div>© Work Technologies Inc. {{year}}</div>
+                <div>“Quality is never an accident” &#x2013; John Ruskin</div>
+            </div>
+        </div>
+        <div style="position: absolute; inset: 0; z-index: -1; overflow: hidden">
+            <div
+                style="
+                    position: absolute;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    height: 20vh;
+                    z-index: 2;
+                    background: linear-gradient(transparent, #ffffff);
+                "
+            ></div>
+            <img
+                class="hero-illustration-image"
+                style="position: absolute; z-index: 1"
+                alt="Line art mountain illustration"
+                src="/images/hero_illustration_full.png"
+                srcset="{{imgSrcset '/images/hero_illustration_{}w.webp'}}"
+                sizes="(max-width: 156.96vh) 156.96vh, 100vw"
+            />
+            <style>
+                .hero-illustration-image {
+                    width: 100vw;
+                }
+                @media (max-width: 156.96vh) {
+                    .hero-illustration-image {
+                        width: 156.96vh;
+                    }
+                }
+            </style>
+            <script>
+                var imageElement =
+                    document.currentScript.previousElementSibling.previousElementSibling;
+                var containerElement = imageElement.parentElement;
+
+                function center() {
+                    var imageCenterX = (3758 / 7680) * imageElement.clientWidth;
+                    var imageCenterY = (1564 / 4893) * imageElement.clientHeight;
+                    var containerCenterX = containerElement.clientWidth / 2;
+                    var containerCenterY = containerElement.clientHeight / 2;
+
+                    imageElement.style.left =
+                        Math.min(
+                            0,
+                            Math.max(
+                                containerCenterX - imageCenterX,
+                                containerElement.clientWidth - imageElement.clientWidth,
+                            ),
+                        ) + "px";
+
+                    imageElement.style.top =
+                        Math.min(
+                            0,
+                            Math.max(
+                                containerCenterY - imageCenterY,
+                                containerElement.clientHeight - imageElement.clientHeight,
+                            ),
+                        ) + "px";
+                }
+
+                center();
+                window.addEventListener("resize", center);
+            </script>
+        </div>
+    </body>
+</html>

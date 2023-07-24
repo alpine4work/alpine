@@ -186,6 +186,8 @@ def ts_lint_and_format_test(
             "**/*.cjs",
             "**/*.json",
             "**/*.md",
+            "**/*.html",
+            "**/*.hbs",
         ])
 
     if len(srcs) == 0:

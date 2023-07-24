@@ -7,4 +7,12 @@ module.exports = {
     bracketSpacing: false,
     arrowParens: "avoid",
     proseWrap: "always",
+    overrides: [
+        // Use the HTML parser for Handlebars because it supports formatting
+        // JavaScript, CSS, and ignores Handlebars partials.
+        {
+            files: "*.hbs",
+            options: {parser: "html"},
+        },
+    ],
 };

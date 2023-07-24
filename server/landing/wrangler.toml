@@ -1,0 +1,5 @@
+name = "landing-service"
+no_bundle = true
+usage_model = "bundled"
+compatibility_date = "2023-06-28"
+workers_dev = false
