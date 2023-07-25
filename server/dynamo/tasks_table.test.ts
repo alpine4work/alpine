@@ -3923,7 +3923,9 @@ test("can't create collection twice race condition", async () => {
     await expect(commit1Promise).rejects.toThrow(FailedPreconditionError);
 });
 
-test("can't update task when collection you have access to is removed in a race condition", async () => {
+// Our authorization code is implemented with the reasoning: if you had access
+// in a small window of time (<1 min) before the commit we allow the action.
+test("can update task when collection you have access to is removed in a race condition", async () => {
     const taskId = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
@@ -4016,10 +4018,12 @@ test("can't update task when collection you have access to is removed in a race 
 
     unpause();
 
-    await expect(commitPromise).rejects.toThrow(PermissionDeniedError);
+    await expect(commitPromise).resolves.not.toThrow(PermissionDeniedError);
 });
 
-test("can't update task when collection you have access to removes your access in a race condition", async () => {
+// Our authorization code is implemented with the reasoning: if you had access
+// in a small window of time (<1 min) before the commit we allow the action.
+test("can update task when collection you have access to removes your access in a race condition", async () => {
     const taskId = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
@@ -4117,7 +4121,7 @@ test("can't update task when collection you have access to removes your access i
 
     unpause();
 
-    await expect(commitPromise).rejects.toThrow(PermissionDeniedError);
+    await expect(commitPromise).resolves.not.toThrow(PermissionDeniedError);
 });
 
 test("can update task due date", async () => {
@@ -4369,7 +4373,7 @@ test("can update task parent in one transaction", async () => {
     ]);
 });
 
-test("can update task parent in two transactions (1)", async () => {
+test("can update task parent in two transactions (scenario 1)", async () => {
     const taskId1 = generateId<TaskId>();
     const taskId2 = generateId<TaskId>();
 
@@ -4409,7 +4413,7 @@ test("can update task parent in two transactions (1)", async () => {
     ]);
 });
 
-test("can update task parent in two transactions (2)", async () => {
+test("can update task parent in two transactions (scenario 2)", async () => {
     const taskId1 = generateId<TaskId>();
     const taskId2 = generateId<TaskId>();
 
@@ -6025,7 +6029,124 @@ test("child tasks can't create a circular dependency", async () => {
     );
 });
 
-test("child tasks can't create a circular dependency even in race conditions", async () => {
+test("child tasks can't create a circular dependency even in race conditions (2 tasks)", async () => {
+    const taskId1 = generateId<TaskId>();
+    const taskId2 = generateId<TaskId>();
+    const collectionId = generateId<TaskCollectionId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskCollection",
+            collectionId,
+            collectionAction: {
+                type: "Create",
+                creatorId: session1.accountId,
+                createdTime: getCurrentTime(),
+                accessPolicy: new TaskCollectionAccessPolicyRegister(
+                    {
+                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                        defaultGrant: {type: "Space", level: "Manage"},
+                    },
+                    getCurrentTime(),
+                ),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId1,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId1,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    const pausePromise = commitTaskSpaceActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
+        session2.accountId,
+    );
+
+    const commitPromise = commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId1,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    const {unpause} = await pausePromise;
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId1,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId2,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    unpause();
+
+    await expect(commitPromise).rejects.toThrow(
+        new FailedPreconditionError(
+            "Updating task's `parentId` would create a circular dependency",
+        ),
+    );
+});
+
+test("child tasks can't create a circular dependency even in race conditions (3 tasks)", async () => {
     const taskId1 = generateId<TaskId>();
     const taskId2 = generateId<TaskId>();
     const taskId3 = generateId<TaskId>();
@@ -6180,6 +6301,2446 @@ test("child tasks can't create a circular dependency even in race conditions", a
             "Updating task's `parentId` would create a circular dependency",
         ),
     );
+});
+
+test("child tasks can't create a circular dependency even in race conditions (5 tasks, scenario 1)", async () => {
+    const taskId1 = generateId<TaskId>();
+    const taskId2 = generateId<TaskId>();
+    const taskId3 = generateId<TaskId>();
+    const taskId4 = generateId<TaskId>();
+    const taskId5 = generateId<TaskId>();
+    const collectionId = generateId<TaskCollectionId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskCollection",
+            collectionId,
+            collectionAction: {
+                type: "Create",
+                creatorId: session1.accountId,
+                createdTime: getCurrentTime(),
+                accessPolicy: new TaskCollectionAccessPolicyRegister(
+                    {
+                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                        defaultGrant: {type: "Space", level: "Manage"},
+                    },
+                    getCurrentTime(),
+                ),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId1,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId1,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId4,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId4,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId5,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId5,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId1,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId2,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId4,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId3,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    const pausePromise = commitTaskSpaceActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
+        session2.accountId,
+    );
+
+    const commitPromise = commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId5,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId4,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    const {unpause} = await pausePromise;
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId1,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId5,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    unpause();
+
+    await expect(commitPromise).rejects.toThrow(
+        new FailedPreconditionError(
+            "Updating task's `parentId` would create a circular dependency",
+        ),
+    );
+});
+
+test("child tasks can't create a circular dependency even in race conditions (5 tasks, scenario 2)", async () => {
+    const taskId1 = generateId<TaskId>();
+    const taskId2 = generateId<TaskId>();
+    const taskId3 = generateId<TaskId>();
+    const taskId4 = generateId<TaskId>();
+    const taskId5 = generateId<TaskId>();
+    const collectionId = generateId<TaskCollectionId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskCollection",
+            collectionId,
+            collectionAction: {
+                type: "Create",
+                creatorId: session1.accountId,
+                createdTime: getCurrentTime(),
+                accessPolicy: new TaskCollectionAccessPolicyRegister(
+                    {
+                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                        defaultGrant: {type: "Space", level: "Manage"},
+                    },
+                    getCurrentTime(),
+                ),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId1,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId1,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId4,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId4,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId5,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId5,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId1,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId2,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId4,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId3,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    const pausePromise = commitTaskSpaceActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
+        session2.accountId,
+    );
+
+    const commitPromise = commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId5,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId4,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    const {unpause} = await pausePromise;
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId5,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    unpause();
+
+    await expect(commitPromise).rejects.toThrow(
+        new FailedPreconditionError(
+            "Updating task's `parentId` would create a circular dependency",
+        ),
+    );
+});
+
+test("child tasks can't create a circular dependency even in race conditions (5 tasks, scenario 3)", async () => {
+    const taskId1 = generateId<TaskId>();
+    const taskId2 = generateId<TaskId>();
+    const taskId3 = generateId<TaskId>();
+    const taskId4 = generateId<TaskId>();
+    const taskId5 = generateId<TaskId>();
+    const collectionId = generateId<TaskCollectionId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskCollection",
+            collectionId,
+            collectionAction: {
+                type: "Create",
+                creatorId: session1.accountId,
+                createdTime: getCurrentTime(),
+                accessPolicy: new TaskCollectionAccessPolicyRegister(
+                    {
+                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                        defaultGrant: {type: "Space", level: "Manage"},
+                    },
+                    getCurrentTime(),
+                ),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId1,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId1,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId4,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId4,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId5,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId5,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId1,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId2,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    const pausePromise = commitTaskSpaceActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
+        session2.accountId,
+    );
+
+    const commitPromise = commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId5,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId4,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    const {unpause} = await pausePromise;
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId4,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId3,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId5,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    unpause();
+
+    await expect(commitPromise).rejects.toThrow(
+        new FailedPreconditionError(
+            "Updating task's `parentId` would create a circular dependency",
+        ),
+    );
+});
+
+test("child tasks can't create a circular dependency even in race conditions (5 tasks, scenario 4)", async () => {
+    const taskId1 = generateId<TaskId>();
+    const taskId2 = generateId<TaskId>();
+    const taskId3 = generateId<TaskId>();
+    const taskId4 = generateId<TaskId>();
+    const taskId5 = generateId<TaskId>();
+    const collectionId = generateId<TaskCollectionId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskCollection",
+            collectionId,
+            collectionAction: {
+                type: "Create",
+                creatorId: session1.accountId,
+                createdTime: getCurrentTime(),
+                accessPolicy: new TaskCollectionAccessPolicyRegister(
+                    {
+                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                        defaultGrant: {type: "Space", level: "Manage"},
+                    },
+                    getCurrentTime(),
+                ),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId1,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId1,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId4,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId4,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId5,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId5,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId1,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId2,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId5,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId4,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    const pausePromise = commitTaskSpaceActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
+        session2.accountId,
+    );
+
+    const commitPromise = commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId4,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId3,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    const {unpause} = await pausePromise;
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId1,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId5,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    unpause();
+
+    await expect(commitPromise).rejects.toThrow(
+        new FailedPreconditionError(
+            "Updating task's `parentId` would create a circular dependency",
+        ),
+    );
+});
+
+test("child tasks can't create a circular dependency even in race conditions (5 tasks, scenario 5)", async () => {
+    const taskId1 = generateId<TaskId>();
+    const taskId2 = generateId<TaskId>();
+    const taskId3 = generateId<TaskId>();
+    const taskId4 = generateId<TaskId>();
+    const taskId5 = generateId<TaskId>();
+    const collectionId = generateId<TaskCollectionId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskCollection",
+            collectionId,
+            collectionAction: {
+                type: "Create",
+                creatorId: session1.accountId,
+                createdTime: getCurrentTime(),
+                accessPolicy: new TaskCollectionAccessPolicyRegister(
+                    {
+                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                        defaultGrant: {type: "Space", level: "Manage"},
+                    },
+                    getCurrentTime(),
+                ),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId1,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId1,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId4,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId4,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId5,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId5,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId1,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId2,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId5,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId4,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    const pausePromise = commitTaskSpaceActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
+        session2.accountId,
+    );
+
+    const commitPromise = commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId4,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId3,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    const {unpause} = await pausePromise;
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId5,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    unpause();
+
+    await expect(commitPromise).rejects.toThrow(
+        new FailedPreconditionError(
+            "Updating task's `parentId` would create a circular dependency",
+        ),
+    );
+});
+
+test("child tasks can't create a circular dependency even in race conditions (9 tasks)", async () => {
+    const taskId1 = generateId<TaskId>();
+    const taskId2 = generateId<TaskId>();
+    const taskId3 = generateId<TaskId>();
+    const taskId4 = generateId<TaskId>();
+    const taskId5 = generateId<TaskId>();
+    const taskId6 = generateId<TaskId>();
+    const taskId7 = generateId<TaskId>();
+    const taskId8 = generateId<TaskId>();
+    const taskId9 = generateId<TaskId>();
+    const collectionId = generateId<TaskCollectionId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskCollection",
+            collectionId,
+            collectionAction: {
+                type: "Create",
+                creatorId: session1.accountId,
+                createdTime: getCurrentTime(),
+                accessPolicy: new TaskCollectionAccessPolicyRegister(
+                    {
+                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                        defaultGrant: {type: "Space", level: "Manage"},
+                    },
+                    getCurrentTime(),
+                ),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId1,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId1,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId4,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId4,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId5,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId5,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId6,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId6,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId7,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId7,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId8,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId8,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId9,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId9,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId1,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId2,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId4,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId3,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId6,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId5,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId7,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId6,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId8,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId7,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    const pausePromise = commitTaskSpaceActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
+        session2.accountId,
+    );
+
+    const commitPromise = commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId6,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId4,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    const {unpause} = await pausePromise;
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: null,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId9,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId9,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId8,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    unpause();
+
+    await expect(commitPromise).rejects.toThrow(
+        new FailedPreconditionError(
+            "Updating task's `parentId` would create a circular dependency",
+        ),
+    );
+});
+
+test("can create circular dependency involving deleted task", async () => {
+    const taskId1 = generateId<TaskId>();
+    const taskId2 = generateId<TaskId>();
+    const taskId3 = generateId<TaskId>();
+    const taskId4 = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId1,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId4,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId1,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId2,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId4,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId3,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                taskId: taskId1,
+                taskAction: {
+                    type: "UpdateParent",
+                    parentIdAction: {
+                        value: taskId4,
+                        updatedTime: getCurrentTime(),
+                    },
+                },
+            },
+        ]),
+    ).rejects.toThrow(
+        new FailedPreconditionError(
+            "Updating task's `parentId` would create a circular dependency",
+        ),
+    );
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "Delete",
+                deletedTime: getCurrentTime(),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId1,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId4,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                taskId: taskId2,
+                taskAction: {
+                    type: "Undelete",
+                    undeletedTime: getCurrentTime(),
+                },
+            },
+        ]),
+    ).rejects.toThrow(
+        new FailedPreconditionError("Undeleting task would create a circular dependency"),
+    );
+});
+
+test("can use undelete to create circular dependency involving deleted task", async () => {
+    const taskId1 = generateId<TaskId>();
+    const taskId2 = generateId<TaskId>();
+    const taskId3 = generateId<TaskId>();
+    const taskId4 = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId1,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId4,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId1,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId2,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId4,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId3,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                taskId: taskId1,
+                taskAction: {
+                    type: "UpdateParent",
+                    parentIdAction: {
+                        value: taskId4,
+                        updatedTime: getCurrentTime(),
+                    },
+                },
+            },
+        ]),
+    ).rejects.toThrow(
+        new FailedPreconditionError(
+            "Updating task's `parentId` would create a circular dependency",
+        ),
+    );
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "Delete",
+                deletedTime: getCurrentTime(),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId1,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId4,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                taskId: taskId2,
+                taskAction: {
+                    type: "Undelete",
+                    undeletedTime: getCurrentTime(),
+                },
+            },
+        ]),
+    ).rejects.toThrow(
+        new FailedPreconditionError("Undeleting task would create a circular dependency"),
+    );
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "Delete",
+                deletedTime: getCurrentTime(),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "Undelete",
+                undeletedTime: getCurrentTime(),
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                taskId: taskId3,
+                taskAction: {
+                    type: "Undelete",
+                    undeletedTime: getCurrentTime(),
+                },
+            },
+        ]),
+    ).rejects.toThrow(
+        new FailedPreconditionError("Undeleting task would create a circular dependency"),
+    );
+});
+
+test("can't create a circular dependency with undelete even in race conditions", async () => {
+    const taskId1 = generateId<TaskId>();
+    const taskId2 = generateId<TaskId>();
+    const taskId3 = generateId<TaskId>();
+    const taskId4 = generateId<TaskId>();
+    const taskId5 = generateId<TaskId>();
+    const collectionId = generateId<TaskCollectionId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskCollection",
+            collectionId,
+            collectionAction: {
+                type: "Create",
+                creatorId: session1.accountId,
+                createdTime: getCurrentTime(),
+                accessPolicy: new TaskCollectionAccessPolicyRegister(
+                    {
+                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                        defaultGrant: {type: "Space", level: "Manage"},
+                    },
+                    getCurrentTime(),
+                ),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId1,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId1,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId4,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId4,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId5,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId5,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId1,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId2,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId4,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId3,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId5,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId4,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "Delete",
+                deletedTime: getCurrentTime(),
+            },
+        },
+    ]);
+
+    const pausePromise = commitTaskSpaceActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
+        session2.accountId,
+    );
+
+    const commitPromise = commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId1,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId5,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    const {unpause} = await pausePromise;
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "Undelete",
+                undeletedTime: getCurrentTime(),
+            },
+        },
+    ]);
+
+    unpause();
+
+    await expect(commitPromise).rejects.toThrow(
+        new FailedPreconditionError(
+            "Updating task's `parentId` would create a circular dependency",
+        ),
+    );
+});
+
+test("can create a circular dependency with delete", async () => {
+    const taskId1 = generateId<TaskId>();
+    const taskId2 = generateId<TaskId>();
+    const taskId3 = generateId<TaskId>();
+    const taskId4 = generateId<TaskId>();
+    const taskId5 = generateId<TaskId>();
+    const collectionId = generateId<TaskCollectionId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskCollection",
+            collectionId,
+            collectionAction: {
+                type: "Create",
+                creatorId: session1.accountId,
+                createdTime: getCurrentTime(),
+                accessPolicy: new TaskCollectionAccessPolicyRegister(
+                    {
+                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                        defaultGrant: {type: "Space", level: "Manage"},
+                    },
+                    getCurrentTime(),
+                ),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId1,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId1,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId4,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId4,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId5,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId5,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId1,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId3,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId2,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId4,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId3,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId5,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId4,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "Delete",
+                deletedTime: getCurrentTime(),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId1,
+            taskAction: {
+                type: "UpdateParent",
+                parentIdAction: {
+                    value: taskId5,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
 });
 
 test("can remove the parent of a child task when you don't have access to the parent task", async () => {

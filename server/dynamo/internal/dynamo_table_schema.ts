@@ -1653,8 +1653,6 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 conditionCompilationContext,
             );
 
-            const retryTransaction = getDynamoRetryTransactionIfExists(context);
-
             return client.putItem(
                 context.tracer.getTracer(),
                 context.dynamoBatchContext?.batchContext ?? null,
@@ -1670,7 +1668,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                         conditionCompilationContext.iterateAttributeNames(),
                     ),
                     retryConditionCheckError: isConditionCheckErrorRetriable
-                        ? retryTransaction
+                        ? getDynamoRetryTransactionIfExists(context)
                         : null,
                 },
             );
@@ -2318,8 +2316,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
-    public transactionUpdateLockVersionConditionCheck<Key extends Types["ItemKey"]>(
-        key: Key,
+    public transactionUpdateLockVersionConditionCheck(
+        key: Types["ItemKey"],
         updateLockVersion: number | undefined,
     ): DynamoTransactionEntry {
         return this.transactionConditionCheck(
@@ -2371,8 +2369,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Update a single attribute on the item with the specified key. Is serialized
-     * with all other updates of this item with `updateLockVersion`.
+     * Update a single attribute on the item with the specified key. The update is
+     * serialized with all other updates of this item with `updateLockVersion`.
      *
      * You are expected to load the current `updateLockVersion` and pass it into
      * this function. Probably with `getPartialItem()`. If you pass in an incorrect
@@ -2382,10 +2380,6 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * update and create this transaction entry. Or you can use
      * `updateItemAttribute()` which handles the retry loop for you.
      */
-    // NOTE(calebmer): Eventually this should have a suite of attribute update
-    // methods. For instance, a `updateItemAttribute()` function that has a
-    // retry loop similar to our `updateItem()` function I think would be a
-    // good idea for one-off attribute updates.
     public transactionDirectlyUpdateItemAttribute<
         Key extends Types["ItemKey"],
         Attribute extends DistributiveKeyOf<Types["Item"]> & string,
@@ -2450,6 +2444,73 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                         serializedValue === undefined
                             ? `REMOVE ${serializedKey} SET updateLockVersion = :newUpdateLockVersion`
                             : `SET ${serializedKey} = :value, updateLockVersion = :newUpdateLockVersion`,
+                    ConditionExpression:
+                        typeof updateLockVersion === "number"
+                            ? "updateLockVersion = :oldUpdateLockVersion"
+                            : "attribute_not_exists(updateLockVersion)",
+                    ExpressionAttributeValues: expressionAttributeValues,
+                },
+            },
+            isConditionCheckErrorRetriable: true,
+        });
+    }
+
+    /**
+     * Update just the `updateLockVersion` on the item with the specified key.
+     * This is useful if you have a transaction you want to force to be serialized
+     * with other updates on this item but you don't have an update you want to
+     * make to the item.
+     *
+     * You are expected to load the current `updateLockVersion` and pass it into
+     * this function. Probably with `getPartialItem()`. If you pass in an incorrect
+     * `updateLockVersion` there will be a condition check error. Probably what you
+     * want to do is to run a `context.dynamo.retryTransaction()` loop that loads
+     * the old version of the property and the `updateLockVersion`. Then apply an
+     * update and create this transaction entry.
+     */
+    public transactionDirectlyUpdateItemLockVersion(
+        key: Types["ItemKey"],
+        updateLockVersion: number | undefined,
+    ): DynamoTransactionEntry {
+        const {partitionKey, sortKey} = this._serializeItemKey(key);
+
+        // Disallow updating indexed attributes. If you update an indexed attribute
+        // then we need to update the associated index attribute (e.g.
+        // `indexNPartitionKey` or `indexNSortKey`). It's definitely possible to
+        // implement this but we aren't for now to keep things simple.
+        const indexConfigs = this._initializationState.indexConfigsByItemType.get(
+            `${key.partitionType}#${key.sortRangeType}`,
+        );
+        if (indexConfigs) {
+            for (const indexConfig of indexConfigs) {
+                assert(
+                    indexConfig.partitionKeyAttributes.updateLockVersion === undefined,
+                    "Can not directly update an indexed attribute",
+                );
+                assert(
+                    indexConfig.sortKeyAttributes.updateLockVersion === undefined,
+                    "Can not directly update an indexed attribute",
+                );
+            }
+        }
+
+        const expressionAttributeValues: {[key: string]: AttributeValue} = {};
+
+        if (typeof updateLockVersion === "number") {
+            expressionAttributeValues[":oldUpdateLockVersion"] =
+                intoDynamoAttributeValue(updateLockVersion);
+        }
+
+        expressionAttributeValues[":newUpdateLockVersion"] = intoDynamoAttributeValue(
+            (updateLockVersion ?? 0) + 1,
+        );
+
+        return DynamoTransactionEntry._newFromClient(DynamoClient, {
+            transactItem: {
+                Update: {
+                    TableName: this._name,
+                    Key: intoDynamoAttributeValueObject({partitionKey, sortKey}),
+                    UpdateExpression: "SET updateLockVersion = :newUpdateLockVersion",
                     ConditionExpression:
                         typeof updateLockVersion === "number"
                             ? "updateLockVersion = :oldUpdateLockVersion"

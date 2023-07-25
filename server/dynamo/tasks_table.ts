@@ -19,10 +19,11 @@ import {
     PermissionDeniedError,
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
@@ -168,7 +169,7 @@ const TasksTable = DynamoTableSchema.new({
                          *
                          * If the parent task is undeleted the child task is again unaffected.
                          *
-                         * ## Restrictions
+                         * ## Depth and circular dependency restrictions
                          *
                          * There is no restriction on how deep you can nest child tasks.
                          *
@@ -181,6 +182,11 @@ const TasksTable = DynamoTableSchema.new({
                          *
                          * So clients should be careful not to crash on circular dependencies. However,
                          * a canonical task representation will never have circular dependencies.
+                         *
+                         * There may also be items in this table that have a circular dependency
+                         * because deleted tasks do not count in a dependency chain. If you are
+                         * iterating through a parent task chain, make sure to `break` if you see a
+                         * deleted parent task.
                          */
                         parentId: TaskParentIdRegister.schema,
 
@@ -195,6 +201,12 @@ const TasksTable = DynamoTableSchema.new({
         },
     ],
 });
+
+type TaskActionTransactionItem = DynamoTableItemType<
+    typeof TaskActionsTable,
+    "TaskActions",
+    "ActionTransaction"
+>;
 
 type TaskEssentialAttributesItem = DynamoTableItemType<
     typeof TasksTable,
@@ -234,130 +246,381 @@ export function commitTaskSpaceActionTransaction(
     spaceId: SpaceId,
     actionTransaction: ReadonlyArray<TaskSpaceAction>,
 ) {
-    return context.dynamo.retryTransaction(context =>
-        actuallyCommitTaskSpaceActionTransaction(context, spaceId, actionTransaction),
-    );
+    return TaskSpaceActionTransactionCommitState.commit(context, spaceId, actionTransaction);
+}
+
+/**
+ * Abstraction for managing state during a `commitTaskSpaceActionTransaction()`
+ * call. A task may be updated multiple times within a transaction so we need
+ * to keep track of previous writes and return them if another action in the
+ * transaction attempts to read again.
+ */
+class TaskSpaceActionTransactionCommitState {
+    private readonly _context: AppSessionActionContext;
+    private readonly _spaceId: SpaceId;
+    private readonly _startTime = new Date();
+
+    // We may only have one DynamoDB transaction entry for each item. So we need to
+    // merge all updates we want to make on an item into a single transaction entry.
+    private readonly _transactionEntryByTaskId = new Map<
+        TaskId,
+        {
+            taskItem: TaskEssentialAttributesItem;
+            action: "CreateItem" | "DirectlyUpdateItem" | "DirectlyUpdateItemLockVersion";
+        }
+    >();
+
+    // We may only have one DynamoDB transaction entry for each item. So we need to
+    // merge all updates we want to make on an item into a single transaction entry.
+    private readonly _transactionEntryByCollectionId = new Map<
+        TaskCollectionId,
+        {
+            collectionItem: TaskCollectionEssentialAttributesItem;
+            action: "CreateItem" | "DirectlyUpdateItem";
+        }
+    >();
+
+    private readonly _taskItemById = new Map<TaskId, Promise<TaskEssentialAttributesItem | null>>();
+    private readonly _collectionItemById = new Map<
+        TaskCollectionId,
+        Promise<TaskCollectionEssentialAttributesItem | null>
+    >();
+
+    private constructor(context: AppSessionActionContext, spaceId: SpaceId) {
+        this._context = context;
+        this._spaceId = spaceId;
+    }
+
+    public static commit(
+        context: AppSessionActionContext,
+        spaceId: SpaceId,
+        actionTransaction: ReadonlyArray<TaskSpaceAction>,
+    ): Promise<void> {
+        return context.dynamo.retryTransaction(async context => {
+            await authorizeSpaceAccess(context, spaceId);
+
+            const state = new TaskSpaceActionTransactionCommitState(context, spaceId);
+
+            await actuallyCommitTaskSpaceActionTransaction(state, spaceId, actionTransaction);
+
+            const transactionEntries: Array<DynamoTransactionEntry> = [];
+
+            for (const transactionEntry of state._transactionEntryByTaskId.values()) {
+                switch (transactionEntry.action) {
+                    case "CreateItem": {
+                        transactionEntries.push(
+                            TasksTable.transactionCreateItem(transactionEntry.taskItem),
+                        );
+                        break;
+                    }
+                    case "DirectlyUpdateItem": {
+                        transactionEntries.push(
+                            TasksTable.transactionDirectlyUpdateItem(transactionEntry.taskItem),
+                        );
+                        break;
+                    }
+                    case "DirectlyUpdateItemLockVersion": {
+                        transactionEntries.push(
+                            TasksTable.transactionDirectlyUpdateItemLockVersion(
+                                transactionEntry.taskItem,
+                                transactionEntry.taskItem.updateLockVersion,
+                            ),
+                        );
+                        break;
+                    }
+                    default:
+                        throw exhaustive(transactionEntry.action);
+                }
+            }
+
+            for (const transactionEntry of state._transactionEntryByCollectionId.values()) {
+                switch (transactionEntry.action) {
+                    case "CreateItem": {
+                        transactionEntries.push(
+                            TasksTable.transactionCreateItem(transactionEntry.collectionItem),
+                        );
+                        break;
+                    }
+                    case "DirectlyUpdateItem": {
+                        transactionEntries.push(
+                            TasksTable.transactionDirectlyUpdateItem(
+                                transactionEntry.collectionItem,
+                            ),
+                        );
+                        break;
+                    }
+                    default:
+                        throw exhaustive(transactionEntry.action);
+                }
+            }
+
+            await commitTaskSpaceActionTransactionBeforeExecuteTestCheckpoint.waitForTest(
+                context.actor.getAccountId(),
+            );
+
+            const actionTransactionItem: TaskActionTransactionItem = {
+                partitionType: "TaskActions",
+                sortRangeType: "ActionTransaction",
+                spaceId,
+                actionTransactionTime: new Date(),
+                actionTransactionId: generateId(),
+                actionTransaction,
+            };
+
+            if (transactionEntries.length > 0) {
+                transactionEntries.push(
+                    TaskActionsTable.transactionCreateOrReplaceItem(actionTransactionItem),
+                );
+
+                await DynamoTableSchema.executeTransaction(context, transactionEntries);
+            } else {
+                await TaskActionsTable.createOrReplaceItem(context, actionTransactionItem);
+            }
+        });
+    }
+
+    public getActorAccountId(): AccountId {
+        return this._context.actor.getAccountId();
+    }
+
+    /**
+     * Clients specify change times for various properties and we use change times
+     * to resolve conflicting updates. Clients may specify a change time at any
+     * point in the past (maybe they are syncing offline updates) but they may not
+     * specify a change time too far in the future.
+     *
+     * We provide some wiggle room to account for clock skew. It's recommended that
+     * clients use NTP to get a time (through our `/api/time` route implemented in
+     * `EdgeService`) that's consistent with other clients instead of relying on
+     * the device clock.
+     */
+    public isChangeTimeReasonable(time: Date): boolean {
+        return differenceInHours(time, this._startTime, {roundingMethod: "floor"}) <= 4;
+    }
+
+    public getTaskItemIfExists(taskId: TaskId): Promise<TaskEssentialAttributesItem | null> {
+        return getOrSetDefaultMapValue(this._taskItemById, taskId, async () => {
+            const taskItem = await TasksTable.getItemIfExists(this._context, {
+                partitionType: "Task",
+                sortRangeType: "EssentialAttributes",
+                taskId,
+            });
+            if (!taskItem) return null;
+
+            if (taskItem.spaceId !== this._spaceId) throw new InternalError("Space mismatch");
+            return taskItem;
+        });
+    }
+
+    public async getTaskItem(taskId: TaskId): Promise<TaskEssentialAttributesItem> {
+        const taskItem = await this.getTaskItemIfExists(taskId);
+
+        // Internal error since we should keep a record of even deleted tasks.
+        if (!taskItem) throw new InternalError("Task not found");
+
+        return taskItem;
+    }
+
+    public createTaskItem(taskItem: TaskEssentialAttributesItem): void {
+        this._taskItemById.set(taskItem.taskId, Promise.resolve(taskItem));
+
+        const transactionEntry = getOrSetDefaultMapValue(
+            this._transactionEntryByTaskId,
+            taskItem.taskId,
+            () => ({
+                taskItem,
+                action: "CreateItem" as const,
+            }),
+        );
+
+        switch (transactionEntry.action) {
+            case "CreateItem":
+                break;
+            case "DirectlyUpdateItem":
+            case "DirectlyUpdateItemLockVersion":
+                throw new FailedPreconditionError("Can't update a task before it's created");
+            default:
+                throw exhaustive(transactionEntry.action);
+        }
+
+        if (transactionEntry.taskItem.updateLockVersion !== taskItem.updateLockVersion)
+            throw new InternalError(
+                "`updateLockVersion` should only change after we commit to the database",
+            );
+
+        transactionEntry.taskItem = taskItem;
+    }
+
+    public updateTaskItem(taskItem: TaskEssentialAttributesItem): void {
+        this._taskItemById.set(taskItem.taskId, Promise.resolve(taskItem));
+
+        const transactionEntry = getOrSetDefaultMapValue(
+            this._transactionEntryByTaskId,
+            taskItem.taskId,
+            () => ({
+                taskItem,
+                action: "DirectlyUpdateItem" as const,
+            }),
+        );
+
+        switch (transactionEntry.action) {
+            case "CreateItem":
+            case "DirectlyUpdateItem":
+                break;
+            case "DirectlyUpdateItemLockVersion":
+                transactionEntry.action = "DirectlyUpdateItem";
+                break;
+            default:
+                throw exhaustive(transactionEntry.action);
+        }
+
+        if (transactionEntry.taskItem.updateLockVersion !== taskItem.updateLockVersion)
+            throw new InternalError(
+                "`updateLockVersion` should only change after we commit to the database",
+            );
+
+        transactionEntry.taskItem = taskItem;
+    }
+
+    public updateTaskItemLockVersion(taskItem: TaskEssentialAttributesItem): void {
+        const transactionEntry = getOrSetDefaultMapValue(
+            this._transactionEntryByTaskId,
+            taskItem.taskId,
+            () => ({
+                taskItem,
+                action: "DirectlyUpdateItemLockVersion" as const,
+            }),
+        );
+
+        switch (transactionEntry.action) {
+            case "CreateItem":
+            case "DirectlyUpdateItem":
+            case "DirectlyUpdateItemLockVersion":
+                break;
+            default:
+                throw exhaustive(transactionEntry.action);
+        }
+
+        if (transactionEntry.taskItem.updateLockVersion !== taskItem.updateLockVersion)
+            throw new InternalError(
+                "`updateLockVersion` should only change after we commit to the database",
+            );
+
+        transactionEntry.taskItem = taskItem;
+    }
+
+    public getCollectionItemIfExists(
+        collectionId: TaskCollectionId,
+    ): Promise<TaskCollectionEssentialAttributesItem | null> {
+        return getOrSetDefaultMapValue(this._collectionItemById, collectionId, async () => {
+            const collectionItem = await TasksTable.getItemIfExists(this._context, {
+                partitionType: "TaskCollection",
+                sortRangeType: "EssentialAttributes",
+                collectionId,
+            });
+            if (!collectionItem) return null;
+
+            if (collectionItem.spaceId !== this._spaceId) throw new InternalError("Space mismatch");
+            return collectionItem;
+        });
+    }
+
+    public async getCollectionItem(
+        collectionId: TaskCollectionId,
+    ): Promise<TaskCollectionEssentialAttributesItem> {
+        const collectionItem = await this.getCollectionItemIfExists(collectionId);
+
+        // Internal error since we should keep a record of even deleted tasks.
+        if (!collectionItem) throw new InternalError("Task collection not found");
+
+        return collectionItem;
+    }
+
+    public createCollectionItem(collectionItem: TaskCollectionEssentialAttributesItem): void {
+        this._collectionItemById.set(collectionItem.collectionId, Promise.resolve(collectionItem));
+
+        const transactionEntry = getOrSetDefaultMapValue(
+            this._transactionEntryByCollectionId,
+            collectionItem.collectionId,
+            () => ({
+                collectionItem,
+                action: "CreateItem" as const,
+            }),
+        );
+
+        switch (transactionEntry.action) {
+            case "CreateItem":
+                break;
+            case "DirectlyUpdateItem":
+                throw new FailedPreconditionError("Can't update a collection before it's created");
+            default:
+                throw exhaustive(transactionEntry.action);
+        }
+
+        if (transactionEntry.collectionItem.updateLockVersion !== collectionItem.updateLockVersion)
+            throw new InternalError(
+                "`updateLockVersion` should only change after we commit to the database",
+            );
+
+        transactionEntry.collectionItem = collectionItem;
+    }
+
+    public updateCollectionItem(collectionItem: TaskCollectionEssentialAttributesItem): void {
+        this._collectionItemById.set(collectionItem.collectionId, Promise.resolve(collectionItem));
+
+        const transactionEntry = getOrSetDefaultMapValue(
+            this._transactionEntryByCollectionId,
+            collectionItem.collectionId,
+            () => ({
+                collectionItem,
+                action: "DirectlyUpdateItem" as const,
+            }),
+        );
+
+        switch (transactionEntry.action) {
+            case "CreateItem":
+            case "DirectlyUpdateItem":
+                break;
+            default:
+                throw exhaustive(transactionEntry.action);
+        }
+
+        if (transactionEntry.collectionItem.updateLockVersion !== collectionItem.updateLockVersion)
+            throw new InternalError(
+                "`updateLockVersion` should only change after we commit to the database",
+            );
+
+        transactionEntry.collectionItem = collectionItem;
+    }
+
+    public evaluateTaskCollectionItemAccessPolicy(
+        collectionItem: TaskCollectionEssentialAttributesItem,
+        expectedAccessLevel: TaskCollectionAccessLevel,
+    ) {
+        return evaluateTaskCollectionItemAccessPolicy(
+            this._context,
+            collectionItem,
+            this._context.actor.getAccountId(),
+            expectedAccessLevel,
+        );
+    }
 }
 
 async function actuallyCommitTaskSpaceActionTransaction(
-    context: AppSessionActionContext,
+    // We intentionally don't pass in `context` since we want all DynamoDB access
+    // to go through this `state` object. That way we force reads to go through our
+    // local cache.
+    state: TaskSpaceActionTransactionCommitState,
     spaceId: SpaceId,
     actionTransaction: ReadonlyArray<TaskSpaceAction>,
 ) {
-    await authorizeSpaceAccess(context, spaceId);
-
-    const startTime = new Date();
-
-    const isChangeTimeReasonable = (time: Date) =>
-        differenceInHours(time, startTime, {roundingMethod: "floor"}) <= 4;
-
-    // During authorization we may observe some tasks to check if we can write to
-    // them. They go in `observedTaskItemById`. We must include them in a
-    // `transactionConditionCheck()` to make sure we haven't lost access by the
-    // time we go to write.
-    //
-    // When we execute an action it may update the essential attributes of an item.
-    // These updates go in `updatedTaskItemById`. These items we include in a
-    // transaction with `transactionDirectlyUpdateItem()`.
-    const observedTaskItemById = new Map<TaskId, TaskEssentialAttributesItem | null>();
-    const updatedTaskItemById = new Map<TaskId, TaskEssentialAttributesItem>();
-
-    const getTaskItemIfExists = async (
-        taskId: TaskId,
-    ): Promise<TaskEssentialAttributesItem | null> => {
-        const updatedTaskItem = updatedTaskItemById.get(taskId);
-        if (updatedTaskItem !== undefined) return updatedTaskItem;
-
-        const observedTaskItem = observedTaskItemById.get(taskId);
-        if (observedTaskItem !== undefined) return observedTaskItem;
-
-        const taskItem = await TasksTable.getItemIfExists(context, {
-            partitionType: "Task",
-            sortRangeType: "EssentialAttributes",
-            taskId,
-        });
-        if (!taskItem) {
-            observedTaskItemById.set(taskId, null);
-            return null;
-        }
-
-        if (taskItem.spaceId !== spaceId) throw new InternalError("Space mismatch");
-        observedTaskItemById.set(taskId, taskItem);
-        return taskItem;
-    };
-
-    // During authorization we may observe some collections to check if we can
-    // write to them. However, we may need to load many collections while only one
-    // is important for authorizing access. All collections we observe go into
-    // `observedCollectionItemById` and any collections we depend on for
-    // authorization go in `authorizationDependencyCollectionIds`. At the end we
-    // will `transactionConditionCheck()` our authorization dependencies.
-    //
-    // When we execute an action it may update the essential attributes of an item.
-    // These updates go in `updatedCollectionItemById`. These items we include in a
-    // transaction with `transactionDirectlyUpdateItem()`.
-    const observedCollectionItemById = new Map<
-        TaskCollectionId,
-        TaskCollectionEssentialAttributesItem | null
-    >();
-    const updatedCollectionItemById = new Map<
-        TaskCollectionId,
-        TaskCollectionEssentialAttributesItem
-    >();
-    const authorizationDependencyCollectionItemById = new Map<
-        TaskCollectionId,
-        TaskCollectionEssentialAttributesItem | null
-    >();
-
-    const getCollectionItemIfExistsWithoutAddingAuthorizationDependency = async (
-        collectionId: TaskCollectionId,
-    ): Promise<TaskCollectionEssentialAttributesItem | null> => {
-        const updatedCollectionItem = updatedCollectionItemById.get(collectionId);
-        if (updatedCollectionItem !== undefined) return updatedCollectionItem;
-
-        const observedCollectionItem = observedCollectionItemById.get(collectionId);
-        if (observedCollectionItem !== undefined) return observedCollectionItem;
-
-        const collectionItem = await TasksTable.getItemIfExists(context, {
-            partitionType: "TaskCollection",
-            sortRangeType: "EssentialAttributes",
-            collectionId,
-        });
-        if (!collectionItem) {
-            observedCollectionItemById.set(collectionId, null);
-            return null;
-        }
-
-        if (collectionItem.spaceId !== spaceId) throw new InternalError("Space mismatch");
-        observedCollectionItemById.set(collectionId, collectionItem);
-        return collectionItem;
-    };
-
-    const getCollectionItemIfExists = async (
-        collectionId: TaskCollectionId,
-    ): Promise<TaskCollectionEssentialAttributesItem | null> => {
-        const collectionItem = await getCollectionItemIfExistsWithoutAddingAuthorizationDependency(
-            collectionId,
-        );
-
-        // If this collection is not an authorization dependency yet, add it.
-        if (!authorizationDependencyCollectionItemById.has(collectionId)) {
-            const observedCollectionItem = observedCollectionItemById.get(collectionId);
-            if (observedCollectionItem !== undefined) {
-                authorizationDependencyCollectionItemById.set(collectionId, observedCollectionItem);
-            }
-        }
-
-        return collectionItem;
-    };
-
     const authorizeTaskItemAccess = async (
         taskItem: TaskEssentialAttributesItem,
         expectedAccessLevel: TaskCollectionAccessLevel,
     ): Promise<void> => {
         // The task creator has an edit access level on their own task.
         if (
-            context.actor.getAccountId() === taskItem.creatorId &&
+            state.getActorAccountId() === taskItem.creatorId &&
             hasTaskCollectionAccessLevel("Edit", expectedAccessLevel)
         ) {
             return;
@@ -367,21 +630,10 @@ async function actuallyCommitTaskSpaceActionTransaction(
         // if no `TaskCollectionId`s authorize access to the task.
         const authorizingCollectionItems = await runAllPromises(
             taskItem.collections.getArray().map(async ({collectionId}) => {
-                // We don't want to add an authorization dependency on every collection in the
-                // task. Only collections we use to pass authorization.
-                const collectionItem =
-                    await getCollectionItemIfExistsWithoutAddingAuthorizationDependency(
-                        collectionId,
-                    );
+                const collectionItem = await state.getCollectionItem(collectionId);
 
-                // Internal error since we should keep a record of even deleted task
-                // collections.
-                if (!collectionItem) throw new InternalError("Task collection not found");
-
-                const hasAccess = await evaluateTaskCollectionItemAccessPolicy(
-                    context,
+                const hasAccess = await state.evaluateTaskCollectionItemAccessPolicy(
                     collectionItem,
-                    context.actor.getAccountId(),
                     expectedAccessLevel,
                 );
 
@@ -392,20 +644,10 @@ async function actuallyCommitTaskSpaceActionTransaction(
         // We evaluate the access policies for all collections on a task but we only
         // need one passing access policy. We set that access policy as a dependency of
         // our transaction.
-        const firstAuthorizingCollectionItem = authorizingCollectionItems.find(isNonNullable);
-        if (firstAuthorizingCollectionItem) {
-            authorizationDependencyCollectionItemById.set(
-                firstAuthorizingCollectionItem.collectionId,
-                firstAuthorizingCollectionItem,
-            );
-            return;
-        }
+        if (authorizingCollectionItems.some(isNonNullable)) return;
 
         if (taskItem.parentId.value) {
-            const parentTaskItem = await getTaskItemIfExists(taskItem.parentId.value);
-
-            // Internal error since we should keep a record of even deleted tasks.
-            if (!parentTaskItem) throw new InternalError("Parent task not found");
+            const parentTaskItem = await state.getTaskItem(taskItem.parentId.value);
 
             // Parent tasks implicitly grant access to all of their child tasks. If we have
             // a parent task that is not deleted then check it before throwing a permission
@@ -424,13 +666,10 @@ async function actuallyCommitTaskSpaceActionTransaction(
         collectionId: TaskCollectionId,
         expectedAccessLevel: TaskCollectionAccessLevel,
     ): Promise<void> => {
-        const collectionItem = await getCollectionItemIfExists(collectionId);
-        if (!collectionItem) throw new NotFoundError("Task collection not found");
+        const collectionItem = await state.getCollectionItem(collectionId);
 
-        const hasAccess = await evaluateTaskCollectionItemAccessPolicy(
-            context,
+        const hasAccess = await state.evaluateTaskCollectionItemAccessPolicy(
             collectionItem,
-            context.actor.getAccountId(),
             expectedAccessLevel,
         );
 
@@ -445,25 +684,22 @@ async function actuallyCommitTaskSpaceActionTransaction(
         switch (action.type) {
             case "UpdateTask": {
                 const {taskId, taskAction} = action;
-                const taskItem = await getTaskItemIfExists(taskId);
 
                 switch (taskAction.type) {
                     case "Create": {
-                        if (taskItem) throw new FailedPreconditionError("Task already exists");
-
-                        if (taskAction.creator.accountId !== context.actor.getAccountId()) {
+                        if (taskAction.creator.accountId !== state.getActorAccountId()) {
                             throw new PermissionDeniedError(
                                 "Can only create a task with yourself as the creator",
                             );
                         }
 
-                        if (!isChangeTimeReasonable(taskAction.createdTime.absoluteTime)) {
+                        if (!state.isChangeTimeReasonable(taskAction.createdTime.absoluteTime)) {
                             throw new InvalidArgumentError(
                                 "Action `createdTime` is too far in the future",
                             );
                         }
 
-                        updatedTaskItemById.set(taskId, {
+                        state.createTaskItem({
                             partitionType: "Task",
                             sortRangeType: "EssentialAttributes",
                             taskId,
@@ -480,6 +716,7 @@ async function actuallyCommitTaskSpaceActionTransaction(
                         break;
                     }
                     case "Undelete": {
+                        const taskItem = await state.getTaskItemIfExists(taskId);
                         if (!taskItem) throw new NotFoundError("Task not found");
                         if (!taskItem.deletedTime)
                             throw new FailedPreconditionError("Expected task to be deleted");
@@ -492,19 +729,55 @@ async function actuallyCommitTaskSpaceActionTransaction(
                             );
                         }
 
-                        if (!isChangeTimeReasonable(taskAction.undeletedTime)) {
+                        if (!state.isChangeTimeReasonable(taskAction.undeletedTime)) {
                             throw new InvalidArgumentError(
                                 "Action `undeletedTime` is too far in the future",
                             );
                         }
 
-                        updatedTaskItemById.set(taskId, {
+                        const seenTaskIds = new Set([taskItem.taskId]);
+                        let currentParentTaskItem = taskItem;
+
+                        while (currentParentTaskItem.parentId.value !== null) {
+                            // We don't allow task circular dependencies which would cause infinite
+                            // looping. Deleted tasks break the circular dependency chain. So a circular
+                            // dependency may exist involving a deleted task. When we undelete, we need to
+                            // make sure it doesn't create a circular dependency.
+                            if (seenTaskIds.has(currentParentTaskItem.parentId.value)) {
+                                throw new FailedPreconditionError(
+                                    "Undeleting task would create a circular dependency",
+                                    {
+                                        // NOTE(calebmer): Ideally the error message would have a hint. This error case
+                                        // seems pretty rare. I'd want to know what the UI of this looks like to write
+                                        // an appropriate hint. (e.g. Can you see the old parent task?)
+                                        displayMessage: errorDisplayMessage`Undoing task deletion would make the task its own subtask.`,
+                                    },
+                                );
+                            }
+
+                            const nextParentTaskItem = await state.getTaskItem(
+                                currentParentTaskItem.parentId.value,
+                            );
+
+                            // Deleted tasks do not participate in circular dependencies.
+                            if (nextParentTaskItem.deletedTime) break;
+
+                            seenTaskIds.add(nextParentTaskItem.taskId);
+                            currentParentTaskItem = nextParentTaskItem;
+                        }
+
+                        // Force updates to a root task's subtask tree to be serialized. That way race
+                        // conditions can't sneak a circular dependency in.
+                        state.updateTaskItemLockVersion(currentParentTaskItem);
+
+                        state.updateTaskItem({
                             ...taskItem,
                             deletedTime: null,
                         });
                         break;
                     }
                     default: {
+                        const taskItem = await state.getTaskItemIfExists(taskId);
                         if (!taskItem) throw new NotFoundError("Task not found");
                         if (taskItem.deletedTime)
                             throw new FailedPreconditionError("Task was deleted");
@@ -519,13 +792,13 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                     );
                                 }
 
-                                if (!isChangeTimeReasonable(taskAction.deletedTime)) {
+                                if (!state.isChangeTimeReasonable(taskAction.deletedTime)) {
                                     throw new InvalidArgumentError(
                                         "Action `deletedTime` is too far in the future",
                                     );
                                 }
 
-                                updatedTaskItemById.set(taskId, {
+                                state.updateTaskItem({
                                     ...taskItem,
                                     deletedTime: taskAction.deletedTime,
                                 });
@@ -538,72 +811,129 @@ async function actuallyCommitTaskSpaceActionTransaction(
                             }
                             case "UpdateParent": {
                                 if (
-                                    !isChangeTimeReasonable(taskAction.parentIdAction.updatedTime)
+                                    !state.isChangeTimeReasonable(
+                                        taskAction.parentIdAction.updatedTime,
+                                    )
                                 ) {
                                     throw new InvalidArgumentError(
                                         "Action `updatedTime` is too far in the future",
                                     );
                                 }
 
-                                if (taskAction.parentIdAction.value !== null) {
-                                    const parentTaskItem = await getTaskItemIfExists(
-                                        taskAction.parentIdAction.value,
-                                    );
-                                    if (!parentTaskItem)
-                                        throw new NotFoundError("Parent task not found");
-                                    if (parentTaskItem.deletedTime)
-                                        throw new FailedPreconditionError("Parent task is deleted");
+                                // We want to prevent the creation of cycles even during race conditions. So we
+                                // call `updateTaskItemLockVersion()` on critical parent tasks that can't
+                                // update without us knowing about it. We call this method on:
+                                //
+                                // 1. The root parent task in the new parent task chain
+                                // 2. The root parent task in the old parent task chain
+                                //
+                                // This has the effect of forcing any change to subtask structure under a root
+                                // task to be committed serially. If the root task itself is made the subtask
+                                // of some other task than that update too must be serialized with changes to
+                                // its subtask structure. By serializing updates to subtask structure we can
+                                // make sure no circular dependencies are introduced.
+                                await runAllPromiseThunks(
+                                    // Authorize new parent `TaskId`:
+                                    async () => {
+                                        if (taskAction.parentIdAction.value === null) return;
 
-                                    // Make sure we have edit access to the parent task in order to make this task
-                                    // a child of it.
-                                    await authorizeTaskItemAccess(parentTaskItem, "Edit");
-
-                                    // We allow you to change the parent of a task you have edit access to even if
-                                    // you don't have access to the _current_ parent task. This is because we also
-                                    // allow you to delete tasks even when you don't have access to the current
-                                    // parent task. That operation will remove a child task from a parent task so
-                                    // it follows a user is allowed to remove tasks they have access to from
-                                    // unknown parents.
-                                    //
-                                    // Should we allow deleting a task when you don't have access to the parent?
-                                    // Arguably not. But it's hard to explain a restriction like that in the UI and
-                                    // the restriction is not too bad if we explain it in the revision feed.
-                                    //
-                                    // NOCOMMIT: Deleting or changing the parent of a child task should add a
-                                    // revision history entry to the parent task.
-
-                                    const seenTaskIds = new Set([taskId, parentTaskItem.taskId]);
-                                    let currentParentTaskItem = parentTaskItem;
-
-                                    while (currentParentTaskItem.parentId.value !== null) {
-                                        // We don't allow task circular dependencies which would cause infinite
-                                        // looping. If we see that updating our `parentId` would create a circular
-                                        // dependency than error.
-                                        if (seenTaskIds.has(currentParentTaskItem.parentId.value)) {
+                                        const newParentTaskItem = await state.getTaskItemIfExists(
+                                            taskAction.parentIdAction.value,
+                                        );
+                                        if (!newParentTaskItem)
+                                            throw new NotFoundError("Parent task not found");
+                                        if (newParentTaskItem.deletedTime)
                                             throw new FailedPreconditionError(
-                                                "Updating task's `parentId` would create a circular dependency",
-                                                {
-                                                    displayMessage: errorDisplayMessage`Can’t move a task to the subtasks of one of its own subtasks. Check your task’s subtasks and try removing the one you want to move your task into.`,
-                                                },
+                                                "Parent task is deleted",
                                             );
+
+                                        // Make sure we have edit access to the parent task in order to make this task
+                                        // a child of it.
+                                        await authorizeTaskItemAccess(newParentTaskItem, "Edit");
+
+                                        const seenTaskIds = new Set([
+                                            taskId,
+                                            newParentTaskItem.taskId,
+                                        ]);
+                                        let currentNewParentTaskItem = newParentTaskItem;
+
+                                        while (currentNewParentTaskItem.parentId.value !== null) {
+                                            // We don't allow task circular dependencies which would cause infinite
+                                            // looping. If we see that updating our `parentId` would create a circular
+                                            // dependency then error.
+                                            if (
+                                                seenTaskIds.has(
+                                                    currentNewParentTaskItem.parentId.value,
+                                                )
+                                            ) {
+                                                throw new FailedPreconditionError(
+                                                    "Updating task's `parentId` would create a circular dependency",
+                                                    {
+                                                        displayMessage: errorDisplayMessage`Can’t move a task to the subtasks of one of its own subtasks. Check your task’s subtasks and try removing the one you want to move your task into.`,
+                                                    },
+                                                );
+                                            }
+
+                                            // Parent task loading may be cached by our `authorizeTaskItemAccess()`
+                                            // call earlier.
+                                            const nextNewParentTaskItem = await state.getTaskItem(
+                                                currentNewParentTaskItem.parentId.value,
+                                            );
+
+                                            // Deleted tasks do not participate in circular dependencies.
+                                            if (nextNewParentTaskItem.deletedTime) break;
+
+                                            seenTaskIds.add(nextNewParentTaskItem.taskId);
+                                            currentNewParentTaskItem = nextNewParentTaskItem;
                                         }
 
-                                        // Parent task loading may be cached by our `authorizeTaskItemAccess()`
-                                        // call earlier.
-                                        const nextParentTaskItem = await getTaskItemIfExists(
-                                            currentParentTaskItem.parentId.value,
+                                        // Force updates to a root task's subtask tree to be serialized. That way race
+                                        // conditions can't sneak a circular dependency in.
+                                        state.updateTaskItemLockVersion(currentNewParentTaskItem);
+                                    },
+                                    // Authorize old parent `TaskId`:
+                                    async () => {
+                                        if (taskItem.parentId.value === null) return;
+
+                                        const oldParentTaskItem = await state.getTaskItem(
+                                            taskItem.parentId.value,
                                         );
+                                        if (oldParentTaskItem.deletedTime) return;
 
-                                        // Internal error since we should keep a record of even deleted tasks.
-                                        if (!nextParentTaskItem)
-                                            throw new InternalError("Parent task not found");
+                                        // We allow you to change the parent of a task you have edit access to even if
+                                        // you don't have access to the _current_ parent task. This is because we also
+                                        // allow you to delete tasks even when you don't have access to the current
+                                        // parent task. That operation will remove a child task from a parent task so
+                                        // it follows a user is allowed to remove tasks they have access to from
+                                        // unknown parents.
+                                        //
+                                        // Should we allow deleting a task when you don't have access to the parent?
+                                        // Arguably not. But it's hard to explain a restriction like that in the UI and
+                                        // the restriction is not too bad if we explain it in the revision feed.
+                                        //
+                                        // NOCOMMIT: Deleting or changing the parent of a child task should add a
+                                        // revision history entry to the parent task.
 
-                                        seenTaskIds.add(nextParentTaskItem.taskId);
-                                        currentParentTaskItem = nextParentTaskItem;
-                                    }
-                                }
+                                        let currentOldParentTaskItem = oldParentTaskItem;
 
-                                updatedTaskItemById.set(taskId, {
+                                        while (currentOldParentTaskItem.parentId.value !== null) {
+                                            const nextOldParentTaskItem = await state.getTaskItem(
+                                                currentOldParentTaskItem.parentId.value,
+                                            );
+
+                                            // Deleted tasks do not participate in circular dependencies.
+                                            if (nextOldParentTaskItem.deletedTime) break;
+
+                                            currentOldParentTaskItem = nextOldParentTaskItem;
+                                        }
+
+                                        // Force updates to a root task's subtask tree to be serialized. That way race
+                                        // conditions can't sneak a circular dependency in.
+                                        state.updateTaskItemLockVersion(currentOldParentTaskItem);
+                                    },
+                                );
+
+                                state.updateTaskItem({
                                     ...taskItem,
                                     parentId: taskItem.parentId.apply(taskAction.parentIdAction),
                                 });
@@ -617,7 +947,9 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                 switch (collectionsAction.type) {
                                     case "Set": {
                                         if (
-                                            !isChangeTimeReasonable(collectionsAction.updatedTime)
+                                            !state.isChangeTimeReasonable(
+                                                collectionsAction.updatedTime,
+                                            )
                                         ) {
                                             throw new InvalidArgumentError(
                                                 "Action `updatedTime` is too far in the future",
@@ -627,7 +959,9 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                     }
                                     case "Delete": {
                                         if (
-                                            !isChangeTimeReasonable(collectionsAction.deletedTime)
+                                            !state.isChangeTimeReasonable(
+                                                collectionsAction.deletedTime,
+                                            )
                                         ) {
                                             throw new InvalidArgumentError(
                                                 "Action `deletedTime` is too far in the future",
@@ -639,14 +973,18 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                         throw exhaustive(collectionsAction);
                                 }
 
-                                updatedTaskItemById.set(taskId, {
+                                state.updateTaskItem({
                                     ...taskItem,
                                     collections: taskItem.collections.apply(collectionsAction),
                                 });
                                 break;
                             }
                             case "UpdateDueDate": {
-                                if (!isChangeTimeReasonable(taskAction.dueDateAction.updatedTime)) {
+                                if (
+                                    !state.isChangeTimeReasonable(
+                                        taskAction.dueDateAction.updatedTime,
+                                    )
+                                ) {
                                     throw new InvalidArgumentError(
                                         "Action `updatedTime` is too far in the future",
                                     );
@@ -655,7 +993,9 @@ async function actuallyCommitTaskSpaceActionTransaction(
                             }
                             case "UpdatePriority": {
                                 if (
-                                    !isChangeTimeReasonable(taskAction.priorityAction.updatedTime)
+                                    !state.isChangeTimeReasonable(
+                                        taskAction.priorityAction.updatedTime,
+                                    )
                                 ) {
                                     throw new InvalidArgumentError(
                                         "Action `updatedTime` is too far in the future",
@@ -672,20 +1012,16 @@ async function actuallyCommitTaskSpaceActionTransaction(
             }
             case "UpdateTaskCollection": {
                 const {collectionId, collectionAction} = action;
-                const collectionItem = await getCollectionItemIfExists(collectionId);
 
                 switch (collectionAction.type) {
                     case "Create": {
-                        if (collectionItem)
-                            throw new FailedPreconditionError("Task collection already exists");
-
-                        if (collectionAction.creatorId !== context.actor.getAccountId()) {
+                        if (collectionAction.creatorId !== state.getActorAccountId()) {
                             throw new PermissionDeniedError(
                                 "Can only create a task collection with yourself as the creator",
                             );
                         }
 
-                        if (!isChangeTimeReasonable(collectionAction.createdTime)) {
+                        if (!state.isChangeTimeReasonable(collectionAction.createdTime)) {
                             throw new InvalidArgumentError(
                                 "Action `createdTime` is too far in the future",
                             );
@@ -703,10 +1039,8 @@ async function actuallyCommitTaskSpaceActionTransaction(
                         };
 
                         if (
-                            !(await evaluateTaskCollectionItemAccessPolicy(
-                                context,
+                            !(await state.evaluateTaskCollectionItemAccessPolicy(
                                 newCollectionItem,
-                                context.actor.getAccountId(),
                                 "Manage",
                             ))
                         ) {
@@ -715,10 +1049,11 @@ async function actuallyCommitTaskSpaceActionTransaction(
                             );
                         }
 
-                        updatedCollectionItemById.set(collectionId, newCollectionItem);
+                        state.createCollectionItem(newCollectionItem);
                         break;
                     }
                     case "Undelete": {
+                        const collectionItem = await state.getCollectionItemIfExists(collectionId);
                         if (!collectionItem) throw new NotFoundError("Task collection not found");
                         if (!collectionItem.deletedTime)
                             throw new FailedPreconditionError("Expected task to be deleted");
@@ -731,19 +1066,20 @@ async function actuallyCommitTaskSpaceActionTransaction(
                             );
                         }
 
-                        if (!isChangeTimeReasonable(collectionAction.undeletedTime)) {
+                        if (!state.isChangeTimeReasonable(collectionAction.undeletedTime)) {
                             throw new InvalidArgumentError(
                                 "Action `undeletedTime` is too far in the future",
                             );
                         }
 
-                        updatedCollectionItemById.set(collectionId, {
+                        state.updateCollectionItem({
                             ...collectionItem,
                             deletedTime: null,
                         });
                         break;
                     }
                     default: {
+                        const collectionItem = await state.getCollectionItemIfExists(collectionId);
                         if (!collectionItem) throw new NotFoundError("Task collection not found");
                         if (collectionItem.deletedTime)
                             throw new FailedPreconditionError("Task collection was deleted");
@@ -758,13 +1094,13 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                     );
                                 }
 
-                                if (!isChangeTimeReasonable(collectionAction.deletedTime)) {
+                                if (!state.isChangeTimeReasonable(collectionAction.deletedTime)) {
                                     throw new InvalidArgumentError(
                                         "Action `deletedTime` is too far in the future",
                                     );
                                 }
 
-                                updatedCollectionItemById.set(collectionId, {
+                                state.updateCollectionItem({
                                     ...collectionItem,
                                     deletedTime: collectionAction.deletedTime,
                                 });
@@ -772,7 +1108,9 @@ async function actuallyCommitTaskSpaceActionTransaction(
                             }
                             case "UpdateName": {
                                 if (
-                                    !isChangeTimeReasonable(collectionAction.nameAction.updatedTime)
+                                    !state.isChangeTimeReasonable(
+                                        collectionAction.nameAction.updatedTime,
+                                    )
                                 ) {
                                     throw new InvalidArgumentError(
                                         "Action `updatedTime` is too far in the future",
@@ -782,7 +1120,7 @@ async function actuallyCommitTaskSpaceActionTransaction(
                             }
                             case "UpdateAccessPolicy": {
                                 if (
-                                    !isChangeTimeReasonable(
+                                    !state.isChangeTimeReasonable(
                                         collectionAction.accessPolicyAction.updatedTime,
                                     )
                                 ) {
@@ -791,7 +1129,7 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                     );
                                 }
 
-                                updatedCollectionItemById.set(collectionId, {
+                                state.updateCollectionItem({
                                     ...collectionItem,
                                     accessPolicy: collectionItem.accessPolicy.apply(
                                         collectionAction.accessPolicyAction,
@@ -811,88 +1149,6 @@ async function actuallyCommitTaskSpaceActionTransaction(
                 throw exhaustive(action);
         }
     }
-
-    // NOCOMMIT: Remove condition checks?
-
-    const transactionEntries: Array<DynamoTransactionEntry> = [];
-
-    // All observed tasks we treat as authorization dependencies...
-    const authorizationDependencyTaskItemById = new Map(observedTaskItemById);
-
-    for (const taskItem of updatedTaskItemById.values()) {
-        authorizationDependencyTaskItemById.delete(taskItem.taskId);
-        transactionEntries.push(TasksTable.transactionDirectlyUpdateItem(taskItem));
-    }
-
-    for (const [taskId, taskItem] of authorizationDependencyTaskItemById) {
-        if (!taskItem) {
-            transactionEntries.push(
-                TasksTable.transactionDoesNotExistConditionCheck({
-                    partitionType: "Task",
-                    sortRangeType: "EssentialAttributes",
-                    taskId,
-                }),
-            );
-        } else {
-            transactionEntries.push(
-                TasksTable.transactionUpdateLockVersionConditionCheck(
-                    {
-                        partitionType: "Task",
-                        sortRangeType: "EssentialAttributes",
-                        taskId,
-                    },
-                    taskItem.updateLockVersion,
-                ),
-            );
-        }
-    }
-
-    for (const collectionItem of updatedCollectionItemById.values()) {
-        authorizationDependencyCollectionItemById.delete(collectionItem.collectionId);
-        transactionEntries.push(TasksTable.transactionDirectlyUpdateItem(collectionItem));
-    }
-
-    for (const [collectionId, collectionItem] of authorizationDependencyCollectionItemById) {
-        if (!collectionItem) {
-            transactionEntries.push(
-                TasksTable.transactionDoesNotExistConditionCheck({
-                    partitionType: "TaskCollection",
-                    sortRangeType: "EssentialAttributes",
-                    collectionId,
-                }),
-            );
-        } else {
-            transactionEntries.push(
-                TasksTable.transactionUpdateLockVersionConditionCheck(
-                    {
-                        partitionType: "TaskCollection",
-                        sortRangeType: "EssentialAttributes",
-                        collectionId,
-                    },
-                    collectionItem.updateLockVersion,
-                ),
-            );
-        }
-    }
-
-    // Actually commit the action transaction once we've verified our authorization
-    // dependencies haven't changed...
-    transactionEntries.push(
-        TaskActionsTable.transactionCreateOrReplaceItem({
-            partitionType: "TaskActions",
-            sortRangeType: "ActionTransaction",
-            spaceId,
-            actionTransactionTime: new Date(),
-            actionTransactionId: generateId(),
-            actionTransaction,
-        }),
-    );
-
-    await commitTaskSpaceActionTransactionBeforeExecuteTestCheckpoint.waitForTest(
-        context.actor.getAccountId(),
-    );
-
-    await DynamoTableSchema.executeTransaction(context, transactionEntries);
 }
 
 /**
