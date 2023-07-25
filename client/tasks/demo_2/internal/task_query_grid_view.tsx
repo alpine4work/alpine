@@ -25,6 +25,15 @@ import {generateId} from "~/shared/id/id.js";
 import {LocalTaskId} from "~/shared/id/types/id_types.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 
+// NOCOMMIT: Don't allow tab to indent for tasks that have a parent displayed.
+// This can cause weird re-parenting operations. If the user hits tab maybe
+// wiggle the parent as an explanation of why it's not allowed.
+
+// NOCOMMIT: Don't allow tab to indent at all if the tasks aren't manually
+// orderable? I would like some kind of interaction when the user hits tab to
+// let them know it's disabled in queries. Maybe we show the drag handle when
+// the task is focused and movable?
+
 type TaskQueryGridViewRowPosition =
     | {
           readonly isRoot: true;

@@ -18,6 +18,7 @@ import {
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -26,6 +27,7 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {TaskParentIdRegister} from "~/shared/tasks/actions/task_action.js";
 import {TaskSpaceAction, TaskSpaceActionSchema} from "~/shared/tasks/actions/task_space_action.js";
 import {
     TaskCollectionAccessLevel,
@@ -126,9 +128,66 @@ const TasksTable = DynamoTableSchema.new({
                     sortKeyAttributes: {},
                     attributes: Schema.object({
                         spaceId: Schema.id<SpaceId>(),
+
+                        /**
+                         * The account who created this task. The creator of a task always has edit
+                         * level permission to the task.
+                         */
                         creatorId: Schema.id<AccountId>(),
+
+                        /**
+                         * The time this task was created.
+                         */
                         createdTime: Schema.date,
+
+                        /**
+                         * The time this task was deleted. We keep a record of deleted tasks so they
+                         * may be undeleted. It's critical to check this property when looking at task
+                         * items so you know whether it's been deleted or not.
+                         */
                         deletedTime: Schema.date.nullable(),
+
+                        /**
+                         * The parent of this task.
+                         *
+                         * ## Permissions
+                         *
+                         * We inherit permissions from this task. So if you have edit access to the
+                         * parent task then you also have edit access to this task.
+                         *
+                         * You may have broader permissions to a child task. For example, you can edit
+                         * a child task but not its parent task. Or view a child task but not its
+                         * parent task.
+                         *
+                         * ## Parent deletion
+                         *
+                         * When a parent task is deleted we don't update the `parentId` attribute of
+                         * child tasks. You must be careful to check that the `parentId` task actually
+                         * exists and is not deleted. We leave gravestones around for deleted tasks so
+                         * you should always be able to find a task object even if it's deleted.
+                         *
+                         * If the parent task is undeleted the child task is again unaffected.
+                         *
+                         * ## Restrictions
+                         *
+                         * There is no restriction on how deep you can nest child tasks.
+                         *
+                         * Task circular dependencies are not allowed. Though clients may temporarily
+                         * have circular dependencies. This is because:
+                         *
+                         * - Task actions may be applied out-of-order
+                         * - We may not load the entire task parent hierarchy so we won't know to
+                         *   reject an operation that creates a circular dependency
+                         *
+                         * So clients should be careful not to crash on circular dependencies. However,
+                         * a canonical task representation will never have circular dependencies.
+                         */
+                        parentId: TaskParentIdRegister.schema,
+
+                        /**
+                         * The collections this task is a part of. A task inherits the highest access
+                         * level from its collections.
+                         */
                         collections: TaskCollectionSet.schema,
                     }),
                 },
@@ -295,7 +354,7 @@ async function actuallyCommitTaskSpaceActionTransaction(
     const authorizeTaskItemAccess = async (
         taskItem: TaskEssentialAttributesItem,
         expectedAccessLevel: TaskCollectionAccessLevel,
-    ) => {
+    ): Promise<void> => {
         // The task creator has an edit access level on their own task.
         if (
             context.actor.getAccountId() === taskItem.creatorId &&
@@ -314,7 +373,10 @@ async function actuallyCommitTaskSpaceActionTransaction(
                     await getCollectionItemIfExistsWithoutAddingAuthorizationDependency(
                         collectionId,
                     );
-                if (!collectionItem) throw new NotFoundError("Task collection not found");
+
+                // Internal error since we should keep a record of even deleted task
+                // collections.
+                if (!collectionItem) throw new InternalError("Task collection not found");
 
                 const hasAccess = await evaluateTaskCollectionItemAccessPolicy(
                     context,
@@ -339,6 +401,20 @@ async function actuallyCommitTaskSpaceActionTransaction(
             return;
         }
 
+        if (taskItem.parentId.value) {
+            const parentTaskItem = await getTaskItemIfExists(taskItem.parentId.value);
+
+            // Internal error since we should keep a record of even deleted tasks.
+            if (!parentTaskItem) throw new InternalError("Parent task not found");
+
+            // Parent tasks implicitly grant access to all of their child tasks. If we have
+            // a parent task that is not deleted then check it before throwing a permission
+            // denied error.
+            if (!parentTaskItem.deletedTime) {
+                return authorizeTaskItemAccess(parentTaskItem, expectedAccessLevel);
+            }
+        }
+
         throw new PermissionDeniedError(
             quote`Actor does not have ${expectedAccessLevel} access level to task`,
         );
@@ -347,7 +423,7 @@ async function actuallyCommitTaskSpaceActionTransaction(
     const authorizeCollectionAccess = async (
         collectionId: TaskCollectionId,
         expectedAccessLevel: TaskCollectionAccessLevel,
-    ) => {
+    ): Promise<void> => {
         const collectionItem = await getCollectionItemIfExists(collectionId);
         if (!collectionItem) throw new NotFoundError("Task collection not found");
 
@@ -395,6 +471,10 @@ async function actuallyCommitTaskSpaceActionTransaction(
                             creatorId: taskAction.creator.accountId,
                             createdTime: taskAction.createdTime.absoluteTime,
                             deletedTime: null,
+                            parentId: new TaskParentIdRegister(
+                                null,
+                                taskAction.createdTime.absoluteTime,
+                            ),
                             collections: TaskCollectionSet.empty,
                         });
                         break;
@@ -454,6 +534,79 @@ async function actuallyCommitTaskSpaceActionTransaction(
                             case "UpdateTitle": {
                                 // Y.js use Lamport timestamps which we don't need to validate for
                                 // reasonableness.
+                                break;
+                            }
+                            case "UpdateParent": {
+                                if (
+                                    !isChangeTimeReasonable(taskAction.parentIdAction.updatedTime)
+                                ) {
+                                    throw new InvalidArgumentError(
+                                        "Action `updatedTime` is too far in the future",
+                                    );
+                                }
+
+                                if (taskAction.parentIdAction.value !== null) {
+                                    const parentTaskItem = await getTaskItemIfExists(
+                                        taskAction.parentIdAction.value,
+                                    );
+                                    if (!parentTaskItem)
+                                        throw new NotFoundError("Parent task not found");
+                                    if (parentTaskItem.deletedTime)
+                                        throw new FailedPreconditionError("Parent task is deleted");
+
+                                    // Make sure we have edit access to the parent task in order to make this task
+                                    // a child of it.
+                                    await authorizeTaskItemAccess(parentTaskItem, "Edit");
+
+                                    // We allow you to change the parent of a task you have edit access to even if
+                                    // you don't have access to the _current_ parent task. This is because we also
+                                    // allow you to delete tasks even when you don't have access to the current
+                                    // parent task. That operation will remove a child task from a parent task so
+                                    // it follows a user is allowed to remove tasks they have access to from
+                                    // unknown parents.
+                                    //
+                                    // Should we allow deleting a task when you don't have access to the parent?
+                                    // Arguably not. But it's hard to explain a restriction like that in the UI and
+                                    // the restriction is not too bad if we explain it in the revision feed.
+                                    //
+                                    // NOCOMMIT: Deleting or changing the parent of a child task should add a
+                                    // revision history entry to the parent task.
+
+                                    const seenTaskIds = new Set([taskId, parentTaskItem.taskId]);
+                                    let currentParentTaskItem = parentTaskItem;
+
+                                    while (currentParentTaskItem.parentId.value !== null) {
+                                        // We don't allow task circular dependencies which would cause infinite
+                                        // looping. If we see that updating our `parentId` would create a circular
+                                        // dependency than error.
+                                        if (seenTaskIds.has(currentParentTaskItem.parentId.value)) {
+                                            throw new FailedPreconditionError(
+                                                "Updating task's `parentId` would create a circular dependency",
+                                                {
+                                                    displayMessage: errorDisplayMessage`Can’t move a task to the subtasks of one of its own subtasks. Check your task’s subtasks and try removing the one you want to move your task into.`,
+                                                },
+                                            );
+                                        }
+
+                                        // Parent task loading may be cached by our `authorizeTaskItemAccess()`
+                                        // call earlier.
+                                        const nextParentTaskItem = await getTaskItemIfExists(
+                                            currentParentTaskItem.parentId.value,
+                                        );
+
+                                        // Internal error since we should keep a record of even deleted tasks.
+                                        if (!nextParentTaskItem)
+                                            throw new InternalError("Parent task not found");
+
+                                        seenTaskIds.add(nextParentTaskItem.taskId);
+                                        currentParentTaskItem = nextParentTaskItem;
+                                    }
+                                }
+
+                                updatedTaskItemById.set(taskId, {
+                                    ...taskItem,
+                                    parentId: taskItem.parentId.apply(taskAction.parentIdAction),
+                                });
                                 break;
                             }
                             case "UpdateCollections": {
@@ -658,6 +811,8 @@ async function actuallyCommitTaskSpaceActionTransaction(
                 throw exhaustive(action);
         }
     }
+
+    // NOCOMMIT: Remove condition checks?
 
     const transactionEntries: Array<DynamoTransactionEntry> = [];
 
