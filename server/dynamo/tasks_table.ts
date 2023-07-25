@@ -28,7 +28,7 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {TaskParentIdRegister} from "~/shared/tasks/actions/task_action.js";
+import {TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_action.js";
 import {TaskSpaceAction, TaskSpaceActionSchema} from "~/shared/tasks/actions/task_space_action.js";
 import {
     TaskCollectionAccessLevel,
@@ -162,10 +162,11 @@ const TasksTable = DynamoTableSchema.new({
                          *
                          * ## Parent deletion
                          *
-                         * When a parent task is deleted we don't update the `parentId` attribute of
-                         * child tasks. You must be careful to check that the `parentId` task actually
-                         * exists and is not deleted. We leave gravestones around for deleted tasks so
-                         * you should always be able to find a task object even if it's deleted.
+                         * When a parent task is deleted we don't update the `parentTaskId` attribute
+                         * of child tasks. You must be careful to check that the `parentTaskId` task
+                         * actually exists and is not deleted. We leave gravestones around for deleted
+                         * tasks so you should always be able to find a task object even if it's
+                         * deleted.
                          *
                          * If the parent task is undeleted the child task is again unaffected.
                          *
@@ -188,7 +189,7 @@ const TasksTable = DynamoTableSchema.new({
                          * iterating through a parent task chain, make sure to `break` if you see a
                          * deleted parent task.
                          */
-                        parentId: TaskParentIdRegister.schema,
+                        parentTaskId: TaskParentTaskIdRegister.schema,
 
                         /**
                          * The collections this task is a part of. A task inherits the highest access
@@ -646,8 +647,8 @@ async function actuallyCommitTaskSpaceActionTransaction(
         // our transaction.
         if (authorizingCollectionItems.some(isNonNullable)) return;
 
-        if (taskItem.parentId.value) {
-            const parentTaskItem = await state.getTaskItem(taskItem.parentId.value);
+        if (taskItem.parentTaskId.value) {
+            const parentTaskItem = await state.getTaskItem(taskItem.parentTaskId.value);
 
             // Parent tasks implicitly grant access to all of their child tasks. If we have
             // a parent task that is not deleted then check it before throwing a permission
@@ -707,7 +708,7 @@ async function actuallyCommitTaskSpaceActionTransaction(
                             creatorId: taskAction.creator.accountId,
                             createdTime: taskAction.createdTime.absoluteTime,
                             deletedTime: null,
-                            parentId: new TaskParentIdRegister(
+                            parentTaskId: new TaskParentTaskIdRegister(
                                 null,
                                 taskAction.createdTime.absoluteTime,
                             ),
@@ -738,12 +739,12 @@ async function actuallyCommitTaskSpaceActionTransaction(
                         const seenTaskIds = new Set([taskItem.taskId]);
                         let currentParentTaskItem = taskItem;
 
-                        while (currentParentTaskItem.parentId.value !== null) {
+                        while (currentParentTaskItem.parentTaskId.value !== null) {
                             // We don't allow task circular dependencies which would cause infinite
                             // looping. Deleted tasks break the circular dependency chain. So a circular
                             // dependency may exist involving a deleted task. When we undelete, we need to
                             // make sure it doesn't create a circular dependency.
-                            if (seenTaskIds.has(currentParentTaskItem.parentId.value)) {
+                            if (seenTaskIds.has(currentParentTaskItem.parentTaskId.value)) {
                                 throw new FailedPreconditionError(
                                     "Undeleting task would create a circular dependency",
                                     {
@@ -756,7 +757,7 @@ async function actuallyCommitTaskSpaceActionTransaction(
                             }
 
                             const nextParentTaskItem = await state.getTaskItem(
-                                currentParentTaskItem.parentId.value,
+                                currentParentTaskItem.parentTaskId.value,
                             );
 
                             // Deleted tasks do not participate in circular dependencies.
@@ -809,10 +810,10 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                 // reasonableness.
                                 break;
                             }
-                            case "UpdateParent": {
+                            case "UpdateParentTaskId": {
                                 if (
                                     !state.isChangeTimeReasonable(
-                                        taskAction.parentIdAction.updatedTime,
+                                        taskAction.parentTaskIdAction.updatedTime,
                                     )
                                 ) {
                                     throw new InvalidArgumentError(
@@ -835,10 +836,10 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                 await runAllPromiseThunks(
                                     // Authorize new parent `TaskId`:
                                     async () => {
-                                        if (taskAction.parentIdAction.value === null) return;
+                                        if (taskAction.parentTaskIdAction.value === null) return;
 
                                         const newParentTaskItem = await state.getTaskItemIfExists(
-                                            taskAction.parentIdAction.value,
+                                            taskAction.parentTaskIdAction.value,
                                         );
                                         if (!newParentTaskItem)
                                             throw new NotFoundError("Parent task not found");
@@ -857,17 +858,19 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                         ]);
                                         let currentNewParentTaskItem = newParentTaskItem;
 
-                                        while (currentNewParentTaskItem.parentId.value !== null) {
+                                        while (
+                                            currentNewParentTaskItem.parentTaskId.value !== null
+                                        ) {
                                             // We don't allow task circular dependencies which would cause infinite
-                                            // looping. If we see that updating our `parentId` would create a circular
+                                            // looping. If we see that updating our `parentTaskId` would create a circular
                                             // dependency then error.
                                             if (
                                                 seenTaskIds.has(
-                                                    currentNewParentTaskItem.parentId.value,
+                                                    currentNewParentTaskItem.parentTaskId.value,
                                                 )
                                             ) {
                                                 throw new FailedPreconditionError(
-                                                    "Updating task's `parentId` would create a circular dependency",
+                                                    "Updating task's `parentTaskId` would create a circular dependency",
                                                     {
                                                         displayMessage: errorDisplayMessage`Can’t move a task to the subtasks of one of its own subtasks. Check your task’s subtasks and try removing the one you want to move your task into.`,
                                                     },
@@ -877,7 +880,7 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                             // Parent task loading may be cached by our `authorizeTaskItemAccess()`
                                             // call earlier.
                                             const nextNewParentTaskItem = await state.getTaskItem(
-                                                currentNewParentTaskItem.parentId.value,
+                                                currentNewParentTaskItem.parentTaskId.value,
                                             );
 
                                             // Deleted tasks do not participate in circular dependencies.
@@ -893,10 +896,10 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                     },
                                     // Authorize old parent `TaskId`:
                                     async () => {
-                                        if (taskItem.parentId.value === null) return;
+                                        if (taskItem.parentTaskId.value === null) return;
 
                                         const oldParentTaskItem = await state.getTaskItem(
-                                            taskItem.parentId.value,
+                                            taskItem.parentTaskId.value,
                                         );
                                         if (oldParentTaskItem.deletedTime) return;
 
@@ -916,9 +919,11 @@ async function actuallyCommitTaskSpaceActionTransaction(
 
                                         let currentOldParentTaskItem = oldParentTaskItem;
 
-                                        while (currentOldParentTaskItem.parentId.value !== null) {
+                                        while (
+                                            currentOldParentTaskItem.parentTaskId.value !== null
+                                        ) {
                                             const nextOldParentTaskItem = await state.getTaskItem(
-                                                currentOldParentTaskItem.parentId.value,
+                                                currentOldParentTaskItem.parentTaskId.value,
                                             );
 
                                             // Deleted tasks do not participate in circular dependencies.
@@ -935,8 +940,38 @@ async function actuallyCommitTaskSpaceActionTransaction(
 
                                 state.updateTaskItem({
                                     ...taskItem,
-                                    parentId: taskItem.parentId.apply(taskAction.parentIdAction),
+                                    parentTaskId: taskItem.parentTaskId.apply(
+                                        taskAction.parentTaskIdAction,
+                                    ),
                                 });
+                                break;
+                            }
+                            case "UpdateParentOrderKey": {
+                                if (
+                                    !state.isChangeTimeReasonable(
+                                        taskAction.parentOrderKeyAction.updatedTime,
+                                    )
+                                ) {
+                                    throw new InvalidArgumentError(
+                                        "Action `updatedTime` is too far in the future",
+                                    );
+                                }
+
+                                if (taskItem.parentTaskId.value === null) {
+                                    throw new FailedPreconditionError(
+                                        "Task does not have a parent",
+                                    );
+                                }
+
+                                const parentTaskItem = await state.getTaskItem(
+                                    taskItem.parentTaskId.value,
+                                );
+                                if (parentTaskItem.deletedTime)
+                                    throw new FailedPreconditionError("Parent task is deleted");
+
+                                // Make sure we have edit access to the parent task. The order key is more-so a
+                                // property of the parent task than it is a property of our task.
+                                await authorizeTaskItemAccess(parentTaskItem, "Edit");
                                 break;
                             }
                             case "UpdateCollections": {

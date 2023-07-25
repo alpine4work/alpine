@@ -3981,17 +3981,17 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 }
                                                                             }
                                                                         },
-                                                                        "UpdateParent": {
+                                                                        "UpdateParentTaskId": {
                                                                             "type": "Object",
                                                                             "propertySchemaByKey": {
                                                                                 "type": {
                                                                                     "valueSchema": {
                                                                                         "type": "Value",
-                                                                                        "value": "UpdateParent"
+                                                                                        "value": "UpdateParentTaskId"
                                                                                     },
                                                                                     "optional": false
                                                                                 },
-                                                                                "parentIdAction": {
+                                                                                "parentTaskIdAction": {
                                                                                     "valueSchema": {
                                                                                         "type": "Object",
                                                                                         "propertySchemaByKey": {
@@ -4001,7 +4001,42 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                     "schema": {
                                                                                                         "type": "Id"
                                                                                                     },
-                                                                                                    "referenceId": "a9dbf9cc"
+                                                                                                    "referenceId": "68f8aa34"
+                                                                                                },
+                                                                                                "optional": false
+                                                                                            },
+                                                                                            "updatedTime": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Date"
+                                                                                                },
+                                                                                                "optional": false
+                                                                                            }
+                                                                                        }
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "UpdateParentOrderKey": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "UpdateParentOrderKey"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "parentOrderKeyAction": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Object",
+                                                                                        "propertySchemaByKey": {
+                                                                                            "value": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Nullable",
+                                                                                                    "schema": {
+                                                                                                        "type": "String"
+                                                                                                    }
                                                                                                 },
                                                                                                 "optional": false
                                                                                             },
@@ -4530,14 +4565,14 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
-                                    "parentId": {
+                                    "parentTaskId": {
                                         "valueSchema": {
                                             "type": "Object",
                                             "propertySchemaByKey": {
                                                 "value": {
                                                     "valueSchema": {
                                                         "type": "Reference",
-                                                        "reuseReferenceId": "a9dbf9cc"
+                                                        "reuseReferenceId": "68f8aa34"
                                                     },
                                                     "optional": false
                                                 },

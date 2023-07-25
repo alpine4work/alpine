@@ -1,6 +1,7 @@
 import {CalendarDate, parseDate} from "@internationalized/date";
 import {createCrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
+import {OrderKeySchema} from "~/shared/schema/order_key_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
@@ -72,13 +73,31 @@ const TaskUpdateTitleActionSchema = Schema.object({
     titleUpdate: TaskTitleUpdateSchema,
 });
 
-export type TaskUpdateParentAction = SchemaType<typeof TaskUpdateParentActionSchema>;
+// The task parent `TaskId` and `OrderKey` are separate registers. That way you
+// can update the `OrderKey` without needing to update the parent `TaskId`
+// register which does some expensive validation to prevent cycles.
+//
+// The task model object should present these two registers as one `parent`
+// object and encourage you to always update the parent `OrderKey` when you
+// update the parent `TaskId`.
+export const TaskParentTaskIdRegister = createCrdtRegister(Schema.id<TaskId>().nullable());
 
-export const TaskParentIdRegister = createCrdtRegister(Schema.id<TaskId>().nullable());
+export type TaskUpdateParentTaskIdAction = SchemaType<typeof TaskUpdateParentTaskIdActionSchema>;
 
-const TaskUpdateParentActionSchema = Schema.object({
-    type: Schema.value("UpdateParent"),
-    parentIdAction: TaskParentIdRegister.actionSchema,
+const TaskUpdateParentTaskIdActionSchema = Schema.object({
+    type: Schema.value("UpdateParentTaskId"),
+    parentTaskIdAction: TaskParentTaskIdRegister.actionSchema,
+});
+
+export const TaskParentOrderKeyRegister = createCrdtRegister(OrderKeySchema.nullable());
+
+export type TaskUpdateParentOrderKeyAction = SchemaType<
+    typeof TaskUpdateParentOrderKeyActionSchema
+>;
+
+const TaskUpdateParentOrderKeyActionSchema = Schema.object({
+    type: Schema.value("UpdateParentOrderKey"),
+    parentOrderKeyAction: TaskParentOrderKeyRegister.actionSchema,
 });
 
 export type TaskUpdateCollectionsAction = SchemaType<typeof TaskUpdateCollectionsActionSchema>;
@@ -114,7 +133,8 @@ export const TaskActionSchema = Schema.union({
     Delete: TaskDeleteActionSchema,
     Undelete: TaskUndeleteActionSchema,
     UpdateTitle: TaskUpdateTitleActionSchema,
-    UpdateParent: TaskUpdateParentActionSchema,
+    UpdateParentTaskId: TaskUpdateParentTaskIdActionSchema,
+    UpdateParentOrderKey: TaskUpdateParentOrderKeyActionSchema,
     UpdateCollections: TaskUpdateCollectionsActionSchema,
     UpdateDueDate: TaskUpdateDueDateActionSchema,
     UpdatePriority: TaskUpdatePriorityActionSchema,
