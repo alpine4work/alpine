@@ -3981,42 +3981,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 }
                                                                             }
                                                                         },
-                                                                        "UpdateParent": {
-                                                                            "type": "Object",
-                                                                            "propertySchemaByKey": {
-                                                                                "type": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Value",
-                                                                                        "value": "UpdateParent"
-                                                                                    },
-                                                                                    "optional": false
-                                                                                },
-                                                                                "parentIdAction": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Object",
-                                                                                        "propertySchemaByKey": {
-                                                                                            "value": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Nullable",
-                                                                                                    "schema": {
-                                                                                                        "type": "Id"
-                                                                                                    },
-                                                                                                    "referenceId": "a9dbf9cc"
-                                                                                                },
-                                                                                                "optional": false
-                                                                                            },
-                                                                                            "updatedTime": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Date"
-                                                                                                },
-                                                                                                "optional": false
-                                                                                            }
-                                                                                        }
-                                                                                    },
-                                                                                    "optional": false
-                                                                                }
-                                                                            }
-                                                                        },
                                                                         "UpdateCollections": {
                                                                             "type": "Object",
                                                                             "propertySchemaByKey": {
@@ -4526,27 +4490,6 @@ export const dynamoGeneratedSchemaDescription: {
                                             "type": "Nullable",
                                             "schema": {
                                                 "type": "Date"
-                                            }
-                                        },
-                                        "optional": false
-                                    },
-                                    "parentId": {
-                                        "valueSchema": {
-                                            "type": "Object",
-                                            "propertySchemaByKey": {
-                                                "value": {
-                                                    "valueSchema": {
-                                                        "type": "Reference",
-                                                        "reuseReferenceId": "a9dbf9cc"
-                                                    },
-                                                    "optional": false
-                                                },
-                                                "updatedTime": {
-                                                    "valueSchema": {
-                                                        "type": "Date"
-                                                    },
-                                                    "optional": false
-                                                }
                                             }
                                         },
                                         "optional": false

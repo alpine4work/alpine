@@ -26,7 +26,6 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {TaskParentIdRegister} from "~/shared/tasks/actions/task_action.js";
 import {TaskSpaceAction, TaskSpaceActionSchema} from "~/shared/tasks/actions/task_space_action.js";
 import {
     TaskCollectionAccessLevel,
@@ -34,13 +33,6 @@ import {
     hasTaskCollectionAccessLevel,
 } from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
-
-/**
- * The maximum depth of a child task.
- *
- * This is coincidentally the same as `maxListItemIndentation`.
- */
-const maxChildTaskDepth = 5;
 
 /**
  * The task actions table is the canonical representation of the data in our
@@ -137,7 +129,6 @@ const TasksTable = DynamoTableSchema.new({
                         creatorId: Schema.id<AccountId>(),
                         createdTime: Schema.date,
                         deletedTime: Schema.date.nullable(),
-                        parentId: TaskParentIdRegister.schema,
                         collections: TaskCollectionSet.schema,
                     }),
                 },
@@ -304,7 +295,7 @@ async function actuallyCommitTaskSpaceActionTransaction(
     const authorizeTaskItemAccess = async (
         taskItem: TaskEssentialAttributesItem,
         expectedAccessLevel: TaskCollectionAccessLevel,
-    ): Promise<void> => {
+    ) => {
         // The task creator has an edit access level on their own task.
         if (
             context.actor.getAccountId() === taskItem.creatorId &&
@@ -348,18 +339,6 @@ async function actuallyCommitTaskSpaceActionTransaction(
             return;
         }
 
-        if (taskItem.parentId.value) {
-            const parentTaskItem = await getTaskItemIfExists(taskItem.parentId.value);
-            if (!parentTaskItem) throw new NotFoundError("Parent task not found");
-
-            // Parent tasks implicitly grant access to all of their child tasks. If we have
-            // a parent task that is not deleted then check it before throwing a permission
-            // denied error.
-            if (!parentTaskItem.deletedTime) {
-                return authorizeTaskItemAccess(parentTaskItem, expectedAccessLevel);
-            }
-        }
-
         throw new PermissionDeniedError(
             quote`Actor does not have ${expectedAccessLevel} access level to task`,
         );
@@ -368,7 +347,7 @@ async function actuallyCommitTaskSpaceActionTransaction(
     const authorizeCollectionAccess = async (
         collectionId: TaskCollectionId,
         expectedAccessLevel: TaskCollectionAccessLevel,
-    ): Promise<void> => {
+    ) => {
         const collectionItem = await getCollectionItemIfExists(collectionId);
         if (!collectionItem) throw new NotFoundError("Task collection not found");
 
@@ -416,10 +395,6 @@ async function actuallyCommitTaskSpaceActionTransaction(
                             creatorId: taskAction.creator.accountId,
                             createdTime: taskAction.createdTime.absoluteTime,
                             deletedTime: null,
-                            parentId: new TaskParentIdRegister(
-                                null,
-                                taskAction.createdTime.absoluteTime,
-                            ),
                             collections: TaskCollectionSet.empty,
                         });
                         break;
@@ -479,72 +454,6 @@ async function actuallyCommitTaskSpaceActionTransaction(
                             case "UpdateTitle": {
                                 // Y.js use Lamport timestamps which we don't need to validate for
                                 // reasonableness.
-                                break;
-                            }
-                            case "UpdateParent": {
-                                if (
-                                    !isChangeTimeReasonable(taskAction.parentIdAction.updatedTime)
-                                ) {
-                                    throw new InvalidArgumentError(
-                                        "Action `updatedTime` is too far in the future",
-                                    );
-                                }
-
-                                if (taskAction.parentIdAction.value !== null) {
-                                    const parentTaskItem = await getTaskItemIfExists(
-                                        taskAction.parentIdAction.value,
-                                    );
-                                    if (!parentTaskItem)
-                                        throw new NotFoundError("Parent task not found");
-                                    if (parentTaskItem.deletedTime)
-                                        throw new FailedPreconditionError("Parent task is deleted");
-
-                                    // Make sure we have edit access to the parent task in order to make this task
-                                    // a child of it.
-                                    await authorizeTaskItemAccess(parentTaskItem, "Edit");
-
-                                    let depth = 1;
-                                    const seenTaskIds = new Set([taskId, parentTaskItem.taskId]);
-                                    let currentParentTaskItem = parentTaskItem;
-
-                                    while (currentParentTaskItem.parentId.value !== null) {
-                                        // We don't allow task cycles which would cause infinite looping. If we see
-                                        // that updating our `parentId` would create a cycle then error.
-                                        //
-                                        // Since actions may be applied out of order, clients may temporarily have a
-                                        // task cycle. We should be careful about breaking this up on the client.
-                                        if (seenTaskIds.has(currentParentTaskItem.parentId.value)) {
-                                            throw new FailedPreconditionError(
-                                                "Updating task's `parentId` would create a cycle",
-                                            );
-                                        }
-
-                                        if (depth >= maxChildTaskDepth) {
-                                            throw new FailedPreconditionError(
-                                                "Maximum child task depth exceeded",
-                                            );
-                                        }
-
-                                        // NOCOMMIT: Track child task depth so we can enforce depth limit.
-
-                                        // Parent task loading may be cached by our `authorizeTaskItemAccess()`
-                                        // call earlier.
-                                        const nextParentTaskItem = await getTaskItemIfExists(
-                                            currentParentTaskItem.parentId.value,
-                                        );
-                                        if (!nextParentTaskItem)
-                                            throw new NotFoundError("Parent task not found");
-
-                                        depth += 1;
-                                        seenTaskIds.add(nextParentTaskItem.taskId);
-                                        currentParentTaskItem = nextParentTaskItem;
-                                    }
-                                }
-
-                                updatedTaskItemById.set(taskId, {
-                                    ...taskItem,
-                                    parentId: taskItem.parentId.apply(taskAction.parentIdAction),
-                                });
                                 break;
                             }
                             case "UpdateCollections": {

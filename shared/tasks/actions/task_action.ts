@@ -1,6 +1,5 @@
 import {CalendarDate, parseDate} from "@internationalized/date";
 import {createCrdtRegister} from "~/shared/crdt/crdt_register.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
@@ -72,15 +71,6 @@ const TaskUpdateTitleActionSchema = Schema.object({
     titleUpdate: TaskTitleUpdateSchema,
 });
 
-export type TaskUpdateParentAction = SchemaType<typeof TaskUpdateParentActionSchema>;
-
-export const TaskParentIdRegister = createCrdtRegister(Schema.id<TaskId>().nullable());
-
-const TaskUpdateParentActionSchema = Schema.object({
-    type: Schema.value("UpdateParent"),
-    parentIdAction: TaskParentIdRegister.actionSchema,
-});
-
 export type TaskUpdateCollectionsAction = SchemaType<typeof TaskUpdateCollectionsActionSchema>;
 
 const TaskUpdateCollectionsActionSchema = Schema.object({
@@ -114,7 +104,6 @@ export const TaskActionSchema = Schema.union({
     Delete: TaskDeleteActionSchema,
     Undelete: TaskUndeleteActionSchema,
     UpdateTitle: TaskUpdateTitleActionSchema,
-    UpdateParent: TaskUpdateParentActionSchema,
     UpdateCollections: TaskUpdateCollectionsActionSchema,
     UpdateDueDate: TaskUpdateDueDateActionSchema,
     UpdatePriority: TaskUpdatePriorityActionSchema,
