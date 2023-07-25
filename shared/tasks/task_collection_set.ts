@@ -15,6 +15,11 @@ export type TaskCollectionSetAction = CrdtMapAction<TaskCollectionId, OrderKey>;
  * [CRDT][1]. That means the actions which update it
  * (see `TaskCollectionSetAction`) are commutative and idempotent.
  *
+ * We model this as a map of `TaskCollectionId` to `OrderKey`, but logically
+ * you should think of this as a list of unique `TaskCollectionId`. `OrderKey`
+ * determines the order of the list so you can easily insert move
+ * `TaskCollectionId`s.
+ *
  * [1]: https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type
  */
 export class TaskCollectionSet {

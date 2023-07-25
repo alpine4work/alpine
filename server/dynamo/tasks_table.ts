@@ -384,6 +384,10 @@ class TaskSpaceActionTransactionCommitState {
         return this._context.actor.getAccountId();
     }
 
+    public isAccountMemberOfSpace(accountId: AccountId): Promise<boolean> {
+        return isAccountMemberOfSpace(this._context, this._spaceId, accountId);
+    }
+
     /**
      * Clients specify change times for various properties and we use change times
      * to resolve conflicting updates. Clients may specify a change time at any
@@ -688,15 +692,15 @@ async function actuallyCommitTaskSpaceActionTransaction(
 
                 switch (taskAction.type) {
                     case "Create": {
-                        if (taskAction.creator.accountId !== state.getActorAccountId()) {
-                            throw new PermissionDeniedError(
-                                "Can only create a task with yourself as the creator",
-                            );
-                        }
-
                         if (!state.isChangeTimeReasonable(taskAction.createdTime.absoluteTime)) {
                             throw new InvalidArgumentError(
                                 "Action `createdTime` is too far in the future",
+                            );
+                        }
+
+                        if (taskAction.creator.accountId !== state.getActorAccountId()) {
+                            throw new PermissionDeniedError(
+                                "Can only create a task with yourself as the creator",
                             );
                         }
 
@@ -803,11 +807,6 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                     ...taskItem,
                                     deletedTime: taskAction.deletedTime,
                                 });
-                                break;
-                            }
-                            case "UpdateTitle": {
-                                // Y.js use Lamport timestamps which we don't need to validate for
-                                // reasonableness.
                                 break;
                             }
                             case "UpdateParentTaskId": {
@@ -946,14 +945,24 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                 });
                                 break;
                             }
-                            case "UpdateParentOrderKey": {
+                            case "UpdateParentPosition": {
                                 if (
                                     !state.isChangeTimeReasonable(
-                                        taskAction.parentOrderKeyAction.updatedTime,
+                                        taskAction.parentPositionAction.updatedTime,
                                     )
                                 ) {
                                     throw new InvalidArgumentError(
                                         "Action `updatedTime` is too far in the future",
+                                    );
+                                }
+
+                                if (
+                                    !state.isChangeTimeReasonable(
+                                        taskAction.parentPositionAction.value.orderTime,
+                                    )
+                                ) {
+                                    throw new InvalidArgumentError(
+                                        "Action `orderTime` is too far in the future",
                                     );
                                 }
 
@@ -1012,6 +1021,123 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                     ...taskItem,
                                     collections: taskItem.collections.apply(collectionsAction),
                                 });
+                                break;
+                            }
+                            case "UpdateStatus": {
+                                if (
+                                    !state.isChangeTimeReasonable(
+                                        taskAction.statusAction.updatedTime,
+                                    )
+                                ) {
+                                    throw new InvalidArgumentError(
+                                        "Action `updatedTime` is too far in the future",
+                                    );
+                                }
+
+                                if (
+                                    taskAction.statusAction.value.type === "Closed" &&
+                                    !state.isChangeTimeReasonable(
+                                        taskAction.statusAction.value.closedTime.absoluteTime,
+                                    )
+                                ) {
+                                    throw new InvalidArgumentError(
+                                        "Action `closedTime` is too far in the future",
+                                    );
+                                }
+
+                                if (
+                                    taskAction.statusAction.value.type === "Closed" &&
+                                    taskAction.statusAction.value.closer.accountId !==
+                                        state.getActorAccountId()
+                                ) {
+                                    throw new PermissionDeniedError(
+                                        "Can only close a task with yourself as the closer",
+                                    );
+                                }
+                                break;
+                            }
+                            case "UpdateAssignee": {
+                                if (
+                                    !state.isChangeTimeReasonable(
+                                        taskAction.assigneeAction.updatedTime,
+                                    )
+                                ) {
+                                    throw new InvalidArgumentError(
+                                        "Action `updatedTime` is too far in the future",
+                                    );
+                                }
+
+                                if (
+                                    taskAction.assigneeAction.value &&
+                                    !state.isChangeTimeReasonable(
+                                        taskAction.assigneeAction.value.assignedTime.absoluteTime,
+                                    )
+                                ) {
+                                    throw new InvalidArgumentError(
+                                        "Action `assignedTime` is too far in the future",
+                                    );
+                                }
+
+                                if (
+                                    taskAction.assigneeAction.value &&
+                                    taskAction.assigneeAction.value.assigner.accountId !==
+                                        state.getActorAccountId()
+                                ) {
+                                    throw new PermissionDeniedError(
+                                        "Can only assign a task with yourself as the assigner",
+                                    );
+                                }
+
+                                if (
+                                    taskAction.assigneeAction.value &&
+                                    !(await state.isAccountMemberOfSpace(
+                                        taskAction.assigneeAction.value.assignee.accountId,
+                                    ))
+                                ) {
+                                    throw new FailedPreconditionError(
+                                        "Can't assign a task to an account outside of the current space",
+                                    );
+                                }
+                                break;
+                            }
+                            case "UpdateAssigneeStatus": {
+                                if (
+                                    !state.isChangeTimeReasonable(
+                                        taskAction.assigneeStatusAction.updatedTime,
+                                    )
+                                ) {
+                                    throw new InvalidArgumentError(
+                                        "Action `updatedTime` is too far in the future",
+                                    );
+                                }
+
+                                if (
+                                    taskAction.assigneeStatusAction.value.type === "Active" &&
+                                    !state.isChangeTimeReasonable(
+                                        taskAction.assigneeStatusAction.value.activatedTime
+                                            .absoluteTime,
+                                    )
+                                ) {
+                                    throw new InvalidArgumentError(
+                                        "Action `activatedTime` is too far in the future",
+                                    );
+                                }
+
+                                if (
+                                    taskAction.assigneeStatusAction.value.type === "Active" &&
+                                    !state.isChangeTimeReasonable(
+                                        taskAction.assigneeStatusAction.value.position.orderTime,
+                                    )
+                                ) {
+                                    throw new InvalidArgumentError(
+                                        "Action `orderTime` is too far in the future",
+                                    );
+                                }
+                                break;
+                            }
+                            case "UpdateTitle": {
+                                // Y.js use Lamport timestamps which we don't need to validate for
+                                // reasonableness.
                                 break;
                             }
                             case "UpdateDueDate": {

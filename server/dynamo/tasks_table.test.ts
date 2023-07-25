@@ -14,7 +14,7 @@ import {
     PermissionDeniedError,
 } from "~/shared/error/error.js";
 import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
-import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskCollectionAccessPolicyRegister} from "~/shared/tasks/task_collection_access_policy.js";
@@ -38,6 +38,11 @@ const taskAccount1 = new TaskSortableAccount({
 const taskAccount2 = new TaskSortableAccount({
     accountId: session2.accountId,
     workingAccountName: session2.account.name,
+});
+
+const otherTaskAccount = new TaskSortableAccount({
+    accountId: otherSession.accountId,
+    workingAccountName: otherSession.account.name,
 });
 
 let lastTime = Date.now();
@@ -9183,9 +9188,9 @@ test("can't update task parent order key when there is no parent", async () => {
                 type: "UpdateTask",
                 taskId,
                 taskAction: {
-                    type: "UpdateParentOrderKey",
-                    parentOrderKeyAction: {
-                        value: assertOrderKey("a1"),
+                    type: "UpdateParentPosition",
+                    parentPositionAction: {
+                        value: {orderTime: getCurrentTime(), orderKey: initialOrderKey},
                         updatedTime: getCurrentTime(),
                     },
                 },
@@ -9235,9 +9240,9 @@ test("can update task parent order key", async () => {
             type: "UpdateTask",
             taskId: taskId2,
             taskAction: {
-                type: "UpdateParentOrderKey",
-                parentOrderKeyAction: {
-                    value: assertOrderKey("a1"),
+                type: "UpdateParentPosition",
+                parentPositionAction: {
+                    value: {orderTime: getCurrentTime(), orderKey: initialOrderKey},
                     updatedTime: getCurrentTime(),
                 },
             },
@@ -9287,9 +9292,9 @@ test("can't update task parent order key with unreasonable updated time", async 
                 type: "UpdateTask",
                 taskId: taskId2,
                 taskAction: {
-                    type: "UpdateParentOrderKey",
-                    parentOrderKeyAction: {
-                        value: assertOrderKey("a1"),
+                    type: "UpdateParentPosition",
+                    parentPositionAction: {
+                        value: {orderTime: getCurrentTime(), orderKey: initialOrderKey},
                         updatedTime: getUnreasonableTime(),
                     },
                 },
@@ -9351,9 +9356,9 @@ test("can't update task parent order key when parent is deleted", async () => {
                 type: "UpdateTask",
                 taskId: taskId2,
                 taskAction: {
-                    type: "UpdateParentOrderKey",
-                    parentOrderKeyAction: {
-                        value: assertOrderKey("a1"),
+                    type: "UpdateParentPosition",
+                    parentPositionAction: {
+                        value: {orderTime: getCurrentTime(), orderKey: initialOrderKey},
                         updatedTime: getCurrentTime(),
                     },
                 },
@@ -9440,9 +9445,9 @@ test("can't update task parent order key when you don't have edit access to pare
                 type: "UpdateTask",
                 taskId: taskId2,
                 taskAction: {
-                    type: "UpdateParentOrderKey",
-                    parentOrderKeyAction: {
-                        value: assertOrderKey("a1"),
+                    type: "UpdateParentPosition",
+                    parentPositionAction: {
+                        value: {orderTime: getCurrentTime(), orderKey: initialOrderKey},
                         updatedTime: getCurrentTime(),
                     },
                 },
@@ -9455,12 +9460,725 @@ test("can't update task parent order key when you don't have edit access to pare
             type: "UpdateTask",
             taskId: taskId2,
             taskAction: {
-                type: "UpdateParentOrderKey",
-                parentOrderKeyAction: {
-                    value: assertOrderKey("a1"),
+                type: "UpdateParentPosition",
+                parentPositionAction: {
+                    value: {orderTime: getCurrentTime(), orderKey: initialOrderKey},
                     updatedTime: getCurrentTime(),
                 },
             },
         },
     ]);
+});
+
+test("can't update task parent order key if order time is unreasonable", async () => {
+    const taskId1 = generateId<TaskId>();
+    const taskId2 = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId: taskId1,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskIdAction: {
+                    value: taskId1,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                taskId: taskId2,
+                taskAction: {
+                    type: "UpdateParentPosition",
+                    parentPositionAction: {
+                        value: {orderTime: getUnreasonableTime(), orderKey: initialOrderKey},
+                        updatedTime: getCurrentTime(),
+                    },
+                },
+            },
+        ]),
+    ).rejects.toThrow(new InvalidArgumentError("Action `orderTime` is too far in the future"));
+});
+
+test("can update task status", async () => {
+    const taskId = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "UpdateStatus",
+                statusAction: {
+                    value: {type: "Closed", closer: taskAccount1, closedTime: getCurrentTaskTime()},
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "UpdateStatus",
+                statusAction: {
+                    value: {type: "Open"},
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+});
+
+test("can't update task status with unreasonable updated time", async () => {
+    const taskId = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                taskId,
+                taskAction: {
+                    type: "UpdateStatus",
+                    statusAction: {
+                        value: {
+                            type: "Closed",
+                            closer: taskAccount1,
+                            closedTime: getCurrentTaskTime(),
+                        },
+                        updatedTime: getUnreasonableTime(),
+                    },
+                },
+            },
+        ]),
+    ).rejects.toThrow(new InvalidArgumentError("Action `updatedTime` is too far in the future"));
+});
+
+test("can't update task status with unreasonable closed time", async () => {
+    const taskId = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                taskId,
+                taskAction: {
+                    type: "UpdateStatus",
+                    statusAction: {
+                        value: {
+                            type: "Closed",
+                            closer: taskAccount1,
+                            closedTime: getUnreasonableTaskTime(),
+                        },
+                        updatedTime: getCurrentTime(),
+                    },
+                },
+            },
+        ]),
+    ).rejects.toThrow(new InvalidArgumentError("Action `closedTime` is too far in the future"));
+});
+
+test("can't update task status with a closer other than your account", async () => {
+    const taskId = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                taskId,
+                taskAction: {
+                    type: "UpdateStatus",
+                    statusAction: {
+                        value: {
+                            type: "Closed",
+                            closer: taskAccount2,
+                            closedTime: getCurrentTaskTime(),
+                        },
+                        updatedTime: getCurrentTime(),
+                    },
+                },
+            },
+        ]),
+    ).rejects.toThrow(
+        new PermissionDeniedError("Can only close a task with yourself as the closer"),
+    );
+});
+
+test("can update task assignee", async () => {
+    const taskId = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "UpdateAssignee",
+                assigneeAction: {
+                    value: {
+                        assignee: taskAccount2,
+                        assigner: taskAccount1,
+                        assignedTime: getCurrentTaskTime(),
+                    },
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "UpdateAssignee",
+                assigneeAction: {
+                    value: null,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "UpdateAssignee",
+                assigneeAction: {
+                    value: {
+                        assignee: taskAccount1,
+                        assigner: taskAccount1,
+                        assignedTime: getCurrentTaskTime(),
+                    },
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+});
+
+test("can't update task assignee with unreasonable updated time", async () => {
+    const taskId = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                taskId,
+                taskAction: {
+                    type: "UpdateAssignee",
+                    assigneeAction: {
+                        value: {
+                            assignee: taskAccount2,
+                            assigner: taskAccount1,
+                            assignedTime: getCurrentTaskTime(),
+                        },
+                        updatedTime: getUnreasonableTime(),
+                    },
+                },
+            },
+        ]),
+    ).rejects.toThrow(new InvalidArgumentError("Action `updatedTime` is too far in the future"));
+});
+
+test("can't update task assignee with unreasonable assigned time", async () => {
+    const taskId = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                taskId,
+                taskAction: {
+                    type: "UpdateAssignee",
+                    assigneeAction: {
+                        value: {
+                            assignee: taskAccount2,
+                            assigner: taskAccount1,
+                            assignedTime: getUnreasonableTaskTime(),
+                        },
+                        updatedTime: getCurrentTime(),
+                    },
+                },
+            },
+        ]),
+    ).rejects.toThrow(new InvalidArgumentError("Action `assignedTime` is too far in the future"));
+});
+
+test("can't update task assignee with an assigner other than your account", async () => {
+    const taskId = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                taskId,
+                taskAction: {
+                    type: "UpdateAssignee",
+                    assigneeAction: {
+                        value: {
+                            assignee: taskAccount2,
+                            assigner: taskAccount2,
+                            assignedTime: getCurrentTaskTime(),
+                        },
+                        updatedTime: getCurrentTime(),
+                    },
+                },
+            },
+        ]),
+    ).rejects.toThrow(
+        new PermissionDeniedError("Can only assign a task with yourself as the assigner"),
+    );
+});
+
+test("can't update task assignee with an assignee outside the current space", async () => {
+    const taskId = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                taskId,
+                taskAction: {
+                    type: "UpdateAssignee",
+                    assigneeAction: {
+                        value: {
+                            assignee: otherTaskAccount,
+                            assigner: taskAccount1,
+                            assignedTime: getCurrentTaskTime(),
+                        },
+                        updatedTime: getCurrentTime(),
+                    },
+                },
+            },
+        ]),
+    ).rejects.toThrow(
+        new FailedPreconditionError(
+            "Can't assign a task to an account outside of the current space",
+        ),
+    );
+});
+
+test("can update task assignee status", async () => {
+    const taskId = generateId<TaskId>();
+    const collectionId = generateId<TaskCollectionId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskCollection",
+            collectionId,
+            collectionAction: {
+                type: "Create",
+                creatorId: taskAccount1.accountId,
+                createdTime: getCurrentTime(),
+                accessPolicy: new TaskCollectionAccessPolicyRegister(
+                    {
+                        accountGrantById: new Map([]),
+                        defaultGrant: {type: "Space", level: "Manage"},
+                    },
+                    getCurrentTime(),
+                ),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "UpdateAssignee",
+                assigneeAction: {
+                    value: {
+                        assignee: taskAccount2,
+                        assigner: taskAccount1,
+                        assignedTime: getCurrentTaskTime(),
+                    },
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "UpdateAssigneeStatus",
+                assigneeStatusAction: {
+                    value: {
+                        type: "Active",
+                        position: {orderTime: getCurrentTime(), orderKey: initialOrderKey},
+                        activatedTime: getCurrentTaskTime(),
+                    },
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "UpdateAssigneeStatus",
+                assigneeStatusAction: {
+                    value: {type: "Inactive"},
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "UpdateAssigneeStatus",
+                assigneeStatusAction: {
+                    value: {
+                        type: "Active",
+                        position: {orderTime: getCurrentTime(), orderKey: initialOrderKey},
+                        activatedTime: getCurrentTaskTime(),
+                    },
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "UpdateAssigneeStatus",
+                assigneeStatusAction: {
+                    value: {type: "Inactive"},
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+});
+
+test("can't update task assignee status with unreasonable updated time", async () => {
+    const taskId = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "UpdateAssignee",
+                assigneeAction: {
+                    value: {
+                        assignee: taskAccount2,
+                        assigner: taskAccount1,
+                        assignedTime: getCurrentTaskTime(),
+                    },
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                taskId,
+                taskAction: {
+                    type: "UpdateAssigneeStatus",
+                    assigneeStatusAction: {
+                        value: {
+                            type: "Active",
+                            position: {orderTime: getCurrentTime(), orderKey: initialOrderKey},
+                            activatedTime: getCurrentTaskTime(),
+                        },
+                        updatedTime: getUnreasonableTime(),
+                    },
+                },
+            },
+        ]),
+    ).rejects.toThrow(new InvalidArgumentError("Action `updatedTime` is too far in the future"));
+});
+
+test("can't update task assignee status with unreasonable activated time", async () => {
+    const taskId = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "UpdateAssignee",
+                assigneeAction: {
+                    value: {
+                        assignee: taskAccount2,
+                        assigner: taskAccount1,
+                        assignedTime: getCurrentTaskTime(),
+                    },
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                taskId,
+                taskAction: {
+                    type: "UpdateAssigneeStatus",
+                    assigneeStatusAction: {
+                        value: {
+                            type: "Active",
+                            position: {orderTime: getCurrentTime(), orderKey: initialOrderKey},
+                            activatedTime: getUnreasonableTaskTime(),
+                        },
+                        updatedTime: getCurrentTime(),
+                    },
+                },
+            },
+        ]),
+    ).rejects.toThrow(new InvalidArgumentError("Action `activatedTime` is too far in the future"));
+});
+
+test("can't update task assignee status with unreasonable order time", async () => {
+    const taskId = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "UpdateAssignee",
+                assigneeAction: {
+                    value: {
+                        assignee: taskAccount2,
+                        assigner: taskAccount1,
+                        assignedTime: getCurrentTaskTime(),
+                    },
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                taskId,
+                taskAction: {
+                    type: "UpdateAssigneeStatus",
+                    assigneeStatusAction: {
+                        value: {
+                            type: "Active",
+                            position: {orderTime: getUnreasonableTime(), orderKey: initialOrderKey},
+                            activatedTime: getCurrentTaskTime(),
+                        },
+                        updatedTime: getCurrentTime(),
+                    },
+                },
+            },
+        ]),
+    ).rejects.toThrow(new InvalidArgumentError("Action `orderTime` is too far in the future"));
 });
