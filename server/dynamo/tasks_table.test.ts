@@ -3838,6 +3838,163 @@ test("can update a collection access policy you have access to as a manager", as
     ]);
 });
 
+test("can't update a collection access policy with no manage grants", async () => {
+    const collectionId = generateId<TaskCollectionId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskCollection",
+            collectionId,
+            collectionAction: {
+                type: "Create",
+                creatorId: taskAccount1.accountId,
+                createdTime: getCurrentTime(),
+                accessPolicy: new TaskCollectionAccessPolicyRegister(
+                    {
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage"}],
+                            [taskAccount2.accountId, {level: "Manage"}],
+                        ]),
+                        defaultGrant: null,
+                    },
+                    getCurrentTime(),
+                ),
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+            {
+                type: "UpdateTaskCollection",
+                collectionId,
+                collectionAction: {
+                    type: "UpdateAccessPolicy",
+                    accessPolicyAction: {
+                        value: {
+                            accountGrantById: new Map([
+                                [session1.accountId, {level: "Edit"}],
+                                [session3.accountId, {level: "Edit"}],
+                            ]),
+                            defaultGrant: null,
+                        },
+                        updatedTime: getCurrentTime(),
+                    },
+                },
+            },
+        ]),
+    ).rejects.toThrow(
+        new InvalidArgumentError(
+            '`accessPolicy` must grant at least one account the "Manage" access level',
+        ),
+    );
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+            {
+                type: "UpdateTaskCollection",
+                collectionId,
+                collectionAction: {
+                    type: "UpdateAccessPolicy",
+                    accessPolicyAction: {
+                        value: {
+                            accountGrantById: new Map([]),
+                            defaultGrant: {type: "Space", level: "Edit"},
+                        },
+                        updatedTime: getCurrentTime(),
+                    },
+                },
+            },
+        ]),
+    ).rejects.toThrow(
+        new InvalidArgumentError(
+            '`accessPolicy` must grant at least one account the "Manage" access level',
+        ),
+    );
+
+    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        {
+            type: "UpdateTaskCollection",
+            collectionId,
+            collectionAction: {
+                type: "UpdateAccessPolicy",
+                accessPolicyAction: {
+                    value: {
+                        accountGrantById: new Map([]),
+                        defaultGrant: {type: "Space", level: "Manage"},
+                    },
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+});
+
+test("can update a collection access policy to remove access from yourself", async () => {
+    const collectionId = generateId<TaskCollectionId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskCollection",
+            collectionId,
+            collectionAction: {
+                type: "Create",
+                creatorId: taskAccount1.accountId,
+                createdTime: getCurrentTime(),
+                accessPolicy: new TaskCollectionAccessPolicyRegister(
+                    {
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage"}],
+                            [taskAccount2.accountId, {level: "Manage"}],
+                        ]),
+                        defaultGrant: null,
+                    },
+                    getCurrentTime(),
+                ),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskCollection",
+            collectionId,
+            collectionAction: {
+                type: "UpdateAccessPolicy",
+                accessPolicyAction: {
+                    value: {
+                        accountGrantById: new Map([[taskAccount2.accountId, {level: "Manage"}]]),
+                        defaultGrant: null,
+                    },
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTaskCollection",
+                collectionId,
+                collectionAction: {
+                    type: "UpdateAccessPolicy",
+                    accessPolicyAction: {
+                        value: {
+                            accountGrantById: new Map([
+                                [taskAccount1.accountId, {level: "Manage"}],
+                                [taskAccount2.accountId, {level: "Manage"}],
+                            ]),
+                            defaultGrant: null,
+                        },
+                        updatedTime: getCurrentTime(),
+                    },
+                },
+            },
+        ]),
+    ).rejects.toThrow(PermissionDeniedError);
+});
+
 test("can't create task twice race condition", async () => {
     const taskId = generateId<TaskId>();
 
@@ -10181,4 +10338,545 @@ test("can't update task assignee status with unreasonable order time", async () 
             },
         ]),
     ).rejects.toThrow(new InvalidArgumentError("Action `orderTime` is too far in the future"));
+});
+
+test("can update task position in a collection", async () => {
+    const taskId = generateId<TaskId>();
+    const collectionId = generateId<TaskCollectionId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskCollection",
+            collectionId,
+            collectionAction: {
+                type: "Create",
+                creatorId: taskAccount1.accountId,
+                createdTime: getCurrentTime(),
+                accessPolicy: new TaskCollectionAccessPolicyRegister(
+                    {
+                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        defaultGrant: null,
+                    },
+                    getCurrentTime(),
+                ),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskCollection",
+            collectionId,
+            collectionAction: {
+                type: "UpdateTaskPosition",
+                taskId,
+                position: {orderTime: getCurrentTime(), orderKey: assertOrderKey("a1")},
+                updatedTime: getCurrentTime(),
+            },
+        },
+    ]);
+});
+
+test("can't update task position with an unreasonable update time", async () => {
+    const taskId = generateId<TaskId>();
+    const collectionId = generateId<TaskCollectionId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskCollection",
+            collectionId,
+            collectionAction: {
+                type: "Create",
+                creatorId: taskAccount1.accountId,
+                createdTime: getCurrentTime(),
+                accessPolicy: new TaskCollectionAccessPolicyRegister(
+                    {
+                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        defaultGrant: null,
+                    },
+                    getCurrentTime(),
+                ),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTaskCollection",
+                collectionId,
+                collectionAction: {
+                    type: "UpdateTaskPosition",
+                    taskId,
+                    position: {orderTime: getCurrentTime(), orderKey: assertOrderKey("a1")},
+                    updatedTime: getUnreasonableTime(),
+                },
+            },
+        ]),
+    ).rejects.toThrow(new InvalidArgumentError("Action `updatedTime` is too far in the future"));
+});
+
+test("can't update task position with an unreasonable order time", async () => {
+    const taskId = generateId<TaskId>();
+    const collectionId = generateId<TaskCollectionId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskCollection",
+            collectionId,
+            collectionAction: {
+                type: "Create",
+                creatorId: taskAccount1.accountId,
+                createdTime: getCurrentTime(),
+                accessPolicy: new TaskCollectionAccessPolicyRegister(
+                    {
+                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        defaultGrant: null,
+                    },
+                    getCurrentTime(),
+                ),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTaskCollection",
+                collectionId,
+                collectionAction: {
+                    type: "UpdateTaskPosition",
+                    taskId,
+                    position: {orderTime: getUnreasonableTime(), orderKey: assertOrderKey("a1")},
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        ]),
+    ).rejects.toThrow(new InvalidArgumentError("Action `orderTime` is too far in the future"));
+});
+
+test("can't update task position with a task that doesn't exist", async () => {
+    const taskId = generateId<TaskId>();
+    const collectionId = generateId<TaskCollectionId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskCollection",
+            collectionId,
+            collectionAction: {
+                type: "Create",
+                creatorId: taskAccount1.accountId,
+                createdTime: getCurrentTime(),
+                accessPolicy: new TaskCollectionAccessPolicyRegister(
+                    {
+                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        defaultGrant: null,
+                    },
+                    getCurrentTime(),
+                ),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTaskCollection",
+                collectionId,
+                collectionAction: {
+                    type: "UpdateTaskPosition",
+                    taskId: generateId(),
+                    position: {orderTime: getCurrentTime(), orderKey: assertOrderKey("a1")},
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        ]),
+    ).rejects.toThrow(new NotFoundError("Task not found"));
+});
+
+test("can't update task position with a task that's not in the collection'", async () => {
+    const taskId1 = generateId<TaskId>();
+    const taskId2 = generateId<TaskId>();
+    const collectionId = generateId<TaskCollectionId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskCollection",
+            collectionId,
+            collectionAction: {
+                type: "Create",
+                creatorId: taskAccount1.accountId,
+                createdTime: getCurrentTime(),
+                accessPolicy: new TaskCollectionAccessPolicyRegister(
+                    {
+                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        defaultGrant: null,
+                    },
+                    getCurrentTime(),
+                ),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId1,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId2,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId: taskId1,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTaskCollection",
+                collectionId,
+                collectionAction: {
+                    type: "UpdateTaskPosition",
+                    taskId: taskId2,
+                    position: {orderTime: getCurrentTime(), orderKey: assertOrderKey("a1")},
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        ]),
+    ).rejects.toThrow(new FailedPreconditionError("Task is not in collection"));
+});
+
+test("can't update task position with a task that was removed from the collection", async () => {
+    const taskId = generateId<TaskId>();
+    const collectionId = generateId<TaskCollectionId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskCollection",
+            collectionId,
+            collectionAction: {
+                type: "Create",
+                creatorId: taskAccount1.accountId,
+                createdTime: getCurrentTime(),
+                accessPolicy: new TaskCollectionAccessPolicyRegister(
+                    {
+                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        defaultGrant: null,
+                    },
+                    getCurrentTime(),
+                ),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Delete",
+                    key: collectionId,
+                    deletedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTaskCollection",
+                collectionId,
+                collectionAction: {
+                    type: "UpdateTaskPosition",
+                    taskId,
+                    position: {orderTime: getCurrentTime(), orderKey: assertOrderKey("a1")},
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        ]),
+    ).rejects.toThrow(new FailedPreconditionError("Task is not in collection"));
+});
+
+test("can't update task position when you don't have access to the collection", async () => {
+    const taskId = generateId<TaskId>();
+    const collectionId = generateId<TaskCollectionId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskCollection",
+            collectionId,
+            collectionAction: {
+                type: "Create",
+                creatorId: taskAccount1.accountId,
+                createdTime: getCurrentTime(),
+                accessPolicy: new TaskCollectionAccessPolicyRegister(
+                    {
+                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        defaultGrant: null,
+                    },
+                    getCurrentTime(),
+                ),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Delete",
+                    key: collectionId,
+                    deletedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+            {
+                type: "UpdateTaskCollection",
+                collectionId,
+                collectionAction: {
+                    type: "UpdateTaskPosition",
+                    taskId: generateId(),
+                    position: {orderTime: getCurrentTime(), orderKey: assertOrderKey("a1")},
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        ]),
+    ).rejects.toThrow(PermissionDeniedError);
+});
+
+test("can't update task position when you only have view access to the collection", async () => {
+    const taskId = generateId<TaskId>();
+    const collectionId = generateId<TaskCollectionId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskCollection",
+            collectionId,
+            collectionAction: {
+                type: "Create",
+                creatorId: taskAccount1.accountId,
+                createdTime: getCurrentTime(),
+                accessPolicy: new TaskCollectionAccessPolicyRegister(
+                    {
+                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        defaultGrant: {type: "Space", level: "View"},
+                    },
+                    getCurrentTime(),
+                ),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Delete",
+                    key: collectionId,
+                    deletedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+            {
+                type: "UpdateTaskCollection",
+                collectionId,
+                collectionAction: {
+                    type: "UpdateTaskPosition",
+                    taskId: generateId(),
+                    position: {orderTime: getCurrentTime(), orderKey: assertOrderKey("a1")},
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        ]),
+    ).rejects.toThrow(PermissionDeniedError);
 });

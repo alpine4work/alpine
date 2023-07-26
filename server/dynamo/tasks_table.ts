@@ -23,6 +23,7 @@ import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_al
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId} from "~/shared/id/id.js";
@@ -1245,8 +1246,6 @@ async function actuallyCommitTaskSpaceActionTransaction(
                         if (collectionItem.deletedTime)
                             throw new FailedPreconditionError("Task collection was deleted");
 
-                        await authorizeCollectionAccess(collectionId, "Manage");
-
                         switch (collectionAction.type) {
                             case "Delete": {
                                 if (collectionAction.deletedTime <= collectionItem.createdTime) {
@@ -1260,6 +1259,8 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                         "Action `deletedTime` is too far in the future",
                                     );
                                 }
+
+                                await authorizeCollectionAccess(collectionId, "Manage");
 
                                 state.updateCollectionItem({
                                     ...collectionItem,
@@ -1277,6 +1278,8 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                         "Action `updatedTime` is too far in the future",
                                     );
                                 }
+
+                                await authorizeCollectionAccess(collectionId, "Manage");
                                 break;
                             }
                             case "UpdateAccessPolicy": {
@@ -1290,12 +1293,64 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                     );
                                 }
 
+                                const accessPolicy = collectionAction.accessPolicyAction.value;
+
+                                if (
+                                    iterableEvery(
+                                        accessPolicy.accountGrantById.values(),
+                                        grant =>
+                                            !hasTaskCollectionAccessLevel(grant.level, "Manage"),
+                                    ) &&
+                                    (accessPolicy.defaultGrant?.type !== "Space" ||
+                                        !hasTaskCollectionAccessLevel(
+                                            accessPolicy.defaultGrant.level,
+                                            "Manage",
+                                        ))
+                                ) {
+                                    throw new InvalidArgumentError(
+                                        '`accessPolicy` must grant at least one account the "Manage" access level',
+                                    );
+                                }
+
+                                await authorizeCollectionAccess(collectionId, "Manage");
+
                                 state.updateCollectionItem({
                                     ...collectionItem,
                                     accessPolicy: collectionItem.accessPolicy.apply(
                                         collectionAction.accessPolicyAction,
                                     ),
                                 });
+                                break;
+                            }
+                            case "UpdateTaskPosition": {
+                                if (!state.isChangeTimeReasonable(collectionAction.updatedTime)) {
+                                    throw new InvalidArgumentError(
+                                        "Action `updatedTime` is too far in the future",
+                                    );
+                                }
+
+                                if (
+                                    !state.isChangeTimeReasonable(
+                                        collectionAction.position.orderTime,
+                                    )
+                                ) {
+                                    throw new InvalidArgumentError(
+                                        "Action `orderTime` is too far in the future",
+                                    );
+                                }
+
+                                // If you have collection edit access then you implicitly also have task edit
+                                // access.
+                                await authorizeCollectionAccess(collectionId, "Edit");
+
+                                const taskItem = await state.getTaskItemIfExists(
+                                    collectionAction.taskId,
+                                );
+                                if (!taskItem) throw new NotFoundError("Task not found");
+
+                                if (!taskItem.collections.has(collectionId)) {
+                                    throw new FailedPreconditionError("Task is not in collection");
+                                }
                                 break;
                             }
                             default:

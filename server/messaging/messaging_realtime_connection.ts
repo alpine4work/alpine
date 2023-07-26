@@ -413,6 +413,9 @@ export class MessagingRealtimeConnection<
         context: WorkerSessionActionContext,
         {parentMessageIndex, content}: {parentMessageIndex: number | null; content: MessageContent},
     ): Promise<{}> {
+        // TODO(calebmer): What if we sent clients an optimistic "message created"
+        // event before we confirmed the message was saved in the database? This would
+        // improve user perceived messaging latency.
         const newMessage = await this._createMessage(context, {
             roomKey: this._roomKey,
             parentMessageIndex,
