@@ -487,6 +487,12 @@ export type TracerEventData = {
             readonly items?: string;
 
             /**
+             * The number of items in the transaction. May be longer than the `items` array
+             * if we weren't able to summarize a transaction item.
+             */
+            readonly itemCount?: number;
+
+            /**
              * The client request token for the transaction. The client request token is
              * used for executing idempotent transactions.
              */
@@ -581,6 +587,20 @@ export type TracerEventData = {
             /** The account the inbox belongs to. */
             readonly accountId?: AccountId;
         };
+    };
+
+    /** Information regarding the task product surface. */
+    readonly tasks?: {
+        /**
+         * Description for the action transaction we are processing. A list of
+         * comma separated action labels.
+         */
+        readonly actions?: string;
+
+        /**
+         * The number of actions in our action transaction.
+         */
+        readonly actionCount?: number;
     };
 };
 

@@ -175,6 +175,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         },
         transactWrite: {
             items: Schema.string,
+            itemCount: Schema.integer,
             clientRequestToken: Schema.string,
         },
         transactGet: {
@@ -212,6 +213,10 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
             spaceId: Schema.id(),
             accountId: Schema.id(),
         },
+    },
+    tasks: {
+        actions: Schema.string,
+        actionCount: Schema.integer,
     },
 };
 

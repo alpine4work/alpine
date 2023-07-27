@@ -424,6 +424,7 @@ export class DynamoClientInternal {
                     tableName: Array.from(tableNames).sort().join("+"),
                     transactWrite: {
                         items: JSON.stringify(transactItemsSummary),
+                        itemCount: input.TransactItems?.length,
                         clientRequestToken: input.ClientRequestToken,
                     },
                 },

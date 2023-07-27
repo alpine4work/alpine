@@ -217,6 +217,13 @@ const TasksTable = DynamoTableSchema.new({
                         collections: TaskCollectionSet.schema,
                     }),
                 },
+                {
+                    name: "ChildTask",
+                    sortKeyAttributes: {
+                        childTaskId: DynamoKeyAttributeSchema.id<TaskId>(),
+                    },
+                    attributes: Schema.object({}),
+                },
             ],
         },
     ],
@@ -268,7 +275,29 @@ export function commitTaskSpaceActionTransaction(
     spaceId: SpaceId,
     actionTransaction: ReadonlyArray<TaskSpaceAction>,
 ) {
-    return TaskSpaceActionTransactionCommitState.commit(context, spaceId, actionTransaction);
+    return context.tracer.withSpan("commitTaskSpaceActionTransaction", (context, span) => {
+        span.addData({
+            tasks: {
+                actions: actionTransaction.map(getTaskSpaceActionLabel).join(","),
+                actionCount: actionTransaction.length,
+            },
+        });
+
+        return TaskSpaceActionTransactionCommitState.commit(context, spaceId, actionTransaction);
+    });
+}
+
+function getTaskSpaceActionLabel(action: TaskSpaceAction) {
+    switch (action.type) {
+        case "UpdateTask":
+            return `${action.type}_${action.taskAction.type}`;
+        case "UpdateTaskCollection":
+            return `${action.type}_${action.collectionAction.type}`;
+        case "UpdateTaskNotepadPage":
+            return `${action.type}_${action.notepadPageAction.type}`;
+        default:
+            throw exhaustive(action);
+    }
 }
 
 /**
