@@ -4652,6 +4652,137 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     "optional": false
                                                                                 }
                                                                             }
+                                                                        },
+                                                                        "UpdateTaskPosition": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "UpdateTaskPosition"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "taskId": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Id"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "position": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Reference",
+                                                                                        "reuseReferenceId": "786d0d62"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "updatedTime": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Date"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                },
+                                                                "optional": false
+                                                            }
+                                                        }
+                                                    },
+                                                    "UpdateTaskNotepadPage": {
+                                                        "type": "Object",
+                                                        "propertySchemaByKey": {
+                                                            "type": {
+                                                                "valueSchema": {
+                                                                    "type": "Value",
+                                                                    "value": "UpdateTaskNotepadPage"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "accountId": {
+                                                                "valueSchema": {
+                                                                    "type": "Id"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "notepadPageId": {
+                                                                "valueSchema": {
+                                                                    "type": "Integer"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "notepadPageAction": {
+                                                                "valueSchema": {
+                                                                    "type": "Union",
+                                                                    "typeKey": "type",
+                                                                    "variantSchemaByTypeValue": {
+                                                                        "Create": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "Create"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "AddTask": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "AddTask"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "taskId": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Id"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "position": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Reference",
+                                                                                        "reuseReferenceId": "786d0d62"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "updatedTime": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Date"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "RemoveTask": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "RemoveTask"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "taskId": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Id"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "updatedTime": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Date"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
                                                                         }
                                                                     }
                                                                 },
@@ -4681,6 +4812,41 @@ export const dynamoGeneratedSchemaDescription: {
         "Tasks": {
             "name": "Tasks",
             "partitionByType": {
+                "Account": {
+                    "id": 2,
+                    "partitionKeyAttributeByKey": {
+                        "spaceId": {
+                            "type": "Id"
+                        },
+                        "accountId": {
+                            "type": "Id"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "Notepad": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {},
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "pageIds": {
+                                        "valueSchema": {
+                                            "type": "Bytes"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
                 "TaskCollection": {
                     "id": 0,
                     "partitionKeyAttributeByKey": {

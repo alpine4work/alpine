@@ -359,9 +359,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      */
     public static bytes = new Schema<Uint8Array>({
         getDescription: () => ({type: "Bytes"}),
-        serialize: value => {
-            return new JsonStringifiableUint8Array(value);
-        },
+        serialize: value => new JsonStringifiableUint8Array(value),
         deserialize: value => {
             if (value instanceof Uint8Array) return value;
 

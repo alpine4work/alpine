@@ -20,6 +20,7 @@ import {
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
@@ -37,6 +38,7 @@ import {
     hasTaskCollectionAccessLevel,
 } from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
+import {TaskNotepadPageIdCompressedSetSchema} from "~/shared/tasks/task_notepad_page_id.js";
 
 /**
  * The task actions table is the canonical representation of the data in our
@@ -100,6 +102,22 @@ const TaskActionsTable = DynamoTableSchema.new({
 const TasksTable = DynamoTableSchema.new({
     name: "Tasks",
     partitions: [
+        {
+            name: "Account",
+            partitionKeyAttributes: {
+                spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
+                accountId: DynamoKeyAttributeSchema.id<AccountId>(),
+            },
+            sortRanges: [
+                {
+                    name: "Notepad",
+                    sortKeyAttributes: {},
+                    attributes: Schema.object({
+                        pageIds: TaskNotepadPageIdCompressedSetSchema,
+                    }),
+                },
+            ],
+        },
         {
             name: "TaskCollection",
             partitionKeyAttributes: {
@@ -210,6 +228,8 @@ type TaskActionTransactionItem = DynamoTableItemType<
     "ActionTransaction"
 >;
 
+type TaskAccountNotepadItem = DynamoTableItemType<typeof TasksTable, "Account", "Notepad">;
+
 type TaskEssentialAttributesItem = DynamoTableItemType<
     typeof TasksTable,
     "Task",
@@ -282,11 +302,14 @@ class TaskSpaceActionTransactionCommitState {
         }
     >();
 
+    private _actorNotepadItemTransactionEntry: TaskAccountNotepadItem | null = null;
+
     private readonly _taskItemById = new Map<TaskId, Promise<TaskEssentialAttributesItem | null>>();
     private readonly _collectionItemById = new Map<
         TaskCollectionId,
         Promise<TaskCollectionEssentialAttributesItem | null>
     >();
+    private _actorNotepadItemPromise: Promise<TaskAccountNotepadItem> | null = null;
 
     private constructor(context: AppSessionActionContext, spaceId: SpaceId) {
         this._context = context;
@@ -354,6 +377,14 @@ class TaskSpaceActionTransactionCommitState {
                     default:
                         throw exhaustive(transactionEntry.action);
                 }
+            }
+
+            if (state._actorNotepadItemTransactionEntry) {
+                transactionEntries.push(
+                    TasksTable.transactionDirectlyUpdateItem(
+                        state._actorNotepadItemTransactionEntry,
+                    ),
+                );
             }
 
             await commitTaskSpaceActionTransactionBeforeExecuteTestCheckpoint.waitForTest(
@@ -427,7 +458,7 @@ class TaskSpaceActionTransactionCommitState {
         return taskItem;
     }
 
-    public createTaskItem(taskItem: TaskEssentialAttributesItem): void {
+    public createTaskItem(taskItem: TaskEssentialAttributesItem) {
         this._taskItemById.set(taskItem.taskId, Promise.resolve(taskItem));
 
         const transactionEntry = getOrSetDefaultMapValue(
@@ -457,7 +488,7 @@ class TaskSpaceActionTransactionCommitState {
         transactionEntry.taskItem = taskItem;
     }
 
-    public updateTaskItem(taskItem: TaskEssentialAttributesItem): void {
+    public updateTaskItem(taskItem: TaskEssentialAttributesItem) {
         this._taskItemById.set(taskItem.taskId, Promise.resolve(taskItem));
 
         const transactionEntry = getOrSetDefaultMapValue(
@@ -488,7 +519,7 @@ class TaskSpaceActionTransactionCommitState {
         transactionEntry.taskItem = taskItem;
     }
 
-    public updateTaskItemLockVersion(taskItem: TaskEssentialAttributesItem): void {
+    public updateTaskItemLockVersion(taskItem: TaskEssentialAttributesItem) {
         const transactionEntry = getOrSetDefaultMapValue(
             this._transactionEntryByTaskId,
             taskItem.taskId,
@@ -542,7 +573,7 @@ class TaskSpaceActionTransactionCommitState {
         return collectionItem;
     }
 
-    public createCollectionItem(collectionItem: TaskCollectionEssentialAttributesItem): void {
+    public createCollectionItem(collectionItem: TaskCollectionEssentialAttributesItem) {
         this._collectionItemById.set(collectionItem.collectionId, Promise.resolve(collectionItem));
 
         const transactionEntry = getOrSetDefaultMapValue(
@@ -571,7 +602,7 @@ class TaskSpaceActionTransactionCommitState {
         transactionEntry.collectionItem = collectionItem;
     }
 
-    public updateCollectionItem(collectionItem: TaskCollectionEssentialAttributesItem): void {
+    public updateCollectionItem(collectionItem: TaskCollectionEssentialAttributesItem) {
         this._collectionItemById.set(collectionItem.collectionId, Promise.resolve(collectionItem));
 
         const transactionEntry = getOrSetDefaultMapValue(
@@ -597,6 +628,39 @@ class TaskSpaceActionTransactionCommitState {
             );
 
         transactionEntry.collectionItem = collectionItem;
+    }
+
+    public getActorNotepadItem(): Promise<TaskAccountNotepadItem> {
+        if (this._actorNotepadItemPromise === null) {
+            this._actorNotepadItemPromise = (async () => {
+                let notepadPagesItem = await TasksTable.getItemIfExists(this._context, {
+                    partitionType: "Account",
+                    sortRangeType: "Notepad",
+                    accountId: this._context.actor.getAccountId(),
+                    spaceId: this._spaceId,
+                });
+
+                notepadPagesItem ??= {
+                    partitionType: "Account",
+                    sortRangeType: "Notepad",
+                    accountId: this._context.actor.getAccountId(),
+                    spaceId: this._spaceId,
+                    pageIds: new Set(),
+                };
+
+                return notepadPagesItem;
+            })();
+        }
+
+        return this._actorNotepadItemPromise;
+    }
+
+    public updateActorNotepadItem(notepadItem: TaskAccountNotepadItem) {
+        assert(notepadItem.accountId === this._context.actor.getAccountId());
+        assert(notepadItem.spaceId === this._spaceId);
+
+        this._actorNotepadItemPromise = Promise.resolve(notepadItem);
+        this._actorNotepadItemTransactionEntry = notepadItem;
     }
 
     public evaluateTaskCollectionItemAccessPolicy(
@@ -1357,6 +1421,74 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                 throw exhaustive(collectionAction);
                         }
                         break;
+                    }
+                }
+                break;
+            }
+            case "UpdateTaskNotepadPage": {
+                const {notepadPageId, notepadPageAction} = action;
+
+                if (action.accountId !== state.getActorAccountId())
+                    throw new PermissionDeniedError("Can only access your account's notepad");
+
+                const notepadItem = await state.getActorNotepadItem();
+
+                if (notepadPageAction.type === "Create") {
+                    if (notepadItem.pageIds.has(notepadPageId))
+                        throw new FailedPreconditionError("Notepad page already exists");
+
+                    const newPageIds = new Set(notepadItem.pageIds);
+                    newPageIds.add(notepadPageId);
+
+                    state.updateActorNotepadItem({
+                        ...notepadItem,
+                        pageIds: newPageIds,
+                    });
+                } else {
+                    if (!notepadItem.pageIds.has(notepadPageId))
+                        throw new NotFoundError("Notepad page not found");
+
+                    switch (notepadPageAction.type) {
+                        case "AddTask": {
+                            if (!state.isChangeTimeReasonable(notepadPageAction.updatedTime)) {
+                                throw new InvalidArgumentError(
+                                    "Action `updatedTime` is too far in the future",
+                                );
+                            }
+
+                            if (
+                                !state.isChangeTimeReasonable(notepadPageAction.position.orderTime)
+                            ) {
+                                throw new InvalidArgumentError(
+                                    "Action `orderTime` is too far in the future",
+                                );
+                            }
+
+                            const taskItem = await state.getTaskItemIfExists(
+                                notepadPageAction.taskId,
+                            );
+                            if (!taskItem) throw new NotFoundError("Task not found");
+
+                            await authorizeTaskItemAccess(taskItem, "View");
+                            break;
+                        }
+                        case "RemoveTask": {
+                            if (!state.isChangeTimeReasonable(notepadPageAction.updatedTime)) {
+                                throw new InvalidArgumentError(
+                                    "Action `updatedTime` is too far in the future",
+                                );
+                            }
+
+                            const taskItem = await state.getTaskItemIfExists(
+                                notepadPageAction.taskId,
+                            );
+                            if (!taskItem) throw new NotFoundError("Task not found");
+
+                            await authorizeTaskItemAccess(taskItem, "View");
+                            break;
+                        }
+                        default:
+                            throw exhaustive(notepadPageAction);
                     }
                 }
                 break;

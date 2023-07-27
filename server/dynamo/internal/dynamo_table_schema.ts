@@ -4035,6 +4035,16 @@ function getAndCheckDynamoTableSchemaDescriptions(
 
     const partitionIds = new Set();
 
+    // Add all of the last partition IDs to a set so we don't reuse them for new
+    // partitions...
+    for (const lastPartitionDescription of Object.values(lastDescription?.partitionByType ?? {})) {
+        assert(
+            !partitionIds.has(lastPartitionDescription.id),
+            "Found duplicate partition ID in table",
+        );
+        partitionIds.add(lastPartitionDescription.id);
+    }
+
     const description: DynamoTableSchemaTypes.Description = {
         name: config.name,
         partitionByType: Object.fromEntries(
@@ -4111,23 +4121,22 @@ function getAndCheckDynamoTableSchemaDescriptions(
                 // binary encodings related to the table.
                 let partitionId;
                 if (lastPartitionDescription && typeof lastPartitionDescription.id === "number") {
+                    // We already tested that `lastDescription` has unique partition IDs.
                     partitionId = lastPartitionDescription.id;
                 } else {
+                    // Generate a new, unique, partition ID.
                     partitionId = 0;
                     while (partitionIds.has(partitionId)) {
                         partitionId++;
                     }
+                    partitionIds.add(partitionId);
                 }
-
-                assert(!partitionIds.has(partitionId), "Found duplicate partition ID in table");
 
                 // Partition IDs should be a valid uint8 so we can write it into a byte.
                 assert(
                     Number.isInteger(partitionId) && partitionId >= 0 && partitionId <= 2 ** 8 - 1,
                     "Invalid partition ID",
                 );
-
-                partitionIds.add(partitionId);
 
                 const sortRangeIds = new Set();
 

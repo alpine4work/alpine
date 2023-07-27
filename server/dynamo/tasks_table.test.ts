@@ -1,5 +1,6 @@
 import {CalendarDate} from "@internationalized/date";
 import {addDays} from "date-fns";
+import {getSpacesTableForTest} from "~/server/dynamo/spaces_table.js";
 import {
     commitTaskSpaceActionTransaction,
     commitTaskSpaceActionTransactionBeforeExecuteTestCheckpoint,
@@ -13,12 +14,14 @@ import {
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
-import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskCollectionAccessPolicyRegister} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
+import {generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {taskTitleTestScenario} from "~/shared/tasks/task_title_test_helpers.js";
 
@@ -71,6 +74,51 @@ function getUnreasonableTaskTime() {
         absoluteTime: getUnreasonableTime(),
         setterTimeZone: defaultTimeZone,
     });
+}
+
+let spaceCount = 2;
+
+// We create a new space for some tests for resources that are tied to account
+// + space. So tests don't conflict.
+async function createSeparateSpace() {
+    const SpacesTable = getSpacesTableForTest();
+
+    const spaceId = generateId<SpaceId>();
+
+    const createdTime = new Date();
+
+    await runAllPromises([
+        SpacesTable.createItem(context, {
+            partitionType: "Space",
+            sortRangeType: "Attributes",
+            spaceId,
+            name: `Space ${spaceCount++}`,
+            createdTime,
+        }),
+        SpacesTable.createItem(context, {
+            partitionType: "Space",
+            sortRangeType: "Account",
+            spaceId,
+            accountId: session1.accountId,
+            joinedTime: createdTime,
+        }),
+        SpacesTable.createItem(context, {
+            partitionType: "Space",
+            sortRangeType: "Account",
+            spaceId,
+            accountId: session2.accountId,
+            joinedTime: createdTime,
+        }),
+        SpacesTable.createItem(context, {
+            partitionType: "Space",
+            sortRangeType: "Account",
+            spaceId,
+            accountId: session3.accountId,
+            joinedTime: createdTime,
+        }),
+    ]);
+
+    return {space: {id: spaceId}};
 }
 
 test("can create a task", async () => {
@@ -10582,7 +10630,7 @@ test("can't update task position with a task that doesn't exist", async () => {
     ).rejects.toThrow(new NotFoundError("Task not found"));
 });
 
-test("can't update task position with a task that's not in the collection'", async () => {
+test("can't update task position with a task that's not in the collection", async () => {
     const taskId1 = generateId<TaskId>();
     const taskId2 = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
@@ -10879,4 +10927,871 @@ test("can't update task position when you only have view access to the collectio
             },
         ]),
     ).rejects.toThrow(PermissionDeniedError);
+});
+
+test("can add task to notepad page", async () => {
+    const {space} = await createSeparateSpace();
+    const taskId = generateId<TaskId>();
+    const notepadPageId = generateTaskNotepadPageId();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskNotepadPage",
+            accountId: session1.accountId,
+            notepadPageId,
+            notepadPageAction: {
+                type: "Create",
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskNotepadPage",
+            accountId: session1.accountId,
+            notepadPageId,
+            notepadPageAction: {
+                type: "AddTask",
+                taskId,
+                position: {orderTime: getCurrentTime(), orderKey: initialOrderKey},
+                updatedTime: getCurrentTime(),
+            },
+        },
+    ]);
+});
+
+test("can add task to notepad page in one transaction", async () => {
+    const {space} = await createSeparateSpace();
+    const taskId = generateId<TaskId>();
+    const notepadPageId = generateTaskNotepadPageId();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskNotepadPage",
+            accountId: session1.accountId,
+            notepadPageId,
+            notepadPageAction: {
+                type: "Create",
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTaskNotepadPage",
+            accountId: session1.accountId,
+            notepadPageId,
+            notepadPageAction: {
+                type: "AddTask",
+                taskId,
+                position: {orderTime: getCurrentTime(), orderKey: initialOrderKey},
+                updatedTime: getCurrentTime(),
+            },
+        },
+    ]);
+});
+
+test("can't add task to notepad page that hasn't been created", async () => {
+    const {space} = await createSeparateSpace();
+    const taskId = generateId<TaskId>();
+    const notepadPageId = generateTaskNotepadPageId();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTaskNotepadPage",
+                accountId: session1.accountId,
+                notepadPageId,
+                notepadPageAction: {
+                    type: "AddTask",
+                    taskId,
+                    position: {orderTime: getCurrentTime(), orderKey: initialOrderKey},
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        ]),
+    ).rejects.toThrow(new NotFoundError("Notepad page not found"));
+});
+
+test("can't create a notepad page for someone else", async () => {
+    const {space} = await createSeparateSpace();
+    const notepadPageId = generateTaskNotepadPageId();
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTaskNotepadPage",
+                accountId: session2.accountId,
+                notepadPageId,
+                notepadPageAction: {
+                    type: "Create",
+                },
+            },
+        ]),
+    ).rejects.toThrow(new PermissionDeniedError("Can only access your account's notepad"));
+});
+
+test("can't add a task to someone else's notepad page", async () => {
+    const {space} = await createSeparateSpace();
+    const taskId = generateId<TaskId>();
+    const notepadPageId = generateTaskNotepadPageId();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskNotepadPage",
+            accountId: session1.accountId,
+            notepadPageId,
+            notepadPageAction: {
+                type: "Create",
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount2,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+            {
+                type: "UpdateTaskNotepadPage",
+                accountId: session1.accountId,
+                notepadPageId,
+                notepadPageAction: {
+                    type: "AddTask",
+                    taskId,
+                    position: {orderTime: getCurrentTime(), orderKey: initialOrderKey},
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        ]),
+    ).rejects.toThrow(new PermissionDeniedError("Can only access your account's notepad"));
+});
+
+test("can't create a notepad page twice", async () => {
+    const {space} = await createSeparateSpace();
+    const notepadPageId = generateTaskNotepadPageId();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskNotepadPage",
+            accountId: session1.accountId,
+            notepadPageId,
+            notepadPageAction: {
+                type: "Create",
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTaskNotepadPage",
+                accountId: session1.accountId,
+                notepadPageId,
+                notepadPageAction: {
+                    type: "Create",
+                },
+            },
+        ]),
+    ).rejects.toThrow(new FailedPreconditionError("Notepad page already exists"));
+});
+
+test("can't remove task from notepad page that hasn't been created", async () => {
+    const {space} = await createSeparateSpace();
+    const taskId = generateId<TaskId>();
+    const notepadPageId = generateTaskNotepadPageId();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTaskNotepadPage",
+                accountId: session1.accountId,
+                notepadPageId,
+                notepadPageAction: {
+                    type: "RemoveTask",
+                    taskId,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        ]),
+    ).rejects.toThrow(new NotFoundError("Notepad page not found"));
+});
+
+test("can't add task to notepad page with an unreasonable update time", async () => {
+    const {space} = await createSeparateSpace();
+    const taskId = generateId<TaskId>();
+    const notepadPageId = generateTaskNotepadPageId();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskNotepadPage",
+            accountId: session1.accountId,
+            notepadPageId,
+            notepadPageAction: {
+                type: "Create",
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTaskNotepadPage",
+                accountId: session1.accountId,
+                notepadPageId,
+                notepadPageAction: {
+                    type: "AddTask",
+                    taskId,
+                    position: {orderTime: getCurrentTime(), orderKey: initialOrderKey},
+                    updatedTime: getUnreasonableTime(),
+                },
+            },
+        ]),
+    ).rejects.toThrow(new InvalidArgumentError("Action `updatedTime` is too far in the future"));
+});
+
+test("can't add task to notepad page with an unreasonable order time", async () => {
+    const {space} = await createSeparateSpace();
+    const taskId = generateId<TaskId>();
+    const notepadPageId = generateTaskNotepadPageId();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskNotepadPage",
+            accountId: session1.accountId,
+            notepadPageId,
+            notepadPageAction: {
+                type: "Create",
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTaskNotepadPage",
+                accountId: session1.accountId,
+                notepadPageId,
+                notepadPageAction: {
+                    type: "AddTask",
+                    taskId,
+                    position: {orderTime: getUnreasonableTime(), orderKey: initialOrderKey},
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        ]),
+    ).rejects.toThrow(new InvalidArgumentError("Action `orderTime` is too far in the future"));
+});
+
+test("can't add task to notepad page that doesn't exist", async () => {
+    const {space} = await createSeparateSpace();
+    const taskId = generateId<TaskId>();
+    const notepadPageId = generateTaskNotepadPageId();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskNotepadPage",
+            accountId: session1.accountId,
+            notepadPageId,
+            notepadPageAction: {
+                type: "Create",
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTaskNotepadPage",
+                accountId: session1.accountId,
+                notepadPageId,
+                notepadPageAction: {
+                    type: "AddTask",
+                    taskId,
+                    position: {orderTime: getCurrentTime(), orderKey: initialOrderKey},
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        ]),
+    ).rejects.toThrow(new NotFoundError("Task not found"));
+});
+
+test("can't add task you don't have access to to notepad page", async () => {
+    const {space} = await createSeparateSpace();
+    const taskId = generateId<TaskId>();
+    const notepadPageId = generateTaskNotepadPageId();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskNotepadPage",
+            accountId: session1.accountId,
+            notepadPageId,
+            notepadPageAction: {
+                type: "Create",
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount2,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTaskNotepadPage",
+                accountId: session1.accountId,
+                notepadPageId,
+                notepadPageAction: {
+                    type: "AddTask",
+                    taskId,
+                    position: {orderTime: getCurrentTime(), orderKey: initialOrderKey},
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        ]),
+    ).rejects.toThrow(PermissionDeniedError);
+});
+
+test("can add task you have view access to to notepad page", async () => {
+    const {space} = await createSeparateSpace();
+    const taskId = generateId<TaskId>();
+    const notepadPageId = generateTaskNotepadPageId();
+    const collectionId = generateId<TaskCollectionId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskNotepadPage",
+            accountId: session1.accountId,
+            notepadPageId,
+            notepadPageAction: {
+                type: "Create",
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        {
+            type: "UpdateTaskCollection",
+            collectionId,
+            collectionAction: {
+                type: "Create",
+                creatorId: taskAccount2.accountId,
+                createdTime: getCurrentTime(),
+                accessPolicy: new TaskCollectionAccessPolicyRegister(
+                    {
+                        accountGrantById: new Map([[taskAccount2.accountId, {level: "Manage"}]]),
+                        defaultGrant: {type: "Space", level: "View"},
+                    },
+                    getCurrentTime(),
+                ),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount2,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskNotepadPage",
+            accountId: session1.accountId,
+            notepadPageId,
+            notepadPageAction: {
+                type: "AddTask",
+                taskId,
+                position: {orderTime: getCurrentTime(), orderKey: initialOrderKey},
+                updatedTime: getCurrentTime(),
+            },
+        },
+    ]);
+});
+
+test("can remove task from notepad page", async () => {
+    const {space} = await createSeparateSpace();
+    const taskId = generateId<TaskId>();
+    const notepadPageId = generateTaskNotepadPageId();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskNotepadPage",
+            accountId: session1.accountId,
+            notepadPageId,
+            notepadPageAction: {
+                type: "Create",
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskNotepadPage",
+            accountId: session1.accountId,
+            notepadPageId,
+            notepadPageAction: {
+                type: "AddTask",
+                taskId,
+                position: {orderTime: getCurrentTime(), orderKey: initialOrderKey},
+                updatedTime: getCurrentTime(),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskNotepadPage",
+            accountId: session1.accountId,
+            notepadPageId,
+            notepadPageAction: {
+                type: "RemoveTask",
+                taskId,
+                updatedTime: getCurrentTime(),
+            },
+        },
+    ]);
+});
+
+test("can remove task from notepad page twice", async () => {
+    const {space} = await createSeparateSpace();
+    const taskId = generateId<TaskId>();
+    const notepadPageId = generateTaskNotepadPageId();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskNotepadPage",
+            accountId: session1.accountId,
+            notepadPageId,
+            notepadPageAction: {
+                type: "Create",
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskNotepadPage",
+            accountId: session1.accountId,
+            notepadPageId,
+            notepadPageAction: {
+                type: "AddTask",
+                taskId,
+                position: {orderTime: getCurrentTime(), orderKey: initialOrderKey},
+                updatedTime: getCurrentTime(),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskNotepadPage",
+            accountId: session1.accountId,
+            notepadPageId,
+            notepadPageAction: {
+                type: "RemoveTask",
+                taskId,
+                updatedTime: getCurrentTime(),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskNotepadPage",
+            accountId: session1.accountId,
+            notepadPageId,
+            notepadPageAction: {
+                type: "RemoveTask",
+                taskId,
+                updatedTime: getCurrentTime(),
+            },
+        },
+    ]);
+});
+
+test("can remove task from notepad page even if the task was not added", async () => {
+    const {space} = await createSeparateSpace();
+    const taskId = generateId<TaskId>();
+    const notepadPageId = generateTaskNotepadPageId();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskNotepadPage",
+            accountId: session1.accountId,
+            notepadPageId,
+            notepadPageAction: {
+                type: "Create",
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskNotepadPage",
+            accountId: session1.accountId,
+            notepadPageId,
+            notepadPageAction: {
+                type: "RemoveTask",
+                taskId,
+                updatedTime: getCurrentTime(),
+            },
+        },
+    ]);
+});
+
+test("can't remove task from notepad page with an unreasonable update time", async () => {
+    const {space} = await createSeparateSpace();
+    const taskId = generateId<TaskId>();
+    const notepadPageId = generateTaskNotepadPageId();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskNotepadPage",
+            accountId: session1.accountId,
+            notepadPageId,
+            notepadPageAction: {
+                type: "Create",
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskNotepadPage",
+            accountId: session1.accountId,
+            notepadPageId,
+            notepadPageAction: {
+                type: "AddTask",
+                taskId,
+                position: {orderTime: getCurrentTime(), orderKey: initialOrderKey},
+                updatedTime: getCurrentTime(),
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTaskNotepadPage",
+                accountId: session1.accountId,
+                notepadPageId,
+                notepadPageAction: {
+                    type: "RemoveTask",
+                    taskId,
+                    updatedTime: getUnreasonableTime(),
+                },
+            },
+        ]),
+    ).rejects.toThrow(new InvalidArgumentError("Action `updatedTime` is too far in the future"));
+});
+
+test("can't remove task from notepad page when the task doesn't exist", async () => {
+    const {space} = await createSeparateSpace();
+    const taskId = generateId<TaskId>();
+    const notepadPageId = generateTaskNotepadPageId();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskNotepadPage",
+            accountId: session1.accountId,
+            notepadPageId,
+            notepadPageAction: {
+                type: "Create",
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTaskNotepadPage",
+                accountId: session1.accountId,
+                notepadPageId,
+                notepadPageAction: {
+                    type: "RemoveTask",
+                    taskId,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        ]),
+    ).rejects.toThrow(new NotFoundError("Task not found"));
+});
+
+test("can't remove task you don't have access to from notepad page", async () => {
+    const {space} = await createSeparateSpace();
+    const taskId = generateId<TaskId>();
+    const notepadPageId = generateTaskNotepadPageId();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskNotepadPage",
+            accountId: session1.accountId,
+            notepadPageId,
+            notepadPageAction: {
+                type: "Create",
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount2,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+    ]);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTaskNotepadPage",
+                accountId: session1.accountId,
+                notepadPageId,
+                notepadPageAction: {
+                    type: "RemoveTask",
+                    taskId,
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        ]),
+    ).rejects.toThrow(PermissionDeniedError);
+});
+
+test("can remove task you have view access to from notepad page", async () => {
+    const {space} = await createSeparateSpace();
+    const taskId = generateId<TaskId>();
+    const notepadPageId = generateTaskNotepadPageId();
+    const collectionId = generateId<TaskCollectionId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskNotepadPage",
+            accountId: session1.accountId,
+            notepadPageId,
+            notepadPageAction: {
+                type: "Create",
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        {
+            type: "UpdateTaskCollection",
+            collectionId,
+            collectionAction: {
+                type: "Create",
+                creatorId: taskAccount2.accountId,
+                createdTime: getCurrentTime(),
+                accessPolicy: new TaskCollectionAccessPolicyRegister(
+                    {
+                        accountGrantById: new Map([[taskAccount2.accountId, {level: "Manage"}]]),
+                        defaultGrant: {type: "Space", level: "View"},
+                    },
+                    getCurrentTime(),
+                ),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount2,
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskNotepadPage",
+            accountId: session1.accountId,
+            notepadPageId,
+            notepadPageAction: {
+                type: "AddTask",
+                taskId,
+                position: {orderTime: getCurrentTime(), orderKey: initialOrderKey},
+                updatedTime: getCurrentTime(),
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTaskNotepadPage",
+            accountId: session1.accountId,
+            notepadPageId,
+            notepadPageAction: {
+                type: "RemoveTask",
+                taskId,
+                updatedTime: getCurrentTime(),
+            },
+        },
+    ]);
 });

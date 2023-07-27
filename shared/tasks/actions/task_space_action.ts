@@ -1,7 +1,9 @@
-import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskActionSchema} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionActionSchema} from "~/shared/tasks/actions/task_collection_action.js";
+import {TaskNotepadPageActionSchema} from "~/shared/tasks/actions/task_notepad_page_action.js";
+import {TaskNotepadPageIdSchema} from "~/shared/tasks/task_notepad_page_id.js";
 
 /**
  * All updates to the task database in a space are done through task actions.
@@ -62,7 +64,22 @@ const TaskSpaceUpdateTaskCollectionActionSchema = Schema.object({
     collectionAction: TaskCollectionActionSchema,
 });
 
+/**
+ * An action that updates a single task notepad page of some user.
+ */
+export type TaskSpaceUpdateNotepadPageAction = SchemaType<
+    typeof TaskSpaceUpdateNotepadPageActionSchema
+>;
+
+const TaskSpaceUpdateNotepadPageActionSchema = Schema.object({
+    type: Schema.value("UpdateTaskNotepadPage"),
+    accountId: Schema.id<AccountId>(),
+    notepadPageId: TaskNotepadPageIdSchema,
+    notepadPageAction: TaskNotepadPageActionSchema,
+});
+
 export const TaskSpaceActionSchema = Schema.union({
     UpdateTask: TaskSpaceUpdateTaskActionSchema,
     UpdateTaskCollection: TaskSpaceUpdateTaskCollectionActionSchema,
+    UpdateTaskNotepadPage: TaskSpaceUpdateNotepadPageActionSchema,
 });

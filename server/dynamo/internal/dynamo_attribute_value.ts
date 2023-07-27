@@ -3,6 +3,7 @@
 import type * as types from "@aws-sdk/client-dynamodb";
 import {InternalError} from "~/shared/error/error.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
+import {decodeBase64} from "~/shared/helpers/binary/base64.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {
     JsonStringifiableUint8Array,
@@ -34,7 +35,13 @@ export function intoDynamoAttributeValue(value: SchemaSerializedValue): types.At
         case "object": {
             if (value === null) return {NULL: true};
             if (isReadonlyArray(value)) return {L: value.map(intoDynamoAttributeValue)};
-            if (value instanceof Uint8Array) return {B: value};
+
+            // NOTE(calebmer, 2023-07-27): Since right now we use `awsfetch` directly
+            // instead of the AWS SDK, it's important that `B` is a
+            // `JsonStringifiableUint8Array` so when we `JSON.stringify()` it is base64
+            // encoded.
+            if (value instanceof JsonStringifiableUint8Array) return {B: value};
+
             return {M: intoDynamoAttributeValueObject(value)};
         }
         default:
@@ -66,7 +73,15 @@ export function fromDynamoAttributeValue(value: types.AttributeValue): SchemaSer
     if (value.N !== undefined) return JSON.parse(value.N);
     if (value.S !== undefined) return value.S;
     if (value.L !== undefined) return value.L.map(fromDynamoAttributeValue);
-    if (value.B !== undefined) return new JsonStringifiableUint8Array(value.B);
+
+    // NOTE(calebmer, 2023-07-27): Since right now we use `awsfetch` directly
+    // instead of the AWS SDK, `B` is a base64 encoded string not a `Uint8Array`.
+    if (value.B !== undefined) {
+        return new JsonStringifiableUint8Array(
+            typeof value.B === "string" ? decodeBase64((value as any).B) : value.B,
+        );
+    }
+
     if (value.M !== undefined) return fromDynamoAttributeValueObject(value.M);
 
     throw new InternalError("Unexpected DynamoDB attribute value");
