@@ -1,4 +1,4 @@
-import * as colorette from "colorette";
+import chalk from "chalk";
 import {bazelExecutablePath, lockBazelExecutable} from "~/admin/dev/bazel/bazel_executable.js";
 import {spawnWithBlockingStdio} from "~/admin/dev/stdio_coordinator.js";
 import {waitForProcessExit} from "~/admin/helpers/wait_for_process_exit.js";
@@ -111,7 +111,7 @@ async function actuallyBuildBazelTargets(targets: Array<string>) {
     // eslint-disable-next-line no-console
     console.log("");
     // eslint-disable-next-line no-console
-    console.log(`${colorette.dim("$")} bazel build ${colorette.bold(targets.join(" "))}`);
+    console.log(`${chalk.dim("$")} bazel build ${chalk.bold(targets.join(" "))}`);
 
     const startTime = Date.now();
     bazelBuildEvents.emit({type: "BuildStart", targets});
@@ -122,8 +122,8 @@ async function actuallyBuildBazelTargets(targets: Array<string>) {
             "build",
             `--cpu=${bazelBuildTargetCpu}`,
             `--compilation_mode=${bazelBuildCompilationMode}`,
-            `--color=${colorette.isColorSupported ? "yes" : "no"}`,
-            `--curses=${colorette.isColorSupported ? "yes" : "no"}`,
+            `--color=${chalk.supportsColor ? "yes" : "no"}`,
+            `--curses=${chalk.supportsColor ? "yes" : "no"}`,
             ...targets,
         ],
         {

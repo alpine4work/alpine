@@ -3,6 +3,7 @@ import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_with
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {TracerEvent} from "~/shared/tracer/tracer_event.js";
 
 const isNode = typeof process !== "undefined" && !!process.versions.node;
 
@@ -42,7 +43,7 @@ const nodeSetupPromise = new Lazy(async () => {
  * of Node.js (like Cloudflare Workers) we expect a global function to be
  * provided.
  */
-export function writeTracerEventToFileInDev(event: unknown) {
+export function writeTracerEventToFileInDev(event: TracerEvent) {
     assert(process.env.NODE_ENV !== "production");
 
     if (!isNode) {
@@ -67,6 +68,12 @@ export function writeTracerEventToFileInDev(event: unknown) {
 
         const tracerLogFilePath = joinPath(tracerLogDirectoryPath, `tracer-${dateString}.log`);
 
-        await fs.appendFile(tracerLogFilePath, JSON.stringify(event) + "\n");
+        await fs.appendFile(
+            tracerLogFilePath,
+            JSON.stringify({
+                time: event.time,
+                data: event.getFlatData(),
+            }) + "\n",
+        );
     });
 }

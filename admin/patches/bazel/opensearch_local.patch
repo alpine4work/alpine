@@ -1,0 +1,20 @@
+diff -bur a/config/opensearch.yml b/config/opensearch.yml
+--- a/config/opensearch.yml	2023-07-27 12:03:24.000000000 -0400
++++ b/config/opensearch.yml	2023-07-27 12:42:25.000000000 -0400
+@@ -14,7 +14,7 @@
+ #
+ # Use a descriptive name for your cluster:
+ #
+-#cluster.name: my-application
++cluster.name: cyberworlds_development
+ #
+ # ------------------------------------ Node ------------------------------------
+ #
+@@ -132,3 +132,7 @@
+ # index searcher threadpool.
+ #
+ #opensearch.experimental.feature.concurrent_segment_search.enabled: false
++
++# NOTE(calebmer): Disable security. We don't care about using HTTPS in local
++# development.
++plugins.security.disabled: true

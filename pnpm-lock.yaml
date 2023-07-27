@@ -289,7 +289,7 @@ dependencies:
     specifier: 0.1.4
     version: 0.1.4(patch_hash=lhhf4zowvg4ngxldsy5aala7hu)
   chalk:
-    specifier: '4'
+    specifier: ^4.1.2
     version: 4.1.2
   change-case:
     specifier: ^4.1.2
@@ -303,9 +303,6 @@ dependencies:
   color:
     specifier: ^4.2.3
     version: 4.2.3
-  colorette:
-    specifier: ^2.0.20
-    version: 2.0.20
   constructs:
     specifier: ^10.1.143
     version: 10.1.143
@@ -7376,10 +7373,6 @@ packages:
     dependencies:
       color-convert: 2.0.1
       color-string: 1.9.1
-    dev: false
-
-  /colorette@2.0.20:
-    resolution: {integrity: sha512-IfEDxwoWIjkeXL1eXcDiow4UbKjhLdq6/EuSVR9GMN7KVH3r9gQ83e73hsz1Nd1T3ijd5xv1wcWRYO+D6kCI2w==}
     dev: false
 
   /combined-stream@1.0.8:

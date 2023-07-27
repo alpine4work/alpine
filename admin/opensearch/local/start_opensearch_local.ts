@@ -9,15 +9,17 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 
-const javaPathPromise = new Lazy(async () => {
-    const javaPathPath = joinPath(runfilesPath, "cyberworlds/admin/dynamo/local/java_path.txt");
+const javaBasePathPromise = new Lazy(async () => {
+    const javaPathPath = joinPath(
+        runfilesPath,
+        "cyberworlds/admin/opensearch/local/java_base_path.txt",
+    );
     const javaPath = (await fs.readFile(javaPathPath, "utf8")).trim();
     assert(javaPath.startsWith("external/"));
     return joinPath(runfilesPath, javaPath.slice("external/".length));
 });
 
-const dynamoLocalLibPath = joinPath(runfilesPath, "dynamo_local/DynamoDBLocal_lib");
-const dynamoLocalJarPath = joinPath(runfilesPath, "dynamo_local/DynamoDBLocal.jar");
+const opensearchLocalBinPath = joinPath(runfilesPath, "opensearch_local/bin/opensearch");
 
 export type DynamoLocal = {
     readonly port: number;
@@ -25,12 +27,12 @@ export type DynamoLocal = {
 };
 
 /**
- * Start running a [local DynamoDB][1] process with the database persisted to
+ * Start running a [local OpenSearch][1] process with the database persisted to
  * the provided path and listening on the provided port.
  *
- * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DynamoDBLocal.html
+ * [1]: https://opensearch.org/
  */
-export async function startDynamoLocal({
+export async function startOpensearchLocal({
     dataPath,
     logsPath,
     port,
@@ -39,26 +41,21 @@ export async function startDynamoLocal({
     logsPath: string;
     port: number;
 }): Promise<DynamoLocal> {
-    const [, logFileDescriptor, javaPath] = await runAllPromises([
+    const [, , javaBasePath] = await runAllPromises([
         fs.ensureDir(dataPath),
-        fs.ensureDir(logsPath).then(() => fs.open(joinPath(logsPath, "dynamo.log"), "a")),
-        javaPathPromise.get(),
+        fs.ensureDir(logsPath),
+        javaBasePathPromise.get(),
     ]);
 
     const subprocess = spawn(
-        javaPath,
-        [
-            `-Djava.library.path=${dynamoLocalLibPath}`,
-            "-jar",
-            dynamoLocalJarPath,
-            "-dbPath",
-            dataPath,
-            "-port",
-            String(port),
-        ],
+        opensearchLocalBinPath,
+        [`-Ehttp.port=${port}`, `-Epath.data=${dataPath}`, `-Epath.logs=${logsPath}`],
         {
-            env: {NODE_ENV: "development"},
-            stdio: ["ignore", logFileDescriptor, logFileDescriptor],
+            env: {
+                NODE_ENV: "development",
+                JAVA_HOME: javaBasePath,
+            },
+            stdio: ["ignore", "ignore", "ignore"],
         },
     );
 
@@ -70,12 +67,8 @@ export async function startDynamoLocal({
     return {
         port,
         stop: async () => {
-            try {
-                subprocess.kill();
-                await waitForProcessExit(subprocess);
-            } finally {
-                await fs.close(logFileDescriptor);
-            }
+            subprocess.kill();
+            await waitForProcessExit(subprocess);
         },
     };
 }

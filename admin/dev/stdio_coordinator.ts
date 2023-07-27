@@ -156,3 +156,15 @@ export function spawnWithCoordinatedStdio(
 
     return subprocess;
 }
+
+/**
+ * Write a message to our coordinated stdout. If there is a blocking process
+ * then we will wait for it to complete before printing.
+ */
+export function writeToCoordinatedStdout(chunk: string) {
+    if (blockingStdioSubprocesses.length > 0) {
+        coordinatedStdioBufferedChunks.push({where: "stdout", chunk: Buffer.from(chunk)});
+    } else {
+        process.stdout.write(chunk);
+    }
+}

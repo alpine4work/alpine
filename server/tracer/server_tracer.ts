@@ -71,10 +71,7 @@ export function createServerTracer({
             honeycombClient?.sendEvent(event);
 
             if (process.env.NODE_ENV !== "production") {
-                writeTracerEventToFileInDev({
-                    time: event.time,
-                    data: event.getFlatData(),
-                });
+                writeTracerEventToFileInDev(event);
             }
         },
     });

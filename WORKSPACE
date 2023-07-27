@@ -96,7 +96,7 @@ npm_repositories()
 http_archive(
     name = "aspect_rules_swc",
     patch_args = ["-p1"],
-    patches = ["//admin/patches:aspect_rules_swc.patch"],
+    patches = ["//admin/patches:bazel/aspect_rules_swc.patch"],
     sha256 = "b647c7c31feeb7f9330fff08b45f8afe7de674d3a9c89c712b8f9d1723d0c8f9",
     strip_prefix = "rules_swc-1.0.1",
     url = "https://github.com/aspect-build/rules_swc/releases/download/v1.0.1/rules_swc-v1.0.1.tar.gz",
@@ -208,4 +208,34 @@ oci_pull(
         "linux/amd64",
         "linux/arm64/v8",
     ],
+)
+
+# =========================================================================== #
+#                                OpenSearch                                   #
+# =========================================================================== #
+
+# We download the Linux build for MacOS which you may understandably
+# find...strange. The Linux build comes with a bundled JDK built for Linux,
+# however the built `.jar` files in the download are cross platform and can run
+# anywhere.
+#
+# We do this for now because it is simple and works. If we find problems with
+# this approach in the future we can build from source code which is what
+# [Homebrew does][1] and host it in S3.
+#
+# [1]: https://github.com/Homebrew/homebrew-core/blob/af8df3291c69a65475cef507ca32cf7502ec8b9c/Formula/opensearch.rb
+http_archive(
+    name = "opensearch_local",
+    build_file_content = """\
+filegroup(
+    name = "opensearch_local",
+    srcs = glob(["bin/*"]),
+    visibility = ["//visibility:public"],
+)
+""",
+    patch_args = ["-p1"],
+    patches = ["//admin/patches:bazel/opensearch_local.patch"],
+    sha256 = "03d623c2d99a7100c2f0faddc8ffda8ba27eae8aa63ff6f3f7dad2337be8b68c",
+    strip_prefix = "opensearch-2.9.0",
+    url = "https://artifacts.opensearch.org/releases/bundle/opensearch/2.9.0/opensearch-2.9.0-linux-x64.tar.gz",
 )

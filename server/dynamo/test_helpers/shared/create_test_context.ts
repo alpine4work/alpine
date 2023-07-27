@@ -1,7 +1,7 @@
 import {AwsClient} from "aws4fetch";
 import fs from "fs-extra";
 import getPort from "get-port";
-import path from "path";
+import {join as joinPath} from "path";
 import {DynamoLocal, startDynamoLocal} from "~/admin/dynamo/local/start_dynamo_local.js";
 import {
     WorkerSessionActionContext,
@@ -161,12 +161,17 @@ export function createTestContext(): TestContext {
     });
 
     testSharedHooks.beforeAll(async () => {
-        const dataPath = await fs.mkdtemp(
-            path.join(assertExists(process.env.TEST_TMPDIR), "dynamo_local_data_"),
+        const tempPath = await fs.mkdtemp(
+            joinPath(assertExists(process.env.TEST_TMPDIR), "dynamo_local_"),
         );
 
         const port = await getPort();
-        dynamoLocal = await startDynamoLocal({dataPath, port});
+
+        dynamoLocal = await startDynamoLocal({
+            dataPath: joinPath(tempPath, "data"),
+            logsPath: joinPath(tempPath, "logs"),
+            port,
+        });
 
         const awsClient = new AwsClient({
             accessKeyId: "local",

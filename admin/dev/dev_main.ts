@@ -1,6 +1,6 @@
+import chalk from "chalk";
 import {ChildProcess} from "child_process";
 import chokidar from "chokidar";
-import * as colorette from "colorette";
 import fs from "fs-extra";
 import {networkInterfaces} from "os";
 import {basename, dirname, join as joinPath} from "path";
@@ -12,7 +12,10 @@ import {
 import {queryBazelTargetDependencyPackagePaths} from "~/admin/dev/bazel/query_bazel_target_dependency_package_paths.js";
 import {createDevProxyServer} from "~/admin/dev/dev_proxy_server.js";
 import {startRemixDevServer} from "~/admin/dev/remix_dev_server.js";
-import {spawnWithCoordinatedStdio} from "~/admin/dev/stdio_coordinator.js";
+import {
+    spawnWithCoordinatedStdio,
+    writeToCoordinatedStdout,
+} from "~/admin/dev/stdio_coordinator.js";
 import {startDynamoLocal} from "~/admin/dynamo/local/start_dynamo_local.js";
 import {devEnvPaths} from "~/admin/helpers/dev_env_paths.js";
 import {
@@ -26,6 +29,7 @@ import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
 import {waitForProcessExit} from "~/admin/helpers/wait_for_process_exit.js";
 import {waitForProcessSpawn} from "~/admin/helpers/wait_for_process_spawn.js";
 import {workspacePath} from "~/admin/helpers/workspace_path.js";
+import {startOpensearchLocal} from "~/admin/opensearch/local/start_opensearch_local.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {AsyncMutex} from "~/shared/helpers/async/async_mutex.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -45,10 +49,14 @@ const appPort = parseInt(assertExists(env.APP_PORT), 10);
 const appDevPrivatePort = parseInt(assertExists(env.APP_DEV_PRIVATE_PORT), 10);
 const honeycombApiKey = env.HONEYCOMB_API_KEY;
 const remixDevServerPort = parseInt(assertExists(env.REMIX_DEV_SERVER_PORT), 10);
-const dynamoDataDirectoryPath = joinPath(devEnvPaths.data, "dynamo");
+const dynamoLocalDataPath = joinPath(devEnvPaths.data, "dynamo");
+const dynamoLocalLogsPath = joinPath(devEnvPaths.log, "dynamo");
 const dynamoLocalPort = parseInt(assertExists(env.DYNAMO_LOCAL_PORT), 10);
 const edgeDevPort = parseInt(assertExists(env.EDGE_DEV_PORT), 10);
 const edgeDevPrivatePort = parseInt(assertExists(env.EDGE_DEV_PRIVATE_PORT), 10);
+const opensearchLocalDataPath = joinPath(devEnvPaths.data, "opensearch");
+const opensearchLocalLogsPath = joinPath(devEnvPaths.log, "opensearch");
+const opensearchLocalPort = parseInt(assertExists(env.OPENSEARCH_LOCAL_PORT), 10);
 
 type Artifact = {
     readonly bazelTarget: string;
@@ -127,70 +135,84 @@ let fileUpdateQueue: {
 
 const remixDevServerPromise = startRemixDevServer({remixDevServerPort});
 
-const setupPromise = runAllPromises([
+const fastSetupPromise = runAllPromises([
     ensureDevServiceKeys(),
     startDynamoLocal({
-        dataPath: dynamoDataDirectoryPath,
+        dataPath: dynamoLocalDataPath,
+        logsPath: dynamoLocalLogsPath,
         port: dynamoLocalPort,
     }),
     remixDevServerPromise,
 ]);
 
-const mainPromise = runAllPromises([
-    setupPromise,
-    runAllPromises(
-        artifacts.map(async artifact => {
-            await runAllPromises([
-                rebuildArtifact(artifact),
-                updateArtifactDependencyBazelPackagePaths(artifact),
-                createDevProxyServer(artifact.port, artifact.privatePort),
-            ]);
-        }),
-    ),
+// Don't wait for these promises to resolve before printing that our
+// developer environment is ready since it may take a while for these
+// promises to resolve.
+//
+// Consider showing a loading spinner or progress indicator. The developer
+// can start using their dev environment even while these services haven't
+// started yet! So maybe a spinner is actually a bad idea since the developer
+// may think they must wait.
+const slowSetupPromise = runAllPromises([
+    startOpensearchLocal({
+        dataPath: opensearchLocalDataPath,
+        logsPath: opensearchLocalLogsPath,
+        port: opensearchLocalPort,
+    }),
 ]);
 
-mainPromise
-    .then(() => {
-        const externalHost = (() => {
-            for (const [name, nets] of Object.entries(networkInterfaces())) {
-                if (!nets) continue;
-                for (const networkInterface of nets) {
-                    // Skip over non-IPv4 and internal (i.e. 127.0.0.1) addresses
-                    // 'IPv4' is in Node <= 17, from 18 it's a number 4 or 6
-                    const familyV4Value = typeof networkInterface.family === "string" ? "IPv4" : 4;
-                    if (networkInterface.family === familyV4Value && !networkInterface.internal) {
-                        if (name === "en0") {
-                            return networkInterface.address;
-                        }
+const artifactsPromise = runAllPromises(
+    artifacts.map(async artifact => {
+        await runAllPromises([
+            rebuildArtifact(artifact),
+            updateArtifactDependencyBazelPackagePaths(artifact),
+            createDevProxyServer(artifact.port, artifact.privatePort),
+        ]);
+    }),
+);
+
+const fastMainPromise = runAllPromises([fastSetupPromise, artifactsPromise]);
+
+const mainPromise = runAllPromises([fastMainPromise, slowSetupPromise]);
+
+void fastMainPromise.then(() => {
+    const externalHost = (() => {
+        for (const [name, nets] of Object.entries(networkInterfaces())) {
+            if (!nets) continue;
+            for (const networkInterface of nets) {
+                // Skip over non-IPv4 and internal (i.e. 127.0.0.1) addresses
+                // 'IPv4' is in Node <= 17, from 18 it's a number 4 or 6
+                const familyV4Value = typeof networkInterface.family === "string" ? "IPv4" : 4;
+                if (networkInterface.family === familyV4Value && !networkInterface.internal) {
+                    if (name === "en0") {
+                        return networkInterface.address;
                     }
                 }
             }
-            return null;
-        })();
+        }
+        return null;
+    })();
 
-        const tracerLogDirectoryPath = joinPath(devEnvPaths.log, "tracer");
-
-        process.stdout.write(`\
+    writeToCoordinatedStdout(`\
 
 
-Development environment running on ${colorette.underline(
-            colorette.bold(`http://localhost:${edgeDevPort}`),
-        )}
+Development environment running on ${chalk.underline(`http://localhost:${edgeDevPort}`)}
 
-- Start the Chrome debugger at: ${colorette.underline("chrome://inspect")}
+• Start the Chrome debugger at: ${chalk.underline("chrome://inspect")}
 ${
     externalHost
-        ? `- Other devices on your network can access: ${colorette.underline(
+        ? `• Other devices on your network can access: ${chalk.underline(
               `http://${externalHost}:${edgeDevPort}`,
           )}\n`
         : ""
 }\
-- Tracer logs are available at: ${colorette.underline(tracerLogDirectoryPath)}
+• Logs are available at: ${chalk.underline(devEnvPaths.log)}
 
 
 `);
-    })
-    .catch(scheduleUncaughtError);
+});
+
+mainPromise.catch(scheduleUncaughtError);
 
 // Log uncaught exceptions, don't kill the process.
 process.on("uncaughtException", error => {
@@ -223,7 +245,7 @@ async function rebuildArtifact(artifact: Artifact) {
         }
 
         // Make sure our setup promise has resolved before spawning our server.
-        await setupPromise;
+        await fastSetupPromise;
 
         const subprocess = spawnWithCoordinatedStdio(
             joinPath(
