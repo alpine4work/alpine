@@ -704,21 +704,6 @@ export class DynamoClientInternal {
     }
 }
 
-// TODO(calebmer, #tracing): Add "accumulated" capacity data to parent spans.
-// How we should do this is a little unclear at the moment. Do we add
-// accumulated capacity to every parent span? Only the root HTTP request span?
-// What about `waitUntil()`s. Do we need to hold on sending parent spans until
-// `waitUntil()`s complete and we can add the correct accumulated capacity?
-//
-// I'm leaning towards:
-//
-// - Put accumulated capacity on every parent span in the process. This allows
-//   us to compare spans at any level (e.g. compare HTTP requests vs compare
-//   individual RPC requests)
-//
-// - Parent spans need to wait for their `waitUntil()`s so we can get
-//   accumulated span tags. We should consider timing out if a `waitUntil()` is
-//   too long, though, and cutting off accumulated data collection.
 function getConsumedCapacityTracerEventData(
     consumedCapacities: types.ConsumedCapacity | Array<types.ConsumedCapacity> | undefined,
     capacityUnitsHint: "Read" | "Write",

@@ -33,16 +33,6 @@ const retrySymbol = Symbol("retry");
  * [1]: https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/
  * [2]: https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
  */
-// TODO(calebmer, #tracing): Add tracing for this. Including a retry count
-// number. Also spans around the retry delay so retry delays can be visualized.
-// The retry delay spans should include the error passed to `retry()`. I have
-// some questions about how it should be done, though. Do we add a
-// `retryWithExponentialBackoff` span every time this is called? I still don't
-// have a good sense for what "a lot" of spans means. We have a span for every
-// DynamoDB action. There are more of those than retries?
-//
-// I think the answer is probably to add a `retryWithExponentialBackoff` span
-// but I'm a little hesitant.
 export function retryWithExponentialBackoff<Value>(
     action: (retry: (error?: unknown) => never) => Promise<Value>,
 ): Promise<Value> {

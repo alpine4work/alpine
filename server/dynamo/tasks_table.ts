@@ -217,13 +217,6 @@ const TasksTable = DynamoTableSchema.new({
                         collections: TaskCollectionSet.schema,
                     }),
                 },
-                {
-                    name: "ChildTask",
-                    sortKeyAttributes: {
-                        childTaskId: DynamoKeyAttributeSchema.id<TaskId>(),
-                    },
-                    attributes: Schema.object({}),
-                },
             ],
         },
     ],
@@ -323,13 +316,6 @@ class TaskSpaceActionTransactionCommitState {
 
     // We may only have one DynamoDB transaction entry for each item. So we need to
     // merge all updates we want to make on an item into a single transaction entry.
-    private readonly _transactionEntryByParentTaskIdAndChildTaskId = new Map<
-        `${TaskId}-${TaskId}`,
-        {action: "CreateOrReplaceItem" | "DeleteItemIfExists"}
-    >();
-
-    // We may only have one DynamoDB transaction entry for each item. So we need to
-    // merge all updates we want to make on an item into a single transaction entry.
     private readonly _transactionEntryByCollectionId = new Map<
         TaskCollectionId,
         {
@@ -386,43 +372,6 @@ class TaskSpaceActionTransactionCommitState {
                                 transactionEntry.taskItem,
                                 transactionEntry.taskItem.updateLockVersion,
                             ),
-                        );
-                        break;
-                    }
-                    default:
-                        throw exhaustive(transactionEntry.action);
-                }
-            }
-
-            for (const [
-                parentTaskIdAndChildTaskId,
-                transactionEntry,
-            ] of state._transactionEntryByParentTaskIdAndChildTaskId) {
-                const [parentTaskId, childTaskId] = parentTaskIdAndChildTaskId.split("-") as [
-                    TaskId,
-                    TaskId,
-                ];
-
-                switch (transactionEntry.action) {
-                    case "CreateOrReplaceItem": {
-                        transactionEntries.push(
-                            TasksTable.transactionCreateOrReplaceItem({
-                                partitionType: "Task",
-                                sortRangeType: "ChildTask",
-                                taskId: parentTaskId,
-                                childTaskId,
-                            }),
-                        );
-                        break;
-                    }
-                    case "DeleteItemIfExists": {
-                        transactionEntries.push(
-                            TasksTable.transactionDeleteItemIfExists({
-                                partitionType: "Task",
-                                sortRangeType: "ChildTask",
-                                taskId: parentTaskId,
-                                childTaskId,
-                            }),
                         );
                         break;
                     }
@@ -617,18 +566,6 @@ class TaskSpaceActionTransactionCommitState {
             );
 
         transactionEntry.taskItem = taskItem;
-    }
-
-    public createOrReplaceChildTaskItem(parentTaskId: TaskId, childTaskId: TaskId) {
-        this._transactionEntryByParentTaskIdAndChildTaskId.set(`${parentTaskId}-${childTaskId}`, {
-            action: "CreateOrReplaceItem",
-        });
-    }
-
-    public deleteChildTaskItemIfExists(parentTaskId: TaskId, childTaskId: TaskId) {
-        this._transactionEntryByParentTaskIdAndChildTaskId.set(`${parentTaskId}-${childTaskId}`, {
-            action: "DeleteItemIfExists",
-        });
     }
 
     public getCollectionItemIfExists(
@@ -1087,33 +1024,12 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                     },
                                 );
 
-                                const oldParentTaskId = taskItem.parentTaskId;
-                                const newParentTaskId = oldParentTaskId.apply(
-                                    taskAction.parentTaskIdAction,
-                                );
-
                                 state.updateTaskItem({
                                     ...taskItem,
-                                    parentTaskId: newParentTaskId,
+                                    parentTaskId: taskItem.parentTaskId.apply(
+                                        taskAction.parentTaskIdAction,
+                                    ),
                                 });
-
-                                // Maintain an "index" of parent tasks to their child tasks. That way we can
-                                // explore the task hierarchy both from the child->parent direction but also
-                                // from the parent->children direction.
-                                if (oldParentTaskId.value !== newParentTaskId.value) {
-                                    if (oldParentTaskId.value) {
-                                        state.deleteChildTaskItemIfExists(
-                                            oldParentTaskId.value,
-                                            taskId,
-                                        );
-                                    }
-                                    if (newParentTaskId.value) {
-                                        state.createOrReplaceChildTaskItem(
-                                            newParentTaskId.value,
-                                            taskId,
-                                        );
-                                    }
-                                }
                                 break;
                             }
                             case "UpdateParentPosition": {
