@@ -24,8 +24,11 @@ export type TaskCollectionSetAction = CrdtMapAction<TaskCollectionId, OrderKey>;
  */
 export class TaskCollectionSet {
     private readonly _entries: TaskCollectionSetEntries;
-    private _array: ReadonlyArray<{collectionId: TaskCollectionId; orderKey: OrderKey}> | null =
-        null;
+    private _array: ReadonlyArray<{
+        collectionId: TaskCollectionId;
+        orderKey: OrderKey;
+        updatedTime: Date;
+    }> | null = null;
 
     private constructor(entries: TaskCollectionSetEntries) {
         this._entries = entries;
@@ -46,12 +49,20 @@ export class TaskCollectionSet {
      * We include the `orderKey` for each collection so you can insert a new
      * collection wherever you'd like in the set.
      */
-    public getArray(): ReadonlyArray<{collectionId: TaskCollectionId; orderKey: OrderKey}> {
+    public getArray(): ReadonlyArray<{
+        collectionId: TaskCollectionId;
+        orderKey: OrderKey;
+        updatedTime: Date;
+    }> {
         if (this._array === null) {
-            const array = Array.from(this._entries, ([collectionId, orderKey]) => ({
-                collectionId,
-                orderKey,
-            }));
+            const array = Array.from(
+                this._entries.entriesWithUpdatedTime(),
+                ([collectionId, {value: orderKey, updatedTime}]) => ({
+                    collectionId,
+                    orderKey,
+                    updatedTime,
+                }),
+            );
 
             array.sort(
                 (entry1, entry2) =>

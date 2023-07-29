@@ -5,7 +5,7 @@ import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_inter
  * properties.
  *
  * Does not convert properties that include `null` to optional properties. Use
- * `OptionalizeNull` for that.
+ * `OptionalizeNullable` for that.
  */
 export type Optionalize<O> = MergeObjectIntersection<
     {readonly [K in KeyofWithoutUndefined<O>]: O[K]} & {

@@ -63,7 +63,7 @@ export class TaskFilterableTime {
     constructor({absoluteTime, setterTimeZone}: {absoluteTime: Date; setterTimeZone: TimeZone}) {
         this.absoluteTime = absoluteTime;
         this.setterTimeZone = setterTimeZone;
-        this.setterDate = toCalendarDate(parseAbsolute(absoluteTime.toISOString(), setterTimeZone));
+        this.setterDate = getTaskFilterableTimeSetterDate(absoluteTime, setterTimeZone);
     }
 
     public static readonly schema = Schema.object({
@@ -80,4 +80,11 @@ export class TaskFilterableTime {
             this.setterTimeZone === other.setterTimeZone
         );
     }
+}
+
+export function getTaskFilterableTimeSetterDate(
+    absoluteTime: Date,
+    setterTimeZone: TimeZone,
+): CalendarDate {
+    return toCalendarDate(parseAbsolute(absoluteTime.toISOString(), setterTimeZone));
 }

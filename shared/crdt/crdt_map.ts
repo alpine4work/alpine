@@ -43,6 +43,12 @@ export interface CrdtMap<Key extends string | number, Value extends {}> {
     entries(): IterableIterator<[Key, Value]>;
 
     /**
+     * Returns a new iterator of all the entires in the map with the `updatedTime`
+     * of their registers.
+     */
+    entriesWithUpdatedTime(): IterableIterator<[Key, {value: Value; updatedTime: Date}]>;
+
+    /**
      * Returns a new iterator of all the entries in the map.
      *
      * Iterates in key order, not insertion order.
@@ -166,6 +172,16 @@ export function createCrdtMap<Key extends string | number, Value extends {}>(
             for (const [key, {value}] of this._map.entries()) {
                 if (value !== null) {
                     yield [key, value];
+                }
+            }
+        }
+
+        public *entriesWithUpdatedTime(): IterableIterator<
+            [Key, {value: Value; updatedTime: Date}]
+        > {
+            for (const [key, {value, updatedTime}] of this._map.entries()) {
+                if (value !== null) {
+                    yield [key, {value, updatedTime}];
                 }
             }
         }

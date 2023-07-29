@@ -5,8 +5,10 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {decodeIdInto, encodeId, idByteLength} from "~/shared/id/id.js";
 import {AccountId, LocalTaskCollectionId} from "~/shared/id/types/id_types.js";
+import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 
+// NOCOMMIT: Add title filter
 export type TaskQueryFilter =
     | TaskQueryStatusFilter
     | TaskQueryCollectionsFilter
@@ -265,11 +267,11 @@ export type TaskQueryStatusFilter = {
     readonly operation:
         | {
               readonly type: "OneOf";
-              readonly statuses: ReadonlySet<"OpenInactive" | "OpenActive" | "Closed">;
+              readonly statuses: ReadonlySet<TaskDisplayStatus>;
           }
         | {
               readonly type: "NoneOf";
-              readonly statuses: ReadonlySet<"OpenInactive" | "OpenActive" | "Closed">;
+              readonly statuses: ReadonlySet<TaskDisplayStatus>;
           };
 };
 
@@ -308,7 +310,7 @@ function deserializeTaskQueryStatusFilter(view: DataView): {
             throw new InvalidArgumentError(`Unrecognized operation type ${typeBits}`);
     }
 
-    const statuses = new Set<"OpenInactive" | "OpenActive" | "Closed">();
+    const statuses = new Set<TaskDisplayStatus>();
 
     if (byte & 0b00001000) statuses.add("OpenInactive");
     if (byte & 0b00000100) statuses.add("OpenActive");

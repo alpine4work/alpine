@@ -97,6 +97,23 @@ export function getTaskTitleProsemirrorNode(title: TaskTitle): Node {
 }
 
 /**
+ * Get the plain text string of the task title without any styles.
+ */
+export function getTaskTitleText(title: TaskTitle): string {
+    const node = getTaskTitleProsemirrorNode(title);
+
+    let text = "";
+
+    node.descendants(childNode => {
+        if (childNode.isText) {
+            text += childNode.textContent;
+        }
+    });
+
+    return text;
+}
+
+/**
  * A Y.js update to a `TaskTitle`.
  */
 export type TaskTitleUpdate = Uint8Array & {readonly _TaskTitleUpdate: never};

@@ -19,8 +19,6 @@ import {
     SchemaSerializedValueDescription,
 } from "~/shared/schema/types/schema_description_types.js";
 
-//x
-
 /**
  * Get the underlying type of a schema object.
  */
