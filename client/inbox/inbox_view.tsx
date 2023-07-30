@@ -504,30 +504,40 @@ function InboxViewEntries({
     }, [selectedEntryKey]);
 
     const [deletedItemAnimationsState, setDeletedItemAnimationsState] = useState<{
-        readonly currentAnimation: {
-            readonly offset: number;
-            readonly deletedItem: {
-                readonly index: number;
-                readonly cursor: DynamoIndexCursor;
-                readonly item: DynamoGeneralRealtimeItem<InboxEntryModel>;
+        readonly activeAnimations: {
+            readonly currentAnimation: {
+                readonly offset: number;
+                readonly deletedItem: {
+                    readonly index: number;
+                    readonly cursor: DynamoIndexCursor;
+                    readonly item: DynamoGeneralRealtimeItem<InboxEntryModel>;
+                };
             };
-        };
-        readonly queuedAnimations: ReadonlyArray<{
-            readonly offset: number;
-            readonly deletedItem: {
-                readonly index: number;
-                readonly cursor: DynamoIndexCursor;
-                readonly item: DynamoGeneralRealtimeItem<InboxEntryModel>;
-            };
+            readonly queuedAnimations: ReadonlyArray<{
+                readonly offset: number;
+                readonly deletedItem: {
+                    readonly index: number;
+                    readonly cursor: DynamoIndexCursor;
+                    readonly item: DynamoGeneralRealtimeItem<InboxEntryModel>;
+                };
+            }>;
+        } | null;
+        readonly finishedAnimations: ReadonlySet<{
+            readonly index: number;
+            readonly cursor: DynamoIndexCursor;
+            readonly item: DynamoGeneralRealtimeItem<InboxEntryModel>;
         }>;
-    } | null>(null);
+    }>({
+        activeAnimations: null,
+        finishedAnimations: new Set(),
+    });
 
     // When an item is deleted, we start an animation to shift entries below the
     // deleted item up to fill its space. This helps users see an item was removed
     // and what happens next.
     {
         const deletedItem = itemsDeletedByLastChangeForAnimation[0];
-        if (deletedItem) {
+        if (deletedItem && !deletedItemAnimationsState.finishedAnimations.has(deletedItem)) {
             // We should still have the height of the deleted item in
             // `VirtualizedScrollViewRef` since the render hasn't finished and unmounted
             // the element yet.
@@ -542,29 +552,37 @@ function InboxViewEntries({
 
             offset ??= convertRemLengthToPx(inboxEntryViewMinHeight, remPx);
 
-            if (!deletedItemAnimationsState) {
+            if (!deletedItemAnimationsState.activeAnimations) {
                 setDeletedItemAnimationsState({
-                    currentAnimation: {
-                        offset,
-                        deletedItem,
+                    activeAnimations: {
+                        currentAnimation: {
+                            offset,
+                            deletedItem,
+                        },
+                        queuedAnimations: [],
                     },
-                    queuedAnimations: [],
+                    finishedAnimations: deletedItemAnimationsState.finishedAnimations,
                 });
             } else if (
-                deletedItemAnimationsState.currentAnimation.deletedItem !== deletedItem &&
-                deletedItemAnimationsState.queuedAnimations.every(
+                deletedItemAnimationsState.activeAnimations.currentAnimation.deletedItem !==
+                    deletedItem &&
+                deletedItemAnimationsState.activeAnimations.queuedAnimations.every(
                     animation => animation.deletedItem !== deletedItem,
                 )
             ) {
                 setDeletedItemAnimationsState({
-                    currentAnimation: deletedItemAnimationsState.currentAnimation,
-                    queuedAnimations: [
-                        ...deletedItemAnimationsState.queuedAnimations,
-                        {
-                            offset,
-                            deletedItem,
-                        },
-                    ],
+                    activeAnimations: {
+                        currentAnimation:
+                            deletedItemAnimationsState.activeAnimations.currentAnimation,
+                        queuedAnimations: [
+                            ...deletedItemAnimationsState.activeAnimations.queuedAnimations,
+                            {
+                                offset,
+                                deletedItem,
+                            },
+                        ],
+                    },
+                    finishedAnimations: deletedItemAnimationsState.finishedAnimations,
                 });
             }
         }
@@ -581,14 +599,28 @@ function InboxViewEntries({
         // null which will re-run the effect and clear the interval.
         const interval = createInterval(() => {
             setDeletedItemAnimationsState(animationState => {
-                if (!animationState) return null;
+                if (!animationState.activeAnimations) return animationState;
 
-                const [currentAnimation, ...queuedAnimations] = animationState.queuedAnimations;
-                if (!currentAnimation) return null;
+                const newFinishedAnimations = new Set(animationState.finishedAnimations);
+                newFinishedAnimations.add(
+                    animationState.activeAnimations.currentAnimation.deletedItem,
+                );
+
+                const [currentAnimation, ...queuedAnimations] =
+                    animationState.activeAnimations.queuedAnimations;
+                if (!currentAnimation) {
+                    return {
+                        activeAnimations: null,
+                        finishedAnimations: newFinishedAnimations,
+                    };
+                }
 
                 return {
-                    currentAnimation,
-                    queuedAnimations,
+                    activeAnimations: {
+                        currentAnimation,
+                        queuedAnimations,
+                    },
+                    finishedAnimations: newFinishedAnimations,
                 };
             });
         }, inboxEntryDeleteAnimationDurationMs);
@@ -599,13 +631,13 @@ function InboxViewEntries({
     // Collect all items that we need to animate deletion of into a sorted array.
     // We will interleave this array in our virtualized list.
     const deletedItemAnimations = useMemo(() => {
-        if (!deletedItemAnimationsState) return [];
+        if (!deletedItemAnimationsState.activeAnimations) return [];
 
         const deletedItemAnimations = [];
 
         for (const animation of [
-            deletedItemAnimationsState.currentAnimation,
-            ...deletedItemAnimationsState.queuedAnimations,
+            deletedItemAnimationsState.activeAnimations.currentAnimation,
+            ...deletedItemAnimationsState.activeAnimations.queuedAnimations,
         ]) {
             if (animation.deletedItem.index < itemCount + 1) {
                 deletedItemAnimations.push(animation);
@@ -667,7 +699,8 @@ function InboxViewEntries({
                                                 isLastEntry={isLastItem}
                                                 deletedItemAnimation={
                                                     animation ===
-                                                    deletedItemAnimationsState?.currentAnimation
+                                                    deletedItemAnimationsState.activeAnimations
+                                                        ?.currentAnimation
                                                         ? animation
                                                         : deletedItemAnimation
                                                 }
@@ -678,7 +711,9 @@ function InboxViewEntries({
                                     index--;
 
                                     if (
-                                        animation === deletedItemAnimationsState?.currentAnimation
+                                        animation ===
+                                        deletedItemAnimationsState.activeAnimations
+                                            ?.currentAnimation
                                     ) {
                                         deletedItemAnimation = animation;
                                     }
@@ -740,7 +775,7 @@ function InboxViewEntries({
                             query,
                             deletedItemAnimations,
                             itemCountWithDeletedItemAnimations,
-                            deletedItemAnimationsState?.currentAnimation,
+                            deletedItemAnimationsState.activeAnimations?.currentAnimation,
                             selectedEntryKey,
                             ariaSetsize,
                             selectEntry,

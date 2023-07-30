@@ -76,6 +76,7 @@ export class WorkerRpcContextModule extends RpcContextModuleBase<{
                     span,
                     new URL(`${this._protocol}//${this._host}/api/rpc/${definition.name}`),
                     {
+                        spanRoute: "/api/rpc/:rpcName",
                         method: "POST",
                         headers: {
                             authorization: `bearer ${token}`,

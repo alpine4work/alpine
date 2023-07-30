@@ -19,6 +19,8 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
  * May re-create the `Request` object so when responding to a request use the
  * `Request` object passed into the action.
  */
+// TODO(calebmer, #tracer): Include the HTTP route in the span name like we do
+// with `fetchWithTracer()`.
 export async function traceFetchResponse(
     tracer: TracerRoot,
     request: Request,

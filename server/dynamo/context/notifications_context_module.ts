@@ -207,6 +207,8 @@ export class NotificationsContextModule extends NotificationsContextModuleBase {
                             this._edgeServiceUrl,
                         ),
                         {
+                            spanRoute:
+                                "/api/durable-objects/my-account/:accountId/inbox-realtime-event-transaction",
                             method: "POST",
                             headers: {
                                 authorization: `bearer ${token}`,

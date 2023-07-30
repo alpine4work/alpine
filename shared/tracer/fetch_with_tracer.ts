@@ -16,7 +16,16 @@ const globalFetch = fetch;
 export async function fetchWithTracer(
     tracer: TracerBase,
     url: URL | string,
-    requestInit?: RequestInit & {
+    requestInit: RequestInit & {
+        /**
+         * A description of the path we'll include in the `TracerSpan`'s name.
+         * This should be low cardinality to make filtering easy.
+         *
+         * Uses a subset of the [URL Pattern API][1].
+         *
+         * [1]: https://developer.mozilla.org/en-US/docs/Web/API/URL_Pattern_API
+         */
+        spanRoute: string;
         fetch?: (url: URL | string, requestInit: RequestInit) => Promise<Response>;
     },
 ): Promise<Response> {
@@ -31,11 +40,21 @@ export function fetchWithTracerAndReturnSpan(
     tracer: TracerBase,
     url: URL | string,
     {
+        spanRoute,
         fetch = globalFetch,
         ...requestInit
     }: RequestInit & {
+        /**
+         * A description of the path we'll include in the `TracerSpan`'s name.
+         * This should be low cardinality to make filtering easy.
+         *
+         * Uses a subset of the [URL Pattern API][1].
+         *
+         * [1]: https://developer.mozilla.org/en-US/docs/Web/API/URL_Pattern_API
+         */
+        spanRoute: string;
         fetch?: (url: URL | string, requestInit: RequestInit) => Promise<Response>;
-    } = {},
+    },
 ): {
     span: TracerSpan;
     responsePromise: Promise<Response>;
@@ -43,11 +62,20 @@ export function fetchWithTracerAndReturnSpan(
     const requestUrl =
         typeof url === "string" && typeof window !== "undefined"
             ? new URL(url, window.location.href)
+            : typeof url === "string"
+            ? new URL(url)
             : url;
+
+    assert(
+        new RegExp(spanRoute.replaceAll(/(^|\/):[a-zA-Z0-9_]+(\/|$)/g, "$1[^/]+$2")).test(
+            requestUrl.pathname,
+        ),
+        "`spanRoute` must match URL `pathname`",
+    );
 
     const requestMethod = requestInit?.method ?? "GET";
 
-    const {span, finishSpan} = tracer.startSpan(`HTTP client ${requestMethod}`);
+    const {span, finishSpan} = tracer.startSpan(`HTTP client ${requestMethod} ${spanRoute}`);
 
     const requestHeaders = new Headers(requestInit?.headers);
     addTracerPropagationContextHeader(requestHeaders, span);
@@ -71,6 +99,7 @@ export function fetchWithTracerAndReturnSpan(
             },
         },
         http: {
+            route: spanRoute,
             url: requestUrl.toString(),
             method: requestMethod,
             userAgent: requestHeaders.get("user-agent") ?? undefined,

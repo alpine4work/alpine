@@ -58,6 +58,7 @@ export async function validateEmailAddress(
     dnsQueryUrl.searchParams.set("name", domain);
 
     const response = await fetchWithTracer(context.tracer.getTracer(), dnsQueryUrl, {
+        spanRoute: "/dns-query",
         headers: {Accept: "application/dns-json"},
     });
     if (response.status !== 200)
