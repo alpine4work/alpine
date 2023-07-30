@@ -39,7 +39,9 @@ type WebsocketClientConnectionState =
           readonly type: "Closed";
       };
 
-const sendWebSocketMessageSpanName = "Sent WebSocket message";
+function getSendWebSocketMessageSpanName(messageType: string) {
+    return `Sent WebSocket message ${messageType}`;
+}
 
 function resolveWebSocketUrl(url: string) {
     // If this is an absolute URL, add our current domain's origin. This will
@@ -105,15 +107,17 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
         const sendPing = () => {
             if (this._state.type !== "Open") return;
 
+            const messageType = "Ping";
+
             void this._getContext().tracer.withSpan(
-                sendWebSocketMessageSpanName,
+                getSendWebSocketMessageSpanName(messageType),
                 async (context, span) => {
-                    span.addData({webSocket: {messageType: "Ping"}});
+                    span.addData({webSocket: {messageType}});
 
                     if (!pongPromiseResolver) pongPromiseResolver = createPromiseResolver();
 
                     const serializedMessage = this._messageFromClientSchema.serialize({
-                        type: "Ping",
+                        type: messageType,
                         tracerContext: span.getPropagationContext(),
                     });
                     this._socket.send(JSON.stringify(serializedMessage));
@@ -286,8 +290,10 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
         name: Name,
         input: WebSocketProtocolProceduresType<Protocol>[Name]["input"],
     ): Promise<WebSocketProtocolProceduresType<Protocol>[Name]["output"]> {
+        const spanMessageType = `ProcedureRequest:${name}`;
+
         return this._getContext().tracer.withSpan(
-            sendWebSocketMessageSpanName,
+            getSendWebSocketMessageSpanName(spanMessageType),
             async (context, span) => {
                 assert(
                     this._state.type === "Connecting" || this._state.type === "Open",
@@ -296,7 +302,7 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
 
                 const requestId = generateId<WebSocketProcedureRequestId>();
 
-                span.addData({webSocket: {messageType: `ProcedureRequest:${name}`}});
+                span.addData({webSocket: {messageType: spanMessageType}});
 
                 const serializedMessage = this._messageFromClientSchema.serialize({
                     type: "ProcedureRequest",
@@ -370,19 +376,24 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
 
         this._state = {type: "SoftClosedWhileWaitingForProcedureResponses"};
 
-        await this._getContext().tracer.withSpan(sendWebSocketMessageSpanName, (context, span) => {
-            span.addData({
-                webSocket: {messageType: "SoftCloseWhileWaitingForProcedureResponses"},
-            });
+        const messageType = "SoftCloseWhileWaitingForProcedureResponses";
 
-            const serializedMessage = this._messageFromClientSchema.serialize({
-                type: "SoftCloseWhileWaitingForProcedureResponses",
-                tracerContext: span.getPropagationContext(),
-            });
-            this._socket.send(JSON.stringify(serializedMessage));
+        await this._getContext().tracer.withSpan(
+            getSendWebSocketMessageSpanName(messageType),
+            (context, span) => {
+                span.addData({
+                    webSocket: {messageType},
+                });
 
-            return this._closePromiseResolver.promise;
-        });
+                const serializedMessage = this._messageFromClientSchema.serialize({
+                    type: messageType,
+                    tracerContext: span.getPropagationContext(),
+                });
+                this._socket.send(JSON.stringify(serializedMessage));
+
+                return this._closePromiseResolver.promise;
+            },
+        );
     }
 
     /**

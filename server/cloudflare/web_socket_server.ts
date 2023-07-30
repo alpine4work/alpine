@@ -297,10 +297,10 @@ export class WebSocketServer<
         context: WorkerProcessContext,
         event: WebSocketProtocolEventType<Protocol>,
     ) {
-        const {span, finishSpan} = context.tracer.startSpan(
-            "Sending all WebSocket connections a message",
-        );
         const messageType = `Event:${event.type}`;
+        const {span, finishSpan} = context.tracer.startSpan(
+            `Sending all WebSocket connections message ${messageType}`,
+        );
         span.addData({webSocket: {messageType}});
         context = context.clone({tracer: new TracerContextModule(span)});
 
@@ -338,10 +338,10 @@ export class WebSocketServer<
         ourConnectionId: WebSocketConnectionId,
         event: WebSocketProtocolEventType<Protocol>,
     ) {
-        const {span, finishSpan} = context.tracer.startSpan(
-            "Sending all other WebSocket connections a message",
-        );
         const messageType = `Event:${event.type}`;
+        const {span, finishSpan} = context.tracer.startSpan(
+            `Sending all other WebSocket connections message ${messageType}`,
+        );
         span.addData({webSocket: {messageType}});
         context = context.clone({tracer: new TracerContextModule(span)});
 
@@ -648,13 +648,17 @@ class WebSocketServerConnectionWrapper<
                     {tracer: new TracerContextModule(span)},
                     async context => {
                         try {
+                            const spanMessageType =
+                                message.type === "ProcedureRequest"
+                                    ? `ProcedureRequest:${message.input.type}`
+                                    : message.type;
+
+                            span.appendName(` ${spanMessageType}`);
+
                             span.addData({
                                 webSocket: {
                                     connectionId: this.id,
-                                    messageType:
-                                        message.type === "ProcedureRequest"
-                                            ? `ProcedureRequest:${message.input.type}`
-                                            : message.type,
+                                    messageType: spanMessageType,
                                 },
                             });
 
@@ -844,7 +848,7 @@ class WebSocketServerConnectionWrapper<
 
         this._socket.send(message);
 
-        context.tracer.log("Sent WebSocket connection a message", {
+        context.tracer.log(`Sent WebSocket message ${messageType}`, {
             webSocket: {
                 connectionId: this.id,
                 messageType,

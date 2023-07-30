@@ -35,7 +35,7 @@ export class TracerSpan extends TracerBase {
     /**
      * The name of the trace.
      */
-    public readonly name: string;
+    private _name: string;
 
     /**
      * The ID of the trace this span is in.
@@ -90,7 +90,7 @@ export class TracerSpan extends TracerBase {
         super();
 
         this._tracer = tracer;
-        this.name = name;
+        this._name = name;
         this.traceId = parentSpan?.traceId ?? generateId();
         this.spanId = generateId();
         this._startTime = this._tracer.getTime();
@@ -103,7 +103,6 @@ export class TracerSpan extends TracerBase {
 
         this._eventData = {
             value: {
-                name,
                 trace: {
                     traceId: this.traceId,
                     spanId: this.spanId,
@@ -153,6 +152,16 @@ export class TracerSpan extends TracerBase {
      */
     public isFinished() {
         return this._finished;
+    }
+
+    /**
+     * Append some text to the end of this span's name.
+     *
+     * We want the creator of the span to control the span's name but allow later
+     * code to add extra information to the name.
+     */
+    public appendName(name: string) {
+        this._name = name;
     }
 
     /**
@@ -233,7 +242,7 @@ export class TracerSpan extends TracerBase {
         const endTime = this._tracer.getTime();
 
         this._eventData = {
-            value: {durationMs: endTime - this._startTime},
+            value: {name: this._name, durationMs: endTime - this._startTime},
             next: this._eventData,
         };
 
