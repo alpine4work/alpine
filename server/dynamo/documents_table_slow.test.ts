@@ -30,8 +30,6 @@ import {
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
 
-import.meta.jest.setTimeout(1000 * 20);
-
 const context = createTestContext();
 const space = createTestSpace(context);
 const session = createTestSession(context, space);
@@ -41,12 +39,12 @@ function textSlice(text: string) {
 }
 
 beforeEach(() => {
-    import.meta.jest.useFakeTimers();
+    jest.useFakeTimers();
 });
 
 afterEach(() => {
-    const hadNoTimers = import.meta.jest.getTimerCount() === 0;
-    import.meta.jest.clearAllTimers();
+    const hadNoTimers = jest.getTimerCount() === 0;
+    jest.clearAllTimers();
     assert(hadNoTimers, "Expected all timers to be cleaned up by the end of each test");
 });
 
@@ -105,7 +103,7 @@ test(
                 );
 
                 // Running all timers should force our next update to read from the cache.
-                import.meta.jest.runAllTimers();
+                jest.runAllTimers();
             }
         }
 
@@ -374,7 +372,7 @@ test(
 
             // Make sure to expire the cache. We need to do that so we don't keep all steps
             // in the cache and instead need to go read them from the database.
-            import.meta.jest.runAllTimers();
+            jest.runAllTimers();
 
             await updateDocumentContent(context.action(session), {
                 id: documentId,

@@ -373,7 +373,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     //
     // Only preload space accounts outside of Jest unit tests! That way we don't
     // depend on space context in unit tests.
-    if (!import.meta.jest) {
+    if (typeof jest === "undefined") {
         // eslint-disable-next-line react-hooks/rules-of-hooks
         useExpensivelyPreloadAllSpaceAccounts();
     }
@@ -395,7 +395,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     // to render a space context when testing this component.
     const currentAccount =
         // eslint-disable-next-line react-hooks/rules-of-hooks
-        !import.meta.jest ? useSpaceContext().currentAccount : null;
+        typeof jest === "undefined" ? useSpaceContext().currentAccount : null;
     const currentAccountRef = useRef(currentAccount);
     useLayoutEffect(() => {
         propsRef.current = props;
@@ -1135,7 +1135,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 const internalEditorViewKey = `__prosemirrorEditorView$${Math.random().toString(36).slice(2)}`;
 
 export function getEditorViewForTest(element: unknown): EditorView {
-    assert(import.meta.jest);
+    assert(typeof jest !== "undefined");
     assert(typeof element === "object" && element !== null);
 
     const editorView =

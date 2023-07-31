@@ -18,10 +18,11 @@ const CurrentTimeContext = createContext<{
     readonly currentDate: CalendarDate;
 } | null>(null);
 
-const currentTimeForTest = import.meta.jest ? roundDateToHour(new Date()) : null;
-const currentDateForTest = import.meta.jest
-    ? toCalendarDate(parseAbsolute(currentTimeForTest!.toISOString(), defaultTimeZone))
-    : null;
+const currentTimeForTest = typeof jest !== "undefined" ? roundDateToHour(new Date()) : null;
+const currentDateForTest =
+    typeof jest !== "undefined"
+        ? toCalendarDate(parseAbsolute(currentTimeForTest!.toISOString(), defaultTimeZone))
+        : null;
 
 /**
  * Return the current time rounded to the start of the current hour. This hook
@@ -35,7 +36,7 @@ export function useCurrentTimeRoundedToHour(): Date {
     if (context === null) {
         // In Jest tests use a dummy value instead of requiring a root
         // context provider.
-        if (import.meta.jest) {
+        if (typeof jest !== "undefined") {
             return assertExists(currentTimeForTest);
         }
 
@@ -59,7 +60,7 @@ export function useCurrentDate(): CalendarDate {
     if (context === null) {
         // In Jest tests use a dummy value instead of requiring a root
         // context provider.
-        if (import.meta.jest) {
+        if (typeof jest !== "undefined") {
             return assertExists(currentDateForTest);
         }
 

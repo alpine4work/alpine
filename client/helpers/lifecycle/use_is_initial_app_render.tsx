@@ -21,7 +21,7 @@ export function useIsInitialAppRender(): boolean {
     if (isInitialAppRender === null) {
         // In Jest tests, act like we are not in the initial render unless an
         // `<AppInitialRenderContextProvider>` is explicitly used.
-        if (import.meta.jest) return false;
+        if (typeof jest !== "undefined") return false;
 
         throw new InternalError("Must be rendered in an `<AppInitialRenderContextProvider>`");
     }

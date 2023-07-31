@@ -68,7 +68,7 @@ import {
 } from "~/shared/messaging/message_content_schema.js";
 import {RemoveAllMarksStep} from "~/shared/prosemirror/remove_all_marks_step.js";
 
-import.meta.jest.useFakeTimers();
+jest.useFakeTimers();
 
 const context = createTestContext();
 const space = createTestSpace(context);
@@ -100,13 +100,13 @@ function massageDocument(document: DocumentModel) {
 const otherCache = new DocumentContentCacheForUpdate();
 
 beforeEach(() => {
-    import.meta.jest.useFakeTimers();
+    jest.useFakeTimers();
 });
 
 afterEach(() => {
-    const hadNoTimers = import.meta.jest.getTimerCount() === 0;
-    import.meta.jest.clearAllTimers();
-    import.meta.jest.useRealTimers();
+    const hadNoTimers = jest.getTimerCount() === 0;
+    jest.clearAllTimers();
+    jest.useRealTimers();
     assert(hadNoTimers, "Expected all timers to be cleaned up by the end of each test");
 });
 
@@ -1520,7 +1520,7 @@ test("reads the document again after an expiration timer fires", async () => {
 
     expect(getCount()).toEqual(3);
 
-    import.meta.jest.runAllTimers();
+    jest.runAllTimers();
 
     await updateDocumentContent(context.action(session1), {
         id: documentId,
@@ -1595,7 +1595,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     expect(getCount()).toEqual(2);
 
-    import.meta.jest.advanceTimersByTime(documentContentCacheEvictionTimeoutMs);
+    jest.advanceTimersByTime(documentContentCacheEvictionTimeoutMs);
 
     await updateDocumentContent(context.action(session1), {
         id: documentId,
@@ -1618,7 +1618,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     expect(getCount()).toEqual(4);
 
-    import.meta.jest.advanceTimersByTime(documentContentCacheEvictionTimeoutMs / 2);
+    jest.advanceTimersByTime(documentContentCacheEvictionTimeoutMs / 2);
 
     expect(getCount()).toEqual(4);
 
@@ -1643,7 +1643,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     expect(getCount()).toEqual(5);
 
-    import.meta.jest.advanceTimersByTime(documentContentCacheEvictionTimeoutMs / 2);
+    jest.advanceTimersByTime(documentContentCacheEvictionTimeoutMs / 2);
 
     expect(getCount()).toEqual(5);
 
@@ -1668,7 +1668,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     expect(getCount()).toEqual(6);
 
-    import.meta.jest.advanceTimersByTime(documentContentCacheEvictionTimeoutMs / 2);
+    jest.advanceTimersByTime(documentContentCacheEvictionTimeoutMs / 2);
 
     expect(getCount()).toEqual(6);
 
@@ -1693,7 +1693,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     expect(getCount()).toEqual(7);
 
-    import.meta.jest.advanceTimersByTime(documentContentCacheEvictionTimeoutMs);
+    jest.advanceTimersByTime(documentContentCacheEvictionTimeoutMs);
 
     expect(getCount()).toEqual(7);
 

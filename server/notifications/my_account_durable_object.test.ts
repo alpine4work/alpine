@@ -126,7 +126,7 @@ test("can not broadcast realtime events as wrong space after initialization", as
     ).rejects.toThrow(PermissionDeniedError);
 });
 
-test.only("can not broadcast realtime events as wrong space multiple times after initialization", async () => {
+test("can not broadcast realtime events as wrong space multiple times after initialization", async () => {
     await connectForTest(context.action(session1), session1.accountId);
 
     await fetchForTest(

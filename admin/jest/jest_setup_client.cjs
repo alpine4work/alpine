@@ -2,6 +2,28 @@
 
 /* globals jest */
 
+const {JSDOM} = require("jsdom");
+
+const dom = new JSDOM("<!DOCTYPE html>", {
+    pretendToBeVisual: true,
+    runScripts: "dangerously",
+    url: "http://localhost/",
+});
+
+// Make our DOM window available globally.
+globalThis.window = dom.window;
+
+// Use the global console with JSDOM.
+window.console = globalThis.console;
+
+// Copy the global window object's keys into our global object.
+for (const [key, descriptor] of Object.entries(
+    Object.getOwnPropertyDescriptors(dom.getInternalVMContext()),
+)) {
+    if (key in globalThis) continue;
+    Object.defineProperty(globalThis, key, descriptor);
+}
+
 // `jest-dom` adds custom jest matchers for asserting on DOM nodes. Allows you
 // to do things like:
 //
@@ -10,13 +32,8 @@
 // ```
 require("@testing-library/jest-dom");
 
-const crypto = require("crypto");
 const {ResizeObserver: ResizeObserverPolyfill} = require("@juggle/resize-observer");
 const {TextEncoder, TextDecoder} = require("util");
-
-// Set the Node.js `webcrypto` implementation to the `crypto` global so that
-// client code which runs in a browser has access to the web Crypto API.
-globalThis.crypto = crypto.webcrypto;
 
 // NOTE(calebmer): It would appear that when upgrading to Node.js v20 there is
 // now a read-only global `performance` property. Reassign the property but
@@ -86,7 +103,7 @@ if (!Range.prototype.getBoundingClientRect) {
 
 // Polyfill: https://developer.mozilla.org/en-US/docs/Web/API/Window/matchMedia
 if (!window.matchMedia) {
-    window.matchMedia = jest.fn().mockImplementation(query => ({
+    globalThis.matchMedia = window.matchMedia = jest.fn().mockImplementation(query => ({
         matches: false,
         media: query,
         addEventListener: jest.fn(),
@@ -98,7 +115,7 @@ if (!window.matchMedia) {
 
 // Polyfill: https://developer.mozilla.org/en-US/docs/Web/API/ResizeObserver
 if (!window.ResizeObserver) {
-    window.ResizeObserver = ResizeObserverPolyfill;
+    globalThis.ResizeObserver = window.ResizeObserver = ResizeObserverPolyfill;
 } else {
     throw new Error("Yay! jsdom supports this now, we can remove our polyfill");
 }

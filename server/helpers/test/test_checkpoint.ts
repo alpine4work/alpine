@@ -21,7 +21,7 @@ export class TestCheckpoint<
         //
         // Rejecting the checkpoints can cause unhandled promise exceptions we don't
         // want tests to need to think about.
-        if (import.meta.jest) {
+        if (typeof jest !== "undefined") {
             afterEach(() => {
                 for (const [, promiseResolver1] of this._promiseResolverByKey) {
                     if (!promiseResolver1.isSettled()) {
@@ -77,7 +77,7 @@ export class TestCheckpoint<
     public async pauseForTest(key: Key): Promise<{unpause: () => void}> {
         const keyString = jsonStableStringify(key);
 
-        assert(import.meta.jest);
+        assert(typeof jest !== "undefined");
         assert(!this._promiseResolverByKey.has(keyString), "Request already paused");
 
         const promiseResolver1 = createPromiseResolver<PromiseResolver<void>>();
