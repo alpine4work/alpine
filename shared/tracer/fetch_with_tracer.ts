@@ -19,9 +19,18 @@ export async function fetchWithTracer(
     requestInit: RequestInit & {
         /**
          * A description of the path we'll include in the `TracerSpan`'s name.
-         * This should be low cardinality to make filtering easy.
+         * This should be low cardinality for analysis.
          *
          * Uses a subset of the [URL Pattern API][1].
+         *
+         * For example if you are accessing a path that looks like
+         * `/task_index/_update/27g6s1h4ygh1zqzw5h23gqtn88` your route should not
+         * include the `Id` (which is very high cardinality) and instead be
+         * `/task_index/_update/:taskId`. That way you can analyze this method
+         * across all tasks.
+         *
+         * It's recommended that your identifier names (e.g. `:taskId`) are
+         * formatted as camel case (instead of `:task_id`).
          *
          * [1]: https://developer.mozilla.org/en-US/docs/Web/API/URL_Pattern_API
          */
@@ -45,12 +54,8 @@ export function fetchWithTracerAndReturnSpan(
         ...requestInit
     }: RequestInit & {
         /**
-         * A description of the path we'll include in the `TracerSpan`'s name.
-         * This should be low cardinality to make filtering easy.
-         *
-         * Uses a subset of the [URL Pattern API][1].
-         *
-         * [1]: https://developer.mozilla.org/en-US/docs/Web/API/URL_Pattern_API
+         * See the documentation on `fetchWithTracer()` for recommendations on how this
+         * option should be formatted.
          */
         spanRoute: string;
         fetch?: (url: URL | string, requestInit: RequestInit) => Promise<Response>;
