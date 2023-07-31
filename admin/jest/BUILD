@@ -7,10 +7,6 @@ ts_lint_and_format_test(
 
 copy_to_bin(
     name = "jest_config_files",
-    srcs = glob([
-        "**/*.js",
-        "**/*.cjs",
-        "**/*.mjs",
-    ]),
+    srcs = glob(["**/*.cjs"]),
     visibility = ["//visibility:public"],
 )

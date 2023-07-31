@@ -489,34 +489,33 @@ export function OverlayScopeContextProvider({
 }
 
 // In Jest tests, create a portal element in the JSDOM `<body>`.
-const overlaySinkContextForTest =
-    typeof jest !== "undefined"
-        ? (() => {
-              const portalElement = document.createElement("div");
+const overlaySinkContextForTest = import.meta.jest
+    ? (() => {
+          const portalElement = document.createElement("div");
 
-              portalElement.className = sprinkles({
-                  position: "absolute",
-                  top: "0",
-                  left: "0",
-                  right: "0",
-                  // The root portal element has a height of 0 because when you use it in a
-                  // nested scroll view we don't want the overlay height to extend from the top
-                  // to the bottom of the nested scroll view.
-                  height: "0",
-                  // Render above anything on the page.
-                  zIndex: "50",
-              });
+          portalElement.className = sprinkles({
+              position: "absolute",
+              top: "0",
+              left: "0",
+              right: "0",
+              // The root portal element has a height of 0 because when you use it in a
+              // nested scroll view we don't want the overlay height to extend from the top
+              // to the bottom of the nested scroll view.
+              height: "0",
+              // Render above anything on the page.
+              zIndex: "50",
+          });
 
-              document.body.appendChild(portalElement);
+          document.body.appendChild(portalElement);
 
-              const portalRef = {current: portalElement};
+          const portalRef = {current: portalElement};
 
-              return {
-                  rootPortalRef: portalRef,
-                  portalRef,
-              };
-          })()
-        : null;
+          return {
+              rootPortalRef: portalRef,
+              portalRef,
+          };
+      })()
+    : null;
 
 /**
  * Get the overlay portal element at the root of our app. We may have nested

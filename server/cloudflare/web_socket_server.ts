@@ -415,7 +415,7 @@ export class WebSocketServer<
     public async connectForTest(
         connectActionContext: WorkerSessionActionContext,
     ): Promise<WebSocketServerTestConnection<Protocol, Connection>> {
-        assert(typeof jest !== "undefined");
+        assert(import.meta.jest);
 
         const sendEvent = (
             context: WorkerProcessContext,
@@ -959,7 +959,7 @@ class WebSocketServerTestConnectionWrapper<
         connection: Connection;
     }) {
         // Can only use test connections in Jest.
-        assert(typeof jest !== "undefined");
+        assert(import.meta.jest);
 
         this.id = id;
         this.connection = connection;

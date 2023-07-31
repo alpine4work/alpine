@@ -82,7 +82,7 @@ export function useContentEditorTracker({
             assert(localRef.current);
 
             // jsdom doesn't care about layout so this property doesn't exist.
-            if (typeof jest !== "undefined" && !localRef.current.offsetParent) return;
+            if (import.meta.jest && !localRef.current.offsetParent) return;
             assert(localRef.current.offsetParent);
 
             // `coords` are relative to the viewport, so get our offset parent's viewport

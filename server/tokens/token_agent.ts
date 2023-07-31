@@ -147,7 +147,7 @@ export abstract class TokenAgentBase {
         payload: TokenPayload,
         {currentTimeForTest}: {currentTimeForTest?: Date} = {},
     ): Promise<string> {
-        assert(currentTimeForTest === undefined || typeof jest !== "undefined");
+        assert(currentTimeForTest === undefined || import.meta.jest);
 
         const currentTime =
             currentTimeForTest !== undefined ? currentTimeForTest.getTime() : Date.now();

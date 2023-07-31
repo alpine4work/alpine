@@ -19,7 +19,7 @@ export function useIsMobile(): boolean {
 
     if (isMobile === null) {
         // In unit tests, pretend like we are not in mobile mode.
-        if (typeof jest !== "undefined") return false;
+        if (import.meta.jest) return false;
 
         throw new InternalError("Must be rendered in an `<IsMobileContextProvider>`");
     }

@@ -28,7 +28,7 @@ export function useUpdateMetaTitle(): Memo<(title: string) => void> {
     if (!updateMetaTitle) {
         // In Jest, to avoid requiring a context provider noop when trying to
         // update the title.
-        if (typeof jest !== "undefined") return noopUpdateMetaTitle;
+        if (import.meta.jest) return noopUpdateMetaTitle;
 
         throw new InternalError(
             "Must render in a `<UpdateMetaTitleContextProvider>` to use this hook",

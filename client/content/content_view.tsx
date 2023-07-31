@@ -82,7 +82,7 @@ export function ContentView({
     // to render a space context when testing this component.
     const currentAccount =
         // eslint-disable-next-line react-hooks/rules-of-hooks
-        typeof jest === "undefined" ? useSpaceContext().currentAccount : null;
+        !import.meta.jest ? useSpaceContext().currentAccount : null;
 
     const ref = useRef<HTMLDivElement>(null);
 

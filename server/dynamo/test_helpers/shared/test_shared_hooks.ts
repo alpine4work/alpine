@@ -14,8 +14,7 @@ export const testSharedHooks: {
     afterAll: (action: () => Promise<void>) => void;
     beforeEach: (action: () => Promise<void>) => void;
     afterEach: (action: () => Promise<void>) => void;
-} =
-    typeof jest !== "undefined"
-        ? globalThis
-        : // Set by `playwright_setup.mjs`
-          assertExists((globalThis as any).__playwrightTest);
+} = import.meta.jest
+    ? globalThis
+    : // Set by `playwright_setup.mjs`
+      assertExists((globalThis as any).__playwrightTest);

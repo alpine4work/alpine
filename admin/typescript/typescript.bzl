@@ -125,14 +125,17 @@ def ts_project(
                     # Each test run is only for a single file.
                     "{}/{}".format(native.package_name(), test_src_js),
                 ],
+                node_options = [
+                    # Enable Node.js and Jest's experimental ES Modules support.
+                    # https://jestjs.io/docs/ecmascript-modules
+                    "--experimental-vm-modules",
+                ],
                 data = _dedupe_labels(deps + test_deps + test_data + [
                                           "//:node_modules/@juggle/resize-observer",
                                           "//:node_modules/@testing-library/jest-dom",
                                           "//:node_modules/@types/jest",
                                           "//:node_modules/@types/testing-library__jest-dom",
-                                          "//:node_modules/chalk",
-                                          "//:node_modules/jest-light-runner",
-                                          "//:node_modules/jsdom",
+                                          "//:node_modules/jest-environment-jsdom",
                                           "//:node_modules/node-fetch",
                                           "//:jest_config_file",
                                           "//:package_light_json_file",
@@ -143,7 +146,6 @@ def ts_project(
                                       # Will include a snapshot file if it exists.
                                       native.glob(["{}.snap".format(test_src_js[:len(test_src_js) - 3])])),
                 size = "small",
-                tags = ["jest"],
             )
 
 _SWC_KWARGS = {
@@ -200,7 +202,7 @@ def ts_lint_and_format_test(
             "//:.prettierignore",
         ]),
         size = "small",
-        tags = ["prettier"],
+        tags = ["format"],
     )
 
     _ts_typings(
@@ -240,7 +242,7 @@ def ts_lint_and_format_test(
             ":{}_deps_typings".format(name),
         ]),
         size = "small",
-        tags = ["eslint"],
+        tags = ["lint"],
     )
 
 def ts_typecheck_test(

@@ -1324,7 +1324,7 @@ class DocumentContentCacheForUpdateEntries {
         // In our test environment, add a hook to evict all cached content at the end
         // of every test. That way we don't have timeouts sitting around and firing
         // randomly.
-        if (typeof jest !== "undefined") {
+        if (import.meta.jest) {
             afterEach(() => {
                 for (const entry of this._entryByDocumentId.values()) {
                     entry.evict();
@@ -1613,7 +1613,7 @@ export async function updateDocumentContent(
 
         const cache = cacheOverrideForTest ?? globalDocumentContentCacheForUpdate;
         assert(
-            cache === globalDocumentContentCacheForUpdate || typeof jest !== "undefined",
+            cache === globalDocumentContentCacheForUpdate || import.meta.jest,
             "Can only override the cache in Jest tests",
         );
 
@@ -2144,7 +2144,7 @@ export async function updateDocumentSnapshotForTest(
     context: AppActionContext,
     documentId: DocumentId,
 ): Promise<void> {
-    assert(typeof jest !== "undefined");
+    assert(import.meta.jest);
 
     const document = await getInternalDocumentIfExists(context, documentId);
     if (!document) throw new NotFoundError("Document not found");

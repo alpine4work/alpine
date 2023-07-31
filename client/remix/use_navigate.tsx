@@ -36,7 +36,7 @@ export function useNavigate(): Memo<NavigateFunction> {
     // Throw if we don't have our parent context unless we're in tests. In unit
     // tests we allow the component to render but throw when you try to call the
     // navigate function.
-    if (waitForNextNavigation === null && typeof jest === "undefined")
+    if (waitForNextNavigation === null && !import.meta.jest)
         throw new InternalError(
             "Must render in a `<WaitForNavigationContext>` to use this navigation function",
         );
@@ -70,7 +70,7 @@ function useNavigateWithJestFallback() {
         return useOriginalNavigate();
     } catch (error) {
         if (
-            typeof jest !== "undefined" &&
+            import.meta.jest &&
             error instanceof Error &&
             error.message.includes(
                 "useNavigate() may be used only in the context of a <Router> component",
@@ -202,7 +202,7 @@ const RootNavigationContext = createContext<Memo<NavigateFunction> | null>(null)
 export function useRootNavigate(): Memo<NavigateFunction> {
     const navigate = useContext(RootNavigationContext);
 
-    if (navigate === null && typeof jest === "undefined")
+    if (navigate === null && !import.meta.jest)
         throw new InternalError(
             "Must render in a `<RootNavigationContextProvider>` to use this navigation function",
         );

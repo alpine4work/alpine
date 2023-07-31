@@ -16,7 +16,7 @@ export class TestCounter<
 
     constructor() {
         // After each test, clear our counts so we don't have a memory leak.
-        if (typeof jest !== "undefined") {
+        if (import.meta.jest) {
             afterEach(() => {
                 this._countByKey.clear();
             });
@@ -46,7 +46,7 @@ export class TestCounter<
      * Will throw outside of a test environment.
      */
     public recordForTest(key: Key): {getCount: () => number} {
-        assert(typeof jest !== "undefined");
+        assert(import.meta.jest);
 
         const keyString = jsonStableStringify(key);
 
