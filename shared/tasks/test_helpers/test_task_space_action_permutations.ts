@@ -10,7 +10,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {assertTimeZone, defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
-import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {generateId} from "~/shared/id/id.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
@@ -127,79 +127,6 @@ const taskActionTestCases: Array<{
                 },
             ],
             task: FailedPreconditionError,
-        }),
-    },
-    {
-        name: "update task title (1x)",
-        create: ({creator, createdTime}) => ({
-            actions: [
-                {
-                    type: "Create",
-                    creator,
-                    createdTime,
-                },
-                {
-                    type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
-                },
-            ],
-            task: {
-                title: taskTitleTestScenario.title1,
-            },
-        }),
-    },
-    {
-        name: "update task title (2x)",
-        create: ({creator, createdTime}) => ({
-            actions: [
-                {
-                    type: "Create",
-                    creator,
-                    createdTime,
-                },
-                {
-                    type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
-                },
-                {
-                    type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update1,
-                },
-            ],
-            task: {
-                title: taskTitleTestScenario.title2,
-            },
-        }),
-    },
-    {
-        name: "update task title (4x)",
-        create: ({creator, createdTime}) => ({
-            actions: [
-                {
-                    type: "Create",
-                    creator,
-                    createdTime,
-                },
-                {
-                    type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
-                },
-                {
-                    type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update1,
-                },
-                {
-                    type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update2,
-                },
-                {
-                    type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update3,
-                },
-            ],
-            task: {
-                title: taskTitleTestScenario.title4,
-            },
         }),
     },
     {
@@ -385,6 +312,1128 @@ const taskActionTestCases: Array<{
                         },
                     ],
                 ]),
+            },
+        }),
+    },
+    {
+        name: "delete",
+        create: ({creator, createdTime, getNextTime}) => {
+            const deletedTime = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        creator,
+                        createdTime,
+                    },
+                    {
+                        type: "Delete",
+                        deletedTime,
+                    },
+                ],
+                task: {
+                    isDeleted: true,
+                },
+            };
+        },
+    },
+    {
+        name: "undelete",
+        create: ({creator, createdTime, getNextTime}) => {
+            const deletedTime = getNextTime();
+            const undeletedTime = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        creator,
+                        createdTime,
+                    },
+                    {
+                        type: "Delete",
+                        deletedTime,
+                    },
+                    {
+                        type: "Undelete",
+                        undeletedTime,
+                    },
+                ],
+                task: {
+                    isDeleted: false,
+                },
+            };
+        },
+    },
+    {
+        name: "update title before delete",
+        create: ({creator, createdTime, getNextTime}) => {
+            const deletedTime = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        creator,
+                        createdTime,
+                    },
+                    {
+                        type: "UpdateTitle",
+                        titleUpdate: taskTitleTestScenario.update0,
+                    },
+                    {
+                        type: "Delete",
+                        deletedTime,
+                    },
+                ],
+                task: {
+                    isDeleted: true,
+                    title: taskTitleTestScenario.title1,
+                },
+            };
+        },
+    },
+    {
+        name: "update title after delete",
+        create: ({creator, createdTime, getNextTime}) => {
+            const deletedTime = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        creator,
+                        createdTime,
+                    },
+                    {
+                        type: "Delete",
+                        deletedTime,
+                    },
+                    {
+                        type: "UpdateTitle",
+                        titleUpdate: taskTitleTestScenario.update0,
+                    },
+                ],
+                task: {
+                    isDeleted: true,
+                    title: taskTitleTestScenario.title1,
+                },
+            };
+        },
+    },
+    {
+        name: "delete, undelete, delete",
+        create: ({creator, createdTime, getNextTime}) => {
+            const deletedTime1 = getNextTime();
+            const undeletedTime = getNextTime();
+            const deletedTime2 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        creator,
+                        createdTime,
+                    },
+                    {
+                        type: "Delete",
+                        deletedTime: deletedTime1,
+                    },
+                    {
+                        type: "Undelete",
+                        undeletedTime,
+                    },
+                    {
+                        type: "Delete",
+                        deletedTime: deletedTime2,
+                    },
+                ],
+                task: {
+                    isDeleted: true,
+                },
+            };
+        },
+    },
+    {
+        name: "undelete without delete",
+        create: ({creator, createdTime, getNextTime}) => {
+            const undeletedTime = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        creator,
+                        createdTime,
+                    },
+                    {
+                        type: "Undelete",
+                        undeletedTime,
+                    },
+                ],
+                task: {
+                    isDeleted: false,
+                },
+            };
+        },
+    },
+    {
+        name: "delete and undelete time conflict",
+        create: ({creator, createdTime, getNextTime}) => {
+            const deletedTime = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        creator,
+                        createdTime,
+                    },
+                    {
+                        type: "Delete",
+                        deletedTime,
+                    },
+                    {
+                        type: "Undelete",
+                        undeletedTime: deletedTime,
+                    },
+                ],
+                task: {
+                    isDeleted: false,
+                },
+            };
+        },
+    },
+    {
+        name: "undelete before delete",
+        create: ({creator, createdTime, getNextTime}) => {
+            const undeletedTime = getNextTime();
+            const deletedTime = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        creator,
+                        createdTime,
+                    },
+                    {
+                        type: "Undelete",
+                        undeletedTime,
+                    },
+                    {
+                        type: "Delete",
+                        deletedTime,
+                    },
+                ],
+                task: {
+                    isDeleted: true,
+                },
+            };
+        },
+    },
+    {
+        name: "update parent",
+        create: ({creator, createdTime, getNextTime}) => {
+            const parentTaskId = generateId<TaskId>();
+            const updatedTime = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        creator,
+                        createdTime,
+                    },
+                    {
+                        type: "UpdateParentTaskId",
+                        parentTaskIdAction: {
+                            value: parentTaskId,
+                            updatedTime,
+                        },
+                    },
+                ],
+                task: {
+                    parent: {
+                        taskId: parentTaskId,
+                        position: {orderTime: updatedTime, orderKey: initialOrderKey},
+                    },
+                },
+            };
+        },
+    },
+    {
+        name: "update parent then unset parent",
+        create: ({creator, createdTime, getNextTime}) => {
+            const parentTaskId = generateId<TaskId>();
+            const updatedTime1 = getNextTime();
+            const updatedTime2 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        creator,
+                        createdTime,
+                    },
+                    {
+                        type: "UpdateParentTaskId",
+                        parentTaskIdAction: {
+                            value: parentTaskId,
+                            updatedTime: updatedTime1,
+                        },
+                    },
+                    {
+                        type: "UpdateParentTaskId",
+                        parentTaskIdAction: {
+                            value: null,
+                            updatedTime: updatedTime2,
+                        },
+                    },
+                ],
+                task: {
+                    parent: null,
+                },
+            };
+        },
+    },
+    {
+        name: "unset parent then update parent",
+        create: ({creator, createdTime, getNextTime}) => {
+            const parentTaskId = generateId<TaskId>();
+            const updatedTime1 = getNextTime();
+            const updatedTime2 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        creator,
+                        createdTime,
+                    },
+                    {
+                        type: "UpdateParentTaskId",
+                        parentTaskIdAction: {
+                            value: null,
+                            updatedTime: updatedTime1,
+                        },
+                    },
+                    {
+                        type: "UpdateParentTaskId",
+                        parentTaskIdAction: {
+                            value: parentTaskId,
+                            updatedTime: updatedTime2,
+                        },
+                    },
+                ],
+                task: {
+                    parent: {
+                        taskId: parentTaskId,
+                        position: {orderTime: updatedTime2, orderKey: initialOrderKey},
+                    },
+                },
+            };
+        },
+    },
+    {
+        name: "update parent then update parent position",
+        create: ({creator, createdTime, getNextTime}) => {
+            const parentTaskId = generateId<TaskId>();
+            const updatedTime1 = getNextTime();
+            const updatedTime2 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        creator,
+                        createdTime,
+                    },
+                    {
+                        type: "UpdateParentTaskId",
+                        parentTaskIdAction: {
+                            value: parentTaskId,
+                            updatedTime: updatedTime1,
+                        },
+                    },
+                    {
+                        type: "UpdateParentPosition",
+                        parentPositionAction: {
+                            value: {orderTime: updatedTime1, orderKey: assertOrderKey("a42")},
+                            updatedTime: updatedTime2,
+                        },
+                    },
+                ],
+                task: {
+                    parent: {
+                        taskId: parentTaskId,
+                        position: {orderTime: updatedTime1, orderKey: assertOrderKey("a42")},
+                    },
+                },
+            };
+        },
+    },
+    {
+        name: "update parent position then update parent",
+        create: ({creator, createdTime, getNextTime}) => {
+            const parentTaskId = generateId<TaskId>();
+            const updatedTime1 = getNextTime();
+            const updatedTime2 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        creator,
+                        createdTime,
+                    },
+                    {
+                        type: "UpdateParentPosition",
+                        parentPositionAction: {
+                            value: {orderTime: updatedTime1, orderKey: assertOrderKey("a42")},
+                            updatedTime: updatedTime1,
+                        },
+                    },
+                    {
+                        type: "UpdateParentTaskId",
+                        parentTaskIdAction: {
+                            value: parentTaskId,
+                            updatedTime: updatedTime2,
+                        },
+                    },
+                ],
+                task: {
+                    parent: {
+                        taskId: parentTaskId,
+                        position: {orderTime: updatedTime2, orderKey: initialOrderKey},
+                    },
+                },
+            };
+        },
+    },
+    {
+        name: "update parent resets position",
+        create: ({creator, createdTime, getNextTime}) => {
+            const parentTaskId1 = generateId<TaskId>();
+            const parentTaskId2 = generateId<TaskId>();
+            const updatedTime1 = getNextTime();
+            const updatedTime2 = getNextTime();
+            const updatedTime3 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        creator,
+                        createdTime,
+                    },
+                    {
+                        type: "UpdateParentTaskId",
+                        parentTaskIdAction: {
+                            value: parentTaskId1,
+                            updatedTime: updatedTime1,
+                        },
+                    },
+                    {
+                        type: "UpdateParentPosition",
+                        parentPositionAction: {
+                            value: {orderTime: updatedTime1, orderKey: assertOrderKey("a42")},
+                            updatedTime: updatedTime2,
+                        },
+                    },
+                    {
+                        type: "UpdateParentTaskId",
+                        parentTaskIdAction: {
+                            value: parentTaskId2,
+                            updatedTime: updatedTime3,
+                        },
+                    },
+                ],
+                task: {
+                    parent: {
+                        taskId: parentTaskId2,
+                        position: {orderTime: updatedTime3, orderKey: initialOrderKey},
+                    },
+                },
+            };
+        },
+    },
+    {
+        name: "update status",
+        create: ({creator, createdTime, account2, getNextFilterableTime}) => {
+            const updatedTime1 = getNextFilterableTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        creator,
+                        createdTime,
+                    },
+                    {
+                        type: "UpdateStatus",
+                        statusAction: {
+                            value: {type: "Closed", closedTime: updatedTime1, closer: account2},
+                            updatedTime: updatedTime1.absoluteTime,
+                        },
+                    },
+                ],
+                task: {
+                    status: {type: "Closed", closedTime: updatedTime1, closer: account2},
+                },
+            };
+        },
+    },
+    {
+        name: "update status twice",
+        create: ({creator, createdTime, account2, getNextTime, getNextFilterableTime}) => {
+            const updatedTime1 = getNextFilterableTime();
+            const updatedTime2 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        creator,
+                        createdTime,
+                    },
+                    {
+                        type: "UpdateStatus",
+                        statusAction: {
+                            value: {type: "Closed", closedTime: updatedTime1, closer: account2},
+                            updatedTime: updatedTime1.absoluteTime,
+                        },
+                    },
+                    {
+                        type: "UpdateStatus",
+                        statusAction: {
+                            value: {type: "Open"},
+                            updatedTime: updatedTime2,
+                        },
+                    },
+                ],
+                task: {
+                    status: {type: "Open"},
+                },
+            };
+        },
+    },
+    {
+        name: "update assignee",
+        create: ({creator, createdTime, account2, getNextFilterableTime}) => {
+            const updatedTime1 = getNextFilterableTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        creator,
+                        createdTime,
+                    },
+                    {
+                        type: "UpdateAssignee",
+                        assigneeAction: {
+                            value: {
+                                assignee: account2,
+                                assigner: creator,
+                                assignedTime: updatedTime1,
+                            },
+                            updatedTime: updatedTime1.absoluteTime,
+                        },
+                    },
+                ],
+                task: {
+                    assignee: {
+                        assignee: account2,
+                        assigner: creator,
+                        assignedTime: updatedTime1,
+                    },
+                },
+            };
+        },
+    },
+    {
+        name: "update assignee twice",
+        create: ({creator, createdTime, account2, getNextTime, getNextFilterableTime}) => {
+            const updatedTime1 = getNextFilterableTime();
+            const updatedTime2 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        creator,
+                        createdTime,
+                    },
+                    {
+                        type: "UpdateAssignee",
+                        assigneeAction: {
+                            value: {
+                                assignee: account2,
+                                assigner: creator,
+                                assignedTime: updatedTime1,
+                            },
+                            updatedTime: updatedTime1.absoluteTime,
+                        },
+                    },
+                    {
+                        type: "UpdateAssignee",
+                        assigneeAction: {
+                            value: null,
+                            updatedTime: updatedTime2,
+                        },
+                    },
+                ],
+                task: {
+                    assignee: null,
+                },
+            };
+        },
+    },
+    {
+        name: "update assignee status",
+        create: ({creator, createdTime, account2, getNextFilterableTime}) => {
+            const updatedTime1 = getNextFilterableTime();
+            const updatedTime2 = getNextFilterableTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        creator,
+                        createdTime,
+                    },
+                    {
+                        type: "UpdateAssignee",
+                        assigneeAction: {
+                            value: {
+                                assignee: account2,
+                                assigner: creator,
+                                assignedTime: updatedTime1,
+                            },
+                            updatedTime: updatedTime1.absoluteTime,
+                        },
+                    },
+                    {
+                        type: "UpdateAssigneeStatus",
+                        assigneeStatusAction: {
+                            value: {
+                                type: "Active",
+                                position: {
+                                    orderTime: updatedTime2.absoluteTime,
+                                    orderKey: initialOrderKey,
+                                },
+                                activatedTime: updatedTime2,
+                            },
+                            updatedTime: updatedTime2.absoluteTime,
+                        },
+                    },
+                ],
+                task: {
+                    assignee: {
+                        assignee: account2,
+                        assigner: creator,
+                        assignedTime: updatedTime1,
+                    },
+                    assigneeStatus: {
+                        type: "Active",
+                        position: {orderTime: updatedTime2.absoluteTime, orderKey: initialOrderKey},
+                        activatedTime: updatedTime2,
+                    },
+                },
+            };
+        },
+    },
+    {
+        name: "update assignee status twice",
+        create: ({creator, createdTime, account2, getNextTime, getNextFilterableTime}) => {
+            const updatedTime1 = getNextFilterableTime();
+            const updatedTime2 = getNextFilterableTime();
+            const updatedTime3 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        creator,
+                        createdTime,
+                    },
+                    {
+                        type: "UpdateAssignee",
+                        assigneeAction: {
+                            value: {
+                                assignee: account2,
+                                assigner: creator,
+                                assignedTime: updatedTime1,
+                            },
+                            updatedTime: updatedTime1.absoluteTime,
+                        },
+                    },
+                    {
+                        type: "UpdateAssigneeStatus",
+                        assigneeStatusAction: {
+                            value: {
+                                type: "Active",
+                                position: {
+                                    orderTime: updatedTime2.absoluteTime,
+                                    orderKey: initialOrderKey,
+                                },
+                                activatedTime: updatedTime2,
+                            },
+                            updatedTime: updatedTime2.absoluteTime,
+                        },
+                    },
+                    {
+                        type: "UpdateAssigneeStatus",
+                        assigneeStatusAction: {
+                            value: {type: "Inactive"},
+                            updatedTime: updatedTime3,
+                        },
+                    },
+                ],
+                task: {
+                    assignee: {
+                        assignee: account2,
+                        assigner: creator,
+                        assignedTime: updatedTime1,
+                    },
+                    assigneeStatus: {type: "Inactive"},
+                },
+            };
+        },
+    },
+    {
+        name: "updating status resets assignee status",
+        create: ({creator, createdTime, account2, getNextFilterableTime}) => {
+            const updatedTime1 = getNextFilterableTime();
+            const updatedTime2 = getNextFilterableTime();
+            const updatedTime3 = getNextFilterableTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        creator,
+                        createdTime,
+                    },
+                    {
+                        type: "UpdateAssignee",
+                        assigneeAction: {
+                            value: {
+                                assignee: account2,
+                                assigner: creator,
+                                assignedTime: updatedTime1,
+                            },
+                            updatedTime: updatedTime1.absoluteTime,
+                        },
+                    },
+                    {
+                        type: "UpdateAssigneeStatus",
+                        assigneeStatusAction: {
+                            value: {
+                                type: "Active",
+                                position: {
+                                    orderTime: updatedTime2.absoluteTime,
+                                    orderKey: initialOrderKey,
+                                },
+                                activatedTime: updatedTime2,
+                            },
+                            updatedTime: updatedTime2.absoluteTime,
+                        },
+                    },
+                    {
+                        type: "UpdateStatus",
+                        statusAction: {
+                            value: {type: "Closed", closedTime: updatedTime3, closer: account2},
+                            updatedTime: updatedTime3.absoluteTime,
+                        },
+                    },
+                ],
+                task: {
+                    status: {type: "Closed", closedTime: updatedTime3, closer: account2},
+                    assignee: {
+                        assignee: account2,
+                        assigner: creator,
+                        assignedTime: updatedTime1,
+                    },
+                    assigneeStatus: {type: "Inactive"},
+                },
+            };
+        },
+    },
+    {
+        name: "updating status resets assignee status even if status doesn't change",
+        create: ({creator, createdTime, account2, getNextFilterableTime}) => {
+            const updatedTime1 = getNextFilterableTime();
+            const updatedTime2 = getNextFilterableTime();
+            const updatedTime3 = getNextFilterableTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        creator,
+                        createdTime,
+                    },
+                    {
+                        type: "UpdateAssignee",
+                        assigneeAction: {
+                            value: {
+                                assignee: account2,
+                                assigner: creator,
+                                assignedTime: updatedTime1,
+                            },
+                            updatedTime: updatedTime1.absoluteTime,
+                        },
+                    },
+                    {
+                        type: "UpdateAssigneeStatus",
+                        assigneeStatusAction: {
+                            value: {
+                                type: "Active",
+                                position: {
+                                    orderTime: updatedTime2.absoluteTime,
+                                    orderKey: initialOrderKey,
+                                },
+                                activatedTime: updatedTime2,
+                            },
+                            updatedTime: updatedTime2.absoluteTime,
+                        },
+                    },
+                    {
+                        type: "UpdateStatus",
+                        statusAction: {
+                            value: {type: "Open"},
+                            updatedTime: updatedTime3.absoluteTime,
+                        },
+                    },
+                ],
+                task: {
+                    assignee: {
+                        assignee: account2,
+                        assigner: creator,
+                        assignedTime: updatedTime1,
+                    },
+                    assigneeStatus: {type: "Inactive"},
+                },
+            };
+        },
+    },
+    {
+        name: "updating assignee resets assignee status",
+        create: ({creator, createdTime, account2, getNextFilterableTime}) => {
+            const updatedTime1 = getNextFilterableTime();
+            const updatedTime2 = getNextFilterableTime();
+            const updatedTime3 = getNextFilterableTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        creator,
+                        createdTime,
+                    },
+                    {
+                        type: "UpdateAssignee",
+                        assigneeAction: {
+                            value: {
+                                assignee: account2,
+                                assigner: creator,
+                                assignedTime: updatedTime1,
+                            },
+                            updatedTime: updatedTime1.absoluteTime,
+                        },
+                    },
+                    {
+                        type: "UpdateAssigneeStatus",
+                        assigneeStatusAction: {
+                            value: {
+                                type: "Active",
+                                position: {
+                                    orderTime: updatedTime2.absoluteTime,
+                                    orderKey: initialOrderKey,
+                                },
+                                activatedTime: updatedTime2,
+                            },
+                            updatedTime: updatedTime2.absoluteTime,
+                        },
+                    },
+                    {
+                        type: "UpdateAssignee",
+                        assigneeAction: {
+                            value: {
+                                assignee: creator,
+                                assigner: account2,
+                                assignedTime: updatedTime3,
+                            },
+                            updatedTime: updatedTime3.absoluteTime,
+                        },
+                    },
+                ],
+                task: {
+                    assignee: {
+                        assignee: creator,
+                        assigner: account2,
+                        assignedTime: updatedTime3,
+                    },
+                    assigneeStatus: {type: "Inactive"},
+                },
+            };
+        },
+    },
+    {
+        name: "updating assignee resets assignee status even if assignee doesn't change",
+        create: ({creator, createdTime, account2, getNextFilterableTime}) => {
+            const updatedTime1 = getNextFilterableTime();
+            const updatedTime2 = getNextFilterableTime();
+            const updatedTime3 = getNextFilterableTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        creator,
+                        createdTime,
+                    },
+                    {
+                        type: "UpdateAssignee",
+                        assigneeAction: {
+                            value: {
+                                assignee: account2,
+                                assigner: creator,
+                                assignedTime: updatedTime1,
+                            },
+                            updatedTime: updatedTime1.absoluteTime,
+                        },
+                    },
+                    {
+                        type: "UpdateAssigneeStatus",
+                        assigneeStatusAction: {
+                            value: {
+                                type: "Active",
+                                position: {
+                                    orderTime: updatedTime2.absoluteTime,
+                                    orderKey: initialOrderKey,
+                                },
+                                activatedTime: updatedTime2,
+                            },
+                            updatedTime: updatedTime2.absoluteTime,
+                        },
+                    },
+                    {
+                        type: "UpdateAssignee",
+                        assigneeAction: {
+                            value: {
+                                assignee: account2,
+                                assigner: creator,
+                                assignedTime: updatedTime3,
+                            },
+                            updatedTime: updatedTime3.absoluteTime,
+                        },
+                    },
+                ],
+                task: {
+                    assignee: {
+                        assignee: account2,
+                        assigner: creator,
+                        assignedTime: updatedTime3,
+                    },
+                    assigneeStatus: {type: "Inactive"},
+                },
+            };
+        },
+    },
+    {
+        name: "update due date",
+        create: ({creator, createdTime, getNextTime}) => {
+            const updatedTime1 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        creator,
+                        createdTime,
+                    },
+                    {
+                        type: "UpdateDueDate",
+                        dueDateAction: {
+                            value: new CalendarDate(2023, 7, 12),
+                            updatedTime: updatedTime1,
+                        },
+                    },
+                ],
+                task: {
+                    dueDate: new CalendarDate(2023, 7, 12),
+                },
+            };
+        },
+    },
+    {
+        name: "update due date twice",
+        create: ({creator, createdTime, getNextTime}) => {
+            const updatedTime1 = getNextTime();
+            const updatedTime2 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        creator,
+                        createdTime,
+                    },
+                    {
+                        type: "UpdateDueDate",
+                        dueDateAction: {
+                            value: new CalendarDate(2023, 7, 12),
+                            updatedTime: updatedTime1,
+                        },
+                    },
+                    {
+                        type: "UpdateDueDate",
+                        dueDateAction: {
+                            value: null,
+                            updatedTime: updatedTime2,
+                        },
+                    },
+                ],
+                task: {
+                    dueDate: null,
+                },
+            };
+        },
+    },
+    {
+        name: "update priority",
+        create: ({creator, createdTime, getNextTime}) => {
+            const updatedTime1 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        creator,
+                        createdTime,
+                    },
+                    {
+                        type: "UpdatePriority",
+                        priorityAction: {
+                            value: "High",
+                            updatedTime: updatedTime1,
+                        },
+                    },
+                ],
+                task: {
+                    priority: "High",
+                },
+            };
+        },
+    },
+    {
+        name: "update priority twice",
+        create: ({creator, createdTime, getNextTime}) => {
+            const updatedTime1 = getNextTime();
+            const updatedTime2 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        creator,
+                        createdTime,
+                    },
+                    {
+                        type: "UpdatePriority",
+                        priorityAction: {
+                            value: "High",
+                            updatedTime: updatedTime1,
+                        },
+                    },
+                    {
+                        type: "UpdatePriority",
+                        priorityAction: {
+                            value: null,
+                            updatedTime: updatedTime2,
+                        },
+                    },
+                ],
+                task: {
+                    priority: null,
+                },
+            };
+        },
+    },
+    {
+        name: "update task title (1x)",
+        create: ({creator, createdTime}) => ({
+            actions: [
+                {
+                    type: "Create",
+                    creator,
+                    createdTime,
+                },
+                {
+                    type: "UpdateTitle",
+                    titleUpdate: taskTitleTestScenario.update0,
+                },
+            ],
+            task: {
+                title: taskTitleTestScenario.title1,
+            },
+        }),
+    },
+    {
+        name: "update task title (2x)",
+        create: ({creator, createdTime}) => ({
+            actions: [
+                {
+                    type: "Create",
+                    creator,
+                    createdTime,
+                },
+                {
+                    type: "UpdateTitle",
+                    titleUpdate: taskTitleTestScenario.update0,
+                },
+                {
+                    type: "UpdateTitle",
+                    titleUpdate: taskTitleTestScenario.update1,
+                },
+            ],
+            task: {
+                title: taskTitleTestScenario.title2,
+            },
+        }),
+    },
+    {
+        name: "update task title (4x)",
+        create: ({creator, createdTime}) => ({
+            actions: [
+                {
+                    type: "Create",
+                    creator,
+                    createdTime,
+                },
+                {
+                    type: "UpdateTitle",
+                    titleUpdate: taskTitleTestScenario.update0,
+                },
+                {
+                    type: "UpdateTitle",
+                    titleUpdate: taskTitleTestScenario.update1,
+                },
+                {
+                    type: "UpdateTitle",
+                    titleUpdate: taskTitleTestScenario.update2,
+                },
+                {
+                    type: "UpdateTitle",
+                    titleUpdate: taskTitleTestScenario.update3,
+                },
+            ],
+            task: {
+                title: taskTitleTestScenario.title4,
             },
         }),
     },
