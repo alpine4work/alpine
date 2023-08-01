@@ -49,7 +49,7 @@ export function isDeepEqual(value1: unknown, value2: unknown): boolean {
         return Object.is(value1, value2);
     }
 
-    return false;
+    return console.log("yo1"), false;
 }
 
 function areObjectsDeeplyEqual(
@@ -71,28 +71,28 @@ function areObjectsDeeplyEqual(
         if (object1 instanceof Date && object2 instanceof Date)
             return areDatesEqual(object1, object2);
 
-        return false;
+        return console.log("yo2"), false;
     }
 
     const object1Keys = new Set(Object.keys(object1));
 
     for (const [key, value2] of Object.entries(object2)) {
-        if (!object1Keys.delete(key)) return false;
+        if (!object1Keys.delete(key)) return console.log("yo3"), false;
 
-        if (!hasOwnProperty(object1, key)) return false;
+        if (!hasOwnProperty(object1, key)) return console.log("yo4"), false;
         const value1 = object1[key];
 
-        if (!isDeepEqual(value1, value2)) return false;
+        if (!isDeepEqual(value1, value2)) return console.log("yo5", key, value1, value2), false;
     }
 
-    return object1Keys.size === 0;
+    return object1Keys.size === 0 || (console.log("yo10"), false);
 }
 
 function areArraysDeeplyEqual(
     array1: ReadonlyArray<unknown>,
     array2: ReadonlyArray<unknown>,
 ): boolean {
-    if (array1.length !== array2.length) return false;
+    if (array1.length !== array2.length) return console.log("yo6"), false;
     return array1.every((item1, index) => isDeepEqual(item1, array2[index]));
 }
 
@@ -103,21 +103,21 @@ function areMapsDeeplyEqual(
     const map1Keys = new Set(map1.keys());
 
     for (const [key, value2] of map2) {
-        if (!map1Keys.delete(key)) return false;
+        if (!map1Keys.delete(key)) return console.log("yo7"), false;
 
         const value1 = map1.get(key)!;
-        if (!isDeepEqual(value1, value2)) return false;
+        if (!isDeepEqual(value1, value2)) return console.log("yo8"), false;
     }
 
-    return map1Keys.size === 0;
+    return map1Keys.size === 0 || (console.log("yo11"), false);
 }
 
 function areSetsDeeplyEqual(set1: ReadonlySet<unknown>, set2: ReadonlySet<unknown>): boolean {
     const clonedSet1 = new Set(set1);
 
     for (const item of set2) {
-        if (!clonedSet1.delete(item)) return false;
+        if (!clonedSet1.delete(item)) return console.log("yo9"), false;
     }
 
-    return clonedSet1.size === 0;
+    return clonedSet1.size === 0 || (console.log("yo12"), false);
 }

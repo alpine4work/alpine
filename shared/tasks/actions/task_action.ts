@@ -214,7 +214,7 @@ const CalendarDateSchema = Schema.string.transform<CalendarDate>({
     deserialize: date => parseDate(date),
 });
 
-export const CalendarDateRegister = createCrdtRegister(CalendarDateSchema);
+export const TaskDueDateRegister = createCrdtRegister(CalendarDateSchema.nullable());
 
 /**
  * Updates the due date of the task.
@@ -223,7 +223,7 @@ export type TaskUpdateDueDateAction = SchemaType<typeof TaskUpdateDueDateActionS
 
 const TaskUpdateDueDateActionSchema = Schema.object({
     type: Schema.value("UpdateDueDate"),
-    dueDateAction: CalendarDateRegister.actionSchema,
+    dueDateAction: TaskDueDateRegister.actionSchema,
 });
 
 /**

@@ -3,9 +3,14 @@ import {DeadlineExceededError} from "~/shared/error/error.js";
 const originalSetTimeout = setTimeout;
 
 /**
- * Waits for an HTTP server to start listening on the provided port.
+ * Waits for an HTTP server to start listening at the provided host.
+ *
+ * This was written to wait for our development servers starting up. We don't
+ * think there's a use case for this in production.
  */
-export async function waitForHttpServerOnPort(port: number) {
+export async function waitForHttpServer(host: string) {
+    const url = new URL("/", host);
+
     let attemptNumber = 0;
     while (true) {
         attemptNumber++;
@@ -13,7 +18,7 @@ export async function waitForHttpServerOnPort(port: number) {
         let error;
         try {
             // eslint-disable-next-line no-global-fetch
-            const response = await fetch(`http://localhost:${port}`, {method: "HEAD"});
+            const response = await fetch(url, {method: "HEAD"});
             await response.text();
             break;
         } catch (_error) {
@@ -27,7 +32,7 @@ export async function waitForHttpServerOnPort(port: number) {
         if (delayMs > 1000 * 40) {
             throw DeadlineExceededError.from(
                 error,
-                `Timed out waiting for HTTP server on port ${port}`,
+                `Timed out waiting for HTTP server on port ${url.toString()}`,
             );
         }
 

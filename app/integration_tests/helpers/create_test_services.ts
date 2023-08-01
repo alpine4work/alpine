@@ -13,7 +13,7 @@ import {
     ensureDevServiceKeys,
 } from "~/admin/helpers/dev_service_keys.js";
 import {runfilesPath} from "~/admin/helpers/runfiles_path.js";
-import {waitForHttpServerOnPort} from "~/admin/helpers/wait_for_http_server_on_port.js";
+import {waitForHttpServer} from "~/server/helpers/wait_for_http_server.js";
 import {waitForProcessExit} from "~/admin/helpers/wait_for_process_exit.js";
 import {waitForProcessSpawn} from "~/admin/helpers/wait_for_process_spawn.js";
 import {TestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
@@ -154,12 +154,12 @@ export function createTestServices(context: TestContext): TestServer {
             waitForProcessSpawn(edgeSubprocess),
         ]);
 
-        await waitForHttpServerOnPort(appPort);
+        await waitForHttpServer(`http://localhost:${appPort}`);
 
         // Wait for `appPort` to be ready before testing `edgePort`. Since testing
         // `edgePort` will forward the request to `appPort` since the edge service
         // proxies our app service.
-        await waitForHttpServerOnPort(edgePort);
+        await waitForHttpServer(`http://localhost:${edgePort}`);
     });
 
     test.afterAll(async () => {

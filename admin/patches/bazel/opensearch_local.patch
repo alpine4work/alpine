@@ -10,11 +10,10 @@ diff -bur a/config/opensearch.yml b/config/opensearch.yml
  #
  # ------------------------------------ Node ------------------------------------
  #
-@@ -132,3 +132,7 @@
+@@ -132,3 +132,6 @@
  # index searcher threadpool.
  #
  #opensearch.experimental.feature.concurrent_segment_search.enabled: false
 +
-+# NOTE(calebmer): Disable security. We don't care about using HTTPS in local
-+# development.
-+plugins.security.disabled: true
++# NOTE(calebmer): We only run a single OpenSearch node locally.
++discovery.type: single-node

@@ -8,8 +8,11 @@ import {JsonValue} from "~/shared/helpers/types/json_value.js";
 import {maxLabelStringLength} from "~/shared/schema/label_string_schema.js";
 import {ObjectSchema} from "~/shared/schema/schema.js";
 
-export type OpensearchIndexTypeType<Type extends OpensearchIndexTypeBase<any>> =
-    Type extends OpensearchIndexTypeBase<infer Value> ? Value : never;
+export type OpensearchIndexTypeType<Type extends OpensearchIndexTypeBase<any, any>> =
+    Type extends OpensearchIndexTypeBase<infer Value, any> ? Value : never;
+
+export type OpensearchIndexFlattenedKeysType<Type extends OpensearchIndexTypeBase<any, any>> =
+    Type extends OpensearchIndexTypeBase<any, infer FlattenedKeys> ? FlattenedKeys : never;
 
 /**
  * A type to be added to an [OpenSearch index mapping][1]. This abstraction
@@ -17,7 +20,7 @@ export type OpensearchIndexTypeType<Type extends OpensearchIndexTypeBase<any>> =
  *
  * [1]: https://opensearch.org/docs/latest/field-types/index/
  */
-export abstract class OpensearchIndexTypeBase<Value> {
+export abstract class OpensearchIndexTypeBase<Value, FlattenedKeys extends string> {
     /**
      * Gets the config object we pass into the OpenSearch index create API.
      */
@@ -34,13 +37,13 @@ export abstract class OpensearchIndexTypeBase<Value> {
      */
     public abstract deserialize(value: JsonValue): Value;
 
-    public nullable(): OpensearchIndexTypeBase<Value | null> {
+    public nullable(): OpensearchIndexTypeBase<Value | null, FlattenedKeys> {
         return new OpensearchIndexNullableType(this);
     }
 
     public validate<NewValue extends Value>(
         validate: (value: Value) => value is NewValue,
-    ): OpensearchIndexTypeBase<NewValue> {
+    ): OpensearchIndexTypeBase<NewValue, FlattenedKeys> {
         return new OpensearchIndexValidatedType(this, validate);
     }
 
@@ -50,7 +53,7 @@ export abstract class OpensearchIndexTypeBase<Value> {
     }: {
         serialize: (newValue: NewValue) => Value;
         deserialize: (oldValue: Value) => NewValue;
-    }): OpensearchIndexTypeBase<NewValue> {
+    }): OpensearchIndexTypeBase<NewValue, FlattenedKeys> {
         return new OpensearchIndexTransformedType(this, {
             serialize,
             deserialize,
@@ -61,10 +64,13 @@ export abstract class OpensearchIndexTypeBase<Value> {
 /**
  * An OpenSearch type that allows null.
  */
-class OpensearchIndexNullableType<Value> extends OpensearchIndexTypeBase<Value | null> {
-    private readonly _sourceType: OpensearchIndexTypeBase<Value>;
+class OpensearchIndexNullableType<
+    Value,
+    FlattenedKeys extends string,
+> extends OpensearchIndexTypeBase<Value | null, FlattenedKeys> {
+    private readonly _sourceType: OpensearchIndexTypeBase<Value, FlattenedKeys>;
 
-    constructor(sourceType: OpensearchIndexTypeBase<Value>) {
+    constructor(sourceType: OpensearchIndexTypeBase<Value, FlattenedKeys>) {
         super();
         this._sourceType = sourceType;
     }
@@ -89,13 +95,17 @@ class OpensearchIndexNullableType<Value> extends OpensearchIndexTypeBase<Value |
  * runtime. Useful if you want to represent a value as JSON in OpenSearch but
  * as some custom class in JavaScript.
  */
-class OpensearchIndexTransformedType<OldValue, NewValue> extends OpensearchIndexTypeBase<NewValue> {
-    private readonly _sourceType: OpensearchIndexTypeBase<OldValue>;
+class OpensearchIndexTransformedType<
+    OldValue,
+    NewValue,
+    FlattenedKeys extends string,
+> extends OpensearchIndexTypeBase<NewValue, FlattenedKeys> {
+    private readonly _sourceType: OpensearchIndexTypeBase<OldValue, FlattenedKeys>;
     private readonly _serialize: (newValue: NewValue) => OldValue;
     private readonly _deserialize: (oldValue: OldValue) => NewValue;
 
     constructor(
-        sourceType: OpensearchIndexTypeBase<OldValue>,
+        sourceType: OpensearchIndexTypeBase<OldValue, FlattenedKeys>,
         {
             serialize,
             deserialize,
@@ -133,12 +143,13 @@ class OpensearchIndexTransformedType<OldValue, NewValue> extends OpensearchIndex
 class OpensearchIndexValidatedType<
     OldValue,
     NewValue extends OldValue,
-> extends OpensearchIndexTypeBase<NewValue> {
-    private readonly _sourceType: OpensearchIndexTypeBase<OldValue>;
+    FlattenedKeys extends string,
+> extends OpensearchIndexTypeBase<NewValue, FlattenedKeys> {
+    private readonly _sourceType: OpensearchIndexTypeBase<OldValue, FlattenedKeys>;
     private readonly _validate: (value: OldValue) => value is NewValue;
 
     constructor(
-        sourceType: OpensearchIndexTypeBase<OldValue>,
+        sourceType: OpensearchIndexTypeBase<OldValue, FlattenedKeys>,
         validate: (value: OldValue) => value is NewValue,
     ) {
         super();
@@ -200,7 +211,7 @@ function getOpensearchIndexTypeCapabilitiesConfig({
  *
  * [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/boolean/
  */
-export class OpensearchIndexBooleanType extends OpensearchIndexTypeBase<boolean> {
+export class OpensearchIndexBooleanType extends OpensearchIndexTypeBase<boolean, never> {
     private readonly _capabilities: OpensearchIndexTypeCapabilities;
 
     constructor(capabilities: OpensearchIndexTypeCapabilities = {}) {
@@ -231,7 +242,7 @@ export class OpensearchIndexBooleanType extends OpensearchIndexTypeBase<boolean>
  *
  * [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/numeric/
  */
-export class OpensearchIndexByteType extends OpensearchIndexTypeBase<number> {
+export class OpensearchIndexByteType extends OpensearchIndexTypeBase<number, never> {
     private readonly _capabilities: OpensearchIndexTypeCapabilities;
 
     constructor(capabilities: OpensearchIndexTypeCapabilities = {}) {
@@ -264,7 +275,7 @@ export class OpensearchIndexByteType extends OpensearchIndexTypeBase<number> {
  *
  * [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/numeric/
  */
-export class OpensearchIndexIntegerType extends OpensearchIndexTypeBase<number> {
+export class OpensearchIndexIntegerType extends OpensearchIndexTypeBase<number, never> {
     private readonly _capabilities: OpensearchIndexTypeCapabilities;
 
     constructor(capabilities: OpensearchIndexTypeCapabilities = {}) {
@@ -296,7 +307,7 @@ export class OpensearchIndexIntegerType extends OpensearchIndexTypeBase<number> 
  *
  * [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/date/
  */
-export class OpensearchIndexDateType extends OpensearchIndexTypeBase<Date> {
+export class OpensearchIndexDateType extends OpensearchIndexTypeBase<Date, never> {
     private readonly _capabilities: OpensearchIndexTypeCapabilities;
 
     constructor(capabilities: OpensearchIndexTypeCapabilities = {}) {
@@ -328,7 +339,7 @@ export class OpensearchIndexDateType extends OpensearchIndexTypeBase<Date> {
  *
  * [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/binary/
  */
-export class OpensearchIndexBinaryType extends OpensearchIndexTypeBase<Uint8Array> {
+export class OpensearchIndexBinaryType extends OpensearchIndexTypeBase<Uint8Array, never> {
     public override getConfig() {
         return {
             type: "binary",
@@ -353,7 +364,7 @@ export class OpensearchIndexBinaryType extends OpensearchIndexTypeBase<Uint8Arra
  *
  * [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/keyword/
  */
-export class OpensearchIndexKeywordType extends OpensearchIndexTypeBase<string> {
+export class OpensearchIndexKeywordType extends OpensearchIndexTypeBase<string, never> {
     private readonly _capabilities: OpensearchIndexTypeCapabilities;
 
     constructor(capabilities: OpensearchIndexTypeCapabilities = {}) {
@@ -386,7 +397,7 @@ export class OpensearchIndexKeywordType extends OpensearchIndexTypeBase<string> 
  *
  * [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/text/
  */
-export class OpensearchIndexTextType extends OpensearchIndexTypeBase<string> {
+export class OpensearchIndexTextType extends OpensearchIndexTypeBase<string, never> {
     private readonly _analyzer: string;
 
     constructor({analyzer}: {analyzer: string}) {
@@ -417,10 +428,13 @@ export class OpensearchIndexTextType extends OpensearchIndexTypeBase<string> {
  *
  * [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/index/#arrays
  */
-export class OpensearchIndexArrayType<Value> extends OpensearchIndexTypeBase<ReadonlyArray<Value>> {
-    private readonly _itemType: OpensearchIndexTypeBase<Value>;
+export class OpensearchIndexArrayType<
+    Value,
+    FlattenedKeys extends string,
+> extends OpensearchIndexTypeBase<ReadonlyArray<Value>, FlattenedKeys> {
+    private readonly _itemType: OpensearchIndexTypeBase<Value, FlattenedKeys>;
 
-    constructor(itemType: OpensearchIndexTypeBase<Value>) {
+    constructor(itemType: OpensearchIndexTypeBase<Value, FlattenedKeys>) {
         super();
         this._itemType = itemType;
     }
@@ -445,7 +459,7 @@ export class OpensearchIndexArrayType<Value> extends OpensearchIndexTypeBase<Rea
  *
  * [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/object/
  */
-export class OpensearchIndexIgnoredObjectType<Value> extends OpensearchIndexTypeBase<Value> {
+export class OpensearchIndexIgnoredObjectType<Value> extends OpensearchIndexTypeBase<Value, never> {
     private readonly _schema: ObjectSchema<Value>;
 
     constructor(schema: ObjectSchema<Value>) {
@@ -470,6 +484,12 @@ export class OpensearchIndexIgnoredObjectType<Value> extends OpensearchIndexType
     }
 }
 
+type OpensearchIndexTypePrependKey<ParentKey extends string, ChildFlattenedKeys extends string> = [
+    ChildFlattenedKeys,
+] extends [never]
+    ? ParentKey
+    : `${ParentKey}.${ChildFlattenedKeys}`;
+
 /**
  * An OpenSearch [object field type][1]. Objects themselves are not indexed.
  * Their fields are flattened into the parent object.
@@ -480,16 +500,19 @@ export class OpensearchIndexIgnoredObjectType<Value> extends OpensearchIndexType
  *
  * [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/object/
  */
-export class OpensearchIndexObjectType<Value> extends OpensearchIndexTypeBase<Value> {
-    private readonly _fields: {[key: string]: OpensearchIndexTypeBase<any>};
+export class OpensearchIndexObjectType<
+    Value,
+    FlattenedKeys extends string,
+> extends OpensearchIndexTypeBase<Value, FlattenedKeys> {
+    private readonly _fields: {[key: string]: OpensearchIndexTypeBase<any, any>};
     private readonly _computed: {
-        fields: {[key: string]: OpensearchIndexTypeBase<any>};
+        fields: {[key: string]: OpensearchIndexTypeBase<any, any>};
         compute: (value: any) => any;
     };
 
     public static new<
-        Fields extends {[key: string]: OpensearchIndexTypeBase<any>},
-        ComputedFields extends {[key: string]: OpensearchIndexTypeBase<any>},
+        const Fields extends {[key: string]: OpensearchIndexTypeBase<any, any>},
+        const ComputedFields extends {[key: string]: OpensearchIndexTypeBase<any, any>} = {},
     >({
         fields,
         computed = {fields: {}, compute: () => ({})} as any,
@@ -505,9 +528,23 @@ export class OpensearchIndexObjectType<Value> extends OpensearchIndexTypeBase<Va
                 >;
             };
         };
-    }): OpensearchIndexObjectType<{
-        readonly [Key in keyof Fields]: OpensearchIndexTypeType<Fields[Key]>;
-    }> {
+    }): OpensearchIndexObjectType<
+        {
+            readonly [Key in keyof Fields]: OpensearchIndexTypeType<Fields[Key]>;
+        },
+        | {
+              readonly [Key in keyof Fields & string]: OpensearchIndexTypePrependKey<
+                  Key,
+                  OpensearchIndexFlattenedKeysType<Fields[Key]>
+              >;
+          }[keyof Fields & string]
+        | {
+              readonly [Key in keyof ComputedFields & string]: OpensearchIndexTypePrependKey<
+                  Key,
+                  OpensearchIndexFlattenedKeysType<Fields[Key]>
+              >;
+          }[keyof ComputedFields & string]
+    > {
         return new OpensearchIndexObjectType({fields, computed});
     }
 
@@ -515,9 +552,9 @@ export class OpensearchIndexObjectType<Value> extends OpensearchIndexTypeBase<Va
         fields,
         computed,
     }: {
-        fields: {[key: string]: OpensearchIndexTypeBase<any>};
+        fields: {[key: string]: OpensearchIndexTypeBase<any, any>};
         computed: {
-            fields: {[key: string]: OpensearchIndexTypeBase<any>};
+            fields: {[key: string]: OpensearchIndexTypeBase<any, any>};
             compute: (value: any) => any;
         };
     }) {
@@ -575,20 +612,25 @@ export class OpensearchIndexObjectType<Value> extends OpensearchIndexTypeBase<Va
  */
 export class OpensearchIndexUnionObjectType<
     Value extends {readonly type: string},
-> extends OpensearchIndexTypeBase<Value> {
-    private readonly _type: OpensearchIndexTypeBase<Value["type"]>;
-    private readonly _variants: {[key: string]: OpensearchIndexObjectType<any>};
+    FlattenedKeys extends string,
+> extends OpensearchIndexTypeBase<Value, FlattenedKeys> {
+    private readonly _type: OpensearchIndexTypeBase<Value["type"], never>;
+    private readonly _variants: {[key: string]: OpensearchIndexObjectType<any, any>};
 
-    public static new<Variants extends {[key: string]: OpensearchIndexObjectType<any>}>({
+    public static new<const Variants extends {[key: string]: OpensearchIndexObjectType<any, any>}>({
         type,
         variants,
     }: {
-        type: OpensearchIndexTypeBase<keyof Variants>;
+        type: OpensearchIndexTypeBase<keyof Variants, never>;
         variants: Variants;
     }): OpensearchIndexUnionObjectType<
         {
             [Key in keyof Variants]: {readonly type: Key} & OpensearchIndexTypeType<Variants[Key]>;
-        }[keyof Variants]
+        }[keyof Variants],
+        | "type"
+        | {
+              [Key in keyof Variants]: OpensearchIndexFlattenedKeysType<Variants[Key]>;
+          }[keyof Variants]
     > {
         return new OpensearchIndexUnionObjectType({type, variants});
     }
@@ -597,8 +639,8 @@ export class OpensearchIndexUnionObjectType<
         type,
         variants,
     }: {
-        type: OpensearchIndexTypeBase<Value["type"]>;
-        variants: {[key: string]: OpensearchIndexObjectType<any>};
+        type: OpensearchIndexTypeBase<Value["type"], never>;
+        variants: {[key: string]: OpensearchIndexObjectType<any, any>};
     }) {
         super();
 

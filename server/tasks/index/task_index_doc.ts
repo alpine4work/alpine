@@ -11,8 +11,9 @@ import {
     OpensearchIndexObjectType,
     OpensearchIndexTextType,
     OpensearchIndexTypeBase,
+    OpensearchIndexTypeType,
     OpensearchIndexUnionObjectType,
-} from "~/server/opensearch/opensearch_index_field.js";
+} from "~/server/opensearch/opensearch_index_type.js";
 import {createCrdtMap} from "~/shared/crdt/crdt_map.js";
 import {CrdtRegister, CrdtRegisterClass} from "~/shared/crdt/crdt_register.js";
 import {isTimeZone} from "~/shared/helpers/date/time_zone.js";
@@ -21,10 +22,7 @@ import {createEnumIntegerMapping} from "~/shared/helpers/string/create_enum_inte
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {
-    CalendarDateRegister,
-    TaskParentTaskIdRegister,
-} from "~/shared/tasks/actions/task_action.js";
+import {TaskDueDateRegister, TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_action.js";
 import {TaskAssigneeRegister} from "~/shared/tasks/task_assignee.js";
 import {
     TaskAssigneeStatus,
@@ -37,11 +35,7 @@ import {
     getTaskFilterableTimeSetterDate,
 } from "~/shared/tasks/task_filterable_time.js";
 import {TaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
-import {
-    TaskPosition,
-    TaskPositionRegister,
-    TaskPositionSchema,
-} from "~/shared/tasks/task_position.js";
+import {TaskPositionRegister, TaskPositionSchema} from "~/shared/tasks/task_position.js";
 import {TaskPriority, TaskPriorityRegister} from "~/shared/tasks/task_priority.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {TaskStatus, TaskStatusRegister} from "~/shared/tasks/task_status.js";
@@ -102,13 +96,12 @@ const TaskIndexFilterableTimeType = OpensearchIndexObjectType.new({
     deserialize: time => new TaskFilterableTime(time),
 });
 
-const TaskIndexPositionType: OpensearchIndexObjectType<TaskPosition> =
-    OpensearchIndexObjectType.new({
-        fields: {
-            orderTime: new OpensearchIndexDateType({isSortable: true}),
-            orderKey: new OpensearchIndexKeywordType({isSortable: true}).validate(isOrderKey),
-        },
-    });
+const TaskIndexPositionType = OpensearchIndexObjectType.new({
+    fields: {
+        orderTime: new OpensearchIndexDateType({isSortable: true}),
+        orderKey: new OpensearchIndexKeywordType({isSortable: true}).validate(isOrderKey),
+    },
+});
 
 /**
  * Represents the parent task, if there is one, and the position of our task in
@@ -130,7 +123,7 @@ const TaskIndexParentType = OpensearchIndexObjectType.new({
     },
 });
 
-const TaskPositionByCollectionIdMap = createCrdtMap(
+export const TaskPositionByCollectionIdMap = createCrdtMap(
     Schema.id<TaskCollectionId>(),
     TaskPositionSchema,
 );
@@ -199,7 +192,7 @@ const TaskIndexCollectionsType = OpensearchIndexObjectType.new({
 const TaskAccountIdAndNotepadPageId =
     Schema.string as Schema<any> as Schema<`${AccountId}-${TaskNotepadPageId}`>;
 
-const TaskPositionByAccountIdAndNotepadPageId = createCrdtMap(
+export const TaskPositionByAccountIdAndNotepadPageId = createCrdtMap(
     TaskAccountIdAndNotepadPageId,
     TaskPositionSchema,
 );
@@ -264,6 +257,7 @@ const TaskIndexStatusType = createCrdtRegisterOpensearchType(
     OpensearchIndexUnionObjectType.new({
         type: new OpensearchIndexByteType({
             isFilterable: true,
+            isSortable: true,
         }).transform<TaskStatus["type"]>({
             serialize: status => TaskStatusIntegerMapping.into(status),
             deserialize: status =>
@@ -357,7 +351,10 @@ const TaskIndexDisplayStatusType = new OpensearchIndexByteType({
  */
 const TaskIndexTitleType = OpensearchIndexObjectType.new({
     fields: {
-        raw: new OpensearchIndexBinaryType() as OpensearchIndexTypeBase<any> as OpensearchIndexTypeBase<TaskTitle>,
+        raw: new OpensearchIndexBinaryType() as OpensearchIndexTypeBase<
+            any,
+            never
+        > as OpensearchIndexTypeBase<TaskTitle, never>,
     },
     computed: {
         fields: {
@@ -383,14 +380,16 @@ const TaskIndexTitleType = OpensearchIndexObjectType.new({
  * UTC for that date.
  */
 const TaskIndexDueDateType = createCrdtRegisterOpensearchType(
-    CalendarDateRegister,
+    TaskDueDateRegister,
     new OpensearchIndexDateType({
         isFilterable: true,
         isSortable: true,
-    }).transform<CalendarDate>({
-        serialize: date => date.toDate("UTC"),
-        deserialize: date => toCalendarDate(parseAbsolute(date.toISOString(), "UTC")),
-    }),
+    })
+        .transform<CalendarDate>({
+            serialize: date => date.toDate("UTC"),
+            deserialize: date => toCalendarDate(parseAbsolute(date.toISOString(), "UTC")),
+        })
+        .nullable(),
 );
 
 const TaskPriorityIntegerMapping = createEnumIntegerMapping({
@@ -414,48 +413,52 @@ const TaskIndexPriorityType = createCrdtRegisterOpensearchType(
     new OpensearchIndexByteType({
         isFilterable: true,
         isSortable: true,
-    }).transform<TaskPriority>({
-        serialize: priority => TaskPriorityIntegerMapping.into(priority),
-        deserialize: priority =>
-            TaskPriorityIntegerMapping.from(TaskPriorityIntegerMapping.assert(priority)),
-    }),
+    })
+        .transform<TaskPriority>({
+            serialize: priority => TaskPriorityIntegerMapping.into(priority),
+            deserialize: priority =>
+                TaskPriorityIntegerMapping.from(TaskPriorityIntegerMapping.assert(priority)),
+        })
+        .nullable(),
 );
 
-// NOCOMMIT: Routing by `SpaceId`
-//
-// NOCOMMIT: Do index sorting! Looks like it's supported in OpenSearch but
-// not documented. I want to sort the index by:
-//
-// 1. Space
-// 2. Deleted
-// 3. Closed
-// 4. Created time
-//
-// Maybe actually concatenate into a computed field and sort by that? Well that
-// wouldn't help boolean queries...
-//
-// https://www.elastic.co/guide/en/elasticsearch/reference/8.9/index-modules-index-sorting.html
-// https://www.elastic.co/blog/index-sorting-elasticsearch-6-0
-// https://github.com/opensearch-project/documentation-website/issues/4650
-const TaskIndexDocType = OpensearchIndexObjectType.new({
+/**
+ * The type of a document in our tasks index. Can be used to execute arbitrary
+ * queries against tasks efficiently.
+ */
+export type TaskIndexDoc = OpensearchIndexTypeType<typeof TaskIndexDocType> & {
+    readonly version?: {
+        readonly sequenceNumber: number;
+        readonly primaryTerm: number;
+    };
+};
+
+export const TaskIndexDocType = OpensearchIndexObjectType.new({
     fields: {
-        spaceId: new OpensearchIndexKeywordType().validate<SpaceId>(isId),
+        spaceId: new OpensearchIndexKeywordType({
+            isFilterable: true,
+            isSortable: true,
+        }).validate<SpaceId>(isId),
 
         creator: TaskIndexSortableAccountType,
         createdTime: TaskIndexFilterableTimeType,
         // The `isDeleted` computed property definitively tells us whether a task is
         // deleted or not.
-        rawDeletedTime: new OpensearchIndexDateType(),
-        rawUndeletedTime: new OpensearchIndexDateType(),
+        rawDeletedTime: new OpensearchIndexDateType().nullable(),
+        rawUndeletedTime: new OpensearchIndexDateType().nullable(),
 
         parent: TaskIndexParentType,
         // The number of tasks with `parent.taskId` set to this task. Could be
         // determined with a search but denormalized here since we need it to render a
         // task list.
+        //
+        // NOCOMMIT: Update this
         childTaskCount: new OpensearchIndexIntegerType(),
         // The number of closed tasks with `parent.taskId` set to this task. Could be
         // determined with a search but denormalized here since we need it to render a
         // task list.
+        //
+        // NOCOMMIT: Update this
         closedChildTaskCount: new OpensearchIndexIntegerType(),
 
         collections: TaskIndexCollectionsType,
@@ -477,12 +480,12 @@ const TaskIndexDocType = OpensearchIndexObjectType.new({
     },
     computed: {
         fields: {
-            isDeleted: new OpensearchIndexBooleanType({isFilterable: true}),
+            isDeleted: new OpensearchIndexBooleanType({isFilterable: true, isSortable: true}),
             displayStatus: TaskIndexDisplayStatusType,
         },
         compute: task => ({
             isDeleted:
-                task.rawDeletedTime &&
+                !!task.rawDeletedTime &&
                 (!task.rawUndeletedTime || task.rawDeletedTime > task.rawUndeletedTime),
             displayStatus:
                 task.status.value.type === "Closed"
@@ -494,9 +497,9 @@ const TaskIndexDocType = OpensearchIndexObjectType.new({
     },
 });
 
-function createCrdtRegisterOpensearchType<Value>(
+function createCrdtRegisterOpensearchType<Value, FlattenedKeys extends string>(
     class_: CrdtRegisterClass<Value>,
-    type: OpensearchIndexTypeBase<Value>,
+    type: OpensearchIndexTypeBase<Value, FlattenedKeys>,
 ) {
     return OpensearchIndexObjectType.new({
         fields: {

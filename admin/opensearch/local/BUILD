@@ -9,11 +9,13 @@ ts_project(
     ],
     visibility = [
         "//admin/dev:__pkg__",
-        "//server/dynamo/test_helpers:__subpackages__",
+        "//server/opensearch/test_helpers:__pkg__",
     ],
     deps = [
         "//:node_modules/fs-extra",
+        "//:node_modules/murmurhash",
         "//admin/helpers",
+        "//server/helpers",
         "//shared/error",
         "//shared/helpers",
     ],
@@ -32,9 +34,11 @@ js_library(
     data = [
         "@bazel_tools//tools/jdk:current_java_runtime",
         "@opensearch_local",
+        "@opensearch_local_jna//:jnidispatch",
     ],
     no_copy_to_bin = [
         "@bazel_tools//tools/jdk:current_java_runtime",
         "@opensearch_local",
+        "@opensearch_local_jna//:jnidispatch",
     ],
 )

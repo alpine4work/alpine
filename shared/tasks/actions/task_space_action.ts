@@ -1,3 +1,4 @@
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskActionSchema} from "~/shared/tasks/actions/task_action.js";
@@ -83,3 +84,20 @@ export const TaskSpaceActionSchema = Schema.union({
     UpdateTaskCollection: TaskSpaceUpdateTaskCollectionActionSchema,
     UpdateTaskNotepadPage: TaskSpaceUpdateNotepadPageActionSchema,
 });
+
+/**
+ * Get a low-cardinality label for the `TaskSpaceAction` we can use in
+ * instrumentation.
+ */
+export function getTaskSpaceActionLabel(action: TaskSpaceAction) {
+    switch (action.type) {
+        case "UpdateTask":
+            return `${action.type}_${action.taskAction.type}`;
+        case "UpdateTaskCollection":
+            return `${action.type}_${action.collectionAction.type}`;
+        case "UpdateTaskNotepadPage":
+            return `${action.type}_${action.notepadPageAction.type}`;
+        default:
+            throw exhaustive(action);
+    }
+}

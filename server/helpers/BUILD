@@ -3,6 +3,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "helpers",
     visibility = [
+        "//admin:__subpackages__",
         "//app:__subpackages__",
         "//server:__subpackages__",
     ],

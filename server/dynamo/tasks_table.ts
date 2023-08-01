@@ -24,14 +24,25 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {
+    AccountId,
+    SpaceId,
+    TaskActionTransactionId,
+    TaskCollectionId,
+    TaskId,
+} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_action.js";
-import {TaskSpaceAction, TaskSpaceActionSchema} from "~/shared/tasks/actions/task_space_action.js";
+import {
+    TaskSpaceAction,
+    TaskSpaceActionSchema,
+    getTaskSpaceActionLabel,
+} from "~/shared/tasks/actions/task_space_action.js";
 import {
     TaskCollectionAccessLevel,
     TaskCollectionAccessPolicyRegister,
@@ -74,19 +85,19 @@ const TaskActionsTable = DynamoTableSchema.new({
                          * The time at which the action was accepted. May be different from whatever
                          * `createdTime` or `updatedTime` is reported in the action itself.
                          */
-                        actionTransactionTime: DynamoKeyAttributeSchema.date,
+                        committedTime: DynamoKeyAttributeSchema.date,
 
                         /**
                          * An `Id` for uniquely representing an action. Also used to disambiguate
                          * actions with identical `actionTime`s.
                          */
-                        actionTransactionId: DynamoKeyAttributeSchema.id(),
+                        actionTransactionId: DynamoKeyAttributeSchema.id<TaskActionTransactionId>(),
                     },
                     attributes: Schema.object({
                         /**
                          * Actions which should always be atomically applied together.
                          */
-                        actionTransaction: Schema.array(TaskSpaceActionSchema),
+                        actions: Schema.array(TaskSpaceActionSchema),
                     }),
                 },
             ],
@@ -267,8 +278,8 @@ export function commitTaskSpaceActionTransaction(
     context: AppSessionActionContext,
     spaceId: SpaceId,
     actionTransaction: ReadonlyArray<TaskSpaceAction>,
-) {
-    return context.tracer.withSpan("commitTaskSpaceActionTransaction", (context, span) => {
+): Promise<void> {
+    return context.tracer.withSpan("commitTaskSpaceActionTransaction", async (context, span) => {
         span.addData({
             tasks: {
                 actions: actionTransaction.map(getTaskSpaceActionLabel).join(","),
@@ -276,21 +287,16 @@ export function commitTaskSpaceActionTransaction(
             },
         });
 
-        return TaskSpaceActionTransactionCommitState.commit(context, spaceId, actionTransaction);
-    });
-}
+        const {actionTransactionId, committedTime} =
+            await TaskSpaceActionTransactionCommitState.commit(context, spaceId, actionTransaction);
 
-function getTaskSpaceActionLabel(action: TaskSpaceAction) {
-    switch (action.type) {
-        case "UpdateTask":
-            return `${action.type}_${action.taskAction.type}`;
-        case "UpdateTaskCollection":
-            return `${action.type}_${action.collectionAction.type}`;
-        case "UpdateTaskNotepadPage":
-            return `${action.type}_${action.notepadPageAction.type}`;
-        default:
-            throw exhaustive(action);
-    }
+        span.addData({
+            tasks: {
+                actionTransactionId,
+                actionTransactionCommittedTime: serializeDateString(committedTime),
+            },
+        });
+    });
 }
 
 /**
@@ -342,7 +348,10 @@ class TaskSpaceActionTransactionCommitState {
         context: AppSessionActionContext,
         spaceId: SpaceId,
         actionTransaction: ReadonlyArray<TaskSpaceAction>,
-    ): Promise<void> {
+    ): Promise<{
+        actionTransactionId: TaskActionTransactionId;
+        committedTime: Date;
+    }> {
         return context.dynamo.retryTransaction(async context => {
             await authorizeSpaceAccess(context, spaceId);
 
@@ -417,9 +426,9 @@ class TaskSpaceActionTransactionCommitState {
                 partitionType: "TaskActions",
                 sortRangeType: "ActionTransaction",
                 spaceId,
-                actionTransactionTime: new Date(),
-                actionTransactionId: generateId(),
-                actionTransaction,
+                committedTime: new Date(),
+                actionTransactionId: generateId<TaskActionTransactionId>(),
+                actions: actionTransaction,
             };
 
             if (transactionEntries.length > 0) {
@@ -431,6 +440,11 @@ class TaskSpaceActionTransactionCommitState {
             } else {
                 await TaskActionsTable.createOrReplaceItem(context, actionTransactionItem);
             }
+
+            return {
+                actionTransactionId: actionTransactionItem.actionTransactionId,
+                committedTime: actionTransactionItem.committedTime,
+            };
         });
     }
 
@@ -466,7 +480,10 @@ class TaskSpaceActionTransactionCommitState {
             });
             if (!taskItem) return null;
 
-            if (taskItem.spaceId !== this._spaceId) throw new InternalError("Space mismatch");
+            // NOCOMMIT: Test
+            if (taskItem.spaceId !== this._spaceId)
+                throw new FailedPreconditionError("Space mismatch");
+
             return taskItem;
         });
     }
@@ -579,7 +596,10 @@ class TaskSpaceActionTransactionCommitState {
             });
             if (!collectionItem) return null;
 
-            if (collectionItem.spaceId !== this._spaceId) throw new InternalError("Space mismatch");
+            // NOCOMMIT: Test
+            if (collectionItem.spaceId !== this._spaceId)
+                throw new FailedPreconditionError("Space mismatch");
+
             return collectionItem;
         });
     }

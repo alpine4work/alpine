@@ -190,7 +190,12 @@ export function addAllContainerAwsResources(
                     TransactWriteItems: true,
                     TransactGetItems: true,
                     Query: true,
+
                     // Not allowed
+                    //
+                    // Think: If an attacker somehow got access to our container, how could we limit
+                    // their damage? Not allowing them to `Scan` to see every item in the table is a
+                    // big limitation. They must know item keys or queries to see the relevant data.
                     Scan: false,
                     CreateTable: false,
                     DescribeTable: false,

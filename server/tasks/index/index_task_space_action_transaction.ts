@@ -1,0 +1,268 @@
+import {AppSystemActionContext} from "~/server/dynamo/context/app_action_context.js";
+import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table.js";
+import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
+import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/index/apply_task_action_to_task_index_doc.js";
+import {TaskIndex} from "~/server/tasks/index/task_index.js";
+import {
+    TaskIndexDoc,
+    TaskPositionByAccountIdAndNotepadPageId,
+    TaskPositionByCollectionIdMap,
+} from "~/server/tasks/index/task_index_doc.js";
+import {
+    FailedPreconditionError,
+    InternalError,
+    NotFoundError,
+    UnimplementedError,
+} from "~/shared/error/error.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {SpaceId, TaskActionTransactionId, TaskId} from "~/shared/id/types/id_types.js";
+import {TaskDueDateRegister, TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_action.js";
+import {
+    TaskSpaceAction,
+    getTaskSpaceActionLabel,
+} from "~/shared/tasks/actions/task_space_action.js";
+import {TaskAssigneeRegister} from "~/shared/tasks/task_assignee.js";
+import {TaskAssigneeStatusRegister} from "~/shared/tasks/task_assignee_status.js";
+import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
+import {TaskPositionRegister} from "~/shared/tasks/task_position.js";
+import {TaskPriorityRegister} from "~/shared/tasks/task_priority.js";
+import {TaskStatusRegister} from "~/shared/tasks/task_status.js";
+import {emptyTaskTitle} from "~/shared/tasks/task_title.js";
+
+// NOCOMMIT: Register clock should probably be a vector clock. What about
+// `orderTime` tho?
+// https://www.bartoszsypytkowski.com/the-state-of-a-state-based-crdts/#incrementdecrementcounter
+// https://www.youtube.com/watch?v=BRvj8PykSc4
+
+/**
+ * Takes a transaction of `TaskSpaceAction`s and indexes them in our OpenSearch
+ * task index.
+ */
+export function indexTaskSpaceActionTransaction(
+    context: AppSystemActionContext,
+    client: OpensearchClient,
+    spaceId: SpaceId,
+    actionTransaction: {id: TaskActionTransactionId; actions: ReadonlyArray<TaskSpaceAction>},
+) {
+    return context.tracer.withSpan("indexTaskSpaceActionTransaction", (context, span) => {
+        span.addData({
+            tasks: {
+                actions: actionTransaction.actions.map(getTaskSpaceActionLabel).join(","),
+                actionCount: actionTransaction.actions.length,
+                actionTransactionId: actionTransaction.id,
+            },
+        });
+
+        return TaskSpaceActionTransactionIndexState.index(
+            context,
+            client,
+            spaceId,
+            actionTransaction.actions,
+        );
+    });
+}
+
+/**
+ * Takes an array of `TaskSpaceAction`s and indexes them in our OpenSearch task
+ * action index without needing to first have commit them to DynamoDB.
+ *
+ * Can only use this function in tests. In production we may only index actions
+ * that first have been commit to DynamoDB.
+ */
+export function indexTaskSpaceActionTransactionWithoutCommitForTest(
+    context: AppSystemActionContext,
+    client: OpensearchClient,
+    spaceId: SpaceId,
+    actions: ReadonlyArray<TaskSpaceAction>,
+) {
+    assert(import.meta.jest);
+    return TaskSpaceActionTransactionIndexState.index(context, client, spaceId, actions);
+}
+
+/**
+ * Abstraction for managing state during `indexTaskSpaceActionTransaction()`.
+ * We may update a task multiple times in an action transaction but we only
+ * want to send one bulk update request to OpenSearch.
+ *
+ * All reads/writes must go through this class. There is no direct access to
+ * the context or OpenSearch. That way the implementation of
+ * `indexTaskSpaceActionTransaction()` must use the relevant caches we have
+ * in place.
+ */
+class TaskSpaceActionTransactionIndexState {
+    private readonly _context: AppSystemActionContext;
+    private readonly _client: OpensearchClient;
+    public readonly spaceId: SpaceId;
+    public readonly retry: (error?: unknown) => never;
+
+    private readonly _updatedTaskIndexDocById = new Map<TaskId, TaskIndexDoc>();
+    private readonly _retrievedTaskIndexDocById = new Map<TaskId, Promise<TaskIndexDoc | null>>();
+
+    private constructor(
+        context: AppSystemActionContext,
+        client: OpensearchClient,
+        spaceId: SpaceId,
+        retry: (error?: unknown) => never,
+    ) {
+        assert(context.actor.getSpaceId() === spaceId);
+
+        this._context = context;
+        this._client = client;
+        this.spaceId = spaceId;
+        this.retry = retry;
+    }
+
+    public static index(
+        context: AppSystemActionContext,
+        client: OpensearchClient,
+        spaceId: SpaceId,
+        actions: ReadonlyArray<TaskSpaceAction>,
+    ) {
+        return retryWithExponentialBackoff(async retry => {
+            await authorizeSpaceAccess(context, spaceId);
+
+            const state = new TaskSpaceActionTransactionIndexState(context, client, spaceId, retry);
+
+            for (const action of actions) {
+                await actuallyIndexTaskSpaceAction(state, action);
+            }
+
+            await state._client.bulkWrite(
+                context,
+                TaskIndex,
+                spaceId,
+                Array.from(state._updatedTaskIndexDocById, ([taskId, task]) => ({
+                    type: "IndexIfVersion",
+                    id: taskId,
+                    doc: task,
+                })),
+            );
+        });
+    }
+
+    /**
+     * Get the `TaskIndexDoc` for the specified `TaskId` and return null if the
+     * task doesn't exist.
+     */
+    public getTaskIndexDocIfExists(taskId: TaskId) {
+        // Return the updated doc if we have one. Otherwise we need to load the doc
+        // from OpenSearch.
+        const updatedTask = this._updatedTaskIndexDocById.get(taskId);
+        if (updatedTask) return updatedTask;
+
+        return getOrSetDefaultMapValue(this._retrievedTaskIndexDocById, taskId, async () => {
+            const task = await this._client.getDocIfExists(
+                this._context,
+                TaskIndex,
+                this.spaceId,
+                taskId,
+            );
+            if (!task) return null;
+            if (task.spaceId !== this.spaceId) throw new FailedPreconditionError("Space mismatch");
+            return task;
+        });
+    }
+
+    /**
+     * Updates the `TaskIndexDoc` for the specified `TaskId`.
+     *
+     * Uses optimistic concurrency control. If the task does not exist then we
+     * create it. If the task exists with a different version then we need
+     * to retry.
+     */
+    public putTaskIndexDoc(taskId: TaskId, task: TaskIndexDoc) {
+        assert(task.spaceId === this.spaceId);
+
+        const lastDoc = this._updatedTaskIndexDocById.get(taskId);
+
+        if (lastDoc && !isDeepEqual(lastDoc.version, task.version)) {
+            throw new InternalError("Expected local task updates to have the same version");
+        }
+
+        this._updatedTaskIndexDocById.set(taskId, task);
+    }
+}
+
+async function actuallyIndexTaskSpaceAction(
+    state: TaskSpaceActionTransactionIndexState,
+    action: TaskSpaceAction,
+) {
+    switch (action.type) {
+        case "UpdateTask": {
+            if (action.taskAction.type === "Create") {
+                const createdTime = action.taskAction.createdTime.absoluteTime;
+
+                state.putTaskIndexDoc(action.taskId, {
+                    spaceId: state.spaceId,
+                    creator: action.taskAction.creator,
+                    createdTime: action.taskAction.createdTime,
+                    rawDeletedTime: null,
+                    rawUndeletedTime: null,
+                    parent: {
+                        taskId: new TaskParentTaskIdRegister(null, createdTime),
+                        position: new TaskPositionRegister(
+                            {orderTime: createdTime, orderKey: initialOrderKey},
+                            createdTime,
+                        ),
+                    },
+                    childTaskCount: 0,
+                    closedChildTaskCount: 0,
+                    collections: {
+                        raw: {
+                            collections: TaskCollectionSet.empty,
+                            positionById: TaskPositionByCollectionIdMap.empty,
+                        },
+                    },
+                    notepadPages: {
+                        raw: {
+                            positionById: TaskPositionByAccountIdAndNotepadPageId.empty,
+                        },
+                    },
+                    status: new TaskStatusRegister({type: "Open"}, createdTime),
+                    assignee: new TaskAssigneeRegister(null, createdTime),
+                    rawAssigneeStatus: new TaskAssigneeStatusRegister(
+                        {type: "Inactive"},
+                        createdTime,
+                    ),
+                    title: {raw: emptyTaskTitle.get()},
+                    dueDate: new TaskDueDateRegister(null, createdTime),
+                    priority: new TaskPriorityRegister(null, createdTime),
+                });
+                return;
+            }
+
+            const oldTask = await state.getTaskIndexDocIfExists(action.taskId);
+
+            // Retry if we can't find the task. Actions may be applied out of order but a
+            // prerequisite for committing an update task action is having seen a create
+            // task action. So eventually we expect the task to exist.
+            //
+            // Another option could be to put the action in some kind of pending queue,
+            // wait for the task to be created, then apply tasks from the pending queue but
+            // that would have storage costs.
+            if (!oldTask) {
+                throw state.retry(
+                    new NotFoundError(
+                        "Task not found, should not be allowed to commit an update action before a create action",
+                    ),
+                );
+            }
+
+            const newTask = applyTaskActionToTaskIndexDoc(oldTask, action.taskAction);
+            state.putTaskIndexDoc(action.taskId, newTask);
+        }
+        case "UpdateTaskCollection": {
+            throw new UnimplementedError("NOCOMMIT");
+        }
+        case "UpdateTaskNotepadPage": {
+            throw new UnimplementedError("NOCOMMIT");
+        }
+        default:
+            throw exhaustive(action);
+    }
+}

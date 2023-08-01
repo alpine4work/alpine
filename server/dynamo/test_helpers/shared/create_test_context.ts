@@ -32,6 +32,7 @@ import {
 import {testSharedHooks} from "~/server/dynamo/test_helpers/shared/test_shared_hooks.js";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
+import {getServerTracerTime} from "~/server/tracer/server_tracer.js";
 import {writeTracerEventToFileInDev} from "~/server/tracer/write_tracer_event_to_file_in_dev.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -102,7 +103,7 @@ export function createTestContext(): TestContext {
         serviceName: "Test",
         jsHost: "Node",
         untrusted: false,
-        getTime: () => Date.now(),
+        getTime: getServerTracerTime,
         // Don't send events from tests to Honeycomb. That feels like too much. But do
         // write events to our dev files. This can help developers debug.
         sendEvent: writeTracerEventToFileInDev,
@@ -162,7 +163,7 @@ export function createTestContext(): TestContext {
 
     testSharedHooks.beforeAll(async () => {
         const tempPath = await fs.mkdtemp(
-            joinPath(assertExists(process.env.TEST_TMPDIR), "dynamo_local_"),
+            joinPath(assertExists(process.env.TEST_TMPDIR), "cyberworlds_dynamo_local_"),
         );
 
         const port = await getPort();

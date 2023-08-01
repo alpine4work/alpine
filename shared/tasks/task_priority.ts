@@ -5,4 +5,4 @@ export type TaskPriority = "Low" | "Medium" | "High" | "Urgent";
 
 export const TaskPrioritySchema = Schema.enum<TaskPriority>(["Low", "Medium", "High", "Urgent"]);
 
-export const TaskPriorityRegister = createCrdtRegister(TaskPrioritySchema);
+export const TaskPriorityRegister = createCrdtRegister(TaskPrioritySchema.nullable());

@@ -234,8 +234,29 @@ filegroup(
 )
 """,
     patch_args = ["-p1"],
+    patch_cmds = ["rm -rf plugins"],
     patches = ["//admin/patches:bazel/opensearch_local.patch"],
     sha256 = "03d623c2d99a7100c2f0faddc8ffda8ba27eae8aa63ff6f3f7dad2337be8b68c",
     strip_prefix = "opensearch-2.9.0",
     url = "https://artifacts.opensearch.org/releases/bundle/opensearch/2.9.0/opensearch-2.9.0-linux-x64.tar.gz",
+)
+
+# The version of JNA in our version of `opensearch_local` is 5.5.0. This
+# version of JNA frustratingly does not have support for MacOS M1 chips. So we
+# download a later version of JNA so we can use its bundled binaries.
+http_archive(
+    name = "opensearch_local_jna",
+    build_file_content = """\
+filegroup(
+    name = "jnidispatch",
+    srcs = [
+        "com/sun/jna/darwin-aarch64/libjnidispatch.jnilib",
+        "com/sun/jna/darwin-x86-64/libjnidispatch.jnilib",
+        "com/sun/jna/linux-x86-64/libjnidispatch.so",
+    ],
+    visibility = ["//visibility:public"],
+)
+""",
+    sha256 = "e335c10679f743207d822c5f7948e930319835492575a9dba6b94f8a3b96fcc8",
+    url = "https://repo1.maven.org/maven2/net/java/dev/jna/jna/5.10.0/jna-5.10.0.jar",
 )

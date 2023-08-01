@@ -217,6 +217,8 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
     tasks: {
         actions: Schema.string,
         actionCount: Schema.integer,
+        actionTransactionId: Schema.id(),
+        actionTransactionCommittedTime: DateStringSchema,
     },
 };
 

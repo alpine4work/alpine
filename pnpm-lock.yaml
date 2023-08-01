@@ -222,9 +222,6 @@ dependencies:
   '@types/node':
     specifier: 20.3.2
     version: 20.3.2
-  '@types/node-fetch':
-    specifier: '2'
-    version: 2.6.2
   '@types/proper-lockfile':
     specifier: ^4.1.2
     version: 4.1.2
@@ -444,9 +441,6 @@ dependencies:
   murmurhash:
     specifier: ^2.0.1
     version: 2.0.1
-  node-fetch:
-    specifier: 2.6.11
-    version: 2.6.11
   outdent:
     specifier: 0.8.0
     version: 0.8.0(patch_hash=ybnbpvk42g5zpvi2kytcsdr4wu)
@@ -5996,13 +5990,6 @@ packages:
     resolution: {integrity: sha512-iiUgKzV9AuaEkZqkOLDIvlQiL6ltuZd9tGcW3gwpnX8JbuiuhFlEGmmFXEXkN50Cvq7Os88IY2v0dkDqXYWVgA==}
     dev: false
 
-  /@types/node-fetch@2.6.2:
-    resolution: {integrity: sha512-DHqhlq5jeESLy19TYhLakJ07kNumXWjcDdxXsLUMJZ6ue8VZJj4kLPQVE/2mdHh3xZziNF1xppu5lwmS53HR+A==}
-    dependencies:
-      '@types/node': 20.3.2
-      form-data: 3.0.1
-    dev: false
-
   /@types/node@20.3.2:
     resolution: {integrity: sha512-vOBLVQeCQfIcF/2Y7eKFTqrMnizK5lRNQ7ykML/5RuwVXVWxYkgwS7xbt4B6fKCUPgbSL5FSsjHQpaGQP/dQmw==}
     dev: false
@@ -8851,15 +8838,6 @@ packages:
     resolution: {integrity: sha512-jqYfLp7mo9vIyQf8ykW2v7A+2N4QjeCeI5+Dz9XraiO1ign81wjiH7Fb9vSOWvQfNtmSa4H2RoQTrrXivdUZmw==}
     dependencies:
       is-callable: 1.2.7
-    dev: false
-
-  /form-data@3.0.1:
-    resolution: {integrity: sha512-RHkBKtLWUVwd7SqRIvCZMEvAMoGUp0XU+seQiZejj0COz3RI3hWP4sCv3gZWWLjJTd7rGwcsF5eKZGii0r/hbg==}
-    engines: {node: '>= 6'}
-    dependencies:
-      asynckit: 0.4.0
-      combined-stream: 1.0.8
-      mime-types: 2.1.35
     dev: false
 
   /form-data@4.0.0:

@@ -8,6 +8,7 @@ ts_project(
         "//app/dev:__pkg__",
         "//app/integration_tests:__pkg__",
         "//server/dynamo/test_helpers:__subpackages__",
+        "//server/opensearch/test_helpers:__pkg__",
     ],
     deps = [
         "//:node_modules/@types/fs-extra",

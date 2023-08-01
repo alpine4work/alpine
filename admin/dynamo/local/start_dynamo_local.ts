@@ -2,7 +2,7 @@ import {spawn} from "child_process";
 import fs from "fs-extra";
 import {join as joinPath} from "path";
 import {runfilesPath} from "~/admin/helpers/runfiles_path.js";
-import {waitForHttpServerOnPort} from "~/admin/helpers/wait_for_http_server_on_port.js";
+import {waitForHttpServer} from "~/server/helpers/wait_for_http_server.js";
 import {waitForProcessExit} from "~/admin/helpers/wait_for_process_exit.js";
 import {waitForProcessSpawn} from "~/admin/helpers/wait_for_process_spawn.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -65,7 +65,7 @@ export async function startDynamoLocal({
     await waitForProcessSpawn(subprocess);
 
     // Wait for the DynamoDB local server to start.
-    await waitForHttpServerOnPort(port);
+    await waitForHttpServer(`http://localhost:${port}`);
 
     return {
         port,

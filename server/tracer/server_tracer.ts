@@ -3,10 +3,10 @@ import {writeTracerEventToFileInDev} from "~/server/tracer/write_tracer_event_to
 import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.js";
 import {TracerEventJsHost} from "~/shared/tracer/types/tracer_event_data.js";
 
-// Use a different implementation of `getTime` in Node.js and Cloudflare
-// Workers. In Node.js we can use `process.hrtime`. In Cloudflare Workers, for
-// security reasons, we have a much less accurate clock.
-const getTime: () => number =
+// Use a different implementation of `getServerTracerTime` in Node.js and
+// Cloudflare Workers. In Node.js we can use `process.hrtime`. In Cloudflare
+// Workers, for security reasons, we have a much less accurate clock.
+export const getServerTracerTime: () => number =
     typeof process !== "undefined"
         ? (() => {
               const [hrtime1, startTime, hrtime2] = [
@@ -66,7 +66,7 @@ export function createServerTracer({
         serviceName,
         jsHost,
         untrusted: false,
-        getTime,
+        getTime: getServerTracerTime,
         sendEvent: event => {
             honeycombClient?.sendEvent(event);
 

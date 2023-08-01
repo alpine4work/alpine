@@ -11,6 +11,7 @@ ts_project(
         "//:node_modules/fs-extra",
         "//admin/helpers",
         "//server/dynamo",
+        "//server/tasks/index",
         "//server/tracer",
         "//shared/content",
         "//shared/context",

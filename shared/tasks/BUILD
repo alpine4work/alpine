@@ -5,6 +5,7 @@ ts_project(
     test_deps = [
         "//:node_modules/prosemirror-state",
         "//:node_modules/prosemirror-transform",
+        "//:node_modules/prosemirror-view",
     ],
     visibility = ["//visibility:public"],
     deps = [

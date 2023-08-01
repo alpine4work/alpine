@@ -43,6 +43,9 @@ import {Id} from "~/shared/id/id.js";
 
 assert(process.env.NODE_ENV === "development");
 
+// Make our dev server easy to find in process managers.
+process.title = "dev";
+
 const env = parseDotenv();
 
 const appPort = parseInt(assertExists(env.APP_PORT), 10);

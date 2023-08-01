@@ -1,24 +1,18 @@
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
-    name = "shared",
+    name = "test_helpers",
     testonly = True,
     visibility = [
-        "//app/integration_tests:__pkg__",
         "//server:__subpackages__",
     ],
     deps = [
-        "//:node_modules/@types/node",
-        "//:node_modules/aws4fetch",
+        "//:node_modules/@types/fs-extra",
         "//:node_modules/fs-extra",
         "//:node_modules/get-port",
-        "//admin/dynamo/local",
         "//admin/helpers",
-        "//server/cloudflare",
-        "//server/dynamo",
-        "//server/rpc",
-        "//server/tracer",
-        "//shared/context",
+        "//admin/opensearch/local",
+        "//server/dynamo/test_helpers/shared",
         "//shared/helpers",
         "//shared/tracer",
     ],
