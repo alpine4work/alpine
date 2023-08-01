@@ -21,7 +21,7 @@ export function applyTaskActionToTaskIndexDoc(
                 !task.creator.isEqual(action.creator) ||
                 !task.createdTime.isEqual(action.createdTime)
             ) {
-                throw new FailedPreconditionError("Incompatible create action with existing task");
+                throw new FailedPreconditionError("Incompatible create action");
             }
             return task;
         }

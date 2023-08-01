@@ -6,11 +6,12 @@ import {
     omitOpensearchStaticIndexConfig,
     pickOpensearchStaticIndexConfig,
 } from "~/server/opensearch/opensearch_index.js";
-import {InternalError, UnknownError} from "~/shared/error/error.js";
+import {FailedPreconditionError, InternalError, UnknownError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
+import {partitionArray} from "~/shared/helpers/iterable/partition_array.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {JsonValue} from "~/shared/helpers/types/json_value.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
@@ -272,6 +273,7 @@ export class OpensearchClient {
                 };
             };
         }>,
+        {retryVersionConflictError}: {retryVersionConflictError?: (error?: unknown) => never} = {},
     ): Promise<void> {
         if (process.env.NODE_ENV !== "production") {
             await this._ensureLocalIndex(context, index);
@@ -310,15 +312,37 @@ export class OpensearchClient {
 
         const body = await response.json<{
             errors: boolean;
-            items: Array<{error?: {type: string; reason: string}}>;
+            items: Array<{
+                create?: {error?: {type: string; reason: string}};
+                index?: {error?: {type: string; reason: string}};
+            }>;
         }>();
 
         if (body.errors) {
-            const errors = filterMapArray(body.items, item => item.error ?? null);
+            const maybeRecoverableErrors = filterMapArray(
+                body.items,
+                item => item.create?.error ?? item.index?.error ?? null,
+            );
 
-            // NOCOMMIT: Error classification and retry retriable errors
+            const [versionConflictErrors, errors] = partitionArray(
+                maybeRecoverableErrors,
+                error => error.type === "version_conflict_engine_exception",
+            );
+
+            // If the only errors were version conflicts, allow the caller to retry the
+            // error. This implements [optimistic concurrency control][1].
+            //
+            // [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/optimistic-concurrency-control.html
+            if (errors.length === 0 && versionConflictErrors.length > 0) {
+                const error = new FailedPreconditionError(
+                    `OpenSearch bulk write version conflicts in ${versionConflictErrors.length} operation(s) out of ${body.items.length} operation(s)`,
+                );
+                retryVersionConflictError?.(error);
+                throw error;
+            }
+
             const error = new UnknownError(
-                `OpenSearch bulk update partially failed with ${errors.length} errors out of ${
+                `OpenSearch bulk write partially failed with ${errors.length} error(s) out of ${
                     body.items.length
                 } operation(s)${errors[0] ? `, first error: ${errors[0].type}` : ""}`,
             );

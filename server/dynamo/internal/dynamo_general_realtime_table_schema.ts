@@ -1231,10 +1231,10 @@ export class DynamoGeneralRealtimeTableSchema<
 
                 return retryWithExponentialBackoff(
                     async (retry): Promise<DynamoGeneralRealtimeEvent<unknown>> => {
-                        const isFirstAttempt = !hasAlreadyAttempted;
+                        const isInitialAttempt = !hasAlreadyAttempted;
                         hasAlreadyAttempted = true;
 
-                        const item: Types["Item"] = isFirstAttempt
+                        const item: Types["Item"] = isInitialAttempt
                             ? await backfillItem.itemPromise
                             : await this.getItem(
                                   // We use an eventual read consistency here since we have a strongly consistent

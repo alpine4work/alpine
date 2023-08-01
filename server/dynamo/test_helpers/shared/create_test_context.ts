@@ -4,6 +4,10 @@ import getPort from "get-port";
 import {join as joinPath} from "path";
 import {DynamoLocal, startDynamoLocal} from "~/admin/dynamo/local/start_dynamo_local.js";
 import {
+    OpensearchLocal,
+    startOpensearchLocal,
+} from "~/admin/opensearch/local/start_opensearch_local.js";
+import {
     WorkerSessionActionContext,
     WorkerSystemActionContext,
 } from "~/server/cloudflare/context/worker_action_context.js";
@@ -39,6 +43,7 @@ import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -69,6 +74,7 @@ export type TestSystemActionContextModules = MergeObjectIntersection<
 
 export type TestContext = AppProcessContext & {
     getDynamoLocalPort(): number;
+    getOpensearchLocalPort(): number;
     unauthenticatedAction(): AppUnknownActionContext;
     action(session: {item: SessionItem}): TestSessionActionContext;
     systemAction(spaceId: SpaceId): TestSystemActionContext;
@@ -91,7 +97,11 @@ assertAssignableTypes<TestSystemActionContext, WorkerSystemActionContext>();
  * The context has all the modules in `AppProcessContext` and you can easily
  * create `AppActionContext`s.
  */
-export function createTestContext(): TestContext {
+export function createTestContext({
+    shouldStartOpensearch = false,
+}: {
+    shouldStartOpensearch?: boolean;
+} = {}): TestContext {
     // Increase Jest timeout for tests using a test context since these tests
     // need to interact with the database which may be slow.
     //
@@ -110,10 +120,25 @@ export function createTestContext(): TestContext {
     });
 
     let dynamoLocal: DynamoLocal | null = null;
+    let opensearchLocal: OpensearchLocal | null = null;
 
     const getDynamoLocalPort = () => {
         if (dynamoLocal === null) throw new InternalError("DynamoDB local has not started");
         return dynamoLocal.port;
+    };
+
+    const getOpensearchLocalPort = () => {
+        if (opensearchLocal === null) {
+            if (shouldStartOpensearch) {
+                throw new InternalError("OpenSearch local has not started");
+            } else {
+                throw new InternalError(
+                    "OpenSearch local is not enabled for this test context, to start OpenSearch set `shouldStartOpensearch: true` in `createTestContext()`",
+                );
+            }
+        }
+
+        return opensearchLocal.port;
     };
 
     const createUnauthenticatedSessionContext = (): AppUnknownActionContext => {
@@ -156,34 +181,46 @@ export function createTestContext(): TestContext {
 
     const context = Object.assign(processContext, {
         getDynamoLocalPort,
+        getOpensearchLocalPort,
         unauthenticatedAction: createUnauthenticatedSessionContext,
         action: createSessionContext,
         systemAction: createSystemContext,
     });
 
     testSharedHooks.beforeAll(async () => {
-        const tempPath = await fs.mkdtemp(
-            joinPath(assertExists(process.env.TEST_TMPDIR), "cyberworlds_dynamo_local_"),
-        );
+        const [tempPath, dynamoLocalPort, opensearchLocalPort] = await runAllPromises([
+            fs.mkdtemp(joinPath(assertExists(process.env.TEST_TMPDIR), "cyberworlds_test_")),
+            getPort(),
+            getPort(),
+        ]);
 
-        const port = await getPort();
-
-        dynamoLocal = await startDynamoLocal({
-            dataPath: joinPath(tempPath, "data"),
-            logsPath: joinPath(tempPath, "logs"),
-            port,
-        });
+        [dynamoLocal, opensearchLocal] = await runAllPromises([
+            startDynamoLocal({
+                dataPath: joinPath(tempPath, "dynamo/data"),
+                logsPath: joinPath(tempPath, "dynamo/logs"),
+                port: dynamoLocalPort,
+            }),
+            shouldStartOpensearch
+                ? startOpensearchLocal({
+                      dataPath: joinPath(tempPath, "opensearch/data"),
+                      logsPath: joinPath(tempPath, "opensearch/logs"),
+                      port: opensearchLocalPort,
+                  })
+                : null,
+        ]);
 
         const awsClient = new AwsClient({
             accessKeyId: "local",
             secretAccessKey: "local",
         });
 
-        dynamoContextModule.initialize(awsClient, `http://localhost:${port}`);
-    });
+        dynamoContextModule.initialize(awsClient, `http://localhost:${dynamoLocalPort}`);
+
+        // Higher timeout for this hook as we start our services.
+    }, 1000 * 30);
 
     testSharedHooks.afterAll(async () => {
-        await dynamoLocal?.stop();
+        await runAllPromises([dynamoLocal?.stop(), opensearchLocal?.stop()]);
     });
 
     return context;

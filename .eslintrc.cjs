@@ -71,6 +71,11 @@ module.exports = {
         // Prettier wraps/unwraps operators as it sees fit.
         "no-mixed-operators": "off",
 
+        // Has too many false positives. We often put functions in loops and variables
+        // may not be referenced while working on the function. We trust our developers
+        // have a solid knowledge of the JavaScript language and write tests.
+        "no-loop-func": "off",
+
         // Unused expressions are dead code, you may delete them.
         "no-unused-expressions": "off",
         "@typescript-eslint/no-unused-expressions": "warn",

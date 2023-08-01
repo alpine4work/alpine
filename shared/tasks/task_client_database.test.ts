@@ -10,7 +10,7 @@ import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskAccountModel, TaskModel} from "~/shared/tasks/task_model.js";
 import {emptyTaskTitle, getTaskTitleProsemirrorNode} from "~/shared/tasks/task_title.js";
-import {taskTitleTestScenario} from "~/shared/tasks/task_title_test_helpers.js";
+import {taskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_test_helpers.js";
 
 const accountCreatedTime = new Date("2023-07-10T21:06:29.897Z");
 

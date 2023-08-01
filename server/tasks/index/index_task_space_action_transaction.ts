@@ -79,9 +79,10 @@ export function indexTaskSpaceActionTransactionWithoutCommitForTest(
     client: OpensearchClient,
     spaceId: SpaceId,
     actions: ReadonlyArray<TaskSpaceAction>,
+    {onRetry}: {onRetry?: () => void} = {},
 ) {
     assert(import.meta.jest);
-    return TaskSpaceActionTransactionIndexState.index(context, client, spaceId, actions);
+    return TaskSpaceActionTransactionIndexState.index(context, client, spaceId, actions, {onRetry});
 }
 
 /**
@@ -117,19 +118,30 @@ class TaskSpaceActionTransactionIndexState {
         this.retry = retry;
     }
 
-    public static index(
+    public static async index(
         context: AppSystemActionContext,
         client: OpensearchClient,
         spaceId: SpaceId,
         actions: ReadonlyArray<TaskSpaceAction>,
+        {onRetry}: {onRetry?: () => void} = {},
     ) {
-        return retryWithExponentialBackoff(async retry => {
+        let hasAlreadyAttempted = false;
+
+        return retryWithExponentialBackoff(async _retry => {
+            const isInitialAttempt = !hasAlreadyAttempted;
+            hasAlreadyAttempted = true;
+
+            const retry = (error?: unknown) => {
+                onRetry?.();
+                return _retry(error);
+            };
+
             await authorizeSpaceAccess(context, spaceId);
 
             const state = new TaskSpaceActionTransactionIndexState(context, client, spaceId, retry);
 
             for (const action of actions) {
-                await actuallyIndexTaskSpaceAction(state, action);
+                await actuallyIndexTaskSpaceAction(state, action, isInitialAttempt);
             }
 
             await state._client.bulkWrite(
@@ -141,6 +153,7 @@ class TaskSpaceActionTransactionIndexState {
                     id: taskId,
                     doc: task,
                 })),
+                {retryVersionConflictError: retry},
             );
         });
     }
@@ -191,10 +204,18 @@ class TaskSpaceActionTransactionIndexState {
 async function actuallyIndexTaskSpaceAction(
     state: TaskSpaceActionTransactionIndexState,
     action: TaskSpaceAction,
+    isInitialAttempt: boolean,
 ) {
     switch (action.type) {
         case "UpdateTask": {
-            if (action.taskAction.type === "Create") {
+            const oldTask =
+                // If this is our initial attempt to create a task then optimistically assume
+                // it doesn't exist.
+                action.taskAction.type === "Create" && isInitialAttempt
+                    ? null
+                    : await state.getTaskIndexDocIfExists(action.taskId);
+
+            if (!oldTask && action.taskAction.type === "Create") {
                 const createdTime = action.taskAction.createdTime.absoluteTime;
 
                 state.putTaskIndexDoc(action.taskId, {
@@ -236,8 +257,6 @@ async function actuallyIndexTaskSpaceAction(
                 return;
             }
 
-            const oldTask = await state.getTaskIndexDocIfExists(action.taskId);
-
             // Retry if we can't find the task. Actions may be applied out of order but a
             // prerequisite for committing an update task action is having seen a create
             // task action. So eventually we expect the task to exist.
@@ -255,6 +274,7 @@ async function actuallyIndexTaskSpaceAction(
 
             const newTask = applyTaskActionToTaskIndexDoc(oldTask, action.taskAction);
             state.putTaskIndexDoc(action.taskId, newTask);
+            return;
         }
         case "UpdateTaskCollection": {
             throw new UnimplementedError("NOCOMMIT");

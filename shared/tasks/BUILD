@@ -2,11 +2,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "tasks",
-    test_deps = [
-        "//:node_modules/prosemirror-state",
-        "//:node_modules/prosemirror-transform",
-        "//:node_modules/prosemirror-view",
-    ],
+    test_deps = ["//shared/tasks/test_helpers"],
     visibility = ["//visibility:public"],
     deps = [
         "//:node_modules/@internationalized/date",

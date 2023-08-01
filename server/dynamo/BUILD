@@ -22,6 +22,7 @@ ts_project(
         "//:node_modules/expect-type",
         "//server/dynamo/test_helpers/jest",
         "//server/dynamo/test_helpers/shared",
+        "//shared/tasks/test_helpers",
     ],
     visibility = [
         "//admin:__subpackages__",

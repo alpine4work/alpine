@@ -14,6 +14,7 @@ ts_project(
         "//:node_modules/get-port",
         "//admin/dynamo/local",
         "//admin/helpers",
+        "//admin/opensearch/local",
         "//server/cloudflare",
         "//server/dynamo",
         "//server/rpc",

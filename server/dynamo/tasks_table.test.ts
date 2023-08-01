@@ -23,7 +23,7 @@ import {TaskCollectionAccessPolicyRegister} from "~/shared/tasks/task_collection
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
-import {taskTitleTestScenario} from "~/shared/tasks/task_title_test_helpers.js";
+import {taskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_test_helpers.js";
 
 const context = createTestContext();
 const space = createTestSpace(context);
