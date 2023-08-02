@@ -56,121 +56,117 @@ export class OpensearchClient {
                 // we need to wait for it here before we can use it.
                 await waitForHttpServer(`${this._protocol}://${this._host}`);
 
-                // NOCOMMIT: Temporarily run twice to test idempotency
-                for (let i = 0; i < 2; i++) {
-                    const getResponse = await fetchWithTracer(
+                const getResponse = await fetchWithTracer(
+                    context.tracer.getTracer(),
+                    `${this._protocol}://${this._host}/${index.name}/_settings`,
+                    {
+                        spanRoute: `/${index.name}`,
+                        method: "GET",
+                    },
+                );
+
+                const getBody = await getResponse.json<
+                    | {error: {type: string}}
+                    | {
+                          error: undefined;
+                          [key: string]: OpensearchIndexConfig<string> | undefined;
+                      }
+                >();
+
+                // If the index does not already exists then create a new one.
+                if (getBody.error) {
+                    if (getBody.error.type !== "index_not_found_exception") {
+                        throw new InternalError(
+                            `Getting OpenSearch index failed: ${JSON.stringify(getBody)}`,
+                        );
+                    }
+
+                    const putResponse = await fetchWithTracer(
                         context.tracer.getTracer(),
-                        `${this._protocol}://${this._host}/${index.name}/_settings`,
+                        `${this._protocol}://${this._host}/${index.name}`,
                         {
                             spanRoute: `/${index.name}`,
-                            method: "GET",
+                            method: "PUT",
+                            headers: {"content-type": "application/json"},
+                            body: JSON.stringify(index.config),
                         },
                     );
 
-                    const getBody = await getResponse.json<
-                        | {error: {type: string}}
-                        | {
-                              error: undefined;
-                              [key: string]: OpensearchIndexConfig<string> | undefined;
-                          }
-                    >();
+                    const putBody = await putResponse.json();
 
-                    // If the index does not already exists then create a new one.
-                    if (getBody.error) {
-                        if (getBody.error.type !== "index_not_found_exception") {
-                            throw new InternalError(
-                                `Getting OpenSearch index failed: ${JSON.stringify(getBody)}`,
-                            );
-                        }
-
-                        const putResponse = await fetchWithTracer(
-                            context.tracer.getTracer(),
-                            `${this._protocol}://${this._host}/${index.name}`,
-                            {
-                                spanRoute: `/${index.name}`,
-                                method: "PUT",
-                                headers: {"content-type": "application/json"},
-                                body: JSON.stringify(index.config),
-                            },
+                    if (!putResponse.ok) {
+                        throw new InternalError(
+                            `Creating OpenSearch index failed: ${JSON.stringify(putBody)}`,
                         );
-
-                        const putBody = await putResponse.json();
-
-                        if (!putResponse.ok) {
-                            throw new InternalError(
-                                `Creating OpenSearch index failed: ${JSON.stringify(putBody)}`,
-                            );
-                        }
                     }
-                    // If the index does exist then check that the static configuration hasn't
-                    // changed and update the index's dynamic configuration.
-                    else {
-                        const previousIndexConfig = assertExists(getBody[index.name]);
+                }
+                // If the index does exist then check that the static configuration hasn't
+                // changed and update the index's dynamic configuration.
+                else {
+                    const previousIndexConfig = assertExists(getBody[index.name]);
 
-                        // `number_of_shards` and `routing_partition_size` are returned as strings.
-                        // Treat them as integers.
-                        (previousIndexConfig.settings as any).index.number_of_shards = parseInt(
-                            (previousIndexConfig.settings as any).index.number_of_shards,
-                            10,
-                        );
-                        (previousIndexConfig.settings as any).index.routing_partition_size =
-                            parseInt(
-                                (previousIndexConfig.settings as any).index.routing_partition_size,
-                                10,
-                            );
+                    // `number_of_shards` and `routing_partition_size` are returned as strings.
+                    // Treat them as integers.
+                    (previousIndexConfig.settings as any).index.number_of_shards = parseInt(
+                        (previousIndexConfig.settings as any).index.number_of_shards,
+                        10,
+                    );
+                    (previousIndexConfig.settings as any).index.routing_partition_size = parseInt(
+                        (previousIndexConfig.settings as any).index.routing_partition_size,
+                        10,
+                    );
 
-                        // Unfortunately, when we read settings ElasticSearch doesn't return
-                        // `number_of_routing_shards`. We need to get it from a separate endpoint to
-                        // make sure it hasn't changed.
-                        // https://github.com/elastic/elasticsearch/issues/33036
-                        {
-                            const getResponse2 = await fetchWithTracer(
-                                context.tracer.getTracer(),
-                                `${this._protocol}://${this._host}/_cluster/state?filter_path=metadata.indices.${index.name}.routing_num_shards`,
-                                {spanRoute: "/_cluster/state"},
-                            );
-                            const numberOfRoutingShards: number = assertExists(
-                                (await getResponse2.json<any>()).metadata.indices[index.name]
-                                    .routing_num_shards,
-                            );
-
-                            (previousIndexConfig.settings as any).index.number_of_routing_shards =
-                                numberOfRoutingShards;
-                        }
-
-                        const previousIndexStaticConfig =
-                            pickOpensearchStaticIndexConfig(previousIndexConfig);
-
-                        const indexStaticConfig = pickOpensearchStaticIndexConfig(index.config);
-
-                        if (!isDeepEqual(previousIndexStaticConfig, indexStaticConfig)) {
-                            throw new InternalError(
-                                `OpenSearch index static settings changed: ${JSON.stringify(
-                                    {old: previousIndexStaticConfig, new: indexStaticConfig},
-                                    null,
-                                    2,
-                                )}`,
-                            );
-                        }
-
-                        const putResponse = await fetchWithTracer(
+                    // Unfortunately, when we read settings ElasticSearch doesn't return
+                    // `number_of_routing_shards`. We need to get it from a separate endpoint to
+                    // make sure it hasn't changed.
+                    // https://github.com/elastic/elasticsearch/issues/33036
+                    {
+                        const getResponse2 = await fetchWithTracer(
                             context.tracer.getTracer(),
-                            `${this._protocol}://${this._host}/${index.name}/_settings`,
-                            {
-                                spanRoute: `/${index.name}/_settings`,
-                                method: "PUT",
-                                headers: {"content-type": "application/json"},
-                                body: JSON.stringify(omitOpensearchStaticIndexConfig(index.config)),
-                            },
+                            `${this._protocol}://${this._host}/_cluster/state?filter_path=metadata.indices.${index.name}.routing_num_shards`,
+                            {spanRoute: "/_cluster/state"},
+                        );
+                        const numberOfRoutingShards: number = assertExists(
+                            (await getResponse2.json<any>()).metadata.indices[index.name]
+                                .routing_num_shards,
                         );
 
-                        const putBody = await putResponse.json();
+                        (previousIndexConfig.settings as any).index.number_of_routing_shards =
+                            numberOfRoutingShards;
+                    }
 
-                        if (!putResponse.ok) {
-                            throw new InternalError(
-                                `Updating OpenSearch index failed: ${JSON.stringify(putBody)}`,
-                            );
-                        }
+                    const previousIndexStaticConfig =
+                        pickOpensearchStaticIndexConfig(previousIndexConfig);
+
+                    const indexStaticConfig = pickOpensearchStaticIndexConfig(index.config);
+
+                    if (!isDeepEqual(previousIndexStaticConfig, indexStaticConfig)) {
+                        throw new InternalError(
+                            `OpenSearch index static settings changed: ${JSON.stringify(
+                                {old: previousIndexStaticConfig, new: indexStaticConfig},
+                                null,
+                                2,
+                            )}`,
+                        );
+                    }
+
+                    const putResponse = await fetchWithTracer(
+                        context.tracer.getTracer(),
+                        `${this._protocol}://${this._host}/${index.name}/_settings`,
+                        {
+                            spanRoute: `/${index.name}/_settings`,
+                            method: "PUT",
+                            headers: {"content-type": "application/json"},
+                            body: JSON.stringify(omitOpensearchStaticIndexConfig(index.config)),
+                        },
+                    );
+
+                    const putBody = await putResponse.json();
+
+                    if (!putResponse.ok) {
+                        throw new InternalError(
+                            `Updating OpenSearch index failed: ${JSON.stringify(putBody)}`,
+                        );
                     }
                 }
             });
