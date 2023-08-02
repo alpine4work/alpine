@@ -1,6 +1,6 @@
 import {AccountId, TaskId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {LabelStringRegister} from "~/shared/tasks/internal/label_string_register.js";
+import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
 import {TaskCollectionAccessPolicyRegister} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskPositionSchema} from "~/shared/tasks/task_position.js";
 
