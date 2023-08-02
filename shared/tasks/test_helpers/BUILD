@@ -14,7 +14,6 @@ ts_project(
     visibility = ["//visibility:public"],
     deps = [
         "//:node_modules/@internationalized/date",
-        "//:node_modules/chalk",
         "//shared/helpers",
         "//shared/tasks",
     ],

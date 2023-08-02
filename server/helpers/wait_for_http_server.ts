@@ -10,6 +10,7 @@ const originalSetTimeout = setTimeout;
  */
 export async function waitForHttpServer(host: string) {
     const url = new URL("/", host);
+    const startTime = Date.now();
 
     let attemptNumber = 0;
     while (true) {
@@ -26,15 +27,15 @@ export async function waitForHttpServer(host: string) {
             error = _error;
         }
 
-        // If DynamoDB hasn't started, try checking again with exponential backoff.
-        const delayMs = 10 * 2 ** (attemptNumber - 1);
-
-        if (delayMs > 1000 * 40) {
+        if (Date.now() - startTime > 60 * 1000) {
             throw DeadlineExceededError.from(
                 error,
                 `Timed out waiting for HTTP server on port ${url.toString()}`,
             );
         }
+
+        // If our server hasn't started, try checking again with exponential backoff.
+        const delayMs = 10 ** ((attemptNumber - 1) / 100 + 1);
 
         // See: https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter
         const delayMsWithJitter = Math.floor(Math.random() * delayMs);

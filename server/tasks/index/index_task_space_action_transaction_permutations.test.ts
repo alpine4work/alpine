@@ -5,7 +5,6 @@ import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
 import {indexTaskSpaceActionTransactionWithoutCommitForTest} from "~/server/tasks/index/index_task_space_action_transaction.js";
 import {TaskIndex} from "~/server/tasks/index/task_index.js";
 import {NotFoundError} from "~/shared/error/error.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {
     TaskTestInterface,
@@ -25,6 +24,8 @@ const opensearchClient = new Lazy(() => {
 });
 
 testTaskSpaceActionPermutations({
+    partitionNumber: parseInt(process.env.TEST_SHARD_INDEX ?? "0", 10) + 1,
+    partitionCount: parseInt(process.env.TEST_TOTAL_SHARDS ?? "1", 10),
     account1: session1.account,
     account2: session2.account,
     applyTaskSpaceAction: async (action, next) => {

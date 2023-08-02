@@ -20,6 +20,7 @@ def ts_project(
         deps = [],
         test_deps = [],
         test_data = [],
+        tests = {},
         **kwargs):
     """
     Macro for creating a TypeScript project that implements some codebase conventions.
@@ -36,6 +37,7 @@ def ts_project(
         deps: Any dependencies this project needs to run.
         test_deps: Any dependencies this project needs to run tests.
         test_data: Any data for this project that is only available in tests.
+        tests: Provide extra arguments to individual tests. Keyed by test label.
         **kwargs: Arguments that will be forwarded to `ts_project()` from `aspect_rules_ts`.
     """
 
@@ -96,6 +98,9 @@ def ts_project(
                 js_outs = [test_src_js],
             )
 
+            extra_kwargs = tests[test_name] if test_name in tests else {}
+            extra_tags = extra_kwargs.pop("tags", default = [])
+
             jest_bin.jest_test(
                 name = test_name,
                 args = [
@@ -145,7 +150,9 @@ def ts_project(
                                       ] +
                                       # Will include a snapshot file if it exists.
                                       native.glob(["{}.snap".format(test_src_js[:len(test_src_js) - 3])])),
-                size = "small",
+                size = extra_kwargs.pop("size", default = "small"),
+                tags = ["jest"] + extra_tags,
+                **extra_kwargs
             )
 
 _SWC_KWARGS = {
@@ -202,7 +209,7 @@ def ts_lint_and_format_test(
             "//:.prettierignore",
         ]),
         size = "small",
-        tags = ["format"],
+        tags = ["prettier"],
     )
 
     _ts_typings(
@@ -242,7 +249,7 @@ def ts_lint_and_format_test(
             ":{}_deps_typings".format(name),
         ]),
         size = "small",
-        tags = ["lint"],
+        tags = ["eslint"],
     )
 
 def ts_typecheck_test(

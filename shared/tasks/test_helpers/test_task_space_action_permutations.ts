@@ -1,8 +1,7 @@
 import {CalendarDate} from "@internationalized/date";
-import chalk from "chalk";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
-import {shuffleArray} from "~/shared/helpers/array/shuffle_array.js";
+import {stableShuffleArray} from "~/shared/helpers/array/stable_shuffle_array.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -10,6 +9,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {assertTimeZone, defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {generateId} from "~/shared/id/id.js";
@@ -1479,197 +1479,223 @@ function permutator<Item>(inputArray: ReadonlyArray<Item>): Array<Array<Item>> {
  * action has been committed, then we may apply it in any order.
  */
 export function testTaskSpaceActionPermutations({
+    partitionNumber = 1,
+    partitionCount = 1,
     account1,
     account2,
     applyTaskSpaceAction,
     getTask,
 }: {
+    partitionNumber?: number;
+    partitionCount?: number;
     account1: AccountModel;
     account2: AccountModel;
     applyTaskSpaceAction: (action: TaskSpaceAction, next: () => void) => MaybePromise<void>;
     getTask: (taskId: TaskId) => Promise<TaskTestInterface>;
 }) {
+    const tests: Array<{describeName: string; testName: string; runTest: () => Promise<void>}> = [];
+
     for (const testCase of taskActionTestCases) {
-        describe(`${testCase.name}`, () => {
-            let lastTime = Date.now();
+        let lastTime = Date.now();
 
-            // Make sure this function returns a monotonically increasing date to
-            // avoid flaky errors.
-            function getNextTime() {
-                const currentTime = Math.max(Date.now(), lastTime + 1);
-                lastTime = currentTime;
-                return new Date(currentTime);
-            }
+        // Make sure this function returns a monotonically increasing date to
+        // avoid flaky errors.
+        function getNextTime() {
+            const currentTime = Math.max(Date.now(), lastTime + 1);
+            lastTime = currentTime;
+            return new Date(currentTime);
+        }
 
-            function getNextFilterableTime() {
-                return new TaskFilterableTime({
-                    absoluteTime: getNextTime(),
-                    setterTimeZone: defaultTimeZone,
-                });
-            }
-
-            const collectionId1 = generateId<TaskCollectionId>();
-            const collectionId2 = generateId<TaskCollectionId>();
-
-            const testCaseArtifacts = testCase.create({
-                creator: new TaskSortableAccount({
-                    accountId: account1.id,
-                    workingAccountName: account1.name,
-                }),
-                createdTime: getNextFilterableTime(),
-                account2: new TaskSortableAccount({
-                    accountId: account2.id,
-                    workingAccountName: account2.name,
-                }),
-                collectionId1,
-                collectionId2,
-                getNextTime,
-                getNextFilterableTime,
+        function getNextFilterableTime() {
+            return new TaskFilterableTime({
+                absoluteTime: getNextTime(),
+                setterTimeZone: defaultTimeZone,
             });
+        }
 
-            const actionIndexes = testCaseArtifacts.actions.map((action, index) => index);
-            const actionIndexesWithDuplicates = actionIndexes.map(index => [
-                ...actionIndexes,
-                index,
-            ]);
+        const collectionId1 = generateId<TaskCollectionId>();
+        const collectionId2 = generateId<TaskCollectionId>();
 
-            function uniquePermutations(permutations: Array<Array<number>>): Array<Array<number>> {
-                return Array.from(
-                    new Set(permutations.map(permutation => JSON.stringify(permutation))),
-                    permutationString => JSON.parse(permutationString),
-                );
-            }
+        const testCaseArtifacts = testCase.create({
+            creator: new TaskSortableAccount({
+                accountId: account1.id,
+                workingAccountName: account1.name,
+            }),
+            createdTime: getNextFilterableTime(),
+            account2: new TaskSortableAccount({
+                accountId: account2.id,
+                workingAccountName: account2.name,
+            }),
+            collectionId1,
+            collectionId2,
+            getNextTime,
+            getNextFilterableTime,
+        });
 
-            const permutationsWithDuplicates = uniquePermutations(
-                actionIndexesWithDuplicates.flatMap(permutator),
+        const actionIndexes = testCaseArtifacts.actions.map((action, index) => index);
+        const actionIndexesWithDuplicates = actionIndexes.map(index => [...actionIndexes, index]);
+
+        function uniquePermutations(permutations: Array<Array<number>>): Array<Array<number>> {
+            return Array.from(
+                new Set(permutations.map(permutation => JSON.stringify(permutation))),
+                permutationString => JSON.parse(permutationString),
             );
+        }
 
-            const permutations = [
-                ...uniquePermutations(permutator(actionIndexes)),
+        const permutationsWithDuplicates = uniquePermutations(
+            actionIndexesWithDuplicates.flatMap(permutator),
+        );
 
-                // Don't include more than 240 permutations with duplicate actions. We test in
-                // every order (above) then randomly sample permutations with duplicates.
-                //
-                // 240 is the length of `permutationsWithDuplicates` when we have 4 actions.
-                ...(permutationsWithDuplicates.length > 240
-                    ? shuffleArray(permutationsWithDuplicates).slice(0, 240)
-                    : permutationsWithDuplicates),
-            ];
+        const stableRandom = new StableRandom(describe.name);
 
-            for (const permutation of permutations) {
-                // Run tests concurrently to improve performance.
-                test.concurrent(`[${permutation.join(", ")}]`, async () => {
-                    try {
-                        const taskId = generateId<TaskId>();
+        const permutations = [
+            ...uniquePermutations(permutator(actionIndexes)),
 
-                        const actions: Array<TaskSpaceAction> = permutation.map(actionIndex => ({
-                            type: "UpdateTask",
-                            taskId,
-                            taskAction: testCaseArtifacts.actions[actionIndex]!,
-                        }));
+            // Don't include more than 240 permutations with duplicate actions. We test in
+            // every order (above) then randomly sample permutations with duplicates.
+            //
+            // 240 is the length of `permutationsWithDuplicates` when we have 4 actions.
+            ...(permutationsWithDuplicates.length > 240
+                ? stableShuffleArray(
+                      stableRandom,
+                      "permutationsWithDuplicates",
+                      permutationsWithDuplicates,
+                  ).slice(0, 240)
+                : permutationsWithDuplicates),
+        ];
 
-                        const run = async () => {
-                            const promises = [];
+        for (const permutation of permutations) {
+            tests.push({
+                describeName: testCase.name,
+                testName: `[${permutation.join(", ")}]`,
+                runTest: async () => {
+                    const taskId = generateId<TaskId>();
 
-                            // Run our actions in sequence. If an action calls `next()` that means it needs
-                            // to retry. It might need to retry because it's waiting on a later action. So
-                            // go apply the next action.
-                            for (const action of actions) {
-                                const nextPromiseResolver = createPromiseResolver();
+                    const actions: Array<TaskSpaceAction> = permutation.map(actionIndex => ({
+                        type: "UpdateTask",
+                        taskId,
+                        taskAction: testCaseArtifacts.actions[actionIndex]!,
+                    }));
 
-                                const promise = applyTaskSpaceAction(
-                                    action,
-                                    nextPromiseResolver.resolve,
-                                );
-                                promises.push(promise);
+                    const run = async () => {
+                        const promises = [];
 
-                                await Promise.race([promise, nextPromiseResolver.promise]);
-                            }
+                        // Run our actions in sequence. If an action calls `next()` that means it needs
+                        // to retry. It might need to retry because it's waiting on a later action. So
+                        // go apply the next action.
+                        for (const action of actions) {
+                            const nextPromiseResolver = createPromiseResolver();
 
-                            await runAllPromises(promises);
-                        };
-
-                        if (
-                            "prototype" in testCaseArtifacts.task &&
-                            testCaseArtifacts.task.prototype instanceof Error
-                        ) {
-                            await expect(run).rejects.toThrow(testCaseArtifacts.task);
-                        } else {
-                            await run();
-
-                            const actualTask = await getTask(taskId);
-                            const expectedPartialTask =
-                                testCaseArtifacts.task as Partial<TaskTestInterface>;
-
-                            const createAction = iterableFirst(
-                                filterMapIterable(actions, action =>
-                                    action.type === "UpdateTask" &&
-                                    action.taskId === taskId &&
-                                    action.taskAction.type === "Create"
-                                        ? action.taskAction
-                                        : null,
-                                ),
+                            const promise = applyTaskSpaceAction(
+                                action,
+                                nextPromiseResolver.resolve,
                             );
+                            promises.push(promise);
 
-                            const expectedTask: TaskTestInterface = {
-                                isDeleted: false,
-                                parent: null,
-                                collections: TaskCollectionSet.empty,
-                                status: {type: "Open"},
-                                assignee: null,
-                                assigneeStatus: {type: "Inactive"},
-                                title: emptyTaskTitle.get(),
-                                dueDate: null,
-                                priority: null,
-                                ...expectedPartialTask,
-                                creator:
-                                    expectedPartialTask.creator ??
-                                    assertExists(
-                                        createAction?.creator,
-                                        "Expected `Create` task action when `creator` is not provided",
-                                    ),
-                                createdTime:
-                                    expectedPartialTask.createdTime ??
-                                    assertExists(
-                                        createAction?.createdTime,
-                                        "Expected `Create` task action when `createdTime` is not provided",
-                                    ),
-                            };
-
-                            expect({
-                                ...actualTask,
-                                title: getTaskTitleProsemirrorNode(actualTask.title).toJSON(),
-                                collections: actualTask.collections.getArray(),
-                            }).toEqual({
-                                ...expectedTask,
-                                title: getTaskTitleProsemirrorNode(expectedTask.title).toJSON(),
-                                collections: actualTask.collections.getArray(),
-                            });
+                            await Promise.race([promise, nextPromiseResolver.promise]);
                         }
 
-                        // Since this test takes a while to run, it's really useful to have the test
-                        // name printed out as we go. Ideally we'd have a Jest streaming reporter but
-                        // for now it's only really essential for this test.
-                        // eslint-disable-next-line no-console
-                        console.log(
-                            `${chalk.green("✔")} ${chalk.dim(
-                                `${testCase.name} \u203A [${permutation.join(", ")}]`,
-                            )}`,
-                        );
-                    } catch (error) {
-                        // Since this test takes a while to run, it's really useful to have the test
-                        // name printed out as we go. Ideally we'd have a Jest streaming reporter but
-                        // for now it's only really essential for this test.
-                        // eslint-disable-next-line no-console
-                        console.log(
-                            `${chalk.red(`✘ ${testCase.name} \u203A [${permutation.join(", ")}]`)}`,
-                        );
-                        // eslint-disable-next-line no-console
-                        console.error(error);
+                        await runAllPromises(promises);
+                    };
 
-                        throw error;
+                    if (
+                        "prototype" in testCaseArtifacts.task &&
+                        testCaseArtifacts.task.prototype instanceof Error
+                    ) {
+                        await expect(run).rejects.toThrow(testCaseArtifacts.task);
+                    } else {
+                        await run();
+
+                        const actualTask = await getTask(taskId);
+                        const expectedPartialTask =
+                            testCaseArtifacts.task as Partial<TaskTestInterface>;
+
+                        const createAction = iterableFirst(
+                            filterMapIterable(actions, action =>
+                                action.type === "UpdateTask" &&
+                                action.taskId === taskId &&
+                                action.taskAction.type === "Create"
+                                    ? action.taskAction
+                                    : null,
+                            ),
+                        );
+
+                        const expectedTask: TaskTestInterface = {
+                            isDeleted: false,
+                            parent: null,
+                            collections: TaskCollectionSet.empty,
+                            status: {type: "Open"},
+                            assignee: null,
+                            assigneeStatus: {type: "Inactive"},
+                            title: emptyTaskTitle.get(),
+                            dueDate: null,
+                            priority: null,
+                            ...expectedPartialTask,
+                            creator:
+                                expectedPartialTask.creator ??
+                                assertExists(
+                                    createAction?.creator,
+                                    "Expected `Create` task action when `creator` is not provided",
+                                ),
+                            createdTime:
+                                expectedPartialTask.createdTime ??
+                                assertExists(
+                                    createAction?.createdTime,
+                                    "Expected `Create` task action when `createdTime` is not provided",
+                                ),
+                        };
+
+                        expect({
+                            ...actualTask,
+                            title: getTaskTitleProsemirrorNode(actualTask.title).toJSON(),
+                            collections: actualTask.collections.getArray(),
+                        }).toEqual({
+                            ...expectedTask,
+                            title: getTaskTitleProsemirrorNode(expectedTask.title).toJSON(),
+                            collections: actualTask.collections.getArray(),
+                        });
                     }
-                });
+                },
+            });
+        }
+    }
+
+    assert(Number.isInteger(partitionNumber));
+    assert(Number.isInteger(partitionCount));
+    assert(1 <= partitionNumber && partitionNumber <= partitionCount);
+
+    const partitionTestCount = Math.floor(tests.length / partitionCount);
+    const partitionStartTestIndex = partitionTestCount * (partitionNumber - 1);
+
+    const partitionTests = tests.slice(
+        partitionStartTestIndex,
+        // The last partition gets all remaining tests.
+        partitionNumber !== partitionCount
+            ? partitionStartTestIndex + partitionTestCount
+            : undefined,
+    );
+
+    const groupedPartitionTests: Array<{
+        describeName: string;
+        tests: Array<{testName: string; runTest: () => Promise<void>}>;
+    }> = [];
+
+    for (const partitionTest of partitionTests) {
+        if (
+            groupedPartitionTests.length === 0 ||
+            groupedPartitionTests[groupedPartitionTests.length - 1]!.describeName !==
+                partitionTest.describeName
+        ) {
+            groupedPartitionTests.push({describeName: partitionTest.describeName, tests: []});
+        }
+
+        groupedPartitionTests[groupedPartitionTests.length - 1]!.tests.push(partitionTest);
+    }
+
+    for (const groupedPartitionTest of groupedPartitionTests) {
+        describe(`${groupedPartitionTest.describeName}`, () => {
+            for (const partitionTest of groupedPartitionTest.tests) {
+                test.concurrent(`${partitionTest.testName}`, partitionTest.runTest);
             }
         });
     }

@@ -13,6 +13,7 @@ ts_project(
     ],
     deps = [
         "//:node_modules/fs-extra",
+        "//:node_modules/get-port",
         "//:node_modules/murmurhash",
         "//admin/helpers",
         "//server/helpers",

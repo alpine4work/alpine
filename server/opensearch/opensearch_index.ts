@@ -179,7 +179,8 @@ export class OpensearchIndex<
                         field: sort.map(({field}) => field),
                         order: sort.map(({order}) => order),
                     },
-                    refresh_interval: refreshInterval,
+                    // Always manually refresh in Jest unit tests.
+                    refresh_interval: import.meta.jest ? "-1" : refreshInterval,
                     // One copy of all indexes to increase availability and avoid data loss.
                     //
                     // When running tests in Jest, don't run any replicas to speed things up.
