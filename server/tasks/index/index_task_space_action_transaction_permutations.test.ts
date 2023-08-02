@@ -3,10 +3,13 @@ import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test
 import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space.js";
 import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
 import {indexTaskSpaceActionTransactionWithoutCommitForTest} from "~/server/tasks/index/index_task_space_action_transaction.js";
+import {TaskCollectionIndex} from "~/server/tasks/index/task_collection_index.js";
 import {TaskIndex} from "~/server/tasks/index/task_index.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {
+    TaskCollectionTestInterface,
     TaskTestInterface,
     testTaskSpaceActionPermutations,
 } from "~/shared/tasks/test_helpers/test_task_space_action_permutations.js";
@@ -22,6 +25,8 @@ const opensearchClient = new Lazy(() => {
         host: `localhost:${context.getOpensearchLocalPort()}`,
     });
 });
+
+import.meta.jest.setTimeout(1000 * 20);
 
 testTaskSpaceActionPermutations({
     partitionNumber: parseInt(process.env.TEST_SHARD_INDEX ?? "0", 10) + 1,
@@ -63,6 +68,16 @@ testTaskSpaceActionPermutations({
                 ? {taskId: task.parent.taskId.value, position: task.parent.position.value}
                 : null,
             collections: task.collections.raw.collections,
+            collectionPositions: new Map(
+                task.collections.raw.collections.getArray().map(({collectionId, updatedTime}) => [
+                    collectionId,
+                    task.collections.raw.positionById.get(collectionId) ?? {
+                        orderTime: updatedTime,
+                        orderKey: initialOrderKey,
+                    },
+                ]),
+            ),
+            notepadPagePositions: new Map(task.notepadPages.raw.positionById),
             status: task.status.value,
             assignee: task.assignee.value,
             assigneeStatus:
@@ -72,6 +87,28 @@ testTaskSpaceActionPermutations({
             title: task.title.raw,
             dueDate: task.dueDate.value,
             priority: task.priority.value,
+        };
+    },
+    getTaskCollection: async (collectionId): Promise<TaskCollectionTestInterface> => {
+        const collection = await opensearchClient
+            .get()
+            .getDocIfExists(
+                context.systemAction(space.id),
+                TaskCollectionIndex,
+                space.id,
+                collectionId,
+            );
+
+        if (!collection) throw new NotFoundError("Task collection not found");
+
+        return {
+            createdTime: collection.createdTime,
+            isDeleted:
+                !!collection.rawDeletedTime &&
+                (!collection.rawUndeletedTime ||
+                    collection.rawDeletedTime > collection.rawUndeletedTime),
+            name: collection.name.value,
+            accessPolicy: collection.accessPolicy.value,
         };
     },
 });

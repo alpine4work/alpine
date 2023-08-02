@@ -13,6 +13,7 @@ export type OpensearchIndexConfig<FlattenedKeys extends string> = {
             readonly sort: {
                 readonly field: ReadonlyArray<FlattenedKeys>;
                 readonly order: ReadonlyArray<"asc" | "desc">;
+                readonly missing: ReadonlyArray<"_last" | "_first">;
             };
             readonly refresh_interval: string;
             readonly number_of_replicas: number;
@@ -153,11 +154,18 @@ export class OpensearchIndex<
              * See [this blog post][3] for the motivation behind this feature and some of
              * its applications.
              *
+             * - `order` defaults to `asc`
+             * - `missing` defaults to `_last`
+             *
              * [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/index-modules-index-sorting.html
              * [2]: https://github.com/opensearch-project/documentation-website/issues/4650
              * [3]: https://www.elastic.co/blog/index-sorting-elasticsearch-6-0
              */
-            sort: ReadonlyArray<{field: FlattenedKeys; order: "asc" | "desc"}>;
+            sort: ReadonlyArray<{
+                field: FlattenedKeys;
+                order?: "asc" | "desc";
+                missing?: "_last" | "_first";
+            }>;
 
             /**
              * How often to perform a refresh operation. If search results can be delayed a
@@ -177,7 +185,8 @@ export class OpensearchIndex<
                     number_of_routing_shards: numberOfRoutingShards,
                     sort: {
                         field: sort.map(({field}) => field),
-                        order: sort.map(({order}) => order),
+                        order: sort.map(({order}) => order ?? "asc"),
+                        missing: sort.map(({missing}) => missing ?? "_last"),
                     },
                     // Always manually refresh in Jest unit tests.
                     refresh_interval: import.meta.jest ? "-1" : refreshInterval,

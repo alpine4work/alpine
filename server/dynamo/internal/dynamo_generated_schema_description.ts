@@ -4458,12 +4458,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     },
                                                                                     "optional": false
                                                                                 },
-                                                                                "creatorId": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Id"
-                                                                                    },
-                                                                                    "optional": false
-                                                                                },
                                                                                 "createdTime": {
                                                                                     "valueSchema": {
                                                                                         "type": "Date"
@@ -4869,12 +4863,6 @@ export const dynamoGeneratedSchemaDescription: {
                                 "type": "Object",
                                 "propertySchemaByKey": {
                                     "spaceId": {
-                                        "valueSchema": {
-                                            "type": "Id"
-                                        },
-                                        "optional": false
-                                    },
-                                    "creatorId": {
                                         "valueSchema": {
                                             "type": "Id"
                                         },

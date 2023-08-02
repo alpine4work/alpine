@@ -16,7 +16,7 @@ ts_project(
             "tags": ["cpu:4"],
             # It takes ~10s to start OpenSearch. Better to have a small number of large
             # shards than many small shards.
-            "shard_count": 4,
+            "shard_count": 8,
         },
     },
     visibility = ["//server/tasks:__subpackages__"],

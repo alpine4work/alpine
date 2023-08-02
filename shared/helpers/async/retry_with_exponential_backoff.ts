@@ -52,13 +52,14 @@ export function retryWithExponentialBackoff<Value>(
                 throw error;
             }
 
-            const delayMs = 10 * 2 ** (attemptNumber - 1);
+            const delayMs = 2 ** attemptNumber;
 
-            if (delayMs > 1000 * 10)
+            if (delayMs > 1000 * 10) {
                 throw new DeadlineExceededError(
                     `Retry with exponential backoff failed after ${attemptNumber} attempts`,
                     {cause: (error as Error).cause},
                 );
+            }
 
             // We add jitter to our exponential backoff so that many requests retried at
             // the same time do not cause the same resource contention which may have

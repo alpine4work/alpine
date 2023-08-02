@@ -1,7 +1,10 @@
-import {AccountId, TaskId} from "~/shared/id/types/id_types.js";
+import {TaskId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
-import {TaskCollectionAccessPolicyRegister} from "~/shared/tasks/task_collection_access_policy.js";
+import {
+    TaskCollectionAccessPolicyRegister,
+    TaskCollectionAccessPolicySchema,
+} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskPositionSchema} from "~/shared/tasks/task_position.js";
 
 export type TaskCollectionAction = SchemaType<typeof TaskCollectionActionSchema>;
@@ -10,9 +13,8 @@ export type TaskCollectionAction = SchemaType<typeof TaskCollectionActionSchema>
  * Creates a task collection.
  *
  * Can only commit this action once for a given `TaskCollectionId`. Though this
- * action is idempotent. Two creates with the same `creatorId` and
- * `createdTime` are fine. Two creates with different `creatorId`s and
- * `createdTime`s are incompatible and will error.
+ * action is idempotent. Two creates with the same `createdTime` are fine. Two
+ * creates with different `createdTime`s are incompatible and will error.
  *
  * All other actions on a task will be kept in a queue until the task has been
  * created.
@@ -21,9 +23,8 @@ export type TaskCollectionCreateAction = SchemaType<typeof TaskCollectionCreateA
 
 const TaskCollectionCreateActionSchema = Schema.object({
     type: Schema.value("Create"),
-    creatorId: Schema.id<AccountId>(),
     createdTime: Schema.date,
-    accessPolicy: TaskCollectionAccessPolicyRegister.schema,
+    accessPolicy: TaskCollectionAccessPolicySchema,
 });
 
 /**

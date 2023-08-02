@@ -1,33 +1,39 @@
+import {max as maxDate} from "date-fns";
 import {AppSystemActionContext} from "~/server/dynamo/context/app_action_context.js";
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table.js";
 import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/index/apply_task_action_to_task_index_doc.js";
+import {TaskCollectionIndex} from "~/server/tasks/index/task_collection_index.js";
+import {TaskCollectionIndexDoc} from "~/server/tasks/index/task_collection_index_doc.js";
 import {TaskIndex} from "~/server/tasks/index/task_index.js";
 import {
     TaskIndexDoc,
     TaskPositionByAccountIdAndNotepadPageId,
     TaskPositionByCollectionIdMap,
 } from "~/server/tasks/index/task_index_doc.js";
-import {
-    FailedPreconditionError,
-    InternalError,
-    NotFoundError,
-    UnimplementedError,
-} from "~/shared/error/error.js";
+import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {SpaceId, TaskActionTransactionId, TaskId} from "~/shared/id/types/id_types.js";
+import {
+    SpaceId,
+    TaskActionTransactionId,
+    TaskCollectionId,
+    TaskId,
+} from "~/shared/id/types/id_types.js";
 import {TaskDueDateRegister, TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_action.js";
 import {
     TaskSpaceAction,
     getTaskSpaceActionLabel,
 } from "~/shared/tasks/actions/task_space_action.js";
+import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
 import {TaskAssigneeRegister} from "~/shared/tasks/task_assignee.js";
 import {TaskAssigneeStatusRegister} from "~/shared/tasks/task_assignee_status.js";
+import {TaskCollectionAccessPolicyRegister} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskPositionRegister} from "~/shared/tasks/task_position.js";
 import {TaskPriorityRegister} from "~/shared/tasks/task_priority.js";
@@ -103,6 +109,14 @@ class TaskSpaceActionTransactionIndexState {
 
     private readonly _updatedTaskIndexDocById = new Map<TaskId, TaskIndexDoc>();
     private readonly _retrievedTaskIndexDocById = new Map<TaskId, Promise<TaskIndexDoc | null>>();
+    private readonly _updatedCollectionIndexDocById = new Map<
+        TaskCollectionId,
+        TaskCollectionIndexDoc
+    >();
+    private readonly _retrievedCollectionIndexDocById = new Map<
+        TaskCollectionId,
+        Promise<TaskCollectionIndexDoc | null>
+    >();
 
     private constructor(
         context: AppSystemActionContext,
@@ -144,17 +158,33 @@ class TaskSpaceActionTransactionIndexState {
                 await actuallyIndexTaskSpaceAction(state, action, isInitialAttempt);
             }
 
-            await state._client.bulkWrite(
-                context,
-                TaskIndex,
-                spaceId,
-                Array.from(state._updatedTaskIndexDocById, ([taskId, task]) => ({
-                    type: "IndexIfVersion",
-                    id: taskId,
-                    doc: task,
-                })),
-                {retryVersionConflictError: retry},
-            );
+            await runAllPromises([
+                state._client.bulkWrite(
+                    context,
+                    TaskIndex,
+                    spaceId,
+                    Array.from(state._updatedTaskIndexDocById, ([taskId, task]) => ({
+                        type: "IndexIfVersion",
+                        id: taskId,
+                        doc: task,
+                    })),
+                    {retryVersionConflictError: retry},
+                ),
+                state._client.bulkWrite(
+                    context,
+                    TaskCollectionIndex,
+                    spaceId,
+                    Array.from(
+                        state._updatedCollectionIndexDocById,
+                        ([collectionId, collection]) => ({
+                            type: "IndexIfVersion",
+                            id: collectionId,
+                            doc: collection,
+                        }),
+                    ),
+                    {retryVersionConflictError: retry},
+                ),
+            ]);
         });
     }
 
@@ -193,13 +223,67 @@ class TaskSpaceActionTransactionIndexState {
     public putTaskIndexDoc(taskId: TaskId, task: TaskIndexDoc) {
         assert(task.spaceId === this.spaceId);
 
-        const lastDoc = this._updatedTaskIndexDocById.get(taskId);
+        const lastTask = this._updatedTaskIndexDocById.get(taskId);
 
-        if (lastDoc && !isDeepEqual(lastDoc.version, task.version)) {
+        if (lastTask && !isDeepEqual(lastTask.version, task.version)) {
             throw new InternalError("Expected local task updates to have the same version");
         }
 
         this._updatedTaskIndexDocById.set(taskId, task);
+    }
+
+    /**
+     * Get the `TaskCollectionIndexDoc` for the specified `TaskCollectionId` and
+     * return null if the collection doesn't exist.
+     */
+    public getCollectionIndexDocIfExists(collectionId: TaskCollectionId) {
+        // Return the updated doc if we have one. Otherwise we need to load the doc
+        // from OpenSearch.
+        const updatedCollection = this._updatedCollectionIndexDocById.get(collectionId);
+        if (updatedCollection) return updatedCollection;
+
+        return getOrSetDefaultMapValue(
+            this._retrievedCollectionIndexDocById,
+            collectionId,
+            async () => {
+                const collection = await this._client.getDocIfExists(
+                    this._context,
+                    TaskCollectionIndex,
+                    this.spaceId,
+                    collectionId,
+                );
+                if (!collection) return null;
+
+                if (collection.spaceId !== this.spaceId)
+                    throw new FailedPreconditionError("Space mismatch");
+
+                return collection;
+            },
+        );
+    }
+
+    /**
+     * Updates the `TaskCollectionIndexDoc` for the specified `TaskCollectionId`.
+     *
+     * Uses optimistic concurrency control. If the collection does not exist then
+     * we create it. If the collection exists with a different version then we need
+     * to retry.
+     */
+    public putCollectionIndexDoc(
+        collectionId: TaskCollectionId,
+        collection: TaskCollectionIndexDoc,
+    ) {
+        assert(collection.spaceId === this.spaceId);
+
+        const lastCollection = this._updatedCollectionIndexDocById.get(collectionId);
+
+        if (lastCollection && !isDeepEqual(lastCollection.version, collection.version)) {
+            throw new InternalError(
+                "Expected local task collection updates to have the same version",
+            );
+        }
+
+        this._updatedCollectionIndexDocById.set(collectionId, collection);
     }
 }
 
@@ -268,21 +352,244 @@ async function actuallyIndexTaskSpaceAction(
             // that would have storage costs.
             if (!oldTask) {
                 throw state.retry(
-                    new NotFoundError(
+                    new InternalError(
                         "Task not found, should not be allowed to commit an update action before a create action",
                     ),
                 );
             }
 
             const newTask = applyTaskActionToTaskIndexDoc(oldTask, action.taskAction);
-            state.putTaskIndexDoc(action.taskId, newTask);
+
+            // NOTE(calebmer): Maintaining referential identity to avoid having to make an
+            // update network request is an important optimization.
+            //
+            // In addition to avoiding a network request, this optimization can help avoid
+            // some retries too under high contention workloads since it's ok if the doc in
+            // OpenSearch has updated from underneath us. The result if we try to reapply
+            // would be the same.
+            if (newTask !== oldTask) {
+                state.putTaskIndexDoc(action.taskId, newTask);
+            }
             return;
         }
         case "UpdateTaskCollection": {
-            throw new UnimplementedError("NOCOMMIT");
+            const [oldCollection, oldTaskForUpdateTaskPosition] = await runAllPromises([
+                // If this is our initial attempt to create a collection then optimistically
+                // assume it doesn't exist.
+                action.collectionAction.type === "Create" && isInitialAttempt
+                    ? null
+                    : state.getCollectionIndexDocIfExists(action.collectionId),
+
+                action.collectionAction.type === "UpdateTaskPosition"
+                    ? state.getTaskIndexDocIfExists(action.collectionAction.taskId)
+                    : null,
+            ]);
+
+            if (!oldCollection && action.collectionAction.type === "Create") {
+                const createdTime = action.collectionAction.createdTime;
+
+                state.putCollectionIndexDoc(action.collectionId, {
+                    spaceId: state.spaceId,
+                    createdTime,
+                    rawDeletedTime: null,
+                    rawUndeletedTime: null,
+                    name: new LabelStringRegister("", createdTime),
+                    accessPolicy: new TaskCollectionAccessPolicyRegister(
+                        action.collectionAction.accessPolicy,
+                        createdTime,
+                    ),
+                });
+                return;
+            }
+
+            // Retry if we can't find the collection. Actions may be applied out of order
+            // but a prerequisite for committing an update collection action is having seen
+            // a create collection action. So eventually we expect the collection to exist.
+            if (!oldCollection) {
+                throw state.retry(
+                    new InternalError(
+                        "Task collection not found, should not be allowed to commit an update action before a create action",
+                    ),
+                );
+            }
+
+            switch (action.collectionAction.type) {
+                case "Create": {
+                    if (
+                        oldCollection.createdTime.toISOString() !==
+                        action.collectionAction.createdTime.toISOString()
+                    ) {
+                        throw new FailedPreconditionError("Incompatible create action");
+                    }
+                    break;
+                }
+                case "Delete": {
+                    const newRawDeletedTime =
+                        oldCollection.rawDeletedTime !== null
+                            ? maxDate([
+                                  oldCollection.rawDeletedTime,
+                                  action.collectionAction.deletedTime,
+                              ])
+                            : action.collectionAction.deletedTime;
+
+                    if (
+                        newRawDeletedTime.toISOString() !==
+                        oldCollection.rawDeletedTime?.toISOString()
+                    ) {
+                        state.putCollectionIndexDoc(action.collectionId, {
+                            ...oldCollection,
+                            rawDeletedTime: newRawDeletedTime,
+                        });
+                    }
+                    break;
+                }
+                case "Undelete": {
+                    const newRawUndeletedTime =
+                        oldCollection.rawUndeletedTime !== null
+                            ? maxDate([
+                                  oldCollection.rawUndeletedTime,
+                                  action.collectionAction.undeletedTime,
+                              ])
+                            : action.collectionAction.undeletedTime;
+
+                    if (
+                        newRawUndeletedTime.toISOString() !==
+                        oldCollection.rawUndeletedTime?.toISOString()
+                    ) {
+                        state.putCollectionIndexDoc(action.collectionId, {
+                            ...oldCollection,
+                            rawUndeletedTime: newRawUndeletedTime,
+                        });
+                    }
+                    break;
+                }
+                case "UpdateName": {
+                    const newName = oldCollection.name.apply(action.collectionAction.nameAction);
+
+                    if (oldCollection.name !== newName) {
+                        state.putCollectionIndexDoc(action.collectionId, {
+                            ...oldCollection,
+                            name: newName,
+                        });
+                    }
+                    break;
+                }
+                case "UpdateAccessPolicy": {
+                    const newAccessPolicy = oldCollection.accessPolicy.apply(
+                        action.collectionAction.accessPolicyAction,
+                    );
+
+                    if (oldCollection.accessPolicy !== newAccessPolicy) {
+                        state.putCollectionIndexDoc(action.collectionId, {
+                            ...oldCollection,
+                            accessPolicy: newAccessPolicy,
+                        });
+                    }
+                    break;
+                }
+                case "UpdateTaskPosition": {
+                    // Retry if we can't find the task. Actions may be applied out of order but a
+                    // prerequisite for committing an update task action is having seen a create
+                    // task action. So eventually we expect the task to exist.
+                    if (!oldTaskForUpdateTaskPosition) {
+                        throw state.retry(
+                            new InternalError(
+                                "Task not found, should not be allowed to commit an update action before a create action",
+                            ),
+                        );
+                    }
+
+                    const oldTask = oldTaskForUpdateTaskPosition;
+
+                    const newPositionById = oldTask.collections.raw.positionById.apply({
+                        type: "Set",
+                        key: action.collectionId,
+                        value: action.collectionAction.position,
+                        updatedTime: action.collectionAction.updatedTime,
+                    });
+
+                    if (newPositionById !== oldTask.collections.raw.positionById) {
+                        state.putTaskIndexDoc(action.collectionAction.taskId, {
+                            ...oldTask,
+                            collections: {
+                                raw: {
+                                    collections: oldTask.collections.raw.collections,
+                                    positionById: newPositionById,
+                                },
+                            },
+                        });
+                    }
+                    break;
+                }
+                default:
+                    throw exhaustive(action.collectionAction);
+            }
+            return;
         }
         case "UpdateTaskNotepadPage": {
-            throw new UnimplementedError("NOCOMMIT");
+            if (action.notepadPageAction.type === "Create") {
+                // We don't have a notepad page index. That's all stored in a compressed,
+                // binary, integer set.
+                return;
+            }
+
+            const oldTask = await state.getTaskIndexDocIfExists(action.notepadPageAction.taskId);
+
+            // Retry if we can't find the task. Actions may be applied out of order but a
+            // prerequisite for committing an update task action is having seen a create
+            // task action. So eventually we expect the task to exist.
+            if (!oldTask) {
+                throw state.retry(
+                    new InternalError(
+                        "Task not found, should not be allowed to commit an update action before a create action",
+                    ),
+                );
+            }
+
+            switch (action.notepadPageAction.type) {
+                case "AddTask": {
+                    const newPositionById = oldTask.notepadPages.raw.positionById.apply({
+                        type: "Set",
+                        key: `${action.accountId}-${action.notepadPageId}`,
+                        value: action.notepadPageAction.position,
+                        updatedTime: action.notepadPageAction.updatedTime,
+                    });
+
+                    if (newPositionById !== oldTask.notepadPages.raw.positionById) {
+                        state.putTaskIndexDoc(action.notepadPageAction.taskId, {
+                            ...oldTask,
+                            notepadPages: {
+                                raw: {
+                                    positionById: newPositionById,
+                                },
+                            },
+                        });
+                    }
+                    break;
+                }
+                case "RemoveTask": {
+                    const newPositionById = oldTask.notepadPages.raw.positionById.apply({
+                        type: "Delete",
+                        key: `${action.accountId}-${action.notepadPageId}`,
+                        deletedTime: action.notepadPageAction.updatedTime,
+                    });
+
+                    if (newPositionById !== oldTask.notepadPages.raw.positionById) {
+                        state.putTaskIndexDoc(action.notepadPageAction.taskId, {
+                            ...oldTask,
+                            notepadPages: {
+                                raw: {
+                                    positionById: newPositionById,
+                                },
+                            },
+                        });
+                    }
+                    break;
+                }
+                default:
+                    throw exhaustive(action.notepadPageAction);
+            }
+            return;
         }
         default:
             throw exhaustive(action);

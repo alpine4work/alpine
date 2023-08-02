@@ -231,21 +231,29 @@ export function createCrdtMap<Key extends string | number, Value extends {}>(
                         action.value,
                         action.updatedTime,
                     );
-                    return new CrdtMap(
-                        this._map.update(action.key, valueRegister => {
-                            if (valueRegister === undefined) return newValueRegister;
-                            return valueRegister.merge(newValueRegister);
-                        }),
-                    );
+
+                    const newMap = this._map.update(action.key, valueRegister => {
+                        if (valueRegister === undefined) return newValueRegister;
+                        return valueRegister.merge(newValueRegister);
+                    });
+
+                    // Optimization: If the map didn't change, return the old reference.
+                    if (newMap === this._map) return this;
+
+                    return new CrdtMap(newMap);
                 }
                 case "Delete": {
                     const newValueRegister = new CrdtMapValueRegister(null, action.deletedTime);
-                    return new CrdtMap(
-                        this._map.update(action.key, valueRegister => {
-                            if (valueRegister === undefined) return newValueRegister;
-                            return valueRegister.merge(newValueRegister);
-                        }),
-                    );
+
+                    const newMap = this._map.update(action.key, valueRegister => {
+                        if (valueRegister === undefined) return newValueRegister;
+                        return valueRegister.merge(newValueRegister);
+                    });
+
+                    // Optimization: If the map didn't change, return the old reference.
+                    if (newMap === this._map) return this;
+
+                    return new CrdtMap(newMap);
                 }
                 default:
                     throw exhaustive(action);

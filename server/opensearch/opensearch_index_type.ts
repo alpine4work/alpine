@@ -424,6 +424,39 @@ export class OpensearchIndexTextType extends OpensearchIndexTypeBase<string, nev
 }
 
 /**
+ * An OpenSearch [search-as-you-type field type][1]. It implements best
+ * practices for indexing text fields for search-as-you-type functionality.
+ * Specifically by storing the fields 2grams, 3grams, and edge n-grams.
+ *
+ * [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/search-as-you-type/
+ */
+export class OpensearchIndexSearchAsYouTypeType extends OpensearchIndexTypeBase<string, never> {
+    private readonly _analyzer: string;
+
+    constructor({analyzer}: {analyzer: string}) {
+        super();
+        this._analyzer = analyzer;
+    }
+
+    public override getConfig() {
+        return {
+            type: "search_as_you_type",
+            analyzer: this._analyzer,
+            index: true,
+        };
+    }
+
+    public override serialize(value: string): JsonValue {
+        return value;
+    }
+
+    public override deserialize(value: JsonValue): string {
+        assert(typeof value === "string");
+        return value;
+    }
+}
+
+/**
  * An OpenSearch [array field type][1].
  *
  * [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/index/#arrays

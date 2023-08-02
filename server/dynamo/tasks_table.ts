@@ -140,7 +140,6 @@ const TasksTable = DynamoTableSchema.new({
                     sortKeyAttributes: {},
                     attributes: Schema.object({
                         spaceId: Schema.id<SpaceId>(),
-                        creatorId: Schema.id<AccountId>(),
                         createdTime: Schema.date,
                         deletedTime: Schema.date.nullable(),
                         accessPolicy: TaskCollectionAccessPolicyRegister.schema,
@@ -1281,12 +1280,6 @@ async function actuallyCommitTaskSpaceActionTransaction(
 
                 switch (collectionAction.type) {
                     case "Create": {
-                        if (collectionAction.creatorId !== state.getActorAccountId()) {
-                            throw new PermissionDeniedError(
-                                "Can only create a task collection with yourself as the creator",
-                            );
-                        }
-
                         if (!state.isChangeTimeReasonable(collectionAction.createdTime)) {
                             throw new InvalidArgumentError(
                                 "Action `createdTime` is too far in the future",
@@ -1298,10 +1291,12 @@ async function actuallyCommitTaskSpaceActionTransaction(
                             sortRangeType: "EssentialAttributes",
                             collectionId,
                             spaceId,
-                            creatorId: collectionAction.creatorId,
                             createdTime: collectionAction.createdTime,
                             deletedTime: null,
-                            accessPolicy: collectionAction.accessPolicy,
+                            accessPolicy: new TaskCollectionAccessPolicyRegister(
+                                collectionAction.accessPolicy,
+                                collectionAction.createdTime,
+                            ),
                         };
 
                         if (

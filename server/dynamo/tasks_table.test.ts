@@ -22,10 +22,7 @@ import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
-import {
-    TaskCollectionAccessLevel,
-    TaskCollectionAccessPolicyRegister,
-} from "~/shared/tasks/task_collection_access_policy.js";
+import {TaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
@@ -156,15 +153,11 @@ async function createPublicTask(
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: session.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[session.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level},
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[session.accountId, {level: "Manage"}]]),
+                    defaultGrant: {type: "Space", level},
+                },
             },
         },
         {
@@ -487,18 +480,14 @@ test("can delete a task that's in a collection you specifically can edit", async
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
-                            [taskAccount2.accountId, {level: "Edit"}],
-                        ]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([
+                        [taskAccount1.accountId, {level: "Manage"}],
+                        [taskAccount2.accountId, {level: "Edit"}],
+                    ]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -547,18 +536,14 @@ test("can't delete a task that's only in a collection you specifically can view"
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
-                            [taskAccount2.accountId, {level: "View"}],
-                        ]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([
+                        [taskAccount1.accountId, {level: "Manage"}],
+                        [taskAccount2.accountId, {level: "View"}],
+                    ]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -1274,18 +1259,14 @@ test("can update a task's title that's in a collection you can edit", async () =
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
-                            [taskAccount2.accountId, {level: "Edit"}],
-                        ]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([
+                        [taskAccount1.accountId, {level: "Manage"}],
+                        [taskAccount2.accountId, {level: "Edit"}],
+                    ]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -1334,18 +1315,14 @@ test("can't update a task's title that's only in a collection you specifically c
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
-                            [taskAccount2.accountId, {level: "View"}],
-                        ]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([
+                        [taskAccount1.accountId, {level: "Manage"}],
+                        [taskAccount2.accountId, {level: "View"}],
+                    ]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -1396,15 +1373,11 @@ test("can add a task to a collection", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -1445,15 +1418,11 @@ test("can't add a task you don't have access to to a collection", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount2.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount2.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount2.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -1499,15 +1468,11 @@ test("can't add a task to a collection you don't have access to", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount2.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount2.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount2.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -1554,15 +1519,11 @@ test("can add a task that's not yours to a collection", async () => {
             collectionId: collectionId1,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount2.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount2.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount2.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -1573,18 +1534,14 @@ test("can add a task that's not yours to a collection", async () => {
             collectionId: collectionId2,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
-                            [taskAccount2.accountId, {level: "Edit"}],
-                        ]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([
+                        [taskAccount1.accountId, {level: "Manage"}],
+                        [taskAccount2.accountId, {level: "Edit"}],
+                    ]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -1639,18 +1596,14 @@ test("can't add a task to a collection you don't have edit access to", async () 
             collectionId: collectionId1,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
-                            [taskAccount2.accountId, {level: "View"}],
-                        ]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([
+                        [taskAccount1.accountId, {level: "Manage"}],
+                        [taskAccount2.accountId, {level: "View"}],
+                    ]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -1658,18 +1611,14 @@ test("can't add a task to a collection you don't have edit access to", async () 
             collectionId: collectionId2,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
-                            [taskAccount2.accountId, {level: "Edit"}],
-                        ]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([
+                        [taskAccount1.accountId, {level: "Manage"}],
+                        [taskAccount2.accountId, {level: "Edit"}],
+                    ]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -1741,15 +1690,11 @@ test("can't add a task to a collection with an unreasonable update time", async 
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -1792,15 +1737,11 @@ test("can delete a task from a collection", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -1853,15 +1794,11 @@ test("can't delete a task from a collection with an unreasonable time", async ()
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -1916,15 +1853,11 @@ test("can't delete a task from a collection you don't have access to", async () 
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -1979,18 +1912,14 @@ test("can't delete a task from a collection you don't have edit access to", asyn
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
-                            [taskAccount2.accountId, {level: "View"}],
-                        ]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([
+                        [taskAccount1.accountId, {level: "Manage"}],
+                        [taskAccount2.accountId, {level: "View"}],
+                    ]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -2045,18 +1974,14 @@ test("can delete a task from a collection you have edit access to", async () => 
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
-                            [taskAccount2.accountId, {level: "Edit"}],
-                        ]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([
+                        [taskAccount1.accountId, {level: "Manage"}],
+                        [taskAccount2.accountId, {level: "Edit"}],
+                    ]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -2108,15 +2033,11 @@ test("can create a collection", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -2131,15 +2052,11 @@ test("can't create a collection twice", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -2151,17 +2068,11 @@ test("can't create a collection twice", async () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: taskAccount1.accountId,
                     createdTime: getCurrentTime(),
-                    accessPolicy: new TaskCollectionAccessPolicyRegister(
-                        {
-                            accountGrantById: new Map([
-                                [taskAccount1.accountId, {level: "Manage"}],
-                            ]),
-                            defaultGrant: null,
-                        },
-                        getCurrentTime(),
-                    ),
+                    accessPolicy: {
+                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        defaultGrant: null,
+                    },
                 },
             },
         ]),
@@ -2178,17 +2089,11 @@ test("can't create a collection with the wrong creator", async () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: taskAccount2.accountId,
                     createdTime: getCurrentTime(),
-                    accessPolicy: new TaskCollectionAccessPolicyRegister(
-                        {
-                            accountGrantById: new Map([
-                                [taskAccount2.accountId, {level: "Manage"}],
-                            ]),
-                            defaultGrant: null,
-                        },
-                        getCurrentTime(),
-                    ),
+                    accessPolicy: {
+                        accountGrantById: new Map([[taskAccount2.accountId, {level: "Manage"}]]),
+                        defaultGrant: null,
+                    },
                 },
             },
         ]),
@@ -2205,17 +2110,11 @@ test("can't create a collection with an unreasonable created time", async () => 
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: taskAccount1.accountId,
                     createdTime: getUnreasonableTime(),
-                    accessPolicy: new TaskCollectionAccessPolicyRegister(
-                        {
-                            accountGrantById: new Map([
-                                [taskAccount1.accountId, {level: "Manage"}],
-                            ]),
-                            defaultGrant: null,
-                        },
-                        getCurrentTime(),
-                    ),
+                    accessPolicy: {
+                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        defaultGrant: null,
+                    },
                 },
             },
         ]),
@@ -2232,15 +2131,11 @@ test("can't create a collection without our account as a manager", async () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: taskAccount1.accountId,
                     createdTime: getCurrentTime(),
-                    accessPolicy: new TaskCollectionAccessPolicyRegister(
-                        {
-                            accountGrantById: new Map([]),
-                            defaultGrant: null,
-                        },
-                        getCurrentTime(),
-                    ),
+                    accessPolicy: {
+                        accountGrantById: new Map([]),
+                        defaultGrant: null,
+                    },
                 },
             },
         ]),
@@ -2256,15 +2151,11 @@ test("can delete a collection", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -2307,15 +2198,11 @@ test("can't delete a collection twice", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -2356,15 +2243,11 @@ test("can't delete a collection with the created time", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime,
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -2394,15 +2277,11 @@ test("can't delete a collection with a time before the created time", async () =
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -2430,15 +2309,11 @@ test("can't delete a collection with an unreasonable deleted time", async () => 
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -2466,15 +2341,11 @@ test("can't delete a collection you don't have access to", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -2502,18 +2373,14 @@ test("can't delete a collection you only have access to as an editor", async () 
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
-                            [taskAccount2.accountId, {level: "Edit"}],
-                        ]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([
+                        [taskAccount1.accountId, {level: "Manage"}],
+                        [taskAccount2.accountId, {level: "Edit"}],
+                    ]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -2541,18 +2408,14 @@ test("can delete a collection you have access to as a manager", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
-                            [taskAccount2.accountId, {level: "Manage"}],
-                        ]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([
+                        [taskAccount1.accountId, {level: "Manage"}],
+                        [taskAccount2.accountId, {level: "Manage"}],
+                    ]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -2578,15 +2441,11 @@ test("can undelete a collection", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -2640,15 +2499,11 @@ test("can undelete a collection twice if there's another delete", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -2707,15 +2562,11 @@ test("can undelete a collection twice if there's another delete in one transacti
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -2762,15 +2613,11 @@ test("can't undelete a collection twice", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -2820,15 +2667,11 @@ test("can't undelete a collection with the deleted time", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -2869,15 +2712,11 @@ test("can't undelete a collection a time before the deleted time", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -2918,15 +2757,11 @@ test("can't undelete a collection with an unreasonable time", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -2965,15 +2800,11 @@ test("can't undelete a collection you don't have access to", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -3009,18 +2840,14 @@ test("can't undelete a collection you only have access to as an editor", async (
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
-                            [taskAccount2.accountId, {level: "Edit"}],
-                        ]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([
+                        [taskAccount1.accountId, {level: "Manage"}],
+                        [taskAccount2.accountId, {level: "Edit"}],
+                    ]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -3056,18 +2883,14 @@ test("can undelete a collection you have access to as a manager", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
-                            [taskAccount2.accountId, {level: "Manage"}],
-                        ]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([
+                        [taskAccount1.accountId, {level: "Manage"}],
+                        [taskAccount2.accountId, {level: "Manage"}],
+                    ]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -3101,15 +2924,11 @@ test("can update a collection's name", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -3158,15 +2977,11 @@ test("can't update a deleted collection's title", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -3208,15 +3023,11 @@ test("can't update a collection name that's not yours", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -3247,15 +3058,11 @@ test("can't update a collection name with an unreasonable time", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -3286,15 +3093,11 @@ test("can't update a collection name you don't have access to", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -3325,18 +3128,14 @@ test("can't update a collection name you only have access to as an editor", asyn
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
-                            [taskAccount2.accountId, {level: "Edit"}],
-                        ]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([
+                        [taskAccount1.accountId, {level: "Manage"}],
+                        [taskAccount2.accountId, {level: "Edit"}],
+                    ]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -3367,18 +3166,14 @@ test("can update a collection name you have access to as a manager", async () =>
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
-                            [taskAccount2.accountId, {level: "Manage"}],
-                        ]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([
+                        [taskAccount1.accountId, {level: "Manage"}],
+                        [taskAccount2.accountId, {level: "Manage"}],
+                    ]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -3407,15 +3202,11 @@ test("can update a collection's access policy", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -3476,15 +3267,11 @@ test("can't update a deleted collection's access policy", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -3532,15 +3319,11 @@ test("can't update a collection access policy that's not yours", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -3577,15 +3360,11 @@ test("can't update a collection access policy with an unreasonable time", async 
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -3622,15 +3401,11 @@ test("can't update a collection access policy you don't have access to", async (
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -3667,18 +3442,14 @@ test("can't update a collection access policy you only have access to as an edit
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
-                            [taskAccount2.accountId, {level: "Edit"}],
-                        ]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([
+                        [taskAccount1.accountId, {level: "Manage"}],
+                        [taskAccount2.accountId, {level: "Edit"}],
+                    ]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -3715,18 +3486,14 @@ test("can update a collection access policy you have access to as a manager", as
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
-                            [taskAccount2.accountId, {level: "Manage"}],
-                        ]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([
+                        [taskAccount1.accountId, {level: "Manage"}],
+                        [taskAccount2.accountId, {level: "Manage"}],
+                    ]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -3761,18 +3528,14 @@ test("can't update a collection access policy with no manage grants", async () =
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
-                            [taskAccount2.accountId, {level: "Manage"}],
-                        ]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([
+                        [taskAccount1.accountId, {level: "Manage"}],
+                        [taskAccount2.accountId, {level: "Manage"}],
+                    ]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -3853,18 +3616,14 @@ test("can update a collection access policy to remove access from yourself", asy
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
-                            [taskAccount2.accountId, {level: "Manage"}],
-                        ]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([
+                        [taskAccount1.accountId, {level: "Manage"}],
+                        [taskAccount2.accountId, {level: "Manage"}],
+                    ]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -3960,15 +3719,11 @@ test("can't create collection twice race condition", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -3981,15 +3736,11 @@ test("can't create collection twice race condition", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount2.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount2.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount2.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
     ]);
@@ -4011,18 +3762,14 @@ test("can update task when collection you have access to is removed in a race co
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
-                            [taskAccount2.accountId, {level: "Edit"}],
-                        ]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([
+                        [taskAccount1.accountId, {level: "Manage"}],
+                        [taskAccount2.accountId, {level: "Edit"}],
+                    ]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -4109,18 +3856,14 @@ test("can update task when collection you have access to removes your access in 
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
-                            [taskAccount2.accountId, {level: "Edit"}],
-                        ]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([
+                        [taskAccount1.accountId, {level: "Manage"}],
+                        [taskAccount2.accountId, {level: "Edit"}],
+                    ]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -4819,18 +4562,14 @@ test("can't update task parent to a task you have view but not edit access to", 
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount2.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([
-                            [taskAccount2.accountId, {level: "Manage"}],
-                            [taskAccount1.accountId, {level: "View"}],
-                        ]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([
+                        [taskAccount2.accountId, {level: "Manage"}],
+                        [taskAccount1.accountId, {level: "View"}],
+                    ]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -4897,18 +4636,14 @@ test("can update task parent to a task when you have edit access", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount2.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([
-                            [taskAccount2.accountId, {level: "Manage"}],
-                            [taskAccount1.accountId, {level: "Edit"}],
-                        ]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([
+                        [taskAccount2.accountId, {level: "Manage"}],
+                        [taskAccount1.accountId, {level: "Edit"}],
+                    ]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -4973,18 +4708,14 @@ test("child tasks inherit the permissions of their parent task", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount2.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([
-                            [taskAccount2.accountId, {level: "Manage"}],
-                            [taskAccount1.accountId, {level: "Edit"}],
-                        ]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([
+                        [taskAccount2.accountId, {level: "Manage"}],
+                        [taskAccount1.accountId, {level: "Edit"}],
+                    ]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -5075,18 +4806,14 @@ test("child tasks inherit the permissions of their parent task multiple levels u
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
-                            [taskAccount2.accountId, {level: "Edit"}],
-                        ]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([
+                        [taskAccount1.accountId, {level: "Manage"}],
+                        [taskAccount2.accountId, {level: "Edit"}],
+                    ]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -5353,18 +5080,14 @@ test("child tasks don't inherit the permissions of their deleted parent task", a
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount2.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([
-                            [taskAccount2.accountId, {level: "Manage"}],
-                            [taskAccount1.accountId, {level: "Edit"}],
-                        ]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([
+                        [taskAccount2.accountId, {level: "Manage"}],
+                        [taskAccount1.accountId, {level: "Edit"}],
+                    ]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -5479,18 +5202,14 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
-                            [taskAccount2.accountId, {level: "Edit"}],
-                        ]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([
+                        [taskAccount1.accountId, {level: "Manage"}],
+                        [taskAccount2.accountId, {level: "Edit"}],
+                    ]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -6116,15 +5835,11 @@ test("child tasks can't create a circular dependency even in race conditions (2 
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "Manage"},
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    defaultGrant: {type: "Space", level: "Manage"},
+                },
             },
         },
     ]);
@@ -6234,15 +5949,11 @@ test("child tasks can't create a circular dependency even in race conditions (3 
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "Manage"},
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    defaultGrant: {type: "Space", level: "Manage"},
+                },
             },
         },
     ]);
@@ -6393,15 +6104,11 @@ test("child tasks can't create a circular dependency even in race conditions (5 
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "Manage"},
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    defaultGrant: {type: "Space", level: "Manage"},
+                },
             },
         },
     ]);
@@ -6630,15 +6337,11 @@ test("child tasks can't create a circular dependency even in race conditions (5 
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "Manage"},
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    defaultGrant: {type: "Space", level: "Manage"},
+                },
             },
         },
     ]);
@@ -6867,15 +6570,11 @@ test("child tasks can't create a circular dependency even in race conditions (5 
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "Manage"},
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    defaultGrant: {type: "Space", level: "Manage"},
+                },
             },
         },
     ]);
@@ -7104,15 +6803,11 @@ test("child tasks can't create a circular dependency even in race conditions (5 
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "Manage"},
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    defaultGrant: {type: "Space", level: "Manage"},
+                },
             },
         },
     ]);
@@ -7341,15 +7036,11 @@ test("child tasks can't create a circular dependency even in race conditions (5 
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "Manage"},
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    defaultGrant: {type: "Space", level: "Manage"},
+                },
             },
         },
     ]);
@@ -7582,15 +7273,11 @@ test("child tasks can't create a circular dependency even in race conditions (9 
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "Manage"},
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    defaultGrant: {type: "Space", level: "Manage"},
+                },
             },
         },
     ]);
@@ -8340,15 +8027,11 @@ test("can't create a circular dependency with undelete even in race conditions",
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "Manage"},
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    defaultGrant: {type: "Space", level: "Manage"},
+                },
             },
         },
     ]);
@@ -8599,15 +8282,11 @@ test("can create a circular dependency with delete", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "Manage"},
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    defaultGrant: {type: "Space", level: "Manage"},
+                },
             },
         },
     ]);
@@ -8831,15 +8510,11 @@ test("can remove the parent of a child task when you don't have access to the pa
             collectionId: collectionId1,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -8847,15 +8522,11 @@ test("can remove the parent of a child task when you don't have access to the pa
             collectionId: collectionId2,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "Manage"},
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    defaultGrant: {type: "Space", level: "Manage"},
+                },
             },
         },
         {
@@ -8965,15 +8636,11 @@ test("can change the parent of a child task when you don't have access to the pa
             collectionId: collectionId1,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -8981,15 +8648,11 @@ test("can change the parent of a child task when you don't have access to the pa
             collectionId: collectionId2,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "Manage"},
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    defaultGrant: {type: "Space", level: "Manage"},
+                },
             },
         },
         {
@@ -9120,15 +8783,11 @@ test("can delete a child task when you don't have access to the parent task", as
             collectionId: collectionId1,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -9136,15 +8795,11 @@ test("can delete a child task when you don't have access to the parent task", as
             collectionId: collectionId2,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "Manage"},
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    defaultGrant: {type: "Space", level: "Manage"},
+                },
             },
         },
         {
@@ -10181,15 +9836,11 @@ test("can update task position in a collection", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -10240,15 +9891,11 @@ test("can't update task position with an unreasonable update time", async () => 
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -10301,15 +9948,11 @@ test("can't update task position with an unreasonable order time", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -10362,15 +10005,11 @@ test("can't update task position with a task that doesn't exist", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -10424,15 +10063,11 @@ test("can't update task position with a task that's not in the collection", asyn
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -10494,15 +10129,11 @@ test("can't update task position with a task that was removed from the collectio
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -10570,15 +10201,11 @@ test("can't update task position when you don't have access to the collection", 
             collectionId,
             collectionAction: {
                 type: "Create",
-                creatorId: taskAccount1.accountId,
                 createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                    getCurrentTime(),
-                ),
+                accessPolicy: {
+                    accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
             },
         },
         {
@@ -11472,7 +11099,7 @@ test("can't update a task's title with an account in a different space", async (
     ).rejects.toThrow(new PermissionDeniedError("Account does not have access to space"));
 });
 
-test.only("can't update a task's title in the context of the wrong space", async () => {
+test("can't update a task's title in the context of the wrong space", async () => {
     const {taskId} = await createPublicTask(session1, space.id);
 
     await expect(

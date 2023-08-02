@@ -14,8 +14,8 @@ import {
     OpensearchIndexTypeType,
     OpensearchIndexUnionObjectType,
 } from "~/server/opensearch/opensearch_index_type.js";
+import {createCrdtRegisterOpensearchType} from "~/server/tasks/index/internal/create_crdt_register_opensearch_type.js";
 import {createCrdtMap} from "~/shared/crdt/crdt_map.js";
-import {CrdtRegister, CrdtRegisterClass} from "~/shared/crdt/crdt_register.js";
 import {isTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {initialOrderKey, isOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {createEnumIntegerMapping} from "~/shared/helpers/string/create_enum_integer_mapping.js";
@@ -496,18 +496,3 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
         }),
     },
 });
-
-function createCrdtRegisterOpensearchType<Value, FlattenedKeys extends string>(
-    class_: CrdtRegisterClass<Value>,
-    type: OpensearchIndexTypeBase<Value, FlattenedKeys>,
-) {
-    return OpensearchIndexObjectType.new({
-        fields: {
-            value: type,
-            updatedTime: new OpensearchIndexDateType(),
-        },
-    }).transform<CrdtRegister<Value>>({
-        serialize: register => register,
-        deserialize: register => new class_(register.value, register.updatedTime),
-    });
-}

@@ -7,7 +7,7 @@ import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/err
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {taskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_test_helpers.js";
@@ -114,6 +114,88 @@ test("can't update task from a different space", async () => {
                 taskAction: {
                     type: "UpdateTitle",
                     titleUpdate: taskTitleTestScenario.update0,
+                },
+            },
+        ],
+    );
+});
+
+test("can't update collection from a different space", async () => {
+    const collectionId = generateId<TaskCollectionId>();
+
+    await indexTaskSpaceActionTransactionWithoutCommitForTest(
+        context.systemAction(space.id),
+        opensearchClient.get(),
+        space.id,
+        [
+            {
+                type: "UpdateTaskCollection",
+                collectionId,
+                collectionAction: {
+                    type: "Create",
+                    createdTime: getCurrentTime(),
+                    accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+                },
+            },
+        ],
+    );
+
+    await expect(
+        indexTaskSpaceActionTransactionWithoutCommitForTest(
+            context.systemAction(otherSpace.id),
+            opensearchClient.get(),
+            otherSpace.id,
+            [
+                {
+                    type: "UpdateTaskCollection",
+                    collectionId,
+                    collectionAction: {
+                        type: "UpdateName",
+                        nameAction: {
+                            value: "New Collection Name",
+                            updatedTime: getCurrentTime(),
+                        },
+                    },
+                },
+            ],
+        ),
+    ).rejects.toThrowError(new FailedPreconditionError("Space mismatch"));
+
+    await expect(
+        indexTaskSpaceActionTransactionWithoutCommitForTest(
+            context.systemAction(otherSpace.id),
+            opensearchClient.get(),
+            space.id,
+            [
+                {
+                    type: "UpdateTaskCollection",
+                    collectionId,
+                    collectionAction: {
+                        type: "UpdateName",
+                        nameAction: {
+                            value: "New Collection Name",
+                            updatedTime: getCurrentTime(),
+                        },
+                    },
+                },
+            ],
+        ),
+    ).rejects.toThrowError(PermissionDeniedError);
+
+    await indexTaskSpaceActionTransactionWithoutCommitForTest(
+        context.systemAction(space.id),
+        opensearchClient.get(),
+        space.id,
+        [
+            {
+                type: "UpdateTaskCollection",
+                collectionId,
+                collectionAction: {
+                    type: "UpdateName",
+                    nameAction: {
+                        value: "New Collection Name",
+                        updatedTime: getCurrentTime(),
+                    },
                 },
             },
         ],

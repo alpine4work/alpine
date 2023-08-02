@@ -26,84 +26,119 @@ export function applyTaskActionToTaskIndexDoc(
             return task;
         }
         case "Delete": {
-            return {
-                ...task,
-                rawDeletedTime:
-                    task.rawDeletedTime !== null
-                        ? maxDate([task.rawDeletedTime, action.deletedTime])
-                        : action.deletedTime,
-            };
+            const newRawDeletedTime =
+                task.rawDeletedTime !== null
+                    ? maxDate([task.rawDeletedTime, action.deletedTime])
+                    : action.deletedTime;
+
+            if (newRawDeletedTime.toISOString() === task.rawDeletedTime?.toISOString()) return task;
+
+            return {...task, rawDeletedTime: newRawDeletedTime};
         }
         case "Undelete": {
-            return {
-                ...task,
-                rawUndeletedTime:
-                    task.rawUndeletedTime !== null
-                        ? maxDate([task.rawUndeletedTime, action.undeletedTime])
-                        : action.undeletedTime,
-            };
+            const newRawUndeletedTime =
+                task.rawUndeletedTime !== null
+                    ? maxDate([task.rawUndeletedTime, action.undeletedTime])
+                    : action.undeletedTime;
+
+            if (newRawUndeletedTime.toISOString() === task.rawUndeletedTime?.toISOString())
+                return task;
+
+            return {...task, rawUndeletedTime: newRawUndeletedTime};
         }
         case "UpdateParentTaskId": {
+            const newParentTaskId = task.parent.taskId.apply(action.parentTaskIdAction);
+            const newParentPosition = task.parent.position.apply({
+                updatedTime: action.parentTaskIdAction.updatedTime,
+                value: {
+                    orderTime: action.parentTaskIdAction.updatedTime,
+                    orderKey: initialOrderKey,
+                },
+            });
+
+            if (
+                newParentTaskId === task.parent.taskId &&
+                newParentPosition === task.parent.position
+            ) {
+                return task;
+            }
+
             return {
                 ...task,
                 parent: {
-                    taskId: task.parent.taskId.apply(action.parentTaskIdAction),
-                    position: task.parent.position.apply({
-                        updatedTime: action.parentTaskIdAction.updatedTime,
-                        value: {
-                            orderTime: action.parentTaskIdAction.updatedTime,
-                            orderKey: initialOrderKey,
-                        },
-                    }),
+                    taskId: newParentTaskId,
+                    position: newParentPosition,
                 },
             };
         }
         case "UpdateParentPosition": {
+            const newParentPosition = task.parent.position.apply(action.parentPositionAction);
+
+            if (newParentPosition === task.parent.position) return task;
+
             return {
                 ...task,
                 parent: {
                     taskId: task.parent.taskId,
-                    position: task.parent.position.apply(action.parentPositionAction),
+                    position: newParentPosition,
                 },
             };
         }
         case "UpdateCollections": {
+            const newCollections = task.collections.raw.collections.apply(action.collectionsAction);
+
+            if (newCollections === task.collections.raw.collections) return task;
+
             return {
                 ...task,
                 collections: {
                     raw: {
-                        collections: task.collections.raw.collections.apply(
-                            action.collectionsAction,
-                        ),
+                        collections: newCollections,
                         positionById: task.collections.raw.positionById,
                     },
                 },
             };
         }
         case "UpdateStatus": {
+            const newStatus = task.status.apply(action.statusAction);
+            const newRawAssigneeStatus = task.rawAssigneeStatus.apply({
+                updatedTime: action.statusAction.updatedTime,
+                value: {type: "Inactive"},
+            });
+
+            if (newStatus === task.status && newRawAssigneeStatus === task.rawAssigneeStatus)
+                return task;
+
             return {
                 ...task,
-                status: task.status.apply(action.statusAction),
-                rawAssigneeStatus: task.rawAssigneeStatus.apply({
-                    updatedTime: action.statusAction.updatedTime,
-                    value: {type: "Inactive"},
-                }),
+                status: newStatus,
+                rawAssigneeStatus: newRawAssigneeStatus,
             };
         }
         case "UpdateAssignee": {
+            const newAssignee = task.assignee.apply(action.assigneeAction);
+            const newRawAssigneeStatus = task.rawAssigneeStatus.apply({
+                updatedTime: action.assigneeAction.updatedTime,
+                value: {type: "Inactive"},
+            });
+
+            if (newAssignee === task.assignee && newRawAssigneeStatus === task.rawAssigneeStatus)
+                return task;
+
             return {
                 ...task,
-                assignee: task.assignee.apply(action.assigneeAction),
-                rawAssigneeStatus: task.rawAssigneeStatus.apply({
-                    updatedTime: action.assigneeAction.updatedTime,
-                    value: {type: "Inactive"},
-                }),
+                assignee: newAssignee,
+                rawAssigneeStatus: newRawAssigneeStatus,
             };
         }
         case "UpdateAssigneeStatus": {
+            const newRawAssigneeStatus = task.rawAssigneeStatus.apply(action.assigneeStatusAction);
+
+            if (newRawAssigneeStatus === task.rawAssigneeStatus) return task;
+
             return {
                 ...task,
-                rawAssigneeStatus: task.rawAssigneeStatus.apply(action.assigneeStatusAction),
+                rawAssigneeStatus: newRawAssigneeStatus,
             };
         }
         case "UpdateTitle": {
@@ -115,15 +150,23 @@ export function applyTaskActionToTaskIndexDoc(
             };
         }
         case "UpdateDueDate": {
+            const newDueDate = task.dueDate.apply(action.dueDateAction);
+
+            if (newDueDate === task.dueDate) return task;
+
             return {
                 ...task,
-                dueDate: task.dueDate.apply(action.dueDateAction),
+                dueDate: newDueDate,
             };
         }
         case "UpdatePriority": {
+            const newPriority = task.priority.apply(action.priorityAction);
+
+            if (newPriority === task.priority) return task;
+
             return {
                 ...task,
-                priority: task.priority.apply(action.priorityAction),
+                priority: newPriority,
             };
         }
         default:
