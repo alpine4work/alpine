@@ -480,7 +480,6 @@ class TaskSpaceActionTransactionCommitState {
             });
             if (!taskItem) return null;
 
-            // NOCOMMIT: Test
             if (taskItem.spaceId !== this._spaceId)
                 throw new FailedPreconditionError("Space mismatch");
 
@@ -596,7 +595,6 @@ class TaskSpaceActionTransactionCommitState {
             });
             if (!collectionItem) return null;
 
-            // NOCOMMIT: Test
             if (collectionItem.spaceId !== this._spaceId)
                 throw new FailedPreconditionError("Space mismatch");
 

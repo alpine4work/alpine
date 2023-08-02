@@ -6,7 +6,10 @@ import {
     commitTaskSpaceActionTransactionBeforeExecuteTestCheckpoint,
 } from "~/server/dynamo/tasks_table.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
-import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session.js";
+import {
+    TestSession,
+    createTestSession,
+} from "~/server/dynamo/test_helpers/shared/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space.js";
 import {
     FailedPreconditionError,
@@ -19,7 +22,10 @@ import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
-import {TaskCollectionAccessPolicyRegister} from "~/shared/tasks/task_collection_access_policy.js";
+import {
+    TaskCollectionAccessLevel,
+    TaskCollectionAccessPolicyRegister,
+} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
@@ -32,6 +38,21 @@ const session2 = createTestSession(context, space);
 const session3 = createTestSession(context, space);
 const otherSpace = createTestSpace(context);
 const otherSession = createTestSession(context, otherSpace);
+const sharedSession = createTestSession(context, space);
+
+beforeAll(async () => {
+    const SpacesTable = getSpacesTableForTest();
+
+    await runAllPromises([
+        SpacesTable.createItem(context, {
+            partitionType: "Space",
+            sortRangeType: "Account",
+            spaceId: otherSpace.id,
+            accountId: sharedSession.accountId,
+            joinedTime: new Date(),
+        }),
+    ]);
+});
 
 const taskAccount1 = new TaskSortableAccount({
     accountId: session1.accountId,
@@ -119,6 +140,61 @@ async function createSeparateSpace() {
     ]);
 
     return {space: {id: spaceId}};
+}
+
+async function createPublicTask(
+    session: TestSession,
+    spaceId: SpaceId,
+    level: TaskCollectionAccessLevel = "Edit",
+) {
+    const taskId = generateId<TaskId>();
+    const collectionId = generateId<TaskCollectionId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session), spaceId, [
+        {
+            type: "UpdateTaskCollection",
+            collectionId,
+            collectionAction: {
+                type: "Create",
+                creatorId: session.accountId,
+                createdTime: getCurrentTime(),
+                accessPolicy: new TaskCollectionAccessPolicyRegister(
+                    {
+                        accountGrantById: new Map([[session.accountId, {level: "Manage"}]]),
+                        defaultGrant: {type: "Space", level},
+                    },
+                    getCurrentTime(),
+                ),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: new TaskSortableAccount({
+                    accountId: session.accountId,
+                    workingAccountName: session.account.name,
+                }),
+                createdTime: getCurrentTaskTime(),
+            },
+        },
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "UpdateCollections",
+                collectionsAction: {
+                    type: "Set",
+                    key: collectionId,
+                    value: assertOrderKey("a0"),
+                    updatedTime: getCurrentTime(),
+                },
+            },
+        },
+    ]);
+
+    return {taskId, collectionId};
 }
 
 test("can create a task", async () => {
@@ -524,49 +600,7 @@ test("can't delete a task that's only in a collection you specifically can view"
 });
 
 test("can delete a task that's in a collection you can edit by default", async () => {
-    const taskId = generateId<TaskId>();
-    const collectionId = generateId<TaskCollectionId>();
-
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
-        {
-            type: "UpdateTaskCollection",
-            collectionId,
-            collectionAction: {
-                type: "Create",
-                creatorId: taskAccount1.accountId,
-                createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "Edit"},
-                    },
-                    getCurrentTime(),
-                ),
-            },
-        },
-        {
-            type: "UpdateTask",
-            taskId,
-            taskAction: {
-                type: "Create",
-                creator: taskAccount1,
-                createdTime: getCurrentTaskTime(),
-            },
-        },
-        {
-            type: "UpdateTask",
-            taskId,
-            taskAction: {
-                type: "UpdateCollections",
-                collectionsAction: {
-                    type: "Set",
-                    key: collectionId,
-                    value: assertOrderKey("a0"),
-                    updatedTime: getCurrentTime(),
-                },
-            },
-        },
-    ]);
+    const {taskId} = await createPublicTask(session1, space.id);
 
     await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
         {
@@ -581,49 +615,7 @@ test("can delete a task that's in a collection you can edit by default", async (
 });
 
 test("can't delete a task that's only in a collection you can view by default", async () => {
-    const taskId = generateId<TaskId>();
-    const collectionId = generateId<TaskCollectionId>();
-
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
-        {
-            type: "UpdateTaskCollection",
-            collectionId,
-            collectionAction: {
-                type: "Create",
-                creatorId: taskAccount1.accountId,
-                createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "View"},
-                    },
-                    getCurrentTime(),
-                ),
-            },
-        },
-        {
-            type: "UpdateTask",
-            taskId,
-            taskAction: {
-                type: "Create",
-                creator: taskAccount1,
-                createdTime: getCurrentTaskTime(),
-            },
-        },
-        {
-            type: "UpdateTask",
-            taskId,
-            taskAction: {
-                type: "UpdateCollections",
-                collectionsAction: {
-                    type: "Set",
-                    key: collectionId,
-                    value: assertOrderKey("a0"),
-                    updatedTime: getCurrentTime(),
-                },
-            },
-        },
-    ]);
+    const {taskId} = await createPublicTask(session1, space.id, "View");
 
     await expect(
         commitTaskSpaceActionTransaction(context.action(session2), space.id, [
@@ -640,49 +632,7 @@ test("can't delete a task that's only in a collection you can view by default", 
 });
 
 test("can't delete a task that's only in a collection space accounts can edit by default if you're from a different space", async () => {
-    const taskId = generateId<TaskId>();
-    const collectionId = generateId<TaskCollectionId>();
-
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
-        {
-            type: "UpdateTaskCollection",
-            collectionId,
-            collectionAction: {
-                type: "Create",
-                creatorId: taskAccount1.accountId,
-                createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "Edit"},
-                    },
-                    getCurrentTime(),
-                ),
-            },
-        },
-        {
-            type: "UpdateTask",
-            taskId,
-            taskAction: {
-                type: "Create",
-                creator: taskAccount1,
-                createdTime: getCurrentTaskTime(),
-            },
-        },
-        {
-            type: "UpdateTask",
-            taskId,
-            taskAction: {
-                type: "UpdateCollections",
-                collectionsAction: {
-                    type: "Set",
-                    key: collectionId,
-                    value: assertOrderKey("a0"),
-                    updatedTime: getCurrentTime(),
-                },
-            },
-        },
-    ]);
+    const {taskId} = await createPublicTask(session1, space.id);
 
     await expect(
         commitTaskSpaceActionTransaction(context.action(otherSession), space.id, [
@@ -1077,49 +1027,7 @@ test("can't undelete a task that isn't yours", async () => {
 });
 
 test("can't undelete a task in a collection you don't have edit access to", async () => {
-    const taskId = generateId<TaskId>();
-    const collectionId = generateId<TaskCollectionId>();
-
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
-        {
-            type: "UpdateTaskCollection",
-            collectionId,
-            collectionAction: {
-                type: "Create",
-                creatorId: taskAccount1.accountId,
-                createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "View"},
-                    },
-                    getCurrentTime(),
-                ),
-            },
-        },
-        {
-            type: "UpdateTask",
-            taskId,
-            taskAction: {
-                type: "Create",
-                creator: taskAccount1,
-                createdTime: getCurrentTaskTime(),
-            },
-        },
-        {
-            type: "UpdateTask",
-            taskId,
-            taskAction: {
-                type: "UpdateCollections",
-                collectionsAction: {
-                    type: "Set",
-                    key: collectionId,
-                    value: assertOrderKey("a0"),
-                    updatedTime: getCurrentTime(),
-                },
-            },
-        },
-    ]);
+    const {taskId} = await createPublicTask(session1, space.id, "View");
 
     await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
         {
@@ -1147,49 +1055,7 @@ test("can't undelete a task in a collection you don't have edit access to", asyn
 });
 
 test("can undelete a task in a collection you have edit access to", async () => {
-    const taskId = generateId<TaskId>();
-    const collectionId = generateId<TaskCollectionId>();
-
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
-        {
-            type: "UpdateTaskCollection",
-            collectionId,
-            collectionAction: {
-                type: "Create",
-                creatorId: taskAccount1.accountId,
-                createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "Edit"},
-                    },
-                    getCurrentTime(),
-                ),
-            },
-        },
-        {
-            type: "UpdateTask",
-            taskId,
-            taskAction: {
-                type: "Create",
-                creator: taskAccount1,
-                createdTime: getCurrentTaskTime(),
-            },
-        },
-        {
-            type: "UpdateTask",
-            taskId,
-            taskAction: {
-                type: "UpdateCollections",
-                collectionsAction: {
-                    type: "Set",
-                    key: collectionId,
-                    value: assertOrderKey("a0"),
-                    updatedTime: getCurrentTime(),
-                },
-            },
-        },
-    ]);
+    const {taskId} = await createPublicTask(session1, space.id);
 
     await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
         {
@@ -9574,8 +9440,6 @@ test("can't update task parent order key when parent is deleted", async () => {
 
 test("can't update task parent order key when you don't have edit access to parent", async () => {
     const taskId1 = generateId<TaskId>();
-    const taskId2 = generateId<TaskId>();
-    const collectionId = generateId<TaskCollectionId>();
 
     await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
         {
@@ -9589,46 +9453,7 @@ test("can't update task parent order key when you don't have edit access to pare
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
-        {
-            type: "UpdateTaskCollection",
-            collectionId,
-            collectionAction: {
-                type: "Create",
-                creatorId: session2.accountId,
-                createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([]),
-                        defaultGrant: {type: "Space", level: "Manage"},
-                    },
-                    getCurrentTime(),
-                ),
-            },
-        },
-        {
-            type: "UpdateTask",
-            taskId: taskId2,
-            taskAction: {
-                type: "Create",
-                creator: taskAccount2,
-                createdTime: getCurrentTaskTime(),
-            },
-        },
-        {
-            type: "UpdateTask",
-            taskId: taskId2,
-            taskAction: {
-                type: "UpdateCollections",
-                collectionsAction: {
-                    type: "Set",
-                    key: collectionId,
-                    value: assertOrderKey("a0"),
-                    updatedTime: getCurrentTime(),
-                },
-            },
-        },
-    ]);
+    const {taskId: taskId2} = await createPublicTask(session2, space.id);
 
     await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
         {
@@ -10099,49 +9924,7 @@ test("can't update task assignee with an assignee outside the current space", as
 });
 
 test("can update task assignee status", async () => {
-    const taskId = generateId<TaskId>();
-    const collectionId = generateId<TaskCollectionId>();
-
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
-        {
-            type: "UpdateTaskCollection",
-            collectionId,
-            collectionAction: {
-                type: "Create",
-                creatorId: taskAccount1.accountId,
-                createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([]),
-                        defaultGrant: {type: "Space", level: "Manage"},
-                    },
-                    getCurrentTime(),
-                ),
-            },
-        },
-        {
-            type: "UpdateTask",
-            taskId,
-            taskAction: {
-                type: "Create",
-                creator: taskAccount1,
-                createdTime: getCurrentTaskTime(),
-            },
-        },
-        {
-            type: "UpdateTask",
-            taskId,
-            taskAction: {
-                type: "UpdateCollections",
-                collectionsAction: {
-                    type: "Set",
-                    key: collectionId,
-                    value: assertOrderKey("a0"),
-                    updatedTime: getCurrentTime(),
-                },
-            },
-        },
-    ]);
+    const {taskId} = await createPublicTask(session1, space.id);
 
     await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
         {
@@ -10854,49 +10637,7 @@ test("can't update task position when you don't have access to the collection", 
 });
 
 test("can't update task position when you only have view access to the collection", async () => {
-    const taskId = generateId<TaskId>();
-    const collectionId = generateId<TaskCollectionId>();
-
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
-        {
-            type: "UpdateTaskCollection",
-            collectionId,
-            collectionAction: {
-                type: "Create",
-                creatorId: taskAccount1.accountId,
-                createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "View"},
-                    },
-                    getCurrentTime(),
-                ),
-            },
-        },
-        {
-            type: "UpdateTask",
-            taskId,
-            taskAction: {
-                type: "Create",
-                creator: taskAccount1,
-                createdTime: getCurrentTaskTime(),
-            },
-        },
-        {
-            type: "UpdateTask",
-            taskId,
-            taskAction: {
-                type: "UpdateCollections",
-                collectionsAction: {
-                    type: "Set",
-                    key: collectionId,
-                    value: assertOrderKey("a0"),
-                    updatedTime: getCurrentTime(),
-                },
-            },
-        },
-    ]);
+    const {taskId, collectionId} = await createPublicTask(session1, space.id, "View");
 
     await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
         {
@@ -11338,9 +11079,7 @@ test("can't add task you don't have access to to notepad page", async () => {
 
 test("can add task you have view access to to notepad page", async () => {
     const {space} = await createSeparateSpace();
-    const taskId = generateId<TaskId>();
     const notepadPageId = generateTaskNotepadPageId();
-    const collectionId = generateId<TaskCollectionId>();
 
     await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
         {
@@ -11353,46 +11092,7 @@ test("can add task you have view access to to notepad page", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
-        {
-            type: "UpdateTaskCollection",
-            collectionId,
-            collectionAction: {
-                type: "Create",
-                creatorId: taskAccount2.accountId,
-                createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount2.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "View"},
-                    },
-                    getCurrentTime(),
-                ),
-            },
-        },
-        {
-            type: "UpdateTask",
-            taskId,
-            taskAction: {
-                type: "Create",
-                creator: taskAccount2,
-                createdTime: getCurrentTaskTime(),
-            },
-        },
-        {
-            type: "UpdateTask",
-            taskId,
-            taskAction: {
-                type: "UpdateCollections",
-                collectionsAction: {
-                    type: "Set",
-                    key: collectionId,
-                    value: assertOrderKey("a0"),
-                    updatedTime: getCurrentTime(),
-                },
-            },
-        },
-    ]);
+    const {taskId} = await createPublicTask(session2, space.id, "View");
 
     await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
         {
@@ -11712,9 +11412,7 @@ test("can't remove task you don't have access to from notepad page", async () =>
 
 test("can remove task you have view access to from notepad page", async () => {
     const {space} = await createSeparateSpace();
-    const taskId = generateId<TaskId>();
     const notepadPageId = generateTaskNotepadPageId();
-    const collectionId = generateId<TaskCollectionId>();
 
     await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
         {
@@ -11727,46 +11425,7 @@ test("can remove task you have view access to from notepad page", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
-        {
-            type: "UpdateTaskCollection",
-            collectionId,
-            collectionAction: {
-                type: "Create",
-                creatorId: taskAccount2.accountId,
-                createdTime: getCurrentTime(),
-                accessPolicy: new TaskCollectionAccessPolicyRegister(
-                    {
-                        accountGrantById: new Map([[taskAccount2.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "View"},
-                    },
-                    getCurrentTime(),
-                ),
-            },
-        },
-        {
-            type: "UpdateTask",
-            taskId,
-            taskAction: {
-                type: "Create",
-                creator: taskAccount2,
-                createdTime: getCurrentTaskTime(),
-            },
-        },
-        {
-            type: "UpdateTask",
-            taskId,
-            taskAction: {
-                type: "UpdateCollections",
-                collectionsAction: {
-                    type: "Set",
-                    key: collectionId,
-                    value: assertOrderKey("a0"),
-                    updatedTime: getCurrentTime(),
-                },
-            },
-        },
-    ]);
+    const {taskId} = await createPublicTask(session1, space.id, "View");
 
     await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
         {
@@ -11791,6 +11450,105 @@ test("can remove task you have view access to from notepad page", async () => {
                 type: "RemoveTask",
                 taskId,
                 updatedTime: getCurrentTime(),
+            },
+        },
+    ]);
+});
+
+test("can't update a task's title with an account in a different space", async () => {
+    const {taskId} = await createPublicTask(session1, space.id);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(otherSession), space.id, [
+            {
+                type: "UpdateTask",
+                taskId,
+                taskAction: {
+                    type: "UpdateTitle",
+                    titleUpdate: taskTitleTestScenario.update0,
+                },
+            },
+        ]),
+    ).rejects.toThrow(new PermissionDeniedError("Account does not have access to space"));
+});
+
+test.only("can't update a task's title in the context of the wrong space", async () => {
+    const {taskId} = await createPublicTask(session1, space.id);
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(sharedSession), otherSpace.id, [
+            {
+                type: "UpdateTask",
+                taskId,
+                taskAction: {
+                    type: "UpdateTitle",
+                    titleUpdate: taskTitleTestScenario.update0,
+                },
+            },
+        ]),
+    ).rejects.toThrow(new PermissionDeniedError("Space mismatch"));
+
+    await commitTaskSpaceActionTransaction(context.action(sharedSession), space.id, [
+        {
+            type: "UpdateTask",
+            taskId,
+            taskAction: {
+                type: "UpdateTitle",
+                titleUpdate: taskTitleTestScenario.update0,
+            },
+        },
+    ]);
+});
+
+test("can't update a collection's name with an account in a different space", async () => {
+    const {collectionId} = await createPublicTask(session1, space.id, "Manage");
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(otherSession), space.id, [
+            {
+                type: "UpdateTaskCollection",
+                collectionId,
+                collectionAction: {
+                    type: "UpdateName",
+                    nameAction: {
+                        value: "New Collection Name",
+                        updatedTime: getCurrentTime(),
+                    },
+                },
+            },
+        ]),
+    ).rejects.toThrow(new PermissionDeniedError("Account does not have access to space"));
+});
+
+test("can't update a collection's name in the context of the wrong space", async () => {
+    const {collectionId} = await createPublicTask(session1, space.id, "Manage");
+
+    await expect(
+        commitTaskSpaceActionTransaction(context.action(sharedSession), otherSpace.id, [
+            {
+                type: "UpdateTaskCollection",
+                collectionId,
+                collectionAction: {
+                    type: "UpdateName",
+                    nameAction: {
+                        value: "New Collection Name",
+                        updatedTime: getCurrentTime(),
+                    },
+                },
+            },
+        ]),
+    ).rejects.toThrow(new PermissionDeniedError("Space mismatch"));
+
+    await commitTaskSpaceActionTransaction(context.action(sharedSession), space.id, [
+        {
+            type: "UpdateTaskCollection",
+            collectionId,
+            collectionAction: {
+                type: "UpdateName",
+                nameAction: {
+                    value: "New Collection Name",
+                    updatedTime: getCurrentTime(),
+                },
             },
         },
     ]);

@@ -176,7 +176,9 @@ class TaskSpaceActionTransactionIndexState {
                 taskId,
             );
             if (!task) return null;
+
             if (task.spaceId !== this.spaceId) throw new FailedPreconditionError("Space mismatch");
+
             return task;
         });
     }

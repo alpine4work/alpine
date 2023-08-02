@@ -3837,7 +3837,7 @@ export const dynamoGeneratedSchemaDescription: {
                             "id": 0,
                             "orderKey": "a0",
                             "sortKeyAttributeByKey": {
-                                "actionTransactionTime": {
+                                "committedTime": {
                                     "type": "Date"
                                 },
                                 "actionTransactionId": {
@@ -3847,7 +3847,7 @@ export const dynamoGeneratedSchemaDescription: {
                             "attributesSchema": {
                                 "type": "Object",
                                 "propertySchemaByKey": {
-                                    "actionTransaction": {
+                                    "actions": {
                                         "valueSchema": {
                                             "type": "Array",
                                             "itemSchema": {
@@ -3902,7 +3902,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                 "optional": false
                                                                                             }
                                                                                         },
-                                                                                        "referenceId": "6f3ef140"
+                                                                                        "referenceId": "c42a5e6f"
                                                                                     },
                                                                                     "optional": false
                                                                                 },
@@ -3923,7 +3923,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                 "optional": false
                                                                                             }
                                                                                         },
-                                                                                        "referenceId": "f6d1735f"
+                                                                                        "referenceId": "050c4713"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -3985,7 +3985,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                     "schema": {
                                                                                                         "type": "Id"
                                                                                                     },
-                                                                                                    "referenceId": "68f8aa34"
+                                                                                                    "referenceId": "b343e61f"
                                                                                                 },
                                                                                                 "optional": false
                                                                                             },
@@ -4032,7 +4032,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                             "optional": false
                                                                                                         }
                                                                                                     },
-                                                                                                    "referenceId": "786d0d62"
+                                                                                                    "referenceId": "ec3a2e64"
                                                                                                 },
                                                                                                 "optional": false
                                                                                             },
@@ -4167,14 +4167,14 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                 "closer": {
                                                                                                                     "valueSchema": {
                                                                                                                         "type": "Reference",
-                                                                                                                        "reuseReferenceId": "6f3ef140"
+                                                                                                                        "reuseReferenceId": "c42a5e6f"
                                                                                                                     },
                                                                                                                     "optional": false
                                                                                                                 },
                                                                                                                 "closedTime": {
                                                                                                                     "valueSchema": {
                                                                                                                         "type": "Reference",
-                                                                                                                        "reuseReferenceId": "f6d1735f"
+                                                                                                                        "reuseReferenceId": "050c4713"
                                                                                                                     },
                                                                                                                     "optional": false
                                                                                                                 }
@@ -4219,21 +4219,21 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                             "assignee": {
                                                                                                                 "valueSchema": {
                                                                                                                     "type": "Reference",
-                                                                                                                    "reuseReferenceId": "6f3ef140"
+                                                                                                                    "reuseReferenceId": "c42a5e6f"
                                                                                                                 },
                                                                                                                 "optional": false
                                                                                                             },
                                                                                                             "assigner": {
                                                                                                                 "valueSchema": {
                                                                                                                     "type": "Reference",
-                                                                                                                    "reuseReferenceId": "6f3ef140"
+                                                                                                                    "reuseReferenceId": "c42a5e6f"
                                                                                                                 },
                                                                                                                 "optional": false
                                                                                                             },
                                                                                                             "assignedTime": {
                                                                                                                 "valueSchema": {
                                                                                                                     "type": "Reference",
-                                                                                                                    "reuseReferenceId": "f6d1735f"
+                                                                                                                    "reuseReferenceId": "050c4713"
                                                                                                                 },
                                                                                                                 "optional": false
                                                                                                             }
@@ -4298,14 +4298,14 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                 "position": {
                                                                                                                     "valueSchema": {
                                                                                                                         "type": "Reference",
-                                                                                                                        "reuseReferenceId": "786d0d62"
+                                                                                                                        "reuseReferenceId": "ec3a2e64"
                                                                                                                     },
                                                                                                                     "optional": false
                                                                                                                 },
                                                                                                                 "activatedTime": {
                                                                                                                     "valueSchema": {
                                                                                                                         "type": "Reference",
-                                                                                                                        "reuseReferenceId": "f6d1735f"
+                                                                                                                        "reuseReferenceId": "050c4713"
                                                                                                                     },
                                                                                                                     "optional": false
                                                                                                                 }
@@ -4361,7 +4361,10 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                         "propertySchemaByKey": {
                                                                                             "value": {
                                                                                                 "valueSchema": {
-                                                                                                    "type": "String"
+                                                                                                    "type": "Nullable",
+                                                                                                    "schema": {
+                                                                                                        "type": "String"
+                                                                                                    }
                                                                                                 },
                                                                                                 "optional": false
                                                                                             },
@@ -4393,13 +4396,16 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                         "propertySchemaByKey": {
                                                                                             "value": {
                                                                                                 "valueSchema": {
-                                                                                                    "type": "Enum",
-                                                                                                    "values": [
-                                                                                                        "Low",
-                                                                                                        "Medium",
-                                                                                                        "High",
-                                                                                                        "Urgent"
-                                                                                                    ]
+                                                                                                    "type": "Nullable",
+                                                                                                    "schema": {
+                                                                                                        "type": "Enum",
+                                                                                                        "values": [
+                                                                                                            "Low",
+                                                                                                            "Medium",
+                                                                                                            "High",
+                                                                                                            "Urgent"
+                                                                                                        ]
+                                                                                                    }
                                                                                                 },
                                                                                                 "optional": false
                                                                                             },
@@ -4535,7 +4541,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                             "optional": false
                                                                                                         }
                                                                                                     },
-                                                                                                    "referenceId": "04689929"
+                                                                                                    "referenceId": "e2e7278a"
                                                                                                 },
                                                                                                 "optional": false
                                                                                             },
@@ -4546,7 +4552,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                 "optional": false
                                                                                             }
                                                                                         },
-                                                                                        "referenceId": "51af058f"
+                                                                                        "referenceId": "28a5043b"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -4637,7 +4643,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                             "value": {
                                                                                                 "valueSchema": {
                                                                                                     "type": "Reference",
-                                                                                                    "reuseReferenceId": "04689929"
+                                                                                                    "reuseReferenceId": "e2e7278a"
                                                                                                 },
                                                                                                 "optional": false
                                                                                             },
@@ -4672,7 +4678,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 "position": {
                                                                                     "valueSchema": {
                                                                                         "type": "Reference",
-                                                                                        "reuseReferenceId": "786d0d62"
+                                                                                        "reuseReferenceId": "ec3a2e64"
                                                                                     },
                                                                                     "optional": false
                                                                                 },
@@ -4748,7 +4754,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 "position": {
                                                                                     "valueSchema": {
                                                                                         "type": "Reference",
-                                                                                        "reuseReferenceId": "786d0d62"
+                                                                                        "reuseReferenceId": "ec3a2e64"
                                                                                     },
                                                                                     "optional": false
                                                                                 },
@@ -4813,7 +4819,7 @@ export const dynamoGeneratedSchemaDescription: {
             "name": "Tasks",
             "partitionByType": {
                 "Account": {
-                    "id": 2,
+                    "id": 0,
                     "partitionKeyAttributeByKey": {
                         "spaceId": {
                             "type": "Id"
@@ -4848,7 +4854,7 @@ export const dynamoGeneratedSchemaDescription: {
                     }
                 },
                 "TaskCollection": {
-                    "id": 0,
+                    "id": 1,
                     "partitionKeyAttributeByKey": {
                         "collectionId": {
                             "type": "Id"
@@ -4892,7 +4898,7 @@ export const dynamoGeneratedSchemaDescription: {
                                     "accessPolicy": {
                                         "valueSchema": {
                                             "type": "Reference",
-                                            "reuseReferenceId": "51af058f"
+                                            "reuseReferenceId": "28a5043b"
                                         },
                                         "optional": false
                                     },
@@ -4908,7 +4914,7 @@ export const dynamoGeneratedSchemaDescription: {
                     }
                 },
                 "Task": {
-                    "id": 1,
+                    "id": 2,
                     "partitionKeyAttributeByKey": {
                         "taskId": {
                             "type": "Id"
@@ -4956,7 +4962,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                 "value": {
                                                     "valueSchema": {
                                                         "type": "Reference",
-                                                        "reuseReferenceId": "68f8aa34"
+                                                        "reuseReferenceId": "b343e61f"
                                                     },
                                                     "optional": false
                                                 },
