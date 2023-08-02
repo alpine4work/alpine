@@ -7,21 +7,16 @@ ts_project(
     ]),
     test_deps = [
         "//server/dynamo/test_helpers/shared",
-        "//server/tasks/index/test_helpers",
         "//shared/tasks/test_helpers",
     ],
     tests = {
         "index_task_space_action_transaction_permutations_test": {
-            # Give this test three CPUs. Two for OpenSearch, one for the test process.
-            "tags": ["cpu:3"],
             "size": "medium",
-
-            # This test is configured to be runnable in parallel with `shard_count`. In
-            # practice I haven't found `shard_count` helpful for performance. Each shard
-            # needs to spend ~10s initializing OpenSearch. Better to have a size medium
-            # test with allocated resources.
-            #
-            # "shard_count": 3,
+            # Give this test three CPUs. Two for OpenSearch, one for the test process.
+            "tags": ["cpu:4"],
+            # It takes ~10s to start OpenSearch. Better to have a small number of large
+            # shards than many small shards.
+            "shard_count": 4,
         },
     },
     visibility = ["//server/tasks:__subpackages__"],

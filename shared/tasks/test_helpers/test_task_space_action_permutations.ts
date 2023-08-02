@@ -1464,6 +1464,8 @@ function permutator<Item>(inputArray: ReadonlyArray<Item>): Array<Array<Item>> {
     return results;
 }
 
+let i = 1;
+
 /**
  * We have a library of `TaskSpaceAction` test cases. This function will run
  * each of our test cases. It will run the test case in every possible order
@@ -1569,91 +1571,108 @@ export function testTaskSpaceActionPermutations({
                 describeName: testCase.name,
                 testName: `[${permutation.join(", ")}]`,
                 runTest: async () => {
-                    const taskId = generateId<TaskId>();
+                    const startTime = Date.now();
 
-                    const actions: Array<TaskSpaceAction> = permutation.map(actionIndex => ({
-                        type: "UpdateTask",
-                        taskId,
-                        taskAction: testCaseArtifacts.actions[actionIndex]!,
-                    }));
+                    try {
+                        const taskId = generateId<TaskId>();
 
-                    const run = async () => {
-                        const promises = [];
+                        const actions: Array<TaskSpaceAction> = permutation.map(actionIndex => ({
+                            type: "UpdateTask",
+                            taskId,
+                            taskAction: testCaseArtifacts.actions[actionIndex]!,
+                        }));
 
-                        // Run our actions in sequence. If an action calls `next()` that means it needs
-                        // to retry. It might need to retry because it's waiting on a later action. So
-                        // go apply the next action.
-                        for (const action of actions) {
-                            const nextPromiseResolver = createPromiseResolver();
+                        const run = async () => {
+                            const promises = [];
 
-                            const promise = applyTaskSpaceAction(
-                                action,
-                                nextPromiseResolver.resolve,
-                            );
-                            promises.push(promise);
+                            // Run our actions in sequence. If an action calls `next()` that means it needs
+                            // to retry. It might need to retry because it's waiting on a later action. So
+                            // go apply the next action.
+                            for (const action of actions) {
+                                const nextPromiseResolver = createPromiseResolver();
 
-                            await Promise.race([promise, nextPromiseResolver.promise]);
-                        }
+                                const promise = applyTaskSpaceAction(
+                                    action,
+                                    nextPromiseResolver.resolve,
+                                );
+                                promises.push(promise);
 
-                        await runAllPromises(promises);
-                    };
+                                await Promise.race([promise, nextPromiseResolver.promise]);
+                            }
 
-                    if (
-                        "prototype" in testCaseArtifacts.task &&
-                        testCaseArtifacts.task.prototype instanceof Error
-                    ) {
-                        await expect(run).rejects.toThrow(testCaseArtifacts.task);
-                    } else {
-                        await run();
-
-                        const actualTask = await getTask(taskId);
-                        const expectedPartialTask =
-                            testCaseArtifacts.task as Partial<TaskTestInterface>;
-
-                        const createAction = iterableFirst(
-                            filterMapIterable(actions, action =>
-                                action.type === "UpdateTask" &&
-                                action.taskId === taskId &&
-                                action.taskAction.type === "Create"
-                                    ? action.taskAction
-                                    : null,
-                            ),
-                        );
-
-                        const expectedTask: TaskTestInterface = {
-                            isDeleted: false,
-                            parent: null,
-                            collections: TaskCollectionSet.empty,
-                            status: {type: "Open"},
-                            assignee: null,
-                            assigneeStatus: {type: "Inactive"},
-                            title: emptyTaskTitle.get(),
-                            dueDate: null,
-                            priority: null,
-                            ...expectedPartialTask,
-                            creator:
-                                expectedPartialTask.creator ??
-                                assertExists(
-                                    createAction?.creator,
-                                    "Expected `Create` task action when `creator` is not provided",
-                                ),
-                            createdTime:
-                                expectedPartialTask.createdTime ??
-                                assertExists(
-                                    createAction?.createdTime,
-                                    "Expected `Create` task action when `createdTime` is not provided",
-                                ),
+                            await runAllPromises(promises);
                         };
 
-                        expect({
-                            ...actualTask,
-                            title: getTaskTitleProsemirrorNode(actualTask.title).toJSON(),
-                            collections: actualTask.collections.getArray(),
-                        }).toEqual({
-                            ...expectedTask,
-                            title: getTaskTitleProsemirrorNode(expectedTask.title).toJSON(),
-                            collections: actualTask.collections.getArray(),
-                        });
+                        if (
+                            "prototype" in testCaseArtifacts.task &&
+                            testCaseArtifacts.task.prototype instanceof Error
+                        ) {
+                            await expect(run).rejects.toThrow(testCaseArtifacts.task);
+                        } else {
+                            await run();
+
+                            const actualTask = await getTask(taskId);
+                            const expectedPartialTask =
+                                testCaseArtifacts.task as Partial<TaskTestInterface>;
+
+                            const createAction = iterableFirst(
+                                filterMapIterable(actions, action =>
+                                    action.type === "UpdateTask" &&
+                                    action.taskId === taskId &&
+                                    action.taskAction.type === "Create"
+                                        ? action.taskAction
+                                        : null,
+                                ),
+                            );
+
+                            const expectedTask: TaskTestInterface = {
+                                isDeleted: false,
+                                parent: null,
+                                collections: TaskCollectionSet.empty,
+                                status: {type: "Open"},
+                                assignee: null,
+                                assigneeStatus: {type: "Inactive"},
+                                title: emptyTaskTitle.get(),
+                                dueDate: null,
+                                priority: null,
+                                ...expectedPartialTask,
+                                creator:
+                                    expectedPartialTask.creator ??
+                                    assertExists(
+                                        createAction?.creator,
+                                        "Expected `Create` task action when `creator` is not provided",
+                                    ),
+                                createdTime:
+                                    expectedPartialTask.createdTime ??
+                                    assertExists(
+                                        createAction?.createdTime,
+                                        "Expected `Create` task action when `createdTime` is not provided",
+                                    ),
+                            };
+
+                            expect({
+                                ...actualTask,
+                                title: getTaskTitleProsemirrorNode(actualTask.title).toJSON(),
+                                collections: actualTask.collections.getArray(),
+                            }).toEqual({
+                                ...expectedTask,
+                                title: getTaskTitleProsemirrorNode(expectedTask.title).toJSON(),
+                                collections: actualTask.collections.getArray(),
+                            });
+                        }
+
+                        console.log(
+                            `test pass ${i++}/${partitionTests.length} (${
+                                Date.now() - startTime
+                            }ms)`,
+                        );
+                    } catch (error) {
+                        console.log(
+                            `test fail ${i++}/${partitionTests.length} (${
+                                Date.now() - startTime
+                            }ms)`,
+                        );
+                        throw error;
                     }
                 },
             });
