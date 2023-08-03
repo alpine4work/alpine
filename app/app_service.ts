@@ -389,6 +389,8 @@ async function main() {
         tracer.logUncaughtException("Uncaught exception", error);
     });
 
+    // TODO(calebmer): Block requests that don't come from Cloudflare -> AWS Loud Balancer -> us
+    // in application code in production.
     const server = createServer((req, res) => {
         serveStaticMiddleware(req, res, () => {
             const request = createRequest(req);

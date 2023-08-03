@@ -36,7 +36,6 @@ import {
 import {testSharedHooks} from "~/server/dynamo/test_helpers/shared/test_shared_hooks.js";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
-import {getServerTracerTime} from "~/server/tracer/server_tracer.js";
 import {writeTracerEventToFileInDev} from "~/server/tracer/write_tracer_event_to_file_in_dev.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -44,6 +43,7 @@ import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -113,7 +113,7 @@ export function createTestContext({
         serviceName: "Test",
         jsHost: "Node",
         untrusted: false,
-        getTime: getServerTracerTime,
+        clock: unsynchronizedSystemClock,
         // Don't send events from tests to Honeycomb. That feels like too much. But do
         // write events to our dev files. This can help developers debug.
         sendEvent: writeTracerEventToFileInDev,

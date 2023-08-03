@@ -8,6 +8,7 @@ ts_project(
     ],
     deps = [
         "//:node_modules/@types/scheduler",
+        "//:node_modules/date-fns",
         "//:node_modules/scheduler",
         "//client/design",
         "//shared/helpers",

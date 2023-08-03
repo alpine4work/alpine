@@ -27,6 +27,8 @@ async function handleFetch(
     env: EdgeServiceEnv,
     executionContext: ExecutionContext,
 ) {
+    const startTime = Date.now();
+
     const url = new URL(request.url);
 
     // We implement the time API route directly in our Cloudflare Worker body and
@@ -45,12 +47,14 @@ async function handleFetch(
     // can allow so that the route time is as close to under 1ms as possible. Which
     // is why we put this route handler first before all other processing.
     //
+    // Used by `synchronized_system_clock.ts`.
+    //
     // [1]: https://en.wikipedia.org/wiki/Network_Time_Protocol
     // [2]: https://developers.cloudflare.com/workers/learning/security-model/
     if (url.pathname === "/api/time") {
-        return new Response(JSON.stringify({time: Date.now()}), {
+        return new Response(`{"startTime":${startTime},"endTime":${Date.now()}}`, {
             status: 200,
-            headers: {"content-type": "application/json"},
+            headers: {"Content-Type": "application/json"},
         });
     }
 
@@ -173,7 +177,7 @@ async function handleFetch(
                 default:
                     return new Response("Not Found: Durable object not found", {
                         status: 404,
-                        headers: {"content-type": "text/plain"},
+                        headers: {"Content-Type": "text/plain"},
                     });
             }
         });
@@ -184,16 +188,38 @@ async function handleFetch(
     if (request.headers.has("upgrade")) {
         return new Response("Bad Request: Can't upgrade to WebSocket connection", {
             status: 400,
-            headers: {"content-type": "text/plain"},
+            headers: {"Content-Type": "text/plain"},
         });
     }
+
+    const startTimeString = new Date(startTime).toISOString();
 
     // This forwards the request from `EdgeService` to `AppService` completely
     // untouched. To `AppService` it will look like the request is coming from a
     // web browser.
     //
     // eslint-disable-next-line no-global-fetch
-    return fetch(request);
+    const response = await fetch(request);
+
+    // For HTML requests, include edge server timing information. We use this on
+    // the client to synchronize our client time with the server time. See
+    // `synchronized_system_clock.ts`.
+    if (response.headers.get("Content-Type")?.includes("text/html")) {
+        // `fetch()` responses are immutable so we need to clone to add a new header...
+        const newResponse = new Response(response.body, response);
+
+        const endTime = Date.now();
+        const durationMs = endTime - startTime;
+
+        newResponse.headers.append(
+            "Server-Timing",
+            `edge;dur=${durationMs};desc="Edge server wait (start time: ${startTimeString})"`,
+        );
+
+        return newResponse;
+    }
+
+    return response;
 }
 
 // eslint-disable-next-line import/no-default-export

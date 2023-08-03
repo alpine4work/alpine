@@ -21,9 +21,9 @@ export async function action({request, context, span}: LoaderArgs) {
             if (!isPlainObject(event))
                 throw new InvalidArgumentError("Expected each event to be an object");
 
-            if (typeof event.time !== "number" || !Number.isInteger(event.time) || event.time < 0)
+            if (typeof event.time !== "number" || !Number.isFinite(event.time) || event.time < 0)
                 throw new InvalidArgumentError(
-                    'Expected each event to have a positive integer "time" property',
+                    'Expected each event to have a positive number "time" property',
                 );
 
             if (!isPlainObject(event.data))

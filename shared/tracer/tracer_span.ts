@@ -1,3 +1,4 @@
+import {MonotonicClock} from "~/shared/helpers/clock/monotonic_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {LinkedList, NonEmptyLinkedList} from "~/shared/helpers/immutable/linked_list.js";
 import {generateId, isId} from "~/shared/id/id.js";
@@ -31,6 +32,11 @@ export class TracerSpan extends TracerBase {
      * The root tracer for this span.
      */
     private readonly _tracer: TracerRoot;
+
+    /**
+     * The monotonic clock we use for measuring span times.
+     */
+    private readonly _clock: MonotonicClock;
 
     /**
      * The name of the trace.
@@ -79,6 +85,7 @@ export class TracerSpan extends TracerBase {
 
     private constructor(
         tracer: TracerRoot,
+        clock: MonotonicClock,
         name: string,
         parentSpan: {
             traceId: TraceId;
@@ -90,10 +97,11 @@ export class TracerSpan extends TracerBase {
         super();
 
         this._tracer = tracer;
+        this._clock = clock;
         this._name = name;
         this.traceId = parentSpan?.traceId ?? generateId();
         this.spanId = generateId();
-        this._startTime = this._tracer.getTime();
+        this._startTime = this._clock.now();
         this._propagatedEventData = parentSpan
             ? parentSpan.propagatedEventData ?? null
             : this._tracer.propagatedEventData
@@ -118,6 +126,7 @@ export class TracerSpan extends TracerBase {
 
     public static _start(
         tracer: TracerRoot,
+        clock: MonotonicClock,
         name: string,
         parentSpan: {
             traceId: TraceId;
@@ -126,7 +135,7 @@ export class TracerSpan extends TracerBase {
             propagatedEventFlatData?: TracerEventFlatData | null;
         } | null,
     ) {
-        const span = new TracerSpan(tracer, name, parentSpan);
+        const span = new TracerSpan(tracer, clock, name, parentSpan);
         const finishSpan = () => span._finish();
         return {span, finishSpan};
     }
@@ -139,12 +148,18 @@ export class TracerSpan extends TracerBase {
      * See documentation for this method on `TracerBase.startSpan()`.
      */
     public startSpan(name: string) {
-        return TracerSpan._start(this._tracer, name, {
-            traceId: this.traceId,
-            parentId: this.spanId,
-            propagatedEventData: this._propagatedEventData,
-            propagatedEventFlatData: this._propagatedEventFlatData,
-        });
+        return TracerSpan._start(
+            this._tracer,
+            // Inherit the parent span's clock (not the tracer clock) for consistent times.
+            this._clock,
+            name,
+            {
+                traceId: this.traceId,
+                parentId: this.spanId,
+                propagatedEventData: this._propagatedEventData,
+                propagatedEventFlatData: this._propagatedEventFlatData,
+            },
+        );
     }
 
     /**
@@ -239,10 +254,11 @@ export class TracerSpan extends TracerBase {
     private _finish() {
         assert(!this._finished);
 
-        const endTime = this._tracer.getTime();
+        const endTime = this._clock.now();
+        const durationMs = endTime - this._startTime;
 
         this._eventData = {
-            value: {name: this._name, durationMs: endTime - this._startTime},
+            value: {name: this._name, durationMs},
             next: this._eventData,
         };
 
@@ -259,7 +275,7 @@ export class TracerSpan extends TracerBase {
      * causal relationship between these spans.
      */
     public link({traceId, spanId}: {traceId: TraceId; spanId: TraceSpanId}) {
-        const time = this._tracer.getTime();
+        const time = this._clock.now();
 
         // Link this span with another using the Honeycomb link event format:
         // https://docs.honeycomb.io/getting-data-in/tracing/send-trace-data/#links
@@ -294,7 +310,7 @@ export class TracerSpan extends TracerBase {
      * See documentation for this method on `TracerBase.log()`.
      */
     public log(name: string, data: TracerEventData = {}) {
-        const time = this._tracer.getTime();
+        const time = this._clock.now();
 
         this._tracer._sendEvent(
             new TracerEvent(

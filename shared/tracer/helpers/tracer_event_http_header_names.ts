@@ -64,6 +64,16 @@ type TracerEventHttpHeaderNameMap = {
     "x-powered-by": true;
     "x-ua-compatible": true;
     "x-xss-protection": true;
+    // Cloudflare headers
+    // https://developers.cloudflare.com/fundamentals/get-started/reference/http-request-headers/
+    "cf-connecting-ip": true;
+    "cf-connecting-ipv6": true;
+    "cf-ew-via": true;
+    "cf-pseudo-ipv4": true;
+    "cf-ray": true;
+    "cf-ipcountry": true;
+    "cdn-loop": true;
+    "cf-worker": true;
     // Cyberworlds custom headers
     "cyberworlds-id-name": true;
     "cyberworlds-space-id-hint": true;
@@ -118,6 +128,14 @@ const tracerEventHttpHeaderNameMap: TracerEventHttpHeaderNameMap = {
     "x-powered-by": true,
     "x-ua-compatible": true,
     "x-xss-protection": true,
+    "cf-connecting-ip": true,
+    "cf-connecting-ipv6": true,
+    "cf-ew-via": true,
+    "cf-pseudo-ipv4": true,
+    "cf-ray": true,
+    "cf-ipcountry": true,
+    "cdn-loop": true,
+    "cf-worker": true,
     "cyberworlds-id-name": true,
     "cyberworlds-space-id-hint": true,
 };

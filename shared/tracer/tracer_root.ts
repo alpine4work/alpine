@@ -1,3 +1,5 @@
+import {Clock} from "~/shared/helpers/clock/clock.js";
+import {MonotonicClock} from "~/shared/helpers/clock/monotonic_clock.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {getRealmId} from "~/shared/id/realm_id.js";
 import {getExceptionTracerEventData} from "~/shared/tracer/helpers/get_exception_tracer_event_data.js";
@@ -34,7 +36,7 @@ export type DurableObjectServiceName =
     | "ChatRealtimeService"
     | "MyAccountService";
 
-// TODO(calebmer): Tracer stuff
+// TODO(calebmer, #tracer): Tracer stuff
 // - Apply source map to error stack trace on server
 // - Redact URLs
 // - Add [Refinery tail-based sampling](https://docs.honeycomb.io/manage-data-volume/refinery/)
@@ -48,14 +50,11 @@ export type DurableObjectServiceName =
  */
 export class TracerRoot extends TracerBase {
     /**
-     * Get the current time in milliseconds elapsed since the Unix epoch. Should be
-     * monotonically increasing.
-     *
-     * `Date.now()` is a good starter implementation. However, in the browser it
-     * may not monotonically increase since users can change their clock to any
-     * value. A better implementation in the browser may use `performance.now()`.
+     * The base clock we use for measuring span time. When we start a span, we
+     * create a new `MonotonicClock` so durations are high resolution (when
+     * available) and not subject to system clock adjustments.
      */
-    public readonly getTime: () => number;
+    private readonly _clock: Clock;
 
     /**
      * Send an event to our observability tool for storage and analysis.
@@ -81,18 +80,18 @@ export class TracerRoot extends TracerBase {
     public readonly propagatedEventData: TracerEventData | null;
 
     private constructor({
-        getTime,
+        clock,
         sendEvent,
         sharedEventData,
         propagatedEventData,
     }: {
-        getTime: () => number;
+        clock: Clock;
         sendEvent: (event: TracerEvent) => void;
         sharedEventData: TracerEventFullData;
         propagatedEventData: TracerEventData | null;
     }) {
         super();
-        this.getTime = getTime;
+        this._clock = clock;
         this._sendEvent = sendEvent;
         this.sharedEventData = sharedEventData;
         this.propagatedEventData = propagatedEventData;
@@ -102,17 +101,17 @@ export class TracerRoot extends TracerBase {
         serviceName,
         jsHost,
         untrusted,
-        getTime,
+        clock,
         sendEvent,
     }: {
         serviceName: TracerServiceName;
         jsHost: TracerEventJsHost;
         untrusted: boolean;
-        getTime: () => number;
+        clock: Clock;
         sendEvent: (event: TracerEvent) => void;
     }) {
         return new TracerRoot({
-            getTime,
+            clock,
             sendEvent,
             sharedEventData: {
                 service: {
@@ -134,7 +133,7 @@ export class TracerRoot extends TracerBase {
     }
 
     public startSpan(name: string) {
-        return TracerSpan._start(this, name, null);
+        return TracerSpan._start(this, new MonotonicClock(this._clock), name, null);
     }
 
     /**
@@ -146,7 +145,7 @@ export class TracerRoot extends TracerBase {
         name: string,
         propagationContext: TracerSpanPropagationContext,
     ) {
-        return TracerSpan._start(this, name, {
+        return TracerSpan._start(this, new MonotonicClock(this._clock), name, {
             traceId: propagationContext.traceId,
             parentId: propagationContext.parentId,
             propagatedEventFlatData: propagationContext.data,
@@ -163,7 +162,7 @@ export class TracerRoot extends TracerBase {
      */
     public withPropagatedData(data: TracerEventData): TracerRoot {
         return new TracerRoot({
-            getTime: this.getTime,
+            clock: this._clock,
             sendEvent: this._sendEvent,
             sharedEventData: this.sharedEventData,
             propagatedEventData: this.propagatedEventData
@@ -190,7 +189,7 @@ export class TracerRoot extends TracerBase {
      */
     public withReplacedPropagatedData(data: TracerEventData): TracerRoot {
         return new TracerRoot({
-            getTime: this.getTime,
+            clock: this._clock,
             sendEvent: this._sendEvent,
             sharedEventData: this.sharedEventData,
             propagatedEventData: data,
@@ -201,7 +200,7 @@ export class TracerRoot extends TracerBase {
      * See documentation for this method on `TracerBase.log()`.
      */
     public log(name: string, data: TracerEventData = {}) {
-        const time = this.getTime();
+        const time = this._clock.now();
 
         this._sendEvent(
             new TracerEvent(
