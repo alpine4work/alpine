@@ -1,5 +1,5 @@
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {TimeZoneSchema} from "~/shared/schema/time_zone_schema.js";
+import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 
 /**
  * Self-reported information about the client available on the server via a cookie.

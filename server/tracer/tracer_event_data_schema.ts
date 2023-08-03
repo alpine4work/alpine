@@ -2,8 +2,8 @@ import {tracerEventDataDynamoConsumedCapacityKeys} from "~/server/tracer/interna
 import {DateString, isDateString} from "~/shared/helpers/date/date_string.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
-import {IdentifierStringSchema} from "~/shared/schema/identifier_string_schema.js";
-import {LabelStringSchema} from "~/shared/schema/label_string_schema.js";
+import {IdentifierStringSchema} from "~/shared/schema/helpers/identifier_string_schema.js";
+import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {
     Schema,
     SchemaDeserializationError,

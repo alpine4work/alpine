@@ -5,6 +5,11 @@ import {FailedPreconditionError} from "~/shared/error/error.js";
 import {stableShuffleArray} from "~/shared/helpers/array/stable_shuffle_array.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {
+    HybridLogicalClock,
+    HybridLogicalTime,
+} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
@@ -17,6 +22,7 @@ import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.j
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {serializeHybridLogicalTime} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskSpaceAction} from "~/shared/tasks/actions/task_space_action.js";
 import {TaskAssignee} from "~/shared/tasks/task_assignee.js";
@@ -64,32 +70,34 @@ type TaskSpaceActionTestScenario = {
     account2: TaskSortableAccount;
     collectionId1: TaskCollectionId;
     collectionId2: TaskCollectionId;
-    getNextTime: () => Date;
+    getNextTime: () => HybridLogicalTime;
     getNextFilterableTime: () => TaskFilterableTime;
 };
 
+type TaskActionTestArtifacts =
+    | {
+          actions: Array<TaskAction & {time?: HybridLogicalTime}>;
+          task: Partial<TaskTestInterface>;
+          error?: undefined;
+      }
+    | {
+          actions: Array<TaskAction & {time?: HybridLogicalTime}>;
+          error: {new (...args: Array<any>): Error};
+          task?: undefined;
+      };
+
 const taskActionTestCases: Array<{
     name: string;
-    create: (scenario: TaskSpaceActionTestScenario) =>
-        | {
-              actions: Array<TaskAction>;
-              task: Partial<TaskTestInterface>;
-              error?: undefined;
-          }
-        | {
-              actions: Array<TaskAction>;
-              error: {new (...args: Array<any>): Error};
-              task?: undefined;
-          };
+    create: (scenario: TaskSpaceActionTestScenario) => TaskActionTestArtifacts;
 }> = [
     {
         name: "create task",
-        create: ({creator, createdTime}) => ({
+        create: ({creator}): TaskActionTestArtifacts => ({
             actions: [
                 {
                     type: "Create",
                     creator,
-                    createdTime,
+                    creatorTimeZone: defaultTimeZone,
                 },
             ],
             task: {},
@@ -97,35 +105,17 @@ const taskActionTestCases: Array<{
     },
     {
         name: "create task incompatible accounts",
-        create: ({creator, createdTime, account2}) => ({
+        create: ({creator, account2}): TaskActionTestArtifacts => ({
             actions: [
                 {
                     type: "Create",
                     creator,
-                    createdTime,
+                    creatorTimeZone: defaultTimeZone,
                 },
                 {
                     type: "Create",
                     creator: account2,
-                    createdTime,
-                },
-            ],
-            error: FailedPreconditionError,
-        }),
-    },
-    {
-        name: "create task incompatible absolute created time",
-        create: ({creator, createdTime, getNextFilterableTime}) => ({
-            actions: [
-                {
-                    type: "Create",
-                    creator,
-                    createdTime,
-                },
-                {
-                    type: "Create",
-                    creator,
-                    createdTime: getNextFilterableTime(),
+                    creatorTimeZone: defaultTimeZone,
                 },
             ],
             error: FailedPreconditionError,
@@ -133,20 +123,17 @@ const taskActionTestCases: Array<{
     },
     {
         name: "create task incompatible setter created time zone",
-        create: ({creator, createdTime}) => ({
+        create: ({creator}): TaskActionTestArtifacts => ({
             actions: [
                 {
                     type: "Create",
                     creator,
-                    createdTime,
+                    creatorTimeZone: defaultTimeZone,
                 },
                 {
                     type: "Create",
                     creator,
-                    createdTime: new TaskFilterableTime({
-                        absoluteTime: createdTime.absoluteTime,
-                        setterTimeZone: assertTimeZone("America/Denver"),
-                    }),
+                    creatorTimeZone: assertTimeZone("America/Denver"),
                 },
             ],
             error: FailedPreconditionError,
@@ -154,38 +141,29 @@ const taskActionTestCases: Array<{
     },
     {
         name: "add and remove collection",
-        create: ({creator, createdTime, collectionId1, collectionId2}) => ({
+        create: ({creator, collectionId1, collectionId2}): TaskActionTestArtifacts => ({
             actions: [
                 {
                     type: "Create",
                     creator,
-                    createdTime,
+                    creatorTimeZone: defaultTimeZone,
                 },
                 {
-                    type: "UpdateCollections",
-                    collectionsAction: {
-                        type: "Set",
-                        key: collectionId1,
-                        value: assertOrderKey("a0"),
-                        updatedTime: new Date("2023-07-13T15:21:45.430Z"),
-                    },
+                    type: "AddCollection",
+                    time: [new Date("2023-07-13T15:21:45.430Z").getTime(), 0],
+                    collectionId: collectionId1,
+                    orderKey: assertOrderKey("a0"),
                 },
                 {
-                    type: "UpdateCollections",
-                    collectionsAction: {
-                        type: "Set",
-                        key: collectionId2,
-                        value: assertOrderKey("a1"),
-                        updatedTime: new Date("2023-07-13T15:22:45.430Z"),
-                    },
+                    type: "AddCollection",
+                    time: [new Date("2023-07-13T15:22:45.430Z").getTime(), 0],
+                    collectionId: collectionId2,
+                    orderKey: assertOrderKey("a1"),
                 },
                 {
-                    type: "UpdateCollections",
-                    collectionsAction: {
-                        type: "Delete",
-                        key: collectionId1,
-                        deletedTime: new Date("2023-07-13T15:23:45.430Z"),
-                    },
+                    type: "RemoveCollection",
+                    time: [new Date("2023-07-13T15:23:45.430Z").getTime(), 0],
+                    collectionId: collectionId1,
                 },
             ],
             task: {
@@ -194,14 +172,24 @@ const taskActionTestCases: Array<{
                         collectionId1,
                         {
                             value: null,
-                            updatedTime: "2023-07-13T15:23:45.430Z",
+                            version: String(
+                                serializeHybridLogicalTime([
+                                    new Date("2023-07-13T15:23:45.430Z").getTime(),
+                                    0,
+                                ]),
+                            ),
                         },
                     ],
                     [
                         collectionId2,
                         {
                             value: "a1",
-                            updatedTime: "2023-07-13T15:22:45.430Z",
+                            version: String(
+                                serializeHybridLogicalTime([
+                                    new Date("2023-07-13T15:22:45.430Z").getTime(),
+                                    0,
+                                ]),
+                            ),
                         },
                     ],
                 ]),
@@ -210,38 +198,29 @@ const taskActionTestCases: Array<{
     },
     {
         name: "add, remove, and add collection",
-        create: ({creator, createdTime, collectionId1}) => ({
+        create: ({creator, collectionId1}): TaskActionTestArtifacts => ({
             actions: [
                 {
                     type: "Create",
                     creator,
-                    createdTime,
+                    creatorTimeZone: defaultTimeZone,
                 },
                 {
-                    type: "UpdateCollections",
-                    collectionsAction: {
-                        type: "Set",
-                        key: collectionId1,
-                        value: assertOrderKey("a0"),
-                        updatedTime: new Date("2023-07-13T15:21:45.430Z"),
-                    },
+                    type: "AddCollection",
+                    time: [new Date("2023-07-13T15:21:45.430Z").getTime(), 0],
+                    collectionId: collectionId1,
+                    orderKey: assertOrderKey("a0"),
                 },
                 {
-                    type: "UpdateCollections",
-                    collectionsAction: {
-                        type: "Delete",
-                        key: collectionId1,
-                        deletedTime: new Date("2023-07-13T15:22:45.430Z"),
-                    },
+                    type: "RemoveCollection",
+                    time: [new Date("2023-07-13T15:22:45.430Z").getTime(), 0],
+                    collectionId: collectionId1,
                 },
                 {
-                    type: "UpdateCollections",
-                    collectionsAction: {
-                        type: "Set",
-                        key: collectionId1,
-                        value: assertOrderKey("a0"),
-                        updatedTime: new Date("2023-07-13T15:23:45.430Z"),
-                    },
+                    type: "AddCollection",
+                    time: [new Date("2023-07-13T15:23:45.430Z").getTime(), 0],
+                    collectionId: collectionId1,
+                    orderKey: assertOrderKey("a0"),
                 },
             ],
             task: {
@@ -250,7 +229,12 @@ const taskActionTestCases: Array<{
                         collectionId1,
                         {
                             value: "a0",
-                            updatedTime: "2023-07-13T15:23:45.430Z",
+                            version: String(
+                                serializeHybridLogicalTime([
+                                    new Date("2023-07-13T15:23:45.430Z").getTime(),
+                                    0,
+                                ]),
+                            ),
                         },
                     ],
                 ]),
@@ -259,29 +243,23 @@ const taskActionTestCases: Array<{
     },
     {
         name: "collection updated time conflict, remove wins",
-        create: ({creator, createdTime, collectionId1}) => ({
+        create: ({creator, collectionId1}): TaskActionTestArtifacts => ({
             actions: [
                 {
                     type: "Create",
                     creator,
-                    createdTime,
+                    creatorTimeZone: defaultTimeZone,
                 },
                 {
-                    type: "UpdateCollections",
-                    collectionsAction: {
-                        type: "Set",
-                        key: collectionId1,
-                        value: assertOrderKey("a0"),
-                        updatedTime: new Date("2023-07-13T15:21:45.430Z"),
-                    },
+                    type: "AddCollection",
+                    time: [new Date("2023-07-13T15:21:45.430Z").getTime(), 0],
+                    collectionId: collectionId1,
+                    orderKey: assertOrderKey("a0"),
                 },
                 {
-                    type: "UpdateCollections",
-                    collectionsAction: {
-                        type: "Delete",
-                        key: collectionId1,
-                        deletedTime: new Date("2023-07-13T15:21:45.430Z"),
-                    },
+                    type: "RemoveCollection",
+                    time: [new Date("2023-07-13T15:21:45.430Z").getTime(), 0],
+                    collectionId: collectionId1,
                 },
             ],
             task: {
@@ -290,7 +268,12 @@ const taskActionTestCases: Array<{
                         collectionId1,
                         {
                             value: null,
-                            updatedTime: "2023-07-13T15:21:45.430Z",
+                            version: String(
+                                serializeHybridLogicalTime([
+                                    new Date("2023-07-13T15:21:45.430Z").getTime(),
+                                    0,
+                                ]),
+                            ),
                         },
                     ],
                 ]),
@@ -299,30 +282,24 @@ const taskActionTestCases: Array<{
     },
     {
         name: "collection updated time conflict, higher order key wins",
-        create: ({creator, createdTime, collectionId1}) => ({
+        create: ({creator, collectionId1}): TaskActionTestArtifacts => ({
             actions: [
                 {
                     type: "Create",
                     creator,
-                    createdTime,
+                    creatorTimeZone: defaultTimeZone,
                 },
                 {
-                    type: "UpdateCollections",
-                    collectionsAction: {
-                        type: "Set",
-                        key: collectionId1,
-                        value: assertOrderKey("a0"),
-                        updatedTime: new Date("2023-07-13T15:21:45.430Z"),
-                    },
+                    type: "AddCollection",
+                    time: [new Date("2023-07-13T15:21:45.430Z").getTime(), 0],
+                    collectionId: collectionId1,
+                    orderKey: assertOrderKey("a0"),
                 },
                 {
-                    type: "UpdateCollections",
-                    collectionsAction: {
-                        type: "Set",
-                        key: collectionId1,
-                        value: assertOrderKey("a1"),
-                        updatedTime: new Date("2023-07-13T15:21:45.430Z"),
-                    },
+                    type: "AddCollection",
+                    time: [new Date("2023-07-13T15:21:45.430Z").getTime(), 0],
+                    collectionId: collectionId1,
+                    orderKey: assertOrderKey("a1"),
                 },
             ],
             task: {
@@ -331,7 +308,12 @@ const taskActionTestCases: Array<{
                         collectionId1,
                         {
                             value: "a1",
-                            updatedTime: "2023-07-13T15:21:45.430Z",
+                            version: String(
+                                serializeHybridLogicalTime([
+                                    new Date("2023-07-13T15:21:45.430Z").getTime(),
+                                    0,
+                                ]),
+                            ),
                         },
                     ],
                 ]),
@@ -340,19 +322,16 @@ const taskActionTestCases: Array<{
     },
     {
         name: "delete",
-        create: ({creator, createdTime, getNextTime}) => {
-            const deletedTime = getNextTime();
-
+        create: ({creator}): TaskActionTestArtifacts => {
             return {
                 actions: [
                     {
                         type: "Create",
                         creator,
-                        createdTime,
+                        creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "Delete",
-                        deletedTime,
                     },
                 ],
                 task: {
@@ -363,24 +342,19 @@ const taskActionTestCases: Array<{
     },
     {
         name: "undelete",
-        create: ({creator, createdTime, getNextTime}) => {
-            const deletedTime = getNextTime();
-            const undeletedTime = getNextTime();
-
+        create: ({creator}): TaskActionTestArtifacts => {
             return {
                 actions: [
                     {
                         type: "Create",
                         creator,
-                        createdTime,
+                        creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "Delete",
-                        deletedTime,
                     },
                     {
                         type: "Undelete",
-                        undeletedTime,
                     },
                 ],
                 task: {
@@ -391,15 +365,13 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update title before delete",
-        create: ({creator, createdTime, getNextTime}) => {
-            const deletedTime = getNextTime();
-
+        create: ({creator}): TaskActionTestArtifacts => {
             return {
                 actions: [
                     {
                         type: "Create",
                         creator,
-                        createdTime,
+                        creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdateTitle",
@@ -407,7 +379,6 @@ const taskActionTestCases: Array<{
                     },
                     {
                         type: "Delete",
-                        deletedTime,
                     },
                 ],
                 task: {
@@ -419,19 +390,16 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update title after delete",
-        create: ({creator, createdTime, getNextTime}) => {
-            const deletedTime = getNextTime();
-
+        create: ({creator}): TaskActionTestArtifacts => {
             return {
                 actions: [
                     {
                         type: "Create",
                         creator,
-                        createdTime,
+                        creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "Delete",
-                        deletedTime,
                     },
                     {
                         type: "UpdateTitle",
@@ -447,29 +415,22 @@ const taskActionTestCases: Array<{
     },
     {
         name: "delete, undelete, delete",
-        create: ({creator, createdTime, getNextTime}) => {
-            const deletedTime1 = getNextTime();
-            const undeletedTime = getNextTime();
-            const deletedTime2 = getNextTime();
-
+        create: ({creator}): TaskActionTestArtifacts => {
             return {
                 actions: [
                     {
                         type: "Create",
                         creator,
-                        createdTime,
+                        creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "Delete",
-                        deletedTime: deletedTime1,
                     },
                     {
                         type: "Undelete",
-                        undeletedTime,
                     },
                     {
                         type: "Delete",
-                        deletedTime: deletedTime2,
                     },
                 ],
                 task: {
@@ -480,19 +441,16 @@ const taskActionTestCases: Array<{
     },
     {
         name: "undelete without delete",
-        create: ({creator, createdTime, getNextTime}) => {
-            const undeletedTime = getNextTime();
-
+        create: ({creator}): TaskActionTestArtifacts => {
             return {
                 actions: [
                     {
                         type: "Create",
                         creator,
-                        createdTime,
+                        creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "Undelete",
-                        undeletedTime,
                     },
                 ],
                 task: {
@@ -503,7 +461,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "delete and undelete time conflict",
-        create: ({creator, createdTime, getNextTime}) => {
+        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
             const deletedTime = getNextTime();
 
             return {
@@ -511,15 +469,15 @@ const taskActionTestCases: Array<{
                     {
                         type: "Create",
                         creator,
-                        createdTime,
+                        creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "Delete",
-                        deletedTime,
+                        time: deletedTime,
                     },
                     {
                         type: "Undelete",
-                        undeletedTime: deletedTime,
+                        time: deletedTime,
                     },
                 ],
                 task: {
@@ -530,24 +488,19 @@ const taskActionTestCases: Array<{
     },
     {
         name: "undelete before delete",
-        create: ({creator, createdTime, getNextTime}) => {
-            const undeletedTime = getNextTime();
-            const deletedTime = getNextTime();
-
+        create: ({creator}): TaskActionTestArtifacts => {
             return {
                 actions: [
                     {
                         type: "Create",
                         creator,
-                        createdTime,
+                        creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "Undelete",
-                        undeletedTime,
                     },
                     {
                         type: "Delete",
-                        deletedTime,
                     },
                 ],
                 task: {
@@ -558,29 +511,29 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update parent",
-        create: ({creator, createdTime, getNextTime}) => {
+        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
             const parentTaskId = generateId<TaskId>();
-            const updatedTime = getNextTime();
+            const time1 = getNextTime();
+            const time2 = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "Create",
+                        time: time1,
                         creator,
-                        createdTime,
+                        creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdateParentTaskId",
-                        parentTaskIdAction: {
-                            value: parentTaskId,
-                            updatedTime,
-                        },
+                        time: time2,
+                        parentTaskId,
                     },
                 ],
                 task: {
                     parent: {
                         taskId: parentTaskId,
-                        position: {orderTime: updatedTime, orderKey: initialOrderKey},
+                        position: {orderTime: time2, orderKey: initialOrderKey},
                     },
                 },
             };
@@ -588,31 +541,23 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update parent then unset parent",
-        create: ({creator, createdTime, getNextTime}) => {
+        create: ({creator}): TaskActionTestArtifacts => {
             const parentTaskId = generateId<TaskId>();
-            const updatedTime1 = getNextTime();
-            const updatedTime2 = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "Create",
                         creator,
-                        createdTime,
+                        creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdateParentTaskId",
-                        parentTaskIdAction: {
-                            value: parentTaskId,
-                            updatedTime: updatedTime1,
-                        },
+                        parentTaskId,
                     },
                     {
                         type: "UpdateParentTaskId",
-                        parentTaskIdAction: {
-                            value: null,
-                            updatedTime: updatedTime2,
-                        },
+                        parentTaskId: null,
                     },
                 ],
                 task: {
@@ -623,37 +568,35 @@ const taskActionTestCases: Array<{
     },
     {
         name: "unset parent then update parent",
-        create: ({creator, createdTime, getNextTime}) => {
+        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
             const parentTaskId = generateId<TaskId>();
-            const updatedTime1 = getNextTime();
-            const updatedTime2 = getNextTime();
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "Create",
+                        time: time1,
                         creator,
-                        createdTime,
+                        creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdateParentTaskId",
-                        parentTaskIdAction: {
-                            value: null,
-                            updatedTime: updatedTime1,
-                        },
+                        time: time2,
+                        parentTaskId: null,
                     },
                     {
                         type: "UpdateParentTaskId",
-                        parentTaskIdAction: {
-                            value: parentTaskId,
-                            updatedTime: updatedTime2,
-                        },
+                        time: time3,
+                        parentTaskId,
                     },
                 ],
                 task: {
                     parent: {
                         taskId: parentTaskId,
-                        position: {orderTime: updatedTime2, orderKey: initialOrderKey},
+                        position: {orderTime: time3, orderKey: initialOrderKey},
                     },
                 },
             };
@@ -661,37 +604,35 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update parent then update parent position",
-        create: ({creator, createdTime, getNextTime}) => {
+        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
             const parentTaskId = generateId<TaskId>();
-            const updatedTime1 = getNextTime();
-            const updatedTime2 = getNextTime();
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "Create",
+                        time: time1,
                         creator,
-                        createdTime,
+                        creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdateParentTaskId",
-                        parentTaskIdAction: {
-                            value: parentTaskId,
-                            updatedTime: updatedTime1,
-                        },
+                        time: time2,
+                        parentTaskId,
                     },
                     {
                         type: "UpdateParentPosition",
-                        parentPositionAction: {
-                            value: {orderTime: updatedTime1, orderKey: assertOrderKey("a42")},
-                            updatedTime: updatedTime2,
-                        },
+                        time: time3,
+                        parentPosition: {orderTime: time2, orderKey: assertOrderKey("a42")},
                     },
                 ],
                 task: {
                     parent: {
                         taskId: parentTaskId,
-                        position: {orderTime: updatedTime1, orderKey: assertOrderKey("a42")},
+                        position: {orderTime: time2, orderKey: assertOrderKey("a42")},
                     },
                 },
             };
@@ -699,37 +640,35 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update parent position then update parent",
-        create: ({creator, createdTime, getNextTime}) => {
+        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
             const parentTaskId = generateId<TaskId>();
-            const updatedTime1 = getNextTime();
-            const updatedTime2 = getNextTime();
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "Create",
+                        time: time1,
                         creator,
-                        createdTime,
+                        creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdateParentPosition",
-                        parentPositionAction: {
-                            value: {orderTime: updatedTime1, orderKey: assertOrderKey("a42")},
-                            updatedTime: updatedTime1,
-                        },
+                        time: time2,
+                        parentPosition: {orderTime: time2, orderKey: assertOrderKey("a42")},
                     },
                     {
                         type: "UpdateParentTaskId",
-                        parentTaskIdAction: {
-                            value: parentTaskId,
-                            updatedTime: updatedTime2,
-                        },
+                        time: time3,
+                        parentTaskId,
                     },
                 ],
                 task: {
                     parent: {
                         taskId: parentTaskId,
-                        position: {orderTime: updatedTime2, orderKey: initialOrderKey},
+                        position: {orderTime: time3, orderKey: initialOrderKey},
                     },
                 },
             };
@@ -737,46 +676,42 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update parent resets position",
-        create: ({creator, createdTime, getNextTime}) => {
+        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
             const parentTaskId1 = generateId<TaskId>();
             const parentTaskId2 = generateId<TaskId>();
-            const updatedTime1 = getNextTime();
-            const updatedTime2 = getNextTime();
-            const updatedTime3 = getNextTime();
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+            const time4 = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "Create",
+                        time: time1,
                         creator,
-                        createdTime,
+                        creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdateParentTaskId",
-                        parentTaskIdAction: {
-                            value: parentTaskId1,
-                            updatedTime: updatedTime1,
-                        },
+                        time: time2,
+                        parentTaskId: parentTaskId1,
                     },
                     {
                         type: "UpdateParentPosition",
-                        parentPositionAction: {
-                            value: {orderTime: updatedTime1, orderKey: assertOrderKey("a42")},
-                            updatedTime: updatedTime2,
-                        },
+                        time: time3,
+                        parentPosition: {orderTime: time2, orderKey: assertOrderKey("a42")},
                     },
                     {
                         type: "UpdateParentTaskId",
-                        parentTaskIdAction: {
-                            value: parentTaskId2,
-                            updatedTime: updatedTime3,
-                        },
+                        time: time4,
+                        parentTaskId: parentTaskId2,
                     },
                 ],
                 task: {
                     parent: {
                         taskId: parentTaskId2,
-                        position: {orderTime: updatedTime3, orderKey: initialOrderKey},
+                        position: {orderTime: time4, orderKey: initialOrderKey},
                     },
                 },
             };
@@ -784,56 +719,75 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update status",
-        create: ({creator, createdTime, account2, getNextFilterableTime}) => {
-            const updatedTime1 = getNextFilterableTime();
+        create: ({creator, account2, getNextTime}): TaskActionTestArtifacts => {
+            const time1 = getNextTime();
+            const time2 = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "Create",
+                        time: time1,
                         creator,
-                        createdTime,
+                        creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdateStatus",
-                        statusAction: {
-                            value: {type: "Closed", closedTime: updatedTime1, closer: account2},
-                            updatedTime: updatedTime1.absoluteTime,
+                        time: time2,
+                        status: {
+                            type: "Closed",
+                            closedTime: new TaskFilterableTime({
+                                absoluteTime: new Date(time2[0]),
+                                setterTimeZone: defaultTimeZone,
+                            }),
+                            closer: account2,
                         },
                     },
                 ],
                 task: {
-                    status: {type: "Closed", closedTime: updatedTime1, closer: account2},
+                    status: {
+                        type: "Closed",
+                        closedTime: new TaskFilterableTime({
+                            absoluteTime: new Date(time2[0]),
+                            setterTimeZone: defaultTimeZone,
+                        }),
+                        closer: account2,
+                    },
                 },
             };
         },
     },
     {
         name: "update status twice",
-        create: ({creator, createdTime, account2, getNextTime, getNextFilterableTime}) => {
-            const updatedTime1 = getNextFilterableTime();
-            const updatedTime2 = getNextTime();
+        create: ({creator, account2, getNextTime}): TaskActionTestArtifacts => {
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "Create",
+                        time: time1,
                         creator,
-                        createdTime,
+                        creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdateStatus",
-                        statusAction: {
-                            value: {type: "Closed", closedTime: updatedTime1, closer: account2},
-                            updatedTime: updatedTime1.absoluteTime,
+                        time: time2,
+                        status: {
+                            type: "Closed",
+                            closedTime: new TaskFilterableTime({
+                                absoluteTime: new Date(time2[0]),
+                                setterTimeZone: defaultTimeZone,
+                            }),
+                            closer: account2,
                         },
                     },
                     {
                         type: "UpdateStatus",
-                        statusAction: {
-                            value: {type: "Open"},
-                            updatedTime: updatedTime2,
-                        },
+                        time: time3,
+                        status: {type: "Open"},
                     },
                 ],
                 task: {
@@ -844,25 +798,28 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update assignee",
-        create: ({creator, createdTime, account2, getNextFilterableTime}) => {
-            const updatedTime1 = getNextFilterableTime();
+        create: ({creator, account2, getNextTime}): TaskActionTestArtifacts => {
+            const time1 = getNextTime();
+            const time2 = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "Create",
+                        time: time1,
                         creator,
-                        createdTime,
+                        creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdateAssignee",
-                        assigneeAction: {
-                            value: {
-                                assignee: account2,
-                                assigner: creator,
-                                assignedTime: updatedTime1,
-                            },
-                            updatedTime: updatedTime1.absoluteTime,
+                        time: time2,
+                        assignee: {
+                            assignee: account2,
+                            assigner: creator,
+                            assignedTime: new TaskFilterableTime({
+                                absoluteTime: new Date(time2[0]),
+                                setterTimeZone: defaultTimeZone,
+                            }),
                         },
                     },
                 ],
@@ -870,7 +827,10 @@ const taskActionTestCases: Array<{
                     assignee: {
                         assignee: account2,
                         assigner: creator,
-                        assignedTime: updatedTime1,
+                        assignedTime: new TaskFilterableTime({
+                            absoluteTime: new Date(time2[0]),
+                            setterTimeZone: defaultTimeZone,
+                        }),
                     },
                 },
             };
@@ -878,34 +838,35 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update assignee twice",
-        create: ({creator, createdTime, account2, getNextTime, getNextFilterableTime}) => {
-            const updatedTime1 = getNextFilterableTime();
-            const updatedTime2 = getNextTime();
+        create: ({creator, account2, getNextTime}): TaskActionTestArtifacts => {
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "Create",
+                        time: time1,
                         creator,
-                        createdTime,
+                        creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdateAssignee",
-                        assigneeAction: {
-                            value: {
-                                assignee: account2,
-                                assigner: creator,
-                                assignedTime: updatedTime1,
-                            },
-                            updatedTime: updatedTime1.absoluteTime,
+                        time: time2,
+                        assignee: {
+                            assignee: account2,
+                            assigner: creator,
+                            assignedTime: new TaskFilterableTime({
+                                absoluteTime: new Date(time2[0]),
+                                setterTimeZone: defaultTimeZone,
+                            }),
                         },
                     },
                     {
                         type: "UpdateAssignee",
-                        assigneeAction: {
-                            value: null,
-                            updatedTime: updatedTime2,
-                        },
+                        time: time3,
+                        assignee: null,
                     },
                 ],
                 task: {
@@ -916,40 +877,44 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update assignee status",
-        create: ({creator, createdTime, account2, getNextFilterableTime}) => {
-            const updatedTime1 = getNextFilterableTime();
-            const updatedTime2 = getNextFilterableTime();
+        create: ({creator, account2, getNextTime}): TaskActionTestArtifacts => {
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "Create",
+                        time: time1,
                         creator,
-                        createdTime,
+                        creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdateAssignee",
-                        assigneeAction: {
-                            value: {
-                                assignee: account2,
-                                assigner: creator,
-                                assignedTime: updatedTime1,
-                            },
-                            updatedTime: updatedTime1.absoluteTime,
+                        time: time2,
+                        assignee: {
+                            assignee: account2,
+                            assigner: creator,
+                            assignedTime: new TaskFilterableTime({
+                                absoluteTime: new Date(time2[0]),
+                                setterTimeZone: defaultTimeZone,
+                            }),
                         },
                     },
                     {
                         type: "UpdateAssigneeStatus",
-                        assigneeStatusAction: {
-                            value: {
-                                type: "Active",
-                                position: {
-                                    orderTime: updatedTime2.absoluteTime,
-                                    orderKey: initialOrderKey,
-                                },
-                                activatedTime: updatedTime2,
+                        time: time3,
+                        assigneeStatus: {
+                            type: "Active",
+                            position: {
+                                orderTime: time3,
+                                orderKey: initialOrderKey,
                             },
-                            updatedTime: updatedTime2.absoluteTime,
+                            activatedTime: new TaskFilterableTime({
+                                absoluteTime: new Date(time3[0]),
+                                setterTimeZone: defaultTimeZone,
+                            }),
                         },
                     },
                 ],
@@ -957,12 +922,21 @@ const taskActionTestCases: Array<{
                     assignee: {
                         assignee: account2,
                         assigner: creator,
-                        assignedTime: updatedTime1,
+                        assignedTime: new TaskFilterableTime({
+                            absoluteTime: new Date(time2[0]),
+                            setterTimeZone: defaultTimeZone,
+                        }),
                     },
                     assigneeStatus: {
                         type: "Active",
-                        position: {orderTime: updatedTime2.absoluteTime, orderKey: initialOrderKey},
-                        activatedTime: updatedTime2,
+                        position: {
+                            orderTime: time3,
+                            orderKey: initialOrderKey,
+                        },
+                        activatedTime: new TaskFilterableTime({
+                            absoluteTime: new Date(time3[0]),
+                            setterTimeZone: defaultTimeZone,
+                        }),
                     },
                 },
             };
@@ -970,56 +944,61 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update assignee status twice",
-        create: ({creator, createdTime, account2, getNextTime, getNextFilterableTime}) => {
-            const updatedTime1 = getNextFilterableTime();
-            const updatedTime2 = getNextFilterableTime();
-            const updatedTime3 = getNextTime();
+        create: ({creator, account2, getNextTime}): TaskActionTestArtifacts => {
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+            const time4 = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "Create",
+                        time: time1,
                         creator,
-                        createdTime,
+                        creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdateAssignee",
-                        assigneeAction: {
-                            value: {
-                                assignee: account2,
-                                assigner: creator,
-                                assignedTime: updatedTime1,
-                            },
-                            updatedTime: updatedTime1.absoluteTime,
+                        time: time2,
+                        assignee: {
+                            assignee: account2,
+                            assigner: creator,
+                            assignedTime: new TaskFilterableTime({
+                                absoluteTime: new Date(time2[0]),
+                                setterTimeZone: defaultTimeZone,
+                            }),
                         },
                     },
                     {
                         type: "UpdateAssigneeStatus",
-                        assigneeStatusAction: {
-                            value: {
-                                type: "Active",
-                                position: {
-                                    orderTime: updatedTime2.absoluteTime,
-                                    orderKey: initialOrderKey,
-                                },
-                                activatedTime: updatedTime2,
+                        time: time3,
+                        assigneeStatus: {
+                            type: "Active",
+                            position: {
+                                orderTime: time3,
+                                orderKey: initialOrderKey,
                             },
-                            updatedTime: updatedTime2.absoluteTime,
+                            activatedTime: new TaskFilterableTime({
+                                absoluteTime: new Date(time3[0]),
+                                setterTimeZone: defaultTimeZone,
+                            }),
                         },
                     },
                     {
                         type: "UpdateAssigneeStatus",
-                        assigneeStatusAction: {
-                            value: {type: "Inactive"},
-                            updatedTime: updatedTime3,
-                        },
+                        time: time4,
+                        assigneeStatus: {type: "Inactive"},
                     },
                 ],
                 task: {
                     assignee: {
                         assignee: account2,
                         assigner: creator,
-                        assignedTime: updatedTime1,
+                        assignedTime: new TaskFilterableTime({
+                            absoluteTime: new Date(time2[0]),
+                            setterTimeZone: defaultTimeZone,
+                        }),
                     },
                     assigneeStatus: {type: "Inactive"},
                 },
@@ -1028,57 +1007,76 @@ const taskActionTestCases: Array<{
     },
     {
         name: "updating status resets assignee status",
-        create: ({creator, createdTime, account2, getNextFilterableTime}) => {
-            const updatedTime1 = getNextFilterableTime();
-            const updatedTime2 = getNextFilterableTime();
-            const updatedTime3 = getNextFilterableTime();
+        create: ({creator, account2, getNextTime}): TaskActionTestArtifacts => {
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+            const time4 = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "Create",
+                        time: time1,
                         creator,
-                        createdTime,
+                        creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdateAssignee",
-                        assigneeAction: {
-                            value: {
-                                assignee: account2,
-                                assigner: creator,
-                                assignedTime: updatedTime1,
-                            },
-                            updatedTime: updatedTime1.absoluteTime,
+                        time: time2,
+                        assignee: {
+                            assignee: account2,
+                            assigner: creator,
+                            assignedTime: new TaskFilterableTime({
+                                absoluteTime: new Date(time2[0]),
+                                setterTimeZone: defaultTimeZone,
+                            }),
                         },
                     },
                     {
                         type: "UpdateAssigneeStatus",
-                        assigneeStatusAction: {
-                            value: {
-                                type: "Active",
-                                position: {
-                                    orderTime: updatedTime2.absoluteTime,
-                                    orderKey: initialOrderKey,
-                                },
-                                activatedTime: updatedTime2,
+                        time: time3,
+                        assigneeStatus: {
+                            type: "Active",
+                            position: {
+                                orderTime: time3,
+                                orderKey: initialOrderKey,
                             },
-                            updatedTime: updatedTime2.absoluteTime,
+                            activatedTime: new TaskFilterableTime({
+                                absoluteTime: new Date(time3[0]),
+                                setterTimeZone: defaultTimeZone,
+                            }),
                         },
                     },
                     {
                         type: "UpdateStatus",
-                        statusAction: {
-                            value: {type: "Closed", closedTime: updatedTime3, closer: account2},
-                            updatedTime: updatedTime3.absoluteTime,
+                        time: time4,
+                        status: {
+                            type: "Closed",
+                            closedTime: new TaskFilterableTime({
+                                absoluteTime: new Date(time4[0]),
+                                setterTimeZone: defaultTimeZone,
+                            }),
+                            closer: account2,
                         },
                     },
                 ],
                 task: {
-                    status: {type: "Closed", closedTime: updatedTime3, closer: account2},
+                    status: {
+                        type: "Closed",
+                        closedTime: new TaskFilterableTime({
+                            absoluteTime: new Date(time4[0]),
+                            setterTimeZone: defaultTimeZone,
+                        }),
+                        closer: account2,
+                    },
                     assignee: {
                         assignee: account2,
                         assigner: creator,
-                        assignedTime: updatedTime1,
+                        assignedTime: new TaskFilterableTime({
+                            absoluteTime: new Date(time2[0]),
+                            setterTimeZone: defaultTimeZone,
+                        }),
                     },
                     assigneeStatus: {type: "Inactive"},
                 },
@@ -1087,56 +1085,61 @@ const taskActionTestCases: Array<{
     },
     {
         name: "updating status resets assignee status even if status doesn't change",
-        create: ({creator, createdTime, account2, getNextFilterableTime}) => {
-            const updatedTime1 = getNextFilterableTime();
-            const updatedTime2 = getNextFilterableTime();
-            const updatedTime3 = getNextFilterableTime();
+        create: ({creator, account2, getNextTime}): TaskActionTestArtifacts => {
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+            const time4 = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "Create",
+                        time: time1,
                         creator,
-                        createdTime,
+                        creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdateAssignee",
-                        assigneeAction: {
-                            value: {
-                                assignee: account2,
-                                assigner: creator,
-                                assignedTime: updatedTime1,
-                            },
-                            updatedTime: updatedTime1.absoluteTime,
+                        time: time2,
+                        assignee: {
+                            assignee: account2,
+                            assigner: creator,
+                            assignedTime: new TaskFilterableTime({
+                                absoluteTime: new Date(time2[0]),
+                                setterTimeZone: defaultTimeZone,
+                            }),
                         },
                     },
                     {
                         type: "UpdateAssigneeStatus",
-                        assigneeStatusAction: {
-                            value: {
-                                type: "Active",
-                                position: {
-                                    orderTime: updatedTime2.absoluteTime,
-                                    orderKey: initialOrderKey,
-                                },
-                                activatedTime: updatedTime2,
+                        time: time3,
+                        assigneeStatus: {
+                            type: "Active",
+                            position: {
+                                orderTime: time3,
+                                orderKey: initialOrderKey,
                             },
-                            updatedTime: updatedTime2.absoluteTime,
+                            activatedTime: new TaskFilterableTime({
+                                absoluteTime: new Date(time3[0]),
+                                setterTimeZone: defaultTimeZone,
+                            }),
                         },
                     },
                     {
                         type: "UpdateStatus",
-                        statusAction: {
-                            value: {type: "Open"},
-                            updatedTime: updatedTime3.absoluteTime,
-                        },
+                        time: time4,
+                        status: {type: "Open"},
                     },
                 ],
                 task: {
                     assignee: {
                         assignee: account2,
                         assigner: creator,
-                        assignedTime: updatedTime1,
+                        assignedTime: new TaskFilterableTime({
+                            absoluteTime: new Date(time2[0]),
+                            setterTimeZone: defaultTimeZone,
+                        }),
                     },
                     assigneeStatus: {type: "Inactive"},
                 },
@@ -1145,52 +1148,57 @@ const taskActionTestCases: Array<{
     },
     {
         name: "updating assignee resets assignee status",
-        create: ({creator, createdTime, account2, getNextFilterableTime}) => {
-            const updatedTime1 = getNextFilterableTime();
-            const updatedTime2 = getNextFilterableTime();
-            const updatedTime3 = getNextFilterableTime();
+        create: ({creator, account2, getNextTime}): TaskActionTestArtifacts => {
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+            const time4 = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "Create",
+                        time: time1,
                         creator,
-                        createdTime,
+                        creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdateAssignee",
-                        assigneeAction: {
-                            value: {
-                                assignee: account2,
-                                assigner: creator,
-                                assignedTime: updatedTime1,
-                            },
-                            updatedTime: updatedTime1.absoluteTime,
+                        time: time2,
+                        assignee: {
+                            assignee: account2,
+                            assigner: creator,
+                            assignedTime: new TaskFilterableTime({
+                                absoluteTime: new Date(time2[0]),
+                                setterTimeZone: defaultTimeZone,
+                            }),
                         },
                     },
                     {
                         type: "UpdateAssigneeStatus",
-                        assigneeStatusAction: {
-                            value: {
-                                type: "Active",
-                                position: {
-                                    orderTime: updatedTime2.absoluteTime,
-                                    orderKey: initialOrderKey,
-                                },
-                                activatedTime: updatedTime2,
+                        time: time3,
+                        assigneeStatus: {
+                            type: "Active",
+                            position: {
+                                orderTime: time3,
+                                orderKey: initialOrderKey,
                             },
-                            updatedTime: updatedTime2.absoluteTime,
+                            activatedTime: new TaskFilterableTime({
+                                absoluteTime: new Date(time3[0]),
+                                setterTimeZone: defaultTimeZone,
+                            }),
                         },
                     },
                     {
                         type: "UpdateAssignee",
-                        assigneeAction: {
-                            value: {
-                                assignee: creator,
-                                assigner: account2,
-                                assignedTime: updatedTime3,
-                            },
-                            updatedTime: updatedTime3.absoluteTime,
+                        time: time4,
+                        assignee: {
+                            assignee: creator,
+                            assigner: account2,
+                            assignedTime: new TaskFilterableTime({
+                                absoluteTime: new Date(time4[0]),
+                                setterTimeZone: defaultTimeZone,
+                            }),
                         },
                     },
                 ],
@@ -1198,7 +1206,10 @@ const taskActionTestCases: Array<{
                     assignee: {
                         assignee: creator,
                         assigner: account2,
-                        assignedTime: updatedTime3,
+                        assignedTime: new TaskFilterableTime({
+                            absoluteTime: new Date(time4[0]),
+                            setterTimeZone: defaultTimeZone,
+                        }),
                     },
                     assigneeStatus: {type: "Inactive"},
                 },
@@ -1207,52 +1218,57 @@ const taskActionTestCases: Array<{
     },
     {
         name: "updating assignee resets assignee status even if assignee doesn't change",
-        create: ({creator, createdTime, account2, getNextFilterableTime}) => {
-            const updatedTime1 = getNextFilterableTime();
-            const updatedTime2 = getNextFilterableTime();
-            const updatedTime3 = getNextFilterableTime();
+        create: ({creator, account2, getNextTime}): TaskActionTestArtifacts => {
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+            const time4 = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "Create",
+                        time: time1,
                         creator,
-                        createdTime,
+                        creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdateAssignee",
-                        assigneeAction: {
-                            value: {
-                                assignee: account2,
-                                assigner: creator,
-                                assignedTime: updatedTime1,
-                            },
-                            updatedTime: updatedTime1.absoluteTime,
+                        time: time2,
+                        assignee: {
+                            assignee: account2,
+                            assigner: creator,
+                            assignedTime: new TaskFilterableTime({
+                                absoluteTime: new Date(time2[0]),
+                                setterTimeZone: defaultTimeZone,
+                            }),
                         },
                     },
                     {
                         type: "UpdateAssigneeStatus",
-                        assigneeStatusAction: {
-                            value: {
-                                type: "Active",
-                                position: {
-                                    orderTime: updatedTime2.absoluteTime,
-                                    orderKey: initialOrderKey,
-                                },
-                                activatedTime: updatedTime2,
+                        time: time3,
+                        assigneeStatus: {
+                            type: "Active",
+                            position: {
+                                orderTime: time3,
+                                orderKey: initialOrderKey,
                             },
-                            updatedTime: updatedTime2.absoluteTime,
+                            activatedTime: new TaskFilterableTime({
+                                absoluteTime: new Date(time3[0]),
+                                setterTimeZone: defaultTimeZone,
+                            }),
                         },
                     },
                     {
                         type: "UpdateAssignee",
-                        assigneeAction: {
-                            value: {
-                                assignee: account2,
-                                assigner: creator,
-                                assignedTime: updatedTime3,
-                            },
-                            updatedTime: updatedTime3.absoluteTime,
+                        time: time4,
+                        assignee: {
+                            assignee: account2,
+                            assigner: creator,
+                            assignedTime: new TaskFilterableTime({
+                                absoluteTime: new Date(time4[0]),
+                                setterTimeZone: defaultTimeZone,
+                            }),
                         },
                     },
                 ],
@@ -1260,7 +1276,10 @@ const taskActionTestCases: Array<{
                     assignee: {
                         assignee: account2,
                         assigner: creator,
-                        assignedTime: updatedTime3,
+                        assignedTime: new TaskFilterableTime({
+                            absoluteTime: new Date(time4[0]),
+                            setterTimeZone: defaultTimeZone,
+                        }),
                     },
                     assigneeStatus: {type: "Inactive"},
                 },
@@ -1269,22 +1288,17 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update due date",
-        create: ({creator, createdTime, getNextTime}) => {
-            const updatedTime1 = getNextTime();
-
+        create: ({creator}): TaskActionTestArtifacts => {
             return {
                 actions: [
                     {
                         type: "Create",
                         creator,
-                        createdTime,
+                        creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdateDueDate",
-                        dueDateAction: {
-                            value: new CalendarDate(2023, 7, 12),
-                            updatedTime: updatedTime1,
-                        },
+                        dueDate: new CalendarDate(2023, 7, 12),
                     },
                 ],
                 task: {
@@ -1295,30 +1309,21 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update due date twice",
-        create: ({creator, createdTime, getNextTime}) => {
-            const updatedTime1 = getNextTime();
-            const updatedTime2 = getNextTime();
-
+        create: ({creator}): TaskActionTestArtifacts => {
             return {
                 actions: [
                     {
                         type: "Create",
                         creator,
-                        createdTime,
+                        creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdateDueDate",
-                        dueDateAction: {
-                            value: new CalendarDate(2023, 7, 12),
-                            updatedTime: updatedTime1,
-                        },
+                        dueDate: new CalendarDate(2023, 7, 12),
                     },
                     {
                         type: "UpdateDueDate",
-                        dueDateAction: {
-                            value: null,
-                            updatedTime: updatedTime2,
-                        },
+                        dueDate: null,
                     },
                 ],
                 task: {
@@ -1329,22 +1334,17 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update priority",
-        create: ({creator, createdTime, getNextTime}) => {
-            const updatedTime1 = getNextTime();
-
+        create: ({creator}): TaskActionTestArtifacts => {
             return {
                 actions: [
                     {
                         type: "Create",
                         creator,
-                        createdTime,
+                        creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdatePriority",
-                        priorityAction: {
-                            value: "High",
-                            updatedTime: updatedTime1,
-                        },
+                        priority: "High",
                     },
                 ],
                 task: {
@@ -1355,30 +1355,21 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update priority twice",
-        create: ({creator, createdTime, getNextTime}) => {
-            const updatedTime1 = getNextTime();
-            const updatedTime2 = getNextTime();
-
+        create: ({creator}): TaskActionTestArtifacts => {
             return {
                 actions: [
                     {
                         type: "Create",
                         creator,
-                        createdTime,
+                        creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdatePriority",
-                        priorityAction: {
-                            value: "High",
-                            updatedTime: updatedTime1,
-                        },
+                        priority: "High",
                     },
                     {
                         type: "UpdatePriority",
-                        priorityAction: {
-                            value: null,
-                            updatedTime: updatedTime2,
-                        },
+                        priority: null,
                     },
                 ],
                 task: {
@@ -1389,12 +1380,12 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update task title (1x)",
-        create: ({creator, createdTime}) => ({
+        create: ({creator}): TaskActionTestArtifacts => ({
             actions: [
                 {
                     type: "Create",
                     creator,
-                    createdTime,
+                    creatorTimeZone: defaultTimeZone,
                 },
                 {
                     type: "UpdateTitle",
@@ -1408,12 +1399,12 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update task title (2x)",
-        create: ({creator, createdTime}) => ({
+        create: ({creator}): TaskActionTestArtifacts => ({
             actions: [
                 {
                     type: "Create",
                     creator,
-                    createdTime,
+                    creatorTimeZone: defaultTimeZone,
                 },
                 {
                     type: "UpdateTitle",
@@ -1431,12 +1422,12 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update task title (4x)",
-        create: ({creator, createdTime}) => ({
+        create: ({creator}): TaskActionTestArtifacts => ({
             actions: [
                 {
                     type: "Create",
                     creator,
-                    createdTime,
+                    creatorTimeZone: defaultTimeZone,
                 },
                 {
                     type: "UpdateTitle",
@@ -1503,6 +1494,7 @@ const taskSpaceActionTestCases: Array<{
 
                 const actions: Array<TaskSpaceAction> = testCaseArtifacts.actions.map(action => ({
                     type: "UpdateTask",
+                    time: action.time ?? scenario.getNextTime(),
                     taskId,
                     taskAction: action,
                 }));
@@ -1523,15 +1515,18 @@ const taskSpaceActionTestCases: Array<{
     }),
     {
         name: "add task to notepad page",
-        create: ({creator, createdTime, getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({creator, getNextTime}): TaskSpaceActionTestArtifacts => {
             const taskId = generateId<TaskId>();
             const notepadPageId = generateTaskNotepadPageId();
-            const updatedTime1 = getNextTime();
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "UpdateTaskNotepadPage",
+                        time: time1,
                         accountId: creator.accountId,
                         notepadPageId,
                         notepadPageAction: {
@@ -1540,22 +1535,23 @@ const taskSpaceActionTestCases: Array<{
                     },
                     {
                         type: "UpdateTask",
+                        time: time2,
                         taskId,
                         taskAction: {
                             type: "Create",
                             creator,
-                            createdTime,
+                            creatorTimeZone: defaultTimeZone,
                         },
                     },
                     {
                         type: "UpdateTaskNotepadPage",
+                        time: time3,
                         accountId: creator.accountId,
                         notepadPageId,
                         notepadPageAction: {
                             type: "AddTask",
                             taskId,
-                            position: {orderTime: updatedTime1, orderKey: initialOrderKey},
-                            updatedTime: updatedTime1,
+                            position: {orderTime: time3, orderKey: initialOrderKey},
                         },
                     },
                 ],
@@ -1566,7 +1562,7 @@ const taskSpaceActionTestCases: Array<{
                             notepadPagePositions: new Map([
                                 [
                                     `${creator.accountId}-${notepadPageId}` as const,
-                                    {orderTime: updatedTime1, orderKey: initialOrderKey},
+                                    {orderTime: time3, orderKey: initialOrderKey},
                                 ],
                             ]),
                         },
@@ -1577,16 +1573,19 @@ const taskSpaceActionTestCases: Array<{
     },
     {
         name: "add then remove task from notepad page",
-        create: ({creator, createdTime, getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({creator, getNextTime}): TaskSpaceActionTestArtifacts => {
             const taskId = generateId<TaskId>();
             const notepadPageId = generateTaskNotepadPageId();
-            const updatedTime1 = getNextTime();
-            const updatedTime2 = getNextTime();
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+            const time4 = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "UpdateTaskNotepadPage",
+                        time: time1,
                         accountId: creator.accountId,
                         notepadPageId,
                         notepadPageAction: {
@@ -1595,32 +1594,33 @@ const taskSpaceActionTestCases: Array<{
                     },
                     {
                         type: "UpdateTask",
+                        time: time2,
                         taskId,
                         taskAction: {
                             type: "Create",
                             creator,
-                            createdTime,
+                            creatorTimeZone: defaultTimeZone,
                         },
                     },
                     {
                         type: "UpdateTaskNotepadPage",
+                        time: time3,
                         accountId: creator.accountId,
                         notepadPageId,
                         notepadPageAction: {
                             type: "AddTask",
                             taskId,
-                            position: {orderTime: updatedTime1, orderKey: initialOrderKey},
-                            updatedTime: updatedTime1,
+                            position: {orderTime: time3, orderKey: initialOrderKey},
                         },
                     },
                     {
                         type: "UpdateTaskNotepadPage",
+                        time: time4,
                         accountId: creator.accountId,
                         notepadPageId,
                         notepadPageAction: {
                             type: "RemoveTask",
                             taskId,
-                            updatedTime: updatedTime2,
                         },
                     },
                 ],
@@ -1635,16 +1635,19 @@ const taskSpaceActionTestCases: Array<{
     },
     {
         name: "remove then add task from notepad page",
-        create: ({creator, createdTime, getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({creator, getNextTime}): TaskSpaceActionTestArtifacts => {
             const taskId = generateId<TaskId>();
             const notepadPageId = generateTaskNotepadPageId();
-            const updatedTime1 = getNextTime();
-            const updatedTime2 = getNextTime();
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+            const time4 = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "UpdateTaskNotepadPage",
+                        time: time1,
                         accountId: creator.accountId,
                         notepadPageId,
                         notepadPageAction: {
@@ -1653,32 +1656,33 @@ const taskSpaceActionTestCases: Array<{
                     },
                     {
                         type: "UpdateTask",
+                        time: time2,
                         taskId,
                         taskAction: {
                             type: "Create",
                             creator,
-                            createdTime,
+                            creatorTimeZone: defaultTimeZone,
                         },
                     },
                     {
                         type: "UpdateTaskNotepadPage",
+                        time: time3,
                         accountId: creator.accountId,
                         notepadPageId,
                         notepadPageAction: {
                             type: "RemoveTask",
                             taskId,
-                            updatedTime: updatedTime1,
                         },
                     },
                     {
                         type: "UpdateTaskNotepadPage",
+                        time: time4,
                         accountId: creator.accountId,
                         notepadPageId,
                         notepadPageAction: {
                             type: "AddTask",
                             taskId,
-                            position: {orderTime: updatedTime2, orderKey: initialOrderKey},
-                            updatedTime: updatedTime2,
+                            position: {orderTime: time4, orderKey: initialOrderKey},
                         },
                     },
                 ],
@@ -1689,7 +1693,7 @@ const taskSpaceActionTestCases: Array<{
                             notepadPagePositions: new Map([
                                 [
                                     `${creator.accountId}-${notepadPageId}` as const,
-                                    {orderTime: updatedTime2, orderKey: initialOrderKey},
+                                    {orderTime: time4, orderKey: initialOrderKey},
                                 ],
                             ]),
                         },
@@ -1700,15 +1704,15 @@ const taskSpaceActionTestCases: Array<{
     },
     {
         name: "only remove task from notepad page",
-        create: ({creator, createdTime, getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({creator, getNextTime}): TaskSpaceActionTestArtifacts => {
             const taskId = generateId<TaskId>();
             const notepadPageId = generateTaskNotepadPageId();
-            const updatedTime1 = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "UpdateTaskNotepadPage",
+                        time: getNextTime(),
                         accountId: creator.accountId,
                         notepadPageId,
                         notepadPageAction: {
@@ -1717,21 +1721,22 @@ const taskSpaceActionTestCases: Array<{
                     },
                     {
                         type: "UpdateTask",
+                        time: getNextTime(),
                         taskId,
                         taskAction: {
                             type: "Create",
                             creator,
-                            createdTime,
+                            creatorTimeZone: defaultTimeZone,
                         },
                     },
                     {
                         type: "UpdateTaskNotepadPage",
+                        time: getNextTime(),
                         accountId: creator.accountId,
                         notepadPageId,
                         notepadPageAction: {
                             type: "RemoveTask",
                             taskId,
-                            updatedTime: updatedTime1,
                         },
                     },
                 ],
@@ -1746,16 +1751,19 @@ const taskSpaceActionTestCases: Array<{
     },
     {
         name: "change task position in notepad page",
-        create: ({creator, createdTime, getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({creator, getNextTime}): TaskSpaceActionTestArtifacts => {
             const taskId = generateId<TaskId>();
             const notepadPageId = generateTaskNotepadPageId();
-            const updatedTime1 = getNextTime();
-            const updatedTime2 = getNextTime();
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+            const time4 = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "UpdateTaskNotepadPage",
+                        time: time1,
                         accountId: creator.accountId,
                         notepadPageId,
                         notepadPageAction: {
@@ -1764,33 +1772,34 @@ const taskSpaceActionTestCases: Array<{
                     },
                     {
                         type: "UpdateTask",
+                        time: time2,
                         taskId,
                         taskAction: {
                             type: "Create",
                             creator,
-                            createdTime,
+                            creatorTimeZone: defaultTimeZone,
                         },
                     },
                     {
                         type: "UpdateTaskNotepadPage",
+                        time: time3,
                         accountId: creator.accountId,
                         notepadPageId,
                         notepadPageAction: {
                             type: "AddTask",
                             taskId,
-                            position: {orderTime: updatedTime1, orderKey: initialOrderKey},
-                            updatedTime: updatedTime1,
+                            position: {orderTime: time3, orderKey: initialOrderKey},
                         },
                     },
                     {
                         type: "UpdateTaskNotepadPage",
+                        time: time4,
                         accountId: creator.accountId,
                         notepadPageId,
                         notepadPageAction: {
                             type: "AddTask",
                             taskId,
-                            position: {orderTime: updatedTime1, orderKey: assertOrderKey("a42")},
-                            updatedTime: updatedTime2,
+                            position: {orderTime: time3, orderKey: assertOrderKey("a42")},
                         },
                     },
                 ],
@@ -1801,7 +1810,7 @@ const taskSpaceActionTestCases: Array<{
                             notepadPagePositions: new Map([
                                 [
                                     `${creator.accountId}-${notepadPageId}` as const,
-                                    {orderTime: updatedTime1, orderKey: assertOrderKey("a42")},
+                                    {orderTime: time3, orderKey: assertOrderKey("a42")},
                                 ],
                             ]),
                         },
@@ -1814,26 +1823,24 @@ const taskSpaceActionTestCases: Array<{
         name: "delete collection",
         create: ({getNextTime}): TaskSpaceActionTestArtifacts => {
             const collectionId = generateId<TaskCollectionId>();
-            const createdTime = getNextTime();
-            const deletedTime = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "UpdateTaskCollection",
+                        time: getNextTime(),
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            createdTime,
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
                     },
                     {
                         type: "UpdateTaskCollection",
+                        time: getNextTime(),
                         collectionId,
                         collectionAction: {
                             type: "Delete",
-                            deletedTime,
                         },
                     },
                 ],
@@ -1852,35 +1859,32 @@ const taskSpaceActionTestCases: Array<{
         name: "undelete collection",
         create: ({getNextTime}): TaskSpaceActionTestArtifacts => {
             const collectionId = generateId<TaskCollectionId>();
-            const createdTime = getNextTime();
-            const deletedTime = getNextTime();
-            const undeletedTime = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "UpdateTaskCollection",
+                        time: getNextTime(),
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            createdTime,
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
                     },
                     {
                         type: "UpdateTaskCollection",
+                        time: getNextTime(),
                         collectionId,
                         collectionAction: {
                             type: "Delete",
-                            deletedTime,
                         },
                     },
                     {
                         type: "UpdateTaskCollection",
+                        time: getNextTime(),
                         collectionId,
                         collectionAction: {
                             type: "Undelete",
-                            undeletedTime,
                         },
                     },
                 ],
@@ -1899,38 +1903,33 @@ const taskSpaceActionTestCases: Array<{
         name: "update name before delete collection",
         create: ({getNextTime}): TaskSpaceActionTestArtifacts => {
             const collectionId = generateId<TaskCollectionId>();
-            const createdTime = getNextTime();
-            const updatedTime = getNextTime();
-            const deletedTime = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "UpdateTaskCollection",
+                        time: getNextTime(),
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            createdTime,
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
                     },
                     {
                         type: "UpdateTaskCollection",
+                        time: getNextTime(),
                         collectionId,
                         collectionAction: {
                             type: "UpdateName",
-                            nameAction: {
-                                value: "New Collection Name",
-                                updatedTime,
-                            },
+                            name: "New Collection Name",
                         },
                     },
                     {
                         type: "UpdateTaskCollection",
+                        time: getNextTime(),
                         collectionId,
                         collectionAction: {
                             type: "Delete",
-                            deletedTime,
                         },
                     },
                 ],
@@ -1950,38 +1949,33 @@ const taskSpaceActionTestCases: Array<{
         name: "update name after delete collection",
         create: ({getNextTime}): TaskSpaceActionTestArtifacts => {
             const collectionId = generateId<TaskCollectionId>();
-            const createdTime = getNextTime();
-            const deletedTime = getNextTime();
-            const updatedTime = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "UpdateTaskCollection",
+                        time: getNextTime(),
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            createdTime,
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
                     },
                     {
                         type: "UpdateTaskCollection",
+                        time: getNextTime(),
                         collectionId,
                         collectionAction: {
                             type: "Delete",
-                            deletedTime,
                         },
                     },
                     {
                         type: "UpdateTaskCollection",
+                        time: getNextTime(),
                         collectionId,
                         collectionAction: {
                             type: "UpdateName",
-                            nameAction: {
-                                value: "New Collection Name",
-                                updatedTime,
-                            },
+                            name: "New Collection Name",
                         },
                     },
                 ],
@@ -2001,44 +1995,40 @@ const taskSpaceActionTestCases: Array<{
         name: "delete collection, undelete collection, delete collection",
         create: ({getNextTime}): TaskSpaceActionTestArtifacts => {
             const collectionId = generateId<TaskCollectionId>();
-            const createdTime = getNextTime();
-            const deletedTime1 = getNextTime();
-            const undeletedTime = getNextTime();
-            const deletedTime2 = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "UpdateTaskCollection",
+                        time: getNextTime(),
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            createdTime,
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
                     },
                     {
                         type: "UpdateTaskCollection",
+                        time: getNextTime(),
                         collectionId,
                         collectionAction: {
                             type: "Delete",
-                            deletedTime: deletedTime1,
                         },
                     },
                     {
                         type: "UpdateTaskCollection",
+                        time: getNextTime(),
                         collectionId,
                         collectionAction: {
                             type: "Undelete",
-                            undeletedTime,
                         },
                     },
                     {
                         type: "UpdateTaskCollection",
+                        time: getNextTime(),
                         collectionId,
                         collectionAction: {
                             type: "Delete",
-                            deletedTime: deletedTime2,
                         },
                     },
                 ],
@@ -2057,26 +2047,24 @@ const taskSpaceActionTestCases: Array<{
         name: "undelete collection without delete collection",
         create: ({getNextTime}): TaskSpaceActionTestArtifacts => {
             const collectionId = generateId<TaskCollectionId>();
-            const createdTime = getNextTime();
-            const undeletedTime = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "UpdateTaskCollection",
+                        time: getNextTime(),
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            createdTime,
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
                     },
                     {
                         type: "UpdateTaskCollection",
+                        time: getNextTime(),
                         collectionId,
                         collectionAction: {
                             type: "Undelete",
-                            undeletedTime,
                         },
                     },
                 ],
@@ -2102,27 +2090,27 @@ const taskSpaceActionTestCases: Array<{
                 actions: [
                     {
                         type: "UpdateTaskCollection",
+                        time: createdTime,
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            createdTime,
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
                     },
                     {
                         type: "UpdateTaskCollection",
+                        time: deletedTime,
                         collectionId,
                         collectionAction: {
                             type: "Delete",
-                            deletedTime,
                         },
                     },
                     {
                         type: "UpdateTaskCollection",
+                        time: deletedTime,
                         collectionId,
                         collectionAction: {
                             type: "Undelete",
-                            undeletedTime: deletedTime,
                         },
                     },
                 ],
@@ -2141,35 +2129,32 @@ const taskSpaceActionTestCases: Array<{
         name: "undelete collection before delete collection",
         create: ({getNextTime}): TaskSpaceActionTestArtifacts => {
             const collectionId = generateId<TaskCollectionId>();
-            const createdTime = getNextTime();
-            const undeletedTime = getNextTime();
-            const deletedTime = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "UpdateTaskCollection",
+                        time: getNextTime(),
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            createdTime,
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
                     },
                     {
                         type: "UpdateTaskCollection",
+                        time: getNextTime(),
                         collectionId,
                         collectionAction: {
                             type: "Undelete",
-                            undeletedTime,
                         },
                     },
                     {
                         type: "UpdateTaskCollection",
+                        time: getNextTime(),
                         collectionId,
                         collectionAction: {
                             type: "Delete",
-                            deletedTime,
                         },
                     },
                 ],
@@ -2186,52 +2171,53 @@ const taskSpaceActionTestCases: Array<{
     },
     {
         name: "move task in collection",
-        create: ({creator, createdTime, getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({creator, getNextTime}): TaskSpaceActionTestArtifacts => {
             const taskId = generateId<TaskId>();
             const collectionId = generateId<TaskCollectionId>();
-            const updatedTime1 = getNextTime();
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+            const time4 = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "UpdateTaskCollection",
+                        time: time1,
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            createdTime: createdTime.absoluteTime,
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
                     },
                     {
                         type: "UpdateTask",
+                        time: time2,
                         taskId,
                         taskAction: {
                             type: "Create",
                             creator,
-                            createdTime,
+                            creatorTimeZone: defaultTimeZone,
                         },
                     },
                     {
                         type: "UpdateTask",
+                        time: time3,
                         taskId,
                         taskAction: {
-                            type: "UpdateCollections",
-                            collectionsAction: {
-                                type: "Set",
-                                key: collectionId,
-                                value: initialOrderKey,
-                                updatedTime: updatedTime1,
-                            },
+                            type: "AddCollection",
+                            collectionId: collectionId,
+                            orderKey: initialOrderKey,
                         },
                     },
                     {
                         type: "UpdateTaskCollection",
+                        time: time4,
                         collectionId,
                         collectionAction: {
                             type: "UpdateTaskPosition",
                             taskId,
-                            position: {orderTime: updatedTime1, orderKey: assertOrderKey("a42")},
-                            updatedTime: getNextTime(),
+                            position: {orderTime: time3, orderKey: assertOrderKey("a42")},
                         },
                     },
                 ],
@@ -2244,15 +2230,12 @@ const taskSpaceActionTestCases: Array<{
                                     collectionId,
                                     {
                                         value: initialOrderKey,
-                                        updatedTime: updatedTime1.toISOString(),
+                                        version: String(serializeHybridLogicalTime(time3)),
                                     },
                                 ],
                             ]),
                             collectionPositions: new Map([
-                                [
-                                    collectionId,
-                                    {orderTime: updatedTime1, orderKey: assertOrderKey("a42")},
-                                ],
+                                [collectionId, {orderTime: time3, orderKey: assertOrderKey("a42")}],
                             ]),
                         },
                     },
@@ -2262,62 +2245,63 @@ const taskSpaceActionTestCases: Array<{
     },
     {
         name: "move task in collection twice",
-        create: ({creator, createdTime, getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({creator, getNextTime}): TaskSpaceActionTestArtifacts => {
             const taskId = generateId<TaskId>();
             const collectionId = generateId<TaskCollectionId>();
-            const updatedTime1 = getNextTime();
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+            const time4 = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "UpdateTaskCollection",
+                        time: time1,
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            createdTime: createdTime.absoluteTime,
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
                     },
                     {
                         type: "UpdateTask",
+                        time: time2,
                         taskId,
                         taskAction: {
                             type: "Create",
                             creator,
-                            createdTime,
+                            creatorTimeZone: defaultTimeZone,
                         },
                     },
                     {
                         type: "UpdateTask",
+                        time: time3,
                         taskId,
                         taskAction: {
-                            type: "UpdateCollections",
-                            collectionsAction: {
-                                type: "Set",
-                                key: collectionId,
-                                value: initialOrderKey,
-                                updatedTime: updatedTime1,
-                            },
+                            type: "AddCollection",
+                            collectionId: collectionId,
+                            orderKey: initialOrderKey,
                         },
                     },
                     {
                         type: "UpdateTaskCollection",
+                        time: time4,
                         collectionId,
                         collectionAction: {
                             type: "UpdateTaskPosition",
                             taskId,
-                            position: {orderTime: updatedTime1, orderKey: assertOrderKey("a42")},
-                            updatedTime: getNextTime(),
+                            position: {orderTime: time3, orderKey: assertOrderKey("a42")},
                         },
                     },
                     {
                         type: "UpdateTaskCollection",
+                        time: time4,
                         collectionId,
                         collectionAction: {
                             type: "UpdateTaskPosition",
                             taskId,
-                            position: {orderTime: updatedTime1, orderKey: assertOrderKey("a43")},
-                            updatedTime: getNextTime(),
+                            position: {orderTime: time3, orderKey: assertOrderKey("a43")},
                         },
                     },
                 ],
@@ -2330,15 +2314,12 @@ const taskSpaceActionTestCases: Array<{
                                     collectionId,
                                     {
                                         value: initialOrderKey,
-                                        updatedTime: updatedTime1.toISOString(),
+                                        version: String(serializeHybridLogicalTime(time3)),
                                     },
                                 ],
                             ]),
                             collectionPositions: new Map([
-                                [
-                                    collectionId,
-                                    {orderTime: updatedTime1, orderKey: assertOrderKey("a43")},
-                                ],
+                                [collectionId, {orderTime: time3, orderKey: assertOrderKey("a43")}],
                             ]),
                         },
                     },
@@ -2348,64 +2329,63 @@ const taskSpaceActionTestCases: Array<{
     },
     {
         name: "move then remove task in collection",
-        create: ({creator, createdTime, getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({creator, getNextTime}): TaskSpaceActionTestArtifacts => {
             const taskId = generateId<TaskId>();
             const collectionId = generateId<TaskCollectionId>();
-            const updatedTime1 = getNextTime();
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+            const time4 = getNextTime();
+            const time5 = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "UpdateTaskCollection",
+                        time: time1,
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            createdTime: createdTime.absoluteTime,
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
                     },
                     {
                         type: "UpdateTask",
+                        time: time2,
                         taskId,
                         taskAction: {
                             type: "Create",
                             creator,
-                            createdTime,
+                            creatorTimeZone: defaultTimeZone,
                         },
                     },
                     {
                         type: "UpdateTask",
+                        time: time3,
                         taskId,
                         taskAction: {
-                            type: "UpdateCollections",
-                            collectionsAction: {
-                                type: "Set",
-                                key: collectionId,
-                                value: initialOrderKey,
-                                updatedTime: updatedTime1,
-                            },
+                            type: "AddCollection",
+                            collectionId,
+                            orderKey: initialOrderKey,
                         },
                     },
                     {
                         type: "UpdateTaskCollection",
+                        time: time4,
                         collectionId,
                         collectionAction: {
                             type: "UpdateTaskPosition",
                             taskId,
-                            position: {orderTime: updatedTime1, orderKey: assertOrderKey("a42")},
-                            updatedTime: getNextTime(),
+                            position: {orderTime: time3, orderKey: assertOrderKey("a42")},
                         },
                     },
                     {
                         type: "UpdateTask",
+                        time: time5,
                         taskId,
                         taskAction: {
-                            type: "UpdateCollections",
-                            collectionsAction: {
-                                type: "Delete",
-                                key: collectionId,
-                                deletedTime: getNextTime(),
-                            },
+                            type: "RemoveCollection",
+                            collectionId,
                         },
                     },
                 ],
@@ -2420,80 +2400,74 @@ const taskSpaceActionTestCases: Array<{
     },
     {
         name: "collection task position preserved after removing",
-        create: ({creator, createdTime, getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({creator, getNextTime}): TaskSpaceActionTestArtifacts => {
             const taskId = generateId<TaskId>();
             const collectionId = generateId<TaskCollectionId>();
-            const updatedTime1 = getNextTime();
-            const updatedTime2 = getNextTime();
-            const updatedTime3 = getNextTime();
-            const updatedTime4 = getNextTime();
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+            const time4 = getNextTime();
+            const time5 = getNextTime();
+            const time6 = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "UpdateTaskCollection",
+                        time: time1,
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            createdTime: createdTime.absoluteTime,
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
                     },
                     {
                         type: "UpdateTask",
+                        time: time2,
                         taskId,
                         taskAction: {
                             type: "Create",
                             creator,
-                            createdTime,
+                            creatorTimeZone: defaultTimeZone,
                         },
                     },
                     {
                         type: "UpdateTask",
+                        time: time3,
                         taskId,
                         taskAction: {
-                            type: "UpdateCollections",
-                            collectionsAction: {
-                                type: "Set",
-                                key: collectionId,
-                                value: initialOrderKey,
-                                updatedTime: updatedTime1,
-                            },
+                            type: "AddCollection",
+                            collectionId,
+                            orderKey: initialOrderKey,
                         },
                     },
                     {
                         type: "UpdateTaskCollection",
+                        time: time4,
                         collectionId,
                         collectionAction: {
                             type: "UpdateTaskPosition",
                             taskId,
-                            position: {orderTime: updatedTime1, orderKey: assertOrderKey("a42")},
-                            updatedTime: updatedTime2,
+                            position: {orderTime: time4, orderKey: assertOrderKey("a42")},
                         },
                     },
                     {
                         type: "UpdateTask",
+                        time: time5,
                         taskId,
                         taskAction: {
-                            type: "UpdateCollections",
-                            collectionsAction: {
-                                type: "Delete",
-                                key: collectionId,
-                                deletedTime: updatedTime3,
-                            },
+                            type: "RemoveCollection",
+                            collectionId: collectionId,
                         },
                     },
                     {
                         type: "UpdateTask",
+                        time: time6,
                         taskId,
                         taskAction: {
-                            type: "UpdateCollections",
-                            collectionsAction: {
-                                type: "Set",
-                                key: collectionId,
-                                value: assertOrderKey("a2"),
-                                updatedTime: updatedTime4,
-                            },
+                            type: "AddCollection",
+                            collectionId,
+                            orderKey: assertOrderKey("a2"),
                         },
                     },
                 ],
@@ -2506,15 +2480,12 @@ const taskSpaceActionTestCases: Array<{
                                     collectionId,
                                     {
                                         value: assertOrderKey("a2"),
-                                        updatedTime: updatedTime4.toISOString(),
+                                        version: String(serializeHybridLogicalTime(time6)),
                                     },
                                 ],
                             ]),
                             collectionPositions: new Map([
-                                [
-                                    collectionId,
-                                    {orderTime: updatedTime1, orderKey: assertOrderKey("a42")},
-                                ],
+                                [collectionId, {orderTime: time4, orderKey: assertOrderKey("a42")}],
                             ]),
                         },
                     },
@@ -2524,53 +2495,53 @@ const taskSpaceActionTestCases: Array<{
     },
     {
         name: "move task before adding to collection",
-        create: ({creator, createdTime, getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({creator, getNextTime}): TaskSpaceActionTestArtifacts => {
             const taskId = generateId<TaskId>();
             const collectionId = generateId<TaskCollectionId>();
-            const updatedTime1 = getNextTime();
-            const updatedTime2 = getNextTime();
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+            const time4 = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "UpdateTaskCollection",
+                        time: time1,
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            createdTime: createdTime.absoluteTime,
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
                     },
                     {
                         type: "UpdateTask",
+                        time: time2,
                         taskId,
                         taskAction: {
                             type: "Create",
                             creator,
-                            createdTime,
+                            creatorTimeZone: defaultTimeZone,
                         },
                     },
                     {
                         type: "UpdateTaskCollection",
+                        time: time3,
                         collectionId,
                         collectionAction: {
                             type: "UpdateTaskPosition",
                             taskId,
-                            position: {orderTime: updatedTime2, orderKey: assertOrderKey("a42")},
-                            updatedTime: updatedTime1,
+                            position: {orderTime: time3, orderKey: assertOrderKey("a42")},
                         },
                     },
                     {
                         type: "UpdateTask",
+                        time: time4,
                         taskId,
                         taskAction: {
-                            type: "UpdateCollections",
-                            collectionsAction: {
-                                type: "Set",
-                                key: collectionId,
-                                value: initialOrderKey,
-                                updatedTime: updatedTime2,
-                            },
+                            type: "AddCollection",
+                            collectionId,
+                            orderKey: initialOrderKey,
                         },
                     },
                 ],
@@ -2583,15 +2554,12 @@ const taskSpaceActionTestCases: Array<{
                                     collectionId,
                                     {
                                         value: initialOrderKey,
-                                        updatedTime: updatedTime2.toISOString(),
+                                        version: String(serializeHybridLogicalTime(time4)),
                                     },
                                 ],
                             ]),
                             collectionPositions: new Map([
-                                [
-                                    collectionId,
-                                    {orderTime: updatedTime2, orderKey: assertOrderKey("a42")},
-                                ],
+                                [collectionId, {orderTime: time3, orderKey: assertOrderKey("a42")}],
                             ]),
                         },
                     },
@@ -2603,29 +2571,25 @@ const taskSpaceActionTestCases: Array<{
         name: "update task collection name",
         create: ({getNextTime}): TaskSpaceActionTestArtifacts => {
             const collectionId = generateId<TaskCollectionId>();
-            const createdTime = getNextTime();
-            const updatedTime1 = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "UpdateTaskCollection",
+                        time: getNextTime(),
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            createdTime,
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
                     },
                     {
                         type: "UpdateTaskCollection",
+                        time: getNextTime(),
                         collectionId,
                         collectionAction: {
                             type: "UpdateName",
-                            nameAction: {
-                                value: "New Collection Name",
-                                updatedTime: updatedTime1,
-                            },
+                            name: "New Collection Name",
                         },
                     },
                 ],
@@ -2644,41 +2608,34 @@ const taskSpaceActionTestCases: Array<{
         name: "update task collection name twice",
         create: ({getNextTime}): TaskSpaceActionTestArtifacts => {
             const collectionId = generateId<TaskCollectionId>();
-            const createdTime = getNextTime();
-            const updatedTime1 = getNextTime();
-            const updatedTime2 = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "UpdateTaskCollection",
+                        time: getNextTime(),
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            createdTime,
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
                     },
                     {
                         type: "UpdateTaskCollection",
+                        time: getNextTime(),
                         collectionId,
                         collectionAction: {
                             type: "UpdateName",
-                            nameAction: {
-                                value: "New Collection Name 1",
-                                updatedTime: updatedTime1,
-                            },
+                            name: "New Collection Name 1",
                         },
                     },
                     {
                         type: "UpdateTaskCollection",
+                        time: getNextTime(),
                         collectionId,
                         collectionAction: {
                             type: "UpdateName",
-                            nameAction: {
-                                value: "New Collection Name 2",
-                                updatedTime: updatedTime2,
-                            },
+                            name: "New Collection Name 2",
                         },
                     },
                 ],
@@ -2697,31 +2654,27 @@ const taskSpaceActionTestCases: Array<{
         name: "update task collection access policy",
         create: ({getNextTime}): TaskSpaceActionTestArtifacts => {
             const collectionId = generateId<TaskCollectionId>();
-            const createdTime = getNextTime();
-            const updatedTime1 = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "UpdateTaskCollection",
+                        time: getNextTime(),
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            createdTime,
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
                     },
                     {
                         type: "UpdateTaskCollection",
+                        time: getNextTime(),
                         collectionId,
                         collectionAction: {
                             type: "UpdateAccessPolicy",
-                            accessPolicyAction: {
-                                value: {
-                                    accountGrantById: new Map(),
-                                    defaultGrant: {type: "Space", level: "View"},
-                                },
-                                updatedTime: updatedTime1,
+                            accessPolicy: {
+                                accountGrantById: new Map(),
+                                defaultGrant: {type: "Space", level: "View"},
                             },
                         },
                     },
@@ -2744,46 +2697,39 @@ const taskSpaceActionTestCases: Array<{
         name: "update task collection access policy twice",
         create: ({getNextTime}): TaskSpaceActionTestArtifacts => {
             const collectionId = generateId<TaskCollectionId>();
-            const createdTime = getNextTime();
-            const updatedTime1 = getNextTime();
-            const updatedTime2 = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "UpdateTaskCollection",
+                        time: getNextTime(),
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            createdTime,
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
                     },
                     {
                         type: "UpdateTaskCollection",
+                        time: getNextTime(),
                         collectionId,
                         collectionAction: {
                             type: "UpdateAccessPolicy",
-                            accessPolicyAction: {
-                                value: {
-                                    accountGrantById: new Map(),
-                                    defaultGrant: {type: "Space", level: "View"},
-                                },
-                                updatedTime: updatedTime1,
+                            accessPolicy: {
+                                accountGrantById: new Map(),
+                                defaultGrant: {type: "Space", level: "View"},
                             },
                         },
                     },
                     {
                         type: "UpdateTaskCollection",
+                        time: getNextTime(),
                         collectionId,
                         collectionAction: {
                             type: "UpdateAccessPolicy",
-                            accessPolicyAction: {
-                                value: {
-                                    accountGrantById: new Map(),
-                                    defaultGrant: {type: "Space", level: "Edit"},
-                                },
-                                updatedTime: updatedTime2,
+                            accessPolicy: {
+                                accountGrantById: new Map(),
+                                defaultGrant: {type: "Space", level: "Edit"},
                             },
                         },
                     },
@@ -2863,19 +2809,17 @@ export function testTaskSpaceActionPermutations({
     const tests: Array<{describeName: string; testName: string; runTest: () => Promise<void>}> = [];
 
     for (const testCase of taskSpaceActionTestCases) {
-        let lastTime = Date.now();
+        const clock = new HybridLogicalClock(unsynchronizedSystemClock);
 
         // Make sure this function returns a monotonically increasing date to
         // avoid flaky errors.
         function getNextTime() {
-            const currentTime = Math.max(Date.now(), lastTime + 1);
-            lastTime = currentTime;
-            return new Date(currentTime);
+            return clock.now();
         }
 
         function getNextFilterableTime() {
             return new TaskFilterableTime({
-                absoluteTime: getNextTime(),
+                absoluteTime: new Date(getNextTime()[0]),
                 setterTimeZone: defaultTimeZone,
             });
         }
@@ -2978,7 +2922,7 @@ export function testTaskSpaceActionPermutations({
                                             action.type === "UpdateTask" &&
                                             action.taskId === expectation.taskId &&
                                             action.taskAction.type === "Create"
-                                                ? action.taskAction
+                                                ? {time: action.time, taskAction: action.taskAction}
                                                 : null,
                                         ),
                                     );
@@ -2993,10 +2937,10 @@ export function testTaskSpaceActionPermutations({
                                                 TaskCollectionSet.empty
                                             )
                                                 .getArray()
-                                                .map(({collectionId, updatedTime}) => [
+                                                .map(({collectionId, version}) => [
                                                     collectionId,
                                                     {
-                                                        orderTime: updatedTime,
+                                                        orderTime: version,
                                                         orderKey: initialOrderKey,
                                                     },
                                                 ]),
@@ -3012,15 +2956,23 @@ export function testTaskSpaceActionPermutations({
                                         creator:
                                             expectation.task.creator ??
                                             assertExists(
-                                                createAction?.creator,
+                                                createAction?.taskAction.creator,
                                                 "Expected `Create` task action when `creator` is not provided",
                                             ),
                                         createdTime:
                                             expectation.task.createdTime ??
-                                            assertExists(
-                                                createAction?.createdTime,
-                                                "Expected `Create` task action when `createdTime` is not provided",
-                                            ),
+                                            new TaskFilterableTime({
+                                                absoluteTime: new Date(
+                                                    assertExists(
+                                                        createAction?.time,
+                                                        "Expected `Create` task action when `createdTime` is not provided",
+                                                    )[0],
+                                                ),
+                                                setterTimeZone: assertExists(
+                                                    createAction?.taskAction.creatorTimeZone,
+                                                    "Expected `Create` task action when `createdTime` is not provided",
+                                                ),
+                                            }),
                                     };
 
                                     return {
@@ -3049,7 +3001,10 @@ export function testTaskSpaceActionPermutations({
                                             action.type === "UpdateTaskCollection" &&
                                             action.collectionId === expectation.collectionId &&
                                             action.collectionAction.type === "Create"
-                                                ? action.collectionAction
+                                                ? {
+                                                      time: action.time,
+                                                      collectionAction: action.collectionAction,
+                                                  }
                                                 : null,
                                         ),
                                     );
@@ -3060,14 +3015,16 @@ export function testTaskSpaceActionPermutations({
                                         ...expectation.collection,
                                         createdTime:
                                             expectation.collection.createdTime ??
-                                            assertExists(
-                                                createAction?.createdTime,
-                                                "Expected `Create` task collection action when `createdTime` is not provided",
+                                            new Date(
+                                                assertExists(
+                                                    createAction?.time,
+                                                    "Expected `Create` task collection action when `createdTime` is not provided",
+                                                )[0],
                                             ),
                                         accessPolicy:
                                             expectation.collection.accessPolicy ??
                                             assertExists(
-                                                createAction?.accessPolicy,
+                                                createAction?.collectionAction.accessPolicy,
                                                 "Expected `Create` task collection action when `accessPolicy` is not provided",
                                             ),
                                     };
@@ -3187,7 +3144,7 @@ export function testTaskSpaceActionPermutations({
 
                         if (!result.ok) {
                             // eslint-disable-next-line no-console
-                            console.error(result.error);
+                            console.error((result.error as Error).stack);
                         }
                     }),
                 );

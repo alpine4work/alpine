@@ -1,17 +1,22 @@
-import {compareAsc} from "date-fns";
 import jsonStableStringify from "json-stable-stringify";
+import {
+    HybridLogicalClock,
+    HybridLogicalTime,
+    compareHybridLogicalTimes,
+} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 export type CrdtRegisterClass<Value> = {
-    new (value: Value, updatedTime: Date): CrdtRegister<Value>;
+    new (value: Value, version: HybridLogicalTime): CrdtRegister<Value>;
     readonly schema: Schema<CrdtRegister<Value>>;
     readonly actionSchema: Schema<CrdtRegisterAction<Value>>;
 };
 
 export interface CrdtRegister<Value> {
     readonly value: Value;
-    readonly updatedTime: Date;
+    readonly version: HybridLogicalTime;
 
     /**
      * Merges two registers and picks a winner. This method is commutative and
@@ -27,7 +32,7 @@ export interface CrdtRegister<Value> {
      * Creates an action you can apply with `apply()` that updates this
      * register's value.
      */
-    set(value: Value): CrdtRegisterAction<Value>;
+    set(clock: HybridLogicalClock, value: Value): CrdtRegisterAction<Value>;
 
     /**
      * Apply a register action. This method is commutative and idempotent.
@@ -41,7 +46,7 @@ export interface CrdtRegister<Value> {
  */
 export type CrdtRegisterAction<Value> = {
     readonly value: Value;
-    readonly updatedTime: Date;
+    readonly version: HybridLogicalTime;
 };
 
 type CrdtRegisterInterface<Value> = CrdtRegister<Value>;
@@ -50,15 +55,16 @@ type CrdtRegisterInterface<Value> = CrdtRegister<Value>;
  * Creates a simple register [CRDT][1] class.
  *
  * Registers implement last-write-wins semantics. The write with the highest
- * `updatedTime` is always the latest value.
+ * `time` (which is a `HybridLogicalTime`) is always the latest value.
  *
- * We recommend validating that `updatedTime` isn't too far in the future when
- * you receive a `CrdtRegister` update. That way an attacker can't set a crazy
- * `updatedTime`.
+ * We recommend validating that `time` isn't too far in the future when you
+ * receive a `CrdtRegister` update. That way an attacker can't set a
+ * crazy time.
  *
  * We could use a Lamport timestamp which is a tuple of `(counter, clientId)`
- * instead of `updatedTime` (similar to what's described in “[A Conflict-Free
- * Replicated JSON Datatype][2]”). We chose `updatedTime` because:
+ * instead of `HybridLogicalTime` (similar to what's described in
+ * “[A Conflict-Free Replicated JSON Datatype][2]”). We chose
+ * `HybridLogicalTime` because:
  *
  * 1. It carries some potentially useful semantic meaning (the time the
  *    register was updated).
@@ -70,34 +76,34 @@ type CrdtRegisterInterface<Value> = CrdtRegister<Value>;
 export function createCrdtRegister<Value>(valueSchema: Schema<Value>): CrdtRegisterClass<Value> {
     return class CrdtRegister implements CrdtRegisterInterface<Value> {
         public readonly value: Value;
-        public readonly updatedTime: Date;
+        public readonly version: HybridLogicalTime;
 
-        constructor(value: Value, updatedTime: Date) {
+        constructor(value: Value, version: HybridLogicalTime) {
             this.value = value;
-            this.updatedTime = updatedTime;
+            this.version = version;
         }
 
         public static readonly schema: Schema<CrdtRegister> = Schema.object({
             value: valueSchema as Schema<any>,
-            updatedTime: Schema.date,
+            version: HybridLogicalTimeSchema,
         }).transform<CrdtRegister>({
             serialize: register => register,
-            deserialize: register => new CrdtRegister(register.value, register.updatedTime),
+            deserialize: register => new CrdtRegister(register.value, register.version),
         });
 
         public static readonly actionSchema: Schema<CrdtRegisterAction<Value>> = Schema.object({
             value: valueSchema as Schema<any>,
-            updatedTime: Schema.date,
+            version: HybridLogicalTimeSchema,
         });
 
         public merge(other: CrdtRegister): CrdtRegister {
-            const comparison = compareAsc(this.updatedTime, other.updatedTime);
+            const comparison = compareHybridLogicalTimes(this.version, other.version);
             if (comparison > 0) return this;
             if (comparison < 0) return other;
 
-            // Getting an `updatedTime` conflict should be rare. In this case, fallback
+            // Getting a `version` conflict should be rare. In this case, fallback
             // to the values' structural order. All that matters is the decision is
-            // consistent, since `updatedTime` conflict should be rare we don't really care
+            // consistent, since `version` conflict should be rare we don't really care
             // about which value wins. Only that the same value wins every time.
             const fallbackComparison = defaultCompareStrings(
                 jsonStableStringify(valueSchema.serialize(this.value)),
@@ -108,16 +114,12 @@ export function createCrdtRegister<Value>(valueSchema: Schema<Value>): CrdtRegis
             return this;
         }
 
-        public set(value: Value): CrdtRegisterAction<Value> {
-            // TODO(calebmer): Maybe we should use the same NTP synchronized time we use
-            // for our tracer to deal with client clock offsets?
-            const updatedTime = new Date(Math.max(Date.now(), this.updatedTime.getTime() + 1));
-
-            return {value, updatedTime};
+        public set(clock: HybridLogicalClock, value: Value): CrdtRegisterAction<Value> {
+            return {value, version: clock.tick(this.version)};
         }
 
         public apply(action: CrdtRegisterAction<Value>): CrdtRegister {
-            return this.merge(new CrdtRegister(action.value, action.updatedTime));
+            return this.merge(new CrdtRegister(action.value, action.version));
         }
     };
 }

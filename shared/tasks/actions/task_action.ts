@@ -1,15 +1,15 @@
 import {CalendarDate, parseDate} from "@internationalized/date";
 import {createCrdtRegister} from "~/shared/crdt/crdt_register.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
+import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {TaskAssigneeRegister} from "~/shared/tasks/task_assignee.js";
-import {TaskAssigneeStatusRegister} from "~/shared/tasks/task_assignee_status.js";
-import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
-import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
-import {TaskPositionRegister} from "~/shared/tasks/task_position.js";
-import {TaskPriorityRegister} from "~/shared/tasks/task_priority.js";
+import {TaskAssigneeSchema} from "~/shared/tasks/task_assignee.js";
+import {TaskAssigneeStatusSchema} from "~/shared/tasks/task_assignee_status.js";
+import {TaskPositionSchema} from "~/shared/tasks/task_position.js";
+import {TaskPrioritySchema} from "~/shared/tasks/task_priority.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
-import {TaskStatusRegister} from "~/shared/tasks/task_status.js";
+import {TaskStatusSchema} from "~/shared/tasks/task_status.js";
 import {TaskTitleUpdateSchema} from "~/shared/tasks/task_title.js";
 
 export type TaskAction = SchemaType<typeof TaskActionSchema>;
@@ -30,7 +30,7 @@ export type TaskCreateAction = SchemaType<typeof TaskCreateActionSchema>;
 const TaskCreateActionSchema = Schema.object({
     type: Schema.value("Create"),
     creator: TaskSortableAccount.schema,
-    createdTime: TaskFilterableTime.schema,
+    creatorTimeZone: TimeZoneSchema,
 });
 
 /**
@@ -43,7 +43,6 @@ export type TaskDeleteAction = SchemaType<typeof TaskDeleteActionSchema>;
 
 const TaskDeleteActionSchema = Schema.object({
     type: Schema.value("Delete"),
-    deletedTime: Schema.date,
 });
 
 /**
@@ -59,7 +58,6 @@ export type TaskUndeleteAction = SchemaType<typeof TaskDeleteActionSchema>;
 
 const TaskUndeleteActionSchema = Schema.object({
     type: Schema.value("Undelete"),
-    undeletedTime: Schema.date,
 });
 
 export const TaskParentTaskIdRegister = createCrdtRegister(Schema.id<TaskId>().nullable());
@@ -88,7 +86,7 @@ export type TaskUpdateParentTaskIdAction = SchemaType<typeof TaskUpdateParentTas
 
 const TaskUpdateParentTaskIdActionSchema = Schema.object({
     type: Schema.value("UpdateParentTaskId"),
-    parentTaskIdAction: TaskParentTaskIdRegister.actionSchema,
+    parentTaskId: Schema.id<TaskId>().nullable(),
 });
 
 /**
@@ -103,20 +101,35 @@ export type TaskUpdateParentPositionAction = SchemaType<
 
 const TaskUpdateParentPositionActionSchema = Schema.object({
     type: Schema.value("UpdateParentPosition"),
-    parentPositionAction: TaskPositionRegister.actionSchema,
+    parentPosition: TaskPositionSchema,
 });
 
 /**
- * Update the collections associated with this task.
+ * Add a collection to this task. Or move the collection to a new position by
+ * changing the `orderKey`.
  *
  * Will be rejected by the server if you don't have edit access to the relevant
  * collection being modified.
  */
-export type TaskUpdateCollectionsAction = SchemaType<typeof TaskUpdateCollectionsActionSchema>;
+export type TaskAddCollectionAction = SchemaType<typeof TaskAddCollectionActionSchema>;
 
-const TaskUpdateCollectionsActionSchema = Schema.object({
-    type: Schema.value("UpdateCollections"),
-    collectionsAction: TaskCollectionSet.actionSchema,
+const TaskAddCollectionActionSchema = Schema.object({
+    type: Schema.value("AddCollection"),
+    collectionId: Schema.id<TaskCollectionId>(),
+    orderKey: OrderKeySchema,
+});
+
+/**
+ * Remove a collection from this task.
+ *
+ * Will be rejected by the server if you don't have edit access to the relevant
+ * collection being modified.
+ */
+export type TaskRemoveCollectionAction = SchemaType<typeof TaskRemoveCollectionActionSchema>;
+
+const TaskRemoveCollectionActionSchema = Schema.object({
+    type: Schema.value("RemoveCollection"),
+    collectionId: Schema.id<TaskCollectionId>(),
 });
 
 /**
@@ -144,7 +157,7 @@ export type TaskUpdateStatusAction = SchemaType<typeof TaskUpdateStatusActionSch
 
 const TaskUpdateStatusActionSchema = Schema.object({
     type: Schema.value("UpdateStatus"),
-    statusAction: TaskStatusRegister.actionSchema,
+    status: TaskStatusSchema,
 });
 
 /**
@@ -176,7 +189,7 @@ export type TaskUpdateAssigneeAction = SchemaType<typeof TaskUpdateAssigneeActio
 
 const TaskUpdateAssigneeActionSchema = Schema.object({
     type: Schema.value("UpdateAssignee"),
-    assigneeAction: TaskAssigneeRegister.actionSchema,
+    assignee: TaskAssigneeSchema.nullable(),
 });
 
 /**
@@ -192,7 +205,7 @@ export type TaskUpdateAssigneeStatusAction = SchemaType<
 
 const TaskUpdateAssigneeStatusActionSchema = Schema.object({
     type: Schema.value("UpdateAssigneeStatus"),
-    assigneeStatusAction: TaskAssigneeStatusRegister.actionSchema,
+    assigneeStatus: TaskAssigneeStatusSchema,
 });
 
 /**
@@ -223,7 +236,7 @@ export type TaskUpdateDueDateAction = SchemaType<typeof TaskUpdateDueDateActionS
 
 const TaskUpdateDueDateActionSchema = Schema.object({
     type: Schema.value("UpdateDueDate"),
-    dueDateAction: TaskDueDateRegister.actionSchema,
+    dueDate: CalendarDateSchema.nullable(),
 });
 
 /**
@@ -233,7 +246,7 @@ export type TaskUpdatePriorityAction = SchemaType<typeof TaskUpdatePriorityActio
 
 const TaskUpdatePriorityActionSchema = Schema.object({
     type: Schema.value("UpdatePriority"),
-    priorityAction: TaskPriorityRegister.actionSchema,
+    priority: TaskPrioritySchema.nullable(),
 });
 
 export const TaskActionSchema = Schema.union({
@@ -242,7 +255,8 @@ export const TaskActionSchema = Schema.union({
     Undelete: TaskUndeleteActionSchema,
     UpdateParentTaskId: TaskUpdateParentTaskIdActionSchema,
     UpdateParentPosition: TaskUpdateParentPositionActionSchema,
-    UpdateCollections: TaskUpdateCollectionsActionSchema,
+    AddCollection: TaskAddCollectionActionSchema,
+    RemoveCollection: TaskRemoveCollectionActionSchema,
     UpdateStatus: TaskUpdateStatusActionSchema,
     UpdateAssignee: TaskUpdateAssigneeActionSchema,
     UpdateAssigneeStatus: TaskUpdateAssigneeStatusActionSchema,

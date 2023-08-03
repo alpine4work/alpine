@@ -31,7 +31,6 @@ const TaskNotepadPageAddTaskActionSchema = Schema.object({
     type: Schema.value("AddTask"),
     taskId: Schema.id<TaskId>(),
     position: TaskPositionSchema,
-    updatedTime: Schema.date,
 });
 
 /**
@@ -46,7 +45,6 @@ export type TaskNotepadPageRemoveTaskAction = SchemaType<
 const TaskNotepadPageRemoveTaskActionSchema = Schema.object({
     type: Schema.value("RemoveTask"),
     taskId: Schema.id<TaskId>(),
-    updatedTime: Schema.date,
 });
 
 export const TaskNotepadPageActionSchema = Schema.union({

@@ -37,7 +37,7 @@ import {
     LabelStringSchema,
     maxLabelString,
     minLabelString,
-} from "~/shared/schema/label_string_schema.js";
+} from "~/shared/schema/helpers/label_string_schema.js";
 
 /**
  * An attribute of a DynamoDB key is an ASCII string excluding the `#`

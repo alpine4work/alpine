@@ -1,7 +1,7 @@
 import {CalendarDate, parseAbsolute, toCalendarDate} from "@internationalized/date";
 import {TimeZone} from "~/shared/helpers/date/time_zone.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {TimeZoneSchema} from "~/shared/schema/time_zone_schema.js";
+import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 
 /**
  * Time zones are fun. We represent filterable times in our task system with

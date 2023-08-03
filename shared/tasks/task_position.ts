@@ -1,5 +1,6 @@
 import {createCrdtRegister} from "~/shared/crdt/crdt_register.js";
-import {OrderKeySchema} from "~/shared/schema/order_key_schema.js";
+import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
+import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
@@ -23,7 +24,7 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
 export type TaskPosition = SchemaType<typeof TaskPositionSchema>;
 
 export const TaskPositionSchema = Schema.object({
-    orderTime: Schema.date,
+    orderTime: HybridLogicalTimeSchema,
     orderKey: OrderKeySchema,
 });
 

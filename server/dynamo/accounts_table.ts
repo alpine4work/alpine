@@ -35,7 +35,7 @@ import {
     SessionId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
-import {LabelStringSchema} from "~/shared/schema/label_string_schema.js";
+import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 const AccountsTable = DynamoTableSchema.new({

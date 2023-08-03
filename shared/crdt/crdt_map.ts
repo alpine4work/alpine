@@ -1,6 +1,11 @@
 import {CrdtRegister, createCrdtRegister} from "~/shared/crdt/crdt_register.js";
+import {
+    HybridLogicalClock,
+    HybridLogicalTime,
+} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
+import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 export type CrdtMapClass<Key extends string | number, Value extends {}> = {
@@ -43,10 +48,10 @@ export interface CrdtMap<Key extends string | number, Value extends {}> {
     entries(): IterableIterator<[Key, Value]>;
 
     /**
-     * Returns a new iterator of all the entires in the map with the `updatedTime`
+     * Returns a new iterator of all the entires in the map with the `version`
      * of their registers.
      */
-    entriesWithUpdatedTime(): IterableIterator<[Key, {value: Value; updatedTime: Date}]>;
+    entriesWithVersion(): IterableIterator<[Key, {value: Value; version: HybridLogicalTime}]>;
 
     /**
      * Returns a new iterator of all the entries in the map.
@@ -65,13 +70,13 @@ export interface CrdtMap<Key extends string | number, Value extends {}> {
      * Creates an action that sets a key in our map to the provided value. You can
      * apply the action with `apply()`.
      */
-    set(key: Key, value: Value): CrdtMapAction<Key, Value>;
+    set(clock: HybridLogicalClock, key: Key, value: Value): CrdtMapAction<Key, Value>;
 
     /**
      * Creates an action that removes a key from our map. You can apply the action
      * with `apply()`.
      */
-    delete(key: Key): CrdtMapAction<Key, Value>;
+    delete(clock: HybridLogicalClock, key: Key): CrdtMapAction<Key, Value>;
 
     /**
      * Applies an action to our map. This method is commutative and idempotent.
@@ -88,12 +93,12 @@ export type CrdtMapAction<Key extends string | number, Value extends {}> =
           readonly type: "Set";
           readonly key: Key;
           readonly value: Value;
-          readonly updatedTime: Date;
+          readonly version: HybridLogicalTime;
       }
     | {
           readonly type: "Delete";
           readonly key: Key;
-          readonly deletedTime: Date;
+          readonly version: HybridLogicalTime;
       };
 
 type CrdtMapInterface<Key extends string | number, Value extends {}> = CrdtMap<Key, Value>;
@@ -135,12 +140,12 @@ export function createCrdtMap<Key extends string | number, Value extends {}>(
                 type: Schema.value("Set"),
                 key: keySchema as Schema<any>,
                 value: valueSchema as Schema<any>,
-                updatedTime: Schema.date,
+                version: HybridLogicalTimeSchema,
             }),
             Delete: Schema.object({
                 type: Schema.value("Delete"),
                 key: keySchema as Schema<any>,
-                deletedTime: Schema.date,
+                version: HybridLogicalTimeSchema,
             }),
         });
 
@@ -176,12 +181,12 @@ export function createCrdtMap<Key extends string | number, Value extends {}>(
             }
         }
 
-        public *entriesWithUpdatedTime(): IterableIterator<
-            [Key, {value: Value; updatedTime: Date}]
+        public *entriesWithVersion(): IterableIterator<
+            [Key, {value: Value; version: HybridLogicalTime}]
         > {
-            for (const [key, {value, updatedTime}] of this._map.entries()) {
+            for (const [key, {value, version}] of this._map.entries()) {
                 if (value !== null) {
-                    yield [key, {value, updatedTime}];
+                    yield [key, {value, version}];
                 }
             }
         }
@@ -203,34 +208,31 @@ export function createCrdtMap<Key extends string | number, Value extends {}>(
             return new CrdtMap(newMap);
         }
 
-        public set(key: Key, value: Value): CrdtMapAction<Key, Value> {
+        public set(clock: HybridLogicalClock, key: Key, value: Value): CrdtMapAction<Key, Value> {
+            const lastVersion = this._map.get(key)?.version;
+
             return {
                 type: "Set",
                 key,
                 value,
-                updatedTime: new Date(
-                    Math.max(Date.now(), this._map.get(key)?.updatedTime.getTime() ?? 0),
-                ),
+                version: lastVersion ? clock.tick(lastVersion) : clock.now(),
             };
         }
 
-        public delete(key: Key): CrdtMapAction<Key, Value> {
+        public delete(clock: HybridLogicalClock, key: Key): CrdtMapAction<Key, Value> {
+            const lastVersion = this._map.get(key)?.version;
+
             return {
                 type: "Delete",
                 key,
-                deletedTime: new Date(
-                    Math.max(Date.now(), this._map.get(key)?.updatedTime.getTime() ?? 0),
-                ),
+                version: lastVersion ? clock.tick(lastVersion) : clock.now(),
             };
         }
 
         public apply(action: CrdtMapAction<Key, Value>): CrdtMap {
             switch (action.type) {
                 case "Set": {
-                    const newValueRegister = new CrdtMapValueRegister(
-                        action.value,
-                        action.updatedTime,
-                    );
+                    const newValueRegister = new CrdtMapValueRegister(action.value, action.version);
 
                     const newMap = this._map.update(action.key, valueRegister => {
                         if (valueRegister === undefined) return newValueRegister;
@@ -243,7 +245,7 @@ export function createCrdtMap<Key extends string | number, Value extends {}>(
                     return new CrdtMap(newMap);
                 }
                 case "Delete": {
-                    const newValueRegister = new CrdtMapValueRegister(null, action.deletedTime);
+                    const newValueRegister = new CrdtMapValueRegister(null, action.version);
 
                     const newMap = this._map.update(action.key, valueRegister => {
                         if (valueRegister === undefined) return newValueRegister;

@@ -15,7 +15,12 @@ import {
     OpensearchIndexUnionObjectType,
 } from "~/server/opensearch/opensearch_index_type.js";
 import {createCrdtRegisterOpensearchType} from "~/server/tasks/index/internal/create_crdt_register_opensearch_type.js";
+import {
+    HybridLogicalTimeType,
+    SortableHybridLogicalTimeType,
+} from "~/server/tasks/index/internal/hybrid_logical_time_type.js";
 import {createCrdtMap} from "~/shared/crdt/crdt_map.js";
+import {compareHybridLogicalTimes} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {isTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {initialOrderKey, isOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {createEnumIntegerMapping} from "~/shared/helpers/string/create_enum_integer_mapping.js";
@@ -98,7 +103,7 @@ const TaskIndexFilterableTimeType = OpensearchIndexObjectType.new({
 
 const TaskIndexPositionType = OpensearchIndexObjectType.new({
     fields: {
-        orderTime: new OpensearchIndexDateType({isSortable: true}),
+        orderTime: SortableHybridLogicalTimeType,
         orderKey: new OpensearchIndexKeywordType({isSortable: true}).validate(isOrderKey),
     },
 });
@@ -165,9 +170,7 @@ const TaskIndexCollectionsType = OpensearchIndexObjectType.new({
                     isId,
                 ),
             ),
-            positionOrderTimes: new OpensearchIndexArrayType(
-                new OpensearchIndexDateType({isSortable: true}),
-            ),
+            positionOrderTimes: new OpensearchIndexArrayType(SortableHybridLogicalTimeType),
             positionOrderKeys: new OpensearchIndexArrayType(
                 new OpensearchIndexKeywordType({isSortable: true}).validate(isOrderKey),
             ),
@@ -177,8 +180,8 @@ const TaskIndexCollectionsType = OpensearchIndexObjectType.new({
             positionOrderTimes: collections
                 .getArray()
                 .map(
-                    ({collectionId, updatedTime}) =>
-                        positionById.get(collectionId)?.orderTime ?? updatedTime,
+                    ({collectionId, version}) =>
+                        positionById.get(collectionId)?.orderTime ?? version,
                 ),
             positionOrderKeys: collections
                 .getArray()
@@ -220,9 +223,7 @@ const TaskIndexNotepadPagesType = OpensearchIndexObjectType.new({
                     },
                 ),
             ),
-            positionOrderTimes: new OpensearchIndexArrayType(
-                new OpensearchIndexDateType({isSortable: true}),
-            ),
+            positionOrderTimes: new OpensearchIndexArrayType(SortableHybridLogicalTimeType),
             positionOrderKeys: new OpensearchIndexArrayType(
                 new OpensearchIndexKeywordType({isSortable: true}).validate(isOrderKey),
             ),
@@ -444,8 +445,8 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
         createdTime: TaskIndexFilterableTimeType,
         // The `isDeleted` computed property definitively tells us whether a task is
         // deleted or not.
-        rawDeletedTime: new OpensearchIndexDateType().nullable(),
-        rawUndeletedTime: new OpensearchIndexDateType().nullable(),
+        rawDeletedTime: HybridLogicalTimeType.nullable(),
+        rawUndeletedTime: HybridLogicalTimeType.nullable(),
 
         parent: TaskIndexParentType,
         // The number of tasks with `parent.taskId` set to this task. Could be
@@ -486,7 +487,9 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
         compute: task => ({
             isDeleted:
                 !!task.rawDeletedTime &&
-                (!task.rawUndeletedTime || task.rawDeletedTime > task.rawUndeletedTime),
+                (!task.rawUndeletedTime ||
+                    compareHybridLogicalTimes(task.rawDeletedTime, task.rawUndeletedTime) > 0),
+
             displayStatus:
                 task.status.value.type === "Closed"
                     ? ("Closed" as const)

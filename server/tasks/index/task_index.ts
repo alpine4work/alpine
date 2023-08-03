@@ -27,5 +27,8 @@ export const TaskIndex = new OpensearchIndex<
         {field: "status.value.type"},
         {field: "createdTime.absoluteTime"},
     ],
+    // Serving realtime task data is handled by a separate service. So we can
+    // afford to slow down our task refresh interval for improved indexing
+    // performance.
     refreshInterval: "30s",
 });

@@ -1,9 +1,13 @@
-import {max as maxDate} from "date-fns";
 import {TaskIndexDoc} from "~/server/tasks/index/task_index_doc.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
+import {
+    HybridLogicalTime,
+    maxHybridLogicalTime,
+} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {applyTaskTitleUpdate} from "~/shared/tasks/task_title.js";
 
 /**
@@ -13,13 +17,19 @@ import {applyTaskTitleUpdate} from "~/shared/tasks/task_title.js";
  */
 export function applyTaskActionToTaskIndexDoc(
     task: TaskIndexDoc,
+    actionTime: HybridLogicalTime,
     action: TaskAction,
 ): TaskIndexDoc {
     switch (action.type) {
         case "Create": {
             if (
                 !task.creator.isEqual(action.creator) ||
-                !task.createdTime.isEqual(action.createdTime)
+                !task.createdTime.isEqual(
+                    new TaskFilterableTime({
+                        absoluteTime: new Date(actionTime[0]),
+                        setterTimeZone: action.creatorTimeZone,
+                    }),
+                )
             ) {
                 throw new FailedPreconditionError("Incompatible create action");
             }
@@ -28,32 +38,30 @@ export function applyTaskActionToTaskIndexDoc(
         case "Delete": {
             const newRawDeletedTime =
                 task.rawDeletedTime !== null
-                    ? maxDate([task.rawDeletedTime, action.deletedTime])
-                    : action.deletedTime;
+                    ? maxHybridLogicalTime(task.rawDeletedTime, actionTime)
+                    : actionTime;
 
-            if (newRawDeletedTime.toISOString() === task.rawDeletedTime?.toISOString()) return task;
-
+            if (newRawDeletedTime === task.rawDeletedTime) return task;
             return {...task, rawDeletedTime: newRawDeletedTime};
         }
         case "Undelete": {
             const newRawUndeletedTime =
                 task.rawUndeletedTime !== null
-                    ? maxDate([task.rawUndeletedTime, action.undeletedTime])
-                    : action.undeletedTime;
+                    ? maxHybridLogicalTime(task.rawUndeletedTime, actionTime)
+                    : actionTime;
 
-            if (newRawUndeletedTime.toISOString() === task.rawUndeletedTime?.toISOString())
-                return task;
-
+            if (newRawUndeletedTime === task.rawUndeletedTime) return task;
             return {...task, rawUndeletedTime: newRawUndeletedTime};
         }
         case "UpdateParentTaskId": {
-            const newParentTaskId = task.parent.taskId.apply(action.parentTaskIdAction);
+            const newParentTaskId = task.parent.taskId.apply({
+                value: action.parentTaskId,
+                version: actionTime,
+            });
+
             const newParentPosition = task.parent.position.apply({
-                updatedTime: action.parentTaskIdAction.updatedTime,
-                value: {
-                    orderTime: action.parentTaskIdAction.updatedTime,
-                    orderKey: initialOrderKey,
-                },
+                value: {orderTime: actionTime, orderKey: initialOrderKey},
+                version: actionTime,
             });
 
             if (
@@ -72,7 +80,10 @@ export function applyTaskActionToTaskIndexDoc(
             };
         }
         case "UpdateParentPosition": {
-            const newParentPosition = task.parent.position.apply(action.parentPositionAction);
+            const newParentPosition = task.parent.position.apply({
+                value: action.parentPosition,
+                version: actionTime,
+            });
 
             if (newParentPosition === task.parent.position) return task;
 
@@ -84,8 +95,32 @@ export function applyTaskActionToTaskIndexDoc(
                 },
             };
         }
-        case "UpdateCollections": {
-            const newCollections = task.collections.raw.collections.apply(action.collectionsAction);
+        case "AddCollection": {
+            const newCollections = task.collections.raw.collections.apply({
+                type: "Set",
+                key: action.collectionId,
+                value: action.orderKey,
+                version: actionTime,
+            });
+
+            if (newCollections === task.collections.raw.collections) return task;
+
+            return {
+                ...task,
+                collections: {
+                    raw: {
+                        collections: newCollections,
+                        positionById: task.collections.raw.positionById,
+                    },
+                },
+            };
+        }
+        case "RemoveCollection": {
+            const newCollections = task.collections.raw.collections.apply({
+                type: "Delete",
+                key: action.collectionId,
+                version: actionTime,
+            });
 
             if (newCollections === task.collections.raw.collections) return task;
 
@@ -100,10 +135,14 @@ export function applyTaskActionToTaskIndexDoc(
             };
         }
         case "UpdateStatus": {
-            const newStatus = task.status.apply(action.statusAction);
+            const newStatus = task.status.apply({
+                value: action.status,
+                version: actionTime,
+            });
+
             const newRawAssigneeStatus = task.rawAssigneeStatus.apply({
-                updatedTime: action.statusAction.updatedTime,
                 value: {type: "Inactive"},
+                version: actionTime,
             });
 
             if (newStatus === task.status && newRawAssigneeStatus === task.rawAssigneeStatus)
@@ -116,10 +155,14 @@ export function applyTaskActionToTaskIndexDoc(
             };
         }
         case "UpdateAssignee": {
-            const newAssignee = task.assignee.apply(action.assigneeAction);
+            const newAssignee = task.assignee.apply({
+                value: action.assignee,
+                version: actionTime,
+            });
+
             const newRawAssigneeStatus = task.rawAssigneeStatus.apply({
-                updatedTime: action.assigneeAction.updatedTime,
                 value: {type: "Inactive"},
+                version: actionTime,
             });
 
             if (newAssignee === task.assignee && newRawAssigneeStatus === task.rawAssigneeStatus)
@@ -132,7 +175,10 @@ export function applyTaskActionToTaskIndexDoc(
             };
         }
         case "UpdateAssigneeStatus": {
-            const newRawAssigneeStatus = task.rawAssigneeStatus.apply(action.assigneeStatusAction);
+            const newRawAssigneeStatus = task.rawAssigneeStatus.apply({
+                value: action.assigneeStatus,
+                version: actionTime,
+            });
 
             if (newRawAssigneeStatus === task.rawAssigneeStatus) return task;
 
@@ -150,7 +196,10 @@ export function applyTaskActionToTaskIndexDoc(
             };
         }
         case "UpdateDueDate": {
-            const newDueDate = task.dueDate.apply(action.dueDateAction);
+            const newDueDate = task.dueDate.apply({
+                value: action.dueDate,
+                version: actionTime,
+            });
 
             if (newDueDate === task.dueDate) return task;
 
@@ -160,7 +209,10 @@ export function applyTaskActionToTaskIndexDoc(
             };
         }
         case "UpdatePriority": {
-            const newPriority = task.priority.apply(action.priorityAction);
+            const newPriority = task.priority.apply({
+                value: action.priority,
+                version: actionTime,
+            });
 
             if (newPriority === task.priority) return task;
 

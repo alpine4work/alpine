@@ -8,6 +8,8 @@ import {
     OpensearchIndexTypeType,
 } from "~/server/opensearch/opensearch_index_type.js";
 import {createCrdtRegisterOpensearchType} from "~/server/tasks/index/internal/create_crdt_register_opensearch_type.js";
+import {HybridLogicalTimeType} from "~/server/tasks/index/internal/hybrid_logical_time_type.js";
+import {compareHybridLogicalTimes} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -53,8 +55,8 @@ export const TaskCollectionIndexDocType = OpensearchIndexObjectType.new({
 
         // The `isDeleted` computed property definitively tells us whether a task is
         // deleted or not.
-        rawDeletedTime: new OpensearchIndexDateType().nullable(),
-        rawUndeletedTime: new OpensearchIndexDateType().nullable(),
+        rawDeletedTime: HybridLogicalTimeType.nullable(),
+        rawUndeletedTime: HybridLogicalTimeType.nullable(),
 
         name: TaskCollectionNameType,
         accessPolicy: TaskCollectionAccessPolicyType,
@@ -77,7 +79,10 @@ export const TaskCollectionIndexDocType = OpensearchIndexObjectType.new({
             isDeleted:
                 !!taskCollection.rawDeletedTime &&
                 (!taskCollection.rawUndeletedTime ||
-                    taskCollection.rawDeletedTime > taskCollection.rawUndeletedTime),
+                    compareHybridLogicalTimes(
+                        taskCollection.rawDeletedTime,
+                        taskCollection.rawUndeletedTime,
+                    ) > 0),
 
             personalAccessPolicyAccountId:
                 taskCollection.accessPolicy.value.defaultGrant === null &&

@@ -46,10 +46,10 @@ import {
 } from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, LocalTaskCollectionId, LocalTaskId} from "~/shared/id/types/id_types.js";
-import {LabelStringSchema} from "~/shared/schema/label_string_schema.js";
-import {OrderKeySchema} from "~/shared/schema/order_key_schema.js";
+import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
+import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {Schema, SchemaDeserializationError, SchemaType} from "~/shared/schema/schema.js";
-import {TimeZoneSchema} from "~/shared/schema/time_zone_schema.js";
+import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {
     TaskNotesContentWithReferences,
     TaskNotesContentWithReferencesSchema,

@@ -1,4 +1,3 @@
-import {differenceInHours} from "date-fns";
 import {
     AppActionContext,
     AppSessionActionContext,
@@ -20,6 +19,7 @@ import {
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {compareHybridLogicalTimes} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -36,6 +36,7 @@ import {
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
+import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_action.js";
 import {
@@ -141,7 +142,7 @@ const TasksTable = DynamoTableSchema.new({
                     attributes: Schema.object({
                         spaceId: Schema.id<SpaceId>(),
                         createdTime: Schema.date,
-                        deletedTime: Schema.date.nullable(),
+                        deletedTime: HybridLogicalTimeSchema.nullable(),
                         accessPolicy: TaskCollectionAccessPolicyRegister.schema,
                     }),
                 },
@@ -175,7 +176,7 @@ const TasksTable = DynamoTableSchema.new({
                          * may be undeleted. It's critical to check this property when looking at task
                          * items so you know whether it's been deleted or not.
                          */
-                        deletedTime: Schema.date.nullable(),
+                        deletedTime: HybridLogicalTimeSchema.nullable(),
 
                         /**
                          * The parent of this task.
@@ -307,7 +308,7 @@ export function commitTaskSpaceActionTransaction(
 class TaskSpaceActionTransactionCommitState {
     private readonly _context: AppSessionActionContext;
     private readonly _spaceId: SpaceId;
-    private readonly _startTime = new Date();
+    private readonly _startTime = Date.now();
 
     // We may only have one DynamoDB transaction entry for each item. So we need to
     // merge all updates we want to make on an item into a single transaction entry.
@@ -466,8 +467,8 @@ class TaskSpaceActionTransactionCommitState {
      * `EdgeService`) that's consistent with other clients instead of relying on
      * the device clock.
      */
-    public isChangeTimeReasonable(time: Date): boolean {
-        return differenceInHours(time, this._startTime, {roundingMethod: "floor"}) <= 4;
+    public isTimeReasonable(time: number): boolean {
+        return time - this._startTime < 2 * 60 * 1000;
     }
 
     public getTaskItemIfExists(taskId: TaskId): Promise<TaskEssentialAttributesItem | null> {
@@ -790,18 +791,19 @@ async function actuallyCommitTaskSpaceActionTransaction(
     };
 
     for (const action of actionTransaction) {
+        // Make sure our action time isn't too far in the future. That would mean
+        // future updates all need to use the `ticks` property of `HybridLogicalTime`
+        // and couldn't express the update time with a real time.
+        if (!state.isTimeReasonable(action.time[0])) {
+            throw new InvalidArgumentError("Action time too far in the future");
+        }
+
         switch (action.type) {
             case "UpdateTask": {
                 const {taskId, taskAction} = action;
 
                 switch (taskAction.type) {
                     case "Create": {
-                        if (!state.isChangeTimeReasonable(taskAction.createdTime.absoluteTime)) {
-                            throw new InvalidArgumentError(
-                                "Action `createdTime` is too far in the future",
-                            );
-                        }
-
                         if (taskAction.creator.accountId !== state.getActorAccountId()) {
                             throw new PermissionDeniedError(
                                 "Can only create a task with yourself as the creator",
@@ -814,12 +816,9 @@ async function actuallyCommitTaskSpaceActionTransaction(
                             taskId,
                             spaceId,
                             creatorId: taskAction.creator.accountId,
-                            createdTime: taskAction.createdTime.absoluteTime,
+                            createdTime: new Date(action.time[0]),
                             deletedTime: null,
-                            parentTaskId: new TaskParentTaskIdRegister(
-                                null,
-                                taskAction.createdTime.absoluteTime,
-                            ),
+                            parentTaskId: new TaskParentTaskIdRegister(null, action.time),
                             collections: TaskCollectionSet.empty,
                         });
                         break;
@@ -832,15 +831,9 @@ async function actuallyCommitTaskSpaceActionTransaction(
 
                         await authorizeTaskItemAccess(taskItem, "Edit");
 
-                        if (taskAction.undeletedTime <= taskItem.deletedTime) {
+                        if (compareHybridLogicalTimes(action.time, taskItem.deletedTime) <= 0) {
                             throw new FailedPreconditionError(
-                                "Action `undeletedTime` is less than task `deletedTime`",
-                            );
-                        }
-
-                        if (!state.isChangeTimeReasonable(taskAction.undeletedTime)) {
-                            throw new InvalidArgumentError(
-                                "Action `undeletedTime` is too far in the future",
+                                "Undelete action time is less than delete action time",
                             );
                         }
 
@@ -895,35 +888,24 @@ async function actuallyCommitTaskSpaceActionTransaction(
 
                         switch (taskAction.type) {
                             case "Delete": {
-                                if (taskAction.deletedTime <= taskItem.createdTime) {
+                                if (
+                                    compareHybridLogicalTimes(action.time, [
+                                        taskItem.createdTime.getTime(),
+                                        0,
+                                    ]) <= 0
+                                ) {
                                     throw new FailedPreconditionError(
-                                        "Action `deletedTime` is less than task `createdTime`",
-                                    );
-                                }
-
-                                if (!state.isChangeTimeReasonable(taskAction.deletedTime)) {
-                                    throw new InvalidArgumentError(
-                                        "Action `deletedTime` is too far in the future",
+                                        "Delete action time is less than create action time",
                                     );
                                 }
 
                                 state.updateTaskItem({
                                     ...taskItem,
-                                    deletedTime: taskAction.deletedTime,
+                                    deletedTime: action.time,
                                 });
                                 break;
                             }
                             case "UpdateParentTaskId": {
-                                if (
-                                    !state.isChangeTimeReasonable(
-                                        taskAction.parentTaskIdAction.updatedTime,
-                                    )
-                                ) {
-                                    throw new InvalidArgumentError(
-                                        "Action `updatedTime` is too far in the future",
-                                    );
-                                }
-
                                 // We want to prevent the creation of cycles even during race conditions. So we
                                 // call `updateTaskItemLockVersion()` on critical parent tasks that can't
                                 // update without us knowing about it. We call this method on:
@@ -939,10 +921,10 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                 await runAllPromiseThunks(
                                     // Authorize new parent `TaskId`:
                                     async () => {
-                                        if (taskAction.parentTaskIdAction.value === null) return;
+                                        if (taskAction.parentTaskId === null) return;
 
                                         const newParentTaskItem = await state.getTaskItemIfExists(
-                                            taskAction.parentTaskIdAction.value,
+                                            taskAction.parentTaskId,
                                         );
                                         if (!newParentTaskItem)
                                             throw new NotFoundError("Parent task not found");
@@ -1043,27 +1025,16 @@ async function actuallyCommitTaskSpaceActionTransaction(
 
                                 state.updateTaskItem({
                                     ...taskItem,
-                                    parentTaskId: taskItem.parentTaskId.apply(
-                                        taskAction.parentTaskIdAction,
-                                    ),
+                                    parentTaskId: taskItem.parentTaskId.apply({
+                                        value: taskAction.parentTaskId,
+                                        version: action.time,
+                                    }),
                                 });
                                 break;
                             }
                             case "UpdateParentPosition": {
                                 if (
-                                    !state.isChangeTimeReasonable(
-                                        taskAction.parentPositionAction.updatedTime,
-                                    )
-                                ) {
-                                    throw new InvalidArgumentError(
-                                        "Action `updatedTime` is too far in the future",
-                                    );
-                                }
-
-                                if (
-                                    !state.isChangeTimeReasonable(
-                                        taskAction.parentPositionAction.value.orderTime,
-                                    )
+                                    !state.isTimeReasonable(taskAction.parentPosition.orderTime[0])
                                 ) {
                                     throw new InvalidArgumentError(
                                         "Action `orderTime` is too far in the future",
@@ -1087,61 +1058,38 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                 await authorizeTaskItemAccess(parentTaskItem, "Edit");
                                 break;
                             }
-                            case "UpdateCollections": {
-                                const {collectionsAction} = taskAction;
-
-                                await authorizeCollectionAccess(collectionsAction.key, "Edit");
-
-                                switch (collectionsAction.type) {
-                                    case "Set": {
-                                        if (
-                                            !state.isChangeTimeReasonable(
-                                                collectionsAction.updatedTime,
-                                            )
-                                        ) {
-                                            throw new InvalidArgumentError(
-                                                "Action `updatedTime` is too far in the future",
-                                            );
-                                        }
-                                        break;
-                                    }
-                                    case "Delete": {
-                                        if (
-                                            !state.isChangeTimeReasonable(
-                                                collectionsAction.deletedTime,
-                                            )
-                                        ) {
-                                            throw new InvalidArgumentError(
-                                                "Action `deletedTime` is too far in the future",
-                                            );
-                                        }
-                                        break;
-                                    }
-                                    default:
-                                        throw exhaustive(collectionsAction);
-                                }
+                            case "AddCollection": {
+                                await authorizeCollectionAccess(taskAction.collectionId, "Edit");
 
                                 state.updateTaskItem({
                                     ...taskItem,
-                                    collections: taskItem.collections.apply(collectionsAction),
+                                    collections: taskItem.collections.apply({
+                                        type: "Set",
+                                        key: taskAction.collectionId,
+                                        value: taskAction.orderKey,
+                                        version: action.time,
+                                    }),
+                                });
+                                break;
+                            }
+                            case "RemoveCollection": {
+                                await authorizeCollectionAccess(taskAction.collectionId, "Edit");
+
+                                state.updateTaskItem({
+                                    ...taskItem,
+                                    collections: taskItem.collections.apply({
+                                        type: "Delete",
+                                        key: taskAction.collectionId,
+                                        version: action.time,
+                                    }),
                                 });
                                 break;
                             }
                             case "UpdateStatus": {
                                 if (
-                                    !state.isChangeTimeReasonable(
-                                        taskAction.statusAction.updatedTime,
-                                    )
-                                ) {
-                                    throw new InvalidArgumentError(
-                                        "Action `updatedTime` is too far in the future",
-                                    );
-                                }
-
-                                if (
-                                    taskAction.statusAction.value.type === "Closed" &&
-                                    !state.isChangeTimeReasonable(
-                                        taskAction.statusAction.value.closedTime.absoluteTime,
+                                    taskAction.status.type === "Closed" &&
+                                    !state.isTimeReasonable(
+                                        taskAction.status.closedTime.absoluteTime.getTime(),
                                     )
                                 ) {
                                     throw new InvalidArgumentError(
@@ -1150,9 +1098,8 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                 }
 
                                 if (
-                                    taskAction.statusAction.value.type === "Closed" &&
-                                    taskAction.statusAction.value.closer.accountId !==
-                                        state.getActorAccountId()
+                                    taskAction.status.type === "Closed" &&
+                                    taskAction.status.closer.accountId !== state.getActorAccountId()
                                 ) {
                                     throw new PermissionDeniedError(
                                         "Can only close a task with yourself as the closer",
@@ -1162,19 +1109,9 @@ async function actuallyCommitTaskSpaceActionTransaction(
                             }
                             case "UpdateAssignee": {
                                 if (
-                                    !state.isChangeTimeReasonable(
-                                        taskAction.assigneeAction.updatedTime,
-                                    )
-                                ) {
-                                    throw new InvalidArgumentError(
-                                        "Action `updatedTime` is too far in the future",
-                                    );
-                                }
-
-                                if (
-                                    taskAction.assigneeAction.value &&
-                                    !state.isChangeTimeReasonable(
-                                        taskAction.assigneeAction.value.assignedTime.absoluteTime,
+                                    taskAction.assignee &&
+                                    !state.isTimeReasonable(
+                                        taskAction.assignee.assignedTime.absoluteTime.getTime(),
                                     )
                                 ) {
                                     throw new InvalidArgumentError(
@@ -1183,8 +1120,8 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                 }
 
                                 if (
-                                    taskAction.assigneeAction.value &&
-                                    taskAction.assigneeAction.value.assigner.accountId !==
+                                    taskAction.assignee &&
+                                    taskAction.assignee.assigner.accountId !==
                                         state.getActorAccountId()
                                 ) {
                                     throw new PermissionDeniedError(
@@ -1193,9 +1130,9 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                 }
 
                                 if (
-                                    taskAction.assigneeAction.value &&
+                                    taskAction.assignee &&
                                     !(await state.isAccountMemberOfSpace(
-                                        taskAction.assigneeAction.value.assignee.accountId,
+                                        taskAction.assignee.assignee.accountId,
                                     ))
                                 ) {
                                     throw new FailedPreconditionError(
@@ -1206,20 +1143,9 @@ async function actuallyCommitTaskSpaceActionTransaction(
                             }
                             case "UpdateAssigneeStatus": {
                                 if (
-                                    !state.isChangeTimeReasonable(
-                                        taskAction.assigneeStatusAction.updatedTime,
-                                    )
-                                ) {
-                                    throw new InvalidArgumentError(
-                                        "Action `updatedTime` is too far in the future",
-                                    );
-                                }
-
-                                if (
-                                    taskAction.assigneeStatusAction.value.type === "Active" &&
-                                    !state.isChangeTimeReasonable(
-                                        taskAction.assigneeStatusAction.value.activatedTime
-                                            .absoluteTime,
+                                    taskAction.assigneeStatus.type === "Active" &&
+                                    !state.isTimeReasonable(
+                                        taskAction.assigneeStatus.activatedTime.absoluteTime.getTime(),
                                     )
                                 ) {
                                     throw new InvalidArgumentError(
@@ -1228,9 +1154,9 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                 }
 
                                 if (
-                                    taskAction.assigneeStatusAction.value.type === "Active" &&
-                                    !state.isChangeTimeReasonable(
-                                        taskAction.assigneeStatusAction.value.position.orderTime,
+                                    taskAction.assigneeStatus.type === "Active" &&
+                                    !state.isTimeReasonable(
+                                        taskAction.assigneeStatus.position.orderTime[0],
                                     )
                                 ) {
                                     throw new InvalidArgumentError(
@@ -1245,27 +1171,13 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                 break;
                             }
                             case "UpdateDueDate": {
-                                if (
-                                    !state.isChangeTimeReasonable(
-                                        taskAction.dueDateAction.updatedTime,
-                                    )
-                                ) {
-                                    throw new InvalidArgumentError(
-                                        "Action `updatedTime` is too far in the future",
-                                    );
-                                }
+                                // We don't store due date in essential attributes and action time
+                                // is validated above.
                                 break;
                             }
                             case "UpdatePriority": {
-                                if (
-                                    !state.isChangeTimeReasonable(
-                                        taskAction.priorityAction.updatedTime,
-                                    )
-                                ) {
-                                    throw new InvalidArgumentError(
-                                        "Action `updatedTime` is too far in the future",
-                                    );
-                                }
+                                // We don't store priority in essential attributes and action time
+                                // is validated above.
                                 break;
                             }
                             default:
@@ -1280,22 +1192,16 @@ async function actuallyCommitTaskSpaceActionTransaction(
 
                 switch (collectionAction.type) {
                     case "Create": {
-                        if (!state.isChangeTimeReasonable(collectionAction.createdTime)) {
-                            throw new InvalidArgumentError(
-                                "Action `createdTime` is too far in the future",
-                            );
-                        }
-
                         const newCollectionItem: TaskCollectionEssentialAttributesItem = {
                             partitionType: "TaskCollection",
                             sortRangeType: "EssentialAttributes",
                             collectionId,
                             spaceId,
-                            createdTime: collectionAction.createdTime,
+                            createdTime: new Date(action.time[0]),
                             deletedTime: null,
                             accessPolicy: new TaskCollectionAccessPolicyRegister(
                                 collectionAction.accessPolicy,
-                                collectionAction.createdTime,
+                                action.time,
                             ),
                         };
 
@@ -1321,15 +1227,11 @@ async function actuallyCommitTaskSpaceActionTransaction(
 
                         await authorizeCollectionAccess(collectionId, "Manage");
 
-                        if (collectionAction.undeletedTime <= collectionItem.deletedTime) {
+                        if (
+                            compareHybridLogicalTimes(action.time, collectionItem.deletedTime) <= 0
+                        ) {
                             throw new FailedPreconditionError(
-                                "Action `undeletedTime` is less than task collection `deletedTime`",
-                            );
-                        }
-
-                        if (!state.isChangeTimeReasonable(collectionAction.undeletedTime)) {
-                            throw new InvalidArgumentError(
-                                "Action `undeletedTime` is too far in the future",
+                                "Undelete action time is less than delete action time",
                             );
                         }
 
@@ -1347,15 +1249,14 @@ async function actuallyCommitTaskSpaceActionTransaction(
 
                         switch (collectionAction.type) {
                             case "Delete": {
-                                if (collectionAction.deletedTime <= collectionItem.createdTime) {
+                                if (
+                                    compareHybridLogicalTimes(action.time, [
+                                        collectionItem.createdTime.getTime(),
+                                        0,
+                                    ]) <= 0
+                                ) {
                                     throw new FailedPreconditionError(
-                                        "Action `deletedTime` is less than task collection `createdTime`",
-                                    );
-                                }
-
-                                if (!state.isChangeTimeReasonable(collectionAction.deletedTime)) {
-                                    throw new InvalidArgumentError(
-                                        "Action `deletedTime` is too far in the future",
+                                        "Delete action time is less than create action time",
                                     );
                                 }
 
@@ -1363,46 +1264,24 @@ async function actuallyCommitTaskSpaceActionTransaction(
 
                                 state.updateCollectionItem({
                                     ...collectionItem,
-                                    deletedTime: collectionAction.deletedTime,
+                                    deletedTime: action.time,
                                 });
                                 break;
                             }
                             case "UpdateName": {
-                                if (
-                                    !state.isChangeTimeReasonable(
-                                        collectionAction.nameAction.updatedTime,
-                                    )
-                                ) {
-                                    throw new InvalidArgumentError(
-                                        "Action `updatedTime` is too far in the future",
-                                    );
-                                }
-
                                 await authorizeCollectionAccess(collectionId, "Manage");
                                 break;
                             }
                             case "UpdateAccessPolicy": {
                                 if (
-                                    !state.isChangeTimeReasonable(
-                                        collectionAction.accessPolicyAction.updatedTime,
-                                    )
-                                ) {
-                                    throw new InvalidArgumentError(
-                                        "Action `updatedTime` is too far in the future",
-                                    );
-                                }
-
-                                const accessPolicy = collectionAction.accessPolicyAction.value;
-
-                                if (
                                     iterableEvery(
-                                        accessPolicy.accountGrantById.values(),
+                                        collectionAction.accessPolicy.accountGrantById.values(),
                                         grant =>
                                             !hasTaskCollectionAccessLevel(grant.level, "Manage"),
                                     ) &&
-                                    (accessPolicy.defaultGrant?.type !== "Space" ||
+                                    (collectionAction.accessPolicy.defaultGrant?.type !== "Space" ||
                                         !hasTaskCollectionAccessLevel(
-                                            accessPolicy.defaultGrant.level,
+                                            collectionAction.accessPolicy.defaultGrant.level,
                                             "Manage",
                                         ))
                                 ) {
@@ -1415,23 +1294,16 @@ async function actuallyCommitTaskSpaceActionTransaction(
 
                                 state.updateCollectionItem({
                                     ...collectionItem,
-                                    accessPolicy: collectionItem.accessPolicy.apply(
-                                        collectionAction.accessPolicyAction,
-                                    ),
+                                    accessPolicy: collectionItem.accessPolicy.apply({
+                                        value: collectionAction.accessPolicy,
+                                        version: action.time,
+                                    }),
                                 });
                                 break;
                             }
                             case "UpdateTaskPosition": {
-                                if (!state.isChangeTimeReasonable(collectionAction.updatedTime)) {
-                                    throw new InvalidArgumentError(
-                                        "Action `updatedTime` is too far in the future",
-                                    );
-                                }
-
                                 if (
-                                    !state.isChangeTimeReasonable(
-                                        collectionAction.position.orderTime,
-                                    )
+                                    !state.isTimeReasonable(collectionAction.position.orderTime[0])
                                 ) {
                                     throw new InvalidArgumentError(
                                         "Action `orderTime` is too far in the future",
@@ -1485,15 +1357,7 @@ async function actuallyCommitTaskSpaceActionTransaction(
 
                     switch (notepadPageAction.type) {
                         case "AddTask": {
-                            if (!state.isChangeTimeReasonable(notepadPageAction.updatedTime)) {
-                                throw new InvalidArgumentError(
-                                    "Action `updatedTime` is too far in the future",
-                                );
-                            }
-
-                            if (
-                                !state.isChangeTimeReasonable(notepadPageAction.position.orderTime)
-                            ) {
+                            if (!state.isTimeReasonable(notepadPageAction.position.orderTime[0])) {
                                 throw new InvalidArgumentError(
                                     "Action `orderTime` is too far in the future",
                                 );
@@ -1508,12 +1372,6 @@ async function actuallyCommitTaskSpaceActionTransaction(
                             break;
                         }
                         case "RemoveTask": {
-                            if (!state.isChangeTimeReasonable(notepadPageAction.updatedTime)) {
-                                throw new InvalidArgumentError(
-                                    "Action `updatedTime` is too far in the future",
-                                );
-                            }
-
                             const taskItem = await state.getTaskItemIfExists(
                                 notepadPageAction.taskId,
                             );

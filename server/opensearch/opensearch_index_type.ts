@@ -5,7 +5,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {JsonValue} from "~/shared/helpers/types/json_value.js";
-import {maxLabelStringLength} from "~/shared/schema/label_string_schema.js";
+import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
 import {ObjectSchema} from "~/shared/schema/schema.js";
 
 export type OpensearchIndexTypeType<Type extends OpensearchIndexTypeBase<any, any>> =
@@ -299,6 +299,38 @@ export class OpensearchIndexIntegerType extends OpensearchIndexTypeBase<number, 
     public override deserialize(value: JsonValue): number {
         assert(typeof value === "number");
         return value;
+    }
+}
+
+/**
+ * An OpenSearch [`unsigned_long` numeric field type][1]. An unsigned 64-bit
+ * integer. Minimum is 0. Maximum is 2^64 − 1.
+ *
+ * [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/numeric/
+ */
+export class OpensearchIndexUnsignedLongType extends OpensearchIndexTypeBase<bigint, never> {
+    private readonly _capabilities: OpensearchIndexTypeCapabilities;
+
+    constructor(capabilities: OpensearchIndexTypeCapabilities = {}) {
+        super();
+        this._capabilities = capabilities;
+    }
+
+    public override getConfig() {
+        return {
+            type: "unsigned_long",
+            ...getOpensearchIndexTypeCapabilitiesConfig(this._capabilities),
+        };
+    }
+
+    public override serialize(value: bigint): JsonValue {
+        assert(0n <= value && value <= 2 ** 64 - 1);
+        return value.toString();
+    }
+
+    public override deserialize(value: JsonValue): bigint {
+        assert(typeof value === "string");
+        return BigInt(value);
     }
 }
 

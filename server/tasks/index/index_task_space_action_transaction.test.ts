@@ -4,11 +4,12 @@ import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_s
 import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
 import {indexTaskSpaceActionTransactionWithoutCommitForTest} from "~/server/tasks/index/index_task_space_action_transaction.js";
 import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.js";
+import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
-import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {taskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_test_helpers.js";
 
@@ -30,22 +31,7 @@ const taskAccount1 = new TaskSortableAccount({
     workingAccountName: session1.account.name,
 });
 
-let lastTime = Date.now();
-
-// Make sure this function returns a monotonically increasing date to
-// avoid flaky errors.
-function getCurrentTime() {
-    const currentTime = Math.max(Date.now(), lastTime + 1);
-    lastTime = currentTime;
-    return new Date(currentTime);
-}
-
-function getCurrentTaskTime() {
-    return new TaskFilterableTime({
-        absoluteTime: getCurrentTime(),
-        setterTimeZone: defaultTimeZone,
-    });
-}
+const clock = new HybridLogicalClock(unsynchronizedSystemClock);
 
 test("can't update task from a different space", async () => {
     const taskId = generateId<TaskId>();
@@ -57,11 +43,12 @@ test("can't update task from a different space", async () => {
         [
             {
                 type: "UpdateTask",
+                time: clock.now(),
                 taskId,
                 taskAction: {
                     type: "Create",
                     creator: taskAccount1,
-                    createdTime: getCurrentTaskTime(),
+                    creatorTimeZone: defaultTimeZone,
                 },
             },
         ],
@@ -75,6 +62,7 @@ test("can't update task from a different space", async () => {
             [
                 {
                     type: "UpdateTask",
+                    time: clock.now(),
                     taskId,
                     taskAction: {
                         type: "UpdateTitle",
@@ -93,6 +81,7 @@ test("can't update task from a different space", async () => {
             [
                 {
                     type: "UpdateTask",
+                    time: clock.now(),
                     taskId,
                     taskAction: {
                         type: "UpdateTitle",
@@ -110,6 +99,7 @@ test("can't update task from a different space", async () => {
         [
             {
                 type: "UpdateTask",
+                time: clock.now(),
                 taskId,
                 taskAction: {
                     type: "UpdateTitle",
@@ -130,10 +120,10 @@ test("can't update collection from a different space", async () => {
         [
             {
                 type: "UpdateTaskCollection",
+                time: clock.now(),
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    createdTime: getCurrentTime(),
                     accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                 },
             },
@@ -148,13 +138,11 @@ test("can't update collection from a different space", async () => {
             [
                 {
                     type: "UpdateTaskCollection",
+                    time: clock.now(),
                     collectionId,
                     collectionAction: {
                         type: "UpdateName",
-                        nameAction: {
-                            value: "New Collection Name",
-                            updatedTime: getCurrentTime(),
-                        },
+                        name: "New Collection Name",
                     },
                 },
             ],
@@ -169,13 +157,11 @@ test("can't update collection from a different space", async () => {
             [
                 {
                     type: "UpdateTaskCollection",
+                    time: clock.now(),
                     collectionId,
                     collectionAction: {
                         type: "UpdateName",
-                        nameAction: {
-                            value: "New Collection Name",
-                            updatedTime: getCurrentTime(),
-                        },
+                        name: "New Collection Name",
                     },
                 },
             ],
@@ -189,13 +175,11 @@ test("can't update collection from a different space", async () => {
         [
             {
                 type: "UpdateTaskCollection",
+                time: clock.now(),
                 collectionId,
                 collectionAction: {
                     type: "UpdateName",
-                    nameAction: {
-                        value: "New Collection Name",
-                        updatedTime: getCurrentTime(),
-                    },
+                    name: "New Collection Name",
                 },
             },
         ],

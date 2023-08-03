@@ -33,5 +33,6 @@ export const TaskCollectionIndex = new OpensearchIndex<
         {field: "personalAccessPolicyAccountId"},
         {field: "createdTime"},
     ],
-    refreshInterval: "30s",
+    // We want to see new collections in search in near realtime.
+    refreshInterval: "1s",
 });

@@ -1,10 +1,7 @@
 import {TaskId} from "~/shared/id/types/id_types.js";
+import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
-import {
-    TaskCollectionAccessPolicyRegister,
-    TaskCollectionAccessPolicySchema,
-} from "~/shared/tasks/task_collection_access_policy.js";
+import {TaskCollectionAccessPolicySchema} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskPositionSchema} from "~/shared/tasks/task_position.js";
 
 export type TaskCollectionAction = SchemaType<typeof TaskCollectionActionSchema>;
@@ -23,7 +20,6 @@ export type TaskCollectionCreateAction = SchemaType<typeof TaskCollectionCreateA
 
 const TaskCollectionCreateActionSchema = Schema.object({
     type: Schema.value("Create"),
-    createdTime: Schema.date,
     accessPolicy: TaskCollectionAccessPolicySchema,
 });
 
@@ -38,7 +34,6 @@ export type TaskCollectionDeleteAction = SchemaType<typeof TaskCollectionDeleteA
 
 const TaskCollectionDeleteActionSchema = Schema.object({
     type: Schema.value("Delete"),
-    deletedTime: Schema.date,
 });
 
 /**
@@ -50,7 +45,6 @@ export type TaskCollectionUndeleteAction = SchemaType<typeof TaskCollectionDelet
 
 const TaskCollectionUndeleteActionSchema = Schema.object({
     type: Schema.value("Undelete"),
-    undeletedTime: Schema.date,
 });
 
 /**
@@ -67,7 +61,7 @@ export type TaskCollectionUpdateNameAction = SchemaType<typeof TaskCollectionUpd
 
 const TaskCollectionUpdateNameSchema = Schema.object({
     type: Schema.value("UpdateName"),
-    nameAction: LabelStringRegister.actionSchema,
+    name: LabelStringSchema,
 });
 
 /**
@@ -82,7 +76,7 @@ export type TaskCollectionUpdateAccessPolicyAction = SchemaType<
 
 const TaskCollectionUpdateAccessPolicyActionSchema = Schema.object({
     type: Schema.value("UpdateAccessPolicy"),
-    accessPolicyAction: TaskCollectionAccessPolicyRegister.actionSchema,
+    accessPolicy: TaskCollectionAccessPolicySchema,
 });
 
 /**
@@ -113,7 +107,6 @@ const TaskCollectionUpdateTaskPositionActionSchema = Schema.object({
     type: Schema.value("UpdateTaskPosition"),
     taskId: Schema.id<TaskId>(),
     position: TaskPositionSchema,
-    updatedTime: Schema.date,
 });
 
 export const TaskCollectionActionSchema = Schema.union({

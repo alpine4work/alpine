@@ -11,7 +11,7 @@ import {iterableSome} from "~/shared/helpers/iterable/iterable_some.js";
 import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {LocalTaskId} from "~/shared/id/types/id_types.js";
-import {OrderKeySchema} from "~/shared/schema/order_key_schema.js";
+import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskTitle, TaskTitleSchema, emptyTaskTitle} from "~/shared/tasks/task_title_schema_old.js";
 

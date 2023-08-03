@@ -6,6 +6,7 @@ import {indexTaskSpaceActionTransactionWithoutCommitForTest} from "~/server/task
 import {TaskCollectionIndex} from "~/server/tasks/index/task_collection_index.js";
 import {TaskIndex} from "~/server/tasks/index/task_index.js";
 import {NotFoundError} from "~/shared/error/error.js";
+import {compareHybridLogicalTimes} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {
@@ -63,16 +64,17 @@ testTaskSpaceActionPermutations({
             createdTime: task.createdTime,
             isDeleted:
                 !!task.rawDeletedTime &&
-                (!task.rawUndeletedTime || task.rawDeletedTime > task.rawUndeletedTime),
+                (!task.rawUndeletedTime ||
+                    compareHybridLogicalTimes(task.rawDeletedTime, task.rawUndeletedTime) > 0),
             parent: task.parent.taskId.value
                 ? {taskId: task.parent.taskId.value, position: task.parent.position.value}
                 : null,
             collections: task.collections.raw.collections,
             collectionPositions: new Map(
-                task.collections.raw.collections.getArray().map(({collectionId, updatedTime}) => [
+                task.collections.raw.collections.getArray().map(({collectionId, version}) => [
                     collectionId,
                     task.collections.raw.positionById.get(collectionId) ?? {
-                        orderTime: updatedTime,
+                        orderTime: version,
                         orderKey: initialOrderKey,
                     },
                 ]),

@@ -1,5 +1,5 @@
 import {InvalidArgumentError} from "~/shared/error/error.js";
-import {LabelStringSchema} from "~/shared/schema/label_string_schema.js";
+import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 
 test("empty strings are not valid", () => {
     expect(() => LabelStringSchema.serialize("")).toThrow(InvalidArgumentError);

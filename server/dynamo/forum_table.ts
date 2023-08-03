@@ -69,7 +69,7 @@ import {
     emptyMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
 import {MessagePayloadSchema} from "~/shared/messaging/message_model.js";
-import {LabelStringSchema} from "~/shared/schema/label_string_schema.js";
+import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 const ForumTable = DynamoTableSchema.new({

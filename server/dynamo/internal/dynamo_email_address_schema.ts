@@ -2,7 +2,7 @@ import {
     EmailAddress,
     validateEmailAddressWithoutCheckingDomainMxDnsRecords,
 } from "~/server/emails/email_address.js";
-import {LabelStringSchema} from "~/shared/schema/label_string_schema.js";
+import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {SchemaDeserializationError} from "~/shared/schema/schema.js";
 
 /**

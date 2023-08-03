@@ -1,4 +1,3 @@
-import {max as maxDate} from "date-fns";
 import {AppSystemActionContext} from "~/server/dynamo/context/app_action_context.js";
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table.js";
 import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
@@ -14,6 +13,7 @@ import {
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {maxHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
@@ -35,15 +35,11 @@ import {TaskAssigneeRegister} from "~/shared/tasks/task_assignee.js";
 import {TaskAssigneeStatusRegister} from "~/shared/tasks/task_assignee_status.js";
 import {TaskCollectionAccessPolicyRegister} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
+import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskPositionRegister} from "~/shared/tasks/task_position.js";
 import {TaskPriorityRegister} from "~/shared/tasks/task_priority.js";
 import {TaskStatusRegister} from "~/shared/tasks/task_status.js";
 import {emptyTaskTitle} from "~/shared/tasks/task_title.js";
-
-// NOCOMMIT: Register clock should probably be a vector clock. What about
-// `orderTime` tho?
-// https://www.bartoszsypytkowski.com/the-state-of-a-state-based-crdts/#incrementdecrementcounter
-// https://www.youtube.com/watch?v=BRvj8PykSc4
 
 /**
  * Takes a transaction of `TaskSpaceAction`s and indexes them in our OpenSearch
@@ -302,19 +298,20 @@ async function actuallyIndexTaskSpaceAction(
                     : await state.getTaskIndexDocIfExists(action.taskId);
 
             if (!oldTask && action.taskAction.type === "Create") {
-                const createdTime = action.taskAction.createdTime.absoluteTime;
-
                 state.putTaskIndexDoc(action.taskId, {
                     spaceId: state.spaceId,
                     creator: action.taskAction.creator,
-                    createdTime: action.taskAction.createdTime,
+                    createdTime: new TaskFilterableTime({
+                        absoluteTime: new Date(action.time[0]),
+                        setterTimeZone: action.taskAction.creatorTimeZone,
+                    }),
                     rawDeletedTime: null,
                     rawUndeletedTime: null,
                     parent: {
-                        taskId: new TaskParentTaskIdRegister(null, createdTime),
+                        taskId: new TaskParentTaskIdRegister(null, action.time),
                         position: new TaskPositionRegister(
-                            {orderTime: createdTime, orderKey: initialOrderKey},
-                            createdTime,
+                            {orderTime: action.time, orderKey: initialOrderKey},
+                            action.time,
                         ),
                     },
                     childTaskCount: 0,
@@ -330,15 +327,15 @@ async function actuallyIndexTaskSpaceAction(
                             positionById: TaskPositionByAccountIdAndNotepadPageId.empty,
                         },
                     },
-                    status: new TaskStatusRegister({type: "Open"}, createdTime),
-                    assignee: new TaskAssigneeRegister(null, createdTime),
+                    status: new TaskStatusRegister({type: "Open"}, action.time),
+                    assignee: new TaskAssigneeRegister(null, action.time),
                     rawAssigneeStatus: new TaskAssigneeStatusRegister(
                         {type: "Inactive"},
-                        createdTime,
+                        action.time,
                     ),
                     title: {raw: emptyTaskTitle.get()},
-                    dueDate: new TaskDueDateRegister(null, createdTime),
-                    priority: new TaskPriorityRegister(null, createdTime),
+                    dueDate: new TaskDueDateRegister(null, action.time),
+                    priority: new TaskPriorityRegister(null, action.time),
                 });
                 return;
             }
@@ -358,7 +355,7 @@ async function actuallyIndexTaskSpaceAction(
                 );
             }
 
-            const newTask = applyTaskActionToTaskIndexDoc(oldTask, action.taskAction);
+            const newTask = applyTaskActionToTaskIndexDoc(oldTask, action.time, action.taskAction);
 
             // NOTE(calebmer): Maintaining referential identity to avoid having to make an
             // update network request is an important optimization.
@@ -386,17 +383,15 @@ async function actuallyIndexTaskSpaceAction(
             ]);
 
             if (!oldCollection && action.collectionAction.type === "Create") {
-                const createdTime = action.collectionAction.createdTime;
-
                 state.putCollectionIndexDoc(action.collectionId, {
                     spaceId: state.spaceId,
-                    createdTime,
+                    createdTime: new Date(action.time[0]),
                     rawDeletedTime: null,
                     rawUndeletedTime: null,
-                    name: new LabelStringRegister("", createdTime),
+                    name: new LabelStringRegister("", action.time),
                     accessPolicy: new TaskCollectionAccessPolicyRegister(
                         action.collectionAction.accessPolicy,
-                        createdTime,
+                        action.time,
                     ),
                 });
                 return;
@@ -415,10 +410,7 @@ async function actuallyIndexTaskSpaceAction(
 
             switch (action.collectionAction.type) {
                 case "Create": {
-                    if (
-                        oldCollection.createdTime.toISOString() !==
-                        action.collectionAction.createdTime.toISOString()
-                    ) {
+                    if (oldCollection.createdTime.getTime() !== action.time[0]) {
                         throw new FailedPreconditionError("Incompatible create action");
                     }
                     break;
@@ -426,16 +418,10 @@ async function actuallyIndexTaskSpaceAction(
                 case "Delete": {
                     const newRawDeletedTime =
                         oldCollection.rawDeletedTime !== null
-                            ? maxDate([
-                                  oldCollection.rawDeletedTime,
-                                  action.collectionAction.deletedTime,
-                              ])
-                            : action.collectionAction.deletedTime;
+                            ? maxHybridLogicalTime(oldCollection.rawDeletedTime, action.time)
+                            : action.time;
 
-                    if (
-                        newRawDeletedTime.toISOString() !==
-                        oldCollection.rawDeletedTime?.toISOString()
-                    ) {
+                    if (newRawDeletedTime !== oldCollection.rawDeletedTime) {
                         state.putCollectionIndexDoc(action.collectionId, {
                             ...oldCollection,
                             rawDeletedTime: newRawDeletedTime,
@@ -446,16 +432,10 @@ async function actuallyIndexTaskSpaceAction(
                 case "Undelete": {
                     const newRawUndeletedTime =
                         oldCollection.rawUndeletedTime !== null
-                            ? maxDate([
-                                  oldCollection.rawUndeletedTime,
-                                  action.collectionAction.undeletedTime,
-                              ])
-                            : action.collectionAction.undeletedTime;
+                            ? maxHybridLogicalTime(oldCollection.rawUndeletedTime, action.time)
+                            : action.time;
 
-                    if (
-                        newRawUndeletedTime.toISOString() !==
-                        oldCollection.rawUndeletedTime?.toISOString()
-                    ) {
+                    if (newRawUndeletedTime !== oldCollection.rawUndeletedTime) {
                         state.putCollectionIndexDoc(action.collectionId, {
                             ...oldCollection,
                             rawUndeletedTime: newRawUndeletedTime,
@@ -464,7 +444,10 @@ async function actuallyIndexTaskSpaceAction(
                     break;
                 }
                 case "UpdateName": {
-                    const newName = oldCollection.name.apply(action.collectionAction.nameAction);
+                    const newName = oldCollection.name.apply({
+                        value: action.collectionAction.name,
+                        version: action.time,
+                    });
 
                     if (oldCollection.name !== newName) {
                         state.putCollectionIndexDoc(action.collectionId, {
@@ -475,9 +458,10 @@ async function actuallyIndexTaskSpaceAction(
                     break;
                 }
                 case "UpdateAccessPolicy": {
-                    const newAccessPolicy = oldCollection.accessPolicy.apply(
-                        action.collectionAction.accessPolicyAction,
-                    );
+                    const newAccessPolicy = oldCollection.accessPolicy.apply({
+                        value: action.collectionAction.accessPolicy,
+                        version: action.time,
+                    });
 
                     if (oldCollection.accessPolicy !== newAccessPolicy) {
                         state.putCollectionIndexDoc(action.collectionId, {
@@ -505,7 +489,7 @@ async function actuallyIndexTaskSpaceAction(
                         type: "Set",
                         key: action.collectionId,
                         value: action.collectionAction.position,
-                        updatedTime: action.collectionAction.updatedTime,
+                        version: action.time,
                     });
 
                     if (newPositionById !== oldTask.collections.raw.positionById) {
@@ -552,7 +536,7 @@ async function actuallyIndexTaskSpaceAction(
                         type: "Set",
                         key: `${action.accountId}-${action.notepadPageId}`,
                         value: action.notepadPageAction.position,
-                        updatedTime: action.notepadPageAction.updatedTime,
+                        version: action.time,
                     });
 
                     if (newPositionById !== oldTask.notepadPages.raw.positionById) {
@@ -571,7 +555,7 @@ async function actuallyIndexTaskSpaceAction(
                     const newPositionById = oldTask.notepadPages.raw.positionById.apply({
                         type: "Delete",
                         key: `${action.accountId}-${action.notepadPageId}`,
-                        deletedTime: action.notepadPageAction.updatedTime,
+                        version: action.time,
                     });
 
                     if (newPositionById !== oldTask.notepadPages.raw.positionById) {

@@ -20,6 +20,7 @@ export type SchemaSerializedScalarValueDescription =
     | {readonly type: "Boolean"}
     | {readonly type: "Float"}
     | {readonly type: "Integer"}
+    | {readonly type: "Uint64"}
     | {readonly type: "String"}
     | {readonly type: "Id"}
     | {readonly type: "Bytes"}
@@ -36,7 +37,8 @@ export type SchemaSerializedCompositeValueDescription =
     | SchemaSerializedUnionValueDescription
     | SchemaSerializedResultValueDescription
     | SchemaSerializedSetValueDescription
-    | SchemaSerializedMapValueDescription;
+    | SchemaSerializedMapValueDescription
+    | SchemaSerializedTupleValueDescription;
 
 export type SchemaSerializedNullableValueDescription = {
     readonly type: "Nullable";
@@ -83,4 +85,9 @@ export type SchemaSerializedMapValueDescription = {
     readonly type: "Map";
     readonly keySchema: SchemaSerializedValueDescription;
     readonly valueSchema: SchemaSerializedValueDescription;
+};
+
+export type SchemaSerializedTupleValueDescription = {
+    readonly type: "Tuple";
+    readonly elementSchemas: ReadonlyArray<SchemaSerializedValueDescription>;
 };

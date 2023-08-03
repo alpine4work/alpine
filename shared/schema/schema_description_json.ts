@@ -17,6 +17,7 @@ const schemaCompositeDescriptionTypes: {
     Result: true,
     Set: true,
     Map: true,
+    Tuple: true,
 };
 
 /**

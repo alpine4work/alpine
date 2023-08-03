@@ -56,6 +56,7 @@ export function checkSchemaBackwardsCompatibility(
         switch (nextSchema.type) {
             case "Boolean":
             case "Integer":
+            case "Uint64":
             case "Id":
             case "Bytes":
             case "Date": {
@@ -259,6 +260,27 @@ export function checkSchemaBackwardsCompatibility(
 
                 checkSchemaBackwardsCompatibility(lastSchema.keySchema, nextSchema.keySchema);
                 checkSchemaBackwardsCompatibility(lastSchema.valueSchema, nextSchema.valueSchema);
+                break;
+            }
+            case "Tuple": {
+                if (lastSchema.type !== "Tuple") {
+                    throw new SchemaBackwardsIncompatibleError(
+                        `\`${lastSchema.type}\` type is incompatible with \`${nextSchema.type}\` type`,
+                    );
+                }
+
+                if (lastSchema.elementSchemas.length !== nextSchema.elementSchemas.length) {
+                    throw new SchemaBackwardsIncompatibleError(
+                        `Tuple with ${lastSchema.elementSchemas.length} element(s) is incompatible with tuple with ${nextSchema.elementSchemas.length} element(s)`,
+                    );
+                }
+
+                for (let i = 0; i < lastSchema.elementSchemas.length; i++) {
+                    checkSchemaBackwardsCompatibility(
+                        lastSchema.elementSchemas[i]!,
+                        nextSchema.elementSchemas[i]!,
+                    );
+                }
                 break;
             }
             default:

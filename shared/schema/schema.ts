@@ -317,6 +317,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      * Accept any integer value.
      *
      * An integer is a JavaScript number that passes [`Number.isSafeInteger`][1].
+     * So integers between -(2^53 - 1) and 2^53 - 1.
      *
      * [1]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/isSafeInteger
      */
@@ -399,6 +400,31 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
                 throw new SchemaDeserializationError("Expected an ISO 8601 date string");
 
             return date;
+        },
+        validate: null,
+    });
+
+    /**
+     * An unsigned 64-bit integer.
+     */
+    public static uint64 = new Schema<bigint>({
+        getDescription: () => ({type: "Uint64"}),
+        serialize: value => {
+            assert(0n <= value && value <= 2n ** 64n - 1n);
+            return String(value);
+        },
+        deserialize: serializedValue => {
+            if (typeof serializedValue !== "string") {
+                throw new SchemaDeserializationError("Expected a string");
+            }
+
+            const value = BigInt(serializedValue);
+
+            if (value < 0n || 2n ** 64n - 1n < value) {
+                throw new SchemaDeserializationError("Expected an integer in the uint64 range");
+            }
+
+            return value;
         },
         validate: null,
     });
@@ -654,6 +680,46 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
         valueSchema: Schema<Value>,
     ): MapSchema<Key, Value> {
         return MapSchema._new(keySchema, valueSchema);
+    }
+
+    /**
+     * A value tuple. Represented as an array of fixed length with values of
+     * different types.
+     */
+    public static tuple<const Schemas extends ReadonlyArray<Schema<any>>>(
+        elementSchemas: Schemas,
+    ): Schema<{readonly [Key in keyof Schemas]: SchemaType<Schemas[Key]>}> {
+        const hasValidations = elementSchemas.some(schema => schema.validate !== null);
+
+        return new Schema<{readonly [Key in keyof Schemas]: SchemaType<Schemas[Key]>}>({
+            getDescription: () => ({
+                type: "Tuple",
+                elementSchemas: elementSchemas.map(schema => schema.getDescription()),
+            }),
+            serialize: value => {
+                return value.map((element, i) => elementSchemas[i]!.serialize(element));
+            },
+            deserialize: value => {
+                if (!Array.isArray(value))
+                    throw new SchemaDeserializationError("Expected an array");
+
+                if (value.length < elementSchemas.length)
+                    throw new SchemaDeserializationError(
+                        `Expected array to have a length equal to ${length}`,
+                    );
+
+                return value.map((element, i) => elementSchemas[i]!.deserialize(element)) as {
+                    readonly [Key in keyof Schemas]: SchemaType<Schemas[Key]>;
+                };
+            },
+            validate: hasValidations
+                ? value => {
+                      for (let i = 0; i < elementSchemas.length; i++) {
+                          elementSchemas[i]!.validate?.(value[i]!);
+                      }
+                  }
+                : null,
+        });
     }
 
     /**

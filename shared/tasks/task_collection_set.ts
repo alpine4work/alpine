@@ -1,8 +1,12 @@
 import {CrdtMap, CrdtMapAction, createCrdtMap} from "~/shared/crdt/crdt_map.js";
+import {
+    HybridLogicalClock,
+    HybridLogicalTime,
+} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
-import {OrderKeySchema} from "~/shared/schema/order_key_schema.js";
+import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 const TaskCollectionSetEntries = createCrdtMap(Schema.id<TaskCollectionId>(), OrderKeySchema);
@@ -27,7 +31,7 @@ export class TaskCollectionSet {
     private _array: ReadonlyArray<{
         collectionId: TaskCollectionId;
         orderKey: OrderKey;
-        updatedTime: Date;
+        version: HybridLogicalTime;
     }> | null = null;
 
     private constructor(entries: TaskCollectionSetEntries) {
@@ -52,15 +56,15 @@ export class TaskCollectionSet {
     public getArray(): ReadonlyArray<{
         collectionId: TaskCollectionId;
         orderKey: OrderKey;
-        updatedTime: Date;
+        version: HybridLogicalTime;
     }> {
         if (this._array === null) {
             const array = Array.from(
-                this._entries.entriesWithUpdatedTime(),
-                ([collectionId, {value: orderKey, updatedTime}]) => ({
+                this._entries.entriesWithVersion(),
+                ([collectionId, {value: orderKey, version}]) => ({
                     collectionId,
                     orderKey,
-                    updatedTime,
+                    version,
                 }),
             );
 
@@ -80,9 +84,13 @@ export class TaskCollectionSet {
         return this._entries.has(collectionId);
     }
 
-    public push(collectionId: TaskCollectionId): TaskCollectionSetAction {
+    public push(
+        clock: HybridLogicalClock,
+        collectionId: TaskCollectionId,
+    ): TaskCollectionSetAction {
         const array = this.getArray();
         return this._entries.set(
+            clock,
             collectionId,
             generateOrderKeyBetween(
                 array.length > 0 ? array[array.length - 1]!.orderKey : null,
@@ -91,8 +99,11 @@ export class TaskCollectionSet {
         );
     }
 
-    public delete(collectionId: TaskCollectionId): TaskCollectionSetAction {
-        return this._entries.delete(collectionId);
+    public delete(
+        clock: HybridLogicalClock,
+        collectionId: TaskCollectionId,
+    ): TaskCollectionSetAction {
+        return this._entries.delete(clock, collectionId);
     }
 
     public apply(action: TaskCollectionSetAction): TaskCollectionSet {

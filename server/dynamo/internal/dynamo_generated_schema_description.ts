@@ -3864,6 +3864,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                                 },
                                                                 "optional": false
                                                             },
+                                                            "time": {
+                                                                "valueSchema": {
+                                                                    "type": "Uint64"
+                                                                },
+                                                                "optional": false
+                                                            },
                                                             "taskId": {
                                                                 "valueSchema": {
                                                                     "type": "Id"
@@ -3906,24 +3912,9 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     },
                                                                                     "optional": false
                                                                                 },
-                                                                                "createdTime": {
+                                                                                "creatorTimeZone": {
                                                                                     "valueSchema": {
-                                                                                        "type": "Object",
-                                                                                        "propertySchemaByKey": {
-                                                                                            "absoluteTime": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Date"
-                                                                                                },
-                                                                                                "optional": false
-                                                                                            },
-                                                                                            "setterTimeZone": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "String"
-                                                                                                },
-                                                                                                "optional": false
-                                                                                            }
-                                                                                        },
-                                                                                        "referenceId": "050c4713"
+                                                                                        "type": "String"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -3938,12 +3929,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                         "value": "Delete"
                                                                                     },
                                                                                     "optional": false
-                                                                                },
-                                                                                "deletedTime": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Date"
-                                                                                    },
-                                                                                    "optional": false
                                                                                 }
                                                                             }
                                                                         },
@@ -3954,12 +3939,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     "valueSchema": {
                                                                                         "type": "Value",
                                                                                         "value": "Undelete"
-                                                                                    },
-                                                                                    "optional": false
-                                                                                },
-                                                                                "undeletedTime": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Date"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -3975,26 +3954,11 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     },
                                                                                     "optional": false
                                                                                 },
-                                                                                "parentTaskIdAction": {
+                                                                                "parentTaskId": {
                                                                                     "valueSchema": {
-                                                                                        "type": "Object",
-                                                                                        "propertySchemaByKey": {
-                                                                                            "value": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Nullable",
-                                                                                                    "schema": {
-                                                                                                        "type": "Id"
-                                                                                                    },
-                                                                                                    "referenceId": "b343e61f"
-                                                                                                },
-                                                                                                "optional": false
-                                                                                            },
-                                                                                            "updatedTime": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Date"
-                                                                                                },
-                                                                                                "optional": false
-                                                                                            }
+                                                                                        "type": "Nullable",
+                                                                                        "schema": {
+                                                                                            "type": "Id"
                                                                                         }
                                                                                     },
                                                                                     "optional": false
@@ -4011,113 +3975,66 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     },
                                                                                     "optional": false
                                                                                 },
-                                                                                "parentPositionAction": {
+                                                                                "parentPosition": {
                                                                                     "valueSchema": {
                                                                                         "type": "Object",
                                                                                         "propertySchemaByKey": {
-                                                                                            "value": {
+                                                                                            "orderTime": {
                                                                                                 "valueSchema": {
-                                                                                                    "type": "Object",
-                                                                                                    "propertySchemaByKey": {
-                                                                                                        "orderTime": {
-                                                                                                            "valueSchema": {
-                                                                                                                "type": "Date"
-                                                                                                            },
-                                                                                                            "optional": false
-                                                                                                        },
-                                                                                                        "orderKey": {
-                                                                                                            "valueSchema": {
-                                                                                                                "type": "String"
-                                                                                                            },
-                                                                                                            "optional": false
-                                                                                                        }
-                                                                                                    },
-                                                                                                    "referenceId": "ec3a2e64"
+                                                                                                    "type": "Uint64"
                                                                                                 },
                                                                                                 "optional": false
                                                                                             },
-                                                                                            "updatedTime": {
+                                                                                            "orderKey": {
                                                                                                 "valueSchema": {
-                                                                                                    "type": "Date"
+                                                                                                    "type": "String"
                                                                                                 },
                                                                                                 "optional": false
                                                                                             }
-                                                                                        }
+                                                                                        },
+                                                                                        "referenceId": "c49ee4e1"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
                                                                             }
                                                                         },
-                                                                        "UpdateCollections": {
+                                                                        "AddCollection": {
                                                                             "type": "Object",
                                                                             "propertySchemaByKey": {
                                                                                 "type": {
                                                                                     "valueSchema": {
                                                                                         "type": "Value",
-                                                                                        "value": "UpdateCollections"
+                                                                                        "value": "AddCollection"
                                                                                     },
                                                                                     "optional": false
                                                                                 },
-                                                                                "collectionsAction": {
+                                                                                "collectionId": {
                                                                                     "valueSchema": {
-                                                                                        "type": "Union",
-                                                                                        "typeKey": "type",
-                                                                                        "variantSchemaByTypeValue": {
-                                                                                            "Set": {
-                                                                                                "type": "Object",
-                                                                                                "propertySchemaByKey": {
-                                                                                                    "type": {
-                                                                                                        "valueSchema": {
-                                                                                                            "type": "Value",
-                                                                                                            "value": "Set"
-                                                                                                        },
-                                                                                                        "optional": false
-                                                                                                    },
-                                                                                                    "key": {
-                                                                                                        "valueSchema": {
-                                                                                                            "type": "Id"
-                                                                                                        },
-                                                                                                        "optional": false
-                                                                                                    },
-                                                                                                    "value": {
-                                                                                                        "valueSchema": {
-                                                                                                            "type": "String"
-                                                                                                        },
-                                                                                                        "optional": false
-                                                                                                    },
-                                                                                                    "updatedTime": {
-                                                                                                        "valueSchema": {
-                                                                                                            "type": "Date"
-                                                                                                        },
-                                                                                                        "optional": false
-                                                                                                    }
-                                                                                                }
-                                                                                            },
-                                                                                            "Delete": {
-                                                                                                "type": "Object",
-                                                                                                "propertySchemaByKey": {
-                                                                                                    "type": {
-                                                                                                        "valueSchema": {
-                                                                                                            "type": "Value",
-                                                                                                            "value": "Delete"
-                                                                                                        },
-                                                                                                        "optional": false
-                                                                                                    },
-                                                                                                    "key": {
-                                                                                                        "valueSchema": {
-                                                                                                            "type": "Id"
-                                                                                                        },
-                                                                                                        "optional": false
-                                                                                                    },
-                                                                                                    "deletedTime": {
-                                                                                                        "valueSchema": {
-                                                                                                            "type": "Date"
-                                                                                                        },
-                                                                                                        "optional": false
-                                                                                                    }
-                                                                                                }
-                                                                                            }
-                                                                                        }
+                                                                                        "type": "Id"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "orderKey": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "String"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "RemoveCollection": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "RemoveCollection"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "collectionId": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Id"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -4133,62 +4050,62 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     },
                                                                                     "optional": false
                                                                                 },
-                                                                                "statusAction": {
+                                                                                "status": {
                                                                                     "valueSchema": {
-                                                                                        "type": "Object",
-                                                                                        "propertySchemaByKey": {
-                                                                                            "value": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Union",
-                                                                                                    "typeKey": "type",
-                                                                                                    "variantSchemaByTypeValue": {
-                                                                                                        "Open": {
-                                                                                                            "type": "Object",
-                                                                                                            "propertySchemaByKey": {
-                                                                                                                "type": {
-                                                                                                                    "valueSchema": {
-                                                                                                                        "type": "Value",
-                                                                                                                        "value": "Open"
-                                                                                                                    },
-                                                                                                                    "optional": false
-                                                                                                                }
-                                                                                                            }
+                                                                                        "type": "Union",
+                                                                                        "typeKey": "type",
+                                                                                        "variantSchemaByTypeValue": {
+                                                                                            "Open": {
+                                                                                                "type": "Object",
+                                                                                                "propertySchemaByKey": {
+                                                                                                    "type": {
+                                                                                                        "valueSchema": {
+                                                                                                            "type": "Value",
+                                                                                                            "value": "Open"
                                                                                                         },
-                                                                                                        "Closed": {
+                                                                                                        "optional": false
+                                                                                                    }
+                                                                                                }
+                                                                                            },
+                                                                                            "Closed": {
+                                                                                                "type": "Object",
+                                                                                                "propertySchemaByKey": {
+                                                                                                    "type": {
+                                                                                                        "valueSchema": {
+                                                                                                            "type": "Value",
+                                                                                                            "value": "Closed"
+                                                                                                        },
+                                                                                                        "optional": false
+                                                                                                    },
+                                                                                                    "closer": {
+                                                                                                        "valueSchema": {
+                                                                                                            "type": "Reference",
+                                                                                                            "reuseReferenceId": "c42a5e6f"
+                                                                                                        },
+                                                                                                        "optional": false
+                                                                                                    },
+                                                                                                    "closedTime": {
+                                                                                                        "valueSchema": {
                                                                                                             "type": "Object",
                                                                                                             "propertySchemaByKey": {
-                                                                                                                "type": {
+                                                                                                                "absoluteTime": {
                                                                                                                     "valueSchema": {
-                                                                                                                        "type": "Value",
-                                                                                                                        "value": "Closed"
+                                                                                                                        "type": "Date"
                                                                                                                     },
                                                                                                                     "optional": false
                                                                                                                 },
-                                                                                                                "closer": {
+                                                                                                                "setterTimeZone": {
                                                                                                                     "valueSchema": {
-                                                                                                                        "type": "Reference",
-                                                                                                                        "reuseReferenceId": "c42a5e6f"
-                                                                                                                    },
-                                                                                                                    "optional": false
-                                                                                                                },
-                                                                                                                "closedTime": {
-                                                                                                                    "valueSchema": {
-                                                                                                                        "type": "Reference",
-                                                                                                                        "reuseReferenceId": "050c4713"
+                                                                                                                        "type": "String"
                                                                                                                     },
                                                                                                                     "optional": false
                                                                                                                 }
-                                                                                                            }
-                                                                                                        }
+                                                                                                            },
+                                                                                                            "referenceId": "628b1a12"
+                                                                                                        },
+                                                                                                        "optional": false
                                                                                                     }
-                                                                                                },
-                                                                                                "optional": false
-                                                                                            },
-                                                                                            "updatedTime": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Date"
-                                                                                                },
-                                                                                                "optional": false
+                                                                                                }
                                                                                             }
                                                                                         }
                                                                                     },
@@ -4206,47 +4123,33 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     },
                                                                                     "optional": false
                                                                                 },
-                                                                                "assigneeAction": {
+                                                                                "assignee": {
                                                                                     "valueSchema": {
-                                                                                        "type": "Object",
-                                                                                        "propertySchemaByKey": {
-                                                                                            "value": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Nullable",
-                                                                                                    "schema": {
-                                                                                                        "type": "Object",
-                                                                                                        "propertySchemaByKey": {
-                                                                                                            "assignee": {
-                                                                                                                "valueSchema": {
-                                                                                                                    "type": "Reference",
-                                                                                                                    "reuseReferenceId": "c42a5e6f"
-                                                                                                                },
-                                                                                                                "optional": false
-                                                                                                            },
-                                                                                                            "assigner": {
-                                                                                                                "valueSchema": {
-                                                                                                                    "type": "Reference",
-                                                                                                                    "reuseReferenceId": "c42a5e6f"
-                                                                                                                },
-                                                                                                                "optional": false
-                                                                                                            },
-                                                                                                            "assignedTime": {
-                                                                                                                "valueSchema": {
-                                                                                                                    "type": "Reference",
-                                                                                                                    "reuseReferenceId": "050c4713"
-                                                                                                                },
-                                                                                                                "optional": false
-                                                                                                            }
-                                                                                                        }
-                                                                                                    }
+                                                                                        "type": "Nullable",
+                                                                                        "schema": {
+                                                                                            "type": "Object",
+                                                                                            "propertySchemaByKey": {
+                                                                                                "assignee": {
+                                                                                                    "valueSchema": {
+                                                                                                        "type": "Reference",
+                                                                                                        "reuseReferenceId": "c42a5e6f"
+                                                                                                    },
+                                                                                                    "optional": false
                                                                                                 },
-                                                                                                "optional": false
-                                                                                            },
-                                                                                            "updatedTime": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Date"
+                                                                                                "assigner": {
+                                                                                                    "valueSchema": {
+                                                                                                        "type": "Reference",
+                                                                                                        "reuseReferenceId": "c42a5e6f"
+                                                                                                    },
+                                                                                                    "optional": false
                                                                                                 },
-                                                                                                "optional": false
+                                                                                                "assignedTime": {
+                                                                                                    "valueSchema": {
+                                                                                                        "type": "Reference",
+                                                                                                        "reuseReferenceId": "628b1a12"
+                                                                                                    },
+                                                                                                    "optional": false
+                                                                                                }
                                                                                             }
                                                                                         }
                                                                                     },
@@ -4264,62 +4167,48 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     },
                                                                                     "optional": false
                                                                                 },
-                                                                                "assigneeStatusAction": {
+                                                                                "assigneeStatus": {
                                                                                     "valueSchema": {
-                                                                                        "type": "Object",
-                                                                                        "propertySchemaByKey": {
-                                                                                            "value": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Union",
-                                                                                                    "typeKey": "type",
-                                                                                                    "variantSchemaByTypeValue": {
-                                                                                                        "Inactive": {
-                                                                                                            "type": "Object",
-                                                                                                            "propertySchemaByKey": {
-                                                                                                                "type": {
-                                                                                                                    "valueSchema": {
-                                                                                                                        "type": "Value",
-                                                                                                                        "value": "Inactive"
-                                                                                                                    },
-                                                                                                                    "optional": false
-                                                                                                                }
-                                                                                                            }
+                                                                                        "type": "Union",
+                                                                                        "typeKey": "type",
+                                                                                        "variantSchemaByTypeValue": {
+                                                                                            "Inactive": {
+                                                                                                "type": "Object",
+                                                                                                "propertySchemaByKey": {
+                                                                                                    "type": {
+                                                                                                        "valueSchema": {
+                                                                                                            "type": "Value",
+                                                                                                            "value": "Inactive"
                                                                                                         },
-                                                                                                        "Active": {
-                                                                                                            "type": "Object",
-                                                                                                            "propertySchemaByKey": {
-                                                                                                                "type": {
-                                                                                                                    "valueSchema": {
-                                                                                                                        "type": "Value",
-                                                                                                                        "value": "Active"
-                                                                                                                    },
-                                                                                                                    "optional": false
-                                                                                                                },
-                                                                                                                "position": {
-                                                                                                                    "valueSchema": {
-                                                                                                                        "type": "Reference",
-                                                                                                                        "reuseReferenceId": "ec3a2e64"
-                                                                                                                    },
-                                                                                                                    "optional": false
-                                                                                                                },
-                                                                                                                "activatedTime": {
-                                                                                                                    "valueSchema": {
-                                                                                                                        "type": "Reference",
-                                                                                                                        "reuseReferenceId": "050c4713"
-                                                                                                                    },
-                                                                                                                    "optional": false
-                                                                                                                }
-                                                                                                            }
-                                                                                                        }
+                                                                                                        "optional": false
                                                                                                     }
-                                                                                                },
-                                                                                                "optional": false
+                                                                                                }
                                                                                             },
-                                                                                            "updatedTime": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Date"
-                                                                                                },
-                                                                                                "optional": false
+                                                                                            "Active": {
+                                                                                                "type": "Object",
+                                                                                                "propertySchemaByKey": {
+                                                                                                    "type": {
+                                                                                                        "valueSchema": {
+                                                                                                            "type": "Value",
+                                                                                                            "value": "Active"
+                                                                                                        },
+                                                                                                        "optional": false
+                                                                                                    },
+                                                                                                    "position": {
+                                                                                                        "valueSchema": {
+                                                                                                            "type": "Reference",
+                                                                                                            "reuseReferenceId": "c49ee4e1"
+                                                                                                        },
+                                                                                                        "optional": false
+                                                                                                    },
+                                                                                                    "activatedTime": {
+                                                                                                        "valueSchema": {
+                                                                                                            "type": "Reference",
+                                                                                                            "reuseReferenceId": "628b1a12"
+                                                                                                        },
+                                                                                                        "optional": false
+                                                                                                    }
+                                                                                                }
                                                                                             }
                                                                                         }
                                                                                     },
@@ -4355,25 +4244,11 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     },
                                                                                     "optional": false
                                                                                 },
-                                                                                "dueDateAction": {
+                                                                                "dueDate": {
                                                                                     "valueSchema": {
-                                                                                        "type": "Object",
-                                                                                        "propertySchemaByKey": {
-                                                                                            "value": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Nullable",
-                                                                                                    "schema": {
-                                                                                                        "type": "String"
-                                                                                                    }
-                                                                                                },
-                                                                                                "optional": false
-                                                                                            },
-                                                                                            "updatedTime": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Date"
-                                                                                                },
-                                                                                                "optional": false
-                                                                                            }
+                                                                                        "type": "Nullable",
+                                                                                        "schema": {
+                                                                                            "type": "String"
                                                                                         }
                                                                                     },
                                                                                     "optional": false
@@ -4390,31 +4265,17 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     },
                                                                                     "optional": false
                                                                                 },
-                                                                                "priorityAction": {
+                                                                                "priority": {
                                                                                     "valueSchema": {
-                                                                                        "type": "Object",
-                                                                                        "propertySchemaByKey": {
-                                                                                            "value": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Nullable",
-                                                                                                    "schema": {
-                                                                                                        "type": "Enum",
-                                                                                                        "values": [
-                                                                                                            "Low",
-                                                                                                            "Medium",
-                                                                                                            "High",
-                                                                                                            "Urgent"
-                                                                                                        ]
-                                                                                                    }
-                                                                                                },
-                                                                                                "optional": false
-                                                                                            },
-                                                                                            "updatedTime": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Date"
-                                                                                                },
-                                                                                                "optional": false
-                                                                                            }
+                                                                                        "type": "Nullable",
+                                                                                        "schema": {
+                                                                                            "type": "Enum",
+                                                                                            "values": [
+                                                                                                "Low",
+                                                                                                "Medium",
+                                                                                                "High",
+                                                                                                "Urgent"
+                                                                                            ]
                                                                                         }
                                                                                     },
                                                                                     "optional": false
@@ -4434,6 +4295,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                                 "valueSchema": {
                                                                     "type": "Value",
                                                                     "value": "UpdateTaskCollection"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "time": {
+                                                                "valueSchema": {
+                                                                    "type": "Uint64"
                                                                 },
                                                                 "optional": false
                                                             },
@@ -4458,90 +4325,69 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     },
                                                                                     "optional": false
                                                                                 },
-                                                                                "createdTime": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Date"
-                                                                                    },
-                                                                                    "optional": false
-                                                                                },
                                                                                 "accessPolicy": {
                                                                                     "valueSchema": {
                                                                                         "type": "Object",
                                                                                         "propertySchemaByKey": {
-                                                                                            "value": {
+                                                                                            "accountGrantById": {
                                                                                                 "valueSchema": {
-                                                                                                    "type": "Object",
-                                                                                                    "propertySchemaByKey": {
-                                                                                                        "accountGrantById": {
-                                                                                                            "valueSchema": {
-                                                                                                                "type": "Map",
-                                                                                                                "keySchema": {
-                                                                                                                    "type": "Id"
-                                                                                                                },
-                                                                                                                "valueSchema": {
-                                                                                                                    "type": "Object",
-                                                                                                                    "propertySchemaByKey": {
-                                                                                                                        "level": {
-                                                                                                                            "valueSchema": {
-                                                                                                                                "type": "Enum",
-                                                                                                                                "values": [
-                                                                                                                                    "View",
-                                                                                                                                    "Comment",
-                                                                                                                                    "Edit",
-                                                                                                                                    "Manage"
-                                                                                                                                ]
-                                                                                                                            },
-                                                                                                                            "optional": false
-                                                                                                                        }
-                                                                                                                    }
-                                                                                                                }
-                                                                                                            },
-                                                                                                            "optional": false
-                                                                                                        },
-                                                                                                        "defaultGrant": {
-                                                                                                            "valueSchema": {
-                                                                                                                "type": "Nullable",
-                                                                                                                "schema": {
-                                                                                                                    "type": "Union",
-                                                                                                                    "typeKey": "type",
-                                                                                                                    "variantSchemaByTypeValue": {
-                                                                                                                        "Space": {
-                                                                                                                            "type": "Object",
-                                                                                                                            "propertySchemaByKey": {
-                                                                                                                                "type": {
-                                                                                                                                    "valueSchema": {
-                                                                                                                                        "type": "Value",
-                                                                                                                                        "value": "Space"
-                                                                                                                                    },
-                                                                                                                                    "optional": false
-                                                                                                                                },
-                                                                                                                                "level": {
-                                                                                                                                    "valueSchema": {
-                                                                                                                                        "type": "Enum",
-                                                                                                                                        "values": [
-                                                                                                                                            "View",
-                                                                                                                                            "Comment",
-                                                                                                                                            "Edit",
-                                                                                                                                            "Manage"
-                                                                                                                                        ]
-                                                                                                                                    },
-                                                                                                                                    "optional": false
-                                                                                                                                }
-                                                                                                                            }
-                                                                                                                        }
-                                                                                                                    }
-                                                                                                                }
-                                                                                                            },
-                                                                                                            "optional": false
-                                                                                                        }
+                                                                                                    "type": "Map",
+                                                                                                    "keySchema": {
+                                                                                                        "type": "Id"
                                                                                                     },
-                                                                                                    "referenceId": "e2e7278a"
+                                                                                                    "valueSchema": {
+                                                                                                        "type": "Object",
+                                                                                                        "propertySchemaByKey": {
+                                                                                                            "level": {
+                                                                                                                "valueSchema": {
+                                                                                                                    "type": "Enum",
+                                                                                                                    "values": [
+                                                                                                                        "View",
+                                                                                                                        "Comment",
+                                                                                                                        "Edit",
+                                                                                                                        "Manage"
+                                                                                                                    ]
+                                                                                                                },
+                                                                                                                "optional": false
+                                                                                                            }
+                                                                                                        }
+                                                                                                    }
                                                                                                 },
                                                                                                 "optional": false
                                                                                             },
-                                                                                            "updatedTime": {
+                                                                                            "defaultGrant": {
                                                                                                 "valueSchema": {
-                                                                                                    "type": "Date"
+                                                                                                    "type": "Nullable",
+                                                                                                    "schema": {
+                                                                                                        "type": "Union",
+                                                                                                        "typeKey": "type",
+                                                                                                        "variantSchemaByTypeValue": {
+                                                                                                            "Space": {
+                                                                                                                "type": "Object",
+                                                                                                                "propertySchemaByKey": {
+                                                                                                                    "type": {
+                                                                                                                        "valueSchema": {
+                                                                                                                            "type": "Value",
+                                                                                                                            "value": "Space"
+                                                                                                                        },
+                                                                                                                        "optional": false
+                                                                                                                    },
+                                                                                                                    "level": {
+                                                                                                                        "valueSchema": {
+                                                                                                                            "type": "Enum",
+                                                                                                                            "values": [
+                                                                                                                                "View",
+                                                                                                                                "Comment",
+                                                                                                                                "Edit",
+                                                                                                                                "Manage"
+                                                                                                                            ]
+                                                                                                                        },
+                                                                                                                        "optional": false
+                                                                                                                    }
+                                                                                                                }
+                                                                                                            }
+                                                                                                        }
+                                                                                                    }
                                                                                                 },
                                                                                                 "optional": false
                                                                                             }
@@ -4561,12 +4407,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                         "value": "Delete"
                                                                                     },
                                                                                     "optional": false
-                                                                                },
-                                                                                "deletedTime": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Date"
-                                                                                    },
-                                                                                    "optional": false
                                                                                 }
                                                                             }
                                                                         },
@@ -4577,12 +4417,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     "valueSchema": {
                                                                                         "type": "Value",
                                                                                         "value": "Undelete"
-                                                                                    },
-                                                                                    "optional": false
-                                                                                },
-                                                                                "undeletedTime": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Date"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -4598,23 +4432,9 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     },
                                                                                     "optional": false
                                                                                 },
-                                                                                "nameAction": {
+                                                                                "name": {
                                                                                     "valueSchema": {
-                                                                                        "type": "Object",
-                                                                                        "propertySchemaByKey": {
-                                                                                            "value": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "String"
-                                                                                                },
-                                                                                                "optional": false
-                                                                                            },
-                                                                                            "updatedTime": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Date"
-                                                                                                },
-                                                                                                "optional": false
-                                                                                            }
-                                                                                        }
+                                                                                        "type": "String"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -4630,24 +4450,10 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     },
                                                                                     "optional": false
                                                                                 },
-                                                                                "accessPolicyAction": {
+                                                                                "accessPolicy": {
                                                                                     "valueSchema": {
-                                                                                        "type": "Object",
-                                                                                        "propertySchemaByKey": {
-                                                                                            "value": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Reference",
-                                                                                                    "reuseReferenceId": "e2e7278a"
-                                                                                                },
-                                                                                                "optional": false
-                                                                                            },
-                                                                                            "updatedTime": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Date"
-                                                                                                },
-                                                                                                "optional": false
-                                                                                            }
-                                                                                        }
+                                                                                        "type": "Reference",
+                                                                                        "reuseReferenceId": "28a5043b"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -4672,13 +4478,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 "position": {
                                                                                     "valueSchema": {
                                                                                         "type": "Reference",
-                                                                                        "reuseReferenceId": "ec3a2e64"
-                                                                                    },
-                                                                                    "optional": false
-                                                                                },
-                                                                                "updatedTime": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Date"
+                                                                                        "reuseReferenceId": "c49ee4e1"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -4697,6 +4497,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                                 "valueSchema": {
                                                                     "type": "Value",
                                                                     "value": "UpdateTaskNotepadPage"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "time": {
+                                                                "valueSchema": {
+                                                                    "type": "Uint64"
                                                                 },
                                                                 "optional": false
                                                             },
@@ -4748,13 +4554,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 "position": {
                                                                                     "valueSchema": {
                                                                                         "type": "Reference",
-                                                                                        "reuseReferenceId": "ec3a2e64"
-                                                                                    },
-                                                                                    "optional": false
-                                                                                },
-                                                                                "updatedTime": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Date"
+                                                                                        "reuseReferenceId": "c49ee4e1"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -4773,12 +4573,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 "taskId": {
                                                                                     "valueSchema": {
                                                                                         "type": "Id"
-                                                                                    },
-                                                                                    "optional": false
-                                                                                },
-                                                                                "updatedTime": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Date"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -4878,15 +4672,29 @@ export const dynamoGeneratedSchemaDescription: {
                                         "valueSchema": {
                                             "type": "Nullable",
                                             "schema": {
-                                                "type": "Date"
+                                                "type": "Uint64"
                                             }
                                         },
                                         "optional": false
                                     },
                                     "accessPolicy": {
                                         "valueSchema": {
-                                            "type": "Reference",
-                                            "reuseReferenceId": "28a5043b"
+                                            "type": "Object",
+                                            "propertySchemaByKey": {
+                                                "value": {
+                                                    "valueSchema": {
+                                                        "type": "Reference",
+                                                        "reuseReferenceId": "28a5043b"
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "version": {
+                                                    "valueSchema": {
+                                                        "type": "Uint64"
+                                                    },
+                                                    "optional": false
+                                                }
+                                            }
                                         },
                                         "optional": false
                                     },
@@ -4938,7 +4746,7 @@ export const dynamoGeneratedSchemaDescription: {
                                         "valueSchema": {
                                             "type": "Nullable",
                                             "schema": {
-                                                "type": "Date"
+                                                "type": "Uint64"
                                             }
                                         },
                                         "optional": false
@@ -4949,14 +4757,16 @@ export const dynamoGeneratedSchemaDescription: {
                                             "propertySchemaByKey": {
                                                 "value": {
                                                     "valueSchema": {
-                                                        "type": "Reference",
-                                                        "reuseReferenceId": "b343e61f"
+                                                        "type": "Nullable",
+                                                        "schema": {
+                                                            "type": "Id"
+                                                        }
                                                     },
                                                     "optional": false
                                                 },
-                                                "updatedTime": {
+                                                "version": {
                                                     "valueSchema": {
-                                                        "type": "Date"
+                                                        "type": "Uint64"
                                                     },
                                                     "optional": false
                                                 }
@@ -4982,9 +4792,9 @@ export const dynamoGeneratedSchemaDescription: {
                                                         },
                                                         "optional": false
                                                     },
-                                                    "updatedTime": {
+                                                    "version": {
                                                         "valueSchema": {
-                                                            "type": "Date"
+                                                            "type": "Uint64"
                                                         },
                                                         "optional": false
                                                     }

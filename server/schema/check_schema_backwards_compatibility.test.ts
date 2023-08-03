@@ -1037,3 +1037,52 @@ test("value schema may change over time", () => {
         sampleValues: ["foo"],
     });
 });
+
+test("tuple schema is backwards compatible if its elements are backwards compatible", () => {
+    testCase({
+        isBackwardsCompatible: true,
+        lastSchema: Schema.tuple([]),
+        nextSchema: Schema.tuple([]),
+        sampleValues: [[]],
+    });
+
+    testCase({
+        isBackwardsCompatible: true,
+        lastSchema: Schema.tuple([Schema.integer, Schema.integer]),
+        nextSchema: Schema.tuple([Schema.integer, Schema.integer.nullable()]),
+        sampleValues: [
+            [1, 2],
+            [3, 4],
+        ],
+    });
+
+    testCase({
+        isBackwardsCompatible: false,
+        lastSchema: Schema.tuple([Schema.integer, Schema.integer.nullable()]),
+        nextSchema: Schema.tuple([Schema.integer, Schema.integer]),
+        sampleValues: [[1, null]],
+    });
+
+    testCase({
+        isBackwardsCompatible: false,
+        lastSchema: Schema.tuple([Schema.integer, Schema.integer]),
+        nextSchema: Schema.tuple([Schema.integer, Schema.string]),
+        sampleValues: [[1, 2]],
+    });
+});
+
+test("tuple schema can not change element lengths", () => {
+    testCase({
+        isBackwardsCompatible: false,
+        lastSchema: Schema.tuple([Schema.integer]),
+        nextSchema: Schema.tuple([Schema.integer, Schema.integer]),
+        sampleValues: [[1]],
+    });
+
+    testCase({
+        isBackwardsCompatible: false,
+        lastSchema: Schema.tuple([Schema.integer, Schema.integer]),
+        nextSchema: Schema.tuple([Schema.integer]),
+        sampleValues: [[1, 2]],
+    });
+});
