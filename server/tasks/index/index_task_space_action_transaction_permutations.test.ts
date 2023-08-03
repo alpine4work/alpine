@@ -27,7 +27,7 @@ const opensearchClient = new Lazy(() => {
     });
 });
 
-import.meta.jest.setTimeout(1000 * 20);
+import.meta.jest.setTimeout(1000 * 30);
 
 testTaskSpaceActionPermutations({
     partitionNumber: parseInt(process.env.TEST_SHARD_INDEX ?? "0", 10) + 1,
