@@ -2523,81 +2523,6 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Increments the provided item attributes by the provided amount in a
-     * transaction. Also increments the `updateLockVersion` so conflicting updates
-     * can be cancelled. The increment is done entirely within DynamoDB. We do not need
-     * a condition check and do not need to consume RSUs for this transaction entry.
-     * Use this to reduce transaction cost and reduce the chance of conflicts.
-     */
-    public transactionIncrementItemAttribute<Key extends Types["ItemKey"]>(
-        key: Key,
-        attribute:
-            | (KeyOfMatching<Types["Item"] & Key, number> & string)
-            | Array<KeyOfMatching<Types["Item"] & Key, number> & string>,
-        increment: number,
-    ): DynamoTransactionEntry {
-        const attributes = Array.isArray(attribute) ? attribute : [attribute];
-        assert(attributes.length > 0);
-
-        const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
-        const setUpdateExpression = [];
-
-        for (const attribute of attributes) {
-            const propertySchema = attributesSchema.propertySchemaByKey.get(attribute);
-            if (!propertySchema)
-                throw new InternalError(quote`Attribute ${attribute} not found in item schema`);
-
-            const propertySchemaDescription = propertySchema.getDescription();
-            if (
-                propertySchemaDescription.optional ||
-                propertySchemaDescription.valueSchema.type !== "Integer"
-            ) {
-                throw new InternalError(
-                    quote`Can only increment required integer attributes, attribute ${attribute} is not an integer`,
-                );
-            }
-
-            // Disallow updating indexed attributes. If you update an indexed attribute
-            // then we need to update the associated index attribute (e.g.
-            // `indexNPartitionKey` or `indexNSortKey`).
-            const indexConfigs = this._initializationState.indexConfigsByItemType.get(
-                `${key.partitionType}#${key.sortRangeType}`,
-            );
-            if (indexConfigs) {
-                for (const indexConfig of indexConfigs) {
-                    assert(
-                        indexConfig.partitionKeyAttributes[attribute] === undefined,
-                        "Can not directly update an indexed attribute",
-                    );
-                    assert(
-                        indexConfig.sortKeyAttributes[attribute] === undefined,
-                        "Can not directly update an indexed attribute",
-                    );
-                }
-            }
-
-            const serializedKey = propertySchema.serializedKey ?? attribute;
-            setUpdateExpression.push(`${serializedKey} = ${serializedKey} + :increment`);
-        }
-
-        setUpdateExpression.push("updateLockVersion = if_not_exists(updateLockVersion, 0) + 1");
-
-        return DynamoTransactionEntry._newFromClient(DynamoClient, {
-            transactItem: {
-                Update: {
-                    TableName: this._name,
-                    Key: intoDynamoAttributeValueObject({partitionKey, sortKey}),
-                    UpdateExpression: `SET ${setUpdateExpression.join(", ")}`,
-                    ExpressionAttributeValues: {
-                        increment: intoDynamoAttributeValue(increment),
-                    },
-                },
-            },
-            isConditionCheckErrorRetriable: true,
-        });
-    }
-
-    /**
      * Gets multiple items from DynamoDB with a serializable transaction isolation
      * level. Corresponds to the [`TransactGetItems`][1] command. Each item in the
      * returned array corresponds to the provided key. If there was no item for the
@@ -3866,10 +3791,6 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         return encodeBase64(bytes, "Rfc4648UrlWithOrderPreservation");
     }
 }
-
-// Derived from:
-// https://stackoverflow.com/a/54520829/1568890
-type KeyOfMatching<T, V> = {[K in keyof T]-?: T[K] extends V ? K : never}[keyof T];
 
 const allConstructedDynamoTableSchemas = new Map<
     string,
