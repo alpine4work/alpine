@@ -69,6 +69,10 @@ testTaskSpaceActionPermutations({
             parent: task.parent.taskId.value
                 ? {taskId: task.parent.taskId.value, position: task.parent.position.value}
                 : null,
+            addedChildTaskCount: task.addedChildTaskCount,
+            removedChildTaskCount: task.removedChildTaskCount,
+            addedClosedChildTaskCount: task.addedClosedChildTaskCount,
+            removedClosedChildTaskCount: task.removedClosedChildTaskCount,
             collections: task.collections.raw.collections,
             collectionPositions: new Map(
                 task.collections.raw.collections.getArray().map(({collectionId, version}) => [

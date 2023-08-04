@@ -23,10 +23,13 @@ import {
     HybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {generateId} from "~/shared/id/id.js";
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {TaskSpaceAction} from "~/shared/tasks/actions/task_space_action.js";
 import {TaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
@@ -10823,4 +10826,1183 @@ test("can't update a collection's name in the context of the wrong space", async
             },
         },
     ]);
+});
+
+test("updating task parents commits extra update children count action", async () => {
+    const taskId1 = generateId<TaskId>();
+    const taskId2 = generateId<TaskId>();
+    const taskId3 = generateId<TaskId>();
+
+    expect(
+        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: taskId1,
+                taskAction: {
+                    type: "Create",
+                    creator: taskAccount1,
+                    creatorTimeZone: defaultTimeZone,
+                },
+            },
+        ]),
+    ).toEqual({
+        extraActions: cast<Array<TaskSpaceAction>>([]),
+    });
+
+    expect(
+        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: taskId2,
+                taskAction: {
+                    type: "Create",
+                    creator: taskAccount1,
+                    creatorTimeZone: defaultTimeZone,
+                },
+            },
+        ]),
+    ).toEqual({
+        extraActions: cast<Array<TaskSpaceAction>>([]),
+    });
+
+    expect(
+        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: taskId3,
+                taskAction: {
+                    type: "Create",
+                    creator: taskAccount1,
+                    creatorTimeZone: defaultTimeZone,
+                },
+            },
+        ]),
+    ).toEqual({
+        extraActions: cast<Array<TaskSpaceAction>>([]),
+    });
+
+    expect(
+        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: taskId3,
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId: taskId1,
+                },
+            },
+        ]),
+    ).toEqual({
+        extraActions: cast<Array<TaskSpaceAction>>([
+            {
+                type: "UpdateTask",
+                time: expect.any(Array),
+                taskId: taskId1,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 1,
+                    removedChildTaskCount: 0,
+                    addedClosedChildTaskCount: 0,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+        ]),
+    });
+
+    expect(
+        (
+            await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: taskId3,
+                    taskAction: {
+                        type: "UpdateParentTaskId",
+                        parentTaskId: taskId2,
+                    },
+                },
+            ])
+        ).extraActions
+            .slice()
+            .sort((a, b) =>
+                defaultCompareStrings("taskId" in a ? a.taskId : "", "taskId" in b ? b.taskId : ""),
+            ),
+    ).toEqual(
+        cast<Array<TaskSpaceAction>>([
+            {
+                type: "UpdateTask",
+                time: expect.any(Array),
+                taskId: taskId1,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 1,
+                    removedChildTaskCount: 1,
+                    addedClosedChildTaskCount: 0,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+            {
+                type: "UpdateTask",
+                time: expect.any(Array),
+                taskId: taskId2,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 1,
+                    removedChildTaskCount: 0,
+                    addedClosedChildTaskCount: 0,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+        ]).sort((a, b) =>
+            defaultCompareStrings("taskId" in a ? a.taskId : "", "taskId" in b ? b.taskId : ""),
+        ),
+    );
+
+    expect(
+        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: taskId3,
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId: null,
+                },
+            },
+        ]),
+    ).toEqual({
+        extraActions: cast<Array<TaskSpaceAction>>([
+            {
+                type: "UpdateTask",
+                time: expect.any(Array),
+                taskId: taskId2,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 1,
+                    removedChildTaskCount: 1,
+                    addedClosedChildTaskCount: 0,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+        ]),
+    });
+});
+
+test("opening and closing a task commits extra update children count action", async () => {
+    const taskId1 = generateId<TaskId>();
+    const taskId2 = generateId<TaskId>();
+
+    expect(
+        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: taskId1,
+                taskAction: {
+                    type: "Create",
+                    creator: taskAccount1,
+                    creatorTimeZone: defaultTimeZone,
+                },
+            },
+        ]),
+    ).toEqual({
+        extraActions: cast<Array<TaskSpaceAction>>([]),
+    });
+
+    expect(
+        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: taskId2,
+                taskAction: {
+                    type: "Create",
+                    creator: taskAccount1,
+                    creatorTimeZone: defaultTimeZone,
+                },
+            },
+        ]),
+    ).toEqual({
+        extraActions: cast<Array<TaskSpaceAction>>([]),
+    });
+
+    expect(
+        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: taskId2,
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId: taskId1,
+                },
+            },
+        ]),
+    ).toEqual({
+        extraActions: cast<Array<TaskSpaceAction>>([
+            {
+                type: "UpdateTask",
+                time: expect.any(Array),
+                taskId: taskId1,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 1,
+                    removedChildTaskCount: 0,
+                    addedClosedChildTaskCount: 0,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+        ]),
+    });
+
+    const actionTime1 = clock.now();
+
+    expect(
+        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: actionTime1,
+                taskId: taskId2,
+                taskAction: {
+                    type: "UpdateStatus",
+                    status: {
+                        type: "Closed",
+                        closer: taskAccount1,
+                        closedTime: new TaskFilterableTime({
+                            absoluteTime: new Date(actionTime1[0]),
+                            setterTimeZone: defaultTimeZone,
+                        }),
+                    },
+                },
+            },
+        ]),
+    ).toEqual({
+        extraActions: cast<Array<TaskSpaceAction>>([
+            {
+                type: "UpdateTask",
+                time: expect.any(Array),
+                taskId: taskId1,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 1,
+                    removedChildTaskCount: 0,
+                    addedClosedChildTaskCount: 1,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+        ]),
+    });
+
+    const actionTime2 = clock.now();
+
+    expect(
+        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: actionTime2,
+                taskId: taskId2,
+                taskAction: {
+                    type: "UpdateStatus",
+                    status: {
+                        type: "Closed",
+                        closer: taskAccount1,
+                        closedTime: new TaskFilterableTime({
+                            absoluteTime: new Date(actionTime2[0]),
+                            setterTimeZone: defaultTimeZone,
+                        }),
+                    },
+                },
+            },
+        ]),
+    ).toEqual({
+        extraActions: cast<Array<TaskSpaceAction>>([]),
+    });
+
+    expect(
+        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: taskId2,
+                taskAction: {
+                    type: "UpdateStatus",
+                    status: {type: "Open"},
+                },
+            },
+        ]),
+    ).toEqual({
+        extraActions: cast<Array<TaskSpaceAction>>([
+            {
+                type: "UpdateTask",
+                time: expect.any(Array),
+                taskId: taskId1,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 1,
+                    removedChildTaskCount: 0,
+                    addedClosedChildTaskCount: 1,
+                    removedClosedChildTaskCount: 1,
+                },
+            },
+        ]),
+    });
+
+    expect(
+        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: taskId2,
+                taskAction: {
+                    type: "UpdateStatus",
+                    status: {type: "Open"},
+                },
+            },
+        ]),
+    ).toEqual({
+        extraActions: cast<Array<TaskSpaceAction>>([]),
+    });
+
+    const actionTime3 = clock.now();
+
+    expect(
+        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: actionTime3,
+                taskId: taskId2,
+                taskAction: {
+                    type: "UpdateStatus",
+                    status: {
+                        type: "Closed",
+                        closer: taskAccount1,
+                        closedTime: new TaskFilterableTime({
+                            absoluteTime: new Date(actionTime3[0]),
+                            setterTimeZone: defaultTimeZone,
+                        }),
+                    },
+                },
+            },
+        ]),
+    ).toEqual({
+        extraActions: cast<Array<TaskSpaceAction>>([
+            {
+                type: "UpdateTask",
+                time: expect.any(Array),
+                taskId: taskId1,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 1,
+                    removedChildTaskCount: 0,
+                    addedClosedChildTaskCount: 2,
+                    removedClosedChildTaskCount: 1,
+                },
+            },
+        ]),
+    });
+});
+
+test("changing parents of a closed a task commits extra update children count action", async () => {
+    const taskId1 = generateId<TaskId>();
+    const taskId2 = generateId<TaskId>();
+    const taskId3 = generateId<TaskId>();
+
+    expect(
+        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: taskId1,
+                taskAction: {
+                    type: "Create",
+                    creator: taskAccount1,
+                    creatorTimeZone: defaultTimeZone,
+                },
+            },
+        ]),
+    ).toEqual({
+        extraActions: cast<Array<TaskSpaceAction>>([]),
+    });
+
+    expect(
+        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: taskId2,
+                taskAction: {
+                    type: "Create",
+                    creator: taskAccount1,
+                    creatorTimeZone: defaultTimeZone,
+                },
+            },
+        ]),
+    ).toEqual({
+        extraActions: cast<Array<TaskSpaceAction>>([]),
+    });
+
+    expect(
+        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: taskId3,
+                taskAction: {
+                    type: "Create",
+                    creator: taskAccount1,
+                    creatorTimeZone: defaultTimeZone,
+                },
+            },
+        ]),
+    ).toEqual({
+        extraActions: cast<Array<TaskSpaceAction>>([]),
+    });
+
+    expect(
+        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: taskId3,
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId: taskId1,
+                },
+            },
+        ]),
+    ).toEqual({
+        extraActions: cast<Array<TaskSpaceAction>>([
+            {
+                type: "UpdateTask",
+                time: expect.any(Array),
+                taskId: taskId1,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 1,
+                    removedChildTaskCount: 0,
+                    addedClosedChildTaskCount: 0,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+        ]),
+    });
+
+    const actionTime1 = clock.now();
+
+    expect(
+        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: actionTime1,
+                taskId: taskId3,
+                taskAction: {
+                    type: "UpdateStatus",
+                    status: {
+                        type: "Closed",
+                        closer: taskAccount1,
+                        closedTime: new TaskFilterableTime({
+                            absoluteTime: new Date(actionTime1[0]),
+                            setterTimeZone: defaultTimeZone,
+                        }),
+                    },
+                },
+            },
+        ]),
+    ).toEqual({
+        extraActions: cast<Array<TaskSpaceAction>>([
+            {
+                type: "UpdateTask",
+                time: expect.any(Array),
+                taskId: taskId1,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 1,
+                    removedChildTaskCount: 0,
+                    addedClosedChildTaskCount: 1,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+        ]),
+    });
+
+    expect(
+        (
+            await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: taskId3,
+                    taskAction: {
+                        type: "UpdateParentTaskId",
+                        parentTaskId: taskId2,
+                    },
+                },
+            ])
+        ).extraActions
+            .slice()
+            .sort((a, b) =>
+                defaultCompareStrings("taskId" in a ? a.taskId : "", "taskId" in b ? b.taskId : ""),
+            ),
+    ).toEqual(
+        cast<Array<TaskSpaceAction>>([
+            {
+                type: "UpdateTask",
+                time: expect.any(Array),
+                taskId: taskId1,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 1,
+                    removedChildTaskCount: 1,
+                    addedClosedChildTaskCount: 1,
+                    removedClosedChildTaskCount: 1,
+                },
+            },
+            {
+                type: "UpdateTask",
+                time: expect.any(Array),
+                taskId: taskId2,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 1,
+                    removedChildTaskCount: 0,
+                    addedClosedChildTaskCount: 1,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+        ]).sort((a, b) =>
+            defaultCompareStrings("taskId" in a ? a.taskId : "", "taskId" in b ? b.taskId : ""),
+        ),
+    );
+
+    expect(
+        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: taskId3,
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId: null,
+                },
+            },
+        ]),
+    ).toEqual({
+        extraActions: cast<Array<TaskSpaceAction>>([
+            {
+                type: "UpdateTask",
+                time: expect.any(Array),
+                taskId: taskId2,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 1,
+                    removedChildTaskCount: 1,
+                    addedClosedChildTaskCount: 1,
+                    removedClosedChildTaskCount: 1,
+                },
+            },
+        ]),
+    });
+});
+
+test("moving multiple open and closed tasks around commits extra update children count action", async () => {
+    const parentTaskId1 = generateId<TaskId>();
+    const parentTaskId2 = generateId<TaskId>();
+    const taskId1 = generateId<TaskId>();
+    const taskId2 = generateId<TaskId>();
+    const taskId3 = generateId<TaskId>();
+
+    expect(
+        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: parentTaskId1,
+                taskAction: {
+                    type: "Create",
+                    creator: taskAccount1,
+                    creatorTimeZone: defaultTimeZone,
+                },
+            },
+        ]),
+    ).toEqual({
+        extraActions: cast<Array<TaskSpaceAction>>([]),
+    });
+
+    expect(
+        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: parentTaskId2,
+                taskAction: {
+                    type: "Create",
+                    creator: taskAccount1,
+                    creatorTimeZone: defaultTimeZone,
+                },
+            },
+        ]),
+    ).toEqual({
+        extraActions: cast<Array<TaskSpaceAction>>([]),
+    });
+
+    expect(
+        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: taskId1,
+                taskAction: {
+                    type: "Create",
+                    creator: taskAccount1,
+                    creatorTimeZone: defaultTimeZone,
+                },
+            },
+        ]),
+    ).toEqual({
+        extraActions: cast<Array<TaskSpaceAction>>([]),
+    });
+
+    expect(
+        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: taskId2,
+                taskAction: {
+                    type: "Create",
+                    creator: taskAccount1,
+                    creatorTimeZone: defaultTimeZone,
+                },
+            },
+        ]),
+    ).toEqual({
+        extraActions: cast<Array<TaskSpaceAction>>([]),
+    });
+
+    expect(
+        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: taskId3,
+                taskAction: {
+                    type: "Create",
+                    creator: taskAccount1,
+                    creatorTimeZone: defaultTimeZone,
+                },
+            },
+        ]),
+    ).toEqual({
+        extraActions: cast<Array<TaskSpaceAction>>([]),
+    });
+
+    expect(
+        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: taskId1,
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId: parentTaskId1,
+                },
+            },
+        ]),
+    ).toEqual({
+        extraActions: cast<Array<TaskSpaceAction>>([
+            {
+                type: "UpdateTask",
+                time: expect.any(Array),
+                taskId: parentTaskId1,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 1,
+                    removedChildTaskCount: 0,
+                    addedClosedChildTaskCount: 0,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+        ]),
+    });
+
+    expect(
+        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: taskId2,
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId: parentTaskId1,
+                },
+            },
+        ]),
+    ).toEqual({
+        extraActions: cast<Array<TaskSpaceAction>>([
+            {
+                type: "UpdateTask",
+                time: expect.any(Array),
+                taskId: parentTaskId1,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 2,
+                    removedChildTaskCount: 0,
+                    addedClosedChildTaskCount: 0,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+        ]),
+    });
+
+    expect(
+        (
+            await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: taskId1,
+                    taskAction: {
+                        type: "UpdateParentTaskId",
+                        parentTaskId: parentTaskId2,
+                    },
+                },
+            ])
+        ).extraActions
+            .slice()
+            .sort((a, b) =>
+                defaultCompareStrings("taskId" in a ? a.taskId : "", "taskId" in b ? b.taskId : ""),
+            ),
+    ).toEqual(
+        cast<Array<TaskSpaceAction>>([
+            {
+                type: "UpdateTask",
+                time: expect.any(Array),
+                taskId: parentTaskId1,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 2,
+                    removedChildTaskCount: 1,
+                    addedClosedChildTaskCount: 0,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+            {
+                type: "UpdateTask",
+                time: expect.any(Array),
+                taskId: parentTaskId2,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 1,
+                    removedChildTaskCount: 0,
+                    addedClosedChildTaskCount: 0,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+        ]).sort((a, b) =>
+            defaultCompareStrings("taskId" in a ? a.taskId : "", "taskId" in b ? b.taskId : ""),
+        ),
+    );
+
+    expect(
+        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: taskId3,
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId: parentTaskId1,
+                },
+            },
+        ]),
+    ).toEqual({
+        extraActions: cast<Array<TaskSpaceAction>>([
+            {
+                type: "UpdateTask",
+                time: expect.any(Array),
+                taskId: parentTaskId1,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 3,
+                    removedChildTaskCount: 1,
+                    addedClosedChildTaskCount: 0,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+        ]),
+    });
+
+    expect(
+        (
+            await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: taskId1,
+                    taskAction: {
+                        type: "UpdateParentTaskId",
+                        parentTaskId: parentTaskId1,
+                    },
+                },
+            ])
+        ).extraActions
+            .slice()
+            .sort((a, b) =>
+                defaultCompareStrings("taskId" in a ? a.taskId : "", "taskId" in b ? b.taskId : ""),
+            ),
+    ).toEqual(
+        cast<Array<TaskSpaceAction>>([
+            {
+                type: "UpdateTask",
+                time: expect.any(Array),
+                taskId: parentTaskId1,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 4,
+                    removedChildTaskCount: 1,
+                    addedClosedChildTaskCount: 0,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+            {
+                type: "UpdateTask",
+                time: expect.any(Array),
+                taskId: parentTaskId2,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 1,
+                    removedChildTaskCount: 1,
+                    addedClosedChildTaskCount: 0,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+        ]).sort((a, b) =>
+            defaultCompareStrings("taskId" in a ? a.taskId : "", "taskId" in b ? b.taskId : ""),
+        ),
+    );
+
+    expect(
+        (
+            await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: taskId3,
+                    taskAction: {
+                        type: "UpdateParentTaskId",
+                        parentTaskId: parentTaskId2,
+                    },
+                },
+            ])
+        ).extraActions
+            .slice()
+            .sort((a, b) =>
+                defaultCompareStrings("taskId" in a ? a.taskId : "", "taskId" in b ? b.taskId : ""),
+            ),
+    ).toEqual(
+        cast<Array<TaskSpaceAction>>([
+            {
+                type: "UpdateTask",
+                time: expect.any(Array),
+                taskId: parentTaskId1,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 4,
+                    removedChildTaskCount: 2,
+                    addedClosedChildTaskCount: 0,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+            {
+                type: "UpdateTask",
+                time: expect.any(Array),
+                taskId: parentTaskId2,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 2,
+                    removedChildTaskCount: 1,
+                    addedClosedChildTaskCount: 0,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+        ]).sort((a, b) =>
+            defaultCompareStrings("taskId" in a ? a.taskId : "", "taskId" in b ? b.taskId : ""),
+        ),
+    );
+
+    const actionTime1 = clock.now();
+
+    expect(
+        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: actionTime1,
+                taskId: taskId2,
+                taskAction: {
+                    type: "UpdateStatus",
+                    status: {
+                        type: "Closed",
+                        closer: taskAccount1,
+                        closedTime: new TaskFilterableTime({
+                            absoluteTime: new Date(actionTime1[0]),
+                            setterTimeZone: defaultTimeZone,
+                        }),
+                    },
+                },
+            },
+        ]),
+    ).toEqual({
+        extraActions: cast<Array<TaskSpaceAction>>([
+            {
+                type: "UpdateTask",
+                time: expect.any(Array),
+                taskId: parentTaskId1,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 4,
+                    removedChildTaskCount: 2,
+                    addedClosedChildTaskCount: 1,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+        ]),
+    });
+
+    const actionTime2 = clock.now();
+
+    expect(
+        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: actionTime2,
+                taskId: taskId3,
+                taskAction: {
+                    type: "UpdateStatus",
+                    status: {
+                        type: "Closed",
+                        closer: taskAccount1,
+                        closedTime: new TaskFilterableTime({
+                            absoluteTime: new Date(actionTime2[0]),
+                            setterTimeZone: defaultTimeZone,
+                        }),
+                    },
+                },
+            },
+        ]),
+    ).toEqual({
+        extraActions: cast<Array<TaskSpaceAction>>([
+            {
+                type: "UpdateTask",
+                time: expect.any(Array),
+                taskId: parentTaskId2,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 2,
+                    removedChildTaskCount: 1,
+                    addedClosedChildTaskCount: 1,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+        ]),
+    });
+
+    expect(
+        (
+            await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: taskId2,
+                    taskAction: {
+                        type: "UpdateParentTaskId",
+                        parentTaskId: parentTaskId2,
+                    },
+                },
+            ])
+        ).extraActions
+            .slice()
+            .sort((a, b) =>
+                defaultCompareStrings("taskId" in a ? a.taskId : "", "taskId" in b ? b.taskId : ""),
+            ),
+    ).toEqual(
+        cast<Array<TaskSpaceAction>>([
+            {
+                type: "UpdateTask",
+                time: expect.any(Array),
+                taskId: parentTaskId1,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 4,
+                    removedChildTaskCount: 3,
+                    addedClosedChildTaskCount: 1,
+                    removedClosedChildTaskCount: 1,
+                },
+            },
+            {
+                type: "UpdateTask",
+                time: expect.any(Array),
+                taskId: parentTaskId2,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 3,
+                    removedChildTaskCount: 1,
+                    addedClosedChildTaskCount: 2,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+        ]).sort((a, b) =>
+            defaultCompareStrings("taskId" in a ? a.taskId : "", "taskId" in b ? b.taskId : ""),
+        ),
+    );
+
+    expect(
+        (
+            await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: taskId1,
+                    taskAction: {
+                        type: "UpdateParentTaskId",
+                        parentTaskId: parentTaskId2,
+                    },
+                },
+            ])
+        ).extraActions
+            .slice()
+            .sort((a, b) =>
+                defaultCompareStrings("taskId" in a ? a.taskId : "", "taskId" in b ? b.taskId : ""),
+            ),
+    ).toEqual(
+        cast<Array<TaskSpaceAction>>([
+            {
+                type: "UpdateTask",
+                time: expect.any(Array),
+                taskId: parentTaskId1,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 4,
+                    removedChildTaskCount: 4,
+                    addedClosedChildTaskCount: 1,
+                    removedClosedChildTaskCount: 1,
+                },
+            },
+            {
+                type: "UpdateTask",
+                time: expect.any(Array),
+                taskId: parentTaskId2,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 4,
+                    removedChildTaskCount: 1,
+                    addedClosedChildTaskCount: 2,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+        ]).sort((a, b) =>
+            defaultCompareStrings("taskId" in a ? a.taskId : "", "taskId" in b ? b.taskId : ""),
+        ),
+    );
+
+    expect(
+        (
+            await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: taskId3,
+                    taskAction: {
+                        type: "UpdateParentTaskId",
+                        parentTaskId: parentTaskId1,
+                    },
+                },
+            ])
+        ).extraActions
+            .slice()
+            .sort((a, b) =>
+                defaultCompareStrings("taskId" in a ? a.taskId : "", "taskId" in b ? b.taskId : ""),
+            ),
+    ).toEqual(
+        cast<Array<TaskSpaceAction>>([
+            {
+                type: "UpdateTask",
+                time: expect.any(Array),
+                taskId: parentTaskId1,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 5,
+                    removedChildTaskCount: 4,
+                    addedClosedChildTaskCount: 2,
+                    removedClosedChildTaskCount: 1,
+                },
+            },
+            {
+                type: "UpdateTask",
+                time: expect.any(Array),
+                taskId: parentTaskId2,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 4,
+                    removedChildTaskCount: 2,
+                    addedClosedChildTaskCount: 2,
+                    removedClosedChildTaskCount: 1,
+                },
+            },
+        ]).sort((a, b) =>
+            defaultCompareStrings("taskId" in a ? a.taskId : "", "taskId" in b ? b.taskId : ""),
+        ),
+    );
+
+    expect(
+        (
+            await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: taskId3,
+                    taskAction: {
+                        type: "UpdateParentTaskId",
+                        parentTaskId: parentTaskId2,
+                    },
+                },
+            ])
+        ).extraActions
+            .slice()
+            .sort((a, b) =>
+                defaultCompareStrings("taskId" in a ? a.taskId : "", "taskId" in b ? b.taskId : ""),
+            ),
+    ).toEqual(
+        cast<Array<TaskSpaceAction>>([
+            {
+                type: "UpdateTask",
+                time: expect.any(Array),
+                taskId: parentTaskId1,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 5,
+                    removedChildTaskCount: 5,
+                    addedClosedChildTaskCount: 2,
+                    removedClosedChildTaskCount: 2,
+                },
+            },
+            {
+                type: "UpdateTask",
+                time: expect.any(Array),
+                taskId: parentTaskId2,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 5,
+                    removedChildTaskCount: 2,
+                    addedClosedChildTaskCount: 3,
+                    removedClosedChildTaskCount: 1,
+                },
+            },
+        ]).sort((a, b) =>
+            defaultCompareStrings("taskId" in a ? a.taskId : "", "taskId" in b ? b.taskId : ""),
+        ),
+    );
 });

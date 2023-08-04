@@ -449,18 +449,16 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
         rawUndeletedTime: HybridLogicalTimeType.nullable(),
 
         parent: TaskIndexParentType,
-        // The number of tasks with `parent.taskId` set to this task. Could be
-        // determined with a search but denormalized here since we need it to render a
-        // task list.
+        // See the documentation on `TaskUpdateChildrenCountsAction` for what these
+        // fields are. They are CRDTs that allow us to figure out the task's
+        // `childTaskCount` and `childClosedTaskCount`.
         //
-        // NOCOMMIT: Update this
-        childTaskCount: new OpensearchIndexIntegerType(),
-        // The number of closed tasks with `parent.taskId` set to this task. Could be
-        // determined with a search but denormalized here since we need it to render a
-        // task list.
-        //
-        // NOCOMMIT: Update this
-        closedChildTaskCount: new OpensearchIndexIntegerType(),
+        // We don't have `childTaskCount` or `childClosedTaskCount` computed fields
+        // since we don't need to index those fields.
+        addedChildTaskCount: new OpensearchIndexIntegerType(),
+        removedChildTaskCount: new OpensearchIndexIntegerType(),
+        addedClosedChildTaskCount: new OpensearchIndexIntegerType(),
+        removedClosedChildTaskCount: new OpensearchIndexIntegerType(),
 
         collections: TaskIndexCollectionsType,
         notepadPages: TaskIndexNotepadPagesType,
@@ -470,9 +468,8 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
         // Raw since this is a register that can independently update from `status` and
         // `assignee` but the true value depends on these fields. If `status` is closed
         // or `assignee` is null then `assigneeStatus` is always inactive. We don't
-        // have a computed field with the real `assigneeStatus` since it's almost
-        // always a direct copy which feels wasteful. So make sure to use
-        // `rawAssigneeStatus` correctly.
+        // have a computed field with the real `assigneeStatus` since we don't need to
+        // index the computed field.
         rawAssigneeStatus: TaskIndexAssigneeStatusType,
 
         title: TaskIndexTitleType,

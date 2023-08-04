@@ -95,6 +95,41 @@ export function applyTaskActionToTaskIndexDoc(
                 },
             };
         }
+        case "UpdateChildrenCounts": {
+            const newAddedChildTaskCount = Math.max(
+                task.addedChildTaskCount,
+                action.addedChildTaskCount,
+            );
+            const newRemovedChildTaskCount = Math.max(
+                task.removedChildTaskCount,
+                action.removedChildTaskCount,
+            );
+            const newAddedClosedChildTaskCount = Math.max(
+                task.addedClosedChildTaskCount,
+                action.addedClosedChildTaskCount,
+            );
+            const newRemovedClosedChildTaskCount = Math.max(
+                task.removedClosedChildTaskCount,
+                action.removedClosedChildTaskCount,
+            );
+
+            if (
+                task.addedChildTaskCount === newAddedChildTaskCount &&
+                task.removedChildTaskCount === newRemovedChildTaskCount &&
+                task.addedClosedChildTaskCount === newAddedClosedChildTaskCount &&
+                task.removedClosedChildTaskCount === newRemovedClosedChildTaskCount
+            ) {
+                return task;
+            }
+
+            return {
+                ...task,
+                addedChildTaskCount: newAddedChildTaskCount,
+                removedChildTaskCount: newRemovedChildTaskCount,
+                addedClosedChildTaskCount: newAddedClosedChildTaskCount,
+                removedClosedChildTaskCount: newRemovedClosedChildTaskCount,
+            };
+        }
         case "AddCollection": {
             const newCollections = task.collections.raw.collections.apply({
                 type: "Set",

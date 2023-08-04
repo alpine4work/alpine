@@ -46,6 +46,10 @@ export type TaskTestInterface = {
     createdTime: TaskFilterableTime;
     isDeleted: boolean;
     parent: {taskId: TaskId; position: TaskPosition} | null;
+    addedChildTaskCount: number;
+    removedChildTaskCount: number;
+    addedClosedChildTaskCount: number;
+    removedClosedChildTaskCount: number;
     collections: TaskCollectionSet;
     collectionPositions: Map<TaskCollectionId, TaskPosition>;
     notepadPagePositions: Map<`${AccountId}-${TaskNotepadPageId}`, TaskPosition>;
@@ -2748,6 +2752,74 @@ const taskSpaceActionTestCases: Array<{
             };
         },
     },
+    {
+        name: "updating task children counts",
+        create: ({creator, getNextTime}): TaskSpaceActionTestArtifacts => {
+            const taskId = generateId<TaskId>();
+
+            return {
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: getNextTime(),
+                        taskId,
+                        taskAction: {
+                            type: "Create",
+                            creator,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: getNextTime(),
+                        taskId,
+                        taskAction: {
+                            type: "UpdateChildrenCounts",
+                            addedChildTaskCount: 1,
+                            removedChildTaskCount: 0,
+                            addedClosedChildTaskCount: 0,
+                            removedClosedChildTaskCount: 0,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: getNextTime(),
+                        taskId,
+                        taskAction: {
+                            type: "UpdateChildrenCounts",
+                            addedChildTaskCount: 1,
+                            removedChildTaskCount: 0,
+                            addedClosedChildTaskCount: 1,
+                            removedClosedChildTaskCount: 1,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: getNextTime(),
+                        taskId,
+                        taskAction: {
+                            type: "UpdateChildrenCounts",
+                            addedChildTaskCount: 0,
+                            removedChildTaskCount: 1,
+                            addedClosedChildTaskCount: 2,
+                            removedClosedChildTaskCount: 0,
+                        },
+                    },
+                ],
+                expect: [
+                    {
+                        taskId,
+                        task: {
+                            addedChildTaskCount: 1,
+                            removedChildTaskCount: 1,
+                            addedClosedChildTaskCount: 2,
+                            removedClosedChildTaskCount: 1,
+                        },
+                    },
+                ],
+            };
+        },
+    },
 ];
 
 /**
@@ -2930,6 +3002,10 @@ export function testTaskSpaceActionPermutations({
                                     const expectedTask: TaskTestInterface = {
                                         isDeleted: false,
                                         parent: null,
+                                        addedChildTaskCount: 0,
+                                        removedChildTaskCount: 0,
+                                        addedClosedChildTaskCount: 0,
+                                        removedClosedChildTaskCount: 0,
                                         collections: TaskCollectionSet.empty,
                                         collectionPositions: new Map(
                                             (

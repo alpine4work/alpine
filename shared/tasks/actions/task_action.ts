@@ -105,6 +105,73 @@ const TaskUpdateParentPositionActionSchema = Schema.object({
 });
 
 /**
+ * Action that updates the number of children our task has.
+ *
+ * This is a special action that can't be committed by clients. Instead when
+ * you commit an `UpdateParentTaskId` action, the server generates this action
+ * and adds it to your action transaction. (Clients are also recommended to
+ * locally generate this action if the parent task is loaded. Otherwise they
+ * can wait to receive the action over their realtime connection.)
+ *
+ * If a client tries to commit this action the server will reject it.
+ *
+ * That's because only the server knows the correct child task count. Clients
+ * may not have loaded the parent task or may have an out-of-date parent task.
+ *
+ * The two counters we care about are `childTaskCount` and
+ * `closedChildTaskCount`. (`openChildTaskCount` can be derived from
+ * `childTaskCount - closedChildTaskCount`.) But since task actions have CRDT
+ * properties (commutative and idempotent) it's not as easy as setting two
+ * counter values.
+ *
+ * Instead we use simplified [grow-counter CRDTs][1] which have commutative and
+ * idempotent properties. Namely the CRDT merge function for each counter is:
+ * `(a, b) => max(a, b)`. We don't care about preserving increments from
+ * individual replicas since the counters will be set by the server which has an
+ * authoritative view of the counters.
+ *
+ * A number that can be incremented and decremented is modeled as two
+ * grow-counter CRDTs. One for additions and one for subtractions. To get the
+ * final value you subtract the subtractions grow-counter CRDT from the
+ * additions grow-counter CRDT.
+ *
+ * So `childTaskCount` is implemented as `addedChildTaskCount` and
+ * `removedChildTaskCount`, you get the final value with
+ * `childTaskCount = addedChildTaskCount - removedChildTaskCount`. Likewise
+ * for `closedChildTaskCount`.
+ *
+ * By committing both a `UpdateParentTaskId` action and `UpdateChildrenCounts`
+ * we can correctly update tasks no matter what slice of data is loaded. If
+ * only the parent is loaded then `UpdateChildrenCounts` will update its child
+ * counts. If only the child is loaded then `UpdateParentTaskId` will let us
+ * know if there is a parent or not.
+ *
+ * ## Commentary
+ *
+ * This is a weird action that only works because we have a centralized
+ * authority for determining whether an action can be commit which isn't the
+ * case with a classic peer-to-peer CRDT application.
+ *
+ * I (@calebmer) couldn't think of a better "classic" CRDT implementation.
+ * Though our task system as a whole can't be implemented in a classic CRDT
+ * implementation given our requirements around partial data loading and
+ * permissions.
+ *
+ * [1]: https://www.bartoszsypytkowski.com/the-state-of-a-state-based-crdts/
+ */
+export type TaskUpdateChildrenCountsAction = SchemaType<
+    typeof TaskUpdateChildrenCountsActionSchema
+>;
+
+const TaskUpdateChildrenCountsActionSchema = Schema.object({
+    type: Schema.value("UpdateChildrenCounts"),
+    addedChildTaskCount: Schema.integer,
+    removedChildTaskCount: Schema.integer,
+    addedClosedChildTaskCount: Schema.integer,
+    removedClosedChildTaskCount: Schema.integer,
+});
+
+/**
  * Add a collection to this task. Or move the collection to a new position by
  * changing the `orderKey`.
  *
@@ -255,6 +322,7 @@ export const TaskActionSchema = Schema.union({
     Undelete: TaskUndeleteActionSchema,
     UpdateParentTaskId: TaskUpdateParentTaskIdActionSchema,
     UpdateParentPosition: TaskUpdateParentPositionActionSchema,
+    UpdateChildrenCounts: TaskUpdateChildrenCountsActionSchema,
     AddCollection: TaskAddCollectionActionSchema,
     RemoveCollection: TaskRemoveCollectionActionSchema,
     UpdateStatus: TaskUpdateStatusActionSchema,

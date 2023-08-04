@@ -10,6 +10,7 @@ import {
 } from "~/server/dynamo/internal/dynamo_table_schema.js";
 import {authorizeSpaceAccess, isAccountMemberOfSpace} from "~/server/dynamo/spaces_table.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
+import {createCrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {
     FailedPreconditionError,
     InternalError,
@@ -19,7 +20,10 @@ import {
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {compareHybridLogicalTimes} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {
+    compareHybridLogicalTimes,
+    maxHybridLogicalTime,
+} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -51,6 +55,7 @@ import {
 } from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskNotepadPageIdCompressedSetSchema} from "~/shared/tasks/task_notepad_page_id.js";
+import {TaskStatus} from "~/shared/tasks/task_status.js";
 
 /**
  * The task actions table is the canonical representation of the data in our
@@ -90,7 +95,7 @@ const TaskActionsTable = DynamoTableSchema.new({
 
                         /**
                          * An `Id` for uniquely representing an action. Also used to disambiguate
-                         * actions with identical `actionTime`s.
+                         * actions with identical `committedTime`s.
                          */
                         actionTransactionId: DynamoKeyAttributeSchema.id<TaskActionTransactionId>(),
                     },
@@ -105,6 +110,10 @@ const TaskActionsTable = DynamoTableSchema.new({
         },
     ],
 });
+
+const TaskStatusTypeRegister = createCrdtRegister(
+    Schema.enum<TaskStatus["type"]>(["Open", "Closed"]),
+);
 
 /**
  * Data related to tasks. Contains some views of task actions (e.g. the
@@ -179,6 +188,11 @@ const TasksTable = DynamoTableSchema.new({
                         deletedTime: HybridLogicalTimeSchema.nullable(),
 
                         /**
+                         * The status of this task. Either `Open` or `Closed`.
+                         */
+                        statusType: TaskStatusTypeRegister.schema,
+
+                        /**
                          * The parent of this task.
                          *
                          * ## Permissions
@@ -220,6 +234,13 @@ const TasksTable = DynamoTableSchema.new({
                          * deleted parent task.
                          */
                         parentTaskId: TaskParentTaskIdRegister.schema,
+
+                        // See the documentation of `TaskUpdateChildrenCountsAction` for more
+                        // information.
+                        addedChildTaskCount: Schema.integer,
+                        removedChildTaskCount: Schema.integer,
+                        addedClosedChildTaskCount: Schema.integer,
+                        removedClosedChildTaskCount: Schema.integer,
 
                         /**
                          * The collections this task is a part of. A task inherits the highest access
@@ -277,18 +298,18 @@ export const commitTaskSpaceActionTransactionBeforeExecuteTestCheckpoint =
 export function commitTaskSpaceActionTransaction(
     context: AppSessionActionContext,
     spaceId: SpaceId,
-    actionTransaction: ReadonlyArray<TaskSpaceAction>,
-): Promise<void> {
+    actions: ReadonlyArray<TaskSpaceAction>,
+): Promise<{extraActions: ReadonlyArray<TaskSpaceAction>}> {
     return context.tracer.withSpan("commitTaskSpaceActionTransaction", async (context, span) => {
         span.addData({
             tasks: {
-                actions: actionTransaction.map(getTaskSpaceActionLabel).join(","),
-                actionCount: actionTransaction.length,
+                actions: actions.map(getTaskSpaceActionLabel).join(","),
+                actionCount: actions.length,
             },
         });
 
-        const {actionTransactionId, committedTime} =
-            await TaskSpaceActionTransactionCommitState.commit(context, spaceId, actionTransaction);
+        const {actionTransactionId, committedTime, extraActions} =
+            await TaskSpaceActionTransactionCommitState.commit(context, spaceId, actions);
 
         span.addData({
             tasks: {
@@ -296,6 +317,18 @@ export function commitTaskSpaceActionTransaction(
                 actionTransactionCommittedTime: serializeDateString(committedTime),
             },
         });
+
+        // Make sure we include extra actions in our `TracerSpan` if there were any.
+        if (extraActions.length > 0) {
+            span.addData({
+                tasks: {
+                    actions: [...actions, ...extraActions].map(getTaskSpaceActionLabel).join(","),
+                    actionCount: actions.length + extraActions.length,
+                },
+            });
+        }
+
+        return {extraActions};
     });
 }
 
@@ -315,8 +348,9 @@ class TaskSpaceActionTransactionCommitState {
     private readonly _transactionEntryByTaskId = new Map<
         TaskId,
         {
-            taskItem: TaskEssentialAttributesItem;
             action: "CreateItem" | "DirectlyUpdateItem" | "DirectlyUpdateItemLockVersion";
+            taskItem: TaskEssentialAttributesItem;
+            shouldCommitExtraUpdateChildrenCountAction: boolean;
         }
     >();
 
@@ -325,8 +359,8 @@ class TaskSpaceActionTransactionCommitState {
     private readonly _transactionEntryByCollectionId = new Map<
         TaskCollectionId,
         {
-            collectionItem: TaskCollectionEssentialAttributesItem;
             action: "CreateItem" | "DirectlyUpdateItem";
+            collectionItem: TaskCollectionEssentialAttributesItem;
         }
     >();
 
@@ -347,19 +381,30 @@ class TaskSpaceActionTransactionCommitState {
     public static commit(
         context: AppSessionActionContext,
         spaceId: SpaceId,
-        actionTransaction: ReadonlyArray<TaskSpaceAction>,
+        actions: ReadonlyArray<TaskSpaceAction>,
     ): Promise<{
         actionTransactionId: TaskActionTransactionId;
         committedTime: Date;
+        extraActions: ReadonlyArray<TaskSpaceAction>;
     }> {
         return context.dynamo.retryTransaction(async context => {
             await authorizeSpaceAccess(context, spaceId);
 
+            if (!actions[0]) {
+                throw new InvalidArgumentError("Must commit at least one action");
+            }
+
+            let maxActionTime = actions[0].time;
+            for (let i = 1; i < actions.length; i++) {
+                maxActionTime = maxHybridLogicalTime(maxActionTime, actions[i]!.time);
+            }
+
             const state = new TaskSpaceActionTransactionCommitState(context, spaceId);
 
-            await actuallyCommitTaskSpaceActionTransaction(state, spaceId, actionTransaction);
+            await actuallyCommitTaskSpaceActionTransaction(state, spaceId, actions);
 
             const transactionEntries: Array<DynamoTransactionEntry> = [];
+            const extraActions: Array<TaskSpaceAction> = [];
 
             for (const transactionEntry of state._transactionEntryByTaskId.values()) {
                 switch (transactionEntry.action) {
@@ -386,6 +431,29 @@ class TaskSpaceActionTransactionCommitState {
                     }
                     default:
                         throw exhaustive(transactionEntry.action);
+                }
+
+                // If children counts were updated then we want to commit an extra action with
+                // the authoritative child counts so all other clients have the correct
+                // children count.
+                if (transactionEntry.shouldCommitExtraUpdateChildrenCountAction) {
+                    // For our extra action's time, add a tick to the max action time.
+                    maxActionTime = [maxActionTime[0], maxActionTime[1] + 1];
+
+                    extraActions.push({
+                        type: "UpdateTask",
+                        time: maxActionTime,
+                        taskId: transactionEntry.taskItem.taskId,
+                        taskAction: {
+                            type: "UpdateChildrenCounts",
+                            addedChildTaskCount: transactionEntry.taskItem.addedChildTaskCount,
+                            removedChildTaskCount: transactionEntry.taskItem.removedChildTaskCount,
+                            addedClosedChildTaskCount:
+                                transactionEntry.taskItem.addedClosedChildTaskCount,
+                            removedClosedChildTaskCount:
+                                transactionEntry.taskItem.removedClosedChildTaskCount,
+                        },
+                    });
                 }
             }
 
@@ -428,7 +496,7 @@ class TaskSpaceActionTransactionCommitState {
                 spaceId,
                 committedTime: new Date(),
                 actionTransactionId: generateId<TaskActionTransactionId>(),
-                actions: actionTransaction,
+                actions: [...actions, ...extraActions],
             };
 
             if (transactionEntries.length > 0) {
@@ -444,6 +512,7 @@ class TaskSpaceActionTransactionCommitState {
             return {
                 actionTransactionId: actionTransactionItem.actionTransactionId,
                 committedTime: actionTransactionItem.committedTime,
+                extraActions,
             };
         });
     }
@@ -503,8 +572,9 @@ class TaskSpaceActionTransactionCommitState {
             this._transactionEntryByTaskId,
             taskItem.taskId,
             () => ({
-                taskItem,
                 action: "CreateItem" as const,
+                taskItem,
+                shouldCommitExtraUpdateChildrenCountAction: false,
             }),
         );
 
@@ -526,17 +596,30 @@ class TaskSpaceActionTransactionCommitState {
         transactionEntry.taskItem = taskItem;
     }
 
-    public updateTaskItem(taskItem: TaskEssentialAttributesItem) {
+    public updateTaskItem(
+        taskItem: TaskEssentialAttributesItem,
+        {
+            shouldCommitExtraUpdateChildrenCountAction = false,
+        }: {
+            // If set to true then we will add an `UpdateChildrenCount` action to the end
+            // of the current transaction before committing.
+            shouldCommitExtraUpdateChildrenCountAction?: boolean;
+        } = {},
+    ) {
         this._taskItemById.set(taskItem.taskId, Promise.resolve(taskItem));
 
         const transactionEntry = getOrSetDefaultMapValue(
             this._transactionEntryByTaskId,
             taskItem.taskId,
             () => ({
-                taskItem,
                 action: "DirectlyUpdateItem" as const,
+                taskItem,
+                shouldCommitExtraUpdateChildrenCountAction: false,
             }),
         );
+
+        transactionEntry.shouldCommitExtraUpdateChildrenCountAction ||=
+            shouldCommitExtraUpdateChildrenCountAction;
 
         switch (transactionEntry.action) {
             case "CreateItem":
@@ -562,8 +645,9 @@ class TaskSpaceActionTransactionCommitState {
             this._transactionEntryByTaskId,
             taskItem.taskId,
             () => ({
-                taskItem,
                 action: "DirectlyUpdateItemLockVersion" as const,
+                taskItem,
+                shouldCommitExtraUpdateChildrenCountAction: false,
             }),
         );
 
@@ -818,7 +902,12 @@ async function actuallyCommitTaskSpaceActionTransaction(
                             creatorId: taskAction.creator.accountId,
                             createdTime: new Date(action.time[0]),
                             deletedTime: null,
+                            statusType: new TaskStatusTypeRegister("Open", action.time),
                             parentTaskId: new TaskParentTaskIdRegister(null, action.time),
+                            addedChildTaskCount: 0,
+                            removedChildTaskCount: 0,
+                            addedClosedChildTaskCount: 0,
+                            removedClosedChildTaskCount: 0,
                             collections: TaskCollectionSet.empty,
                         });
                         break;
@@ -1023,13 +1112,78 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                     },
                                 );
 
+                                const oldParentTaskId = taskItem.parentTaskId;
+                                const newParentTaskId = oldParentTaskId.apply({
+                                    value: taskAction.parentTaskId,
+                                    version: action.time,
+                                });
+
                                 state.updateTaskItem({
                                     ...taskItem,
-                                    parentTaskId: taskItem.parentTaskId.apply({
+                                    parentTaskId: newParentTaskId.apply({
                                         value: taskAction.parentTaskId,
                                         version: action.time,
                                     }),
                                 });
+
+                                // If the parent task changed then increment our counters such that we remove
+                                // our task from the old parent and add our task to the new parent.
+                                if (oldParentTaskId.value !== newParentTaskId.value) {
+                                    await runAllPromiseThunks(
+                                        async () => {
+                                            if (oldParentTaskId.value === null) return;
+
+                                            // Should be cached from authorization...
+                                            const oldParentTask = await state.getTaskItem(
+                                                oldParentTaskId.value,
+                                            );
+
+                                            // TODO(calebmer): We could optimize this by using an `UpdateItem`
+                                            // transaction entry that increments our attributes (and
+                                            // `updateLockVersion`). This would not require a condition check so would
+                                            // save us RCUs.
+                                            state.updateTaskItem(
+                                                {
+                                                    ...oldParentTask,
+                                                    removedChildTaskCount:
+                                                        oldParentTask.removedChildTaskCount + 1,
+                                                    removedClosedChildTaskCount:
+                                                        oldParentTask.removedClosedChildTaskCount +
+                                                        (taskItem.statusType.value === "Closed"
+                                                            ? 1
+                                                            : 0),
+                                                },
+                                                {shouldCommitExtraUpdateChildrenCountAction: true},
+                                            );
+                                        },
+                                        async () => {
+                                            if (newParentTaskId.value === null) return;
+
+                                            // Should be cached from authorization...
+                                            const newParentTask = await state.getTaskItem(
+                                                newParentTaskId.value,
+                                            );
+
+                                            // TODO(calebmer): We could optimize this by using an `UpdateItem`
+                                            // transaction entry that increments our attributes (and
+                                            // `updateLockVersion`). This would not require a condition check so would
+                                            // save us RCUs.
+                                            state.updateTaskItem(
+                                                {
+                                                    ...newParentTask,
+                                                    addedChildTaskCount:
+                                                        newParentTask.addedChildTaskCount + 1,
+                                                    addedClosedChildTaskCount:
+                                                        newParentTask.addedClosedChildTaskCount +
+                                                        (taskItem.statusType.value === "Closed"
+                                                            ? 1
+                                                            : 0),
+                                                },
+                                                {shouldCommitExtraUpdateChildrenCountAction: true},
+                                            );
+                                        },
+                                    );
+                                }
                                 break;
                             }
                             case "UpdateParentPosition": {
@@ -1057,6 +1211,15 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                 // property of the parent task than it is a property of our task.
                                 await authorizeTaskItemAccess(parentTaskItem, "Edit");
                                 break;
+                            }
+                            case "UpdateChildrenCounts": {
+                                // These actions may only be generated by the server.
+                                //
+                                // See the documentation on `TaskUpdateChildrenCountsAction` for more
+                                // information on why this isn't allowed.
+                                throw new InvalidArgumentError(
+                                    "Clients are not allowed to commit an `UpdateChildrenCounts` action",
+                                );
                             }
                             case "AddCollection": {
                                 await authorizeCollectionAccess(taskAction.collectionId, "Edit");
@@ -1104,6 +1267,66 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                     throw new PermissionDeniedError(
                                         "Can only close a task with yourself as the closer",
                                     );
+                                }
+
+                                const oldStatusType = taskItem.statusType;
+
+                                const newStatusType = oldStatusType.apply({
+                                    value: taskAction.status.type,
+                                    version: action.time,
+                                });
+
+                                state.updateTaskItem({
+                                    ...taskItem,
+                                    statusType: newStatusType,
+                                });
+
+                                if (taskItem.parentTaskId.value !== null) {
+                                    if (
+                                        oldStatusType.value !== "Closed" &&
+                                        newStatusType.value === "Closed"
+                                    ) {
+                                        // May be cached from authorization...
+                                        const newParentTask = await state.getTaskItem(
+                                            taskItem.parentTaskId.value,
+                                        );
+
+                                        // TODO(calebmer): We could optimize this by using an `UpdateItem`
+                                        // transaction entry that increments our attributes (and
+                                        // `updateLockVersion`). This would not require a condition check so would
+                                        // save us RCUs.
+                                        state.updateTaskItem(
+                                            {
+                                                ...newParentTask,
+                                                addedClosedChildTaskCount:
+                                                    newParentTask.addedClosedChildTaskCount + 1,
+                                            },
+                                            {shouldCommitExtraUpdateChildrenCountAction: true},
+                                        );
+                                    }
+
+                                    if (
+                                        oldStatusType.value === "Closed" &&
+                                        newStatusType.value !== "Closed"
+                                    ) {
+                                        // May be cached from authorization...
+                                        const newParentTask = await state.getTaskItem(
+                                            taskItem.parentTaskId.value,
+                                        );
+
+                                        // TODO(calebmer): We could optimize this by using an `UpdateItem`
+                                        // transaction entry that increments our attributes (and
+                                        // `updateLockVersion`). This would not require a condition check so would
+                                        // save us RCUs.
+                                        state.updateTaskItem(
+                                            {
+                                                ...newParentTask,
+                                                removedClosedChildTaskCount:
+                                                    newParentTask.removedClosedChildTaskCount + 1,
+                                            },
+                                            {shouldCommitExtraUpdateChildrenCountAction: true},
+                                        );
+                                    }
                                 }
                                 break;
                             }
@@ -1166,7 +1389,7 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                 break;
                             }
                             case "UpdateTitle": {
-                                // Y.js use Lamport timestamps which we don't need to validate for
+                                // Y.js uses Lamport timestamps which we don't need to validate for
                                 // reasonableness.
                                 break;
                             }

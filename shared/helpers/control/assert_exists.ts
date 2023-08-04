@@ -6,7 +6,9 @@ import {InternalError} from "~/shared/error/error.js";
  * An assertion is always expected to pass. Assertion failures in production
  * should be a bug.
  */
-// TODO(calebmer): Transform that automatically adds error message.
+// TODO(calebmer, #swc): SWC transform that automatically adds an error message
+// and inlines this function. A direct `if` condition will be faster than a
+// function call for how much this gets used.
 export function assertExists<T>(value: T | null | undefined, message?: string): T {
     if (value === null || value === undefined) {
         const error = new InternalError(

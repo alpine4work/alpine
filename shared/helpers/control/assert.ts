@@ -9,7 +9,9 @@ import {InternalError} from "~/shared/error/error.js";
  * Integrates with the type system so that assertions refine the type.
  */
 // TODO(calebmer): Lint rule that the right `assert()` is being imported.
-// TODO(calebmer): Transform that automatically adds error message.
+// TODO(calebmer, #swc): SWC transform that automatically adds an error message
+// and inlines this function. A direct `if` condition will be faster than a
+// function call for how much this gets used.
 export function assert(condition: unknown, message?: string): asserts condition {
     if (!condition) {
         const error = new InternalError(

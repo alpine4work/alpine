@@ -314,8 +314,10 @@ async function actuallyIndexTaskSpaceAction(
                             action.time,
                         ),
                     },
-                    childTaskCount: 0,
-                    closedChildTaskCount: 0,
+                    addedChildTaskCount: 0,
+                    removedChildTaskCount: 0,
+                    addedClosedChildTaskCount: 0,
+                    removedClosedChildTaskCount: 0,
                     collections: {
                         raw: {
                             collections: TaskCollectionSet.empty,

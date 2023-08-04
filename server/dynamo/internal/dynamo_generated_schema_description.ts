@@ -3998,6 +3998,42 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 }
                                                                             }
                                                                         },
+                                                                        "UpdateChildrenCounts": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "UpdateChildrenCounts"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "addedChildTaskCount": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Integer"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "removedChildTaskCount": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Integer"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "addedClosedChildTaskCount": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Integer"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "removedClosedChildTaskCount": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Integer"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
                                                                         "AddCollection": {
                                                                             "type": "Object",
                                                                             "propertySchemaByKey": {
@@ -4751,6 +4787,30 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "statusType": {
+                                        "valueSchema": {
+                                            "type": "Object",
+                                            "propertySchemaByKey": {
+                                                "value": {
+                                                    "valueSchema": {
+                                                        "type": "Enum",
+                                                        "values": [
+                                                            "Open",
+                                                            "Closed"
+                                                        ]
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "version": {
+                                                    "valueSchema": {
+                                                        "type": "Uint64"
+                                                    },
+                                                    "optional": false
+                                                }
+                                            }
+                                        },
+                                        "optional": false
+                                    },
                                     "parentTaskId": {
                                         "valueSchema": {
                                             "type": "Object",
@@ -4771,6 +4831,30 @@ export const dynamoGeneratedSchemaDescription: {
                                                     "optional": false
                                                 }
                                             }
+                                        },
+                                        "optional": false
+                                    },
+                                    "addedChildTaskCount": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "removedChildTaskCount": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "addedClosedChildTaskCount": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "removedClosedChildTaskCount": {
+                                        "valueSchema": {
+                                            "type": "Integer"
                                         },
                                         "optional": false
                                     },
