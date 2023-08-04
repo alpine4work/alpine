@@ -375,78 +375,81 @@ export class DynamoGeneralRealtimeTableSchema<
             DynamoGeneralRealtimeInternalEvent<Types["Item"], ModelMap[string][string]>
         >,
     ): Promise<void> {
-        return context.tracer.withSpan("Send general realtime event transaction", async context => {
-            const [actualEventTransaction] = await runAllPromises([
-                runAllPromises(
-                    eventTransaction.map(async event => ({
-                        type: event.type,
-                        item: {
-                            key: event.key,
-                            version: event.version,
-                            model: await event.getModel(context),
-                        },
-                        cursorByIndexName: this._getCursorByIndexName(event.item),
-                    })),
-                ),
-                (async () => {
-                    const realtimeKeys = new Set<string>();
-
-                    const dynamoEventTransaction = eventTransaction.map(
-                        (event): DynamoGeneralRealtimePrivatePartitionEvent => {
-                            // Add the realtime event transaction to every partition affected by the
-                            // transaction. That way we can search to find the transaction later using any
-                            // partition key implicated in the transaction.
-                            //
-                            // We use an opaque partition key to avoid conflicting characters in this
-                            // realtime item's partition key.
-                            realtimeKeys.add(
-                                this._table.serializeOpaqueItemPartitionKey(event.item),
-                            );
-
-                            return {
-                                type: "PutItem",
+        return context.tracer.withSpan(
+            "DynamoGeneralRealtimeTableSchema.sendEventTransaction",
+            async context => {
+                const [actualEventTransaction] = await runAllPromises([
+                    runAllPromises(
+                        eventTransaction.map(async event => ({
+                            type: event.type,
+                            item: {
                                 key: event.key,
                                 version: event.version,
-                            };
-                        },
-                    );
+                                model: await event.getModel(context),
+                            },
+                            cursorByIndexName: this._getCursorByIndexName(event.item),
+                        })),
+                    ),
+                    (async () => {
+                        const realtimeKeys = new Set<string>();
 
-                    const eventTime = new Date();
+                        const dynamoEventTransaction = eventTransaction.map(
+                            (event): DynamoGeneralRealtimePrivatePartitionEvent => {
+                                // Add the realtime event transaction to every partition affected by the
+                                // transaction. That way we can search to find the transaction later using any
+                                // partition key implicated in the transaction.
+                                //
+                                // We use an opaque partition key to avoid conflicting characters in this
+                                // realtime item's partition key.
+                                realtimeKeys.add(
+                                    this._table.serializeOpaqueItemPartitionKey(event.item),
+                                );
 
-                    // Expire events after a couple days. If we are trying to backfill data from
-                    // longer ago then we'll need a full refresh.
-                    const expirationTime = addDays(
-                        eventTime,
-                        dynamoGeneralRealtimePrivatePartitionEventExpirationDays,
-                    );
+                                return {
+                                    type: "PutItem",
+                                    key: event.key,
+                                    version: event.version,
+                                };
+                            },
+                        );
 
-                    // Add the event transaction to every affected realtime key. When backfilling,
-                    // we only query events from realtime keys we care about. If a transaction
-                    // affected two realtime keys then it needs to be present in both to show up in a
-                    // backfill query.
-                    await runAllPromises(
-                        mapIterable(realtimeKeys, realtimeKey => {
-                            const item: DynamoGeneralRealtimePrivatePartitionItem = {
-                                partitionType: dynamoGeneralRealtimePrivatePartitionName,
-                                sortRangeType: "Events",
-                                realtimeKey,
-                                eventTime,
-                                expirationTime,
-                                eventTransaction: dynamoEventTransaction,
-                            };
-                            return this._table.createOrReplaceItem(context, item);
-                        }),
-                    );
-                })(),
-            ]);
+                        const eventTime = new Date();
 
-            // Wait to send our events to clients until we've confirmed our events have
-            // been written to DynamoDB.
-            //
-            // That way a strong consistency read of events in DynamoDB will give you all
-            // events sent before the start of the read.
-            await this._sendEventTransactionCallback(context, readTime, actualEventTransaction);
-        });
+                        // Expire events after a couple days. If we are trying to backfill data from
+                        // longer ago then we'll need a full refresh.
+                        const expirationTime = addDays(
+                            eventTime,
+                            dynamoGeneralRealtimePrivatePartitionEventExpirationDays,
+                        );
+
+                        // Add the event transaction to every affected realtime key. When backfilling,
+                        // we only query events from realtime keys we care about. If a transaction
+                        // affected two realtime keys then it needs to be present in both to show up in a
+                        // backfill query.
+                        await runAllPromises(
+                            mapIterable(realtimeKeys, realtimeKey => {
+                                const item: DynamoGeneralRealtimePrivatePartitionItem = {
+                                    partitionType: dynamoGeneralRealtimePrivatePartitionName,
+                                    sortRangeType: "Events",
+                                    realtimeKey,
+                                    eventTime,
+                                    expirationTime,
+                                    eventTransaction: dynamoEventTransaction,
+                                };
+                                return this._table.createOrReplaceItem(context, item);
+                            }),
+                        );
+                    })(),
+                ]);
+
+                // Wait to send our events to clients until we've confirmed our events have
+                // been written to DynamoDB.
+                //
+                // That way a strong consistency read of events in DynamoDB will give you all
+                // events sent before the start of the read.
+                await this._sendEventTransactionCallback(context, readTime, actualEventTransaction);
+            },
+        );
     }
 
     /**
