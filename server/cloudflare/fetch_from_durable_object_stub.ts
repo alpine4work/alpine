@@ -33,7 +33,7 @@ export async function fetchFromDurableObjectStub({
     const newUrl = new URL(request.url);
     newUrl.pathname = pathname;
     const newRequest = new Request(newUrl.toString(), request);
-    newRequest.headers.set("cyberworlds-id-name", idName);
+    newRequest.headers.set("cyberworlds-durable-object-id-name", idName);
     addTracerPropagationContextHeader(newRequest.headers, span);
 
     if (!newRequest.headers.has("authorization")) {

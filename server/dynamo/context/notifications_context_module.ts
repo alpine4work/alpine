@@ -213,6 +213,10 @@ export class NotificationsContextModule extends NotificationsContextModuleBase {
                             headers: {
                                 authorization: `bearer ${token}`,
                                 "content-type": "application/json",
+                                // If the durable object is not initialized this request will fail with a 412.
+                                // If there are no realtime subscribers on the durable object, we don't need to
+                                // send our event transaction. We can drop this request on the floor.
+                                "cyberworlds-durable-object-if-initialized": "true",
                             },
                             body: JSON.stringify(
                                 MyAccountInboxRealtimeEventTransactionSchema.serialize({
@@ -223,7 +227,7 @@ export class NotificationsContextModule extends NotificationsContextModuleBase {
                         },
                     );
 
-                    if (response.status !== 200) {
+                    if (response.status !== 200 && response.status !== 412) {
                         throw new InternalError(
                             "Failed to broadcast inbox realtime events from `MyAccountService`",
                         );

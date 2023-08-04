@@ -156,6 +156,27 @@ export function createDurableObject<
 
             return traceFetchResponse(this._tracer, request, url, async (span, request) => {
                 try {
+                    const idName = request.headers.get("cyberworlds-durable-object-id-name");
+                    if (idName === null)
+                        throw new InvalidArgumentError(
+                            "Expected Durable Object ID name to be included in header",
+                        );
+
+                    // Clients may make requests conditional on the Durable Object being
+                    // initialized. Ideally this logic would happen at the Cloudflare level instead
+                    // of our application code but it's still useful here as it prevents network
+                    // requests made while initializing.
+                    if (
+                        request.headers.get("cyberworlds-durable-object-if-initialized") ===
+                            "true" &&
+                        this._object === null
+                    ) {
+                        return new Response("412 Precondition Failed", {
+                            status: 412,
+                            headers: {"Content-Type": "text/plain"},
+                        });
+                    }
+
                     const authorizationHeader = request.headers.get("authorization");
                     if (!authorizationHeader) throw unauthenticatedSessionError();
                     const authorizationHeaderMatch = authorizationHeader.match(/^bearer (.+)$/i);
@@ -196,12 +217,6 @@ export function createDurableObject<
                             }),
                         },
                         async actionContext => {
-                            const idName = request.headers.get("cyberworlds-id-name");
-                            if (idName === null)
-                                throw new InvalidArgumentError(
-                                    "Expected Durable Object ID name to be included in header",
-                                );
-
                             if (this._object === null) {
                                 this._object = {
                                     idName,

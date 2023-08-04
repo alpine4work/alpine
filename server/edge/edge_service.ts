@@ -54,7 +54,7 @@ async function handleFetch(
     if (url.pathname === "/api/time") {
         return new Response(`{"startTime":${startTime},"endTime":${Date.now()}}`, {
             status: 200,
-            headers: {"Content-Type": "application/json"},
+            headers: {"content-type": "application/json"},
         });
     }
 
@@ -70,6 +70,9 @@ async function handleFetch(
             waitUntil: promise => executionContext.waitUntil(promise),
         });
 
+        // We wrap edge durable object routing in a span because our edge is running
+        // meaningful logic here. We don't add spans when we send requests to
+        // `AppService` since request simply falls through.
         return traceFetchResponse(tracer, request, url, async (span, request) => {
             // An env object that is referentially equal will be passed in as long as
             // environment variables remain the same.
@@ -175,9 +178,9 @@ async function handleFetch(
                     });
                 }
                 default:
-                    return new Response("Not Found: Durable object not found", {
+                    return new Response("404 Not Found: Durable object not found", {
                         status: 404,
-                        headers: {"Content-Type": "text/plain"},
+                        headers: {"content-type": "text/plain"},
                     });
             }
         });
@@ -186,9 +189,9 @@ async function handleFetch(
     // Can't forward a request to upgrade to a WebSocket connection. All WebSocket
     // connections are handled by Cloudflare Durable Objects.
     if (request.headers.has("upgrade")) {
-        return new Response("Bad Request: Can't upgrade to WebSocket connection", {
+        return new Response("400 Bad Request: Can't upgrade to WebSocket connection", {
             status: 400,
-            headers: {"Content-Type": "text/plain"},
+            headers: {"content-type": "text/plain"},
         });
     }
 
@@ -204,7 +207,7 @@ async function handleFetch(
     // For HTML requests, include edge server timing information. We use this on
     // the client to synchronize our client time with the server time. See
     // `synchronized_system_clock.ts`.
-    if (response.headers.get("Content-Type")?.includes("text/html")) {
+    if (response.headers.get("content-type")?.includes("text/html")) {
         // `fetch()` responses are immutable so we need to clone to add a new header...
         const newResponse = new Response(response.body, response);
 
@@ -212,7 +215,7 @@ async function handleFetch(
         const durationMs = endTime - startTime;
 
         newResponse.headers.append(
-            "Server-Timing",
+            "server-timing",
             `edge;dur=${durationMs};desc="Edge server wait (start time: ${startTimeString})"`,
         );
 

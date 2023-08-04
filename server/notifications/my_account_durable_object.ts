@@ -15,7 +15,6 @@ import {MyAccountProtocol} from "~/shared/notifications/my_account_protocol.js";
 import {getAccount} from "~/shared/rpc/accounts_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 
-// NOCOMMIT: Don't initialize for `/inbox-realtime-event-transaction` requests
 class MyAccountDurableObject {
     public static readonly serviceName = "MyAccountService";
 

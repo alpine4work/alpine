@@ -75,7 +75,8 @@ type TracerEventHttpHeaderNameMap = {
     "cdn-loop": true;
     "cf-worker": true;
     // Cyberworlds custom headers
-    "cyberworlds-id-name": true;
+    "cyberworlds-durable-object-id-name": true;
+    "cyberworlds-durable-object-if-initialized": true;
     "cyberworlds-space-id-hint": true;
 };
 
@@ -136,7 +137,8 @@ const tracerEventHttpHeaderNameMap: TracerEventHttpHeaderNameMap = {
     "cf-ipcountry": true,
     "cdn-loop": true,
     "cf-worker": true,
-    "cyberworlds-id-name": true,
+    "cyberworlds-durable-object-id-name": true,
+    "cyberworlds-durable-object-if-initialized": true,
     "cyberworlds-space-id-hint": true,
 };
 
