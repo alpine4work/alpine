@@ -100,8 +100,8 @@ export function createTaskQuerySortsCompareFunction(
 
                     compare: (value1, value2) => {
                         if (value1 === null && value2 === null) return 0;
-                        if (value1 === null) return sort.noAccountSide === "Start" ? -1 : 1;
-                        if (value2 === null) return sort.noAccountSide === "Start" ? 1 : -1;
+                        if (value1 === null) return sort.missingAccountSide === "Start" ? -1 : 1;
+                        if (value2 === null) return sort.missingAccountSide === "Start" ? 1 : -1;
 
                         return defaultCompareStrings(value1, value2);
                     },
@@ -123,8 +123,8 @@ export function createTaskQuerySortsCompareFunction(
 
                     compare: (value1, value2) => {
                         if (value1 === null && value2 === null) return 0;
-                        if (value1 === null) return sort.noAccountSide === "Start" ? -1 : 1;
-                        if (value2 === null) return sort.noAccountSide === "Start" ? 1 : -1;
+                        if (value1 === null) return sort.missingAccountSide === "Start" ? -1 : 1;
+                        if (value2 === null) return sort.missingAccountSide === "Start" ? 1 : -1;
 
                         return defaultCompareStrings(value1, value2);
                     },

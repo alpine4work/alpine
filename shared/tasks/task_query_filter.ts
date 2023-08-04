@@ -4,7 +4,7 @@ import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {decodeIdInto, encodeId, idByteLength} from "~/shared/id/id.js";
-import {AccountId, LocalTaskCollectionId} from "~/shared/id/types/id_types.js";
+import {AccountId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 
@@ -327,15 +327,15 @@ export type TaskQueryCollectionsFilter = {
     readonly operation:
         | {
               readonly type: "IncludesOneOf";
-              readonly collectionIds: ReadonlySet<LocalTaskCollectionId>;
+              readonly collectionIds: ReadonlySet<TaskCollectionId>;
           }
         | {
               readonly type: "IncludesAllOf";
-              readonly collectionIds: ReadonlySet<LocalTaskCollectionId>;
+              readonly collectionIds: ReadonlySet<TaskCollectionId>;
           }
         | {
               readonly type: "ExcludesAllOf";
-              readonly collectionIds: ReadonlySet<LocalTaskCollectionId>;
+              readonly collectionIds: ReadonlySet<TaskCollectionId>;
           }
         | {
               readonly type: "IsEmpty";
@@ -425,7 +425,7 @@ function deserializeTaskQueryCollectionsFilter(view: DataView): {
             throw new InvalidArgumentError(`Unrecognized operation type ${typeBits}`);
     }
 
-    const collectionIds = new Set<LocalTaskCollectionId>();
+    const collectionIds = new Set<TaskCollectionId>();
     let byteOffset = 1;
 
     for (let i = 0; i < collectionIdsSize; i++) {
@@ -512,7 +512,7 @@ export type TaskQueryFilterAccountOperation =
           readonly accounts: ReadonlyArray<
               | {readonly type: "Account"; readonly accountId: AccountId}
               | {readonly type: "CurrentAccount"}
-              | {readonly type: "NoAccount"}
+              | {readonly type: "MissingAccount"}
           >;
       }
     | {
@@ -520,7 +520,7 @@ export type TaskQueryFilterAccountOperation =
           readonly accounts: ReadonlyArray<
               | {readonly type: "Account"; readonly accountId: AccountId}
               | {readonly type: "CurrentAccount"}
-              | {readonly type: "NoAccount"}
+              | {readonly type: "MissingAccount"}
           >;
       };
 
@@ -588,7 +588,7 @@ function deserializeTaskQueryFilterAccountOperation(view: DataView): {
     const accounts: Array<
         | {readonly type: "Account"; readonly accountId: AccountId}
         | {readonly type: "CurrentAccount"}
-        | {readonly type: "NoAccount"}
+        | {readonly type: "MissingAccount"}
     > = [];
     let byteOffset = 1;
 
@@ -610,7 +610,7 @@ function deserializeTaskQueryFilterAccountOperation(view: DataView): {
                 accounts.push({type: "CurrentAccount"});
                 break;
             case 3:
-                accounts.push({type: "NoAccount"});
+                accounts.push({type: "MissingAccount"});
                 break;
             default:
                 throw new InvalidArgumentError(`Unrecognized account type ${typeBits}`);

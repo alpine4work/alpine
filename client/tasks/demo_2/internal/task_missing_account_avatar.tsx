@@ -4,10 +4,10 @@ import {useSpacingPx} from "~/client/design/helpers/use_spacing_px.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles.js";
 
-export function TaskNoAccountAvatar({size = "5"}: {size?: "3" | "4" | "5"}) {
+export function TaskMissingAccountAvatar({size = "5"}: {size?: "3" | "4" | "5"}) {
     return (
         <Box flexShrink="0" position="relative" width={size} height={size} borderRadius="full">
-            <TaskNoAccountAvatarDashedCircle size={size} />
+            <TaskMissingAccountAvatarDashedCircle size={size} />
             <Box
                 position="absolute"
                 inset="0"
@@ -26,7 +26,7 @@ export function TaskNoAccountAvatar({size = "5"}: {size?: "3" | "4" | "5"}) {
     );
 }
 
-export function TaskNoAccountAvatarDashedCircle({size}: {size: "3" | "4" | "5"}) {
+export function TaskMissingAccountAvatarDashedCircle({size}: {size: "3" | "4" | "5"}) {
     const radius = useSpacingPx(size) / 2;
     const strokeWidth = 1;
     const viewBoxSize = radius * 2 + strokeWidth;

@@ -399,14 +399,14 @@ const testCases: Array<{name: string; filters: Array<TaskQueryFilter>}> = [
             name: "no account",
             operation: {
                 type: "OneOf",
-                accounts: [{type: "NoAccount"}],
+                accounts: [{type: "MissingAccount"}],
             },
         },
         {
             name: "not no account",
             operation: {
                 type: "NoneOf",
-                accounts: [{type: "NoAccount"}],
+                accounts: [{type: "MissingAccount"}],
             },
         },
         {

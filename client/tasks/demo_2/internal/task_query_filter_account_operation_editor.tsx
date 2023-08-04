@@ -12,7 +12,7 @@ import {
     useExpensivelyPreloadAllSpaceAccounts,
 } from "~/client/spaces/use_expensively_load_all_space_accounts.js";
 import {TaskCurrentAccountAvatar} from "~/client/tasks/demo_2/internal/task_current_account_avatar.js";
-import {TaskNoAccountAvatar} from "~/client/tasks/demo_2/internal/task_no_account_avatar.js";
+import {TaskMissingAccountAvatar} from "~/client/tasks/demo_2/internal/task_missing_account_avatar.js";
 import {
     TaskQueryFilterEditorMultiSelectComboBox,
     TaskQueryFilterEditorMultiSelectComboBoxItem,
@@ -35,13 +35,13 @@ const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
 
 export function TaskQueryFilterAccountOperationEditor({
     inputLabel,
-    shouldHideNoAccountItem = false,
+    shouldHideMissingAccountItem = false,
     filterReferences,
     operation,
     onOperationChange,
 }: {
     inputLabel: string;
-    shouldHideNoAccountItem?: boolean;
+    shouldHideMissingAccountItem?: boolean;
     filterReferences: TaskQueryFilterReferences;
     operation: TaskQueryFilterAccountOperation;
     onOperationChange: (
@@ -54,7 +54,7 @@ export function TaskQueryFilterAccountOperationEditor({
     const {currentAccount} = useSpaceContext();
 
     const accountIds = useMemo(() => {
-        const accountIds = new Set<AccountId | "CurrentAccount" | "NoAccount">();
+        const accountIds = new Set<AccountId | "CurrentAccount" | "MissingAccount">();
 
         for (const account of operation.accounts) {
             switch (account.type) {
@@ -64,8 +64,8 @@ export function TaskQueryFilterAccountOperationEditor({
                 case "CurrentAccount":
                     accountIds.add("CurrentAccount");
                     break;
-                case "NoAccount":
-                    accountIds.add("NoAccount");
+                case "MissingAccount":
+                    accountIds.add("MissingAccount");
                     break;
                 default:
                     throw exhaustive(account);
@@ -75,15 +75,15 @@ export function TaskQueryFilterAccountOperationEditor({
         return accountIds;
     }, [operation.accounts]);
 
-    const normalizedAccountIds: ReadonlySet<AccountId | "NoAccount"> = useMemo(() => {
+    const normalizedAccountIds: ReadonlySet<AccountId | "MissingAccount"> = useMemo(() => {
         if (!accountIds.has("CurrentAccount"))
-            return accountIds as ReadonlySet<AccountId | "NoAccount">;
+            return accountIds as ReadonlySet<AccountId | "MissingAccount">;
 
         const normalizedAccountIds = new Set(accountIds);
         normalizedAccountIds.delete("CurrentAccount");
         normalizedAccountIds.add(currentAccount.id);
 
-        return normalizedAccountIds as ReadonlySet<AccountId | "NoAccount">;
+        return normalizedAccountIds as ReadonlySet<AccountId | "MissingAccount">;
     }, [accountIds, currentAccount.id]);
 
     const oneOfOperatorLabel = normalizedAccountIds.size > 1 ? "is one of" : "is";
@@ -148,8 +148,8 @@ export function TaskQueryFilterAccountOperationEditor({
                             accounts: Array.from(newAccountIds, accountId => {
                                 if (accountId === "CurrentAccount") {
                                     return {type: "CurrentAccount"};
-                                } else if (accountId === "NoAccount") {
-                                    return {type: "NoAccount"};
+                                } else if (accountId === "MissingAccount") {
+                                    return {type: "MissingAccount"};
                                 } else {
                                     return {type: "Account", accountId};
                                 }
@@ -163,7 +163,7 @@ export function TaskQueryFilterAccountOperationEditor({
                     // eslint-disable-next-line react-hooks/rules-of-hooks
                     useTaskQueryFilterAccountOperationEditorSearchedItems({
                         searchInputValue,
-                        shouldHideNoAccountItem,
+                        shouldHideMissingAccountItem,
                         accountIds,
                         accountByIdRef,
                     })
@@ -178,7 +178,7 @@ function TaskQueryFilterAccountOperationEditorPreview({
     normalizedAccountIds,
 }: {
     filterReferences: TaskQueryFilterReferences;
-    normalizedAccountIds: ReadonlySet<AccountId | "NoAccount">;
+    normalizedAccountIds: ReadonlySet<AccountId | "MissingAccount">;
 }) {
     const {currentAccount} = useSpaceContext();
 
@@ -191,9 +191,9 @@ function TaskQueryFilterAccountOperationEditorPreview({
             ? currentAccount
             : filterReferences.accountById.get(accountId);
 
-    const renderNoAccount = () => (
+    const renderMissingAccount = () => (
         <>
-            <TaskNoAccountAvatar size="3" />{" "}
+            <TaskMissingAccountAvatar size="3" />{" "}
             <Box paddingLeft="1" color="grey-60">
                 nobody
             </Box>
@@ -215,8 +215,8 @@ function TaskQueryFilterAccountOperationEditorPreview({
         const firstStep = normalizedAccountIds[Symbol.iterator]().next();
         assert(!firstStep.done);
 
-        if (firstStep.value === "NoAccount") {
-            return renderNoAccount();
+        if (firstStep.value === "MissingAccount") {
+            return renderMissingAccount();
         } else {
             const account = getAccountIfExists(firstStep.value);
             if (!account) return <>{missingAccountName}</>;
@@ -224,17 +224,17 @@ function TaskQueryFilterAccountOperationEditorPreview({
         }
     }
 
-    const hasNoAccount = normalizedAccountIds.has("NoAccount");
-    const accountCountWithMissingAccounts = normalizedAccountIds.size - (hasNoAccount ? 1 : 0);
+    const hasMissingAccount = normalizedAccountIds.has("MissingAccount");
+    const accountCountWithMissingAccounts = normalizedAccountIds.size - (hasMissingAccount ? 1 : 0);
 
     const accounts = Array.from(
         filterMapIterable(normalizedAccountIds, accountId => {
-            if (accountId === "NoAccount") return null;
+            if (accountId === "MissingAccount") return null;
             return getAccountIfExists(accountId) ?? null;
         }),
     );
 
-    const previewWithoutNoAccount =
+    const previewWithoutMissingAccount =
         accountCountWithMissingAccounts === 1 && accounts[0] ? (
             renderSingleAccount(accounts[0])
         ) : (
@@ -257,30 +257,30 @@ function TaskQueryFilterAccountOperationEditorPreview({
             </>
         );
 
-    if (!hasNoAccount) {
-        return previewWithoutNoAccount;
+    if (!hasMissingAccount) {
+        return previewWithoutMissingAccount;
     }
 
     return (
         <>
-            {previewWithoutNoAccount}
+            {previewWithoutMissingAccount}
             <Box color="grey-60" paddingLeft="1" paddingRight="1.5">
                 or
             </Box>
-            {renderNoAccount()}
+            {renderMissingAccount()}
         </>
     );
 }
 
 function useTaskQueryFilterAccountOperationEditorSearchedItems({
     searchInputValue,
-    shouldHideNoAccountItem,
+    shouldHideMissingAccountItem,
     accountIds,
     accountByIdRef,
 }: {
     searchInputValue: string;
-    shouldHideNoAccountItem: boolean;
-    accountIds: ReadonlySet<AccountId | "CurrentAccount" | "NoAccount">;
+    shouldHideMissingAccountItem: boolean;
+    accountIds: ReadonlySet<AccountId | "CurrentAccount" | "MissingAccount">;
     accountByIdRef: MutableRefObject<ReadonlyMap<AccountId, AccountModel> | null>;
 }) {
     const {currentAccount} = useSpaceContext();
@@ -301,7 +301,9 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
 
     const allItems = useMemo(() => {
         const allItems: Array<
-            TaskQueryFilterEditorMultiSelectComboBoxItem<AccountId | "CurrentAccount" | "NoAccount">
+            TaskQueryFilterEditorMultiSelectComboBoxItem<
+                AccountId | "CurrentAccount" | "MissingAccount"
+            >
         > = (allUnsortedAccounts ?? []).map(account => ({
             key: account.id,
             textValue: account.name,
@@ -334,13 +336,13 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
             ),
         });
 
-        if (!shouldHideNoAccountItem || initialAccountIds.has("NoAccount")) {
+        if (!shouldHideMissingAccountItem || initialAccountIds.has("MissingAccount")) {
             allItems.push({
-                key: "NoAccount",
+                key: "MissingAccount",
                 textValue: "Nobody",
                 node: (
                     <>
-                        <TaskNoAccountAvatar />{" "}
+                        <TaskMissingAccountAvatar />{" "}
                         <span className={sprinkles({color: "grey-60"})}>Nobody</span>
                     </>
                 ),
@@ -348,8 +350,8 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
         }
 
         allItems.sort((item1, item2) => {
-            if (item1.key === "NoAccount") return -1;
-            if (item2.key === "NoAccount") return 1;
+            if (item1.key === "MissingAccount") return -1;
+            if (item2.key === "MissingAccount") return 1;
 
             if (item1.key === "CurrentAccount") return -1;
             if (item2.key === "CurrentAccount") return 1;
@@ -376,7 +378,7 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
         });
 
         return allItems;
-    }, [allUnsortedAccounts, currentAccount.id, initialAccountIds, shouldHideNoAccountItem]);
+    }, [allUnsortedAccounts, currentAccount.id, initialAccountIds, shouldHideMissingAccountItem]);
 
     const itemsSearchIndex = useMemo(() => new Fuse(allItems, {keys: ["textValue"]}), [allItems]);
 

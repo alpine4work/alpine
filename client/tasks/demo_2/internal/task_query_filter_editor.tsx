@@ -104,8 +104,8 @@ export function TaskQueryFilterEditor({
                     operation={
                         <TaskQueryFilterAccountOperationEditor
                             inputLabel="Creator"
-                            // Tasks always have a creator so hide the `NoAccount` filter option.
-                            shouldHideNoAccountItem={true}
+                            // Tasks always have a creator so hide the `MissingAccount` filter option.
+                            shouldHideMissingAccountItem={true}
                             filterReferences={filterReferences}
                             operation={filter.operation}
                             onOperationChange={(operation, mergeFilterReferences) =>

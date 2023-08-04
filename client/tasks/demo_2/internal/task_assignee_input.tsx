@@ -32,7 +32,7 @@ import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growin
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
-import {TaskNoAccountAvatar} from "~/client/tasks/demo_2/internal/task_no_account_avatar.js";
+import {TaskMissingAccountAvatar} from "~/client/tasks/demo_2/internal/task_missing_account_avatar.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -394,7 +394,7 @@ function TaskAssigneeInput(
                             {assigneeAccount ? (
                                 <AccountAvatar size={avatarSize} account={assigneeAccount} />
                             ) : (
-                                <TaskNoAccountAvatar size={avatarSize} />
+                                <TaskMissingAccountAvatar size={avatarSize} />
                             )}
                         </Box>
                         <InputWithAutoGrowingWidth
@@ -549,7 +549,7 @@ function TaskAssigneeInputListBoxOptionItem({
         case "Null": {
             return (
                 <Box display="flex" alignItems="center" gap="1.5">
-                    <TaskNoAccountAvatar />
+                    <TaskMissingAccountAvatar />
                     <Box flexGrow="1" fontStyle="truncate" color="grey-60">
                         {nullAssigneeLabel}
                     </Box>

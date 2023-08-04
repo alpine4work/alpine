@@ -9,7 +9,7 @@ import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {Spacer} from "~/client/design/spacer.js";
-import {TaskNoAccountAvatar} from "~/client/tasks/demo_2/internal/task_no_account_avatar.js";
+import {TaskMissingAccountAvatar} from "~/client/tasks/demo_2/internal/task_missing_account_avatar.js";
 import {TaskQuerySort} from "~/client/tasks/demo_2/task_query_sort.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -152,7 +152,7 @@ export function TaskQuerySortsEditor({
                             onPress: () => {
                                 addSort({
                                     type: "Assignee",
-                                    noAccountSide: "Start",
+                                    missingAccountSide: "Start",
                                 });
                             },
                         },
@@ -167,7 +167,7 @@ export function TaskQuerySortsEditor({
                             onPress: () => {
                                 addSort({
                                     type: "Assigner",
-                                    noAccountSide: "Start",
+                                    missingAccountSide: "Start",
                                 });
                             },
                         },
@@ -325,10 +325,10 @@ function TaskQuerySortsEditorRow({
                     onDelete={onSortDelete}
                     isDragOverlay={isDragOverlay}
                 >
-                    <TaskQuerySortsEditorRowAccountNoAccountSide
-                        noAccountSide={sort.noAccountSide}
-                        onNoAccountSideChange={noAccountSide =>
-                            onSortChange({...sort, noAccountSide})
+                    <TaskQuerySortsEditorRowAccountMissingAccountSide
+                        missingAccountSide={sort.missingAccountSide}
+                        onMissingAccountSideChange={missingAccountSide =>
+                            onSortChange({...sort, missingAccountSide})
                         }
                     />
                 </TaskQuerySortsEditorRowBase>
@@ -352,10 +352,10 @@ function TaskQuerySortsEditorRow({
                     onDelete={onSortDelete}
                     isDragOverlay={isDragOverlay}
                 >
-                    <TaskQuerySortsEditorRowAccountNoAccountSide
-                        noAccountSide={sort.noAccountSide}
-                        onNoAccountSideChange={noAccountSide =>
-                            onSortChange({...sort, noAccountSide})
+                    <TaskQuerySortsEditorRowAccountMissingAccountSide
+                        missingAccountSide={sort.missingAccountSide}
+                        onMissingAccountSideChange={missingAccountSide =>
+                            onSortChange({...sort, missingAccountSide})
                         }
                     />
                 </TaskQuerySortsEditorRowBase>
@@ -596,12 +596,12 @@ function TaskQuerySortsEditorRowPriorityDirection({
     );
 }
 
-function TaskQuerySortsEditorRowAccountNoAccountSide({
-    noAccountSide,
-    onNoAccountSideChange,
+function TaskQuerySortsEditorRowAccountMissingAccountSide({
+    missingAccountSide,
+    onMissingAccountSideChange,
 }: {
-    noAccountSide: "Start" | "End";
-    onNoAccountSideChange: (noAccountSide: "Start" | "End") => void;
+    missingAccountSide: "Start" | "End";
+    onMissingAccountSideChange: (missingAccountSide: "Start" | "End") => void;
 }) {
     return (
         <Box marginTop="-0.5">
@@ -609,13 +609,13 @@ function TaskQuerySortsEditorRowAccountNoAccountSide({
                 actions={[
                     {
                         label: "Nobody first",
-                        isSelected: noAccountSide === "Start",
-                        onPress: () => onNoAccountSideChange("Start"),
+                        isSelected: missingAccountSide === "Start",
+                        onPress: () => onMissingAccountSideChange("Start"),
                     },
                     {
                         label: "Nobody last",
-                        isSelected: noAccountSide === "End",
-                        onPress: () => onNoAccountSideChange("End"),
+                        isSelected: missingAccountSide === "End",
+                        onPress: () => onMissingAccountSideChange("End"),
                     },
                 ]}
             >
@@ -627,8 +627,8 @@ function TaskQuerySortsEditorRowAccountNoAccountSide({
                     iconPlacement="end"
                 >
                     <Box display="flex" alignItems="center" gap="1">
-                        <TaskNoAccountAvatar size="3" />
-                        <Box>Nobody {noAccountSide === "Start" ? "first" : "last"}</Box>
+                        <TaskMissingAccountAvatar size="3" />
+                        <Box>Nobody {missingAccountSide === "Start" ? "first" : "last"}</Box>
                     </Box>
                 </Button>
             </MenuButton>

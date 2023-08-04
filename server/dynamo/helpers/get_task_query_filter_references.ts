@@ -35,7 +35,7 @@ export async function getTaskQueryFilterReferences(
                 for (const account of filter.operation.accounts) {
                     switch (account.type) {
                         case "CurrentAccount":
-                        case "NoAccount": {
+                        case "MissingAccount": {
                             // No references...
                             break;
                         }

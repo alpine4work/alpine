@@ -90,7 +90,7 @@ export function evaluateTaskQueryNormalizedFilters(
         filters.assigneeFilter !== undefined &&
         !evaluateTaskQueryAccountNormalizedFilter(
             filters.assigneeFilter,
-            task.assignee?.account.id ?? "NoAccount",
+            task.assignee?.account.id ?? "MissingAccount",
         )
     ) {
         return false;
@@ -107,7 +107,7 @@ export function evaluateTaskQueryNormalizedFilters(
         filters.assignerFilter !== undefined &&
         !evaluateTaskQueryAccountNormalizedFilter(
             filters.assignerFilter,
-            task.assignee?.assignerId ?? "NoAccount",
+            task.assignee?.assignerId ?? "MissingAccount",
         )
     ) {
         return false;
@@ -162,7 +162,7 @@ export function evaluateTaskQueryNormalizedFilters(
 
 function evaluateTaskQueryAccountNormalizedFilter(
     filter: TaskQueryAccountNormalizedFilter,
-    accountId: AccountId | "NoAccount",
+    accountId: AccountId | "MissingAccount",
 ): boolean {
     switch (filter.type) {
         case "OneOf":

@@ -115,11 +115,11 @@ export type TaskQueryPriorityNormalizedFilter =
 export type TaskQueryAccountNormalizedFilter =
     | {
           readonly type: "OneOf";
-          readonly accountIds: NonEmptyReadonlySet<AccountId | "NoAccount">;
+          readonly accountIds: NonEmptyReadonlySet<AccountId | "MissingAccount">;
       }
     | {
           readonly type: "NoneOf";
-          readonly accountIds: NonEmptyReadonlySet<AccountId | "NoAccount">;
+          readonly accountIds: NonEmptyReadonlySet<AccountId | "MissingAccount">;
       };
 
 // At least one of `exclusiveUpperBoundDate` or `exclusiveLowerBoundDate` must
@@ -868,7 +868,7 @@ function normalizeTaskQueryFilterAccountOperation(
     operation: TaskQueryFilterAccountOperation,
     context: {currentAccountId: AccountId},
 ): {type: "Filter"; filter: TaskQueryAccountNormalizedFilter} | {type: "AlwaysTrue"} {
-    const accountIds = new Set<AccountId | "NoAccount">();
+    const accountIds = new Set<AccountId | "MissingAccount">();
 
     for (const account of operation.accounts) {
         switch (account.type) {
@@ -880,8 +880,8 @@ function normalizeTaskQueryFilterAccountOperation(
                 accountIds.add(context.currentAccountId);
                 break;
             }
-            case "NoAccount": {
-                accountIds.add("NoAccount");
+            case "MissingAccount": {
+                accountIds.add("MissingAccount");
                 break;
             }
             default:

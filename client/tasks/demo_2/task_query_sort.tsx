@@ -27,7 +27,7 @@ type TaskQueryPrioritySort = {
 
 type TaskQueryAssigneeSort = {
     readonly type: "Assignee";
-    readonly noAccountSide: "Start" | "End";
+    readonly missingAccountSide: "Start" | "End";
 };
 
 type TaskQueryCreatorSort = {
@@ -36,7 +36,7 @@ type TaskQueryCreatorSort = {
 
 type TaskQueryAssignerSort = {
     readonly type: "Assigner";
-    readonly noAccountSide: "Start" | "End";
+    readonly missingAccountSide: "Start" | "End";
 };
 
 type TaskQueryDueDateSort = {
@@ -180,7 +180,7 @@ function serializeTaskQuerySort(sort: TaskQuerySort, view: DataView): void {
             break;
         }
         case "Assignee": {
-            if (sort.noAccountSide === "Start") {
+            if (sort.missingAccountSide === "Start") {
                 view.setUint8(0, 5);
             } else {
                 view.setUint8(0, 6);
@@ -192,7 +192,7 @@ function serializeTaskQuerySort(sort: TaskQuerySort, view: DataView): void {
             break;
         }
         case "Assigner": {
-            if (sort.noAccountSide === "Start") {
+            if (sort.missingAccountSide === "Start") {
                 view.setUint8(0, 8);
             } else {
                 view.setUint8(0, 9);
@@ -260,15 +260,15 @@ function deserializeTaskQuerySort(view: DataView): {
         case 4:
             return {sort: {type: "Priority", direction: "Descending"}, byteLength: 1};
         case 5:
-            return {sort: {type: "Assignee", noAccountSide: "Start"}, byteLength: 1};
+            return {sort: {type: "Assignee", missingAccountSide: "Start"}, byteLength: 1};
         case 6:
-            return {sort: {type: "Assignee", noAccountSide: "End"}, byteLength: 1};
+            return {sort: {type: "Assignee", missingAccountSide: "End"}, byteLength: 1};
         case 7:
             return {sort: {type: "Creator"}, byteLength: 1};
         case 8:
-            return {sort: {type: "Assigner", noAccountSide: "Start"}, byteLength: 1};
+            return {sort: {type: "Assigner", missingAccountSide: "Start"}, byteLength: 1};
         case 9:
-            return {sort: {type: "Assigner", noAccountSide: "End"}, byteLength: 1};
+            return {sort: {type: "Assigner", missingAccountSide: "End"}, byteLength: 1};
         case 10:
             return {sort: {type: "DueDate", direction: "Ascending"}, byteLength: 1};
         case 11:
