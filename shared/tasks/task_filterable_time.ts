@@ -3,7 +3,8 @@ import {
     HybridLogicalTime,
     areHybridLogicalTimesEqual,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {TimeZone} from "~/shared/helpers/date/time_zone.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {TimeZone, defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -84,6 +85,15 @@ export class TaskFilterableTime {
         serialize: time => time,
         deserialize: time => new TaskFilterableTime(time),
     });
+
+    /**
+     * `HybridLogicalTime` and the default time zone. Only for use in tests.
+     * Otherwise you need to provide a real time zone.
+     */
+    public static test(absoluteTime: HybridLogicalTime) {
+        assert(process.env.NODE_ENV === "test");
+        return new TaskFilterableTime({absoluteTime, setterTimeZone: defaultTimeZone});
+    }
 
     public isEqual(other: TaskFilterableTime): boolean {
         return (

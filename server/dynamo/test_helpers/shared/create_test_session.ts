@@ -11,6 +11,7 @@ import {AccountId, SessionId} from "~/shared/id/types/id_types.js";
 export type TestSession = {
     readonly id: SessionId;
     readonly accountId: AccountId;
+    readonly accountName: string;
     readonly account: AccountModel;
     readonly item: SessionItem;
 };
@@ -83,6 +84,7 @@ export function createTestSession(
     return {
         id: sessionId,
         accountId,
+        accountName: account.name,
         account,
         item: sessionItem,
     };

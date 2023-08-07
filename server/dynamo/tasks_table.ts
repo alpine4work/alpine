@@ -1261,7 +1261,7 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                 if (
                                     taskAction.status.type === "Closed" &&
                                     !state.isTimeReasonable(
-                                        taskAction.status.closedTime.absoluteTime.getTime(),
+                                        taskAction.status.closedTime.absoluteTime[0],
                                     )
                                 ) {
                                     throw new InvalidArgumentError(
@@ -1343,7 +1343,7 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                 if (
                                     taskAction.assignee &&
                                     !state.isTimeReasonable(
-                                        taskAction.assignee.assignedTime.absoluteTime.getTime(),
+                                        taskAction.assignee.assignedTime.absoluteTime[0],
                                     )
                                 ) {
                                     throw new InvalidArgumentError(
@@ -1377,7 +1377,7 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                 if (
                                     taskAction.assigneeStatus.type === "Active" &&
                                     !state.isTimeReasonable(
-                                        taskAction.assigneeStatus.activatedTime.absoluteTime.getTime(),
+                                        taskAction.assigneeStatus.activatedTime.absoluteTime[0],
                                     )
                                 ) {
                                     throw new InvalidArgumentError(

@@ -5,8 +5,11 @@ import {
     TaskStatusTypeIntegerMapping,
 } from "~/server/tasks/index/task_index_doc.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
+import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
+import {AccountId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {
     TaskQueryAccountNormalizedFilter,
     TaskQueryDateNormalizedFilter,
@@ -91,6 +94,12 @@ function getTaskQueryNormalizedFiltersTaskIndexFilterQueryClauses(
         filterQueryClauses.push({
             term: {"status.value.type": TaskStatusTypeIntegerMapping.into("Closed")},
         });
+    } else if (
+        filters.statusFilter.ifClosed &&
+        filters.statusFilter.ifOpenActive &&
+        filters.statusFilter.ifOpenInactive
+    ) {
+        // Don't add a filter clause if the task can be any status...
     } else {
         const terms: Array<TaskDisplayStatus> = [];
 
@@ -98,7 +107,11 @@ function getTaskQueryNormalizedFiltersTaskIndexFilterQueryClauses(
         if (filters.statusFilter.ifOpenInactive) terms.push("OpenInactive");
         if (filters.statusFilter.ifClosed) terms.push("Closed");
 
-        if (terms.length > 0) {
+        if (terms.length === 1) {
+            filterQueryClauses.push({
+                term: {displayStatus: TaskDisplayStatusIntegerMapping.into(terms[0]!)},
+            });
+        } else if (terms.length > 0) {
             filterQueryClauses.push({
                 terms: {displayStatus: terms.map(TaskDisplayStatusIntegerMapping.into)},
             });
@@ -106,45 +119,70 @@ function getTaskQueryNormalizedFiltersTaskIndexFilterQueryClauses(
     }
 
     if (filters.collectionsFilter) {
-        switch (filters.collectionsFilter.type) {
-            case "IncludesOneOf": {
-                filterQueryClauses.push({
-                    terms: {
-                        "collections.ids": Array.from(filters.collectionsFilter.collectionIds),
-                    },
-                });
-                break;
+        const excludesAllCollectionIds: Array<TaskCollectionId> = [];
+
+        for (const clause of filters.collectionsFilter) {
+            if (clause.size === 1) {
+                const [term, not] = assertExists(iterableFirst(clause));
+                if (term !== "IsEmpty" && not) {
+                    excludesAllCollectionIds.push(term);
+                    continue;
+                }
             }
-            case "IncludesAllOf": {
-                filterQueryClauses.push({
-                    bool: {
-                        must: Array.from(filters.collectionsFilter.collectionIds, collectionId => ({
-                            term: {"collection.ids": collectionId},
-                        })),
-                    },
-                });
-                break;
-            }
-            case "ExcludesAllOf": {
-                filterQueryClauses.push({
-                    bool: {
-                        must_not: {
-                            terms: {
-                                "collections.ids": Array.from(
-                                    filters.collectionsFilter.collectionIds,
-                                ),
-                            },
+
+            if (iterableEvery(clause, ([term, not]) => term !== "IsEmpty" && !not)) {
+                if (clause.size === 1) {
+                    filterQueryClauses.push({
+                        term: {
+                            "collections.ids": assertExists(iterableFirst(clause.keys())),
                         },
+                    });
+                } else {
+                    filterQueryClauses.push({
+                        terms: {
+                            "collections.ids": Array.from(clause.keys()),
+                        },
+                    });
+                }
+                continue;
+            }
+
+            const shouldTerms = Array.from(clause, ([term, not]) => {
+                if (term === "IsEmpty") {
+                    if (!not) {
+                        return {bool: {must_not: {exists: {field: "collections.ids"}}}};
+                    } else {
+                        return {exists: {field: "collections.ids"}};
+                    }
+                } else {
+                    if (!not) {
+                        return {bool: {must_not: {term: {"collection.ids": term}}}};
+                    } else {
+                        return {term: {"collection.ids": term}};
+                    }
+                }
+            });
+
+            if (shouldTerms.length === 1) {
+                filterQueryClauses.push(shouldTerms[0]!);
+            } else {
+                filterQueryClauses.push({
+                    bool: {
+                        minimum_should_match: 1,
+                        should: shouldTerms,
                     },
                 });
-                break;
             }
-            case "IsEmpty": {
-                filterQueryClauses.push({bool: {must_not: {exists: {field: "collections.ids"}}}});
-                break;
-            }
-            default:
-                throw exhaustive(filters.collectionsFilter);
+        }
+
+        if (excludesAllCollectionIds.length === 1) {
+            filterQueryClauses.push({
+                bool: {must_not: {term: {"collections.ids": excludesAllCollectionIds[0]!}}},
+            });
+        } else if (excludesAllCollectionIds.length > 0) {
+            filterQueryClauses.push({
+                bool: {must_not: {terms: {"collections.ids": excludesAllCollectionIds}}},
+            });
         }
     }
 

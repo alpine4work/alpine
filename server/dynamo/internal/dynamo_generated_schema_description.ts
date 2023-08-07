@@ -4126,7 +4126,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                             "propertySchemaByKey": {
                                                                                                                 "absoluteTime": {
                                                                                                                     "valueSchema": {
-                                                                                                                        "type": "Date"
+                                                                                                                        "type": "Uint64"
                                                                                                                     },
                                                                                                                     "optional": false
                                                                                                                 },

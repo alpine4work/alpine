@@ -1,3 +1,4 @@
+import {assert} from "~/shared/helpers/control/assert.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -49,6 +50,15 @@ export class TaskSortableAccount {
         serialize: account => account,
         deserialize: account => new TaskSortableAccount(account),
     });
+
+    /**
+     * Create from a `TestSession` object we use in server tests (see
+     * `createTestContext()`).
+     */
+    public static test({accountId, accountName}: {accountId: AccountId; accountName: string}) {
+        assert(process.env.NODE_ENV === "test");
+        return new TaskSortableAccount({accountId, workingAccountName: accountName});
+    }
 
     public isEqual(other: TaskSortableAccount): boolean {
         return (

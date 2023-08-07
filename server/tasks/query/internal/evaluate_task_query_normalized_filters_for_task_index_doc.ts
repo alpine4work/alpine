@@ -3,6 +3,7 @@ import {
     TaskIndexDoc,
     getTaskIndexDocAssigneeStatus,
     getTaskIndexDocDisplayStatus,
+    getTaskIndexDocIsDeleted,
 } from "~/server/tasks/index/task_index_doc.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -40,6 +41,9 @@ export function evaluateTaskQueryNormalizedFiltersForTaskIndexDoc(
     filters: TaskQueryNormalizedFilters,
     task: TaskIndexDoc,
 ): boolean {
+    // Deleted tasks should always be filtered out.
+    if (getTaskIndexDocIsDeleted(task)) return false;
+
     {
         const displayStatus = getTaskIndexDocDisplayStatus(task);
 
@@ -52,45 +56,18 @@ export function evaluateTaskQueryNormalizedFiltersForTaskIndexDoc(
     }
 
     if (filters.collectionsFilter !== undefined) {
-        switch (filters.collectionsFilter.type) {
-            case "IncludesOneOf": {
-                if (
-                    !iterableSome(filters.collectionsFilter.collectionIds, collectionId =>
-                        task.collections.raw.collections.has(collectionId),
-                    )
-                ) {
-                    return false;
-                }
-                break;
-            }
-            case "IncludesAllOf": {
-                if (
-                    !iterableEvery(filters.collectionsFilter.collectionIds, collectionId =>
-                        task.collections.raw.collections.has(collectionId),
-                    )
-                ) {
-                    return false;
-                }
-                break;
-            }
-            case "ExcludesAllOf": {
-                if (
-                    !iterableEvery(
-                        filters.collectionsFilter.collectionIds,
-                        collectionId => !task.collections.raw.collections.has(collectionId),
-                    )
-                ) {
-                    return false;
-                }
-                break;
-            }
-            case "IsEmpty": {
-                if (task.collections.raw.collections.getArray().length !== 0) return false;
-                break;
-            }
-            default:
-                throw exhaustive(filters.collectionsFilter);
-        }
+        const pass = iterableEvery(filters.collectionsFilter, clause =>
+            iterableSome(clause, ([term, not]) => {
+                const pass =
+                    term === "IsEmpty"
+                        ? task.collections.raw.collections.getArray().length === 0
+                        : task.collections.raw.collections.has(term);
+
+                return not ? !pass : pass;
+            }),
+        );
+
+        if (!pass) return false;
     }
 
     if (filters.priorityFilter !== undefined) {

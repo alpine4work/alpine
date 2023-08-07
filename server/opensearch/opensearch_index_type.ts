@@ -2,8 +2,8 @@ import {parseISO} from "date-fns";
 import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
-import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {JsonValue} from "~/shared/helpers/types/json_value.js";
 import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
 import {ObjectSchema} from "~/shared/schema/schema.js";
@@ -303,12 +303,12 @@ export class OpensearchIndexIntegerType extends OpensearchIndexTypeBase<number, 
 }
 
 /**
- * An OpenSearch [`unsigned_long` numeric field type][1]. An unsigned 64-bit
- * integer. Minimum is 0. Maximum is 2^64 − 1.
+ * An OpenSearch [`long` numeric field type][1]. A signed 64-bit
+ * integer. Minimum is -2^63. Maximum is 2^63 − 1.
  *
  * [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/numeric/
  */
-export class OpensearchIndexUnsignedLongType extends OpensearchIndexTypeBase<bigint, never> {
+export class OpensearchIndexLongType extends OpensearchIndexTypeBase<bigint, never> {
     private readonly _capabilities: OpensearchIndexTypeCapabilities;
 
     constructor(capabilities: OpensearchIndexTypeCapabilities = {}) {
@@ -318,7 +318,7 @@ export class OpensearchIndexUnsignedLongType extends OpensearchIndexTypeBase<big
 
     public override getConfig() {
         return {
-            type: "unsigned_long",
+            type: "long",
             ...getOpensearchIndexTypeCapabilitiesConfig(this._capabilities),
         };
     }
@@ -569,9 +569,9 @@ export class OpensearchIndexObjectType<
     Value,
     FlattenedKeys extends string,
 > extends OpensearchIndexTypeBase<Value, FlattenedKeys> {
-    private readonly _fields: {[key: string]: OpensearchIndexTypeBase<any, any>};
+    private readonly _fields: ReadonlyMap<string, OpensearchIndexTypeBase<any, any>>;
     private readonly _computed: {
-        fields: {[key: string]: OpensearchIndexTypeBase<any, any>};
+        fields: ReadonlyMap<string, OpensearchIndexTypeBase<any, any>>;
         compute: (value: any) => any;
     };
 
@@ -625,8 +625,11 @@ export class OpensearchIndexObjectType<
     }) {
         super();
 
-        this._fields = fields;
-        this._computed = computed;
+        this._fields = new Map(Object.entries(fields));
+        this._computed = {
+            fields: new Map(Object.entries(computed.fields)),
+            compute: computed.compute,
+        };
 
         const keys = new Set<string>();
 
@@ -637,7 +640,7 @@ export class OpensearchIndexObjectType<
     }
 
     public getFieldKeys() {
-        return [...Object.keys(this._fields), ...Object.keys(this._computed.fields)];
+        return [...this._fields.keys(), ...this._computed.fields.keys()];
     }
 
     public override getConfig(): {
@@ -648,24 +651,42 @@ export class OpensearchIndexObjectType<
         return {
             type: "object",
             dynamic: "strict",
-            properties: {
-                ...mapObjectValues(this._fields, field => field.getConfig()),
-                ...mapObjectValues(this._computed.fields, field => field.getConfig()),
-            },
+            properties: Object.fromEntries([
+                ...mapIterable(this._fields, ([key, field]) => [key, field.getConfig()]),
+                ...mapIterable(this._computed.fields, ([key, field]) => [key, field.getConfig()]),
+            ]),
         };
     }
 
     public override serialize(value: Value): JsonValue {
-        return mapObjectValues(this._fields, (field, key) => field.serialize((value as any)[key]));
+        const serializedValue: {[key: string]: JsonValue} = {};
+
+        for (const [key, field] of this._fields) {
+            serializedValue[key] = field.serialize((value as any)[key]);
+        }
+
+        if (this._computed.fields.size > 0) {
+            const computedValue = this._computed.compute(value);
+            for (const [key, field] of this._computed.fields) {
+                serializedValue[key] = field.serialize(computedValue[key]);
+            }
+        }
+
+        return serializedValue;
     }
 
     public override deserialize(value: JsonValue): Value {
         assert(isPlainObject(value));
-        return mapObjectValues(this._fields, (field, key) => {
+
+        const deserializedValue: any = {};
+
+        for (const [key, field] of this._fields) {
             const keyValue = value[key];
             assert(keyValue !== undefined);
-            return field.deserialize(keyValue);
-        }) as Value;
+            deserializedValue[key] = field.deserialize(keyValue);
+        }
+
+        return deserializedValue;
     }
 }
 
@@ -680,7 +701,7 @@ export class OpensearchIndexUnionObjectType<
     FlattenedKeys extends string,
 > extends OpensearchIndexTypeBase<Value, FlattenedKeys> {
     private readonly _type: OpensearchIndexTypeBase<Value["type"], never>;
-    private readonly _variants: {[key: string]: OpensearchIndexObjectType<any, any>};
+    private readonly _variants: ReadonlyMap<string, OpensearchIndexObjectType<any, any>>;
 
     public static new<const Variants extends {[key: string]: OpensearchIndexObjectType<any, any>}>({
         type,
@@ -710,11 +731,11 @@ export class OpensearchIndexUnionObjectType<
         super();
 
         this._type = type;
-        this._variants = variants;
+        this._variants = new Map(Object.entries(variants));
 
         const keys = new Set(["type"]);
 
-        for (const variant of Object.values(this._variants)) {
+        for (const variant of this._variants.values()) {
             for (const key of variant.getFieldKeys()) {
                 assert(!keys.has(key), "Field keys across variants must be unique");
                 keys.add(key);
@@ -730,14 +751,17 @@ export class OpensearchIndexUnionObjectType<
                 type: this._type.getConfig(),
                 ...Object.assign(
                     {},
-                    ...Object.values(this._variants).map(variant => variant.getConfig().properties),
+                    ...mapIterable(
+                        this._variants.values(),
+                        variant => variant.getConfig().properties,
+                    ),
                 ),
             },
         };
     }
 
     public override serialize(value: Value): JsonValue {
-        const variant = assertExists(this._variants[value.type]);
+        const variant = assertExists(this._variants.get(value.type));
         const serializedValue = variant.serialize(value);
         (serializedValue as any).type = this._type.serialize(value.type);
         return serializedValue;
@@ -746,7 +770,7 @@ export class OpensearchIndexUnionObjectType<
     public override deserialize(value: JsonValue): Value {
         assert(isPlainObject(value));
         const type = this._type.deserialize(assertExists(value.type));
-        const variant = assertExists(this._variants[type]);
+        const variant = assertExists(this._variants.get(type));
         const deserializedValue = variant.deserialize(value);
         deserializedValue.type = type;
         return deserializedValue;

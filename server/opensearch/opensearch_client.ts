@@ -81,6 +81,69 @@ export interface OpensearchClientInterface {
     ): Promise<void>;
 }
 
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! //
+//                                 IMPORTANT                                 //
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! //
+//
+// > TL;DR: Everywhere in this file where you serialize or parse JSON, you
+// > should include a `// NOTE(#opensearch-important-json-disclaimer):`
+// > comment.
+// >
+// > For the reason why and what to put in that comment keep reading...
+//
+// OpenSearch returns `long` and `unsigned_long` values as JSON numbers.
+// However, JavaScript's `JSON.parse()` coerces all JSON numbers to JavaScript
+// numbers which are 64-bit floats. A 64-bit float can not safely hold a 64-bit
+// unsigned or signed integer.
+//
+// For example, ElasticSearch may return the response:
+//
+// ```
+// {
+//   // ...
+//   "hits": [
+//     {
+//       // ...
+//       "sort": [
+//         110849034631512066
+//       ]
+//     }
+//   ]
+// }
+// ```
+//
+// Which JavaScript will parse as:
+//
+// ```
+// {
+//   // ...
+//   "hits": [
+//     {
+//       // ...
+//       "sort": [
+//         110849034631512060
+//       ]
+//     }
+//   ]
+// }
+// ```
+//
+// Since `110849034631512066` can't be represented as a 64-bit float.
+//
+// We store OpenSearch `long`s as strings in the document `_source`. If we're
+// requesting `_source` OpenSearch will give us back the stringified value. So
+// this is only a problem when OpenSearch sends the value it's parsed from
+// `_source` internally. For example the `sort` field in the example above.
+//
+// We've installed the library `json-bigint` to get correct JSON parsing for
+// big integers. However, since it's implemented in JavaScript it's slightly
+// less efficient than native streaming implementations.
+//
+// Everywhere in this file where you serialize or parse JSON, you should
+// include a `// NOTE(#opensearch-important-json-disclaimer):` comment
+// explaining why your chose JSON stringify/parse methodology is safe. Or why
+// you need to use `json-bigint`.
+
 /**
  * Lightweight abstraction for making requests to OpenSearch. Implements the
  * following features:
@@ -130,6 +193,9 @@ export class OpensearchClient implements OpensearchClientInterface {
                     },
                 );
 
+                // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
+                // float-64 size in settings. Ok to use native JSON parser instead of
+                // `json-bigint`.
                 const getBody = await getResponse.json<
                     | {error: {type: string}}
                     | {
@@ -142,6 +208,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                 if (getBody.error) {
                     if (getBody.error.type !== "index_not_found_exception") {
                         throw new InternalError(
+                            // NOTE(#opensearch-important-json-disclaimer): Parsed by native JSON parser
+                            // so it's ok to stringify with native JSON parser.
                             `Getting OpenSearch index failed: ${JSON.stringify(getBody)}`,
                         );
                     }
@@ -153,14 +221,22 @@ export class OpensearchClient implements OpensearchClientInterface {
                             spanRoute: `/${index.name}`,
                             method: "PUT",
                             headers: {"content-type": "application/json"},
+                            // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
+                            // float-64 size in settings. Ok to use native JSON stringifier instead of
+                            // `json-bigint`.
                             body: JSON.stringify(index.config),
                         },
                     );
 
+                    // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
+                    // float-64 size in settings. Ok to use native JSON parser instead of
+                    // `json-bigint`.
                     const putBody = await putResponse.json();
 
                     if (!putResponse.ok) {
                         throw new InternalError(
+                            // NOTE(#opensearch-important-json-disclaimer): Parsed by native JSON parser
+                            // so it's ok to stringify with native JSON parser.
                             `Creating OpenSearch index failed: ${JSON.stringify(putBody)}`,
                         );
                     }
@@ -192,6 +268,9 @@ export class OpensearchClient implements OpensearchClientInterface {
                             {spanRoute: "/_cluster/state"},
                         );
                         const numberOfRoutingShards: number = assertExists(
+                            // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
+                            // float-64 size in settings. Ok to use native JSON parser instead of
+                            // `json-bigint`.
                             (await getResponse2.json<any>()).metadata.indices[index.name]
                                 .routing_num_shards,
                         );
@@ -207,6 +286,9 @@ export class OpensearchClient implements OpensearchClientInterface {
 
                     if (!isDeepEqual(previousIndexStaticConfig, indexStaticConfig)) {
                         throw new InternalError(
+                            // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
+                            // float-64 size in settings. Ok to use native JSON stringifier instead of
+                            // `json-bigint`.
                             `OpenSearch index static settings changed: ${JSON.stringify(
                                 {old: previousIndexStaticConfig, new: indexStaticConfig},
                                 null,
@@ -222,14 +304,22 @@ export class OpensearchClient implements OpensearchClientInterface {
                             spanRoute: `/${index.name}/_settings`,
                             method: "PUT",
                             headers: {"content-type": "application/json"},
+                            // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
+                            // float-64 size in settings. Ok to use native JSON stringifier instead of
+                            // `json-bigint`.
                             body: JSON.stringify(omitOpensearchStaticIndexConfig(index.config)),
                         },
                     );
 
+                    // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
+                    // float-64 size in settings. Ok to use native JSON parser instead of
+                    // `json-bigint`.
                     const putBody = await putResponse.json();
 
                     if (!putResponse.ok) {
                         throw new InternalError(
+                            // NOTE(#opensearch-important-json-disclaimer): Parsed by native JSON parser
+                            // so it's ok to stringify with native JSON parser.
                             `Updating OpenSearch index failed: ${JSON.stringify(putBody)}`,
                         );
                     }
@@ -264,6 +354,10 @@ export class OpensearchClient implements OpensearchClientInterface {
             {spanRoute: `/${index.name}/_doc/:taskId`},
         );
 
+        // NOTE(#opensearch-important-json-disclaimer): `long`s in `_source` are
+        // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s
+        // to strings to maintain precision. Ok to use native JSON parser since `long`s
+        // will be strings and we know how to handle those strings.
         const body = await response.json<
             {
                 _seq_no: number;
@@ -344,10 +438,16 @@ export class OpensearchClient implements OpensearchClientInterface {
                 spanRoute: `/${index.name}/_bulk`,
                 method: "POST",
                 headers: {"content-type": "application/x-ndjson"},
+                // NOTE(#opensearch-important-json-disclaimer): `long`s in `_source` are
+                // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s
+                // to strings to maintain precision. Ok to use native JSON stringifier since
+                // `long`s will be strings and we know how to handle those strings.
                 body: bulkBody.map(object => `${JSON.stringify(object)}\n`).join(""),
             },
         );
 
+        // NOTE(#opensearch-important-json-disclaimer): This response only contains
+        // errors and the error numbers fit in 64-bit floats.
         const body = await response.json<{
             errors: boolean;
             items: Array<{

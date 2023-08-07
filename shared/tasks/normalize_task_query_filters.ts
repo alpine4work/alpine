@@ -1,7 +1,12 @@
 import {CalendarDate, maxDate, minDate} from "@internationalized/date";
+import {compareArrays} from "~/shared/helpers/array/compare_arrays.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {AccountId, LocalTaskCollectionId} from "~/shared/id/types/id_types.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {AccountId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
 import {
     TaskQueryCollectionsFilter,
@@ -13,10 +18,32 @@ import {
     TaskQueryStatusFilter,
 } from "~/shared/tasks/task_query_filter.js";
 
+type NonEmptyReadonlyArray<T> = readonly [T, ...ReadonlyArray<T>];
+
+function isNonEmptyReadonlyArray<T>(array: ReadonlyArray<T>): array is NonEmptyReadonlyArray<T> {
+    return array.length > 0;
+}
+
+function assertNonEmptyReadonlyArray<T>(array: ReadonlyArray<T>): NonEmptyReadonlyArray<T> {
+    assert(isNonEmptyReadonlyArray(array));
+    return array;
+}
+
 type NonEmptyReadonlySet<T> = ReadonlySet<T> & {readonly _NonEmptyReadonlySet: never};
 
 function isNonEmptyReadonlySet<T>(set: ReadonlySet<T>): set is NonEmptyReadonlySet<T> {
     return set.size > 0;
+}
+
+type NonEmptyReadonlyMap<K, V> = ReadonlyMap<K, V> & {readonly _NonEmptyReadonlyMap: never};
+
+function isNonEmptyReadonlyMap<K, V>(map: ReadonlyMap<K, V>): map is NonEmptyReadonlyMap<K, V> {
+    return map.size > 0;
+}
+
+function assertNonEmptyReadonlyMap<K, V>(map: ReadonlyMap<K, V>): NonEmptyReadonlyMap<K, V> {
+    assert(isNonEmptyReadonlyMap(map));
+    return map;
 }
 
 /**
@@ -57,22 +84,33 @@ export type TaskQueryStatusNormalizedFilter =
           readonly ifClosed: true;
       };
 
+/**
+ * The normalized format for collection filters is in [conjunctive normal
+ * form][1].
+ *
+ * - The items in the top-level array are "and"ed together.
+ * - The entries of the nested map are "or"ed together.
+ * - If the value of an entry in the nested map is true then that entry
+ *   is "not"ed.
+ * - If the key of an entry in the nested map is a `TaskCollectionId` the
+ *   expression is `collections.has(collectionId)`.
+ * - If the key of an entry in the nested map is `IsEmpty` then expression is
+ *   `collections.size === 0`.
+ *
+ * Conjunctive normal form allows us to easily perform logical analysis on our
+ * boolean expression.
+ *
+ * We call the nested map a "clause" and a key in that map a "term".
+ *
+ * [1]: https://en.wikipedia.org/wiki/Conjunctive_normal_form
+ */
 export type TaskQueryCollectionsNormalizedFilter =
-    | {
-          readonly type: "IncludesOneOf";
-          readonly collectionIds: NonEmptyReadonlySet<LocalTaskCollectionId>;
-      }
-    | {
-          readonly type: "IncludesAllOf";
-          readonly collectionIds: NonEmptyReadonlySet<LocalTaskCollectionId>;
-      }
-    | {
-          readonly type: "ExcludesAllOf";
-          readonly collectionIds: NonEmptyReadonlySet<LocalTaskCollectionId>;
-      }
-    | {
-          readonly type: "IsEmpty";
-      };
+    NonEmptyReadonlyArray<TaskQueryCollectionsNormalizedFilterClause>;
+
+export type TaskQueryCollectionsNormalizedFilterClause = NonEmptyReadonlyMap<
+    TaskCollectionId | "IsEmpty",
+    boolean
+>;
 
 // At least one of the five priorities must be included in this filter. Otherwise
 // the filter is impossible.
@@ -196,7 +234,11 @@ export function normalizeTaskQueryFilters(
                     );
                     if (mergeResult.type === "AlwaysFalse") return {type: "Impossible"};
 
-                    normalizedFilters.collectionsFilter = mergeResult.filter;
+                    if (mergeResult.type === "AlwaysTrue") {
+                        delete normalizedFilters.collectionsFilter;
+                    } else {
+                        normalizedFilters.collectionsFilter = mergeResult.filter;
+                    }
                 }
                 break;
             }
@@ -478,14 +520,9 @@ function normalizeTaskQueryCollectionsFilter(
 ): {type: "Filter"; filter: TaskQueryCollectionsNormalizedFilter} | {type: "AlwaysTrue"} {
     switch (filter.operation.type) {
         case "IsEmpty": {
-            return {type: "Filter", filter: {type: "IsEmpty"}};
-        }
-        case "IncludesOneOf": {
-            if (!isNonEmptyReadonlySet(filter.operation.collectionIds)) return {type: "AlwaysTrue"};
-
             return {
                 type: "Filter",
-                filter: {type: "IncludesOneOf", collectionIds: filter.operation.collectionIds},
+                filter: [assertNonEmptyReadonlyMap(new Map([["IsEmpty", false]]))],
             };
         }
         case "IncludesAllOf": {
@@ -493,7 +530,28 @@ function normalizeTaskQueryCollectionsFilter(
 
             return {
                 type: "Filter",
-                filter: {type: "IncludesAllOf", collectionIds: filter.operation.collectionIds},
+                filter: assertNonEmptyReadonlyArray(
+                    Array.from(filter.operation.collectionIds, collectionId =>
+                        assertNonEmptyReadonlyMap(new Map([[collectionId, false]])),
+                    ),
+                ),
+            };
+        }
+        case "IncludesOneOf": {
+            if (!isNonEmptyReadonlySet(filter.operation.collectionIds)) return {type: "AlwaysTrue"};
+
+            return {
+                type: "Filter",
+                filter: [
+                    assertNonEmptyReadonlyMap(
+                        new Map(
+                            Array.from(filter.operation.collectionIds, collectionId => [
+                                collectionId,
+                                false,
+                            ]),
+                        ),
+                    ),
+                ],
             };
         }
         case "ExcludesAllOf": {
@@ -501,7 +559,11 @@ function normalizeTaskQueryCollectionsFilter(
 
             return {
                 type: "Filter",
-                filter: {type: "ExcludesAllOf", collectionIds: filter.operation.collectionIds},
+                filter: assertNonEmptyReadonlyArray(
+                    Array.from(filter.operation.collectionIds, collectionId =>
+                        assertNonEmptyReadonlyMap(new Map([[collectionId, true]])),
+                    ),
+                ),
             };
         }
         default:
@@ -512,282 +574,148 @@ function normalizeTaskQueryCollectionsFilter(
 function mergeTaskQueryCollectionsFilters(
     filter1: TaskQueryCollectionsNormalizedFilter,
     filter2: TaskQueryCollectionsNormalizedFilter,
-): {type: "Filter"; filter: TaskQueryCollectionsNormalizedFilter} | {type: "AlwaysFalse"} {
-    switch (filter1.type) {
-        case "IncludesOneOf": {
-            switch (filter2.type) {
-                case "IncludesOneOf": {
-                    return mergeTaskQueryCollectionsIncludesOneOfFilterWithIncludesOneOfFilter(
-                        filter1,
-                        filter2,
-                    );
+):
+    | {type: "Filter"; filter: TaskQueryCollectionsNormalizedFilter}
+    | {type: "AlwaysFalse"}
+    | {type: "AlwaysTrue"} {
+    const newFilter = [...filter1];
+    const stack = [...filter2];
+
+    while (stack.length > 0) {
+        const stackClause = stack.shift()!;
+        let wasStackClauseMerged = false;
+
+        for (let i = 0; i < newFilter.length; i++) {
+            const newFilterClause = newFilter[i]!;
+            const result = mergeTaskQueryCollectionsFilterClauses(stackClause, newFilterClause);
+
+            switch (result.type) {
+                case "AlwaysFalse": {
+                    return {type: "AlwaysFalse"};
                 }
-                case "IncludesAllOf": {
-                    return mergeTaskQueryCollectionsIncludesOneOfFilterWithIncludesAllOfFilter(
-                        filter1,
-                        filter2,
-                    );
+                case "Merged": {
+                    newFilter.splice(i, 1);
+                    stack.unshift(result.clause);
+                    wasStackClauseMerged = true;
+                    break;
                 }
-                case "ExcludesAllOf": {
-                    return mergeTaskQueryCollectionsIncludesOneOfFilterWithExcludesAllOfFilter(
-                        filter1,
-                        filter2,
-                    );
-                }
-                case "IsEmpty": {
-                    return mergeTaskQueryCollectionsIncludesOneOfFilterWithIsEmptyFilter(
-                        filter1,
-                        filter2,
-                    );
-                }
-                default:
-                    throw exhaustive(filter2);
-            }
-        }
-        case "IncludesAllOf": {
-            switch (filter2.type) {
-                case "IncludesOneOf": {
-                    return mergeTaskQueryCollectionsIncludesOneOfFilterWithIncludesAllOfFilter(
-                        filter2,
-                        filter1,
-                    );
-                }
-                case "IncludesAllOf": {
-                    return mergeTaskQueryCollectionsIncludesAllOfFilterWithIncludesAllOfFilter(
-                        filter1,
-                        filter2,
-                    );
-                }
-                case "ExcludesAllOf": {
-                    return mergeTaskQueryCollectionsIncludesAllOfFilterWithExcludesAllOfFilter(
-                        filter1,
-                        filter2,
-                    );
-                }
-                case "IsEmpty": {
-                    return mergeTaskQueryCollectionsIncludesAllOfFilterWithIsEmptyFilter(
-                        filter1,
-                        filter2,
-                    );
+                case "Unchanged": {
+                    break;
                 }
                 default:
-                    throw exhaustive(filter2);
+                    throw exhaustive(result);
+            }
+
+            // We can exit the loop if our stack clause was merged. The merged clause is on
+            // the stack so we'll revisit it.
+            if (wasStackClauseMerged) {
+                break;
             }
         }
-        case "ExcludesAllOf": {
-            switch (filter2.type) {
-                case "IncludesOneOf": {
-                    return mergeTaskQueryCollectionsIncludesOneOfFilterWithExcludesAllOfFilter(
-                        filter2,
-                        filter1,
-                    );
-                }
-                case "IncludesAllOf": {
-                    return mergeTaskQueryCollectionsIncludesAllOfFilterWithExcludesAllOfFilter(
-                        filter2,
-                        filter1,
-                    );
-                }
-                case "ExcludesAllOf": {
-                    return mergeTaskQueryCollectionsExcludesAllOfFilterWithExcludesAllOfFilter(
-                        filter1,
-                        filter2,
-                    );
-                }
-                case "IsEmpty": {
-                    return mergeTaskQueryCollectionsExcludesAllOfFilterWithIsEmptyFilter(
-                        filter1,
-                        filter2,
-                    );
-                }
-                default:
-                    throw exhaustive(filter2);
-            }
+
+        // If our stack clause was not merged then add it as-is.
+        if (!wasStackClauseMerged) {
+            newFilter.push(stackClause);
         }
-        case "IsEmpty": {
-            switch (filter2.type) {
-                case "IncludesOneOf": {
-                    return mergeTaskQueryCollectionsIncludesOneOfFilterWithIsEmptyFilter(
-                        filter2,
-                        filter1,
-                    );
-                }
-                case "IncludesAllOf": {
-                    return mergeTaskQueryCollectionsIncludesAllOfFilterWithIsEmptyFilter(
-                        filter2,
-                        filter1,
-                    );
-                }
-                case "ExcludesAllOf": {
-                    return mergeTaskQueryCollectionsExcludesAllOfFilterWithIsEmptyFilter(
-                        filter2,
-                        filter1,
-                    );
-                }
-                case "IsEmpty": {
-                    return mergeTaskQueryCollectionsIsEmptyFilterWithIsEmptyFilter(
-                        filter1,
-                        filter2,
-                    );
-                }
-                default:
-                    throw exhaustive(filter2);
-            }
+    }
+
+    if (!isNonEmptyReadonlyArray(newFilter)) {
+        return {type: "AlwaysTrue"};
+    }
+
+    // Sort our filters so that we always return the same result no matter what
+    // order the filters you pass into `normalizeTaskQueryFilters()` are in.
+    newFilter.sort((a, b) => {
+        return compareArrays(
+            Array.from(a, ([k, v]) => `${k}-${v ? 1 : 0}`).sort(),
+            Array.from(b, ([k, v]) => `${k}-${v ? 1 : 0}`).sort(),
+            defaultCompareStrings,
+        );
+    });
+
+    return {type: "Filter", filter: newFilter};
+}
+
+function mergeTaskQueryCollectionsFilterClauses(
+    clause1: TaskQueryCollectionsNormalizedFilterClause,
+    clause2: TaskQueryCollectionsNormalizedFilterClause,
+):
+    | {type: "AlwaysFalse"}
+    | {type: "Merged"; clause: TaskQueryCollectionsNormalizedFilterClause}
+    | {type: "Unchanged"} {
+    // These are combined as:
+    // distributedClause || (newClause1 && newClause2)
+    const distributedClause = new Map<TaskCollectionId | "IsEmpty", boolean>();
+    const newClause1 = new Map<TaskCollectionId | "IsEmpty", boolean>();
+    const newClause2 = new Map<TaskCollectionId | "IsEmpty", boolean>(clause2);
+
+    // Distributive law:
+    // (a || b) && (a || c) === a || (b && c)
+    //
+    // https://en.wikipedia.org/wiki/Logical_equivalence
+    for (const [term, not1] of clause1) {
+        if (not1 === clause2.get(term)) {
+            newClause2.delete(term);
+            distributedClause.set(term, not1);
+        } else {
+            newClause1.set(term, not1);
         }
-        default:
-            throw exhaustive(filter1);
-    }
-}
-
-function mergeTaskQueryCollectionsIncludesOneOfFilterWithIncludesOneOfFilter(
-    filter1: TaskQueryCollectionsNormalizedFilter & {type: "IncludesOneOf"},
-    filter2: TaskQueryCollectionsNormalizedFilter & {type: "IncludesOneOf"},
-): {type: "Filter"; filter: TaskQueryCollectionsNormalizedFilter} | {type: "AlwaysFalse"} {
-    const collectionIds = intersectSets(filter1.collectionIds, filter2.collectionIds);
-
-    if (!isNonEmptyReadonlySet(collectionIds)) {
-        return {type: "AlwaysFalse"};
     }
 
-    return {
-        type: "Filter",
-        filter: {
-            type: "IncludesOneOf",
-            collectionIds,
-        },
-    };
-}
-
-function mergeTaskQueryCollectionsIncludesOneOfFilterWithIncludesAllOfFilter(
-    filter1: TaskQueryCollectionsNormalizedFilter & {type: "IncludesOneOf"},
-    filter2: TaskQueryCollectionsNormalizedFilter & {type: "IncludesAllOf"},
-): {type: "Filter"; filter: TaskQueryCollectionsNormalizedFilter} | {type: "AlwaysFalse"} {
-    const collectionIds = intersectSets(filter1.collectionIds, filter2.collectionIds);
-
-    // If any of the collections in `IncludesAllOf` is not present in
-    // `IncludesOneOf` then no tasks will match the two filters.
-    if (collectionIds.size !== filter2.collectionIds.size) {
-        return {type: "AlwaysFalse"};
+    // Identity laws:
+    // a && false === false
+    //
+    // https://en.wikipedia.org/wiki/Logical_equivalence
+    if (newClause1.size === 0 || newClause2.size === 0) {
+        if (!isNonEmptyReadonlyMap(distributedClause)) return {type: "AlwaysFalse"};
+        return {type: "Merged", clause: distributedClause};
     }
 
-    return {
-        type: "Filter",
-        filter: {
-            type: "IncludesAllOf",
-            collectionIds: filter2.collectionIds,
-        },
-    };
-}
+    if (newClause1.size === 1 && newClause2.size === 1) {
+        const [term1, not1] = assertExists(iterableFirst(newClause1));
+        const [term2, not2] = assertExists(iterableFirst(newClause2));
 
-function mergeTaskQueryCollectionsIncludesOneOfFilterWithExcludesAllOfFilter(
-    filter1: TaskQueryCollectionsNormalizedFilter & {type: "IncludesOneOf"},
-    filter2: TaskQueryCollectionsNormalizedFilter & {type: "ExcludesAllOf"},
-): {type: "Filter"; filter: TaskQueryCollectionsNormalizedFilter} | {type: "AlwaysFalse"} {
-    const collectionIds = diffSets(filter1.collectionIds, filter2.collectionIds);
+        // Negation laws:
+        // a && !a === false
+        //
+        // https://en.wikipedia.org/wiki/Logical_equivalence
+        if (term1 === term2 && not1 !== not2) {
+            if (!isNonEmptyReadonlyMap(distributedClause)) return {type: "AlwaysFalse"};
+            return {type: "Merged", clause: distributedClause};
+        }
 
-    if (!isNonEmptyReadonlySet(collectionIds)) {
-        return {type: "AlwaysFalse"};
+        // Property specific to our terms:
+        // ((collections.size === 0) && collections.has(collectionId)) === false
+        if (term1 === "IsEmpty" && not1 === false && term2 !== "IsEmpty" && not2 === false) {
+            if (!isNonEmptyReadonlyMap(distributedClause)) return {type: "AlwaysFalse"};
+            return {type: "Merged", clause: distributedClause};
+        }
+        if (term2 === "IsEmpty" && not2 === false && term1 !== "IsEmpty" && not1 === false) {
+            if (!isNonEmptyReadonlyMap(distributedClause)) return {type: "AlwaysFalse"};
+            return {type: "Merged", clause: distributedClause};
+        }
+
+        // Property specific to our terms:
+        // ((collections.size === 0) && !collections.has(collectionId)) === (collections.size === 0)
+        if (term1 === "IsEmpty" && not1 === false && term2 !== "IsEmpty" && not2 === true) {
+            return {
+                type: "Merged",
+                clause: assertNonEmptyReadonlyMap(
+                    new Map(concatIterables(distributedClause, newClause1)),
+                ),
+            };
+        }
+        if (term2 === "IsEmpty" && not2 === false && term1 !== "IsEmpty" && not1 === true) {
+            return {
+                type: "Merged",
+                clause: assertNonEmptyReadonlyMap(
+                    new Map(concatIterables(distributedClause, newClause2)),
+                ),
+            };
+        }
     }
 
-    return {
-        type: "Filter",
-        filter: {
-            type: "IncludesOneOf",
-            collectionIds,
-        },
-    };
-}
-
-function mergeTaskQueryCollectionsIncludesOneOfFilterWithIsEmptyFilter(
-    filter1: TaskQueryCollectionsNormalizedFilter & {type: "IncludesOneOf"},
-    filter2: TaskQueryCollectionsNormalizedFilter & {type: "IsEmpty"},
-): {type: "Filter"; filter: TaskQueryCollectionsNormalizedFilter} | {type: "AlwaysFalse"} {
-    return {type: "AlwaysFalse"};
-}
-
-function mergeTaskQueryCollectionsIncludesAllOfFilterWithIncludesAllOfFilter(
-    filter1: TaskQueryCollectionsNormalizedFilter & {type: "IncludesAllOf"},
-    filter2: TaskQueryCollectionsNormalizedFilter & {type: "IncludesAllOf"},
-): {type: "Filter"; filter: TaskQueryCollectionsNormalizedFilter} | {type: "AlwaysFalse"} {
-    const largerCollectionIds =
-        filter1.collectionIds.size > filter2.collectionIds.size
-            ? filter1.collectionIds
-            : filter2.collectionIds;
-    const smallerCollectionIds =
-        filter1.collectionIds.size > filter2.collectionIds.size
-            ? filter2.collectionIds
-            : filter1.collectionIds;
-
-    const collectionIds = diffSets(smallerCollectionIds, largerCollectionIds);
-
-    // If `smallerCollectionIds` is a subset of `largerCollectionIds` we may keep
-    // filtering by `largerCollectionIds`. Otherwise the filters will never match.
-    if (collectionIds.size === 0) {
-        return {type: "AlwaysFalse"};
-    }
-
-    return {
-        type: "Filter",
-        filter: {
-            type: "IncludesAllOf",
-            collectionIds: largerCollectionIds,
-        },
-    };
-}
-
-function mergeTaskQueryCollectionsIncludesAllOfFilterWithExcludesAllOfFilter(
-    filter1: TaskQueryCollectionsNormalizedFilter & {type: "IncludesAllOf"},
-    filter2: TaskQueryCollectionsNormalizedFilter & {type: "ExcludesAllOf"},
-): {type: "Filter"; filter: TaskQueryCollectionsNormalizedFilter} | {type: "AlwaysFalse"} {
-    const collectionIds = diffSets(filter1.collectionIds, filter2.collectionIds);
-
-    // If `ExcludesAllOf` takes away any collections then the filter can't be
-    // evaluated.
-    if (collectionIds.size !== filter1.collectionIds.size) {
-        return {type: "AlwaysFalse"};
-    }
-
-    return {
-        type: "Filter",
-        filter: {
-            type: "IncludesAllOf",
-            collectionIds: filter1.collectionIds,
-        },
-    };
-}
-
-function mergeTaskQueryCollectionsIncludesAllOfFilterWithIsEmptyFilter(
-    filter1: TaskQueryCollectionsNormalizedFilter & {type: "IncludesAllOf"},
-    filter2: TaskQueryCollectionsNormalizedFilter & {type: "IsEmpty"},
-): {type: "Filter"; filter: TaskQueryCollectionsNormalizedFilter} | {type: "AlwaysFalse"} {
-    return {type: "AlwaysFalse"};
-}
-
-function mergeTaskQueryCollectionsExcludesAllOfFilterWithExcludesAllOfFilter(
-    filter1: TaskQueryCollectionsNormalizedFilter & {type: "ExcludesAllOf"},
-    filter2: TaskQueryCollectionsNormalizedFilter & {type: "ExcludesAllOf"},
-): {type: "Filter"; filter: TaskQueryCollectionsNormalizedFilter} | {type: "AlwaysFalse"} {
-    return {
-        type: "Filter",
-        filter: {
-            type: "ExcludesAllOf",
-            collectionIds: unionSets(filter1.collectionIds, filter2.collectionIds),
-        },
-    };
-}
-
-function mergeTaskQueryCollectionsExcludesAllOfFilterWithIsEmptyFilter(
-    filter1: TaskQueryCollectionsNormalizedFilter & {type: "ExcludesAllOf"},
-    filter2: TaskQueryCollectionsNormalizedFilter & {type: "IsEmpty"},
-): {type: "Filter"; filter: TaskQueryCollectionsNormalizedFilter} | {type: "AlwaysFalse"} {
-    return {type: "Filter", filter: filter2};
-}
-
-function mergeTaskQueryCollectionsIsEmptyFilterWithIsEmptyFilter(
-    filter1: TaskQueryCollectionsNormalizedFilter & {type: "IsEmpty"},
-    filter2: TaskQueryCollectionsNormalizedFilter & {type: "IsEmpty"},
-): {type: "Filter"; filter: TaskQueryCollectionsNormalizedFilter} | {type: "AlwaysFalse"} {
-    return {type: "Filter", filter: filter1};
+    return {type: "Unchanged"};
 }
 
 function normalizeTaskQueryPriorityFilter(
