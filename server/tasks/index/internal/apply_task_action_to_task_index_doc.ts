@@ -26,7 +26,7 @@ export function applyTaskActionToTaskIndexDoc(
                 !task.creator.isEqual(action.creator) ||
                 !task.createdTime.isEqual(
                     new TaskFilterableTime({
-                        absoluteTime: new Date(actionTime[0]),
+                        absoluteTime: actionTime,
                         setterTimeZone: action.creatorTimeZone,
                     }),
                 )

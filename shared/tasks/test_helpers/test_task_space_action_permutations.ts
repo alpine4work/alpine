@@ -741,7 +741,7 @@ const taskActionTestCases: Array<{
                         status: {
                             type: "Closed",
                             closedTime: new TaskFilterableTime({
-                                absoluteTime: new Date(time2[0]),
+                                absoluteTime: time2,
                                 setterTimeZone: defaultTimeZone,
                             }),
                             closer: account2,
@@ -752,7 +752,7 @@ const taskActionTestCases: Array<{
                     status: {
                         type: "Closed",
                         closedTime: new TaskFilterableTime({
-                            absoluteTime: new Date(time2[0]),
+                            absoluteTime: time2,
                             setterTimeZone: defaultTimeZone,
                         }),
                         closer: account2,
@@ -782,7 +782,7 @@ const taskActionTestCases: Array<{
                         status: {
                             type: "Closed",
                             closedTime: new TaskFilterableTime({
-                                absoluteTime: new Date(time2[0]),
+                                absoluteTime: time2,
                                 setterTimeZone: defaultTimeZone,
                             }),
                             closer: account2,
@@ -821,7 +821,7 @@ const taskActionTestCases: Array<{
                             assignee: account2,
                             assigner: creator,
                             assignedTime: new TaskFilterableTime({
-                                absoluteTime: new Date(time2[0]),
+                                absoluteTime: time2,
                                 setterTimeZone: defaultTimeZone,
                             }),
                         },
@@ -832,7 +832,7 @@ const taskActionTestCases: Array<{
                         assignee: account2,
                         assigner: creator,
                         assignedTime: new TaskFilterableTime({
-                            absoluteTime: new Date(time2[0]),
+                            absoluteTime: time2,
                             setterTimeZone: defaultTimeZone,
                         }),
                     },
@@ -862,7 +862,7 @@ const taskActionTestCases: Array<{
                             assignee: account2,
                             assigner: creator,
                             assignedTime: new TaskFilterableTime({
-                                absoluteTime: new Date(time2[0]),
+                                absoluteTime: time2,
                                 setterTimeZone: defaultTimeZone,
                             }),
                         },
@@ -901,7 +901,7 @@ const taskActionTestCases: Array<{
                             assignee: account2,
                             assigner: creator,
                             assignedTime: new TaskFilterableTime({
-                                absoluteTime: new Date(time2[0]),
+                                absoluteTime: time2,
                                 setterTimeZone: defaultTimeZone,
                             }),
                         },
@@ -916,7 +916,7 @@ const taskActionTestCases: Array<{
                                 orderKey: initialOrderKey,
                             },
                             activatedTime: new TaskFilterableTime({
-                                absoluteTime: new Date(time3[0]),
+                                absoluteTime: time3,
                                 setterTimeZone: defaultTimeZone,
                             }),
                         },
@@ -927,7 +927,7 @@ const taskActionTestCases: Array<{
                         assignee: account2,
                         assigner: creator,
                         assignedTime: new TaskFilterableTime({
-                            absoluteTime: new Date(time2[0]),
+                            absoluteTime: time2,
                             setterTimeZone: defaultTimeZone,
                         }),
                     },
@@ -938,7 +938,7 @@ const taskActionTestCases: Array<{
                             orderKey: initialOrderKey,
                         },
                         activatedTime: new TaskFilterableTime({
-                            absoluteTime: new Date(time3[0]),
+                            absoluteTime: time3,
                             setterTimeZone: defaultTimeZone,
                         }),
                     },
@@ -969,7 +969,7 @@ const taskActionTestCases: Array<{
                             assignee: account2,
                             assigner: creator,
                             assignedTime: new TaskFilterableTime({
-                                absoluteTime: new Date(time2[0]),
+                                absoluteTime: time2,
                                 setterTimeZone: defaultTimeZone,
                             }),
                         },
@@ -984,7 +984,7 @@ const taskActionTestCases: Array<{
                                 orderKey: initialOrderKey,
                             },
                             activatedTime: new TaskFilterableTime({
-                                absoluteTime: new Date(time3[0]),
+                                absoluteTime: time3,
                                 setterTimeZone: defaultTimeZone,
                             }),
                         },
@@ -1000,7 +1000,7 @@ const taskActionTestCases: Array<{
                         assignee: account2,
                         assigner: creator,
                         assignedTime: new TaskFilterableTime({
-                            absoluteTime: new Date(time2[0]),
+                            absoluteTime: time2,
                             setterTimeZone: defaultTimeZone,
                         }),
                     },
@@ -1032,7 +1032,7 @@ const taskActionTestCases: Array<{
                             assignee: account2,
                             assigner: creator,
                             assignedTime: new TaskFilterableTime({
-                                absoluteTime: new Date(time2[0]),
+                                absoluteTime: time2,
                                 setterTimeZone: defaultTimeZone,
                             }),
                         },
@@ -1047,7 +1047,7 @@ const taskActionTestCases: Array<{
                                 orderKey: initialOrderKey,
                             },
                             activatedTime: new TaskFilterableTime({
-                                absoluteTime: new Date(time3[0]),
+                                absoluteTime: time3,
                                 setterTimeZone: defaultTimeZone,
                             }),
                         },
@@ -1058,7 +1058,7 @@ const taskActionTestCases: Array<{
                         status: {
                             type: "Closed",
                             closedTime: new TaskFilterableTime({
-                                absoluteTime: new Date(time4[0]),
+                                absoluteTime: time4,
                                 setterTimeZone: defaultTimeZone,
                             }),
                             closer: account2,
@@ -1069,7 +1069,7 @@ const taskActionTestCases: Array<{
                     status: {
                         type: "Closed",
                         closedTime: new TaskFilterableTime({
-                            absoluteTime: new Date(time4[0]),
+                            absoluteTime: time4,
                             setterTimeZone: defaultTimeZone,
                         }),
                         closer: account2,
@@ -1078,7 +1078,7 @@ const taskActionTestCases: Array<{
                         assignee: account2,
                         assigner: creator,
                         assignedTime: new TaskFilterableTime({
-                            absoluteTime: new Date(time2[0]),
+                            absoluteTime: time2,
                             setterTimeZone: defaultTimeZone,
                         }),
                     },
@@ -1110,7 +1110,7 @@ const taskActionTestCases: Array<{
                             assignee: account2,
                             assigner: creator,
                             assignedTime: new TaskFilterableTime({
-                                absoluteTime: new Date(time2[0]),
+                                absoluteTime: time2,
                                 setterTimeZone: defaultTimeZone,
                             }),
                         },
@@ -1125,7 +1125,7 @@ const taskActionTestCases: Array<{
                                 orderKey: initialOrderKey,
                             },
                             activatedTime: new TaskFilterableTime({
-                                absoluteTime: new Date(time3[0]),
+                                absoluteTime: time3,
                                 setterTimeZone: defaultTimeZone,
                             }),
                         },
@@ -1141,7 +1141,7 @@ const taskActionTestCases: Array<{
                         assignee: account2,
                         assigner: creator,
                         assignedTime: new TaskFilterableTime({
-                            absoluteTime: new Date(time2[0]),
+                            absoluteTime: time2,
                             setterTimeZone: defaultTimeZone,
                         }),
                     },
@@ -1173,7 +1173,7 @@ const taskActionTestCases: Array<{
                             assignee: account2,
                             assigner: creator,
                             assignedTime: new TaskFilterableTime({
-                                absoluteTime: new Date(time2[0]),
+                                absoluteTime: time2,
                                 setterTimeZone: defaultTimeZone,
                             }),
                         },
@@ -1188,7 +1188,7 @@ const taskActionTestCases: Array<{
                                 orderKey: initialOrderKey,
                             },
                             activatedTime: new TaskFilterableTime({
-                                absoluteTime: new Date(time3[0]),
+                                absoluteTime: time3,
                                 setterTimeZone: defaultTimeZone,
                             }),
                         },
@@ -1200,7 +1200,7 @@ const taskActionTestCases: Array<{
                             assignee: creator,
                             assigner: account2,
                             assignedTime: new TaskFilterableTime({
-                                absoluteTime: new Date(time4[0]),
+                                absoluteTime: time4,
                                 setterTimeZone: defaultTimeZone,
                             }),
                         },
@@ -1211,7 +1211,7 @@ const taskActionTestCases: Array<{
                         assignee: creator,
                         assigner: account2,
                         assignedTime: new TaskFilterableTime({
-                            absoluteTime: new Date(time4[0]),
+                            absoluteTime: time4,
                             setterTimeZone: defaultTimeZone,
                         }),
                     },
@@ -1243,7 +1243,7 @@ const taskActionTestCases: Array<{
                             assignee: account2,
                             assigner: creator,
                             assignedTime: new TaskFilterableTime({
-                                absoluteTime: new Date(time2[0]),
+                                absoluteTime: time2,
                                 setterTimeZone: defaultTimeZone,
                             }),
                         },
@@ -1258,7 +1258,7 @@ const taskActionTestCases: Array<{
                                 orderKey: initialOrderKey,
                             },
                             activatedTime: new TaskFilterableTime({
-                                absoluteTime: new Date(time3[0]),
+                                absoluteTime: time3,
                                 setterTimeZone: defaultTimeZone,
                             }),
                         },
@@ -1270,7 +1270,7 @@ const taskActionTestCases: Array<{
                             assignee: account2,
                             assigner: creator,
                             assignedTime: new TaskFilterableTime({
-                                absoluteTime: new Date(time4[0]),
+                                absoluteTime: time4,
                                 setterTimeZone: defaultTimeZone,
                             }),
                         },
@@ -1281,7 +1281,7 @@ const taskActionTestCases: Array<{
                         assignee: account2,
                         assigner: creator,
                         assignedTime: new TaskFilterableTime({
-                            absoluteTime: new Date(time4[0]),
+                            absoluteTime: time4,
                             setterTimeZone: defaultTimeZone,
                         }),
                     },
@@ -2891,7 +2891,7 @@ export function testTaskSpaceActionPermutations({
 
         function getNextFilterableTime() {
             return new TaskFilterableTime({
-                absoluteTime: new Date(getNextTime()[0]),
+                absoluteTime: getNextTime(),
                 setterTimeZone: defaultTimeZone,
             });
         }
@@ -3038,11 +3038,9 @@ export function testTaskSpaceActionPermutations({
                                         createdTime:
                                             expectation.task.createdTime ??
                                             new TaskFilterableTime({
-                                                absoluteTime: new Date(
-                                                    assertExists(
-                                                        createAction?.time,
-                                                        "Expected `Create` task action when `createdTime` is not provided",
-                                                    )[0],
+                                                absoluteTime: assertExists(
+                                                    createAction?.time,
+                                                    "Expected `Create` task action when `createdTime` is not provided",
                                                 ),
                                                 setterTimeZone: assertExists(
                                                     createAction?.taskAction.creatorTimeZone,

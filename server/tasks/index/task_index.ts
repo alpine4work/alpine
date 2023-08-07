@@ -373,7 +373,7 @@ async function actuallyIndexTaskSpaceAction(
                     spaceId: state.spaceId,
                     creator: action.taskAction.creator,
                     createdTime: new TaskFilterableTime({
-                        absoluteTime: new Date(action.time[0]),
+                        absoluteTime: action.time,
                         setterTimeZone: action.taskAction.creatorTimeZone,
                     }),
                     rawDeletedTime: null,

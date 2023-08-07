@@ -1,7 +1,12 @@
 import {CalendarDate, parseAbsolute, toCalendarDate} from "@internationalized/date";
+import {
+    HybridLogicalTime,
+    areHybridLogicalTimesEqual,
+} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {TimeZone} from "~/shared/helpers/date/time_zone.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 /**
  * Time zones are fun. We represent filterable times in our task system with
@@ -42,7 +47,7 @@ export class TaskFilterableTime {
      * This is used for sorting but not filtering. `setterDate` is used for
      * filtering. See the documentation comment on this class for why.
      */
-    public readonly absoluteTime: Date;
+    public readonly absoluteTime: HybridLogicalTime;
 
     /**
      * The time zone of the user who set this time. For example, if a user creates
@@ -60,14 +65,20 @@ export class TaskFilterableTime {
      */
     public readonly setterDate: CalendarDate;
 
-    constructor({absoluteTime, setterTimeZone}: {absoluteTime: Date; setterTimeZone: TimeZone}) {
+    constructor({
+        absoluteTime,
+        setterTimeZone,
+    }: {
+        absoluteTime: HybridLogicalTime;
+        setterTimeZone: TimeZone;
+    }) {
         this.absoluteTime = absoluteTime;
         this.setterTimeZone = setterTimeZone;
         this.setterDate = getTaskFilterableTimeSetterDate(absoluteTime, setterTimeZone);
     }
 
     public static readonly schema = Schema.object({
-        absoluteTime: Schema.date,
+        absoluteTime: HybridLogicalTimeSchema,
         setterTimeZone: TimeZoneSchema,
     }).transform<TaskFilterableTime>({
         serialize: time => time,
@@ -76,15 +87,15 @@ export class TaskFilterableTime {
 
     public isEqual(other: TaskFilterableTime): boolean {
         return (
-            this.absoluteTime.getTime() === other.absoluteTime.getTime() &&
+            areHybridLogicalTimesEqual(this.absoluteTime, other.absoluteTime) &&
             this.setterTimeZone === other.setterTimeZone
         );
     }
 }
 
 export function getTaskFilterableTimeSetterDate(
-    absoluteTime: Date,
+    absoluteTime: HybridLogicalTime,
     setterTimeZone: TimeZone,
 ): CalendarDate {
-    return toCalendarDate(parseAbsolute(absoluteTime.toISOString(), setterTimeZone));
+    return toCalendarDate(parseAbsolute(new Date(absoluteTime[0]).toISOString(), setterTimeZone));
 }

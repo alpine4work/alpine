@@ -78,7 +78,7 @@ const clock = new HybridLogicalClock(unsynchronizedSystemClock);
 
 function getCurrentTaskTime() {
     return new TaskFilterableTime({
-        absoluteTime: new Date(clock.now()[0]),
+        absoluteTime: clock.now(),
         setterTimeZone: defaultTimeZone,
     });
 }
@@ -89,7 +89,7 @@ function getUnreasonableTime(): HybridLogicalTime {
 
 function getUnreasonableTaskTime() {
     return new TaskFilterableTime({
-        absoluteTime: new Date(getUnreasonableTime()[0]),
+        absoluteTime: getUnreasonableTime(),
         setterTimeZone: defaultTimeZone,
     });
 }
@@ -11073,7 +11073,7 @@ test("opening and closing a task commits extra update children count action", as
                         type: "Closed",
                         closer: taskAccount1,
                         closedTime: new TaskFilterableTime({
-                            absoluteTime: new Date(actionTime1[0]),
+                            absoluteTime: actionTime1,
                             setterTimeZone: defaultTimeZone,
                         }),
                     },
@@ -11111,7 +11111,7 @@ test("opening and closing a task commits extra update children count action", as
                         type: "Closed",
                         closer: taskAccount1,
                         closedTime: new TaskFilterableTime({
-                            absoluteTime: new Date(actionTime2[0]),
+                            absoluteTime: actionTime2,
                             setterTimeZone: defaultTimeZone,
                         }),
                     },
@@ -11181,7 +11181,7 @@ test("opening and closing a task commits extra update children count action", as
                         type: "Closed",
                         closer: taskAccount1,
                         closedTime: new TaskFilterableTime({
-                            absoluteTime: new Date(actionTime3[0]),
+                            absoluteTime: actionTime3,
                             setterTimeZone: defaultTimeZone,
                         }),
                     },
@@ -11305,7 +11305,7 @@ test("changing parents of a closed a task commits extra update children count ac
                         type: "Closed",
                         closer: taskAccount1,
                         closedTime: new TaskFilterableTime({
-                            absoluteTime: new Date(actionTime1[0]),
+                            absoluteTime: actionTime1,
                             setterTimeZone: defaultTimeZone,
                         }),
                     },
@@ -11748,7 +11748,7 @@ test("moving multiple open and closed tasks around commits extra update children
                         type: "Closed",
                         closer: taskAccount1,
                         closedTime: new TaskFilterableTime({
-                            absoluteTime: new Date(actionTime1[0]),
+                            absoluteTime: actionTime1,
                             setterTimeZone: defaultTimeZone,
                         }),
                     },
@@ -11786,7 +11786,7 @@ test("moving multiple open and closed tasks around commits extra update children
                         type: "Closed",
                         closer: taskAccount1,
                         closedTime: new TaskFilterableTime({
-                            absoluteTime: new Date(actionTime2[0]),
+                            absoluteTime: actionTime2,
                             setterTimeZone: defaultTimeZone,
                         }),
                     },

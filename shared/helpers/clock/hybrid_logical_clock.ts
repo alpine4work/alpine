@@ -19,6 +19,13 @@ export function compareHybridLogicalTimes(
     return 0;
 }
 
+export function areHybridLogicalTimesEqual(
+    [time1, ticks1]: HybridLogicalTime,
+    [time2, ticks2]: HybridLogicalTime,
+) {
+    return time1 === time2 && ticks1 === ticks2;
+}
+
 export function maxHybridLogicalTime(...times: [HybridLogicalTime, ...Array<HybridLogicalTime>]) {
     let maxTime = times[0];
 

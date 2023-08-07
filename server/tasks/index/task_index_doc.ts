@@ -78,10 +78,7 @@ const TaskIndexSortableAccountType = OpensearchIndexObjectType.new({
  */
 const TaskIndexFilterableTimeType = OpensearchIndexObjectType.new({
     fields: {
-        // While our task query UI filters by `setterDate` we allow the `absoluteTime`
-        // to be filterable since it's very reasonable we may add a feature to turn off
-        // our setter time zone filter logic in the future.
-        absoluteTime: new OpensearchIndexDateType({isFilterable: true, isSortable: true}),
+        absoluteTime: SortableHybridLogicalTimeType,
         setterTimeZone: new OpensearchIndexKeywordType().validate(isTimeZone),
     },
     computed: {
