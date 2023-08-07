@@ -1,4 +1,5 @@
 import {CalendarDate, parseAbsolute, toCalendarDate} from "@internationalized/date";
+import {OpensearchClientDocWithVersion} from "~/server/opensearch/opensearch_client.js";
 import {
     OpensearchIndexArrayType,
     OpensearchIndexBinaryType,
@@ -20,7 +21,11 @@ import {
     SortableHybridLogicalTimeType,
 } from "~/server/tasks/index/internal/hybrid_logical_time_type.js";
 import {createCrdtMap} from "~/shared/crdt/crdt_map.js";
-import {compareHybridLogicalTimes} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {CrdtRegister} from "~/shared/crdt/crdt_register.js";
+import {
+    HybridLogicalTime,
+    compareHybridLogicalTimes,
+} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {isTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {initialOrderKey, isOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {createEnumIntegerMapping} from "~/shared/helpers/string/create_enum_integer_mapping.js";
@@ -28,7 +33,7 @@ import {isId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TaskDueDateRegister, TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_action.js";
-import {TaskAssigneeRegister} from "~/shared/tasks/task_assignee.js";
+import {TaskAssignee, TaskAssigneeRegister} from "~/shared/tasks/task_assignee.js";
 import {
     TaskAssigneeStatus,
     TaskAssigneeStatusRegister,
@@ -236,7 +241,7 @@ const TaskIndexNotepadPagesType = OpensearchIndexObjectType.new({
     },
 });
 
-const TaskStatusIntegerMapping = createEnumIntegerMapping({
+export const TaskStatusTypeIntegerMapping = createEnumIntegerMapping({
     Open: 1,
     Closed: 2,
 });
@@ -260,9 +265,9 @@ const TaskIndexStatusType = createCrdtRegisterOpensearchType(
             isFilterable: true,
             isSortable: true,
         }).transform<TaskStatus["type"]>({
-            serialize: status => TaskStatusIntegerMapping.into(status),
+            serialize: status => TaskStatusTypeIntegerMapping.into(status),
             deserialize: status =>
-                TaskStatusIntegerMapping.from(TaskStatusIntegerMapping.assert(status)),
+                TaskStatusTypeIntegerMapping.from(TaskStatusTypeIntegerMapping.assert(status)),
         }),
         variants: {
             Open: OpensearchIndexObjectType.new({fields: {}}),
@@ -329,7 +334,7 @@ const TaskIndexAssigneeStatusType = createCrdtRegisterOpensearchType(
 // to be ordered. So to start we take the max value for our field type (`byte`
 // which has a max of 127), divide by 4 so we can distribute our statuses with
 // room at all positions to add new statuses.
-const TaskDisplayStatusIntegerMapping = createEnumIntegerMapping({
+export const TaskDisplayStatusIntegerMapping = createEnumIntegerMapping({
     OpenInactive: 32,
     OpenActive: 64,
     Closed: 96,
@@ -393,7 +398,7 @@ const TaskIndexDueDateType = createCrdtRegisterOpensearchType(
         .nullable(),
 );
 
-const TaskPriorityIntegerMapping = createEnumIntegerMapping({
+export const TaskPriorityIntegerMapping = createEnumIntegerMapping({
     Low: 1,
     Medium: 2,
     High: 3,
@@ -427,12 +432,9 @@ const TaskIndexPriorityType = createCrdtRegisterOpensearchType(
  * The type of a document in our tasks index. Can be used to execute arbitrary
  * queries against tasks efficiently.
  */
-export type TaskIndexDoc = OpensearchIndexTypeType<typeof TaskIndexDocType> & {
-    readonly version?: {
-        readonly sequenceNumber: number;
-        readonly primaryTerm: number;
-    };
-};
+export type TaskIndexDoc = OpensearchClientDocWithVersion<
+    OpensearchIndexTypeType<typeof TaskIndexDocType>
+>;
 
 export const TaskIndexDocType = OpensearchIndexObjectType.new({
     fields: {
@@ -482,17 +484,37 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
             displayStatus: TaskIndexDisplayStatusType,
         },
         compute: task => ({
-            isDeleted:
-                !!task.rawDeletedTime &&
-                (!task.rawUndeletedTime ||
-                    compareHybridLogicalTimes(task.rawDeletedTime, task.rawUndeletedTime) > 0),
-
-            displayStatus:
-                task.status.value.type === "Closed"
-                    ? ("Closed" as const)
-                    : task.assignee.value && task.rawAssigneeStatus.value.type === "Active"
-                    ? ("OpenActive" as const)
-                    : ("OpenInactive" as const),
+            isDeleted: getTaskIndexDocIsDeleted(task),
+            displayStatus: getTaskIndexDocDisplayStatus(task),
         }),
     },
 });
+
+export function getTaskIndexDocIsDeleted(task: {
+    rawDeletedTime: HybridLogicalTime | null;
+    rawUndeletedTime: HybridLogicalTime | null;
+}): boolean {
+    return (
+        !!task.rawDeletedTime &&
+        (!task.rawUndeletedTime ||
+            compareHybridLogicalTimes(task.rawDeletedTime, task.rawUndeletedTime) > 0)
+    );
+}
+
+export function getTaskIndexDocDisplayStatus(task: {
+    status: CrdtRegister<TaskStatus>;
+    assignee: CrdtRegister<TaskAssignee | null>;
+    rawAssigneeStatus: CrdtRegister<TaskAssigneeStatus>;
+}): TaskDisplayStatus {
+    return task.status.value.type === "Closed"
+        ? ("Closed" as const)
+        : task.assignee.value && task.rawAssigneeStatus.value.type === "Active"
+        ? ("OpenActive" as const)
+        : ("OpenInactive" as const);
+}
+
+export function getTaskIndexDocAssigneeStatus(task: TaskIndexDoc): TaskAssigneeStatus {
+    return task.status.value.type === "Open" && task.assignee.value
+        ? task.rawAssigneeStatus.value
+        : {type: "Inactive"};
+}

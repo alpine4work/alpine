@@ -54,7 +54,7 @@ export class DynamoContextModule<Modules extends {} = {}> extends ContextModuleB
         if (client !== null) {
             this._client = client;
         } else {
-            // May only run in a test environment.
+            // May only construct an uninitialized context module in tests.
             assert(process.env.NODE_ENV === "test");
 
             Object.defineProperty(this, "_client", {

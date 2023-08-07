@@ -1,5 +1,6 @@
 import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
+import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -16,4 +17,5 @@ export type AppProcessContextModules = {
     tracer: TracerContextModule;
     dynamo: DynamoContextModule;
     email: EmailContextModuleBase;
+    opensearch: OpensearchContextModule;
 };

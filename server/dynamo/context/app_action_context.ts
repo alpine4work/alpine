@@ -6,6 +6,7 @@ import {
 } from "~/server/dynamo/context/app_actor_context_module.js";
 import {AppProcessContextModules} from "~/server/dynamo/context/app_process_context.js";
 import {NotificationsContextModuleBase} from "~/server/dynamo/context/notifications_context_module.js";
+import {TasksContextModule} from "~/server/dynamo/context/tasks_context_module.js";
 import {DynamoBatchContextModule} from "~/server/dynamo/dynamo_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -37,6 +38,15 @@ export type AppActionContextModulesBase = AppProcessContextModules & {
      * Send notification events to our queue for processing.
      */
     notifications: NotificationsContextModuleBase;
+
+    /**
+     * Helps perform work related to tasks that needs to interact with other
+     * systems. Notably:
+     *
+     * - Escalating to system permission level when indexing a task action.
+     * - Communicating with the task query realtime service.
+     */
+    tasks: TasksContextModule;
 };
 
 /**

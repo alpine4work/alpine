@@ -11,10 +11,10 @@ import {assert} from "~/shared/helpers/control/assert.js";
 export function createEnumIntegerMapping<const Mapping extends {[key: string]: number}>(
     mapping: Mapping,
 ): {
-    is(number: number): number is Mapping[keyof Mapping];
-    assert(number: number): Mapping[keyof Mapping];
-    into(string: keyof Mapping): Mapping[keyof Mapping];
-    from(integer: Mapping[keyof Mapping]): keyof Mapping;
+    is: (number: number) => number is Mapping[keyof Mapping];
+    assert: (number: number) => Mapping[keyof Mapping];
+    into: (string: keyof Mapping) => Mapping[keyof Mapping];
+    from: (integer: Mapping[keyof Mapping]) => keyof Mapping;
 } {
     const stringByInteger = new Map<number, string>();
 

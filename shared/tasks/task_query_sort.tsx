@@ -15,51 +15,51 @@ export type TaskQuerySort =
     | TaskQueryClosedDateSort
     | TaskQueryActivatedDateSort;
 
-type TaskQueryStatusSort = {
+export type TaskQueryStatusSort = {
     readonly type: "Status";
     readonly direction: "Ascending" | "Descending";
 };
 
-type TaskQueryPrioritySort = {
+export type TaskQueryPrioritySort = {
     readonly type: "Priority";
     readonly direction: "Ascending" | "Descending";
 };
 
-type TaskQueryAssigneeSort = {
+export type TaskQueryAssigneeSort = {
     readonly type: "Assignee";
     readonly missingAccountSide: "Start" | "End";
 };
 
-type TaskQueryCreatorSort = {
+export type TaskQueryCreatorSort = {
     readonly type: "Creator";
 };
 
-type TaskQueryAssignerSort = {
+export type TaskQueryAssignerSort = {
     readonly type: "Assigner";
     readonly missingAccountSide: "Start" | "End";
 };
 
-type TaskQueryDueDateSort = {
+export type TaskQueryDueDateSort = {
     readonly type: "DueDate";
     readonly direction: "Ascending" | "Descending";
 };
 
-type TaskQueryCreatedDateSort = {
+export type TaskQueryCreatedDateSort = {
     readonly type: "CreatedDate";
     readonly direction: "Ascending" | "Descending";
 };
 
-type TaskQueryAssignedDateSort = {
+export type TaskQueryAssignedDateSort = {
     readonly type: "AssignedDate";
     readonly direction: "Ascending" | "Descending";
 };
 
-type TaskQueryClosedDateSort = {
+export type TaskQueryClosedDateSort = {
     readonly type: "ClosedDate";
     readonly direction: "Ascending" | "Descending";
 };
 
-type TaskQueryActivatedDateSort = {
+export type TaskQueryActivatedDateSort = {
     readonly type: "ActivatedDate";
     readonly direction: "Ascending" | "Descending";
 };

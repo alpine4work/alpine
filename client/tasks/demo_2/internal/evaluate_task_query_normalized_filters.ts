@@ -3,7 +3,7 @@ import {
     TaskQueryAccountNormalizedFilter,
     TaskQueryDateNormalizedFilter,
     TaskQueryNormalizedFilters,
-} from "~/client/tasks/demo_2/internal/normalize_task_query_filters.js";
+} from "~/shared/tasks/normalize_task_query_filters.js";
 import {LocalTask} from "~/client/tasks/demo_2/local_tasks_state.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -52,23 +52,39 @@ export function evaluateTaskQueryNormalizedFilters(
     if (filters.collectionsFilter !== undefined) {
         switch (filters.collectionsFilter.type) {
             case "IncludesOneOf": {
-                return iterableSome(filters.collectionsFilter.collectionIds, collectionId =>
-                    task.collectionIds.has(collectionId),
-                );
+                if (
+                    !iterableSome(filters.collectionsFilter.collectionIds, collectionId =>
+                        task.collectionIds.has(collectionId),
+                    )
+                ) {
+                    return false;
+                }
+                break;
             }
             case "IncludesAllOf": {
-                return iterableEvery(filters.collectionsFilter.collectionIds, collectionId =>
-                    task.collectionIds.has(collectionId),
-                );
+                if (
+                    !iterableEvery(filters.collectionsFilter.collectionIds, collectionId =>
+                        task.collectionIds.has(collectionId),
+                    )
+                ) {
+                    return false;
+                }
+                break;
             }
             case "ExcludesAllOf": {
-                return iterableEvery(
-                    filters.collectionsFilter.collectionIds,
-                    collectionId => !task.collectionIds.has(collectionId),
-                );
+                if (
+                    !iterableEvery(
+                        filters.collectionsFilter.collectionIds,
+                        collectionId => !task.collectionIds.has(collectionId),
+                    )
+                ) {
+                    return false;
+                }
+                break;
             }
             case "IsEmpty": {
-                return task.collectionIds.size === 0;
+                if (task.collectionIds.size !== 0) return false;
+                break;
             }
             default:
                 throw exhaustive(filters.collectionsFilter);

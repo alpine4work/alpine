@@ -16,6 +16,71 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {JsonValue} from "~/shared/helpers/types/json_value.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
+export type OpensearchClientDocWithVersion<Doc> = Doc & {
+    /**
+     * The version of the document used for [optimistic concurrency
+     * control][1].
+     *
+     * [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/optimistic-concurrency-control.html
+     */
+    readonly version?: {
+        readonly sequenceNumber: number;
+        readonly primaryTerm: number;
+    };
+};
+
+export type OpensearchClientBulkWriteOperation<DocId, Doc> = {
+    readonly type: "IndexIfVersion";
+    readonly id: DocId;
+    readonly doc: OpensearchClientDocWithVersion<Doc>;
+};
+
+export type OpensearchClientBulkWriteOptions = {
+    retryVersionConflictError?: (error?: unknown) => never;
+};
+
+/**
+ * The interface implemented by an `OpensearchClient` which allows us to have
+ * other interfaces.
+ */
+export interface OpensearchClientInterface {
+    /**
+     * Gets a document by the provided ID using the [get document API][1].
+     *
+     * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/get-documents/
+     */
+    getDocIfExists<
+        Routing extends string,
+        DocId extends string,
+        Doc extends {},
+        FlattenedKeys extends string,
+    >(
+        context: AppActionContext,
+        index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
+        routing: Routing,
+        id: DocId,
+    ): Promise<OpensearchClientDocWithVersion<Doc> | null>;
+
+    /**
+     * Lets you add, update, or delete multiple documents in a single request using
+     * the [bulk API][1].
+     *
+     * We have a special `IndexIfVersion` that will only index the document if it's
+     * version matches what's in the source. This implements [optimistic
+     * concurrency control][2].
+     *
+     * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/bulk/
+     * [2]: https://www.elastic.co/guide/en/elasticsearch/reference/current/optimistic-concurrency-control.html
+     */
+    bulkWrite<Routing extends string, DocId extends string, Doc, FlattenedKeys extends string>(
+        context: AppActionContext,
+        index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
+        routing: Routing,
+        operations: ReadonlyArray<OpensearchClientBulkWriteOperation<DocId, Doc>>,
+        options?: OpensearchClientBulkWriteOptions,
+    ): Promise<void>;
+}
+
 /**
  * Lightweight abstraction for making requests to OpenSearch. Implements the
  * following features:
@@ -23,7 +88,7 @@ import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
  * - Strong typing for API requests
  * - In development, makes sure indexes are created
  */
-export class OpensearchClient {
+export class OpensearchClient implements OpensearchClientInterface {
     private readonly _protocol: string;
     private readonly _host: string;
 
@@ -188,21 +253,7 @@ export class OpensearchClient {
         index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
         routing: Routing,
         id: DocId,
-    ): Promise<
-        | (Doc & {
-              /**
-               * The version of the document used for [optimistic concurrency
-               * control][1].
-               *
-               * [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/optimistic-concurrency-control.html
-               */
-              readonly version?: {
-                  readonly sequenceNumber: number;
-                  readonly primaryTerm: number;
-              };
-          })
-        | null
-    > {
+    ): Promise<OpensearchClientDocWithVersion<Doc> | null> {
         if (process.env.NODE_ENV !== "production") {
             await this._ensureLocalIndex(context, index);
         }
@@ -259,17 +310,8 @@ export class OpensearchClient {
         context: AppActionContext,
         index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
         routing: Routing,
-        operations: ReadonlyArray<{
-            type: "IndexIfVersion";
-            id: DocId;
-            doc: Doc & {
-                readonly version?: {
-                    readonly sequenceNumber: number;
-                    readonly primaryTerm: number;
-                };
-            };
-        }>,
-        {retryVersionConflictError}: {retryVersionConflictError?: (error?: unknown) => never} = {},
+        operations: ReadonlyArray<OpensearchClientBulkWriteOperation<DocId, Doc>>,
+        {retryVersionConflictError}: OpensearchClientBulkWriteOptions,
     ): Promise<void> {
         if (process.env.NODE_ENV !== "production") {
             await this._ensureLocalIndex(context, index);

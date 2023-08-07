@@ -8,7 +8,7 @@ import {TaskCollectionView} from "~/client/tasks/demo_2/task_collection_view.js"
 import {
     deserializeTaskQuerySortsSearchParam,
     serializeTaskQuerySortsSearchParam,
-} from "~/client/tasks/demo_2/task_query_sort.js";
+} from "~/shared/tasks/task_query_sort.js";
 import {getTaskQueryFilterReferences} from "~/server/dynamo/helpers/get_task_query_filter_references.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";

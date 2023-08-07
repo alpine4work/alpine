@@ -23,12 +23,18 @@ import {parseArgs} from "util";
 import {defaultClientInfo, defaultMobileClientInfo} from "~/client/remix/client_info_context.js";
 import {Session} from "~/server/dynamo/accounts_table.js";
 import {
+    AppSystemActionContext,
+    AppSystemActionContextModules,
+} from "~/server/dynamo/context/app_action_context.js";
+import {
+    AppActorContextModule,
     AppSessionActorContextModule,
     AppSystemActorContextModule,
     AppUnknownActorContextModule,
 } from "~/server/dynamo/context/app_actor_context_module.js";
 import {AppProcessContextModules} from "~/server/dynamo/context/app_process_context.js";
 import {NotificationsContextModule} from "~/server/dynamo/context/notifications_context_module.js";
+import {TasksContextModule} from "~/server/dynamo/context/tasks_context_module.js";
 import {
     DynamoBatchContextModule,
     DynamoContextModule,
@@ -308,6 +314,13 @@ async function main() {
 
     // Our key args may either be a file path or an environment variable name. We
     // first test the environment variable name then try to load as a file path.
+    //
+    // We allow an environment variable name since an RSA key argument might be too
+    // long for the command line. Tools like AWS also make it easiest to pass in
+    // secrets through environment variables as opposed to command line arguments
+    // or files. As of 2023-08-07 the AWS CDK logic for setting production CLI
+    // arguments can be found in
+    // `admin/aws/internal/add_all_container_aws_resources.ts`.
     function getKeyFromArg(arg: string) {
         if (arg.startsWith("$")) {
             const envKey = arg.slice(1);
@@ -429,6 +442,58 @@ async function main() {
                         }
                     }
 
+                    // Sometimes we want to upgrade a session actor to a system actor. This gives
+                    // the action escalated the system permission level which is dangerous! The
+                    // system permission level has broad access to a space. We should tightly
+                    // control what code is allowed to call this function, only allowed context
+                    // modules get access and those context modules are expected to treat this as a
+                    // private variable.
+                    //
+                    // It's important we use new caches + batchers here. We don't want to load some
+                    // data at a higher permission level then let the session context see it. So we
+                    // derive our new context from the process context to help avoid reusing any
+                    // request-level caches.
+                    //
+                    // NOTE(calebmer, 2023-08-07): May be worthwhile turning uses of this function
+                    // into RPC calls on another machine someday for security? Not sure if that
+                    // helps.
+                    const dangerouslyEscalateToSystemContext = (
+                        context: Context<{
+                            tracer: TracerContextModule;
+                            actor: AppActorContextModule;
+                        }>,
+                        spaceId: SpaceId,
+                        action: (context: AppSystemActionContext) => Promise<void>,
+                    ): Promise<void> => {
+                        return processContext.with<
+                            Omit<
+                                AppSystemActionContextModules,
+                                Exclude<keyof AppProcessContextModules, "tracer">
+                            >,
+                            // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
+                            void
+                        >(
+                            {
+                                tracer: new TracerContextModule(context.tracer.getTracer()),
+                                cache: new CacheContextModule(),
+                                dynamoBatchContext: new DynamoBatchContextModule(),
+                                notifications: new NotificationsContextModule({
+                                    dangerouslyEscalateToSystemContext,
+                                    edgeServiceUrl,
+                                    tokenAgent,
+                                }),
+                                tasks: new TasksContextModule({
+                                    dangerouslyEscalateToSystemContext,
+                                }),
+                                actor: AppSystemActorContextModule.dangerouslyNew(
+                                    context.actor.serviceName,
+                                    spaceId,
+                                ),
+                            },
+                            action,
+                        );
+                    };
+
                     return processContext.with<
                         Omit<
                             LoaderContextModules,
@@ -455,9 +520,12 @@ async function main() {
                                 sessionCookie,
                             ),
                             notifications: new NotificationsContextModule({
-                                processContext,
+                                dangerouslyEscalateToSystemContext,
                                 edgeServiceUrl,
                                 tokenAgent,
+                            }),
+                            tasks: new TasksContextModule({
+                                dangerouslyEscalateToSystemContext,
                             }),
                         },
                         context => {

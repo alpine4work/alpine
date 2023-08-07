@@ -34,7 +34,7 @@ export type ChatId = NominalIdType<"Chat">;
 export type NotificationEventId = NominalIdType<"NotificationEvent">;
 export type TaskId = NominalIdType<"Task">;
 export type TaskCollectionId = NominalIdType<"TaskCollection">;
-export type TaskActionTransactionId = NominalIdType<"TaskActionTransaction">;
+export type TaskSpaceActionTransactionId = NominalIdType<"TaskSpaceActionTransaction">;
 
 /**
  * A specialization of `AccountId`. We use this as the type of a

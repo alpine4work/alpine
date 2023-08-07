@@ -2,9 +2,6 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "index",
-    test_data = glob([
-        "tests/index_task_space_action_transaction_permutations_*.test.ts",
-    ]),
     test_deps = [
         "//server/dynamo/test_helpers/shared",
         "//shared/tasks/test_helpers",
@@ -19,11 +16,15 @@ ts_project(
             "shard_count": 10,
         },
     },
-    visibility = ["//server/tasks:__subpackages__"],
+    visibility = [
+        "//server/dynamo:__pkg__",
+        "//server/tasks:__subpackages__",
+    ],
     deps = [
         "//:node_modules/@internationalized/date",
         "//:node_modules/date-fns",
         "//server/opensearch",
+        "//shared/context",
         "//shared/error",
         "//shared/helpers",
         "//shared/id",

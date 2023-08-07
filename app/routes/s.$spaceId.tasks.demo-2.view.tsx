@@ -6,7 +6,7 @@ import {useLocalTasksState} from "~/client/tasks/demo_2/local_tasks_state.js";
 import {
     deserializeTaskQuerySortsSearchParam,
     serializeTaskQuerySortsSearchParam,
-} from "~/client/tasks/demo_2/task_query_sort.js";
+} from "~/shared/tasks/task_query_sort.js";
 import {TaskQueryView} from "~/client/tasks/demo_2/task_query_view.js";
 import {getTaskQueryFilterReferences} from "~/server/dynamo/helpers/get_task_query_filter_references.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";

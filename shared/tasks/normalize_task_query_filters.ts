@@ -2,6 +2,7 @@ import {CalendarDate, maxDate, minDate} from "@internationalized/date";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId, LocalTaskCollectionId} from "~/shared/id/types/id_types.js";
+import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
 import {
     TaskQueryCollectionsFilter,
     TaskQueryFilter,
@@ -147,10 +148,7 @@ export type TaskQueryDateNormalizedFilter =
  */
 export function normalizeTaskQueryFilters(
     filters: ReadonlyArray<TaskQueryFilter>,
-    context: {
-        currentAccountId: AccountId;
-        currentDate: CalendarDate;
-    },
+    evaluationContext: TaskQueryEvaluationContext,
 ): {type: "Possible"; normalizedFilters: TaskQueryNormalizedFilters} | {type: "Impossible"} {
     let hasDefaultStatusFilter = true;
 
@@ -223,7 +221,7 @@ export function normalizeTaskQueryFilters(
             case "Assignee": {
                 const normalizeResult = normalizeTaskQueryFilterAccountOperation(
                     filter.operation,
-                    context,
+                    evaluationContext,
                 );
                 if (normalizeResult.type === "AlwaysTrue") continue;
 
@@ -243,7 +241,7 @@ export function normalizeTaskQueryFilters(
             case "Creator": {
                 const normalizeResult = normalizeTaskQueryFilterAccountOperation(
                     filter.operation,
-                    context,
+                    evaluationContext,
                 );
                 if (normalizeResult.type === "AlwaysTrue") continue;
 
@@ -263,7 +261,7 @@ export function normalizeTaskQueryFilters(
             case "Assigner": {
                 const normalizeResult = normalizeTaskQueryFilterAccountOperation(
                     filter.operation,
-                    context,
+                    evaluationContext,
                 );
                 if (normalizeResult.type === "AlwaysTrue") continue;
 
@@ -289,13 +287,16 @@ export function normalizeTaskQueryFilters(
                               type: "Filter",
                               filter: {
                                   type: "Range",
-                                  exclusiveLowerBoundDate: context.currentDate,
+                                  exclusiveLowerBoundDate: evaluationContext.currentDate,
                                   exclusiveUpperBoundDate: null,
                               },
                           }
                         : filter.operation.type === "IsEmpty"
                         ? {type: "Filter", filter: {type: "IsEmpty"}}
-                        : normalizeTaskQueryFilterDateOperation(filter.operation, context);
+                        : normalizeTaskQueryFilterDateOperation(
+                              filter.operation,
+                              evaluationContext,
+                          );
 
                 if (normalizeResult.type === "AlwaysTrue") continue;
 
@@ -328,7 +329,7 @@ export function normalizeTaskQueryFilters(
             case "CreatedDate": {
                 const normalizeResult = normalizeTaskQueryFilterDateOperation(
                     filter.operation,
-                    context,
+                    evaluationContext,
                 );
                 if (normalizeResult.type === "AlwaysTrue") continue;
 
@@ -348,7 +349,7 @@ export function normalizeTaskQueryFilters(
             case "AssignedDate": {
                 const normalizeResult = normalizeTaskQueryFilterDateOperation(
                     filter.operation,
-                    context,
+                    evaluationContext,
                 );
                 if (normalizeResult.type === "AlwaysTrue") continue;
 
@@ -368,7 +369,7 @@ export function normalizeTaskQueryFilters(
             case "ClosedDate": {
                 const normalizeResult = normalizeTaskQueryFilterDateOperation(
                     filter.operation,
-                    context,
+                    evaluationContext,
                 );
                 if (normalizeResult.type === "AlwaysTrue") continue;
 
@@ -388,7 +389,7 @@ export function normalizeTaskQueryFilters(
             case "ActivatedDate": {
                 const normalizeResult = normalizeTaskQueryFilterDateOperation(
                     filter.operation,
-                    context,
+                    evaluationContext,
                 );
                 if (normalizeResult.type === "AlwaysTrue") continue;
 
@@ -866,7 +867,7 @@ function mergeTaskQueryPriorityFilters(
 
 function normalizeTaskQueryFilterAccountOperation(
     operation: TaskQueryFilterAccountOperation,
-    context: {currentAccountId: AccountId},
+    evaluationContext: TaskQueryEvaluationContext,
 ): {type: "Filter"; filter: TaskQueryAccountNormalizedFilter} | {type: "AlwaysTrue"} {
     const accountIds = new Set<AccountId | "MissingAccount">();
 
@@ -877,7 +878,7 @@ function normalizeTaskQueryFilterAccountOperation(
                 break;
             }
             case "CurrentAccount": {
-                accountIds.add(context.currentAccountId);
+                accountIds.add(evaluationContext.currentAccountId);
                 break;
             }
             case "MissingAccount": {
@@ -974,9 +975,9 @@ function mergeTaskQueryAccountOneOfNormalizedFilterWithNoneOfNormalizedFilter(
 
 function normalizeTaskQueryFilterDateOperation(
     operation: TaskQueryFilterDateOperation,
-    context: {currentDate: CalendarDate},
+    evaluationContext: TaskQueryEvaluationContext,
 ): {type: "Filter"; filter: TaskQueryDateNormalizedFilter} | {type: "AlwaysTrue"} {
-    const date = normalizeTaskQueryFilterDateOperationDate(operation.date, context);
+    const date = normalizeTaskQueryFilterDateOperationDate(operation.date, evaluationContext);
     if (date === null) return {type: "AlwaysTrue"};
 
     switch (operation.type) {
@@ -1007,23 +1008,23 @@ function normalizeTaskQueryFilterDateOperation(
 
 function normalizeTaskQueryFilterDateOperationDate(
     date: TaskQueryFilterDateOperationDate,
-    context: {currentDate: CalendarDate},
+    evaluationContext: TaskQueryEvaluationContext,
 ): CalendarDate | null {
     switch (date.type) {
         case "Absolute":
             return date.date;
         case "RelativeToday":
-            return context.currentDate;
+            return evaluationContext.currentDate;
         case "RelativeAfterToday": {
             switch (date.duration.type) {
                 case "Days":
-                    return context.currentDate.add({days: date.duration.count});
+                    return evaluationContext.currentDate.add({days: date.duration.count});
                 case "Weeks":
-                    return context.currentDate.add({weeks: date.duration.count});
+                    return evaluationContext.currentDate.add({weeks: date.duration.count});
                 case "Months":
-                    return context.currentDate.add({months: date.duration.count});
+                    return evaluationContext.currentDate.add({months: date.duration.count});
                 case "Years":
-                    return context.currentDate.add({years: date.duration.count});
+                    return evaluationContext.currentDate.add({years: date.duration.count});
                 default:
                     throw exhaustive(date.duration);
             }
@@ -1031,13 +1032,13 @@ function normalizeTaskQueryFilterDateOperationDate(
         case "RelativeBeforeToday": {
             switch (date.duration.type) {
                 case "Days":
-                    return context.currentDate.subtract({days: date.duration.count});
+                    return evaluationContext.currentDate.subtract({days: date.duration.count});
                 case "Weeks":
-                    return context.currentDate.subtract({weeks: date.duration.count});
+                    return evaluationContext.currentDate.subtract({weeks: date.duration.count});
                 case "Months":
-                    return context.currentDate.subtract({months: date.duration.count});
+                    return evaluationContext.currentDate.subtract({months: date.duration.count});
                 case "Years":
-                    return context.currentDate.subtract({years: date.duration.count});
+                    return evaluationContext.currentDate.subtract({years: date.duration.count});
                 default:
                     throw exhaustive(date.duration);
             }

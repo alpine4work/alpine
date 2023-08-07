@@ -1,13 +1,13 @@
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space.js";
-import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
-import {indexTaskSpaceActionTransactionWithoutCommitForTest} from "~/server/tasks/index/index_task_space_action_transaction.js";
-import {TaskCollectionIndex} from "~/server/tasks/index/task_collection_index.js";
-import {TaskIndex} from "~/server/tasks/index/task_index.js";
+import {
+    getTaskCollectionIndexDocIfExistsForTest,
+    getTaskIndexDocIfExistsForTest,
+    indexTaskSpaceActionTransactionAssumingItsCommitted,
+} from "~/server/tasks/index/task_index.js";
+import {getTaskIndexDocIsDeleted} from "~/server/tasks/index/task_index_doc.js";
 import {NotFoundError} from "~/shared/error/error.js";
-import {compareHybridLogicalTimes} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {
     TaskCollectionTestInterface,
@@ -20,13 +20,6 @@ const space = createTestSpace(context);
 const session1 = createTestSession(context, space);
 const session2 = createTestSession(context, space);
 
-const opensearchClient = new Lazy(() => {
-    return new OpensearchClient({
-        protocol: "http",
-        host: `localhost:${context.getOpensearchLocalPort()}`,
-    });
-});
-
 import.meta.jest.setTimeout(1000 * 30);
 
 testTaskSpaceActionPermutations({
@@ -37,9 +30,8 @@ testTaskSpaceActionPermutations({
     applyTaskSpaceAction: async (action, next) => {
         let hasCalledNext = false;
 
-        await indexTaskSpaceActionTransactionWithoutCommitForTest(
+        await indexTaskSpaceActionTransactionAssumingItsCommitted(
             context.systemAction(space.id),
-            opensearchClient.get(),
             space.id,
             [action],
             {
@@ -53,19 +45,18 @@ testTaskSpaceActionPermutations({
         );
     },
     getTask: async (taskId): Promise<TaskTestInterface> => {
-        const task = await opensearchClient
-            .get()
-            .getDocIfExists(context.systemAction(space.id), TaskIndex, space.id, taskId);
+        const task = await getTaskIndexDocIfExistsForTest(
+            context.systemAction(space.id),
+            space.id,
+            taskId,
+        );
 
         if (!task) throw new NotFoundError("Task not found");
 
         return {
             creator: task.creator,
             createdTime: task.createdTime,
-            isDeleted:
-                !!task.rawDeletedTime &&
-                (!task.rawUndeletedTime ||
-                    compareHybridLogicalTimes(task.rawDeletedTime, task.rawUndeletedTime) > 0),
+            isDeleted: getTaskIndexDocIsDeleted(task),
             parent: task.parent.taskId.value
                 ? {taskId: task.parent.taskId.value, position: task.parent.position.value}
                 : null,
@@ -96,14 +87,11 @@ testTaskSpaceActionPermutations({
         };
     },
     getTaskCollection: async (collectionId): Promise<TaskCollectionTestInterface> => {
-        const collection = await opensearchClient
-            .get()
-            .getDocIfExists(
-                context.systemAction(space.id),
-                TaskCollectionIndex,
-                space.id,
-                collectionId,
-            );
+        const collection = await getTaskCollectionIndexDocIfExistsForTest(
+            context.systemAction(space.id),
+            space.id,
+            collectionId,
+        );
 
         if (!collection) throw new NotFoundError("Task collection not found");
 

@@ -7,7 +7,7 @@ import {OverlayTriggerButton} from "~/client/design/overlay_trigger.js";
 import {TaskQueryFilterEditor} from "~/client/tasks/demo_2/internal/task_query_filter_editor.js";
 import {TaskQuerySortsEditor} from "~/client/tasks/demo_2/internal/task_query_sorts_editor.js";
 import {LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state.js";
-import {TaskQuerySort} from "~/client/tasks/demo_2/task_query_sort.js";
+import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";

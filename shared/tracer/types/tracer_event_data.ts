@@ -9,7 +9,7 @@ import {
     PostId,
     RealmId,
     SpaceId,
-    TaskActionTransactionId,
+    TaskSpaceActionTransactionId,
     TraceId,
     TraceSpanId,
     WebSocketConnectionId,
@@ -602,10 +602,7 @@ export type TracerEventData = {
         readonly actionCount?: number;
 
         /** The action transaction we're operating against. */
-        readonly actionTransactionId?: TaskActionTransactionId;
-
-        /** The time at which our action transaction was committed. */
-        readonly actionTransactionCommittedTime?: DateString;
+        readonly actionTransactionId?: TaskSpaceActionTransactionId;
     };
 };
 

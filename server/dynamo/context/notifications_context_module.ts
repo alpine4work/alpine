@@ -1,19 +1,6 @@
-import {
-    AppSystemActionContext,
-    AppSystemActionContextModules,
-} from "~/server/dynamo/context/app_action_context.js";
-import {
-    AppActorContextModule,
-    AppSystemActorContextModule,
-} from "~/server/dynamo/context/app_actor_context_module.js";
-import {
-    AppProcessContext,
-    AppProcessContextModules,
-} from "~/server/dynamo/context/app_process_context.js";
-import {
-    DynamoBatchContextModule,
-    DynamoContextModule,
-} from "~/server/dynamo/dynamo_context_module.js";
+import {AppSystemActionContext} from "~/server/dynamo/context/app_action_context.js";
+import {AppActorContextModule} from "~/server/dynamo/context/app_actor_context_module.js";
+import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module.js";
 import {
     NotificationEvent,
     NotificationEventSchema,
@@ -22,6 +9,7 @@ import {
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table.js";
 import {TokenAgentBase} from "~/server/tokens/token_agent.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
+import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -54,45 +42,31 @@ export abstract class NotificationsContextModuleBase extends ContextModuleBase<{
     cache: CacheContextModule;
     actor: AppActorContextModule;
 }> {
+    private readonly _dangerouslyEscalateToSystemContext: (
+        context: Context<{tracer: TracerContextModule; actor: AppActorContextModule}>,
+        spaceId: SpaceId,
+        action: (context: AppSystemActionContext) => Promise<void>,
+    ) => Promise<void>;
+
+    constructor({
+        dangerouslyEscalateToSystemContext,
+    }: {
+        dangerouslyEscalateToSystemContext: (
+            context: Context<{tracer: TracerContextModule; actor: AppActorContextModule}>,
+            spaceId: SpaceId,
+            action: (context: AppSystemActionContext) => Promise<void>,
+        ) => Promise<void>;
+    }) {
+        super();
+        this._dangerouslyEscalateToSystemContext = dangerouslyEscalateToSystemContext;
+    }
+
     /**
      * Send a notification event to be processed asynchronously by our notification
      * queue. Our notification queue guarantees at-least-once delivery and does
      * not block request processing.
      */
-    public abstract sendNotificationEvent(event: NotificationEvent): void;
-
-    /**
-     * Sends an event transaction from the inbox DynamoDB table to "my account"
-     * durable objects which users connect to for seeing realtime changes to their
-     * notification count.
-     */
-    public abstract sendInboxRealtimeEventTransaction(
-        readTime: Date,
-        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
-    ): Promise<void>;
-}
-
-export class NotificationsContextModule extends NotificationsContextModuleBase {
-    private readonly _processContext: AppProcessContext;
-    private readonly _edgeServiceUrl: string;
-    private readonly _tokenAgent: TokenAgentBase;
-
-    constructor({
-        processContext,
-        edgeServiceUrl,
-        tokenAgent,
-    }: {
-        processContext: AppProcessContext;
-        edgeServiceUrl: string;
-        tokenAgent: TokenAgentBase;
-    }) {
-        super();
-        this._processContext = processContext;
-        this._edgeServiceUrl = edgeServiceUrl;
-        this._tokenAgent = tokenAgent;
-    }
-
-    public override sendNotificationEvent(event: NotificationEvent) {
+    public sendNotificationEvent(event: NotificationEvent) {
         // Don't block the current action on sending out a notification event. Send it
         // asynchronously.
         //
@@ -123,39 +97,56 @@ export class NotificationsContextModule extends NotificationsContextModuleBase {
         //
         // [1]: https://developers.cloudflare.com/workers/platform/limits/#cpu-runtime
         this._context.process.waitUntil(
-            this._processContext.with<
-                Omit<
-                    AppSystemActionContextModules,
-                    Exclude<keyof AppProcessContextModules, "tracer">
-                >,
-                // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
-                void
-            >(
-                {
-                    tracer: new TracerContextModule(this._context.tracer.getTracer()),
-                    cache: new CacheContextModule(),
-                    dynamoBatchContext: new DynamoBatchContextModule(),
-                    notifications: new NotificationsContextModule({
-                        processContext: this._processContext,
-                        edgeServiceUrl: this._edgeServiceUrl,
-                        tokenAgent: this._tokenAgent,
-                    }),
-                    actor: AppSystemActorContextModule.dangerouslyNew(
-                        this._context.actor.serviceName,
-                        event.spaceId,
-                    ),
-                },
+            this._dangerouslyEscalateToSystemContext(
+                this._context,
+                event.spaceId,
                 async context => {
                     try {
                         await processNotificationEvent(context, event);
                     } catch (error) {
                         // Escalate notification processing errors to `DataLossError` since it means we
                         // failed to deliver a notification but the user doesn't know.
+                        //
+                        // It would be very bad for the process to shutdown midway through indexing
+                        // such that we don't see this error! We need some backup monitoring/retry method.
                         throw DataLossError.from(error);
                     }
                 },
             ),
         );
+    }
+
+    /**
+     * Sends an event transaction from the inbox DynamoDB table to "my account"
+     * durable objects which users connect to for seeing realtime changes to their
+     * notification count.
+     */
+    public abstract sendInboxRealtimeEventTransaction(
+        readTime: Date,
+        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
+    ): Promise<void>;
+}
+
+export class NotificationsContextModule extends NotificationsContextModuleBase {
+    private readonly _edgeServiceUrl: string;
+    private readonly _tokenAgent: TokenAgentBase;
+
+    constructor({
+        dangerouslyEscalateToSystemContext,
+        edgeServiceUrl,
+        tokenAgent,
+    }: {
+        dangerouslyEscalateToSystemContext: (
+            context: Context<{tracer: TracerContextModule; actor: AppActorContextModule}>,
+            spaceId: SpaceId,
+            action: (context: AppSystemActionContext) => Promise<void>,
+        ) => Promise<void>;
+        edgeServiceUrl: string;
+        tokenAgent: TokenAgentBase;
+    }) {
+        super({dangerouslyEscalateToSystemContext});
+        this._edgeServiceUrl = edgeServiceUrl;
+        this._tokenAgent = tokenAgent;
     }
 
     public override async sendInboxRealtimeEventTransaction(
@@ -239,37 +230,19 @@ export class NotificationsContextModule extends NotificationsContextModuleBase {
 }
 
 export class TestNotificationsContextModule extends NotificationsContextModuleBase {
-    private readonly _createSystemContext: (spaceId: SpaceId) => AppSystemActionContext;
-
-    constructor(createSystemContext: (spaceId: SpaceId) => AppSystemActionContext) {
+    constructor({
+        dangerouslyEscalateToSystemContext,
+    }: {
+        dangerouslyEscalateToSystemContext: (
+            context: Context<{tracer: TracerContextModule; actor: AppActorContextModule}>,
+            spaceId: SpaceId,
+            action: (context: AppSystemActionContext) => Promise<void>,
+        ) => Promise<void>;
+    }) {
         // Can only use this context module in tests.
         assert(process.env.NODE_ENV === "test");
 
-        super();
-        this._createSystemContext = createSystemContext;
-    }
-
-    public override sendNotificationEvent(event: NotificationEvent) {
-        // To simulate realistic conditions in tests, process the notification event
-        // asynchronously outside the body of the `sendNotificationEvent()` call.
-        //
-        // If you want to wait for the queue events to be processed in your test you
-        // may call `ProcessContextModule.waitForTestTasks()`.
-        //
-        // Notably we use `systemContext.process.waitUntil()` instead of
-        // `this._context.process.waitUntil()`! That's because we don't want
-        // notification processing to extend the lifetime of our request context.
-        const systemContext = this._createSystemContext(event.spaceId);
-
-        systemContext.process.waitUntil(processNotificationEvent(systemContext, event));
-
-        // 1% of the time process the event twice in tests to exercise our idempotence
-        // logic. We use queues with at-least-once delivery semantics which means an
-        // event could be delivered twice. So we want our tests to exercise this
-        // eventuality.
-        if (Math.random() < 0.01) {
-            systemContext.process.waitUntil(processNotificationEvent(systemContext, event));
-        }
+        super({dangerouslyEscalateToSystemContext});
     }
 
     public override async sendInboxRealtimeEventTransaction() {

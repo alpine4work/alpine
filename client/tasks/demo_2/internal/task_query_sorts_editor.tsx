@@ -10,7 +10,7 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {TaskMissingAccountAvatar} from "~/client/tasks/demo_2/internal/task_missing_account_avatar.js";
-import {TaskQuerySort} from "~/client/tasks/demo_2/task_query_sort.js";
+import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

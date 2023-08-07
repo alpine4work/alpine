@@ -1453,7 +1453,7 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
     ) => Promise<void>;
 }): (context: AppSystemActionContext, event: Event) => Promise<void> {
     return async (context, event) => {
-        await context.tracer.withSpan("Processing notification event", async (context, span) => {
+        await context.tracer.withSpan("Process notification event", async (context, span) => {
             span.addData({
                 notifications: {
                     eventType: event.type,

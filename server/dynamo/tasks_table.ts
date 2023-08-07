@@ -28,7 +28,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
-import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {quote} from "~/shared/helpers/string/quote.js";
@@ -36,9 +35,9 @@ import {generateId} from "~/shared/id/id.js";
 import {
     AccountId,
     SpaceId,
-    TaskActionTransactionId,
     TaskCollectionId,
     TaskId,
+    TaskSpaceActionTransactionId,
 } from "~/shared/id/types/id_types.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -97,7 +96,8 @@ const TaskActionsTable = DynamoTableSchema.new({
                          * An `Id` for uniquely representing an action. Also used to disambiguate
                          * actions with identical `committedTime`s.
                          */
-                        actionTransactionId: DynamoKeyAttributeSchema.id<TaskActionTransactionId>(),
+                        actionTransactionId:
+                            DynamoKeyAttributeSchema.id<TaskSpaceActionTransactionId>(),
                     },
                     attributes: Schema.object({
                         /**
@@ -308,25 +308,34 @@ export function commitTaskSpaceActionTransaction(
             },
         });
 
-        const {actionTransactionId, committedTime, extraActions} =
+        const {actionTransactionId, extraActions} =
             await TaskSpaceActionTransactionCommitState.commit(context, spaceId, actions);
 
         span.addData({
             tasks: {
                 actionTransactionId,
-                actionTransactionCommittedTime: serializeDateString(committedTime),
             },
         });
+
+        const finalActions = [...actions, ...extraActions];
 
         // Make sure we include extra actions in our `TracerSpan` if there were any.
         if (extraActions.length > 0) {
             span.addData({
                 tasks: {
-                    actions: [...actions, ...extraActions].map(getTaskSpaceActionLabel).join(","),
-                    actionCount: actions.length + extraActions.length,
+                    actions: finalActions.map(getTaskSpaceActionLabel).join(","),
+                    actionCount: finalActions.length,
                 },
             });
         }
+
+        // After successfully committing out action transaction, in the background
+        // index the action transaction.
+        context.tasks.indexTaskSpaceActionTransactionAssumingItsCommitted(
+            spaceId,
+            actionTransactionId,
+            finalActions,
+        );
 
         return {extraActions};
     });
@@ -383,7 +392,7 @@ class TaskSpaceActionTransactionCommitState {
         spaceId: SpaceId,
         actions: ReadonlyArray<TaskSpaceAction>,
     ): Promise<{
-        actionTransactionId: TaskActionTransactionId;
+        actionTransactionId: TaskSpaceActionTransactionId;
         committedTime: Date;
         extraActions: ReadonlyArray<TaskSpaceAction>;
     }> {
@@ -495,7 +504,7 @@ class TaskSpaceActionTransactionCommitState {
                 sortRangeType: "ActionTransaction",
                 spaceId,
                 committedTime: new Date(),
-                actionTransactionId: generateId<TaskActionTransactionId>(),
+                actionTransactionId: generateId<TaskSpaceActionTransactionId>(),
                 actions: [...actions, ...extraActions],
             };
 
@@ -1386,6 +1395,11 @@ async function actuallyCommitTaskSpaceActionTransaction(
                                         "Action `orderTime` is too far in the future",
                                     );
                                 }
+
+                                // NOCOMMIT: Currently any user can change the `position` of a user's
+                                // active tasks? This seems wrong. The position of a user's active tasks should
+                                // be personal and private. Maybe we set this to null and infer it? Unless the
+                                // account explicitly sets it?
                                 break;
                             }
                             case "UpdateTitle": {

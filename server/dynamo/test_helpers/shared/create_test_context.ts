@@ -20,6 +20,7 @@ import {
     AppUnknownActionContext,
 } from "~/server/dynamo/context/app_action_context.js";
 import {
+    AppActorContextModule,
     AppSessionActorContextModule,
     AppSystemActorContextModule,
     AppUnknownActorContextModule,
@@ -29,12 +30,18 @@ import {
     AppProcessContextModules,
 } from "~/server/dynamo/context/app_process_context.js";
 import {TestNotificationsContextModule} from "~/server/dynamo/context/notifications_context_module.js";
+import {TestTasksContextModule} from "~/server/dynamo/context/tasks_context_module.js";
 import {
     DynamoBatchContextModule,
     DynamoContextModule,
 } from "~/server/dynamo/dynamo_context_module.js";
 import {testSharedHooks} from "~/server/dynamo/test_helpers/shared/test_shared_hooks.js";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
+import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
+import {
+    OpensearchContextModule,
+    TestDisabledOpensearchClient,
+} from "~/server/opensearch/opensearch_context_module.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {writeTracerEventToFileInDev} from "~/server/tracer/write_tracer_event_to_file_in_dev.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -141,12 +148,43 @@ export function createTestContext({
         return opensearchLocal.port;
     };
 
+    const dangerouslyEscalateToSystemContext = (
+        context: Context<{
+            tracer: TracerContextModule;
+            actor: AppActorContextModule;
+        }>,
+        spaceId: SpaceId,
+        action: (context: AppSystemActionContext) => Promise<void>,
+    ): Promise<void> => {
+        return processContext.with<
+            Omit<AppSystemActionContextModules, Exclude<keyof AppProcessContextModules, "tracer">>,
+            // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
+            void
+        >(
+            {
+                tracer: new TracerContextModule(context.tracer.getTracer()),
+                cache: new CacheContextModule(),
+                dynamoBatchContext: new DynamoBatchContextModule(),
+                notifications: new TestNotificationsContextModule({
+                    dangerouslyEscalateToSystemContext,
+                }),
+                tasks: createTasksContextModule(),
+                actor: AppSystemActorContextModule.dangerouslyNew(
+                    context.actor.serviceName,
+                    spaceId,
+                ),
+            },
+            action,
+        );
+    };
+
     const createUnauthenticatedSessionContext = (): AppUnknownActionContext => {
         return processContext.clone({
             cache: new CacheContextModule(),
             dynamoBatchContext: new DynamoBatchContextModule(),
             actor: new AppUnknownActorContextModule(async () => null),
-            notifications: new TestNotificationsContextModule(createSystemContext),
+            notifications: new TestNotificationsContextModule({dangerouslyEscalateToSystemContext}),
+            tasks: createTasksContextModule(),
         });
     };
 
@@ -156,7 +194,8 @@ export function createTestContext({
             dynamoBatchContext: new DynamoBatchContextModule(),
             actor: AppSessionActorContextModule.dangerouslyNew("Test", Session.test(session.item)),
             rpc: new LocalRpcContextModule(),
-            notifications: new TestNotificationsContextModule(createSystemContext),
+            notifications: new TestNotificationsContextModule({dangerouslyEscalateToSystemContext}),
+            tasks: createTasksContextModule(),
         });
     };
 
@@ -166,17 +205,28 @@ export function createTestContext({
             dynamoBatchContext: new DynamoBatchContextModule(),
             actor: AppSystemActorContextModule.dangerouslyNew("Test", spaceId),
             rpc: new LocalRpcContextModule(),
-            notifications: new TestNotificationsContextModule(createSystemContext),
+            notifications: new TestNotificationsContextModule({dangerouslyEscalateToSystemContext}),
+            tasks: createTasksContextModule(),
         });
     };
 
     const dynamoContextModule = DynamoContextModule.test();
+    const opensearchContextModule = OpensearchContextModule.test();
+
+    const createTasksContextModule = () =>
+        new TestTasksContextModule({
+            dangerouslyEscalateToSystemContext,
+            // If OpenSearch isn't running in this test, we can't index tasks so
+            // disable indexing.
+            shouldSkipIndexing: !shouldStartOpensearch,
+        });
 
     const processContext = Context.new<AppProcessContextModules>({
         process: ProcessContextModule.test(testSharedHooks),
         tracer: new TracerContextModule(tracer),
         dynamo: dynamoContextModule,
         email: new NoopEmailContextModule(),
+        opensearch: opensearchContextModule,
     });
 
     const context = Object.assign(processContext, {
@@ -215,6 +265,17 @@ export function createTestContext({
         });
 
         dynamoContextModule.initialize(awsClient, `http://localhost:${dynamoLocalPort}`);
+
+        if (!opensearchLocal) {
+            opensearchContextModule.initialize(new TestDisabledOpensearchClient());
+        } else {
+            opensearchContextModule.initialize(
+                new OpensearchClient({
+                    protocol: "http",
+                    host: `localhost:${opensearchLocal.port}`,
+                }),
+            );
+        }
 
         // Higher timeout for this hook as we start our services.
     }, 1000 * 30);

@@ -5,7 +5,7 @@ import {TaskQueryGridView} from "~/client/tasks/demo_2/internal/task_query_grid_
 import {TaskQueryViewCustomizationBar} from "~/client/tasks/demo_2/internal/task_query_view_customization_bar.js";
 import {LocalTasksAction, LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state.js";
 import {TaskGridPresentationalViewRef} from "~/client/tasks/demo_2/task_grid_presentational_view.js";
-import {TaskQuerySort} from "~/client/tasks/demo_2/task_query_sort.js";
+import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {tasksStyles} from "~/shared/styles/styles.js";

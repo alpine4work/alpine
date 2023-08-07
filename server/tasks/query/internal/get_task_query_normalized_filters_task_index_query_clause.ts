@@ -67,7 +67,7 @@ export function getTaskQueryNormalizedFiltersTaskIndexQueryClause(
  * These query clauses should also be executed in a filter context so
  * OpenSearch caches them.
  */
-export function getTaskQueryNormalizedFiltersTaskIndexFilterQueryClauses(
+function getTaskQueryNormalizedFiltersTaskIndexFilterQueryClauses(
     filters: TaskQueryNormalizedFilters,
 ): Array<OpensearchQueryClause> {
     const filterQueryClauses: Array<OpensearchQueryClause> = [];

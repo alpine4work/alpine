@@ -10,7 +10,7 @@ import {
     LocalTasksState,
 } from "~/client/tasks/demo_2/local_tasks_state.js";
 import {TaskGridPresentationalViewRef} from "~/client/tasks/demo_2/task_grid_presentational_view.js";
-import {TaskQuerySort} from "~/client/tasks/demo_2/task_query_sort.js";
+import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {themeColors} from "~/shared/design/theme_colors.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
