@@ -198,6 +198,8 @@ function getTaskQueryNormalizedFiltersTaskIndexFilterQueryClauses(
             filterQueryClauses.push({
                 terms: {"priority.value": terms.map(TaskPriorityIntegerMapping.into)},
             });
+        } else if (terms.length === 0) {
+            filterQueryClauses.push({bool: {must_not: {exists: {field: "priority.value"}}}});
         } else {
             filterQueryClauses.push({
                 bool: {
@@ -214,7 +216,7 @@ function getTaskQueryNormalizedFiltersTaskIndexFilterQueryClauses(
     if (filters.assigneeFilter) {
         filterQueryClauses.push(
             getTaskQueryAccountNormalizedFilterTaskIndexQueryClause(
-                "assignee.assignee.accountId",
+                "assignee.value.assignee.accountId",
                 filters.assigneeFilter,
             ),
         );
@@ -232,7 +234,7 @@ function getTaskQueryNormalizedFiltersTaskIndexFilterQueryClauses(
     if (filters.assignerFilter) {
         filterQueryClauses.push(
             getTaskQueryAccountNormalizedFilterTaskIndexQueryClause(
-                "assignee.assigner.accountId",
+                "assignee.value.assigner.accountId",
                 filters.assignerFilter,
             ),
         );
@@ -259,7 +261,7 @@ function getTaskQueryNormalizedFiltersTaskIndexFilterQueryClauses(
     if (filters.assignedDateFilter) {
         filterQueryClauses.push(
             getTaskQueryDateNormalizedFilterTaskIndexQueryClause(
-                "assignee.assignedTime.setterDate",
+                "assignee.value.assignedTime.setterDate",
                 filters.assignedDateFilter,
             ),
         );
@@ -268,16 +270,21 @@ function getTaskQueryNormalizedFiltersTaskIndexFilterQueryClauses(
     if (filters.closedDateFilter) {
         filterQueryClauses.push(
             getTaskQueryDateNormalizedFilterTaskIndexQueryClause(
-                "status.closedTime.setterDate",
+                "status.value.closedTime.setterDate",
                 filters.closedDateFilter,
             ),
         );
     }
 
     if (filters.activatedDateFilter) {
+        // `rawAssigneeStatus` may be set even when the task itself isn't active.
+        filterQueryClauses.push({
+            term: {displayStatus: TaskDisplayStatusIntegerMapping.into("OpenActive")},
+        });
+
         filterQueryClauses.push(
             getTaskQueryDateNormalizedFilterTaskIndexQueryClause(
-                "assigneeStatus.activatedTime.setterDate",
+                "rawAssigneeStatus.value.activatedTime.setterDate",
                 filters.activatedDateFilter,
             ),
         );
@@ -303,16 +310,20 @@ function getTaskQueryAccountNormalizedFilterTaskIndexQueryClause(
                 }
             }
 
-            if (!hasMissingAccount) {
-                return {terms: {[fieldName]: accountIds}};
-            } else if (hasMissingAccount && accountIds.length === 0) {
+            if (hasMissingAccount && accountIds.length === 0) {
                 return {bool: {must_not: {exists: {field: fieldName}}}};
+            } else if (!hasMissingAccount) {
+                return accountIds.length === 1
+                    ? {term: {[fieldName]: accountIds[0]!}}
+                    : {terms: {[fieldName]: accountIds}};
             } else {
                 return {
                     bool: {
                         minimum_should_match: 1,
                         should: [
-                            {terms: {[fieldName]: accountIds}},
+                            accountIds.length === 1
+                                ? {term: {[fieldName]: accountIds[0]!}}
+                                : {terms: {[fieldName]: accountIds}},
                             {bool: {must_not: {exists: {field: fieldName}}}},
                         ],
                     },
@@ -331,16 +342,19 @@ function getTaskQueryAccountNormalizedFilterTaskIndexQueryClause(
                 }
             }
 
-            if (!hasMissingAccount) {
-                return {bool: {must_not: {terms: {[fieldName]: accountIds}}}};
-            } else if (hasMissingAccount && accountIds.length === 0) {
+            if (hasMissingAccount && accountIds.length === 0) {
                 return {exists: {field: fieldName}};
+            } else if (!hasMissingAccount) {
+                return accountIds.length === 1
+                    ? {bool: {must_not: {term: {[fieldName]: accountIds[0]!}}}}
+                    : {bool: {must_not: {terms: {[fieldName]: accountIds}}}};
             } else {
                 return {
                     bool: {
-                        minimum_should_match: 1,
-                        should: [
-                            {bool: {must_not: {terms: {[fieldName]: accountIds}}}},
+                        must: [
+                            accountIds.length === 1
+                                ? {bool: {must_not: {term: {[fieldName]: accountIds[0]!}}}}
+                                : {bool: {must_not: {terms: {[fieldName]: accountIds}}}},
                             {exists: {field: fieldName}},
                         ],
                     },

@@ -16,7 +16,7 @@ import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {normalizeTaskQueryFilters} from "~/shared/tasks/normalize_task_query_filters.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
-import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
+import {TaskQueryFilter, TaskQueryFilterDateOperation} from "~/shared/tasks/task_query_filter.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 
 const context = createTestContext({shouldStartOpensearch: true});
@@ -142,13 +142,23 @@ async function createScenario() {
     };
 }
 
-const mockStartTime = new Date("2023-08-07T00:00:00.000Z").getTime();
+// 16:00 should be noon in `defaultTimeZone`.
+const mockStartTime = new Date("2023-08-07T16:00:00.000Z").getTime();
+const dayDurationMs = 1000 * 60 * 60 * 24;
 const actualStartTime = Date.now();
 
 // Start our clock at the beginning of an arbitrary day. This way when
 // filtering around the current date we won't have bugs when running these
 // tests around midnight.
 const clock = new HybridLogicalClock({
+    now: () => mockStartTime + (Date.now() - actualStartTime) - dayDurationMs * 4,
+});
+
+const clock2 = new HybridLogicalClock({
+    now: () => mockStartTime + (Date.now() - actualStartTime) - dayDurationMs * 2,
+});
+
+const clock3 = new HybridLogicalClock({
     now: () => mockStartTime + (Date.now() - actualStartTime),
 });
 
@@ -184,7 +194,9 @@ async function testQuery(
 ): Promise<Array<TaskId>> {
     const executionContext = {
         currentAccountId: accountId,
-        currentDate: toCalendarDate(parseAbsolute(new Date(mockStartTime).toISOString(), "UTC")),
+        currentDate: toCalendarDate(
+            parseAbsolute(new Date(mockStartTime - dayDurationMs * 2).toISOString(), "UTC"),
+        ),
     };
 
     const normalizedFiltersResult = normalizeTaskQueryFilters(filters, executionContext);
@@ -197,28 +209,6 @@ async function testQuery(
             normalizedFiltersResult,
         );
     }
-
-    console.log(
-        JSON.stringify(
-            {
-                filters: normalizedFiltersResult,
-                query:
-                    normalizedFiltersResult.type === "Possible"
-                        ? getTaskQueryNormalizedFiltersTaskIndexQueryClause(
-                              space.id,
-                              normalizedFiltersResult.normalizedFilters,
-                          )
-                        : null,
-            },
-            (key, value) =>
-                value instanceof Set
-                    ? Array.from(value)
-                    : value instanceof Map
-                    ? Object.fromEntries(value)
-                    : value,
-            2,
-        ),
-    );
 
     if (normalizedFiltersResult.type === "Impossible") return [];
     const {normalizedFilters} = normalizedFiltersResult;
@@ -3328,4 +3318,4696 @@ test("can merge collection filters in various ways", async () => {
             },
         ]),
     ).toEqual([task4Id]);
+});
+
+test("can filter for individual priorities", async () => {
+    const {space, session1} = await createScenario();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+    const task4Id = generateId<TaskId>();
+    const task5Id = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task5Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: null,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "Low",
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "Medium",
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "High",
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task5Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "Urgent",
+            },
+        },
+    ]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Priority",
+                operation: {
+                    type: "OneOf",
+                    priorities: new Set([null]),
+                },
+            },
+        ]),
+    ).toEqual([task1Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Priority",
+                operation: {
+                    type: "OneOf",
+                    priorities: new Set(["Low"]),
+                },
+            },
+        ]),
+    ).toEqual([task2Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Priority",
+                operation: {
+                    type: "OneOf",
+                    priorities: new Set(["Medium"]),
+                },
+            },
+        ]),
+    ).toEqual([task3Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Priority",
+                operation: {
+                    type: "OneOf",
+                    priorities: new Set(["High"]),
+                },
+            },
+        ]),
+    ).toEqual([task4Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Priority",
+                operation: {
+                    type: "OneOf",
+                    priorities: new Set(["Urgent"]),
+                },
+            },
+        ]),
+    ).toEqual([task5Id]);
+});
+
+test("can filter for three priorities at once", async () => {
+    const {space, session1} = await createScenario();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+    const task4Id = generateId<TaskId>();
+    const task5Id = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task5Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: null,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "Low",
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "Medium",
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "High",
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task5Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "Urgent",
+            },
+        },
+    ]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Priority",
+                operation: {
+                    type: "OneOf",
+                    priorities: new Set([null, "Low", "Medium"]),
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task2Id, task3Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Priority",
+                operation: {
+                    type: "OneOf",
+                    priorities: new Set([null, "High", "Urgent"]),
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task4Id, task5Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Priority",
+                operation: {
+                    type: "OneOf",
+                    priorities: new Set(["Low", "Medium", "High"]),
+                },
+            },
+        ]),
+    ).toEqual([task2Id, task3Id, task4Id]);
+});
+
+test("can negative filter for individual priorities", async () => {
+    const {space, session1} = await createScenario();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+    const task4Id = generateId<TaskId>();
+    const task5Id = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task5Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: null,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "Low",
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "Medium",
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "High",
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task5Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "Urgent",
+            },
+        },
+    ]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Priority",
+                operation: {
+                    type: "NoneOf",
+                    priorities: new Set([null]),
+                },
+            },
+        ]),
+    ).toEqual([task2Id, task3Id, task4Id, task5Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Priority",
+                operation: {
+                    type: "NoneOf",
+                    priorities: new Set(["Low"]),
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task3Id, task4Id, task5Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Priority",
+                operation: {
+                    type: "NoneOf",
+                    priorities: new Set(["Medium"]),
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task2Id, task4Id, task5Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Priority",
+                operation: {
+                    type: "NoneOf",
+                    priorities: new Set(["High"]),
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task2Id, task3Id, task5Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Priority",
+                operation: {
+                    type: "NoneOf",
+                    priorities: new Set(["Urgent"]),
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task2Id, task3Id, task4Id]);
+});
+
+test("can negative filter for three priorities at once", async () => {
+    const {space, session1} = await createScenario();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+    const task4Id = generateId<TaskId>();
+    const task5Id = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task5Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: null,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "Low",
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "Medium",
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "High",
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task5Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "Urgent",
+            },
+        },
+    ]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Priority",
+                operation: {
+                    type: "NoneOf",
+                    priorities: new Set([null, "Low", "Medium"]),
+                },
+            },
+        ]),
+    ).toEqual([task4Id, task5Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Priority",
+                operation: {
+                    type: "NoneOf",
+                    priorities: new Set([null, "High", "Urgent"]),
+                },
+            },
+        ]),
+    ).toEqual([task2Id, task3Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Priority",
+                operation: {
+                    type: "NoneOf",
+                    priorities: new Set(["Low", "Medium", "High"]),
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task5Id]);
+});
+
+test("can filter for all priorities", async () => {
+    const {space, session1} = await createScenario();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+    const task4Id = generateId<TaskId>();
+    const task5Id = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task5Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: null,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "Low",
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "Medium",
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "High",
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task5Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "Urgent",
+            },
+        },
+    ]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Priority",
+                operation: {
+                    type: "OneOf",
+                    priorities: new Set([null, "Low", "Medium", "High", "Urgent"]),
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task2Id, task3Id, task4Id, task5Id]);
+});
+
+test("can negative filter for all priorities", async () => {
+    const {space, session1} = await createScenario();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+    const task4Id = generateId<TaskId>();
+    const task5Id = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task5Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: null,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "Low",
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "Medium",
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "High",
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task5Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "Urgent",
+            },
+        },
+    ]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Priority",
+                operation: {
+                    type: "NoneOf",
+                    priorities: new Set([null, "Low", "Medium", "High", "Urgent"]),
+                },
+            },
+        ]),
+    ).toEqual([]);
+});
+
+test("can merge priority filters", async () => {
+    const {space, session1} = await createScenario();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+    const task4Id = generateId<TaskId>();
+    const task5Id = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task5Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: null,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "Low",
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "Medium",
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "High",
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task5Id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "Urgent",
+            },
+        },
+    ]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Priority",
+                operation: {
+                    type: "OneOf",
+                    priorities: new Set(["Low", "Medium"]),
+                },
+            },
+            {
+                type: "Priority",
+                operation: {
+                    type: "OneOf",
+                    priorities: new Set(["Medium", "High"]),
+                },
+            },
+        ]),
+    ).toEqual([task3Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Priority",
+                operation: {
+                    type: "OneOf",
+                    priorities: new Set(["Low", "Medium", "High"]),
+                },
+            },
+            {
+                type: "Priority",
+                operation: {
+                    type: "OneOf",
+                    priorities: new Set(["Medium", "High", "Urgent"]),
+                },
+            },
+        ]),
+    ).toEqual([task3Id, task4Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Priority",
+                operation: {
+                    type: "OneOf",
+                    priorities: new Set(["Low", "Medium"]),
+                },
+            },
+            {
+                type: "Priority",
+                operation: {
+                    type: "NoneOf",
+                    priorities: new Set(["Medium", "High"]),
+                },
+            },
+        ]),
+    ).toEqual([task2Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Priority",
+                operation: {
+                    type: "OneOf",
+                    priorities: new Set(["Low", "Medium", "High"]),
+                },
+            },
+            {
+                type: "Priority",
+                operation: {
+                    type: "NoneOf",
+                    priorities: new Set(["Medium", "High", "Urgent"]),
+                },
+            },
+        ]),
+    ).toEqual([task2Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Priority",
+                operation: {
+                    type: "NoneOf",
+                    priorities: new Set(["Low", "Medium"]),
+                },
+            },
+            {
+                type: "Priority",
+                operation: {
+                    type: "NoneOf",
+                    priorities: new Set(["Medium", "High"]),
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task5Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Priority",
+                operation: {
+                    type: "NoneOf",
+                    priorities: new Set(["Low", "Medium", "High"]),
+                },
+            },
+            {
+                type: "Priority",
+                operation: {
+                    type: "NoneOf",
+                    priorities: new Set(["Medium", "High", "Urgent"]),
+                },
+            },
+        ]),
+    ).toEqual([task1Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Priority",
+                operation: {
+                    type: "NoneOf",
+                    priorities: new Set(["Low", "Medium"]),
+                },
+            },
+            {
+                type: "Priority",
+                operation: {
+                    type: "NoneOf",
+                    priorities: new Set(["High", "Urgent"]),
+                },
+            },
+        ]),
+    ).toEqual([task1Id]);
+});
+
+test("can filter for a single assignee account", async () => {
+    const {space, session1, session2} = await createScenario();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+    const task4Id = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session1),
+                    assigner: TaskSortableAccount.test(session1),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session2),
+                    assigner: TaskSortableAccount.test(session1),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session2),
+                    assigner: TaskSortableAccount.test(session1),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+    ]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assignee",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "MissingAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task4Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assignee",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task1Id]);
+
+    expect(
+        await testQuery(session2, space, [
+            {
+                type: "Assignee",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task2Id, task3Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assignee",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "Account", accountId: session1.accountId}],
+                },
+            },
+        ]),
+    ).toEqual([task1Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assignee",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "Account", accountId: session2.accountId}],
+                },
+            },
+        ]),
+    ).toEqual([task2Id, task3Id]);
+});
+
+test("can filter for multiple assignee accounts", async () => {
+    const {space, session1, session2} = await createScenario();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+    const task4Id = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session1),
+                    assigner: TaskSortableAccount.test(session1),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session2),
+                    assigner: TaskSortableAccount.test(session1),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session2),
+                    assigner: TaskSortableAccount.test(session1),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+    ]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assignee",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "MissingAccount"}, {type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task4Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assignee",
+                operation: {
+                    type: "OneOf",
+                    accounts: [
+                        {type: "Account", accountId: session1.accountId},
+                        {type: "Account", accountId: session2.accountId},
+                    ],
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task2Id, task3Id]);
+});
+
+test("can negative filter for a single assignee account", async () => {
+    const {space, session1, session2} = await createScenario();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+    const task4Id = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session1),
+                    assigner: TaskSortableAccount.test(session1),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session2),
+                    assigner: TaskSortableAccount.test(session1),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session2),
+                    assigner: TaskSortableAccount.test(session1),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+    ]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assignee",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "MissingAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task2Id, task3Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assignee",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task2Id, task3Id, task4Id]);
+
+    expect(
+        await testQuery(session2, space, [
+            {
+                type: "Assignee",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task4Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assignee",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "Account", accountId: session1.accountId}],
+                },
+            },
+        ]),
+    ).toEqual([task2Id, task3Id, task4Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assignee",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "Account", accountId: session2.accountId}],
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task4Id]);
+});
+
+test("can negative filter for multiple assignee accounts", async () => {
+    const {space, session1, session2} = await createScenario();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+    const task4Id = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session1),
+                    assigner: TaskSortableAccount.test(session1),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session2),
+                    assigner: TaskSortableAccount.test(session1),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session2),
+                    assigner: TaskSortableAccount.test(session1),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+    ]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assignee",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "MissingAccount"}, {type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task2Id, task3Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assignee",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [
+                        {type: "Account", accountId: session1.accountId},
+                        {type: "Account", accountId: session2.accountId},
+                    ],
+                },
+            },
+        ]),
+    ).toEqual([task4Id]);
+});
+
+test("can filter with empty assignee accounts", async () => {
+    const {space, session1, session2} = await createScenario();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+    const task4Id = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session1),
+                    assigner: TaskSortableAccount.test(session1),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session2),
+                    assigner: TaskSortableAccount.test(session1),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session2),
+                    assigner: TaskSortableAccount.test(session1),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+    ]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assignee",
+                operation: {
+                    type: "OneOf",
+                    accounts: [],
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task2Id, task3Id, task4Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assignee",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [],
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task2Id, task3Id, task4Id]);
+});
+
+test("can merge assignee filters", async () => {
+    const {space, session1, session2} = await createScenario();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+    const task4Id = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session1),
+                    assigner: TaskSortableAccount.test(session1),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session2),
+                    assigner: TaskSortableAccount.test(session1),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session2),
+                    assigner: TaskSortableAccount.test(session1),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+    ]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assignee",
+                operation: {
+                    type: "OneOf",
+                    accounts: [
+                        {type: "Account", accountId: session1.accountId},
+                        {type: "Account", accountId: session2.accountId},
+                    ],
+                },
+            },
+            {
+                type: "Assignee",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task1Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assignee",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [
+                        {type: "Account", accountId: session1.accountId},
+                        {type: "Account", accountId: session2.accountId},
+                    ],
+                },
+            },
+            {
+                type: "Assignee",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task4Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assignee",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "Account", accountId: session2.accountId}],
+                },
+            },
+            {
+                type: "Assignee",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task4Id]);
+
+    expect(
+        await testQuery(session2, space, [
+            {
+                type: "Assignee",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "Account", accountId: session2.accountId}],
+                },
+            },
+            {
+                type: "Assignee",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task4Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assignee",
+                operation: {
+                    type: "OneOf",
+                    accounts: [
+                        {type: "Account", accountId: session1.accountId},
+                        {type: "Account", accountId: session2.accountId},
+                    ],
+                },
+            },
+            {
+                type: "Assignee",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task2Id, task3Id]);
+});
+
+test("can filter for a single creator account", async () => {
+    const {space, session1, session2, session3} = await createScenario();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+    const task4Id = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session2),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session2),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session3), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session3),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+    ]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Creator",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "MissingAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Creator",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task1Id]);
+
+    expect(
+        await testQuery(session2, space, [
+            {
+                type: "Creator",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task2Id, task3Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Creator",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "Account", accountId: session1.accountId}],
+                },
+            },
+        ]),
+    ).toEqual([task1Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Creator",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "Account", accountId: session2.accountId}],
+                },
+            },
+        ]),
+    ).toEqual([task2Id, task3Id]);
+});
+
+test("can filter for multiple creator accounts", async () => {
+    const {space, session1, session2, session3} = await createScenario();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+    const task4Id = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session2),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session2),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session3), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session3),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+    ]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Creator",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "MissingAccount"}, {type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task1Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Creator",
+                operation: {
+                    type: "OneOf",
+                    accounts: [
+                        {type: "Account", accountId: session1.accountId},
+                        {type: "Account", accountId: session2.accountId},
+                    ],
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task2Id, task3Id]);
+});
+
+test("can negative filter for a single creator account", async () => {
+    const {space, session1, session2, session3} = await createScenario();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+    const task4Id = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session2),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session2),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session3), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session3),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+    ]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Creator",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "MissingAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task2Id, task3Id, task4Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Creator",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task2Id, task3Id, task4Id]);
+
+    expect(
+        await testQuery(session2, space, [
+            {
+                type: "Creator",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task4Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Creator",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "Account", accountId: session1.accountId}],
+                },
+            },
+        ]),
+    ).toEqual([task2Id, task3Id, task4Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Creator",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "Account", accountId: session2.accountId}],
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task4Id]);
+});
+
+test("can negative filter for multiple creator accounts", async () => {
+    const {space, session1, session2, session3} = await createScenario();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+    const task4Id = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session2),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session2),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session3), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session3),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+    ]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Creator",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "MissingAccount"}, {type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task2Id, task3Id, task4Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Creator",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [
+                        {type: "Account", accountId: session1.accountId},
+                        {type: "Account", accountId: session2.accountId},
+                    ],
+                },
+            },
+        ]),
+    ).toEqual([task4Id]);
+});
+
+test("can filter with empty creator accounts", async () => {
+    const {space, session1, session2, session3} = await createScenario();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+    const task4Id = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session2),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session2),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session3), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session3),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+    ]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Creator",
+                operation: {
+                    type: "OneOf",
+                    accounts: [],
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task2Id, task3Id, task4Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Creator",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [],
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task2Id, task3Id, task4Id]);
+});
+
+test("can merge creator filters", async () => {
+    const {space, session1, session2, session3} = await createScenario();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+    const task4Id = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session2),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session2),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session3), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session3),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+    ]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Creator",
+                operation: {
+                    type: "OneOf",
+                    accounts: [
+                        {type: "Account", accountId: session1.accountId},
+                        {type: "Account", accountId: session2.accountId},
+                    ],
+                },
+            },
+            {
+                type: "Creator",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task1Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Creator",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [
+                        {type: "Account", accountId: session1.accountId},
+                        {type: "Account", accountId: session2.accountId},
+                    ],
+                },
+            },
+            {
+                type: "Creator",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task4Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Creator",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "Account", accountId: session2.accountId}],
+                },
+            },
+            {
+                type: "Creator",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task4Id]);
+
+    expect(
+        await testQuery(session2, space, [
+            {
+                type: "Creator",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "Account", accountId: session2.accountId}],
+                },
+            },
+            {
+                type: "Creator",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task4Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Creator",
+                operation: {
+                    type: "OneOf",
+                    accounts: [
+                        {type: "Account", accountId: session1.accountId},
+                        {type: "Account", accountId: session2.accountId},
+                    ],
+                },
+            },
+            {
+                type: "Creator",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task2Id, task3Id]);
+});
+
+test("can filter for a single assigner account", async () => {
+    const {space, session1, session2} = await createScenario();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+    const task4Id = generateId<TaskId>();
+
+    const collectionId = generateId<TaskCollectionId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTaskCollection",
+            time: clock.now(),
+            collectionId,
+            collectionAction: {
+                type: "Create",
+                accessPolicy: {
+                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    defaultGrant: {type: "Space", level: "Manage"},
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId,
+                orderKey: initialOrderKey,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId,
+                orderKey: initialOrderKey,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId,
+                orderKey: initialOrderKey,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId,
+                orderKey: initialOrderKey,
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session2),
+                    assigner: TaskSortableAccount.test(session1),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session1),
+                    assigner: TaskSortableAccount.test(session2),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session1),
+                    assigner: TaskSortableAccount.test(session2),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+    ]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assigner",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "MissingAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task4Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assigner",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task1Id]);
+
+    expect(
+        await testQuery(session2, space, [
+            {
+                type: "Assigner",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task2Id, task3Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assigner",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "Account", accountId: session1.accountId}],
+                },
+            },
+        ]),
+    ).toEqual([task1Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assigner",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "Account", accountId: session2.accountId}],
+                },
+            },
+        ]),
+    ).toEqual([task2Id, task3Id]);
+});
+
+test("can filter for multiple assigner accounts", async () => {
+    const {space, session1, session2} = await createScenario();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+    const task4Id = generateId<TaskId>();
+
+    const collectionId = generateId<TaskCollectionId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTaskCollection",
+            time: clock.now(),
+            collectionId,
+            collectionAction: {
+                type: "Create",
+                accessPolicy: {
+                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    defaultGrant: {type: "Space", level: "Manage"},
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId,
+                orderKey: initialOrderKey,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId,
+                orderKey: initialOrderKey,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId,
+                orderKey: initialOrderKey,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId,
+                orderKey: initialOrderKey,
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session2),
+                    assigner: TaskSortableAccount.test(session1),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session1),
+                    assigner: TaskSortableAccount.test(session2),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session1),
+                    assigner: TaskSortableAccount.test(session2),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+    ]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assigner",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "MissingAccount"}, {type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task4Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assigner",
+                operation: {
+                    type: "OneOf",
+                    accounts: [
+                        {type: "Account", accountId: session1.accountId},
+                        {type: "Account", accountId: session2.accountId},
+                    ],
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task2Id, task3Id]);
+});
+
+test("can negative filter for a single assigner account", async () => {
+    const {space, session1, session2} = await createScenario();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+    const task4Id = generateId<TaskId>();
+
+    const collectionId = generateId<TaskCollectionId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTaskCollection",
+            time: clock.now(),
+            collectionId,
+            collectionAction: {
+                type: "Create",
+                accessPolicy: {
+                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    defaultGrant: {type: "Space", level: "Manage"},
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId,
+                orderKey: initialOrderKey,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId,
+                orderKey: initialOrderKey,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId,
+                orderKey: initialOrderKey,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId,
+                orderKey: initialOrderKey,
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session2),
+                    assigner: TaskSortableAccount.test(session1),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session1),
+                    assigner: TaskSortableAccount.test(session2),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session1),
+                    assigner: TaskSortableAccount.test(session2),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+    ]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assigner",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "MissingAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task2Id, task3Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assigner",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task2Id, task3Id, task4Id]);
+
+    expect(
+        await testQuery(session2, space, [
+            {
+                type: "Assigner",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task4Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assigner",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "Account", accountId: session1.accountId}],
+                },
+            },
+        ]),
+    ).toEqual([task2Id, task3Id, task4Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assigner",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "Account", accountId: session2.accountId}],
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task4Id]);
+});
+
+test("can negative filter for multiple assigner accounts", async () => {
+    const {space, session1, session2} = await createScenario();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+    const task4Id = generateId<TaskId>();
+
+    const collectionId = generateId<TaskCollectionId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTaskCollection",
+            time: clock.now(),
+            collectionId,
+            collectionAction: {
+                type: "Create",
+                accessPolicy: {
+                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    defaultGrant: {type: "Space", level: "Manage"},
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId,
+                orderKey: initialOrderKey,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId,
+                orderKey: initialOrderKey,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId,
+                orderKey: initialOrderKey,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId,
+                orderKey: initialOrderKey,
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session2),
+                    assigner: TaskSortableAccount.test(session1),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session1),
+                    assigner: TaskSortableAccount.test(session2),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session1),
+                    assigner: TaskSortableAccount.test(session2),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+    ]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assigner",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "MissingAccount"}, {type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task2Id, task3Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assigner",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [
+                        {type: "Account", accountId: session1.accountId},
+                        {type: "Account", accountId: session2.accountId},
+                    ],
+                },
+            },
+        ]),
+    ).toEqual([task4Id]);
+});
+
+test("can filter with empty assigner accounts", async () => {
+    const {space, session1, session2} = await createScenario();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+    const task4Id = generateId<TaskId>();
+
+    const collectionId = generateId<TaskCollectionId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTaskCollection",
+            time: clock.now(),
+            collectionId,
+            collectionAction: {
+                type: "Create",
+                accessPolicy: {
+                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    defaultGrant: {type: "Space", level: "Manage"},
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId,
+                orderKey: initialOrderKey,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId,
+                orderKey: initialOrderKey,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId,
+                orderKey: initialOrderKey,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId,
+                orderKey: initialOrderKey,
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session2),
+                    assigner: TaskSortableAccount.test(session1),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session1),
+                    assigner: TaskSortableAccount.test(session2),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session1),
+                    assigner: TaskSortableAccount.test(session2),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+    ]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assigner",
+                operation: {
+                    type: "OneOf",
+                    accounts: [],
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task2Id, task3Id, task4Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assigner",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [],
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task2Id, task3Id, task4Id]);
+});
+
+test("can merge assigner filters", async () => {
+    const {space, session1, session2} = await createScenario();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+    const task4Id = generateId<TaskId>();
+
+    const collectionId = generateId<TaskCollectionId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTaskCollection",
+            time: clock.now(),
+            collectionId,
+            collectionAction: {
+                type: "Create",
+                accessPolicy: {
+                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    defaultGrant: {type: "Space", level: "Manage"},
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId,
+                orderKey: initialOrderKey,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId,
+                orderKey: initialOrderKey,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId,
+                orderKey: initialOrderKey,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId,
+                orderKey: initialOrderKey,
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session2),
+                    assigner: TaskSortableAccount.test(session1),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session1),
+                    assigner: TaskSortableAccount.test(session2),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assignee: TaskSortableAccount.test(session1),
+                    assigner: TaskSortableAccount.test(session2),
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+    ]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assigner",
+                operation: {
+                    type: "OneOf",
+                    accounts: [
+                        {type: "Account", accountId: session1.accountId},
+                        {type: "Account", accountId: session2.accountId},
+                    ],
+                },
+            },
+            {
+                type: "Assigner",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task1Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assigner",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [
+                        {type: "Account", accountId: session1.accountId},
+                        {type: "Account", accountId: session2.accountId},
+                    ],
+                },
+            },
+            {
+                type: "Assigner",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task4Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assigner",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "Account", accountId: session2.accountId}],
+                },
+            },
+            {
+                type: "Assigner",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task4Id]);
+
+    expect(
+        await testQuery(session2, space, [
+            {
+                type: "Assigner",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "Account", accountId: session2.accountId}],
+                },
+            },
+            {
+                type: "Assigner",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task4Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Assigner",
+                operation: {
+                    type: "OneOf",
+                    accounts: [
+                        {type: "Account", accountId: session1.accountId},
+                        {type: "Account", accountId: session2.accountId},
+                    ],
+                },
+            },
+            {
+                type: "Assigner",
+                operation: {
+                    type: "NoneOf",
+                    accounts: [{type: "CurrentAccount"}],
+                },
+            },
+        ]),
+    ).toEqual([task2Id, task3Id]);
+});
+
+type DateFilterTestCase = {
+    name: string;
+    extraFilters?: Array<TaskQueryFilter>;
+    filter: (operation: TaskQueryFilterDateOperation) => TaskQueryFilter;
+    setup: () => Promise<{
+        session1: {accountId: AccountId};
+        space: {id: SpaceId};
+        task1Id: TaskId;
+        task2Id: TaskId;
+        task3Id: TaskId;
+        task4Id: TaskId;
+        task5Id?: TaskId;
+    }>;
+};
+
+const dueDateFilterTestCase: DateFilterTestCase = {
+    name: "due date",
+    filter: operation => ({type: "DueDate", operation}),
+    setup: async () => {
+        const {session1, space} = await createScenario();
+
+        const task1Id = generateId<TaskId>();
+        const task2Id = generateId<TaskId>();
+        const task3Id = generateId<TaskId>();
+        const task4Id = generateId<TaskId>();
+        const task5Id = generateId<TaskId>();
+
+        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: task1Id,
+                taskAction: {
+                    type: "Create",
+                    creator: TaskSortableAccount.test(session1),
+                    creatorTimeZone: defaultTimeZone,
+                },
+            },
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: task2Id,
+                taskAction: {
+                    type: "Create",
+                    creator: TaskSortableAccount.test(session1),
+                    creatorTimeZone: defaultTimeZone,
+                },
+            },
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: task3Id,
+                taskAction: {
+                    type: "Create",
+                    creator: TaskSortableAccount.test(session1),
+                    creatorTimeZone: defaultTimeZone,
+                },
+            },
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: task4Id,
+                taskAction: {
+                    type: "Create",
+                    creator: TaskSortableAccount.test(session1),
+                    creatorTimeZone: defaultTimeZone,
+                },
+            },
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: task5Id,
+                taskAction: {
+                    type: "Create",
+                    creator: TaskSortableAccount.test(session1),
+                    creatorTimeZone: defaultTimeZone,
+                },
+            },
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: task1Id,
+                taskAction: {
+                    type: "UpdateDueDate",
+                    dueDate: toCalendarDate(
+                        parseAbsolute(new Date(clock.now()[0]).toISOString(), defaultTimeZone),
+                    ),
+                },
+            },
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: task2Id,
+                taskAction: {
+                    type: "UpdateDueDate",
+                    dueDate: toCalendarDate(
+                        parseAbsolute(new Date(clock2.now()[0]).toISOString(), defaultTimeZone),
+                    ),
+                },
+            },
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: task3Id,
+                taskAction: {
+                    type: "UpdateDueDate",
+                    dueDate: toCalendarDate(
+                        parseAbsolute(new Date(clock2.now()[0]).toISOString(), defaultTimeZone),
+                    ),
+                },
+            },
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: task4Id,
+                taskAction: {
+                    type: "UpdateDueDate",
+                    dueDate: toCalendarDate(
+                        parseAbsolute(new Date(clock3.now()[0]).toISOString(), defaultTimeZone),
+                    ),
+                },
+            },
+        ]);
+
+        return {
+            session1,
+            space,
+            task1Id,
+            task2Id,
+            task3Id,
+            task4Id,
+            task5Id,
+        };
+    },
+};
+
+const dateFilterTestCases: Array<DateFilterTestCase> = [
+    dueDateFilterTestCase,
+    {
+        name: "created time",
+        filter: operation => ({type: "CreatedDate", operation}),
+        setup: async () => {
+            const {session1, space} = await createScenario();
+
+            const task1Id = generateId<TaskId>();
+            const task2Id = generateId<TaskId>();
+            const task3Id = generateId<TaskId>();
+            const task4Id = generateId<TaskId>();
+
+            await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task1Id,
+                    taskAction: {
+                        type: "Create",
+                        creator: TaskSortableAccount.test(session1),
+                        creatorTimeZone: defaultTimeZone,
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock2.now(),
+                    taskId: task2Id,
+                    taskAction: {
+                        type: "Create",
+                        creator: TaskSortableAccount.test(session1),
+                        creatorTimeZone: defaultTimeZone,
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock2.now(),
+                    taskId: task3Id,
+                    taskAction: {
+                        type: "Create",
+                        creator: TaskSortableAccount.test(session1),
+                        creatorTimeZone: defaultTimeZone,
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock3.now(),
+                    taskId: task4Id,
+                    taskAction: {
+                        type: "Create",
+                        creator: TaskSortableAccount.test(session1),
+                        creatorTimeZone: defaultTimeZone,
+                    },
+                },
+            ]);
+
+            return {
+                session1,
+                space,
+                task1Id,
+                task2Id,
+                task3Id,
+                task4Id,
+            };
+        },
+    },
+    {
+        name: "assigned time",
+        filter: operation => ({type: "AssignedDate", operation}),
+        setup: async () => {
+            const {session1, session2, space} = await createScenario();
+
+            const task1Id = generateId<TaskId>();
+            const task2Id = generateId<TaskId>();
+            const task3Id = generateId<TaskId>();
+            const task4Id = generateId<TaskId>();
+            const task5Id = generateId<TaskId>();
+
+            await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task1Id,
+                    taskAction: {
+                        type: "Create",
+                        creator: TaskSortableAccount.test(session1),
+                        creatorTimeZone: defaultTimeZone,
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task2Id,
+                    taskAction: {
+                        type: "Create",
+                        creator: TaskSortableAccount.test(session1),
+                        creatorTimeZone: defaultTimeZone,
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task3Id,
+                    taskAction: {
+                        type: "Create",
+                        creator: TaskSortableAccount.test(session1),
+                        creatorTimeZone: defaultTimeZone,
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task4Id,
+                    taskAction: {
+                        type: "Create",
+                        creator: TaskSortableAccount.test(session1),
+                        creatorTimeZone: defaultTimeZone,
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task5Id,
+                    taskAction: {
+                        type: "Create",
+                        creator: TaskSortableAccount.test(session1),
+                        creatorTimeZone: defaultTimeZone,
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task1Id,
+                    taskAction: {
+                        type: "UpdateAssignee",
+                        assignee: {
+                            assignee: TaskSortableAccount.test(session2),
+                            assigner: TaskSortableAccount.test(session1),
+                            assignedTime: TaskFilterableTime.test(clock.now()),
+                        },
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task2Id,
+                    taskAction: {
+                        type: "UpdateAssignee",
+                        assignee: {
+                            assignee: TaskSortableAccount.test(session2),
+                            assigner: TaskSortableAccount.test(session1),
+                            assignedTime: TaskFilterableTime.test(clock2.now()),
+                        },
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task3Id,
+                    taskAction: {
+                        type: "UpdateAssignee",
+                        assignee: {
+                            assignee: TaskSortableAccount.test(session2),
+                            assigner: TaskSortableAccount.test(session1),
+                            assignedTime: TaskFilterableTime.test(clock2.now()),
+                        },
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task4Id,
+                    taskAction: {
+                        type: "UpdateAssignee",
+                        assignee: {
+                            assignee: TaskSortableAccount.test(session2),
+                            assigner: TaskSortableAccount.test(session1),
+                            assignedTime: TaskFilterableTime.test(clock3.now()),
+                        },
+                    },
+                },
+            ]);
+
+            return {
+                session1,
+                space,
+                task1Id,
+                task2Id,
+                task3Id,
+                task4Id,
+                task5Id,
+            };
+        },
+    },
+    {
+        name: "closed time",
+        extraFilters: [
+            {
+                type: "Status",
+                operation: {
+                    type: "OneOf",
+                    statuses: new Set(["OpenInactive", "OpenActive", "Closed"]),
+                },
+            },
+        ],
+        filter: operation => ({type: "ClosedDate", operation}),
+        setup: async () => {
+            const {session1, space} = await createScenario();
+
+            const task1Id = generateId<TaskId>();
+            const task2Id = generateId<TaskId>();
+            const task3Id = generateId<TaskId>();
+            const task4Id = generateId<TaskId>();
+            const task5Id = generateId<TaskId>();
+
+            await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task1Id,
+                    taskAction: {
+                        type: "Create",
+                        creator: TaskSortableAccount.test(session1),
+                        creatorTimeZone: defaultTimeZone,
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task2Id,
+                    taskAction: {
+                        type: "Create",
+                        creator: TaskSortableAccount.test(session1),
+                        creatorTimeZone: defaultTimeZone,
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task3Id,
+                    taskAction: {
+                        type: "Create",
+                        creator: TaskSortableAccount.test(session1),
+                        creatorTimeZone: defaultTimeZone,
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task4Id,
+                    taskAction: {
+                        type: "Create",
+                        creator: TaskSortableAccount.test(session1),
+                        creatorTimeZone: defaultTimeZone,
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task5Id,
+                    taskAction: {
+                        type: "Create",
+                        creator: TaskSortableAccount.test(session1),
+                        creatorTimeZone: defaultTimeZone,
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task1Id,
+                    taskAction: {
+                        type: "UpdateStatus",
+                        status: {
+                            type: "Closed",
+                            closer: TaskSortableAccount.test(session1),
+                            closedTime: TaskFilterableTime.test(clock.now()),
+                        },
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task2Id,
+                    taskAction: {
+                        type: "UpdateStatus",
+                        status: {
+                            type: "Closed",
+                            closer: TaskSortableAccount.test(session1),
+                            closedTime: TaskFilterableTime.test(clock2.now()),
+                        },
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task3Id,
+                    taskAction: {
+                        type: "UpdateStatus",
+                        status: {
+                            type: "Closed",
+                            closer: TaskSortableAccount.test(session1),
+                            closedTime: TaskFilterableTime.test(clock2.now()),
+                        },
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task4Id,
+                    taskAction: {
+                        type: "UpdateStatus",
+                        status: {
+                            type: "Closed",
+                            closer: TaskSortableAccount.test(session1),
+                            closedTime: TaskFilterableTime.test(clock3.now()),
+                        },
+                    },
+                },
+            ]);
+
+            return {
+                session1,
+                space,
+                task1Id,
+                task2Id,
+                task3Id,
+                task4Id,
+                task5Id,
+            };
+        },
+    },
+    {
+        name: "activated time",
+        filter: operation => ({type: "ActivatedDate", operation}),
+        setup: async () => {
+            const {session1, session2, space} = await createScenario();
+
+            const task1Id = generateId<TaskId>();
+            const task2Id = generateId<TaskId>();
+            const task3Id = generateId<TaskId>();
+            const task4Id = generateId<TaskId>();
+            const task5Id = generateId<TaskId>();
+
+            await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task1Id,
+                    taskAction: {
+                        type: "Create",
+                        creator: TaskSortableAccount.test(session1),
+                        creatorTimeZone: defaultTimeZone,
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task2Id,
+                    taskAction: {
+                        type: "Create",
+                        creator: TaskSortableAccount.test(session1),
+                        creatorTimeZone: defaultTimeZone,
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task3Id,
+                    taskAction: {
+                        type: "Create",
+                        creator: TaskSortableAccount.test(session1),
+                        creatorTimeZone: defaultTimeZone,
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task4Id,
+                    taskAction: {
+                        type: "Create",
+                        creator: TaskSortableAccount.test(session1),
+                        creatorTimeZone: defaultTimeZone,
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task5Id,
+                    taskAction: {
+                        type: "Create",
+                        creator: TaskSortableAccount.test(session1),
+                        creatorTimeZone: defaultTimeZone,
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task1Id,
+                    taskAction: {
+                        type: "UpdateAssignee",
+                        assignee: {
+                            assignee: TaskSortableAccount.test(session2),
+                            assigner: TaskSortableAccount.test(session1),
+                            assignedTime: TaskFilterableTime.test(clock.now()),
+                        },
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task2Id,
+                    taskAction: {
+                        type: "UpdateAssignee",
+                        assignee: {
+                            assignee: TaskSortableAccount.test(session2),
+                            assigner: TaskSortableAccount.test(session1),
+                            assignedTime: TaskFilterableTime.test(clock.now()),
+                        },
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task3Id,
+                    taskAction: {
+                        type: "UpdateAssignee",
+                        assignee: {
+                            assignee: TaskSortableAccount.test(session2),
+                            assigner: TaskSortableAccount.test(session1),
+                            assignedTime: TaskFilterableTime.test(clock.now()),
+                        },
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task4Id,
+                    taskAction: {
+                        type: "UpdateAssignee",
+                        assignee: {
+                            assignee: TaskSortableAccount.test(session2),
+                            assigner: TaskSortableAccount.test(session1),
+                            assignedTime: TaskFilterableTime.test(clock.now()),
+                        },
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task5Id,
+                    taskAction: {
+                        type: "UpdateAssignee",
+                        assignee: {
+                            assignee: TaskSortableAccount.test(session2),
+                            assigner: TaskSortableAccount.test(session1),
+                            assignedTime: TaskFilterableTime.test(clock.now()),
+                        },
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task1Id,
+                    taskAction: {
+                        type: "UpdateAssigneeStatus",
+                        assigneeStatus: {
+                            type: "Active",
+                            position: {orderTime: clock.now(), orderKey: initialOrderKey},
+                            activatedTime: TaskFilterableTime.test(clock.now()),
+                        },
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task2Id,
+                    taskAction: {
+                        type: "UpdateAssigneeStatus",
+                        assigneeStatus: {
+                            type: "Active",
+                            position: {orderTime: clock.now(), orderKey: initialOrderKey},
+                            activatedTime: TaskFilterableTime.test(clock2.now()),
+                        },
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task3Id,
+                    taskAction: {
+                        type: "UpdateAssigneeStatus",
+                        assigneeStatus: {
+                            type: "Active",
+                            position: {orderTime: clock.now(), orderKey: initialOrderKey},
+                            activatedTime: TaskFilterableTime.test(clock2.now()),
+                        },
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock3.now(),
+                    taskId: task4Id,
+                    taskAction: {
+                        type: "UpdateAssigneeStatus",
+                        assigneeStatus: {
+                            type: "Active",
+                            position: {orderTime: clock.now(), orderKey: initialOrderKey},
+                            activatedTime: TaskFilterableTime.test(clock3.now()),
+                        },
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock3.now(),
+                    taskId: task5Id,
+                    taskAction: {
+                        type: "UpdateAssigneeStatus",
+                        assigneeStatus: {
+                            type: "Active",
+                            position: {orderTime: clock.now(), orderKey: initialOrderKey},
+                            activatedTime: TaskFilterableTime.test(clock3.now()),
+                        },
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: clock3.now(),
+                    taskId: task5Id,
+                    taskAction: {
+                        type: "UpdateAssignee",
+                        assignee: null,
+                    },
+                },
+            ]);
+
+            return {
+                session1,
+                space,
+                task1Id,
+                task2Id,
+                task3Id,
+                task4Id,
+                task5Id,
+            };
+        },
+    },
+];
+
+for (const {name, extraFilters = [], filter, setup} of dateFilterTestCases) {
+    test(`can filter by ${name} around today`, async () => {
+        const {session1, space, task1Id, task2Id, task3Id, task4Id} = await setup();
+
+        expect(
+            await testQuery(session1, space, [
+                ...extraFilters,
+                filter({type: "LessThan", date: {type: "RelativeToday"}}),
+            ]),
+        ).toEqual([task1Id]);
+
+        expect(
+            await testQuery(session1, space, [
+                ...extraFilters,
+                filter({type: "GreaterThan", date: {type: "RelativeToday"}}),
+            ]),
+        ).toEqual([task4Id]);
+
+        expect(
+            await testQuery(session1, space, [
+                ...extraFilters,
+                filter({
+                    type: "LessThan",
+                    date: {type: "RelativeAfterToday", duration: {type: "Days", count: 0}},
+                }),
+            ]),
+        ).toEqual([task1Id]);
+
+        expect(
+            await testQuery(session1, space, [
+                ...extraFilters,
+                filter({
+                    type: "GreaterThan",
+                    date: {type: "RelativeBeforeToday", duration: {type: "Days", count: 0}},
+                }),
+            ]),
+        ).toEqual([task4Id]);
+
+        expect(
+            await testQuery(session1, space, [
+                ...extraFilters,
+                filter({
+                    type: "LessThan",
+                    date: {type: "RelativeAfterToday", duration: {type: "Days", count: 1}},
+                }),
+            ]),
+        ).toEqual([task1Id, task2Id, task3Id]);
+
+        expect(
+            await testQuery(session1, space, [
+                ...extraFilters,
+                filter({
+                    type: "GreaterThan",
+                    date: {type: "RelativeBeforeToday", duration: {type: "Days", count: 1}},
+                }),
+            ]),
+        ).toEqual([task2Id, task3Id, task4Id]);
+    });
+
+    test(`can filter by ${name} with an absolute date`, async () => {
+        const {session1, space, task1Id, task2Id, task3Id, task4Id, task5Id} = await setup();
+
+        expect(
+            await testQuery(session1, space, [
+                ...extraFilters,
+                filter({
+                    type: "LessThan",
+                    date: {
+                        type: "Absolute",
+                        date: null,
+                    },
+                }),
+            ]),
+        ).toEqual([task1Id, task2Id, task3Id, task4Id, ...(task5Id ? [task5Id] : [])]);
+
+        expect(
+            await testQuery(session1, space, [
+                ...extraFilters,
+                filter({
+                    type: "LessThan",
+                    date: {
+                        type: "Absolute",
+                        date: toCalendarDate(
+                            parseAbsolute(
+                                new Date(mockStartTime - dayDurationMs * 1).toISOString(),
+                                defaultTimeZone,
+                            ),
+                        ),
+                    },
+                }),
+            ]),
+        ).toEqual([task1Id, task2Id, task3Id]);
+
+        expect(
+            await testQuery(session1, space, [
+                ...extraFilters,
+                filter({
+                    type: "GreaterThan",
+                    date: {
+                        type: "Absolute",
+                        date: toCalendarDate(
+                            parseAbsolute(
+                                new Date(mockStartTime - dayDurationMs * 3).toISOString(),
+                                defaultTimeZone,
+                            ),
+                        ),
+                    },
+                }),
+            ]),
+        ).toEqual([task2Id, task3Id, task4Id]);
+    });
+
+    test(`can merge ${name} filters`, async () => {
+        const {session1, space, task1Id, task2Id, task3Id, task4Id} = await setup();
+
+        expect(
+            await testQuery(session1, space, [
+                ...extraFilters,
+                filter({
+                    type: "LessThan",
+                    date: {type: "RelativeAfterToday", duration: {type: "Days", count: 4}},
+                }),
+                filter({
+                    type: "GreaterThan",
+                    date: {type: "RelativeBeforeToday", duration: {type: "Days", count: 4}},
+                }),
+            ]),
+        ).toEqual([task1Id, task2Id, task3Id, task4Id]);
+
+        expect(
+            await testQuery(session1, space, [
+                ...extraFilters,
+                filter({
+                    type: "LessThan",
+                    date: {type: "RelativeAfterToday", duration: {type: "Days", count: 1}},
+                }),
+                filter({
+                    type: "GreaterThan",
+                    date: {type: "RelativeBeforeToday", duration: {type: "Days", count: 1}},
+                }),
+            ]),
+        ).toEqual([task2Id, task3Id]);
+
+        expect(
+            await testQuery(session1, space, [
+                ...extraFilters,
+                filter({
+                    type: "LessThan",
+                    date: {type: "RelativeAfterToday", duration: {type: "Days", count: 4}},
+                }),
+                filter({
+                    type: "LessThan",
+                    date: {type: "RelativeAfterToday", duration: {type: "Days", count: 1}},
+                }),
+                filter({
+                    type: "GreaterThan",
+                    date: {type: "RelativeBeforeToday", duration: {type: "Days", count: 1}},
+                }),
+                filter({
+                    type: "GreaterThan",
+                    date: {type: "RelativeBeforeToday", duration: {type: "Days", count: 4}},
+                }),
+            ]),
+        ).toEqual([task2Id, task3Id]);
+
+        expect(
+            await testQuery(session1, space, [
+                ...extraFilters,
+                filter({
+                    type: "GreaterThan",
+                    date: {type: "RelativeAfterToday", duration: {type: "Days", count: 1}},
+                }),
+                filter({
+                    type: "LessThan",
+                    date: {type: "RelativeBeforeToday", duration: {type: "Days", count: 1}},
+                }),
+            ]),
+        ).toEqual([]);
+    });
+}
+
+test("can filter by overdue due dates", async () => {
+    const {session1, space, task1Id} = await dueDateFilterTestCase.setup();
+
+    expect(
+        await testQuery(session1, space, [{type: "DueDate", operation: {type: "Overdue"}}]),
+    ).toEqual([task1Id]);
+});
+
+test("can filter by empty due dates", async () => {
+    const {session1, space, task5Id} = await dueDateFilterTestCase.setup();
+
+    expect(
+        await testQuery(session1, space, [{type: "DueDate", operation: {type: "IsEmpty"}}]),
+    ).toEqual([task5Id]);
 });

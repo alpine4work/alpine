@@ -329,8 +329,8 @@ export function normalizeTaskQueryFilters(
                               type: "Filter",
                               filter: {
                                   type: "Range",
-                                  exclusiveLowerBoundDate: evaluationContext.currentDate,
-                                  exclusiveUpperBoundDate: null,
+                                  exclusiveLowerBoundDate: null,
+                                  exclusiveUpperBoundDate: evaluationContext.currentDate,
                               },
                           }
                         : filter.operation.type === "IsEmpty"
@@ -889,7 +889,7 @@ function mergeTaskQueryAccountNoneOfNormalizedFilterWithNoneOfNormalizedFilter(
     filter2: TaskQueryAccountNormalizedFilter & {type: "NoneOf"},
 ): {type: "Filter"; filter: TaskQueryAccountNormalizedFilter} | {type: "AlwaysFalse"} {
     const accountIds = unionSets(filter1.accountIds, filter2.accountIds);
-    return {type: "Filter", filter: {type: "OneOf", accountIds}};
+    return {type: "Filter", filter: {type: "NoneOf", accountIds}};
 }
 
 function mergeTaskQueryAccountOneOfNormalizedFilterWithNoneOfNormalizedFilter(
