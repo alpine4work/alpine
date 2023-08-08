@@ -137,7 +137,7 @@ function startSpanFromTracerPropagationContextHeader(
     tracer: TracerRoot,
     name: string,
     request: Request,
-): {span: TracerSpan; finishSpan: () => number} {
+): {span: TracerSpan; finishSpan: () => void} {
     const propagationContextHeaderValue = request.headers.get(tracerPropagationContextHeaderName);
 
     // If there is no propagation header, start a new root span.
