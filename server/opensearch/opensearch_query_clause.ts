@@ -10,6 +10,7 @@ export type OpensearchQueryClause =
     | OpensearchTermsQueryClause
     | OpensearchExistsQueryClause
     | OpensearchRangeQueryClause
+    | OpensearchMatchPhraseQueryClause
     | OpensearchBooleanQueryClause;
 
 /**
@@ -40,6 +41,20 @@ export type OpensearchExistsQueryClause = {exists: {field: string}};
  */
 export type OpensearchRangeQueryClause = {
     range: {[field: string]: {gte?: JsonValue; gt?: JsonValue; lte?: JsonValue; lt?: JsonValue}};
+};
+
+/**
+ * Match documents that contain an exact phrase in a specified order.
+ *
+ * https://opensearch.org/docs/latest/query-dsl/full-text/#match-phrase
+ */
+export type OpensearchMatchPhraseQueryClause = {
+    match_phrase: {
+        [field: string]: {
+            query: string;
+            analyzer?: string;
+        };
+    };
 };
 
 /**

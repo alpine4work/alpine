@@ -10,11 +10,13 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {iterableSome} from "~/shared/helpers/iterable/iterable_some.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
+import {analyzeTaskTitleText} from "~/shared/tasks/analyze_task_title_text.js";
 import {
     TaskQueryAccountNormalizedFilter,
     TaskQueryDateNormalizedFilter,
     TaskQueryNormalizedFilters,
 } from "~/shared/tasks/normalize_task_query_filters.js";
+import {getTaskTitleText} from "~/shared/tasks/task_title.js";
 
 // TypeScript errors here when new normalized filters are added. If you add a
 // new normalized filter you should make sure to update
@@ -24,6 +26,7 @@ assertEqualTypes<
     | "statusFilter"
     | "collectionsFilter"
     | "priorityFilter"
+    | "titleFilter"
     | "assigneeFilter"
     | "creatorFilter"
     | "assignerFilter"
@@ -79,6 +82,29 @@ export function evaluateTaskQueryNormalizedFiltersForTaskIndexDoc(
             (filters.priorityFilter.ifUrgent && task.priority.value === "Urgent");
 
         if (!pass) return false;
+    }
+
+    if (filters.titleFilter !== undefined) {
+        // NOTE(calebmer): If we could get access to computed properties here we
+        // wouldn't need to call `getTaskTitleText()` again because we could used the
+        // stored title text. That's a minor performance optimization.
+        const titleText = getTaskTitleText(task.title.raw);
+        const titleWords = analyzeTaskTitleText(titleText);
+
+        for (const filter of filters.titleFilter) {
+            switch (filter.operationType) {
+                case "Includes": {
+                    if (!containsArray(titleWords, filter.titleQueryWords)) return false;
+                    break;
+                }
+                case "Excludes": {
+                    if (containsArray(titleWords, filter.titleQueryWords)) return false;
+                    break;
+                }
+                default:
+                    throw exhaustive(filter.operationType);
+            }
+        }
     }
 
     if (
@@ -196,4 +222,24 @@ function evaluateTaskQueryDateNormalizedFilter(
             );
         }
     }
+}
+
+function containsArray<T>(array1: ReadonlyArray<T>, array2: ReadonlyArray<T>): boolean {
+    if (array2.length === 0) return true;
+
+    for (let i = 0; i < array1.length; i++) {
+        if (array1[i]! !== array2[0]) continue;
+
+        let hasArray = true;
+        for (let j = 1; j < array2.length; j++) {
+            if (array1[i + j]! !== array2[j]!) {
+                hasArray = false;
+                break;
+            }
+        }
+
+        if (hasArray) return true;
+    }
+
+    return false;
 }

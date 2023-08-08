@@ -34,7 +34,7 @@ import {TaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_p
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
-import {taskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_test_helpers.js";
+import {wordTaskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_test_scenarios.js";
 
 const context = createTestContext();
 const space = createTestSpace(context);
@@ -1101,7 +1101,7 @@ test("can update a task's title", async () => {
             taskId,
             taskAction: {
                 type: "UpdateTitle",
-                titleUpdate: taskTitleTestScenario.update0,
+                titleUpdate: wordTaskTitleTestScenario.update0,
             },
         },
     ]);
@@ -1113,7 +1113,7 @@ test("can update a task's title", async () => {
             taskId,
             taskAction: {
                 type: "UpdateTitle",
-                titleUpdate: taskTitleTestScenario.update1,
+                titleUpdate: wordTaskTitleTestScenario.update1,
             },
         },
     ]);
@@ -1125,7 +1125,7 @@ test("can update a task's title", async () => {
             taskId,
             taskAction: {
                 type: "UpdateTitle",
-                titleUpdate: taskTitleTestScenario.update2,
+                titleUpdate: wordTaskTitleTestScenario.update2,
             },
         },
     ]);
@@ -1154,7 +1154,7 @@ test("can update a task's title in any order", async () => {
             taskId,
             taskAction: {
                 type: "UpdateTitle",
-                titleUpdate: taskTitleTestScenario.update1,
+                titleUpdate: wordTaskTitleTestScenario.update1,
             },
         },
     ]);
@@ -1166,7 +1166,7 @@ test("can update a task's title in any order", async () => {
             taskId,
             taskAction: {
                 type: "UpdateTitle",
-                titleUpdate: taskTitleTestScenario.update2,
+                titleUpdate: wordTaskTitleTestScenario.update2,
             },
         },
     ]);
@@ -1178,7 +1178,7 @@ test("can update a task's title in any order", async () => {
             taskId,
             taskAction: {
                 type: "UpdateTitle",
-                titleUpdate: taskTitleTestScenario.update0,
+                titleUpdate: wordTaskTitleTestScenario.update0,
             },
         },
     ]);
@@ -1195,7 +1195,7 @@ test("can't update a task title for a task that doesn't exist", async () => {
                 taskId,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
+                    titleUpdate: wordTaskTitleTestScenario.update0,
                 },
             },
         ]),
@@ -1237,7 +1237,7 @@ test("can't update a deleted task's title", async () => {
                 taskId,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
+                    titleUpdate: wordTaskTitleTestScenario.update0,
                 },
             },
         ]),
@@ -1268,7 +1268,7 @@ test("can't update a task title that's not yours", async () => {
                 taskId,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
+                    titleUpdate: wordTaskTitleTestScenario.update0,
                 },
             },
         ]),
@@ -1324,7 +1324,7 @@ test("can update a task's title that's in a collection you can edit", async () =
             taskId,
             taskAction: {
                 type: "UpdateTitle",
-                titleUpdate: taskTitleTestScenario.update0,
+                titleUpdate: wordTaskTitleTestScenario.update0,
             },
         },
     ]);
@@ -1380,7 +1380,7 @@ test("can't update a task's title that's only in a collection you specifically c
                 taskId,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
+                    titleUpdate: wordTaskTitleTestScenario.update0,
                 },
             },
         ]),
@@ -3741,7 +3741,7 @@ test("can update task when collection you have access to is removed in a race co
             taskId,
             taskAction: {
                 type: "UpdateTitle",
-                titleUpdate: taskTitleTestScenario.update0,
+                titleUpdate: wordTaskTitleTestScenario.update0,
             },
         },
     ]);
@@ -3757,7 +3757,7 @@ test("can update task when collection you have access to is removed in a race co
             taskId,
             taskAction: {
                 type: "UpdateTitle",
-                titleUpdate: taskTitleTestScenario.update1,
+                titleUpdate: wordTaskTitleTestScenario.update1,
             },
         },
     ]);
@@ -3832,7 +3832,7 @@ test("can update task when collection you have access to removes your access in 
             taskId,
             taskAction: {
                 type: "UpdateTitle",
-                titleUpdate: taskTitleTestScenario.update0,
+                titleUpdate: wordTaskTitleTestScenario.update0,
             },
         },
     ]);
@@ -3848,7 +3848,7 @@ test("can update task when collection you have access to removes your access in 
             taskId,
             taskAction: {
                 type: "UpdateTitle",
-                titleUpdate: taskTitleTestScenario.update1,
+                titleUpdate: wordTaskTitleTestScenario.update1,
             },
         },
     ]);
@@ -4685,7 +4685,7 @@ test("child tasks inherit the permissions of their parent task", async () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
+                    titleUpdate: wordTaskTitleTestScenario.update0,
                 },
             },
         ]),
@@ -4710,7 +4710,7 @@ test("child tasks inherit the permissions of their parent task", async () => {
             taskId: taskId2,
             taskAction: {
                 type: "UpdateTitle",
-                titleUpdate: taskTitleTestScenario.update0,
+                titleUpdate: wordTaskTitleTestScenario.update0,
             },
         },
     ]);
@@ -4808,7 +4808,7 @@ test("child tasks inherit the permissions of their parent task multiple levels u
                 taskId: taskId4,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
+                    titleUpdate: wordTaskTitleTestScenario.update0,
                 },
             },
         ]),
@@ -4822,7 +4822,7 @@ test("child tasks inherit the permissions of their parent task multiple levels u
                 taskId: taskId3,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
+                    titleUpdate: wordTaskTitleTestScenario.update0,
                 },
             },
         ]),
@@ -4836,7 +4836,7 @@ test("child tasks inherit the permissions of their parent task multiple levels u
                 taskId: taskId2,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
+                    titleUpdate: wordTaskTitleTestScenario.update0,
                 },
             },
         ]),
@@ -4862,7 +4862,7 @@ test("child tasks inherit the permissions of their parent task multiple levels u
                 taskId: taskId4,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
+                    titleUpdate: wordTaskTitleTestScenario.update0,
                 },
             },
         ]),
@@ -4876,7 +4876,7 @@ test("child tasks inherit the permissions of their parent task multiple levels u
                 taskId: taskId3,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
+                    titleUpdate: wordTaskTitleTestScenario.update0,
                 },
             },
         ]),
@@ -4890,7 +4890,7 @@ test("child tasks inherit the permissions of their parent task multiple levels u
                 taskId: taskId2,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
+                    titleUpdate: wordTaskTitleTestScenario.update0,
                 },
             },
         ]),
@@ -4916,7 +4916,7 @@ test("child tasks inherit the permissions of their parent task multiple levels u
                 taskId: taskId4,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
+                    titleUpdate: wordTaskTitleTestScenario.update0,
                 },
             },
         ]),
@@ -4930,7 +4930,7 @@ test("child tasks inherit the permissions of their parent task multiple levels u
                 taskId: taskId3,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
+                    titleUpdate: wordTaskTitleTestScenario.update0,
                 },
             },
         ]),
@@ -4944,7 +4944,7 @@ test("child tasks inherit the permissions of their parent task multiple levels u
                 taskId: taskId2,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
+                    titleUpdate: wordTaskTitleTestScenario.update0,
                 },
             },
         ]),
@@ -4969,7 +4969,7 @@ test("child tasks inherit the permissions of their parent task multiple levels u
             taskId: taskId4,
             taskAction: {
                 type: "UpdateTitle",
-                titleUpdate: taskTitleTestScenario.update0,
+                titleUpdate: wordTaskTitleTestScenario.update0,
             },
         },
     ]);
@@ -4981,7 +4981,7 @@ test("child tasks inherit the permissions of their parent task multiple levels u
             taskId: taskId3,
             taskAction: {
                 type: "UpdateTitle",
-                titleUpdate: taskTitleTestScenario.update0,
+                titleUpdate: wordTaskTitleTestScenario.update0,
             },
         },
     ]);
@@ -4993,7 +4993,7 @@ test("child tasks inherit the permissions of their parent task multiple levels u
             taskId: taskId2,
             taskAction: {
                 type: "UpdateTitle",
-                titleUpdate: taskTitleTestScenario.update0,
+                titleUpdate: wordTaskTitleTestScenario.update0,
             },
         },
     ]);
@@ -5063,7 +5063,7 @@ test("child tasks don't inherit the permissions of their deleted parent task", a
                 taskId: taskId2,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
+                    titleUpdate: wordTaskTitleTestScenario.update0,
                 },
             },
         ]),
@@ -5088,7 +5088,7 @@ test("child tasks don't inherit the permissions of their deleted parent task", a
             taskId: taskId2,
             taskAction: {
                 type: "UpdateTitle",
-                titleUpdate: taskTitleTestScenario.update0,
+                titleUpdate: wordTaskTitleTestScenario.update0,
             },
         },
     ]);
@@ -5112,7 +5112,7 @@ test("child tasks don't inherit the permissions of their deleted parent task", a
                 taskId: taskId2,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update1,
+                    titleUpdate: wordTaskTitleTestScenario.update1,
                 },
             },
         ]),
@@ -5211,7 +5211,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
                 taskId: taskId4,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
+                    titleUpdate: wordTaskTitleTestScenario.update0,
                 },
             },
         ]),
@@ -5225,7 +5225,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
                 taskId: taskId3,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
+                    titleUpdate: wordTaskTitleTestScenario.update0,
                 },
             },
         ]),
@@ -5239,7 +5239,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
                 taskId: taskId2,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
+                    titleUpdate: wordTaskTitleTestScenario.update0,
                 },
             },
         ]),
@@ -5265,7 +5265,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
                 taskId: taskId4,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
+                    titleUpdate: wordTaskTitleTestScenario.update0,
                 },
             },
         ]),
@@ -5279,7 +5279,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
                 taskId: taskId3,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
+                    titleUpdate: wordTaskTitleTestScenario.update0,
                 },
             },
         ]),
@@ -5293,7 +5293,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
                 taskId: taskId2,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
+                    titleUpdate: wordTaskTitleTestScenario.update0,
                 },
             },
         ]),
@@ -5319,7 +5319,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
                 taskId: taskId4,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
+                    titleUpdate: wordTaskTitleTestScenario.update0,
                 },
             },
         ]),
@@ -5333,7 +5333,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
                 taskId: taskId3,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
+                    titleUpdate: wordTaskTitleTestScenario.update0,
                 },
             },
         ]),
@@ -5347,7 +5347,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
                 taskId: taskId2,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
+                    titleUpdate: wordTaskTitleTestScenario.update0,
                 },
             },
         ]),
@@ -5372,7 +5372,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
             taskId: taskId4,
             taskAction: {
                 type: "UpdateTitle",
-                titleUpdate: taskTitleTestScenario.update0,
+                titleUpdate: wordTaskTitleTestScenario.update0,
             },
         },
     ]);
@@ -5384,7 +5384,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
             taskId: taskId3,
             taskAction: {
                 type: "UpdateTitle",
-                titleUpdate: taskTitleTestScenario.update0,
+                titleUpdate: wordTaskTitleTestScenario.update0,
             },
         },
     ]);
@@ -5396,7 +5396,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
             taskId: taskId2,
             taskAction: {
                 type: "UpdateTitle",
-                titleUpdate: taskTitleTestScenario.update0,
+                titleUpdate: wordTaskTitleTestScenario.update0,
             },
         },
     ]);
@@ -5420,7 +5420,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
                 taskId: taskId4,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update1,
+                    titleUpdate: wordTaskTitleTestScenario.update1,
                 },
             },
         ]),
@@ -5434,7 +5434,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
                 taskId: taskId3,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update1,
+                    titleUpdate: wordTaskTitleTestScenario.update1,
                 },
             },
         ]),
@@ -10743,7 +10743,7 @@ test("can't update a task's title with an account in a different space", async (
                 taskId,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
+                    titleUpdate: wordTaskTitleTestScenario.update0,
                 },
             },
         ]),
@@ -10761,7 +10761,7 @@ test("can't update a task's title in the context of the wrong space", async () =
                 taskId,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
+                    titleUpdate: wordTaskTitleTestScenario.update0,
                 },
             },
         ]),
@@ -10774,7 +10774,7 @@ test("can't update a task's title in the context of the wrong space", async () =
             taskId,
             taskAction: {
                 type: "UpdateTitle",
-                titleUpdate: taskTitleTestScenario.update0,
+                titleUpdate: wordTaskTitleTestScenario.update0,
             },
         },
     ]);

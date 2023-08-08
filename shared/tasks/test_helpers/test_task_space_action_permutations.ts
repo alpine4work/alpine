@@ -36,7 +36,7 @@ import {TaskPriority} from "~/shared/tasks/task_priority.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {TaskStatus} from "~/shared/tasks/task_status.js";
 import {TaskTitle, emptyTaskTitle, getTaskTitleProsemirrorNode} from "~/shared/tasks/task_title.js";
-import {taskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_test_helpers.js";
+import {wordTaskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_test_scenarios.js";
 
 // These test cases should only be used in Jest tests.
 assert(import.meta.jest);
@@ -379,7 +379,7 @@ const taskActionTestCases: Array<{
                     },
                     {
                         type: "UpdateTitle",
-                        titleUpdate: taskTitleTestScenario.update0,
+                        titleUpdate: wordTaskTitleTestScenario.update0,
                     },
                     {
                         type: "Delete",
@@ -387,7 +387,7 @@ const taskActionTestCases: Array<{
                 ],
                 task: {
                     isDeleted: true,
-                    title: taskTitleTestScenario.title1,
+                    title: wordTaskTitleTestScenario.title1,
                 },
             };
         },
@@ -407,12 +407,12 @@ const taskActionTestCases: Array<{
                     },
                     {
                         type: "UpdateTitle",
-                        titleUpdate: taskTitleTestScenario.update0,
+                        titleUpdate: wordTaskTitleTestScenario.update0,
                     },
                 ],
                 task: {
                     isDeleted: true,
-                    title: taskTitleTestScenario.title1,
+                    title: wordTaskTitleTestScenario.title1,
                 },
             };
         },
@@ -1393,11 +1393,11 @@ const taskActionTestCases: Array<{
                 },
                 {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
+                    titleUpdate: wordTaskTitleTestScenario.update0,
                 },
             ],
             task: {
-                title: taskTitleTestScenario.title1,
+                title: wordTaskTitleTestScenario.title1,
             },
         }),
     },
@@ -1412,15 +1412,15 @@ const taskActionTestCases: Array<{
                 },
                 {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
+                    titleUpdate: wordTaskTitleTestScenario.update0,
                 },
                 {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update1,
+                    titleUpdate: wordTaskTitleTestScenario.update1,
                 },
             ],
             task: {
-                title: taskTitleTestScenario.title2,
+                title: wordTaskTitleTestScenario.title2,
             },
         }),
     },
@@ -1435,23 +1435,23 @@ const taskActionTestCases: Array<{
                 },
                 {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
+                    titleUpdate: wordTaskTitleTestScenario.update0,
                 },
                 {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update1,
+                    titleUpdate: wordTaskTitleTestScenario.update1,
                 },
                 {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update2,
+                    titleUpdate: wordTaskTitleTestScenario.update2,
                 },
                 {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update3,
+                    titleUpdate: wordTaskTitleTestScenario.update3,
                 },
             ],
             task: {
-                title: taskTitleTestScenario.title4,
+                title: wordTaskTitleTestScenario.title4,
             },
         }),
     },

@@ -9,6 +9,7 @@ import {getTaskQueryNormalizedFiltersTaskIndexQueryClause} from "~/server/tasks/
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {decodeBase64} from "~/shared/helpers/binary/base64.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
@@ -18,6 +19,11 @@ import {normalizeTaskQueryFilters} from "~/shared/tasks/normalize_task_query_fil
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskQueryFilter, TaskQueryFilterDateOperation} from "~/shared/tasks/task_query_filter.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
+import {TaskTitleUpdate} from "~/shared/tasks/task_title.js";
+import {
+    sentenceTaskTitleTestScenario,
+    wordTaskTitleTestScenario,
+} from "~/shared/tasks/test_helpers/task_title_test_scenarios.js";
 
 const context = createTestContext({shouldStartOpensearch: true});
 
@@ -8010,4 +8016,751 @@ test("can filter by empty due dates", async () => {
     expect(
         await testQuery(session1, space, [{type: "DueDate", operation: {type: "IsEmpty"}}]),
     ).toEqual([task5Id]);
+});
+
+test("can filter by title includes", async () => {
+    const {space, session1} = await createScenario();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+    const task4Id = generateId<TaskId>();
+    const task5Id = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task5Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdateTitle",
+                titleUpdate: wordTaskTitleTestScenario.title4 as any as TaskTitleUpdate,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdateTitle",
+                titleUpdate: sentenceTaskTitleTestScenario.title as any as TaskTitleUpdate,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdateTitle",
+                titleUpdate: sentenceTaskTitleTestScenario.title4 as any as TaskTitleUpdate,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "UpdateTitle",
+                // "foo foo foobar"
+                titleUpdate: decodeBase64(
+                    "AAAG6cGihw8AAQAAAwcABBQRZG9jZm9vIGZvbyBmb29iYXIDDgMBAAABBgABAgAA",
+                ) as TaskTitleUpdate,
+            },
+        },
+    ]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Includes",
+                    titleQuery: "",
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task2Id, task3Id, task4Id, task5Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Includes",
+                    titleQuery: "     ",
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task2Id, task3Id, task4Id, task5Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Includes",
+                    titleQuery: "Hello",
+                },
+            },
+        ]),
+    ).toEqual([task1Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Includes",
+                    titleQuery: "hello",
+                },
+            },
+        ]),
+    ).toEqual([task1Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Includes",
+                    titleQuery: "brown",
+                },
+            },
+        ]),
+    ).toEqual([task2Id, task3Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Includes",
+                    titleQuery: "brow",
+                },
+            },
+        ]),
+    ).toEqual([]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Includes",
+                    titleQuery: "“brown”",
+                },
+            },
+        ]),
+    ).toEqual([task2Id, task3Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Includes",
+                    titleQuery: "(“brown”)",
+                },
+            },
+        ]),
+    ).toEqual([task2Id, task3Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Includes",
+                    titleQuery: " (“brown”) ",
+                },
+            },
+        ]),
+    ).toEqual([task2Id, task3Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Includes",
+                    titleQuery: "32.3",
+                },
+            },
+        ]),
+    ).toEqual([task2Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Includes",
+                    titleQuery: "32",
+                },
+            },
+        ]),
+    ).toEqual([]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Includes",
+                    titleQuery: "3",
+                },
+            },
+        ]),
+    ).toEqual([]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Includes",
+                    titleQuery: "foo",
+                },
+            },
+        ]),
+    ).toEqual([task4Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Includes",
+                    titleQuery: "foobar",
+                },
+            },
+        ]),
+    ).toEqual([task4Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Includes",
+                    titleQuery: "foo foobar",
+                },
+            },
+        ]),
+    ).toEqual([task4Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Includes",
+                    titleQuery: "bar",
+                },
+            },
+        ]),
+    ).toEqual([]);
+});
+
+test("can filter by title excludes", async () => {
+    const {space, session1} = await createScenario();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+    const task4Id = generateId<TaskId>();
+    const task5Id = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task5Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdateTitle",
+                titleUpdate: wordTaskTitleTestScenario.title4 as any as TaskTitleUpdate,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdateTitle",
+                titleUpdate: sentenceTaskTitleTestScenario.title as any as TaskTitleUpdate,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdateTitle",
+                titleUpdate: sentenceTaskTitleTestScenario.title4 as any as TaskTitleUpdate,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "UpdateTitle",
+                // "foo foo foobar"
+                titleUpdate: decodeBase64(
+                    "AAAG6cGihw8AAQAAAwcABBQRZG9jZm9vIGZvbyBmb29iYXIDDgMBAAABBgABAgAA",
+                ) as TaskTitleUpdate,
+            },
+        },
+    ]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Excludes",
+                    titleQuery: "",
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task2Id, task3Id, task4Id, task5Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Excludes",
+                    titleQuery: "     ",
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task2Id, task3Id, task4Id, task5Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Excludes",
+                    titleQuery: "Hello",
+                },
+            },
+        ]),
+    ).toEqual([task2Id, task3Id, task4Id, task5Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Excludes",
+                    titleQuery: "hello",
+                },
+            },
+        ]),
+    ).toEqual([task2Id, task3Id, task4Id, task5Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Excludes",
+                    titleQuery: "brown",
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task4Id, task5Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Excludes",
+                    titleQuery: "brow",
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task2Id, task3Id, task4Id, task5Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Excludes",
+                    titleQuery: "“brown”",
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task4Id, task5Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Excludes",
+                    titleQuery: "(“brown”)",
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task4Id, task5Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Excludes",
+                    titleQuery: " (“brown”) ",
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task4Id, task5Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Excludes",
+                    titleQuery: "32.3",
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task3Id, task4Id, task5Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Excludes",
+                    titleQuery: "32",
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task2Id, task3Id, task4Id, task5Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Excludes",
+                    titleQuery: "3",
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task2Id, task3Id, task4Id, task5Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Excludes",
+                    titleQuery: "foo",
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task2Id, task3Id, task5Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Excludes",
+                    titleQuery: "foobar",
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task2Id, task3Id, task5Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Excludes",
+                    titleQuery: "foo foobar",
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task2Id, task3Id, task5Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Excludes",
+                    titleQuery: "bar",
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task2Id, task3Id, task4Id, task5Id]);
+});
+
+test("can merge title filters", async () => {
+    const {space, session1} = await createScenario();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+    const task4Id = generateId<TaskId>();
+    const task5Id = generateId<TaskId>();
+
+    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task5Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdateTitle",
+                titleUpdate: wordTaskTitleTestScenario.title4 as any as TaskTitleUpdate,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdateTitle",
+                titleUpdate: sentenceTaskTitleTestScenario.title as any as TaskTitleUpdate,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdateTitle",
+                titleUpdate: sentenceTaskTitleTestScenario.title4 as any as TaskTitleUpdate,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "UpdateTitle",
+                // "foo foo foobar"
+                titleUpdate: decodeBase64(
+                    "AAAG6cGihw8AAQAAAwcABBQRZG9jZm9vIGZvbyBmb29iYXIDDgMBAAABBgABAgAA",
+                ) as TaskTitleUpdate,
+            },
+        },
+    ]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Includes",
+                    titleQuery: "brown",
+                },
+            },
+            {
+                type: "Title",
+                operation: {
+                    type: "Includes",
+                    titleQuery: "32.3",
+                },
+            },
+        ]),
+    ).toEqual([task2Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Includes",
+                    titleQuery: "brown",
+                },
+            },
+            {
+                type: "Title",
+                operation: {
+                    type: "Excludes",
+                    titleQuery: "32.3",
+                },
+            },
+        ]),
+    ).toEqual([task3Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Title",
+                operation: {
+                    type: "Excludes",
+                    titleQuery: "brown",
+                },
+            },
+            {
+                type: "Title",
+                operation: {
+                    type: "Excludes",
+                    titleQuery: "32.3",
+                },
+            },
+        ]),
+    ).toEqual([task1Id, task4Id, task5Id]);
 });

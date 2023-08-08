@@ -9,7 +9,7 @@ import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
-import {taskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_test_helpers.js";
+import {wordTaskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_test_scenarios.js";
 
 const context = createTestContext({shouldStartOpensearch: true});
 
@@ -55,7 +55,7 @@ test("can't update task from a different space", async () => {
                     taskId,
                     taskAction: {
                         type: "UpdateTitle",
-                        titleUpdate: taskTitleTestScenario.update0,
+                        titleUpdate: wordTaskTitleTestScenario.update0,
                     },
                 },
             ],
@@ -73,7 +73,7 @@ test("can't update task from a different space", async () => {
                     taskId,
                     taskAction: {
                         type: "UpdateTitle",
-                        titleUpdate: taskTitleTestScenario.update0,
+                        titleUpdate: wordTaskTitleTestScenario.update0,
                     },
                 },
             ],
@@ -90,7 +90,7 @@ test("can't update task from a different space", async () => {
                 taskId,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: taskTitleTestScenario.update0,
+                    titleUpdate: wordTaskTitleTestScenario.update0,
                 },
             },
         ],

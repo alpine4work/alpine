@@ -7,6 +7,7 @@ ts_project(
     deps = [
         "//:node_modules/@internationalized/date",
         "//:node_modules/prosemirror-model",
+        "//:node_modules/unicode-default-word-boundary",
         "//:node_modules/y-prosemirror",
         "//:node_modules/yjs",
         "//shared/accounts",

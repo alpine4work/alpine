@@ -549,6 +549,9 @@ dependencies:
   undici:
     specifier: 5.20.0
     version: 5.20.0
+  unicode-default-word-boundary:
+    specifier: ^13.0.0
+    version: 13.0.0
   wrangler:
     specifier: ^3.1.2
     version: 3.1.2(patch_hash=wvv6e4atuqi3hqcxstrbgwwagy)
@@ -14237,6 +14240,10 @@ packages:
   /unicode-canonical-property-names-ecmascript@2.0.0:
     resolution: {integrity: sha512-yY5PpDlfVIU5+y/BSCxAJRBIS1Zc2dDG3Ujq+sR0U+JjUevW2JhocOF+soROYDSaAezOzOKuyyixhD6mBknSmQ==}
     engines: {node: '>=4'}
+    dev: false
+
+  /unicode-default-word-boundary@13.0.0:
+    resolution: {integrity: sha512-rrprpnghnC/4tgfp9NhP6nEg+Ra0WAJJ2gOtELQE01zopVRYh/7esHOkq3ZdTaqsR/xl9RlsMbJY/+eyiQQYOQ==}
     dev: false
 
   /unicode-match-property-ecmascript@2.0.0:

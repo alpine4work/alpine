@@ -732,6 +732,68 @@ const testCases: Array<{name: string; filters: Array<TaskQueryFilter>}> = [
             },
         ],
     },
+    {
+        name: "includes empty title",
+        filters: [
+            {
+                type: "Title",
+                operation: {type: "Includes", titleQuery: ""},
+            },
+        ],
+    },
+    {
+        name: "excludes empty title",
+        filters: [
+            {
+                type: "Title",
+                operation: {type: "Excludes", titleQuery: ""},
+            },
+        ],
+    },
+    {
+        name: "includes title substring",
+        filters: [
+            {
+                type: "Title",
+                operation: {type: "Includes", titleQuery: "foo bar"},
+            },
+        ],
+    },
+    {
+        name: "excludes title substring",
+        filters: [
+            {
+                type: "Title",
+                operation: {type: "Excludes", titleQuery: "foo bar"},
+            },
+        ],
+    },
+    {
+        name: "includes title substring and priority after",
+        filters: [
+            {
+                type: "Title",
+                operation: {type: "Includes", titleQuery: "foo bar"},
+            },
+            {
+                type: "Priority",
+                operation: {type: "OneOf", priorities: new Set(["High"])},
+            },
+        ],
+    },
+    {
+        name: "excludes title substring and priority after",
+        filters: [
+            {
+                type: "Title",
+                operation: {type: "Excludes", titleQuery: "foo bar"},
+            },
+            {
+                type: "Priority",
+                operation: {type: "OneOf", priorities: new Set(["High"])},
+            },
+        ],
+    },
 ];
 
 describe("task query filter binary encoding", () => {

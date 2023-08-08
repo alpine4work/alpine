@@ -26,6 +26,7 @@ assertEqualTypes<
     | "statusFilter"
     | "collectionsFilter"
     | "priorityFilter"
+    | "titleFilter"
     | "assigneeFilter"
     | "creatorFilter"
     | "assignerFilter"
@@ -210,6 +211,41 @@ function getTaskQueryNormalizedFiltersTaskIndexFilterQueryClauses(
                     ],
                 },
             });
+        }
+    }
+
+    if (filters.titleFilter) {
+        for (const titleFilter of filters.titleFilter) {
+            switch (titleFilter.operationType) {
+                case "Includes": {
+                    filterQueryClauses.push({
+                        match_phrase: {
+                            "title.text": {
+                                query: titleFilter.titleQuery,
+                                analyzer: "standard",
+                            },
+                        },
+                    });
+                    break;
+                }
+                case "Excludes": {
+                    filterQueryClauses.push({
+                        bool: {
+                            must_not: {
+                                match_phrase: {
+                                    "title.text": {
+                                        query: titleFilter.titleQuery,
+                                        analyzer: "standard",
+                                    },
+                                },
+                            },
+                        },
+                    });
+                    break;
+                }
+                default:
+                    throw exhaustive(titleFilter.operationType);
+            }
         }
     }
 

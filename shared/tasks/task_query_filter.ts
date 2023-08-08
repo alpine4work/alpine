@@ -8,11 +8,11 @@ import {AccountId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 
-// NOCOMMIT: Add title filter
 export type TaskQueryFilter =
     | TaskQueryStatusFilter
     | TaskQueryCollectionsFilter
     | TaskQueryPriorityFilter
+    | TaskQueryTitleFilter
     | TaskQueryAssigneeFilter
     | TaskQueryCreatorFilter
     | TaskQueryAssignerFilter
@@ -140,6 +140,9 @@ function serializeTaskQueryFilter(filter: TaskQueryFilter, view: DataView): void
         case "ActivatedDate":
             typeId = 11;
             break;
+        case "Title":
+            typeId = 12;
+            break;
         default:
             throw exhaustive(filter);
     }
@@ -199,6 +202,8 @@ function deserializeTaskQueryFilterWithoutIncrementingByteLength(viewWithType: D
             return deserializeTaskQueryClosedDateFilter(view);
         case 11:
             return deserializeTaskQueryActivatedDateFilter(view);
+        case 12:
+            return deserializeTaskQueryTitleFilter(view);
         default:
             throw new InvalidArgumentError(`Unrecognized filter type ${typeId}`);
     }
@@ -228,6 +233,8 @@ function getTaskQueryFilterWithoutTypeByteLength(filter: TaskQueryFilter) {
             return getTaskQueryClosedDateFilterByteLength(filter);
         case "ActivatedDate":
             return getTaskQueryActivatedDateFilterByteLength(filter);
+        case "Title":
+            return getTaskQueryTitleFilterByteLength(filter);
         default:
             throw exhaustive(filter);
     }
@@ -257,6 +264,8 @@ function serializeTaskQueryFilterWithoutType(filter: TaskQueryFilter, view: Data
             return serializeTaskQueryClosedDateFilter(filter, view);
         case "ActivatedDate":
             return serializeTaskQueryActivatedDateFilter(filter, view);
+        case "Title":
+            return serializeTaskQueryTitleFilter(filter, view);
         default:
             throw exhaustive(filter);
     }
@@ -503,6 +512,96 @@ function deserializeTaskQueryPriorityFilter(view: DataView): {
     return {
         filter: {type: "Priority", operation: {type, priorities}},
         byteLength: 1,
+    };
+}
+
+/**
+ * Filters the title of a task based on whether the task title has a phrase
+ * that matches the query. Phrases are tested based on full word matches in the
+ * correct order. For example "foobar buz" is matched by "foobar", "buz", or
+ * "foobar buz". It is not matched by "foo", "bar", or "buz foobar".
+ *
+ * We use the [OpenSearch standard analyzer][1] with no modifications. The
+ * standard analyzer splits words into tokens using the [Unicode default word
+ * boundary specification][2] and lowercasing the words. We have a JavaScript
+ * implementation of the title filter that does the same since filtering needs
+ * to run both in OpenSearch and in JavaScript.
+ *
+ * The OpenSearch [standard analyzer implementation lives in Apache Lucene][3].
+ * We refer to their implementation when building ours.
+ *
+ * [1]: https://opensearch.org/docs/latest/analyzers/text-analyzers/
+ * [2]: https://unicode.org/reports/tr29/#Default_Word_Boundaries
+ * [3]: https://github.com/apache/lucene/blob/dd4e66dad6726c53f2d89c5b7bcf74216949e4d3/lucene/core/src/java/org/apache/lucene/analysis/standard/StandardAnalyzer.java#L34
+ */
+export type TaskQueryTitleFilter = {
+    readonly type: "Title";
+    readonly operation: TaskQueryTitleFilterOperation;
+};
+
+export type TaskQueryTitleFilterOperation =
+    | {
+          readonly type: "Includes";
+          readonly titleQuery: string;
+      }
+    | {
+          readonly type: "Excludes";
+          readonly titleQuery: string;
+      };
+
+function getTaskQueryTitleFilterByteLength(filter: TaskQueryTitleFilter) {
+    return 1 + 4 + new TextEncoder().encode(filter.operation.titleQuery).length;
+}
+
+function serializeTaskQueryTitleFilter(filter: TaskQueryTitleFilter, view: DataView) {
+    let byteOffset = 0;
+
+    view.setUint8(byteOffset, filter.operation.type === "Includes" ? 1 : 2);
+    byteOffset += 1;
+
+    const titleQueryBytes = new TextEncoder().encode(filter.operation.titleQuery);
+
+    // Make sure the title string byte length is a valid 32-bit integer since we
+    // store it in 32 bits.
+    assert(titleQueryBytes.length >>> 0 === titleQueryBytes.length);
+    view.setUint32(byteOffset, titleQueryBytes.length);
+    byteOffset += 4;
+
+    new Uint8Array(view.buffer, view.byteOffset, view.byteLength).set(titleQueryBytes, byteOffset);
+}
+
+function deserializeTaskQueryTitleFilter(view: DataView): {
+    filter: TaskQueryTitleFilter;
+    byteLength: number;
+} {
+    let byteOffset = 0;
+
+    const typeByte = view.getUint8(byteOffset);
+    byteOffset += 1;
+
+    let type: "Includes" | "Excludes";
+    switch (typeByte) {
+        case 1:
+            type = "Includes";
+            break;
+        case 2:
+            type = "Excludes";
+            break;
+        default:
+            throw new InvalidArgumentError(`Unrecognized operation type ${typeByte}`);
+    }
+
+    const titleQueryByteLength = view.getUint32(byteOffset);
+    byteOffset += 4;
+
+    const titleQuery = new TextDecoder().decode(
+        new Uint8Array(view.buffer, view.byteOffset + byteOffset, titleQueryByteLength),
+    );
+    byteOffset += titleQueryByteLength;
+
+    return {
+        filter: {type: "Title", operation: {type, titleQuery}},
+        byteLength: byteOffset,
     };
 }
 

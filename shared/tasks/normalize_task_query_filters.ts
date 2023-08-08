@@ -7,6 +7,7 @@ import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {AccountId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {analyzeTaskTitleText} from "~/shared/tasks/analyze_task_title_text.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
 import {
     TaskQueryCollectionsFilter,
@@ -55,6 +56,7 @@ export type TaskQueryNormalizedFilters = {
     readonly statusFilter: TaskQueryStatusNormalizedFilter;
     readonly collectionsFilter?: TaskQueryCollectionsNormalizedFilter;
     readonly priorityFilter?: TaskQueryPriorityNormalizedFilter;
+    readonly titleFilter?: TaskQueryTitleNormalizedFilter;
     readonly assigneeFilter?: TaskQueryAccountNormalizedFilter;
     readonly creatorFilter?: TaskQueryAccountNormalizedFilter;
     readonly assignerFilter?: TaskQueryAccountNormalizedFilter;
@@ -111,6 +113,12 @@ export type TaskQueryCollectionsNormalizedFilterClause = NonEmptyReadonlyMap<
     TaskCollectionId | "IsEmpty",
     boolean
 >;
+
+export type TaskQueryTitleNormalizedFilter = NonEmptyReadonlyArray<{
+    readonly operationType: "Includes" | "Excludes";
+    readonly titleQuery: string;
+    readonly titleQueryWords: NonEmptyReadonlyArray<string>;
+}>;
 
 // At least one of the five priorities must be included in this filter. Otherwise
 // the filter is impossible.
@@ -257,6 +265,47 @@ export function normalizeTaskQueryFilters(
                     if (mergeResult.type === "AlwaysFalse") return {type: "Impossible"};
 
                     normalizedFilters.priorityFilter = mergeResult.filter;
+                }
+                break;
+            }
+            case "Title": {
+                const newTitleFilter = [...(normalizedFilters.titleFilter ?? [])];
+
+                // We need to analyze the title query string the same way OpenSearch (which
+                // uses Lucene under the hood) would. The OpenSearch standard analyzer we use
+                // splits up words based on the Unicode default word boundary specification so
+                // we do as well.
+                //
+                // https://github.com/apache/lucene/blob/dd4e66dad6726c53f2d89c5b7bcf74216949e4d3/lucene/core/src/java/org/apache/lucene/analysis/standard/StandardTokenizerImpl.java#L26-L43
+                const titleQueryWords = analyzeTaskTitleText(filter.operation.titleQuery);
+
+                // Empty strings or strings with only whitespace do not contribute to
+                // filtering. They act as if the filter doesn't exist at all.
+                if (isNonEmptyReadonlyArray(titleQueryWords)) {
+                    newTitleFilter.push({
+                        operationType: filter.operation.type,
+                        titleQuery: filter.operation.titleQuery,
+                        titleQueryWords,
+                    });
+                }
+
+                // Sort so that we end up with the same normalized filter array no matter what
+                // order the filters were added in.
+                newTitleFilter.sort((filter1, filter2) => {
+                    if (filter1.operationType !== filter2.operationType) {
+                        return defaultCompareStrings(filter1.operationType, filter2.operationType);
+                    }
+                    return compareArrays(
+                        filter1.titleQueryWords,
+                        filter2.titleQueryWords,
+                        defaultCompareStrings,
+                    );
+                });
+
+                if (isNonEmptyReadonlyArray(newTitleFilter)) {
+                    normalizedFilters.titleFilter = newTitleFilter;
+                } else if (normalizedFilters.titleFilter) {
+                    delete normalizedFilters.titleFilter;
                 }
                 break;
             }
