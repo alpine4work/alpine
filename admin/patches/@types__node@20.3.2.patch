@@ -1,0 +1,13 @@
+diff --git a/util.d.ts b/util.d.ts
+index ce46cb7d0fa91028b1bf6f33b8d0317a00681552..228787a91b0298cec3f668abb7c2567cd2e4433f 100755
+--- a/util.d.ts
++++ b/util.d.ts
+@@ -1425,7 +1425,7 @@ declare module 'util' {
+ 
+     // If ParseArgsConfig extends T, then the user passed config constructed elsewhere.
+     // So we can't rely on the `"not definitely present" implies "definitely not present"` assumption mentioned above.
+-    type ParsedResults<T extends ParseArgsConfig> = ParseArgsConfig extends T
++    export type ParsedResults<T extends ParseArgsConfig> = ParseArgsConfig extends T
+         ? {
+               values: {
+                   [longOption: string]: undefined | string | boolean | Array<string | boolean>;

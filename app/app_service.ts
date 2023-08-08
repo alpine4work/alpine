@@ -2,24 +2,14 @@ import "~/app/helpers/install_remix_globals.js";
 
 import {fromContainerMetadata} from "@aws-sdk/credential-providers";
 import * as build from "@remix-run/dev/server-build";
-import {
-    Request as NodeRequest,
-    RequestInit as NodeRequestInit,
-    Response as NodeResponse,
-    createRequestHandler,
-    writeReadableStreamToWritable,
-} from "@remix-run/node";
+import {createRequestHandler} from "@remix-run/node";
 import {AwsCredentialIdentity} from "@smithy/types";
 import {AwsClient} from "aws4fetch";
-import cluster from "cluster";
 import {parse as parseCookieHeader} from "cookie";
 import fs from "fs-extra";
-import {IncomingHttpHeaders, IncomingMessage, ServerResponse, createServer} from "http";
-import * as os from "os";
+import {createServer} from "http";
 import {join as joinPath} from "path";
 import createServeStaticMiddleware from "serve-static";
-import {PassThrough} from "stream";
-import {parseArgs} from "util";
 import {defaultClientInfo, defaultMobileClientInfo} from "~/client/remix/client_info_context.js";
 import {Session} from "~/server/dynamo/accounts_table.js";
 import {
@@ -43,19 +33,18 @@ import {seedDynamo} from "~/server/dynamo/seed_dynamo.js";
 import {isAccountMemberOfSpace} from "~/server/dynamo/spaces_table.js";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
 import {SesEmailContextModule} from "~/server/emails/ses_email_context_module.js";
+import {createStandardizedRequestListener} from "~/server/node/create_standardized_server.js";
+import {runService} from "~/server/node/run_service.js";
 import {LoaderContextModule, LoaderContextModules} from "~/server/remix/loader_context.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {SessionCookie, withSessionCookie} from "~/server/tokens/session_cookie.js";
 import {AppServiceTokenAgent} from "~/server/tokens/token_agent.js";
-import {createServerTracer} from "~/server/tracer/server_tracer.js";
-import {traceFetchResponse} from "~/server/tracer/trace_fetch_response.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError, InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
@@ -64,6 +53,7 @@ import {isId} from "~/shared/id/id.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 import {ClientInfoSchema} from "~/shared/remix/client_info.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 const runfilesPath = assertExists(process.env.RUNFILES);
@@ -111,73 +101,52 @@ const serveStaticMiddleware = createServeStaticMiddleware(
     },
 );
 
-// Kill the process if we get an uncaught exception before the
-// tracer initializes.
-function handleUncaughtExceptionBeforeTracerInitialization(error: unknown) {
-    // eslint-disable-next-line no-console
-    console.error(error);
-    process.exit(1);
-}
+runService({
+    serviceName: "AppService",
+    options: {
+        port: {type: "string"},
+        edgeServiceUrl: {type: "string"},
+        appServicePublicKey: {type: "string"},
+        edgeServiceFamilyPublicKey: {type: "string"},
+        appServicePrivateKey: {type: "string"},
+        awsAccessKeyId: {type: "string"},
+        awsSecretAccessKey: {type: "string"},
+        remixDevServerPort: {type: "string"},
+        dynamoLocalPort: {type: "string"},
+        shouldSeedDynamo: {type: "boolean"},
+    },
+    run,
+});
 
-process.on("uncaughtException", handleUncaughtExceptionBeforeTracerInitialization);
-
-// In production, run our service across all available CPUs so we get full
-// CPU utilization.
-//
-// TODO(calebmer): Could we detect the `SpaceId` and route requests from that
-// `SpaceId` to the same process? So we can use in-memory caches for the space.
-if (cluster.isPrimary) {
-    const workerCount = process.env.NODE_ENV !== "production" ? 1 : os.cpus().length;
-
-    for (let i = 0; i < workerCount; i++) {
-        cluster.fork();
-    }
-
-    // If any worker in the cluster dies, kill all other workers and exit the
-    // process with an error.
-    cluster.on("exit", () => {
-        process.exit(1);
-    });
-} else {
-    main().catch(error => {
-        // eslint-disable-next-line no-console
-        console.error(error);
-        process.exit(1);
-    });
-}
-
-async function main() {
+async function run(
+    options: {
+        port?: string;
+        edgeServiceUrl?: string;
+        appServicePublicKey?: string;
+        edgeServiceFamilyPublicKey?: string;
+        appServicePrivateKey?: string;
+        awsAccessKeyId?: string;
+        awsSecretAccessKey?: string;
+        remixDevServerPort?: string;
+        dynamoLocalPort?: string;
+        shouldSeedDynamo?: boolean;
+    },
+    tracer: TracerRoot,
+) {
     const {
-        values: {
-            port: portString,
-            edgeServiceUrl,
-            appServicePublicKey: appServicePublicKeyArg,
-            edgeServiceFamilyPublicKey: edgeServiceFamilyPublicKeyArg,
-            appServicePrivateKey: appServicePrivateKeyArg,
-            awsAccessKeyId: awsAccessKeyIdArg,
-            awsSecretAccessKey: awsSecretAccessKeyArg = process.env.NODE_ENV !== "production"
-                ? "local"
-                : undefined,
-            honeycombApiKey,
-            remixDevServerPort,
-            dynamoLocalPort,
-            shouldSeedDynamo,
-        },
-    } = parseArgs({
-        options: {
-            port: {type: "string"},
-            edgeServiceUrl: {type: "string"},
-            appServicePublicKey: {type: "string"},
-            edgeServiceFamilyPublicKey: {type: "string"},
-            appServicePrivateKey: {type: "string"},
-            awsAccessKeyId: {type: "string"},
-            awsSecretAccessKey: {type: "string"},
-            honeycombApiKey: {type: "string"},
-            remixDevServerPort: {type: "string"},
-            dynamoLocalPort: {type: "string"},
-            shouldSeedDynamo: {type: "boolean"},
-        },
-    });
+        port: portString,
+        edgeServiceUrl,
+        appServicePublicKey: appServicePublicKeyArg,
+        edgeServiceFamilyPublicKey: edgeServiceFamilyPublicKeyArg,
+        appServicePrivateKey: appServicePrivateKeyArg,
+        awsAccessKeyId: awsAccessKeyIdArg,
+        awsSecretAccessKey: awsSecretAccessKeyArg = process.env.NODE_ENV !== "production"
+            ? "local"
+            : undefined,
+        remixDevServerPort,
+        dynamoLocalPort,
+        shouldSeedDynamo,
+    } = options;
 
     if (!portString) throw new InternalError("Missing `port` arg");
     if (!edgeServiceUrl) throw new InternalError("Missing `edgeServiceUrl` arg");
@@ -186,22 +155,6 @@ async function main() {
     if (!edgeServiceFamilyPublicKeyArg)
         throw new InternalError("Missing `edgeServiceFamilyPublicKeyPath` arg");
     if (!appServicePrivateKeyArg) throw new InternalError("Missing `appServicePrivateKey` arg");
-
-    // If a Honeycomb API key is not provided in production then we get no logging
-    // from our service.
-    if (!honeycombApiKey && process.env.NODE_ENV === "production")
-        throw new InternalError("Must provide `honeycombApiKey` arg in production");
-
-    const tracer = createServerTracer({
-        serviceName: "AppService",
-        jsHost: "Node",
-        honeycombApiKey,
-        waitUntil: promise => {
-            // We don't need to extend the lifetime of our Node.js process with a promise.
-            // If the tracer throws an error, well, there's nowhere else to send the error.
-            promise.catch(scheduleUncaughtError);
-        },
-    });
 
     let isLocalAws = false;
     let getAwsCredentials: (
@@ -389,187 +342,156 @@ async function main() {
         email: !isLocalAws
             ? new SesEmailContextModule(getAwsHttpClient)
             : new NoopEmailContextModule(),
+        opensearch: null,
     });
 
     let hasSeededDynamo = false;
 
     const handleRequest = createRequestHandler(build, process.env.NODE_ENV);
 
-    // Now that we've initialized our tracer, don't crash the process on uncaught
-    // exceptions and instead log the exception with our tracer.
-    process.off("uncaughtException", handleUncaughtExceptionBeforeTracerInitialization);
-    process.on("uncaughtException", error => {
-        tracer.logUncaughtException("Uncaught exception", error);
-    });
+    const requestListener = createStandardizedRequestListener(tracer, (request, url, span) => {
+        return withSessionCookie(tokenAgent, request, sessionCookie => {
+            const cookieHeader = request.headers.get("cookie");
+            const clientInfoCookieString = cookieHeader
+                ? parseCookieHeader(cookieHeader)["client-info"]
+                : null;
 
-    // TODO(calebmer): Block requests that don't come from Cloudflare -> AWS Loud Balancer -> us
-    // in application code in production.
-    const server = createServer((req, res) => {
-        serveStaticMiddleware(req, res, () => {
-            const request = createRequest(req);
-            const url = new URL(request.url);
+            let clientInfo = defaultClientInfo;
+            if (clientInfoCookieString) {
+                try {
+                    clientInfo = ClientInfoSchema.deserialize(JSON.parse(clientInfoCookieString));
+                } catch {
+                    // Ignore any errors when parsing the client info cookie.
+                }
+            } else {
+                // Device detection with user-agent parsing is generally bad and should be
+                // avoided. However, in the case where we don't yet have a client info cookie
+                // we use the user agent as a hint to determine what our default when
+                // server-side rendering should be. We have logic on the client to heal the
+                // cookie if we guess wrong. The user will see a quick flash of content but
+                // that's all.
+                //
+                // [MDN recommends testing for the string "Mobi" to tell if we are on a
+                // mobile device][1].
+                //
+                // [1]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Browser_detection_using_the_user_agent#mobile_tablet_or_desktop
+                if (/Mobi/i.test(request.headers.get("user-agent") ?? "")) {
+                    clientInfo = defaultMobileClientInfo;
+                }
+            }
 
-            const responsePromise = traceFetchResponse(tracer, request, url, (span, request) => {
-                return withSessionCookie(tokenAgent, request, sessionCookie => {
-                    const cookieHeader = request.headers.get("cookie");
-                    const clientInfoCookieString = cookieHeader
-                        ? parseCookieHeader(cookieHeader)["client-info"]
-                        : null;
+            // Sometimes we want to upgrade a session actor to a system actor. This gives
+            // the action escalated the system permission level which is dangerous! The
+            // system permission level has broad access to a space. We should tightly
+            // control what code is allowed to call this function, only allowed context
+            // modules get access and those context modules are expected to treat this as a
+            // private variable.
+            //
+            // It's important we use new caches + batchers here. We don't want to load some
+            // data at a higher permission level then let the session context see it. So we
+            // derive our new context from the process context to help avoid reusing any
+            // request-level caches.
+            //
+            // NOTE(calebmer, 2023-08-07): May be worthwhile turning uses of this function
+            // into RPC calls on another machine someday for security? Not sure if that
+            // helps.
+            const dangerouslyEscalateToSystemContext = (
+                context: Context<{
+                    tracer: TracerContextModule;
+                    actor: AppActorContextModule;
+                }>,
+                spaceId: SpaceId,
+                action: (context: AppSystemActionContext) => Promise<void>,
+            ): Promise<void> => {
+                return processContext.with<
+                    Omit<
+                        AppSystemActionContextModules,
+                        Exclude<keyof AppProcessContextModules, "tracer">
+                    >,
+                    // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
+                    void
+                >(
+                    {
+                        tracer: new TracerContextModule(context.tracer.getTracer()),
+                        cache: new CacheContextModule(),
+                        dynamoBatchContext: new DynamoBatchContextModule(),
+                        notifications: new NotificationsContextModule({
+                            dangerouslyEscalateToSystemContext,
+                            edgeServiceUrl,
+                            tokenAgent,
+                        }),
+                        tasks: new TasksContextModule({
+                            dangerouslyEscalateToSystemContext,
+                        }),
+                        actor: AppSystemActorContextModule.dangerouslyNew(
+                            context.actor.serviceName,
+                            spaceId,
+                        ),
+                    },
+                    action,
+                );
+            };
 
-                    let clientInfo = defaultClientInfo;
-                    if (clientInfoCookieString) {
-                        try {
-                            clientInfo = ClientInfoSchema.deserialize(
-                                JSON.parse(clientInfoCookieString),
-                            );
-                        } catch {
-                            // Ignore any errors when parsing the client info cookie.
-                        }
-                    } else {
-                        // Device detection with user-agent parsing is generally bad and should be
-                        // avoided. However, in the case where we don't yet have a client info cookie
-                        // we use the user agent as a hint to determine what our default when
-                        // server-side rendering should be. We have logic on the client to heal the
-                        // cookie if we guess wrong. The user will see a quick flash of content but
-                        // that's all.
-                        //
-                        // [MDN recommends testing for the string "Mobi" to tell if we are on a
-                        // mobile device][1].
-                        //
-                        // [1]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Browser_detection_using_the_user_agent#mobile_tablet_or_desktop
-                        if (/Mobi/i.test(request.headers.get("user-agent") ?? "")) {
-                            clientInfo = defaultMobileClientInfo;
-                        }
+            return processContext.with<
+                Omit<LoaderContextModules, Exclude<keyof AppProcessContextModules, "tracer">>,
+                globalThis.Response
+            >(
+                {
+                    tracer: new TracerContextModule(span),
+                    rpc: new LocalRpcContextModule(),
+                    loader: new LoaderContextModule({
+                        sessionCookie,
+                        clientInfo,
+                        devServerPort: remixDevServerPort ? parseInt(remixDevServerPort, 10) : null,
+                    }),
+                    cache: new CacheContextModule(),
+                    dynamoBatchContext: new DynamoBatchContextModule(),
+                    actor: createActorContextModule(request, url, tokenAgent, sessionCookie),
+                    notifications: new NotificationsContextModule({
+                        dangerouslyEscalateToSystemContext,
+                        edgeServiceUrl,
+                        tokenAgent,
+                    }),
+                    tasks: new TasksContextModule({
+                        dangerouslyEscalateToSystemContext,
+                    }),
+                },
+                context => {
+                    // The first time our server process runs in development, seed DynamoDB with
+                    // some initial data. The seed function should be idempotent.
+                    if (
+                        process.env.NODE_ENV !== "production" &&
+                        shouldSeedDynamo &&
+                        !hasSeededDynamo
+                    ) {
+                        hasSeededDynamo = true;
+                        context.process.waitUntil(async () => {
+                            try {
+                                await seedDynamo(context);
+                            } catch (error) {
+                                // If there is an error, log it but don't crash the process.
+                                // eslint-disable-next-line no-console
+                                console.error("Failed to seed DynamoDB data:", error);
+                            }
+                        });
                     }
 
-                    // Sometimes we want to upgrade a session actor to a system actor. This gives
-                    // the action escalated the system permission level which is dangerous! The
-                    // system permission level has broad access to a space. We should tightly
-                    // control what code is allowed to call this function, only allowed context
-                    // modules get access and those context modules are expected to treat this as a
-                    // private variable.
-                    //
-                    // It's important we use new caches + batchers here. We don't want to load some
-                    // data at a higher permission level then let the session context see it. So we
-                    // derive our new context from the process context to help avoid reusing any
-                    // request-level caches.
-                    //
-                    // NOTE(calebmer, 2023-08-07): May be worthwhile turning uses of this function
-                    // into RPC calls on another machine someday for security? Not sure if that
-                    // helps.
-                    const dangerouslyEscalateToSystemContext = (
-                        context: Context<{
-                            tracer: TracerContextModule;
-                            actor: AppActorContextModule;
-                        }>,
-                        spaceId: SpaceId,
-                        action: (context: AppSystemActionContext) => Promise<void>,
-                    ): Promise<void> => {
-                        return processContext.with<
-                            Omit<
-                                AppSystemActionContextModules,
-                                Exclude<keyof AppProcessContextModules, "tracer">
-                            >,
-                            // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
-                            void
-                        >(
-                            {
-                                tracer: new TracerContextModule(context.tracer.getTracer()),
-                                cache: new CacheContextModule(),
-                                dynamoBatchContext: new DynamoBatchContextModule(),
-                                notifications: new NotificationsContextModule({
-                                    dangerouslyEscalateToSystemContext,
-                                    edgeServiceUrl,
-                                    tokenAgent,
-                                }),
-                                tasks: new TasksContextModule({
-                                    dangerouslyEscalateToSystemContext,
-                                }),
-                                actor: AppSystemActorContextModule.dangerouslyNew(
-                                    context.actor.serviceName,
-                                    spaceId,
-                                ),
-                            },
-                            action,
-                        );
-                    };
-
-                    return processContext.with<
-                        Omit<
-                            LoaderContextModules,
-                            Exclude<keyof AppProcessContextModules, "tracer">
-                        >,
-                        globalThis.Response
-                    >(
-                        {
-                            tracer: new TracerContextModule(span),
-                            rpc: new LocalRpcContextModule(),
-                            loader: new LoaderContextModule({
-                                sessionCookie,
-                                clientInfo,
-                                devServerPort: remixDevServerPort
-                                    ? parseInt(remixDevServerPort, 10)
-                                    : null,
-                            }),
-                            cache: new CacheContextModule(),
-                            dynamoBatchContext: new DynamoBatchContextModule(),
-                            actor: createActorContextModule(
-                                request,
-                                url,
-                                tokenAgent,
-                                sessionCookie,
-                            ),
-                            notifications: new NotificationsContextModule({
-                                dangerouslyEscalateToSystemContext,
-                                edgeServiceUrl,
-                                tokenAgent,
-                            }),
-                            tasks: new TasksContextModule({
-                                dangerouslyEscalateToSystemContext,
-                            }),
-                        },
-                        context => {
-                            // The first time our server process runs in development, seed DynamoDB with
-                            // some initial data. The seed function should be idempotent.
-                            if (
-                                process.env.NODE_ENV !== "production" &&
-                                shouldSeedDynamo &&
-                                !hasSeededDynamo
-                            ) {
-                                hasSeededDynamo = true;
-                                context.process.waitUntil(async () => {
-                                    try {
-                                        await seedDynamo(context);
-                                    } catch (error) {
-                                        // If there is an error, log it but don't crash the process.
-                                        // eslint-disable-next-line no-console
-                                        console.error("Failed to seed DynamoDB data:", error);
-                                    }
-                                });
-                            }
-
-                            return handleRequest(request, context);
-                        },
-                    );
-                });
-            });
-
-            responsePromise.then(
-                response => sendResponse(res, response as NodeResponse),
-                error => {
-                    // Errors should be caught and handled by this point. So this error handler is
-                    // for unexpected internal code failures.
-                    scheduleUncaughtError(error);
-
-                    res.writeHead(500, {"content-type": "text/plain"});
-                    res.end("Internal Server Error");
+                    return handleRequest(request, context);
                 },
             );
         });
     });
 
+    // TODO(calebmer): Block requests that don't come from Cloudflare -> AWS Load Balancer -> us
+    // in application code in production.
+    const server = createServer((req, res) => {
+        serveStaticMiddleware(req, res, () => {
+            requestListener(req, res);
+        });
+    });
+
     server.listen(port, () => {
-        // Log when ready in production to help show debugging container startup.
+        // Log when ready in production to help when debugging container startup.
         if (process.env.NODE_ENV === "production") {
             // eslint-disable-next-line no-console
             console.log(`Listening on port ${port}`);
@@ -697,66 +619,4 @@ function createActorContextModule(
 
         return null;
     });
-}
-
-/**
- * Convert a Node.js request object to a WhatWG fetch request object.
- */
-function createRequest(req: IncomingMessage): NodeRequest {
-    const protocol = "http";
-    const host = req.headers.host;
-    const url = `${protocol}://${host!}${req.url!}`;
-
-    const init: NodeRequestInit = {
-        method: req.method,
-        headers: createRequestHeaders(req.headers),
-    };
-
-    if (req.method !== "GET" && req.method !== "HEAD") {
-        // Derived from the following. Unclear to me how the `highWaterMark` number
-        // was picked.
-        // https://github.com/mcansh/remix-node-http-server/blob/230a8b5f270231011466c6b9452c543224588603/packages/remix-raw-http/src/server.ts#L90
-        init.body = req.pipe(new PassThrough({highWaterMark: 16384}));
-    }
-
-    return new NodeRequest(url, init);
-}
-
-/**
- * Convert a Node.js request headers object to a WhatWG fetch request
- * headers object.
- */
-function createRequestHeaders(reqHeaders: IncomingHttpHeaders): Headers {
-    const headers = new Headers();
-
-    for (const [key, values] of Object.entries(reqHeaders)) {
-        if (values) {
-            if (Array.isArray(values)) {
-                for (const value of values) {
-                    headers.append(key, value);
-                }
-            } else {
-                headers.set(key, values);
-            }
-        }
-    }
-
-    return headers;
-}
-
-/**
- * Convert a WhatWG response object to a Node.js response.
- */
-async function sendResponse(res: ServerResponse, response: NodeResponse) {
-    res.statusCode = response.status;
-
-    for (const [key, values] of Object.entries(response.headers.raw())) {
-        res.setHeader(key, values);
-    }
-
-    if (response.body) {
-        await writeReadableStreamToWritable(response.body, res);
-    } else {
-        res.end();
-    }
 }

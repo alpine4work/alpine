@@ -25,6 +25,7 @@ export type TracerServiceName =
     | "AppClient"
     | "AppService"
     | "EdgeService"
+    | "TaskRealtimeService"
     | DurableObjectServiceName;
 
 /**

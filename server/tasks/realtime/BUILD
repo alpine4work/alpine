@@ -8,6 +8,7 @@ ts_project(
     ],
     deps = [
         "//:node_modules/unicode-default-word-boundary",
+        "//server/node",
         "//server/opensearch",
         "//server/tasks/index",
         "//shared/error",

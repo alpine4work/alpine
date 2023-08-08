@@ -45,6 +45,7 @@ ts_project(
         "//client/virtualized",
         "//server/dynamo",
         "//server/emails",
+        "//server/node",
         "//server/remix",
         "//server/rpc",
         "//server/tokens",

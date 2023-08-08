@@ -16,7 +16,7 @@ import {
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {EdgeServiceFamilyTokenAgent} from "~/server/tokens/token_agent.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
-import {traceFetchResponse} from "~/server/tracer/trace_fetch_response.js";
+import {traceStandardizedRequest} from "~/server/tracer/trace_standardized_request.js";
 import {WebSocketProtocolBase} from "~/shared/cloudflare/web_socket_protocol.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -154,7 +154,7 @@ export function createDurableObject<
         public fetch(request: Request): Promise<Response> {
             const url = new URL(request.url);
 
-            return traceFetchResponse(this._tracer, request, url, async (span, request) => {
+            return traceStandardizedRequest(this._tracer, request, url, async (span, request) => {
                 try {
                     const idName = request.headers.get("cyberworlds-durable-object-id-name");
                     if (idName === null)

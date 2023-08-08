@@ -1,7 +1,7 @@
 import {fetchFromDurableObjectStub} from "~/server/cloudflare/fetch_from_durable_object_stub.js";
 import {EdgeServiceFamilyTokenAgent} from "~/server/tokens/token_agent.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
-import {traceFetchResponse} from "~/server/tracer/trace_fetch_response.js";
+import {traceStandardizedRequest} from "~/server/tracer/trace_standardized_request.js";
 import {InternalError} from "~/shared/error/error.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -73,7 +73,7 @@ async function handleFetch(
         // We wrap edge durable object routing in a span because our edge is running
         // meaningful logic here. We don't add spans when we send requests to
         // `AppService` since request simply falls through.
-        return traceFetchResponse(tracer, request, url, async (span, request) => {
+        return traceStandardizedRequest(tracer, request, url, async (span, request) => {
             // An env object that is referentially equal will be passed in as long as
             // environment variables remain the same.
             // https://developers.cloudflare.com/workers/runtime-apis/fetch-event/#parameters

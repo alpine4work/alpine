@@ -11,7 +11,8 @@ import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 /**
- * Create a span for the server response to the fetch HTTP API.
+ * Create a span for the server request handler using the WhatWG HTTP API. Used
+ * with `createStandardizedServer()`.
  *
  * If there are trace propagation headers, then we setup our span as a child of
  * the propagation context.
@@ -21,7 +22,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
  */
 // TODO(calebmer, #tracer): Include the HTTP route in the span name like we do
 // with `fetchWithTracer()`.
-export async function traceFetchResponse(
+export async function traceStandardizedRequest(
     tracer: TracerRoot,
     request: Request,
     requestUrl: URL,

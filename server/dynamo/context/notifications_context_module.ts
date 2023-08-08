@@ -21,7 +21,7 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxItemModelSchema} from "~/shared/notifications/inbox_model.js";
-import {MyAccountInboxRealtimeEventTransactionSchema} from "~/shared/notifications/my_account_inbox_realtime_event_transaction_schema.js";
+import {MyAccountSendInboxRealtimeEventTransactionSchema} from "~/shared/notifications/my_account_inbox_realtime_event_transaction_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 import {TracerPropagationContextSchema} from "~/shared/tracer/tracer_propagation_context_schema.js";
@@ -194,12 +194,12 @@ export class NotificationsContextModule extends NotificationsContextModuleBase {
                     const response = await fetchWithTracer(
                         this._context.tracer.getTracer(),
                         new URL(
-                            `/api/durable-objects/my-account/${accountId}/inbox-realtime-event-transaction`,
+                            `/api/durable-objects/my-account/${accountId}/send-inbox-realtime-event-transaction`,
                             this._edgeServiceUrl,
                         ),
                         {
                             spanRoute:
-                                "/api/durable-objects/my-account/:accountId/inbox-realtime-event-transaction",
+                                "/api/durable-objects/my-account/:accountId/send-inbox-realtime-event-transaction",
                             method: "POST",
                             headers: {
                                 authorization: `bearer ${token}`,
@@ -210,7 +210,7 @@ export class NotificationsContextModule extends NotificationsContextModuleBase {
                                 "cyberworlds-durable-object-if-initialized": "true",
                             },
                             body: JSON.stringify(
-                                MyAccountInboxRealtimeEventTransactionSchema.serialize({
+                                MyAccountSendInboxRealtimeEventTransactionSchema.serialize({
                                     readTime,
                                     eventTransaction,
                                 }),

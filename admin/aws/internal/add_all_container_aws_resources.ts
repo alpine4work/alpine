@@ -226,6 +226,9 @@ export function addAllContainerAwsResources(
         cluster,
         taskDefinition: appServiceTaskDefinition,
         desiredCount: 2,
+        // Specifies the max/min task count during a deploy.
+        minHealthyPercent: 50,
+        maxHealthyPercent: 200,
     });
 
     const loadBalancer = new ApplicationLoadBalancer(stack, "LoadBalancer", {
