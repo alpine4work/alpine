@@ -4324,13 +4324,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                             }
                                                         }
                                                     },
-                                                    "UpdateTaskCollection": {
+                                                    "UpdateCollection": {
                                                         "type": "Object",
                                                         "propertySchemaByKey": {
                                                             "type": {
                                                                 "valueSchema": {
                                                                     "type": "Value",
-                                                                    "value": "UpdateTaskCollection"
+                                                                    "value": "UpdateCollection"
                                                                 },
                                                                 "optional": false
                                                             },
@@ -4526,13 +4526,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                             }
                                                         }
                                                     },
-                                                    "UpdateTaskNotepadPage": {
+                                                    "UpdateNotepadPage": {
                                                         "type": "Object",
                                                         "propertySchemaByKey": {
                                                             "type": {
                                                                 "valueSchema": {
                                                                     "type": "Value",
-                                                                    "value": "UpdateTaskNotepadPage"
+                                                                    "value": "UpdateNotepadPage"
                                                                 },
                                                                 "optional": false
                                                             },

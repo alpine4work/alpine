@@ -7,7 +7,7 @@ ts_project(
         "//shared/tasks/test_helpers",
     ],
     tests = {
-        "index_task_space_action_transaction_permutations_test": {
+        "task_index_permutations_test": {
             "size": "medium",
             # Give this test three CPUs. Two for OpenSearch, one for the test process.
             "tags": ["cpu:4"],

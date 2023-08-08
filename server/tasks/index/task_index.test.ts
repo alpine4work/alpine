@@ -1,7 +1,7 @@
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space.js";
-import {indexTaskSpaceActionTransactionAssumingItsCommitted} from "~/server/tasks/index/task_index.js";
+import {indexTaskActionTransactionAssumingItsCommitted} from "~/server/tasks/index/task_index.js";
 import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
@@ -27,25 +27,21 @@ const clock = new HybridLogicalClock(unsynchronizedSystemClock);
 test("can't update task from a different space", async () => {
     const taskId = generateId<TaskId>();
 
-    await indexTaskSpaceActionTransactionAssumingItsCommitted(
-        context.systemAction(space.id),
-        space.id,
-        [
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "Create",
-                    creator: taskAccount1,
-                    creatorTimeZone: defaultTimeZone,
-                },
+    await indexTaskActionTransactionAssumingItsCommitted(context.systemAction(space.id), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId,
+            taskAction: {
+                type: "Create",
+                creator: taskAccount1,
+                creatorTimeZone: defaultTimeZone,
             },
-        ],
-    );
+        },
+    ]);
 
     await expect(
-        indexTaskSpaceActionTransactionAssumingItsCommitted(
+        indexTaskActionTransactionAssumingItsCommitted(
             context.systemAction(otherSpace.id),
             otherSpace.id,
             [
@@ -63,7 +59,7 @@ test("can't update task from a different space", async () => {
     ).rejects.toThrowError(new FailedPreconditionError("Space mismatch"));
 
     await expect(
-        indexTaskSpaceActionTransactionAssumingItsCommitted(
+        indexTaskActionTransactionAssumingItsCommitted(
             context.systemAction(otherSpace.id),
             space.id,
             [
@@ -80,49 +76,41 @@ test("can't update task from a different space", async () => {
         ),
     ).rejects.toThrowError(PermissionDeniedError);
 
-    await indexTaskSpaceActionTransactionAssumingItsCommitted(
-        context.systemAction(space.id),
-        space.id,
-        [
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "UpdateTitle",
-                    titleUpdate: wordTaskTitleTestScenario.update0,
-                },
+    await indexTaskActionTransactionAssumingItsCommitted(context.systemAction(space.id), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId,
+            taskAction: {
+                type: "UpdateTitle",
+                titleUpdate: wordTaskTitleTestScenario.update0,
             },
-        ],
-    );
+        },
+    ]);
 });
 
 test("can't update collection from a different space", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await indexTaskSpaceActionTransactionAssumingItsCommitted(
-        context.systemAction(space.id),
-        space.id,
-        [
-            {
-                type: "UpdateTaskCollection",
-                time: clock.now(),
-                collectionId,
-                collectionAction: {
-                    type: "Create",
-                    accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
-                },
+    await indexTaskActionTransactionAssumingItsCommitted(context.systemAction(space.id), space.id, [
+        {
+            type: "UpdateCollection",
+            time: clock.now(),
+            collectionId,
+            collectionAction: {
+                type: "Create",
+                accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
             },
-        ],
-    );
+        },
+    ]);
 
     await expect(
-        indexTaskSpaceActionTransactionAssumingItsCommitted(
+        indexTaskActionTransactionAssumingItsCommitted(
             context.systemAction(otherSpace.id),
             otherSpace.id,
             [
                 {
-                    type: "UpdateTaskCollection",
+                    type: "UpdateCollection",
                     time: clock.now(),
                     collectionId,
                     collectionAction: {
@@ -135,12 +123,12 @@ test("can't update collection from a different space", async () => {
     ).rejects.toThrowError(new FailedPreconditionError("Space mismatch"));
 
     await expect(
-        indexTaskSpaceActionTransactionAssumingItsCommitted(
+        indexTaskActionTransactionAssumingItsCommitted(
             context.systemAction(otherSpace.id),
             space.id,
             [
                 {
-                    type: "UpdateTaskCollection",
+                    type: "UpdateCollection",
                     time: clock.now(),
                     collectionId,
                     collectionAction: {
@@ -152,19 +140,15 @@ test("can't update collection from a different space", async () => {
         ),
     ).rejects.toThrowError(PermissionDeniedError);
 
-    await indexTaskSpaceActionTransactionAssumingItsCommitted(
-        context.systemAction(space.id),
-        space.id,
-        [
-            {
-                type: "UpdateTaskCollection",
-                time: clock.now(),
-                collectionId,
-                collectionAction: {
-                    type: "UpdateName",
-                    name: "New Collection Name",
-                },
+    await indexTaskActionTransactionAssumingItsCommitted(context.systemAction(space.id), space.id, [
+        {
+            type: "UpdateCollection",
+            time: clock.now(),
+            collectionId,
+            collectionAction: {
+                type: "UpdateName",
+                name: "New Collection Name",
             },
-        ],
-    );
+        },
+    ]);
 });

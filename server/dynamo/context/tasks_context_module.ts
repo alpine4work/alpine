@@ -1,17 +1,14 @@
 import {AppSystemActionContext} from "~/server/dynamo/context/app_action_context.js";
 import {AppActorContextModule} from "~/server/dynamo/context/app_actor_context_module.js";
-import {indexTaskSpaceActionTransactionAssumingItsCommitted} from "~/server/tasks/index/task_index.js";
+import {indexTaskActionTransactionAssumingItsCommitted} from "~/server/tasks/index/task_index.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {DataLossError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {SpaceId, TaskSpaceActionTransactionId} from "~/shared/id/types/id_types.js";
-import {
-    TaskSpaceAction,
-    getTaskSpaceActionLabel,
-} from "~/shared/tasks/actions/task_space_action.js";
+import {SpaceId, TaskActionTransactionId} from "~/shared/id/types/id_types.js";
+import {TaskAction, getTaskActionLabel} from "~/shared/tasks/actions/task_action.js";
 
 /**
  * Helps perform work related to tasks that needs to interact with other
@@ -49,10 +46,10 @@ export class TasksContextModule extends ContextModuleBase<{
      * called at-least-once for every committed action transaction. It is ok to
      * call this function multiple times, though.
      */
-    public indexTaskSpaceActionTransactionAssumingItsCommitted(
+    public indexActionTransactionAssumingItsCommitted(
         spaceId: SpaceId,
-        actionTransactionId: TaskSpaceActionTransactionId,
-        actions: ReadonlyArray<TaskSpaceAction>,
+        actionTransactionId: TaskActionTransactionId,
+        actions: ReadonlyArray<TaskAction>,
     ) {
         // Index the action transaction in the background.
         //
@@ -64,17 +61,17 @@ export class TasksContextModule extends ContextModuleBase<{
         // at-least-once.
         this._context.process.waitUntil(
             this._dangerouslyEscalateToSystemContext(this._context, spaceId, context =>
-                context.tracer.withSpan("Index task action transaction", async (context, span) => {
+                context.tracer.withSpan("indexTaskActionTransaction", async (context, span) => {
                     span.addData({
                         tasks: {
-                            actions: actions.map(getTaskSpaceActionLabel).join(","),
+                            actions: actions.map(getTaskActionLabel).join(","),
                             actionCount: actions.length,
                             actionTransactionId,
                         },
                     });
 
                     try {
-                        await indexTaskSpaceActionTransactionAssumingItsCommitted(
+                        await indexTaskActionTransactionAssumingItsCommitted(
                             context,
                             spaceId,
                             actions,
@@ -114,19 +111,15 @@ export class TestTasksContextModule extends TasksContextModule {
         this._shouldSkipIndexing = shouldSkipIndexing;
     }
 
-    public override indexTaskSpaceActionTransactionAssumingItsCommitted(
+    public override indexActionTransactionAssumingItsCommitted(
         spaceId: SpaceId,
-        actionTransactionId: TaskSpaceActionTransactionId,
-        actions: ReadonlyArray<TaskSpaceAction>,
+        actionTransactionId: TaskActionTransactionId,
+        actions: ReadonlyArray<TaskAction>,
     ): void {
         // In tests, if OpenSearch is disabled we allow you to construct a tasks
         // context module that skips task indexing.
         if (this._shouldSkipIndexing) return;
 
-        super.indexTaskSpaceActionTransactionAssumingItsCommitted(
-            spaceId,
-            actionTransactionId,
-            actions,
-        );
+        super.indexActionTransactionAssumingItsCommitted(spaceId, actionTransactionId, actions);
     }
 }

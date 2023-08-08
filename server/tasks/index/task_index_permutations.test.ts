@@ -4,7 +4,7 @@ import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_s
 import {
     getTaskCollectionIndexDocIfExistsForTest,
     getTaskIndexDocIfExistsForTest,
-    indexTaskSpaceActionTransactionAssumingItsCommitted,
+    indexTaskActionTransactionAssumingItsCommitted,
 } from "~/server/tasks/index/task_index.js";
 import {getTaskIndexDocIsDeleted} from "~/server/tasks/index/task_index_doc.js";
 import {NotFoundError} from "~/shared/error/error.js";
@@ -12,8 +12,8 @@ import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {
     TaskCollectionTestInterface,
     TaskTestInterface,
-    testTaskSpaceActionPermutations,
-} from "~/shared/tasks/test_helpers/test_task_space_action_permutations.js";
+    testTaskActionPermutations,
+} from "~/shared/tasks/test_helpers/test_task_action_permutations.js";
 
 const context = createTestContext({shouldStartOpensearch: true});
 const space = createTestSpace(context);
@@ -22,15 +22,15 @@ const session2 = createTestSession(context, space);
 
 import.meta.jest.setTimeout(1000 * 30);
 
-testTaskSpaceActionPermutations({
+testTaskActionPermutations({
     partitionNumber: parseInt(process.env.TEST_SHARD_INDEX ?? "0", 10) + 1,
     partitionCount: parseInt(process.env.TEST_TOTAL_SHARDS ?? "1", 10),
     account1: session1.account,
     account2: session2.account,
-    applyTaskSpaceAction: async (action, next) => {
+    applyTaskAction: async (action, next) => {
         let hasCalledNext = false;
 
-        await indexTaskSpaceActionTransactionAssumingItsCommitted(
+        await indexTaskActionTransactionAssumingItsCommitted(
             context.systemAction(space.id),
             space.id,
             [action],

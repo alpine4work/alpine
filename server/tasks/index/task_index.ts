@@ -29,8 +29,11 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
-import {TaskDueDateRegister, TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_action.js";
-import {TaskSpaceAction} from "~/shared/tasks/actions/task_space_action.js";
+import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {
+    TaskDueDateRegister,
+    TaskParentTaskIdRegister,
+} from "~/shared/tasks/actions/task_task_action.js";
 import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
 import {TaskAssigneeRegister} from "~/shared/tasks/task_assignee.js";
 import {TaskAssigneeStatusRegister} from "~/shared/tasks/task_assignee_status.js";
@@ -144,7 +147,7 @@ export function getTaskCollectionIndexDocIfExistsForTest(
 }
 
 /**
- * Takes a transaction of `TaskSpaceAction`s and indexes them in our OpenSearch
+ * Takes a transaction of `TaskAction`s and indexes them in our OpenSearch
  * task index. This function assumes the action transaction has been committed
  * but it may not have been!
  *
@@ -153,26 +156,26 @@ export function getTaskCollectionIndexDocIfExistsForTest(
  *   after committing an action transaction, at which point the assumption
  *   is valid.
  */
-export function indexTaskSpaceActionTransactionAssumingItsCommitted(
+export function indexTaskActionTransactionAssumingItsCommitted(
     context: AppSystemActionContext,
     spaceId: SpaceId,
-    actions: ReadonlyArray<TaskSpaceAction>,
+    actions: ReadonlyArray<TaskAction>,
     options?: {onRetry?: () => void},
 ) {
-    return TaskSpaceActionTransactionIndexState.index(context, spaceId, actions, options);
+    return TaskActionTransactionIndexState.index(context, spaceId, actions, options);
 }
 
 /**
- * Abstraction for managing state during `indexTaskSpaceActionTransaction()`.
+ * Abstraction for managing state during `indexTaskActionTransaction()`.
  * We may update a task multiple times in an action transaction but we only
  * want to send one bulk update request to OpenSearch.
  *
  * All reads/writes must go through this class. There is no direct access to
  * the context or OpenSearch. That way the implementation of
- * `indexTaskSpaceActionTransaction()` must use the relevant caches we have
+ * `indexTaskActionTransaction()` must use the relevant caches we have
  * in place.
  */
-class TaskSpaceActionTransactionIndexState {
+class TaskActionTransactionIndexState {
     private readonly _context: AppSystemActionContext;
     public readonly spaceId: SpaceId;
     public readonly retry: (error?: unknown) => never;
@@ -203,7 +206,7 @@ class TaskSpaceActionTransactionIndexState {
     public static async index(
         context: AppSystemActionContext,
         spaceId: SpaceId,
-        actions: ReadonlyArray<TaskSpaceAction>,
+        actions: ReadonlyArray<TaskAction>,
         {onRetry}: {onRetry?: () => void} = {},
     ) {
         let hasAlreadyAttempted = false;
@@ -219,10 +222,10 @@ class TaskSpaceActionTransactionIndexState {
 
             await authorizeSpaceAccess(context, spaceId);
 
-            const state = new TaskSpaceActionTransactionIndexState(context, spaceId, retry);
+            const state = new TaskActionTransactionIndexState(context, spaceId, retry);
 
             for (const action of actions) {
-                await actuallyIndexTaskSpaceAction(state, action, isInitialAttempt);
+                await actuallyIndexTaskAction(state, action, isInitialAttempt);
             }
 
             await runAllPromises([
@@ -354,9 +357,9 @@ class TaskSpaceActionTransactionIndexState {
     }
 }
 
-async function actuallyIndexTaskSpaceAction(
-    state: TaskSpaceActionTransactionIndexState,
-    action: TaskSpaceAction,
+async function actuallyIndexTaskAction(
+    state: TaskActionTransactionIndexState,
+    action: TaskAction,
     isInitialAttempt: boolean,
 ) {
     switch (action.type) {
@@ -442,7 +445,7 @@ async function actuallyIndexTaskSpaceAction(
             }
             return;
         }
-        case "UpdateTaskCollection": {
+        case "UpdateCollection": {
             const [oldCollection, oldTaskForUpdateTaskPosition] = await runAllPromises([
                 // If this is our initial attempt to create a collection then optimistically
                 // assume it doesn't exist.
@@ -583,7 +586,7 @@ async function actuallyIndexTaskSpaceAction(
             }
             return;
         }
-        case "UpdateTaskNotepadPage": {
+        case "UpdateNotepadPage": {
             if (action.notepadPageAction.type === "Create") {
                 // We don't have a notepad page index. That's all stored in a compressed,
                 // binary, integer set.

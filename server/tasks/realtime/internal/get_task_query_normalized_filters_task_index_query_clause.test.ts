@@ -1,7 +1,7 @@
 import {parseAbsolute, toCalendarDate} from "@internationalized/date";
 import {SessionItem, getAccountsTableForTest} from "~/server/dynamo/accounts_table.js";
 import {getSpacesTableForTest} from "~/server/dynamo/spaces_table.js";
-import {commitTaskSpaceActionTransaction} from "~/server/dynamo/tasks_table.js";
+import {commitTaskActionTransaction} from "~/server/dynamo/tasks_table.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
 import {TaskIndexDoc, TaskIndexDocType} from "~/server/tasks/index/task_index_doc.js";
 import {evaluateTaskQueryNormalizedFiltersForTaskIndexDoc} from "~/server/tasks/realtime/internal/evaluate_task_query_normalized_filters_for_task_index_doc.js";
@@ -320,7 +320,7 @@ test("searches all tasks in a space", async () => {
     const task2Id = generateId<TaskId>();
     const task3Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -335,7 +335,7 @@ test("searches all tasks in a space", async () => {
 
     expect(await testQuery(session1, space, [])).toEqual([task1Id]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -374,7 +374,7 @@ test("deleted tasks are filtered out", async () => {
     const task2Id = generateId<TaskId>();
     const task3Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -409,7 +409,7 @@ test("deleted tasks are filtered out", async () => {
 
     expect(await testQuery(session1, space, [])).toEqual([task1Id, task2Id, task3Id]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -422,7 +422,7 @@ test("deleted tasks are filtered out", async () => {
 
     expect(await testQuery(session1, space, [])).toEqual([task1Id, task3Id]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -443,7 +443,7 @@ test("deleted tasks are filtered out", async () => {
 
     expect(await testQuery(session1, space, [])).toEqual([]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -464,7 +464,7 @@ test("closed tasks are filtered out by default", async () => {
     const task2Id = generateId<TaskId>();
     const task3Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -532,7 +532,7 @@ test("can filter for closed tasks", async () => {
     const task2Id = generateId<TaskId>();
     const task3Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -627,7 +627,7 @@ test("can filter for open tasks", async () => {
     const task2Id = generateId<TaskId>();
     const task3Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -725,7 +725,7 @@ test("can filter for open inactive tasks", async () => {
     const task2Id = generateId<TaskId>();
     const task3Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -823,7 +823,7 @@ test("can filter for open active tasks", async () => {
     const task2Id = generateId<TaskId>();
     const task3Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -921,7 +921,7 @@ test("can filter for closed and open inactive tasks", async () => {
     const task2Id = generateId<TaskId>();
     const task3Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1019,7 +1019,7 @@ test("can filter for closed and open active tasks", async () => {
     const task2Id = generateId<TaskId>();
     const task3Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1117,7 +1117,7 @@ test("can filter for no statuses", async () => {
     const task2Id = generateId<TaskId>();
     const task3Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1218,7 +1218,7 @@ test("can filter for all statuses", async () => {
     const task2Id = generateId<TaskId>();
     const task3Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1322,7 +1322,7 @@ test("will merge multiple status filters", async () => {
     const task2Id = generateId<TaskId>();
     const task3Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1551,7 +1551,7 @@ test("can filter by one of collections", async () => {
     const collection3Id = generateId<TaskCollectionId>();
     const collection4Id = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1593,7 +1593,7 @@ test("can filter by one of collections", async () => {
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collection1Id,
             collectionAction: {
@@ -1605,7 +1605,7 @@ test("can filter by one of collections", async () => {
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collection2Id,
             collectionAction: {
@@ -1617,7 +1617,7 @@ test("can filter by one of collections", async () => {
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collection3Id,
             collectionAction: {
@@ -1629,7 +1629,7 @@ test("can filter by one of collections", async () => {
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collection4Id,
             collectionAction: {
@@ -1768,7 +1768,7 @@ test("can filter by all of collections", async () => {
     const collection3Id = generateId<TaskCollectionId>();
     const collection4Id = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1810,7 +1810,7 @@ test("can filter by all of collections", async () => {
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collection1Id,
             collectionAction: {
@@ -1822,7 +1822,7 @@ test("can filter by all of collections", async () => {
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collection2Id,
             collectionAction: {
@@ -1834,7 +1834,7 @@ test("can filter by all of collections", async () => {
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collection3Id,
             collectionAction: {
@@ -1846,7 +1846,7 @@ test("can filter by all of collections", async () => {
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collection4Id,
             collectionAction: {
@@ -1985,7 +1985,7 @@ test("can filter by excludes all of collections", async () => {
     const collection3Id = generateId<TaskCollectionId>();
     const collection4Id = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -2027,7 +2027,7 @@ test("can filter by excludes all of collections", async () => {
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collection1Id,
             collectionAction: {
@@ -2039,7 +2039,7 @@ test("can filter by excludes all of collections", async () => {
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collection2Id,
             collectionAction: {
@@ -2051,7 +2051,7 @@ test("can filter by excludes all of collections", async () => {
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collection3Id,
             collectionAction: {
@@ -2063,7 +2063,7 @@ test("can filter by excludes all of collections", async () => {
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collection4Id,
             collectionAction: {
@@ -2214,7 +2214,7 @@ test("can filter by empty collections", async () => {
     const collection3Id = generateId<TaskCollectionId>();
     const collection4Id = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -2256,7 +2256,7 @@ test("can filter by empty collections", async () => {
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collection1Id,
             collectionAction: {
@@ -2268,7 +2268,7 @@ test("can filter by empty collections", async () => {
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collection2Id,
             collectionAction: {
@@ -2280,7 +2280,7 @@ test("can filter by empty collections", async () => {
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collection3Id,
             collectionAction: {
@@ -2292,7 +2292,7 @@ test("can filter by empty collections", async () => {
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collection4Id,
             collectionAction: {
@@ -2368,7 +2368,7 @@ test("can filter against collections without providing collection ids", async ()
     const collection3Id = generateId<TaskCollectionId>();
     const collection4Id = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -2410,7 +2410,7 @@ test("can filter against collections without providing collection ids", async ()
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collection1Id,
             collectionAction: {
@@ -2422,7 +2422,7 @@ test("can filter against collections without providing collection ids", async ()
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collection2Id,
             collectionAction: {
@@ -2434,7 +2434,7 @@ test("can filter against collections without providing collection ids", async ()
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collection3Id,
             collectionAction: {
@@ -2446,7 +2446,7 @@ test("can filter against collections without providing collection ids", async ()
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collection4Id,
             collectionAction: {
@@ -2541,7 +2541,7 @@ test("can merge collection filters in various ways", async () => {
     const collection3Id = generateId<TaskCollectionId>();
     const collection4Id = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -2593,7 +2593,7 @@ test("can merge collection filters in various ways", async () => {
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collection1Id,
             collectionAction: {
@@ -2605,7 +2605,7 @@ test("can merge collection filters in various ways", async () => {
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collection2Id,
             collectionAction: {
@@ -2617,7 +2617,7 @@ test("can merge collection filters in various ways", async () => {
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collection3Id,
             collectionAction: {
@@ -2629,7 +2629,7 @@ test("can merge collection filters in various ways", async () => {
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collection4Id,
             collectionAction: {
@@ -3335,7 +3335,7 @@ test("can filter for individual priorities", async () => {
     const task4Id = generateId<TaskId>();
     const task5Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -3503,7 +3503,7 @@ test("can filter for three priorities at once", async () => {
     const task4Id = generateId<TaskId>();
     const task5Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -3647,7 +3647,7 @@ test("can negative filter for individual priorities", async () => {
     const task4Id = generateId<TaskId>();
     const task5Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -3815,7 +3815,7 @@ test("can negative filter for three priorities at once", async () => {
     const task4Id = generateId<TaskId>();
     const task5Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -3959,7 +3959,7 @@ test("can filter for all priorities", async () => {
     const task4Id = generateId<TaskId>();
     const task5Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4079,7 +4079,7 @@ test("can negative filter for all priorities", async () => {
     const task4Id = generateId<TaskId>();
     const task5Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4199,7 +4199,7 @@ test("can merge priority filters", async () => {
     const task4Id = generateId<TaskId>();
     const task5Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4439,7 +4439,7 @@ test("can filter for a single assignee account", async () => {
     const task3Id = generateId<TaskId>();
     const task4Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4590,7 +4590,7 @@ test("can filter for multiple assignee accounts", async () => {
     const task3Id = generateId<TaskId>();
     const task4Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4708,7 +4708,7 @@ test("can negative filter for a single assignee account", async () => {
     const task3Id = generateId<TaskId>();
     const task4Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4859,7 +4859,7 @@ test("can negative filter for multiple assignee accounts", async () => {
     const task3Id = generateId<TaskId>();
     const task4Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4977,7 +4977,7 @@ test("can filter with empty assignee accounts", async () => {
     const task3Id = generateId<TaskId>();
     const task4Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5092,7 +5092,7 @@ test("can merge assignee filters", async () => {
     const task3Id = generateId<TaskId>();
     const task4Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5287,7 +5287,7 @@ test("can filter for a single creator account", async () => {
     const task3Id = generateId<TaskId>();
     const task4Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5300,7 +5300,7 @@ test("can filter for a single creator account", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5323,7 +5323,7 @@ test("can filter for a single creator account", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session3), space.id, [
+    await commitTaskActionTransaction(context.action(session3), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5405,7 +5405,7 @@ test("can filter for multiple creator accounts", async () => {
     const task3Id = generateId<TaskId>();
     const task4Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5418,7 +5418,7 @@ test("can filter for multiple creator accounts", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5441,7 +5441,7 @@ test("can filter for multiple creator accounts", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session3), space.id, [
+    await commitTaskActionTransaction(context.action(session3), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5490,7 +5490,7 @@ test("can negative filter for a single creator account", async () => {
     const task3Id = generateId<TaskId>();
     const task4Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5503,7 +5503,7 @@ test("can negative filter for a single creator account", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5526,7 +5526,7 @@ test("can negative filter for a single creator account", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session3), space.id, [
+    await commitTaskActionTransaction(context.action(session3), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5608,7 +5608,7 @@ test("can negative filter for multiple creator accounts", async () => {
     const task3Id = generateId<TaskId>();
     const task4Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5621,7 +5621,7 @@ test("can negative filter for multiple creator accounts", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5644,7 +5644,7 @@ test("can negative filter for multiple creator accounts", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session3), space.id, [
+    await commitTaskActionTransaction(context.action(session3), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5693,7 +5693,7 @@ test("can filter with empty creator accounts", async () => {
     const task3Id = generateId<TaskId>();
     const task4Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5706,7 +5706,7 @@ test("can filter with empty creator accounts", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5729,7 +5729,7 @@ test("can filter with empty creator accounts", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session3), space.id, [
+    await commitTaskActionTransaction(context.action(session3), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5775,7 +5775,7 @@ test("can merge creator filters", async () => {
     const task3Id = generateId<TaskId>();
     const task4Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5788,7 +5788,7 @@ test("can merge creator filters", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5811,7 +5811,7 @@ test("can merge creator filters", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session3), space.id, [
+    await commitTaskActionTransaction(context.action(session3), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5939,7 +5939,7 @@ test("can filter for a single assigner account", async () => {
 
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5981,7 +5981,7 @@ test("can filter for a single assigner account", async () => {
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -6034,7 +6034,7 @@ test("can filter for a single assigner account", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6050,7 +6050,7 @@ test("can filter for a single assigner account", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6150,7 +6150,7 @@ test("can filter for multiple assigner accounts", async () => {
 
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6192,7 +6192,7 @@ test("can filter for multiple assigner accounts", async () => {
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -6245,7 +6245,7 @@ test("can filter for multiple assigner accounts", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6261,7 +6261,7 @@ test("can filter for multiple assigner accounts", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6328,7 +6328,7 @@ test("can negative filter for a single assigner account", async () => {
 
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6370,7 +6370,7 @@ test("can negative filter for a single assigner account", async () => {
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -6423,7 +6423,7 @@ test("can negative filter for a single assigner account", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6439,7 +6439,7 @@ test("can negative filter for a single assigner account", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6539,7 +6539,7 @@ test("can negative filter for multiple assigner accounts", async () => {
 
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6581,7 +6581,7 @@ test("can negative filter for multiple assigner accounts", async () => {
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -6634,7 +6634,7 @@ test("can negative filter for multiple assigner accounts", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6650,7 +6650,7 @@ test("can negative filter for multiple assigner accounts", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6717,7 +6717,7 @@ test("can filter with empty assigner accounts", async () => {
 
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6759,7 +6759,7 @@ test("can filter with empty assigner accounts", async () => {
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -6812,7 +6812,7 @@ test("can filter with empty assigner accounts", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6828,7 +6828,7 @@ test("can filter with empty assigner accounts", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6892,7 +6892,7 @@ test("can merge assigner filters", async () => {
 
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6934,7 +6934,7 @@ test("can merge assigner filters", async () => {
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -6987,7 +6987,7 @@ test("can merge assigner filters", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7003,7 +7003,7 @@ test("can merge assigner filters", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7164,7 +7164,7 @@ const dueDateFilterTestCase: DateFilterTestCase = {
         const task4Id = generateId<TaskId>();
         const task5Id = generateId<TaskId>();
 
-        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        await commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -7286,7 +7286,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
             const task3Id = generateId<TaskId>();
             const task4Id = generateId<TaskId>();
 
-            await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            await commitTaskActionTransaction(context.action(session1), space.id, [
                 {
                     type: "UpdateTask",
                     time: clock.now(),
@@ -7351,7 +7351,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
             const task4Id = generateId<TaskId>();
             const task5Id = generateId<TaskId>();
 
-            await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            await commitTaskActionTransaction(context.action(session1), space.id, [
                 {
                     type: "UpdateTask",
                     time: clock.now(),
@@ -7488,7 +7488,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
             const task4Id = generateId<TaskId>();
             const task5Id = generateId<TaskId>();
 
-            await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            await commitTaskActionTransaction(context.action(session1), space.id, [
                 {
                     type: "UpdateTask",
                     time: clock.now(),
@@ -7616,7 +7616,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
             const task4Id = generateId<TaskId>();
             const task5Id = generateId<TaskId>();
 
-            await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            await commitTaskActionTransaction(context.action(session1), space.id, [
                 {
                     type: "UpdateTask",
                     time: clock.now(),
@@ -8027,7 +8027,7 @@ test("can filter by title includes", async () => {
     const task4Id = generateId<TaskId>();
     const task5Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8321,7 +8321,7 @@ test("can filter by title excludes", async () => {
     const task4Id = generateId<TaskId>();
     const task5Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8615,7 +8615,7 @@ test("can merge title filters", async () => {
     const task4Id = generateId<TaskId>();
     const task5Id = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),

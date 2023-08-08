@@ -6,7 +6,7 @@ import {
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskTaskAction} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {applyTaskTitleUpdate} from "~/shared/tasks/task_title.js";
 
@@ -18,7 +18,7 @@ import {applyTaskTitleUpdate} from "~/shared/tasks/task_title.js";
 export function applyTaskActionToTaskIndexDoc(
     task: TaskIndexDoc,
     actionTime: HybridLogicalTime,
-    action: TaskAction,
+    action: TaskTaskAction,
 ): TaskIndexDoc {
     switch (action.type) {
         case "Create": {

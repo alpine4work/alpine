@@ -24,7 +24,7 @@ import {generateId} from "~/shared/id/id.js";
 import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {serializeHybridLogicalTime} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
-import {TaskSpaceAction} from "~/shared/tasks/actions/task_space_action.js";
+import {TaskTaskAction} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskAssignee} from "~/shared/tasks/task_assignee.js";
 import {TaskAssigneeStatus} from "~/shared/tasks/task_assignee_status.js";
 import {TaskCollectionAccessPolicy} from "~/shared/tasks/task_collection_access_policy.js";
@@ -68,7 +68,7 @@ export type TaskCollectionTestInterface = {
     accessPolicy: TaskCollectionAccessPolicy;
 };
 
-type TaskSpaceActionTestScenario = {
+type TaskActionTestScenario = {
     creator: TaskSortableAccount;
     createdTime: TaskFilterableTime;
     account2: TaskSortableAccount;
@@ -78,25 +78,25 @@ type TaskSpaceActionTestScenario = {
     getNextFilterableTime: () => TaskFilterableTime;
 };
 
-type TaskActionTestArtifacts =
+type TaskTaskActionTestArtifacts =
     | {
-          actions: Array<TaskAction & {time?: HybridLogicalTime}>;
+          actions: Array<TaskTaskAction & {time?: HybridLogicalTime}>;
           task: Partial<TaskTestInterface>;
           error?: undefined;
       }
     | {
-          actions: Array<TaskAction & {time?: HybridLogicalTime}>;
+          actions: Array<TaskTaskAction & {time?: HybridLogicalTime}>;
           error: {new (...args: Array<any>): Error};
           task?: undefined;
       };
 
-const taskActionTestCases: Array<{
+const taskTaskActionTestCases: Array<{
     name: string;
-    create: (scenario: TaskSpaceActionTestScenario) => TaskActionTestArtifacts;
+    create: (scenario: TaskActionTestScenario) => TaskTaskActionTestArtifacts;
 }> = [
     {
         name: "create task",
-        create: ({creator}): TaskActionTestArtifacts => ({
+        create: ({creator}): TaskTaskActionTestArtifacts => ({
             actions: [
                 {
                     type: "Create",
@@ -109,7 +109,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "create task incompatible accounts",
-        create: ({creator, account2}): TaskActionTestArtifacts => ({
+        create: ({creator, account2}): TaskTaskActionTestArtifacts => ({
             actions: [
                 {
                     type: "Create",
@@ -127,7 +127,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "create task incompatible setter created time zone",
-        create: ({creator}): TaskActionTestArtifacts => ({
+        create: ({creator}): TaskTaskActionTestArtifacts => ({
             actions: [
                 {
                     type: "Create",
@@ -145,7 +145,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "add and remove collection",
-        create: ({creator, collectionId1, collectionId2}): TaskActionTestArtifacts => ({
+        create: ({creator, collectionId1, collectionId2}): TaskTaskActionTestArtifacts => ({
             actions: [
                 {
                     type: "Create",
@@ -202,7 +202,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "add, remove, and add collection",
-        create: ({creator, collectionId1}): TaskActionTestArtifacts => ({
+        create: ({creator, collectionId1}): TaskTaskActionTestArtifacts => ({
             actions: [
                 {
                     type: "Create",
@@ -247,7 +247,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "collection updated time conflict, remove wins",
-        create: ({creator, collectionId1}): TaskActionTestArtifacts => ({
+        create: ({creator, collectionId1}): TaskTaskActionTestArtifacts => ({
             actions: [
                 {
                     type: "Create",
@@ -286,7 +286,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "collection updated time conflict, higher order key wins",
-        create: ({creator, collectionId1}): TaskActionTestArtifacts => ({
+        create: ({creator, collectionId1}): TaskTaskActionTestArtifacts => ({
             actions: [
                 {
                     type: "Create",
@@ -326,7 +326,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "delete",
-        create: ({creator}): TaskActionTestArtifacts => {
+        create: ({creator}): TaskTaskActionTestArtifacts => {
             return {
                 actions: [
                     {
@@ -346,7 +346,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "undelete",
-        create: ({creator}): TaskActionTestArtifacts => {
+        create: ({creator}): TaskTaskActionTestArtifacts => {
             return {
                 actions: [
                     {
@@ -369,7 +369,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update title before delete",
-        create: ({creator}): TaskActionTestArtifacts => {
+        create: ({creator}): TaskTaskActionTestArtifacts => {
             return {
                 actions: [
                     {
@@ -394,7 +394,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update title after delete",
-        create: ({creator}): TaskActionTestArtifacts => {
+        create: ({creator}): TaskTaskActionTestArtifacts => {
             return {
                 actions: [
                     {
@@ -419,7 +419,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "delete, undelete, delete",
-        create: ({creator}): TaskActionTestArtifacts => {
+        create: ({creator}): TaskTaskActionTestArtifacts => {
             return {
                 actions: [
                     {
@@ -445,7 +445,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "undelete without delete",
-        create: ({creator}): TaskActionTestArtifacts => {
+        create: ({creator}): TaskTaskActionTestArtifacts => {
             return {
                 actions: [
                     {
@@ -465,7 +465,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "delete and undelete time conflict",
-        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
+        create: ({creator, getNextTime}): TaskTaskActionTestArtifacts => {
             const deletedTime = getNextTime();
 
             return {
@@ -492,7 +492,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "undelete before delete",
-        create: ({creator}): TaskActionTestArtifacts => {
+        create: ({creator}): TaskTaskActionTestArtifacts => {
             return {
                 actions: [
                     {
@@ -515,7 +515,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update parent",
-        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
+        create: ({creator, getNextTime}): TaskTaskActionTestArtifacts => {
             const parentTaskId = generateId<TaskId>();
             const time1 = getNextTime();
             const time2 = getNextTime();
@@ -545,7 +545,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update parent then unset parent",
-        create: ({creator}): TaskActionTestArtifacts => {
+        create: ({creator}): TaskTaskActionTestArtifacts => {
             const parentTaskId = generateId<TaskId>();
 
             return {
@@ -572,7 +572,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "unset parent then update parent",
-        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
+        create: ({creator, getNextTime}): TaskTaskActionTestArtifacts => {
             const parentTaskId = generateId<TaskId>();
             const time1 = getNextTime();
             const time2 = getNextTime();
@@ -608,7 +608,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update parent then update parent position",
-        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
+        create: ({creator, getNextTime}): TaskTaskActionTestArtifacts => {
             const parentTaskId = generateId<TaskId>();
             const time1 = getNextTime();
             const time2 = getNextTime();
@@ -644,7 +644,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update parent position then update parent",
-        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
+        create: ({creator, getNextTime}): TaskTaskActionTestArtifacts => {
             const parentTaskId = generateId<TaskId>();
             const time1 = getNextTime();
             const time2 = getNextTime();
@@ -680,7 +680,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update parent resets position",
-        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
+        create: ({creator, getNextTime}): TaskTaskActionTestArtifacts => {
             const parentTaskId1 = generateId<TaskId>();
             const parentTaskId2 = generateId<TaskId>();
             const time1 = getNextTime();
@@ -723,7 +723,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update status",
-        create: ({creator, account2, getNextTime}): TaskActionTestArtifacts => {
+        create: ({creator, account2, getNextTime}): TaskTaskActionTestArtifacts => {
             const time1 = getNextTime();
             const time2 = getNextTime();
 
@@ -763,7 +763,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update status twice",
-        create: ({creator, account2, getNextTime}): TaskActionTestArtifacts => {
+        create: ({creator, account2, getNextTime}): TaskTaskActionTestArtifacts => {
             const time1 = getNextTime();
             const time2 = getNextTime();
             const time3 = getNextTime();
@@ -802,7 +802,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update assignee",
-        create: ({creator, account2, getNextTime}): TaskActionTestArtifacts => {
+        create: ({creator, account2, getNextTime}): TaskTaskActionTestArtifacts => {
             const time1 = getNextTime();
             const time2 = getNextTime();
 
@@ -842,7 +842,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update assignee twice",
-        create: ({creator, account2, getNextTime}): TaskActionTestArtifacts => {
+        create: ({creator, account2, getNextTime}): TaskTaskActionTestArtifacts => {
             const time1 = getNextTime();
             const time2 = getNextTime();
             const time3 = getNextTime();
@@ -881,7 +881,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update assignee status",
-        create: ({creator, account2, getNextTime}): TaskActionTestArtifacts => {
+        create: ({creator, account2, getNextTime}): TaskTaskActionTestArtifacts => {
             const time1 = getNextTime();
             const time2 = getNextTime();
             const time3 = getNextTime();
@@ -948,7 +948,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update assignee status twice",
-        create: ({creator, account2, getNextTime}): TaskActionTestArtifacts => {
+        create: ({creator, account2, getNextTime}): TaskTaskActionTestArtifacts => {
             const time1 = getNextTime();
             const time2 = getNextTime();
             const time3 = getNextTime();
@@ -1011,7 +1011,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "updating status resets assignee status",
-        create: ({creator, account2, getNextTime}): TaskActionTestArtifacts => {
+        create: ({creator, account2, getNextTime}): TaskTaskActionTestArtifacts => {
             const time1 = getNextTime();
             const time2 = getNextTime();
             const time3 = getNextTime();
@@ -1089,7 +1089,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "updating status resets assignee status even if status doesn't change",
-        create: ({creator, account2, getNextTime}): TaskActionTestArtifacts => {
+        create: ({creator, account2, getNextTime}): TaskTaskActionTestArtifacts => {
             const time1 = getNextTime();
             const time2 = getNextTime();
             const time3 = getNextTime();
@@ -1152,7 +1152,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "updating assignee resets assignee status",
-        create: ({creator, account2, getNextTime}): TaskActionTestArtifacts => {
+        create: ({creator, account2, getNextTime}): TaskTaskActionTestArtifacts => {
             const time1 = getNextTime();
             const time2 = getNextTime();
             const time3 = getNextTime();
@@ -1222,7 +1222,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "updating assignee resets assignee status even if assignee doesn't change",
-        create: ({creator, account2, getNextTime}): TaskActionTestArtifacts => {
+        create: ({creator, account2, getNextTime}): TaskTaskActionTestArtifacts => {
             const time1 = getNextTime();
             const time2 = getNextTime();
             const time3 = getNextTime();
@@ -1292,7 +1292,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update due date",
-        create: ({creator}): TaskActionTestArtifacts => {
+        create: ({creator}): TaskTaskActionTestArtifacts => {
             return {
                 actions: [
                     {
@@ -1313,7 +1313,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update due date twice",
-        create: ({creator}): TaskActionTestArtifacts => {
+        create: ({creator}): TaskTaskActionTestArtifacts => {
             return {
                 actions: [
                     {
@@ -1338,7 +1338,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update priority",
-        create: ({creator}): TaskActionTestArtifacts => {
+        create: ({creator}): TaskTaskActionTestArtifacts => {
             return {
                 actions: [
                     {
@@ -1359,7 +1359,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update priority twice",
-        create: ({creator}): TaskActionTestArtifacts => {
+        create: ({creator}): TaskTaskActionTestArtifacts => {
             return {
                 actions: [
                     {
@@ -1384,7 +1384,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update task title (1x)",
-        create: ({creator}): TaskActionTestArtifacts => ({
+        create: ({creator}): TaskTaskActionTestArtifacts => ({
             actions: [
                 {
                     type: "Create",
@@ -1403,7 +1403,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update task title (2x)",
-        create: ({creator}): TaskActionTestArtifacts => ({
+        create: ({creator}): TaskTaskActionTestArtifacts => ({
             actions: [
                 {
                     type: "Create",
@@ -1426,7 +1426,7 @@ const taskActionTestCases: Array<{
     },
     {
         name: "update task title (4x)",
-        create: ({creator}): TaskActionTestArtifacts => ({
+        create: ({creator}): TaskTaskActionTestArtifacts => ({
             actions: [
                 {
                     type: "Create",
@@ -1457,7 +1457,7 @@ const taskActionTestCases: Array<{
     },
 ];
 
-type TaskSpaceActionTestArtifactsExpect =
+type TaskActionTestArtifactsExpect =
     | {
           taskId: TaskId;
           task: Partial<TaskTestInterface>;
@@ -1469,34 +1469,31 @@ type TaskSpaceActionTestArtifactsExpect =
           taskId?: undefined;
       };
 
-type TaskSpaceActionTestArtifacts =
+type TaskActionTestArtifacts =
     | {
-          actions: Array<TaskSpaceAction>;
+          actions: Array<TaskAction>;
           // Must not be empty.
-          expect: [
-              TaskSpaceActionTestArtifactsExpect,
-              ...Array<TaskSpaceActionTestArtifactsExpect>,
-          ];
+          expect: [TaskActionTestArtifactsExpect, ...Array<TaskActionTestArtifactsExpect>];
           error?: undefined;
       }
     | {
-          actions: Array<TaskSpaceAction>;
+          actions: Array<TaskAction>;
           error: {new (...args: Array<any>): Error};
           task?: undefined;
       };
 
-const taskSpaceActionTestCases: Array<{
+const taskActionTestCases: Array<{
     name: string;
-    create: (scenario: TaskSpaceActionTestScenario) => TaskSpaceActionTestArtifacts;
+    create: (scenario: TaskActionTestScenario) => TaskActionTestArtifacts;
 }> = [
-    ...taskActionTestCases.map(testCase => {
+    ...taskTaskActionTestCases.map(testCase => {
         return {
             name: testCase.name,
-            create: (scenario: TaskSpaceActionTestScenario): TaskSpaceActionTestArtifacts => {
+            create: (scenario: TaskActionTestScenario): TaskActionTestArtifacts => {
                 const testCaseArtifacts = testCase.create(scenario);
                 const taskId = generateId<TaskId>();
 
-                const actions: Array<TaskSpaceAction> = testCaseArtifacts.actions.map(action => ({
+                const actions: Array<TaskAction> = testCaseArtifacts.actions.map(action => ({
                     type: "UpdateTask",
                     time: action.time ?? scenario.getNextTime(),
                     taskId,
@@ -1519,7 +1516,7 @@ const taskSpaceActionTestCases: Array<{
     }),
     {
         name: "add task to notepad page",
-        create: ({creator, getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
             const taskId = generateId<TaskId>();
             const notepadPageId = generateTaskNotepadPageId();
             const time1 = getNextTime();
@@ -1529,7 +1526,7 @@ const taskSpaceActionTestCases: Array<{
             return {
                 actions: [
                     {
-                        type: "UpdateTaskNotepadPage",
+                        type: "UpdateNotepadPage",
                         time: time1,
                         accountId: creator.accountId,
                         notepadPageId,
@@ -1548,7 +1545,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskNotepadPage",
+                        type: "UpdateNotepadPage",
                         time: time3,
                         accountId: creator.accountId,
                         notepadPageId,
@@ -1577,7 +1574,7 @@ const taskSpaceActionTestCases: Array<{
     },
     {
         name: "add then remove task from notepad page",
-        create: ({creator, getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
             const taskId = generateId<TaskId>();
             const notepadPageId = generateTaskNotepadPageId();
             const time1 = getNextTime();
@@ -1588,7 +1585,7 @@ const taskSpaceActionTestCases: Array<{
             return {
                 actions: [
                     {
-                        type: "UpdateTaskNotepadPage",
+                        type: "UpdateNotepadPage",
                         time: time1,
                         accountId: creator.accountId,
                         notepadPageId,
@@ -1607,7 +1604,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskNotepadPage",
+                        type: "UpdateNotepadPage",
                         time: time3,
                         accountId: creator.accountId,
                         notepadPageId,
@@ -1618,7 +1615,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskNotepadPage",
+                        type: "UpdateNotepadPage",
                         time: time4,
                         accountId: creator.accountId,
                         notepadPageId,
@@ -1639,7 +1636,7 @@ const taskSpaceActionTestCases: Array<{
     },
     {
         name: "remove then add task from notepad page",
-        create: ({creator, getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
             const taskId = generateId<TaskId>();
             const notepadPageId = generateTaskNotepadPageId();
             const time1 = getNextTime();
@@ -1650,7 +1647,7 @@ const taskSpaceActionTestCases: Array<{
             return {
                 actions: [
                     {
-                        type: "UpdateTaskNotepadPage",
+                        type: "UpdateNotepadPage",
                         time: time1,
                         accountId: creator.accountId,
                         notepadPageId,
@@ -1669,7 +1666,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskNotepadPage",
+                        type: "UpdateNotepadPage",
                         time: time3,
                         accountId: creator.accountId,
                         notepadPageId,
@@ -1679,7 +1676,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskNotepadPage",
+                        type: "UpdateNotepadPage",
                         time: time4,
                         accountId: creator.accountId,
                         notepadPageId,
@@ -1708,14 +1705,14 @@ const taskSpaceActionTestCases: Array<{
     },
     {
         name: "only remove task from notepad page",
-        create: ({creator, getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
             const taskId = generateId<TaskId>();
             const notepadPageId = generateTaskNotepadPageId();
 
             return {
                 actions: [
                     {
-                        type: "UpdateTaskNotepadPage",
+                        type: "UpdateNotepadPage",
                         time: getNextTime(),
                         accountId: creator.accountId,
                         notepadPageId,
@@ -1734,7 +1731,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskNotepadPage",
+                        type: "UpdateNotepadPage",
                         time: getNextTime(),
                         accountId: creator.accountId,
                         notepadPageId,
@@ -1755,7 +1752,7 @@ const taskSpaceActionTestCases: Array<{
     },
     {
         name: "change task position in notepad page",
-        create: ({creator, getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
             const taskId = generateId<TaskId>();
             const notepadPageId = generateTaskNotepadPageId();
             const time1 = getNextTime();
@@ -1766,7 +1763,7 @@ const taskSpaceActionTestCases: Array<{
             return {
                 actions: [
                     {
-                        type: "UpdateTaskNotepadPage",
+                        type: "UpdateNotepadPage",
                         time: time1,
                         accountId: creator.accountId,
                         notepadPageId,
@@ -1785,7 +1782,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskNotepadPage",
+                        type: "UpdateNotepadPage",
                         time: time3,
                         accountId: creator.accountId,
                         notepadPageId,
@@ -1796,7 +1793,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskNotepadPage",
+                        type: "UpdateNotepadPage",
                         time: time4,
                         accountId: creator.accountId,
                         notepadPageId,
@@ -1825,13 +1822,13 @@ const taskSpaceActionTestCases: Array<{
     },
     {
         name: "delete collection",
-        create: ({getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({getNextTime}): TaskActionTestArtifacts => {
             const collectionId = generateId<TaskCollectionId>();
 
             return {
                 actions: [
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: getNextTime(),
                         collectionId,
                         collectionAction: {
@@ -1840,7 +1837,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: getNextTime(),
                         collectionId,
                         collectionAction: {
@@ -1861,13 +1858,13 @@ const taskSpaceActionTestCases: Array<{
     },
     {
         name: "undelete collection",
-        create: ({getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({getNextTime}): TaskActionTestArtifacts => {
             const collectionId = generateId<TaskCollectionId>();
 
             return {
                 actions: [
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: getNextTime(),
                         collectionId,
                         collectionAction: {
@@ -1876,7 +1873,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: getNextTime(),
                         collectionId,
                         collectionAction: {
@@ -1884,7 +1881,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: getNextTime(),
                         collectionId,
                         collectionAction: {
@@ -1905,13 +1902,13 @@ const taskSpaceActionTestCases: Array<{
     },
     {
         name: "update name before delete collection",
-        create: ({getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({getNextTime}): TaskActionTestArtifacts => {
             const collectionId = generateId<TaskCollectionId>();
 
             return {
                 actions: [
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: getNextTime(),
                         collectionId,
                         collectionAction: {
@@ -1920,7 +1917,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: getNextTime(),
                         collectionId,
                         collectionAction: {
@@ -1929,7 +1926,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: getNextTime(),
                         collectionId,
                         collectionAction: {
@@ -1951,13 +1948,13 @@ const taskSpaceActionTestCases: Array<{
     },
     {
         name: "update name after delete collection",
-        create: ({getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({getNextTime}): TaskActionTestArtifacts => {
             const collectionId = generateId<TaskCollectionId>();
 
             return {
                 actions: [
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: getNextTime(),
                         collectionId,
                         collectionAction: {
@@ -1966,7 +1963,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: getNextTime(),
                         collectionId,
                         collectionAction: {
@@ -1974,7 +1971,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: getNextTime(),
                         collectionId,
                         collectionAction: {
@@ -1997,13 +1994,13 @@ const taskSpaceActionTestCases: Array<{
     },
     {
         name: "delete collection, undelete collection, delete collection",
-        create: ({getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({getNextTime}): TaskActionTestArtifacts => {
             const collectionId = generateId<TaskCollectionId>();
 
             return {
                 actions: [
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: getNextTime(),
                         collectionId,
                         collectionAction: {
@@ -2012,7 +2009,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: getNextTime(),
                         collectionId,
                         collectionAction: {
@@ -2020,7 +2017,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: getNextTime(),
                         collectionId,
                         collectionAction: {
@@ -2028,7 +2025,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: getNextTime(),
                         collectionId,
                         collectionAction: {
@@ -2049,13 +2046,13 @@ const taskSpaceActionTestCases: Array<{
     },
     {
         name: "undelete collection without delete collection",
-        create: ({getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({getNextTime}): TaskActionTestArtifacts => {
             const collectionId = generateId<TaskCollectionId>();
 
             return {
                 actions: [
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: getNextTime(),
                         collectionId,
                         collectionAction: {
@@ -2064,7 +2061,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: getNextTime(),
                         collectionId,
                         collectionAction: {
@@ -2085,7 +2082,7 @@ const taskSpaceActionTestCases: Array<{
     },
     {
         name: "delete collection and undelete collection time conflict",
-        create: ({getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({getNextTime}): TaskActionTestArtifacts => {
             const collectionId = generateId<TaskCollectionId>();
             const createdTime = getNextTime();
             const deletedTime = getNextTime();
@@ -2093,7 +2090,7 @@ const taskSpaceActionTestCases: Array<{
             return {
                 actions: [
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: createdTime,
                         collectionId,
                         collectionAction: {
@@ -2102,7 +2099,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: deletedTime,
                         collectionId,
                         collectionAction: {
@@ -2110,7 +2107,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: deletedTime,
                         collectionId,
                         collectionAction: {
@@ -2131,13 +2128,13 @@ const taskSpaceActionTestCases: Array<{
     },
     {
         name: "undelete collection before delete collection",
-        create: ({getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({getNextTime}): TaskActionTestArtifacts => {
             const collectionId = generateId<TaskCollectionId>();
 
             return {
                 actions: [
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: getNextTime(),
                         collectionId,
                         collectionAction: {
@@ -2146,7 +2143,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: getNextTime(),
                         collectionId,
                         collectionAction: {
@@ -2154,7 +2151,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: getNextTime(),
                         collectionId,
                         collectionAction: {
@@ -2175,7 +2172,7 @@ const taskSpaceActionTestCases: Array<{
     },
     {
         name: "move task in collection",
-        create: ({creator, getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
             const taskId = generateId<TaskId>();
             const collectionId = generateId<TaskCollectionId>();
             const time1 = getNextTime();
@@ -2186,7 +2183,7 @@ const taskSpaceActionTestCases: Array<{
             return {
                 actions: [
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: time1,
                         collectionId,
                         collectionAction: {
@@ -2215,7 +2212,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: time4,
                         collectionId,
                         collectionAction: {
@@ -2249,7 +2246,7 @@ const taskSpaceActionTestCases: Array<{
     },
     {
         name: "move task in collection twice",
-        create: ({creator, getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
             const taskId = generateId<TaskId>();
             const collectionId = generateId<TaskCollectionId>();
             const time1 = getNextTime();
@@ -2260,7 +2257,7 @@ const taskSpaceActionTestCases: Array<{
             return {
                 actions: [
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: time1,
                         collectionId,
                         collectionAction: {
@@ -2289,7 +2286,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: time4,
                         collectionId,
                         collectionAction: {
@@ -2299,7 +2296,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: time4,
                         collectionId,
                         collectionAction: {
@@ -2333,7 +2330,7 @@ const taskSpaceActionTestCases: Array<{
     },
     {
         name: "move then remove task in collection",
-        create: ({creator, getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
             const taskId = generateId<TaskId>();
             const collectionId = generateId<TaskCollectionId>();
             const time1 = getNextTime();
@@ -2345,7 +2342,7 @@ const taskSpaceActionTestCases: Array<{
             return {
                 actions: [
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: time1,
                         collectionId,
                         collectionAction: {
@@ -2374,7 +2371,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: time4,
                         collectionId,
                         collectionAction: {
@@ -2404,7 +2401,7 @@ const taskSpaceActionTestCases: Array<{
     },
     {
         name: "collection task position preserved after removing",
-        create: ({creator, getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
             const taskId = generateId<TaskId>();
             const collectionId = generateId<TaskCollectionId>();
             const time1 = getNextTime();
@@ -2417,7 +2414,7 @@ const taskSpaceActionTestCases: Array<{
             return {
                 actions: [
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: time1,
                         collectionId,
                         collectionAction: {
@@ -2446,7 +2443,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: time4,
                         collectionId,
                         collectionAction: {
@@ -2499,7 +2496,7 @@ const taskSpaceActionTestCases: Array<{
     },
     {
         name: "move task before adding to collection",
-        create: ({creator, getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
             const taskId = generateId<TaskId>();
             const collectionId = generateId<TaskCollectionId>();
             const time1 = getNextTime();
@@ -2510,7 +2507,7 @@ const taskSpaceActionTestCases: Array<{
             return {
                 actions: [
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: time1,
                         collectionId,
                         collectionAction: {
@@ -2529,7 +2526,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: time3,
                         collectionId,
                         collectionAction: {
@@ -2573,13 +2570,13 @@ const taskSpaceActionTestCases: Array<{
     },
     {
         name: "update task collection name",
-        create: ({getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({getNextTime}): TaskActionTestArtifacts => {
             const collectionId = generateId<TaskCollectionId>();
 
             return {
                 actions: [
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: getNextTime(),
                         collectionId,
                         collectionAction: {
@@ -2588,7 +2585,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: getNextTime(),
                         collectionId,
                         collectionAction: {
@@ -2610,13 +2607,13 @@ const taskSpaceActionTestCases: Array<{
     },
     {
         name: "update task collection name twice",
-        create: ({getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({getNextTime}): TaskActionTestArtifacts => {
             const collectionId = generateId<TaskCollectionId>();
 
             return {
                 actions: [
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: getNextTime(),
                         collectionId,
                         collectionAction: {
@@ -2625,7 +2622,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: getNextTime(),
                         collectionId,
                         collectionAction: {
@@ -2634,7 +2631,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: getNextTime(),
                         collectionId,
                         collectionAction: {
@@ -2656,13 +2653,13 @@ const taskSpaceActionTestCases: Array<{
     },
     {
         name: "update task collection access policy",
-        create: ({getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({getNextTime}): TaskActionTestArtifacts => {
             const collectionId = generateId<TaskCollectionId>();
 
             return {
                 actions: [
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: getNextTime(),
                         collectionId,
                         collectionAction: {
@@ -2671,7 +2668,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: getNextTime(),
                         collectionId,
                         collectionAction: {
@@ -2699,13 +2696,13 @@ const taskSpaceActionTestCases: Array<{
     },
     {
         name: "update task collection access policy twice",
-        create: ({getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({getNextTime}): TaskActionTestArtifacts => {
             const collectionId = generateId<TaskCollectionId>();
 
             return {
                 actions: [
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: getNextTime(),
                         collectionId,
                         collectionAction: {
@@ -2714,7 +2711,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: getNextTime(),
                         collectionId,
                         collectionAction: {
@@ -2726,7 +2723,7 @@ const taskSpaceActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTaskCollection",
+                        type: "UpdateCollection",
                         time: getNextTime(),
                         collectionId,
                         collectionAction: {
@@ -2754,7 +2751,7 @@ const taskSpaceActionTestCases: Array<{
     },
     {
         name: "updating task children counts",
-        create: ({creator, getNextTime}): TaskSpaceActionTestArtifacts => {
+        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
             const taskId = generateId<TaskId>();
 
             return {
@@ -2848,25 +2845,25 @@ function permutator<Item>(inputArray: ReadonlyArray<Item>): Array<Array<Item>> {
 }
 
 /**
- * We have a library of `TaskSpaceAction` test cases. This function will run
+ * We have a library of `TaskAction` test cases. This function will run
  * each of our test cases. It will run the test case in every possible order
  * and with duplicates. This way we can test the commutativity and idempotency
- * properties of `TaskSpaceAction`s.
+ * properties of `TaskAction`s.
  *
- * This is in a shared file so we can run it with our OpenSearch
- * `TaskSpaceAction` implementation and our client database `TaskSpaceAction`
- * implementation to verify they have the same implementations.
+ * This is in a shared file so we can run it with our OpenSearch `TaskAction`
+ * implementation and our client database `TaskAction` implementation to verify
+ * they have the same implementations.
  *
- * We do not use this to test committing `TaskSpaceAction`s. The
- * `TaskSpaceAction` commit function is not commutative or idempotent. Once an
- * action has been committed, then we may apply it in any order.
+ * We do not use this to test committing `TaskAction`s. The `TaskAction` commit
+ * function is not commutative or idempotent. Once an action has been
+ * committed, then we may apply it in any order.
  */
-export function testTaskSpaceActionPermutations({
+export function testTaskActionPermutations({
     partitionNumber = 1,
     partitionCount = 1,
     account1,
     account2,
-    applyTaskSpaceAction,
+    applyTaskAction,
     getTask,
     getTaskCollection,
 }: {
@@ -2874,13 +2871,13 @@ export function testTaskSpaceActionPermutations({
     partitionCount?: number;
     account1: AccountModel;
     account2: AccountModel;
-    applyTaskSpaceAction: (action: TaskSpaceAction, next: () => void) => MaybePromise<void>;
+    applyTaskAction: (action: TaskAction, next: () => void) => MaybePromise<void>;
     getTask: (taskId: TaskId) => Promise<TaskTestInterface>;
     getTaskCollection: (collectionId: TaskCollectionId) => Promise<TaskCollectionTestInterface>;
 }) {
     const tests: Array<{describeName: string; testName: string; runTest: () => Promise<void>}> = [];
 
-    for (const testCase of taskSpaceActionTestCases) {
+    for (const testCase of taskActionTestCases) {
         const clock = new HybridLogicalClock(unsynchronizedSystemClock);
 
         // Make sure this function returns a monotonically increasing date to
@@ -2965,10 +2962,7 @@ export function testTaskSpaceActionPermutations({
                         for (const action of actions) {
                             const nextPromiseResolver = createPromiseResolver();
 
-                            const promise = applyTaskSpaceAction(
-                                action,
-                                nextPromiseResolver.resolve,
-                            );
+                            const promise = applyTaskAction(action, nextPromiseResolver.resolve);
                             promises.push(promise);
 
                             await Promise.race([promise, nextPromiseResolver.promise]);
@@ -3072,7 +3066,7 @@ export function testTaskSpaceActionPermutations({
 
                                     const createAction = iterableFirst(
                                         filterMapIterable(actions, action =>
-                                            action.type === "UpdateTaskCollection" &&
+                                            action.type === "UpdateCollection" &&
                                             action.collectionId === expectation.collectionId &&
                                             action.collectionAction.type === "Create"
                                                 ? {

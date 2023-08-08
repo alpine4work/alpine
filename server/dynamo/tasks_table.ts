@@ -35,18 +35,18 @@ import {generateId} from "~/shared/id/id.js";
 import {
     AccountId,
     SpaceId,
+    TaskActionTransactionId,
     TaskCollectionId,
     TaskId,
-    TaskSpaceActionTransactionId,
 } from "~/shared/id/types/id_types.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_action.js";
 import {
-    TaskSpaceAction,
-    TaskSpaceActionSchema,
-    getTaskSpaceActionLabel,
-} from "~/shared/tasks/actions/task_space_action.js";
+    TaskAction,
+    TaskActionSchema,
+    getTaskActionLabel,
+} from "~/shared/tasks/actions/task_action.js";
+import {TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_task_action.js";
 import {
     TaskCollectionAccessLevel,
     TaskCollectionAccessPolicyRegister,
@@ -96,14 +96,13 @@ const TaskActionsTable = DynamoTableSchema.new({
                          * An `Id` for uniquely representing an action. Also used to disambiguate
                          * actions with identical `committedTime`s.
                          */
-                        actionTransactionId:
-                            DynamoKeyAttributeSchema.id<TaskSpaceActionTransactionId>(),
+                        actionTransactionId: DynamoKeyAttributeSchema.id<TaskActionTransactionId>(),
                     },
                     attributes: Schema.object({
                         /**
                          * Actions which should always be atomically applied together.
                          */
-                        actions: Schema.array(TaskSpaceActionSchema),
+                        actions: Schema.array(TaskActionSchema),
                     }),
                 },
             ],
@@ -274,11 +273,11 @@ type TaskCollectionEssentialAttributesItem = DynamoTableItemType<
     "EssentialAttributes"
 >;
 
-export const commitTaskSpaceActionTransactionBeforeExecuteTestCheckpoint =
+export const commitTaskActionTransactionBeforeExecuteTestCheckpoint =
     new TestCheckpoint<AccountId>();
 
 /**
- * Commit a transaction of `TaskSpaceAction`s. Authorizes that each action is
+ * Commit a transaction of `TaskAction`s. Authorizes that each action is
  * valid before committing it.
  *
  * When actions are applied to some view they are commutative and idempotent.
@@ -295,21 +294,24 @@ export const commitTaskSpaceActionTransactionBeforeExecuteTestCheckpoint =
  * their commutative property) multiple times (thanks to their idempotent
  * property).
  */
-export function commitTaskSpaceActionTransaction(
+export function commitTaskActionTransaction(
     context: AppSessionActionContext,
     spaceId: SpaceId,
-    actions: ReadonlyArray<TaskSpaceAction>,
-): Promise<{extraActions: ReadonlyArray<TaskSpaceAction>}> {
-    return context.tracer.withSpan("commitTaskSpaceActionTransaction", async (context, span) => {
+    actions: ReadonlyArray<TaskAction>,
+): Promise<{extraActions: ReadonlyArray<TaskAction>}> {
+    return context.tracer.withSpan("commitTaskActionTransaction", async (context, span) => {
         span.addData({
             tasks: {
-                actions: actions.map(getTaskSpaceActionLabel).join(","),
+                actions: actions.map(getTaskActionLabel).join(","),
                 actionCount: actions.length,
             },
         });
 
-        const {actionTransactionId, extraActions} =
-            await TaskSpaceActionTransactionCommitState.commit(context, spaceId, actions);
+        const {actionTransactionId, extraActions} = await TaskActionTransactionCommitState.commit(
+            context,
+            spaceId,
+            actions,
+        );
 
         span.addData({
             tasks: {
@@ -323,7 +325,7 @@ export function commitTaskSpaceActionTransaction(
         if (extraActions.length > 0) {
             span.addData({
                 tasks: {
-                    actions: finalActions.map(getTaskSpaceActionLabel).join(","),
+                    actions: finalActions.map(getTaskActionLabel).join(","),
                     actionCount: finalActions.length,
                 },
             });
@@ -331,7 +333,7 @@ export function commitTaskSpaceActionTransaction(
 
         // After successfully committing out action transaction, in the background
         // index the action transaction.
-        context.tasks.indexTaskSpaceActionTransactionAssumingItsCommitted(
+        context.tasks.indexActionTransactionAssumingItsCommitted(
             spaceId,
             actionTransactionId,
             finalActions,
@@ -342,12 +344,12 @@ export function commitTaskSpaceActionTransaction(
 }
 
 /**
- * Abstraction for managing state during a `commitTaskSpaceActionTransaction()`
+ * Abstraction for managing state during a `commitTaskActionTransaction()`
  * call. A task may be updated multiple times within a transaction so we need
  * to keep track of previous writes and return them if another action in the
  * transaction attempts to read again.
  */
-class TaskSpaceActionTransactionCommitState {
+class TaskActionTransactionCommitState {
     private readonly _context: AppSessionActionContext;
     private readonly _spaceId: SpaceId;
     private readonly _startTime = Date.now();
@@ -390,11 +392,11 @@ class TaskSpaceActionTransactionCommitState {
     public static commit(
         context: AppSessionActionContext,
         spaceId: SpaceId,
-        actions: ReadonlyArray<TaskSpaceAction>,
+        actions: ReadonlyArray<TaskAction>,
     ): Promise<{
-        actionTransactionId: TaskSpaceActionTransactionId;
+        actionTransactionId: TaskActionTransactionId;
         committedTime: Date;
-        extraActions: ReadonlyArray<TaskSpaceAction>;
+        extraActions: ReadonlyArray<TaskAction>;
     }> {
         return context.dynamo.retryTransaction(async context => {
             await authorizeSpaceAccess(context, spaceId);
@@ -408,12 +410,12 @@ class TaskSpaceActionTransactionCommitState {
                 maxActionTime = maxHybridLogicalTime(maxActionTime, actions[i]!.time);
             }
 
-            const state = new TaskSpaceActionTransactionCommitState(context, spaceId);
+            const state = new TaskActionTransactionCommitState(context, spaceId);
 
-            await actuallyCommitTaskSpaceActionTransaction(state, spaceId, actions);
+            await actuallyCommitTaskActionTransaction(state, spaceId, actions);
 
             const transactionEntries: Array<DynamoTransactionEntry> = [];
-            const extraActions: Array<TaskSpaceAction> = [];
+            const extraActions: Array<TaskAction> = [];
 
             for (const transactionEntry of state._transactionEntryByTaskId.values()) {
                 switch (transactionEntry.action) {
@@ -495,7 +497,7 @@ class TaskSpaceActionTransactionCommitState {
                 );
             }
 
-            await commitTaskSpaceActionTransactionBeforeExecuteTestCheckpoint.waitForTest(
+            await commitTaskActionTransactionBeforeExecuteTestCheckpoint.waitForTest(
                 context.actor.getAccountId(),
             );
 
@@ -504,7 +506,7 @@ class TaskSpaceActionTransactionCommitState {
                 sortRangeType: "ActionTransaction",
                 spaceId,
                 committedTime: new Date(),
-                actionTransactionId: generateId<TaskSpaceActionTransactionId>(),
+                actionTransactionId: generateId<TaskActionTransactionId>(),
                 actions: [...actions, ...extraActions],
             };
 
@@ -809,13 +811,13 @@ class TaskSpaceActionTransactionCommitState {
     }
 }
 
-async function actuallyCommitTaskSpaceActionTransaction(
+async function actuallyCommitTaskActionTransaction(
     // We intentionally don't pass in `context` since we want all DynamoDB access
     // to go through this `state` object. That way we force reads to go through our
     // local cache.
-    state: TaskSpaceActionTransactionCommitState,
+    state: TaskActionTransactionCommitState,
     spaceId: SpaceId,
-    actionTransaction: ReadonlyArray<TaskSpaceAction>,
+    actionTransaction: ReadonlyArray<TaskAction>,
 ) {
     const authorizeTaskItemAccess = async (
         taskItem: TaskEssentialAttributesItem,
@@ -1424,7 +1426,7 @@ async function actuallyCommitTaskSpaceActionTransaction(
                 }
                 break;
             }
-            case "UpdateTaskCollection": {
+            case "UpdateCollection": {
                 const {collectionId, collectionAction} = action;
 
                 switch (collectionAction.type) {
@@ -1569,7 +1571,7 @@ async function actuallyCommitTaskSpaceActionTransaction(
                 }
                 break;
             }
-            case "UpdateTaskNotepadPage": {
+            case "UpdateNotepadPage": {
                 const {notepadPageId, notepadPageAction} = action;
 
                 if (action.accountId !== state.getActorAccountId())

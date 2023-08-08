@@ -32,7 +32,10 @@ import {createEnumIntegerMapping} from "~/shared/helpers/string/create_enum_inte
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {TaskDueDateRegister, TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_action.js";
+import {
+    TaskDueDateRegister,
+    TaskParentTaskIdRegister,
+} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskAssignee, TaskAssigneeRegister} from "~/shared/tasks/task_assignee.js";
 import {
     TaskAssigneeStatus,

@@ -2,8 +2,8 @@ import {CalendarDate} from "@internationalized/date";
 import {addHours} from "date-fns";
 import {getSpacesTableForTest} from "~/server/dynamo/spaces_table.js";
 import {
-    commitTaskSpaceActionTransaction,
-    commitTaskSpaceActionTransactionBeforeExecuteTestCheckpoint,
+    commitTaskActionTransaction,
+    commitTaskActionTransactionBeforeExecuteTestCheckpoint,
 } from "~/server/dynamo/tasks_table.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
 import {
@@ -29,7 +29,7 @@ import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.j
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {generateId} from "~/shared/id/id.js";
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
-import {TaskSpaceAction} from "~/shared/tasks/actions/task_space_action.js";
+import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
@@ -147,9 +147,9 @@ async function createPublicTask(
     const taskId = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session), spaceId, [
+    await commitTaskActionTransaction(context.action(session), spaceId, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -189,7 +189,7 @@ async function createPublicTask(
 }
 
 test("can create a task", async () => {
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -205,7 +205,7 @@ test("can create a task", async () => {
 
 test("can't create task in space you don't have access to", async () => {
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), otherSpace.id, [
+        commitTaskActionTransaction(context.action(session1), otherSpace.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -223,7 +223,7 @@ test("can't create task in space you don't have access to", async () => {
 test("can't create a task twice", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -237,7 +237,7 @@ test("can't create a task twice", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -254,7 +254,7 @@ test("can't create a task twice", async () => {
 
 test("can't create a task with the wrong account as the creator", async () => {
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: getUnreasonableTime(),
@@ -272,7 +272,7 @@ test("can't create a task with the wrong account as the creator", async () => {
 test("can delete a task", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -285,7 +285,7 @@ test("can delete a task", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -301,7 +301,7 @@ test("can't delete a task that doesn't exist", async () => {
     const taskId = generateId<TaskId>();
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -317,7 +317,7 @@ test("can't delete a task that doesn't exist", async () => {
 test("can't delete a task twice", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -330,7 +330,7 @@ test("can't delete a task twice", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -342,7 +342,7 @@ test("can't delete a task twice", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -360,7 +360,7 @@ test("can't delete a task with the same time as task creation", async () => {
 
     const createdTime = clock.now();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: createdTime,
@@ -374,7 +374,7 @@ test("can't delete a task with the same time as task creation", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: createdTime,
@@ -392,7 +392,7 @@ test("can't delete a task with a time earlier than task creation", async () => {
 
     const deletedTime = clock.now();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -406,7 +406,7 @@ test("can't delete a task with a time earlier than task creation", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: deletedTime,
@@ -422,7 +422,7 @@ test("can't delete a task with a time earlier than task creation", async () => {
 test("can't delete a task with an unreasonable time", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -436,7 +436,7 @@ test("can't delete a task with an unreasonable time", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: getUnreasonableTime(),
@@ -452,7 +452,7 @@ test("can't delete a task with an unreasonable time", async () => {
 test("can't delete a task that's not yours", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -466,7 +466,7 @@ test("can't delete a task that's not yours", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -483,9 +483,9 @@ test("can delete a task that's in a collection you specifically can edit", async
     const taskId = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -521,7 +521,7 @@ test("can delete a task that's in a collection you specifically can edit", async
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -537,9 +537,9 @@ test("can't delete a task that's only in a collection you specifically can view"
     const taskId = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -576,7 +576,7 @@ test("can't delete a task that's only in a collection you specifically can view"
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -592,7 +592,7 @@ test("can't delete a task that's only in a collection you specifically can view"
 test("can delete a task that's in a collection you can edit by default", async () => {
     const {taskId} = await createPublicTask(session1, space.id);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -608,7 +608,7 @@ test("can't delete a task that's only in a collection you can view by default", 
     const {taskId} = await createPublicTask(session1, space.id, "View");
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -625,7 +625,7 @@ test("can't delete a task that's only in a collection space accounts can edit by
     const {taskId} = await createPublicTask(session1, space.id);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(otherSession), space.id, [
+        commitTaskActionTransaction(context.action(otherSession), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -641,7 +641,7 @@ test("can't delete a task that's only in a collection space accounts can edit by
 test("can undelete a task", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -654,7 +654,7 @@ test("can undelete a task", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -665,7 +665,7 @@ test("can undelete a task", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -680,7 +680,7 @@ test("can undelete a task", async () => {
 test("can undelete a task twice if there's another delete", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -693,7 +693,7 @@ test("can undelete a task twice if there's another delete", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -704,7 +704,7 @@ test("can undelete a task twice if there's another delete", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -715,7 +715,7 @@ test("can undelete a task twice if there's another delete", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -726,7 +726,7 @@ test("can undelete a task twice if there's another delete", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -741,7 +741,7 @@ test("can undelete a task twice if there's another delete", async () => {
 test("can undelete a task twice if there's another delete in one transaction", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -790,7 +790,7 @@ test("can undelete a task twice if there's another delete in one transaction", a
 test("can't undelete a task twice", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -803,7 +803,7 @@ test("can't undelete a task twice", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -814,7 +814,7 @@ test("can't undelete a task twice", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -826,7 +826,7 @@ test("can't undelete a task twice", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -843,7 +843,7 @@ test("can't a task that doesn't exist", async () => {
     const taskId = generateId<TaskId>();
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -859,7 +859,7 @@ test("can't a task that doesn't exist", async () => {
 test("can't undelete a task with the same time as the deletion time", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -874,7 +874,7 @@ test("can't undelete a task with the same time as the deletion time", async () =
 
     const deletedTime = clock.now();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: deletedTime,
@@ -886,7 +886,7 @@ test("can't undelete a task with the same time as the deletion time", async () =
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: deletedTime,
@@ -902,7 +902,7 @@ test("can't undelete a task with the same time as the deletion time", async () =
 test("can't undelete a task with a time before the deletion time", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -917,7 +917,7 @@ test("can't undelete a task with a time before the deletion time", async () => {
 
     const undeletedTime = clock.now();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -929,7 +929,7 @@ test("can't undelete a task with a time before the deletion time", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: undeletedTime,
@@ -945,7 +945,7 @@ test("can't undelete a task with a time before the deletion time", async () => {
 test("can't undelete a task with an unreasonable time", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -958,7 +958,7 @@ test("can't undelete a task with an unreasonable time", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -970,7 +970,7 @@ test("can't undelete a task with an unreasonable time", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: getUnreasonableTime(),
@@ -986,7 +986,7 @@ test("can't undelete a task with an unreasonable time", async () => {
 test("can't undelete a task that isn't yours", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -999,7 +999,7 @@ test("can't undelete a task that isn't yours", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1011,7 +1011,7 @@ test("can't undelete a task that isn't yours", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -1027,7 +1027,7 @@ test("can't undelete a task that isn't yours", async () => {
 test("can't undelete a task in a collection you don't have edit access to", async () => {
     const {taskId} = await createPublicTask(session1, space.id, "View");
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1039,7 +1039,7 @@ test("can't undelete a task in a collection you don't have edit access to", asyn
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -1055,7 +1055,7 @@ test("can't undelete a task in a collection you don't have edit access to", asyn
 test("can undelete a task in a collection you have edit access to", async () => {
     const {taskId} = await createPublicTask(session1, space.id);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1066,7 +1066,7 @@ test("can undelete a task in a collection you have edit access to", async () => 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1081,7 +1081,7 @@ test("can undelete a task in a collection you have edit access to", async () => 
 test("can update a task's title", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1094,7 +1094,7 @@ test("can update a task's title", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1106,7 +1106,7 @@ test("can update a task's title", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1118,7 +1118,7 @@ test("can update a task's title", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1134,7 +1134,7 @@ test("can update a task's title", async () => {
 test("can update a task's title in any order", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1147,7 +1147,7 @@ test("can update a task's title in any order", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1159,7 +1159,7 @@ test("can update a task's title in any order", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1171,7 +1171,7 @@ test("can update a task's title in any order", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1188,7 +1188,7 @@ test("can't update a task title for a task that doesn't exist", async () => {
     const taskId = generateId<TaskId>();
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -1205,7 +1205,7 @@ test("can't update a task title for a task that doesn't exist", async () => {
 test("can't update a deleted task's title", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1218,7 +1218,7 @@ test("can't update a deleted task's title", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1230,7 +1230,7 @@ test("can't update a deleted task's title", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -1247,7 +1247,7 @@ test("can't update a deleted task's title", async () => {
 test("can't update a task title that's not yours", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1261,7 +1261,7 @@ test("can't update a task title that's not yours", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -1279,9 +1279,9 @@ test("can update a task's title that's in a collection you can edit", async () =
     const taskId = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -1317,7 +1317,7 @@ test("can update a task's title that's in a collection you can edit", async () =
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1334,9 +1334,9 @@ test("can't update a task's title that's only in a collection you specifically c
     const taskId = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -1373,7 +1373,7 @@ test("can't update a task's title that's only in a collection you specifically c
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -1391,9 +1391,9 @@ test("can add a task to a collection", async () => {
     const taskId = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -1416,7 +1416,7 @@ test("can add a task to a collection", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1434,9 +1434,9 @@ test("can't add a task you don't have access to to a collection", async () => {
     const taskId = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -1449,7 +1449,7 @@ test("can't add a task you don't have access to to a collection", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1463,7 +1463,7 @@ test("can't add a task you don't have access to to a collection", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -1482,9 +1482,9 @@ test("can't add a task to a collection you don't have access to", async () => {
     const taskId = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -1497,7 +1497,7 @@ test("can't add a task to a collection you don't have access to", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1511,7 +1511,7 @@ test("can't add a task to a collection you don't have access to", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -1531,9 +1531,9 @@ test("can add a task that's not yours to a collection", async () => {
     const collectionId1 = generateId<TaskCollectionId>();
     const collectionId2 = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collectionId1,
             collectionAction: {
@@ -1546,9 +1546,9 @@ test("can add a task that's not yours to a collection", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collectionId2,
             collectionAction: {
@@ -1584,7 +1584,7 @@ test("can add a task that's not yours to a collection", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1603,9 +1603,9 @@ test("can't add a task to a collection you don't have edit access to", async () 
     const collectionId1 = generateId<TaskCollectionId>();
     const collectionId2 = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collectionId1,
             collectionAction: {
@@ -1620,7 +1620,7 @@ test("can't add a task to a collection you don't have edit access to", async () 
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collectionId2,
             collectionAction: {
@@ -1657,7 +1657,7 @@ test("can't add a task to a collection you don't have edit access to", async () 
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -1671,7 +1671,7 @@ test("can't add a task to a collection you don't have edit access to", async () 
         ]),
     ).rejects.toThrow(PermissionDeniedError);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1689,9 +1689,9 @@ test("can't add a task to a collection with an unreasonable update time", async 
     const taskId = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -1715,7 +1715,7 @@ test("can't add a task to a collection with an unreasonable update time", async 
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: getUnreasonableTime(),
@@ -1734,9 +1734,9 @@ test("can delete a task from a collection", async () => {
     const taskId = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -1769,7 +1769,7 @@ test("can delete a task from a collection", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1786,9 +1786,9 @@ test("can't delete a task from a collection with an unreasonable time", async ()
     const taskId = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -1822,7 +1822,7 @@ test("can't delete a task from a collection with an unreasonable time", async ()
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: getUnreasonableTime(),
@@ -1840,9 +1840,9 @@ test("can't delete a task from a collection you don't have access to", async () 
     const taskId = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -1876,7 +1876,7 @@ test("can't delete a task from a collection you don't have access to", async () 
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -1894,9 +1894,9 @@ test("can't delete a task from a collection you don't have edit access to", asyn
     const taskId = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -1933,7 +1933,7 @@ test("can't delete a task from a collection you don't have edit access to", asyn
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -1951,9 +1951,9 @@ test("can delete a task from a collection you have edit access to", async () => 
     const taskId = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -1989,7 +1989,7 @@ test("can delete a task from a collection you have edit access to", async () => 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -2005,9 +2005,9 @@ test("can delete a task from a collection you have edit access to", async () => 
 test("can create a collection", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2024,9 +2024,9 @@ test("can create a collection", async () => {
 test("can't create a collection twice", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2040,9 +2040,9 @@ test("can't create a collection twice", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: clock.now(),
                 collectionId,
                 collectionAction: {
@@ -2061,9 +2061,9 @@ test("can't create a collection with the wrong creator", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: clock.now(),
                 collectionId,
                 collectionAction: {
@@ -2084,9 +2084,9 @@ test("can't create a collection with an unreasonable created time", async () => 
     const collectionId = generateId<TaskCollectionId>();
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: getUnreasonableTime(),
                 collectionId,
                 collectionAction: {
@@ -2105,9 +2105,9 @@ test("can't create a collection without our account as a manager", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: clock.now(),
                 collectionId,
                 collectionAction: {
@@ -2125,9 +2125,9 @@ test("can't create a collection without our account as a manager", async () => {
 test("can delete a collection", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2140,9 +2140,9 @@ test("can delete a collection", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2156,9 +2156,9 @@ test("can't delete a collection that doesn't exist", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: clock.now(),
                 collectionId,
                 collectionAction: {
@@ -2172,9 +2172,9 @@ test("can't delete a collection that doesn't exist", async () => {
 test("can't delete a collection twice", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2187,9 +2187,9 @@ test("can't delete a collection twice", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2199,9 +2199,9 @@ test("can't delete a collection twice", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: clock.now(),
                 collectionId,
                 collectionAction: {
@@ -2217,9 +2217,9 @@ test("can't delete a collection with the created time", async () => {
 
     const createdTime = clock.now();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: createdTime,
             collectionId,
             collectionAction: {
@@ -2233,9 +2233,9 @@ test("can't delete a collection with the created time", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: createdTime,
                 collectionId,
                 collectionAction: {
@@ -2251,9 +2251,9 @@ test("can't delete a collection with a time before the created time", async () =
 
     const deletedTime = clock.now();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2267,9 +2267,9 @@ test("can't delete a collection with a time before the created time", async () =
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: deletedTime,
                 collectionId,
                 collectionAction: {
@@ -2283,9 +2283,9 @@ test("can't delete a collection with a time before the created time", async () =
 test("can't delete a collection with an unreasonable deleted time", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2299,9 +2299,9 @@ test("can't delete a collection with an unreasonable deleted time", async () => 
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: getUnreasonableTime(),
                 collectionId,
                 collectionAction: {
@@ -2315,9 +2315,9 @@ test("can't delete a collection with an unreasonable deleted time", async () => 
 test("can't delete a collection you don't have access to", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2331,9 +2331,9 @@ test("can't delete a collection you don't have access to", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: clock.now(),
                 collectionId,
                 collectionAction: {
@@ -2347,9 +2347,9 @@ test("can't delete a collection you don't have access to", async () => {
 test("can't delete a collection you only have access to as an editor", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2366,9 +2366,9 @@ test("can't delete a collection you only have access to as an editor", async () 
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: clock.now(),
                 collectionId,
                 collectionAction: {
@@ -2382,9 +2382,9 @@ test("can't delete a collection you only have access to as an editor", async () 
 test("can delete a collection you have access to as a manager", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2400,9 +2400,9 @@ test("can delete a collection you have access to as a manager", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2415,9 +2415,9 @@ test("can delete a collection you have access to as a manager", async () => {
 test("can undelete a collection", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2430,9 +2430,9 @@ test("can undelete a collection", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2441,9 +2441,9 @@ test("can undelete a collection", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2457,9 +2457,9 @@ test("can't undelete a collection that doesn't exist", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: clock.now(),
                 collectionId,
                 collectionAction: {
@@ -2473,9 +2473,9 @@ test("can't undelete a collection that doesn't exist", async () => {
 test("can undelete a collection twice if there's another delete", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2488,9 +2488,9 @@ test("can undelete a collection twice if there's another delete", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2499,9 +2499,9 @@ test("can undelete a collection twice if there's another delete", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2510,9 +2510,9 @@ test("can undelete a collection twice if there's another delete", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2521,9 +2521,9 @@ test("can undelete a collection twice if there's another delete", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2536,9 +2536,9 @@ test("can undelete a collection twice if there's another delete", async () => {
 test("can undelete a collection twice if there's another delete in one transaction", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2550,7 +2550,7 @@ test("can undelete a collection twice if there's another delete in one transacti
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2558,7 +2558,7 @@ test("can undelete a collection twice if there's another delete in one transacti
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2566,7 +2566,7 @@ test("can undelete a collection twice if there's another delete in one transacti
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2574,7 +2574,7 @@ test("can undelete a collection twice if there's another delete in one transacti
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2587,9 +2587,9 @@ test("can undelete a collection twice if there's another delete in one transacti
 test("can't undelete a collection twice", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2602,9 +2602,9 @@ test("can't undelete a collection twice", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2613,9 +2613,9 @@ test("can't undelete a collection twice", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2625,9 +2625,9 @@ test("can't undelete a collection twice", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: clock.now(),
                 collectionId,
                 collectionAction: {
@@ -2641,9 +2641,9 @@ test("can't undelete a collection twice", async () => {
 test("can't undelete a collection with the deleted time", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2658,9 +2658,9 @@ test("can't undelete a collection with the deleted time", async () => {
 
     const deletedTime = clock.now();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: deletedTime,
             collectionId,
             collectionAction: {
@@ -2670,9 +2670,9 @@ test("can't undelete a collection with the deleted time", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: deletedTime,
                 collectionId,
                 collectionAction: {
@@ -2686,9 +2686,9 @@ test("can't undelete a collection with the deleted time", async () => {
 test("can't undelete a collection a time before the deleted time", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2703,9 +2703,9 @@ test("can't undelete a collection a time before the deleted time", async () => {
 
     const undeletedTime = clock.now();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2715,9 +2715,9 @@ test("can't undelete a collection a time before the deleted time", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: undeletedTime,
                 collectionId,
                 collectionAction: {
@@ -2731,9 +2731,9 @@ test("can't undelete a collection a time before the deleted time", async () => {
 test("can't undelete a collection with an unreasonable time", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2746,9 +2746,9 @@ test("can't undelete a collection with an unreasonable time", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2758,9 +2758,9 @@ test("can't undelete a collection with an unreasonable time", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: getUnreasonableTime(),
                 collectionId,
                 collectionAction: {
@@ -2774,9 +2774,9 @@ test("can't undelete a collection with an unreasonable time", async () => {
 test("can't undelete a collection you don't have access to", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2788,7 +2788,7 @@ test("can't undelete a collection you don't have access to", async () => {
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2798,9 +2798,9 @@ test("can't undelete a collection you don't have access to", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: clock.now(),
                 collectionId,
                 collectionAction: {
@@ -2814,9 +2814,9 @@ test("can't undelete a collection you don't have access to", async () => {
 test("can't undelete a collection you only have access to as an editor", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2831,7 +2831,7 @@ test("can't undelete a collection you only have access to as an editor", async (
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2841,9 +2841,9 @@ test("can't undelete a collection you only have access to as an editor", async (
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: clock.now(),
                 collectionId,
                 collectionAction: {
@@ -2857,9 +2857,9 @@ test("can't undelete a collection you only have access to as an editor", async (
 test("can undelete a collection you have access to as a manager", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2874,7 +2874,7 @@ test("can undelete a collection you have access to as a manager", async () => {
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2883,9 +2883,9 @@ test("can undelete a collection you have access to as a manager", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2898,9 +2898,9 @@ test("can undelete a collection you have access to as a manager", async () => {
 test("can update a collection's name", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2913,9 +2913,9 @@ test("can update a collection's name", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2930,9 +2930,9 @@ test("can't update a collection name for a collection that doesn't exist", async
     const collectionId = generateId<TaskCollectionId>();
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: clock.now(),
                 collectionId,
                 collectionAction: {
@@ -2947,9 +2947,9 @@ test("can't update a collection name for a collection that doesn't exist", async
 test("can't update a deleted collection's title", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2962,9 +2962,9 @@ test("can't update a deleted collection's title", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -2974,9 +2974,9 @@ test("can't update a deleted collection's title", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: clock.now(),
                 collectionId,
                 collectionAction: {
@@ -2991,9 +2991,9 @@ test("can't update a deleted collection's title", async () => {
 test("can't update a collection name that's not yours", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -3007,9 +3007,9 @@ test("can't update a collection name that's not yours", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: clock.now(),
                 collectionId,
                 collectionAction: {
@@ -3024,9 +3024,9 @@ test("can't update a collection name that's not yours", async () => {
 test("can't update a collection name with an unreasonable time", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -3040,9 +3040,9 @@ test("can't update a collection name with an unreasonable time", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: getUnreasonableTime(),
                 collectionId,
                 collectionAction: {
@@ -3057,9 +3057,9 @@ test("can't update a collection name with an unreasonable time", async () => {
 test("can't update a collection name you don't have access to", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -3073,9 +3073,9 @@ test("can't update a collection name you don't have access to", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: clock.now(),
                 collectionId,
                 collectionAction: {
@@ -3090,9 +3090,9 @@ test("can't update a collection name you don't have access to", async () => {
 test("can't update a collection name you only have access to as an editor", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -3109,9 +3109,9 @@ test("can't update a collection name you only have access to as an editor", asyn
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: clock.now(),
                 collectionId,
                 collectionAction: {
@@ -3126,9 +3126,9 @@ test("can't update a collection name you only have access to as an editor", asyn
 test("can update a collection name you have access to as a manager", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -3144,9 +3144,9 @@ test("can update a collection name you have access to as a manager", async () =>
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -3160,9 +3160,9 @@ test("can update a collection name you have access to as a manager", async () =>
 test("can update a collection's access policy", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -3175,9 +3175,9 @@ test("can update a collection's access policy", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -3198,9 +3198,9 @@ test("can't update a collection access policy for a collection that doesn't exis
     const collectionId = generateId<TaskCollectionId>();
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: clock.now(),
                 collectionId,
                 collectionAction: {
@@ -3221,9 +3221,9 @@ test("can't update a collection access policy for a collection that doesn't exis
 test("can't update a deleted collection's access policy", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -3236,9 +3236,9 @@ test("can't update a deleted collection's access policy", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -3248,9 +3248,9 @@ test("can't update a deleted collection's access policy", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: clock.now(),
                 collectionId,
                 collectionAction: {
@@ -3271,9 +3271,9 @@ test("can't update a deleted collection's access policy", async () => {
 test("can't update a collection access policy that's not yours", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -3287,9 +3287,9 @@ test("can't update a collection access policy that's not yours", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: clock.now(),
                 collectionId,
                 collectionAction: {
@@ -3310,9 +3310,9 @@ test("can't update a collection access policy that's not yours", async () => {
 test("can't update a collection access policy with an unreasonable time", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -3326,9 +3326,9 @@ test("can't update a collection access policy with an unreasonable time", async 
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: getUnreasonableTime(),
                 collectionId,
                 collectionAction: {
@@ -3349,9 +3349,9 @@ test("can't update a collection access policy with an unreasonable time", async 
 test("can't update a collection access policy you don't have access to", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -3365,9 +3365,9 @@ test("can't update a collection access policy you don't have access to", async (
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: clock.now(),
                 collectionId,
                 collectionAction: {
@@ -3388,9 +3388,9 @@ test("can't update a collection access policy you don't have access to", async (
 test("can't update a collection access policy you only have access to as an editor", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -3407,9 +3407,9 @@ test("can't update a collection access policy you only have access to as an edit
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: clock.now(),
                 collectionId,
                 collectionAction: {
@@ -3430,9 +3430,9 @@ test("can't update a collection access policy you only have access to as an edit
 test("can update a collection access policy you have access to as a manager", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -3448,9 +3448,9 @@ test("can update a collection access policy you have access to as a manager", as
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -3470,9 +3470,9 @@ test("can update a collection access policy you have access to as a manager", as
 test("can't update a collection access policy with no manage grants", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -3489,9 +3489,9 @@ test("can't update a collection access policy with no manage grants", async () =
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: clock.now(),
                 collectionId,
                 collectionAction: {
@@ -3513,9 +3513,9 @@ test("can't update a collection access policy with no manage grants", async () =
     );
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: clock.now(),
                 collectionId,
                 collectionAction: {
@@ -3533,9 +3533,9 @@ test("can't update a collection access policy with no manage grants", async () =
         ),
     );
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -3552,9 +3552,9 @@ test("can't update a collection access policy with no manage grants", async () =
 test("can update a collection access policy to remove access from yourself", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -3570,9 +3570,9 @@ test("can update a collection access policy to remove access from yourself", asy
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -3586,9 +3586,9 @@ test("can update a collection access policy to remove access from yourself", asy
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: clock.now(),
                 collectionId,
                 collectionAction: {
@@ -3609,11 +3609,11 @@ test("can update a collection access policy to remove access from yourself", asy
 test("can't create task twice race condition", async () => {
     const taskId = generateId<TaskId>();
 
-    const pausePromise = commitTaskSpaceActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
+    const pausePromise = commitTaskActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
         session1.accountId,
     );
 
-    const commit1Promise = commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    const commit1Promise = commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -3628,7 +3628,7 @@ test("can't create task twice race condition", async () => {
 
     const {unpause} = await pausePromise;
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -3649,13 +3649,13 @@ test("can't create task twice race condition", async () => {
 test("can't create collection twice race condition", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    const pausePromise = commitTaskSpaceActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
+    const pausePromise = commitTaskActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
         session1.accountId,
     );
 
-    const commit1Promise = commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    const commit1Promise = commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -3670,9 +3670,9 @@ test("can't create collection twice race condition", async () => {
 
     const {unpause} = await pausePromise;
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -3696,9 +3696,9 @@ test("can update task when collection you have access to is removed in a race co
     const taskId = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -3734,7 +3734,7 @@ test("can update task when collection you have access to is removed in a race co
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -3746,11 +3746,11 @@ test("can update task when collection you have access to is removed in a race co
         },
     ]);
 
-    const pausePromise = commitTaskSpaceActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
+    const pausePromise = commitTaskActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
         session2.accountId,
     );
 
-    const commitPromise = commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    const commitPromise = commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -3764,7 +3764,7 @@ test("can update task when collection you have access to is removed in a race co
 
     const {unpause} = await pausePromise;
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -3787,9 +3787,9 @@ test("can update task when collection you have access to removes your access in 
     const taskId = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -3825,7 +3825,7 @@ test("can update task when collection you have access to removes your access in 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -3837,11 +3837,11 @@ test("can update task when collection you have access to removes your access in 
         },
     ]);
 
-    const pausePromise = commitTaskSpaceActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
+    const pausePromise = commitTaskActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
         session2.accountId,
     );
 
-    const commitPromise = commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    const commitPromise = commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -3855,9 +3855,9 @@ test("can update task when collection you have access to removes your access in 
 
     const {unpause} = await pausePromise;
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -3881,7 +3881,7 @@ test("can update task when collection you have access to removes your access in 
 test("can update task due date", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -3894,7 +3894,7 @@ test("can update task due date", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -3910,7 +3910,7 @@ test("can update task due date", async () => {
 test("can't update task due date with unreasonable updated time", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -3924,7 +3924,7 @@ test("can't update task due date with unreasonable updated time", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: getUnreasonableTime(),
@@ -3941,7 +3941,7 @@ test("can't update task due date with unreasonable updated time", async () => {
 test("can update task priority", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -3954,7 +3954,7 @@ test("can update task priority", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -3970,7 +3970,7 @@ test("can update task priority", async () => {
 test("can't update priority with unreasonable updated time", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -3984,7 +3984,7 @@ test("can't update priority with unreasonable updated time", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: getUnreasonableTime(),
@@ -4002,7 +4002,7 @@ test("can update task parent", async () => {
     const taskId1 = generateId<TaskId>();
     const taskId2 = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4015,7 +4015,7 @@ test("can update task parent", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4028,7 +4028,7 @@ test("can update task parent", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4045,7 +4045,7 @@ test("can't update task parent with unreasonable update time", async () => {
     const taskId1 = generateId<TaskId>();
     const taskId2 = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4058,7 +4058,7 @@ test("can't update task parent with unreasonable update time", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4072,7 +4072,7 @@ test("can't update task parent with unreasonable update time", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: getUnreasonableTime(),
@@ -4090,7 +4090,7 @@ test("can update task parent in one transaction", async () => {
     const taskId1 = generateId<TaskId>();
     const taskId2 = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4127,7 +4127,7 @@ test("can update task parent in two transactions (scenario 1)", async () => {
     const taskId1 = generateId<TaskId>();
     const taskId2 = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4150,7 +4150,7 @@ test("can update task parent in two transactions (scenario 1)", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4167,7 +4167,7 @@ test("can update task parent in two transactions (scenario 2)", async () => {
     const taskId1 = generateId<TaskId>();
     const taskId2 = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4180,7 +4180,7 @@ test("can update task parent in two transactions (scenario 2)", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4207,7 +4207,7 @@ test("can't update task parent on a task that doesn't exist", async () => {
     const taskId1 = generateId<TaskId>();
     const taskId2 = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4221,7 +4221,7 @@ test("can't update task parent on a task that doesn't exist", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -4239,7 +4239,7 @@ test("can't update task parent with a task that doesn't exist", async () => {
     const taskId1 = generateId<TaskId>();
     const taskId2 = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4253,7 +4253,7 @@ test("can't update task parent with a task that doesn't exist", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -4271,7 +4271,7 @@ test("can't update task parent to deleted task", async () => {
     const taskId1 = generateId<TaskId>();
     const taskId2 = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4284,7 +4284,7 @@ test("can't update task parent to deleted task", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4297,7 +4297,7 @@ test("can't update task parent to deleted task", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4309,7 +4309,7 @@ test("can't update task parent to deleted task", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -4328,7 +4328,7 @@ test("can't update task parent where grandparent is a deleted task", async () =>
     const taskId2 = generateId<TaskId>();
     const taskId3 = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4341,7 +4341,7 @@ test("can't update task parent where grandparent is a deleted task", async () =>
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4354,7 +4354,7 @@ test("can't update task parent where grandparent is a deleted task", async () =>
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4367,7 +4367,7 @@ test("can't update task parent where grandparent is a deleted task", async () =>
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4378,7 +4378,7 @@ test("can't update task parent where grandparent is a deleted task", async () =>
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4395,7 +4395,7 @@ test("can't update task parent on a task you don't have edit access to", async (
     const taskId1 = generateId<TaskId>();
     const taskId2 = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4408,7 +4408,7 @@ test("can't update task parent on a task you don't have edit access to", async (
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4422,7 +4422,7 @@ test("can't update task parent on a task you don't have edit access to", async (
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -4440,7 +4440,7 @@ test("can't update task parent to a task you don't have edit access to", async (
     const taskId1 = generateId<TaskId>();
     const taskId2 = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4453,7 +4453,7 @@ test("can't update task parent to a task you don't have edit access to", async (
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4467,7 +4467,7 @@ test("can't update task parent to a task you don't have edit access to", async (
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -4486,9 +4486,9 @@ test("can't update task parent to a task you have view but not edit access to", 
     const taskId2 = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -4524,7 +4524,7 @@ test("can't update task parent to a task you have view but not edit access to", 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4538,7 +4538,7 @@ test("can't update task parent to a task you have view but not edit access to", 
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -4557,9 +4557,9 @@ test("can update task parent to a task when you have edit access", async () => {
     const taskId2 = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -4595,7 +4595,7 @@ test("can update task parent to a task when you have edit access", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4608,7 +4608,7 @@ test("can update task parent to a task when you have edit access", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4626,9 +4626,9 @@ test("child tasks inherit the permissions of their parent task", async () => {
     const taskId2 = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -4664,7 +4664,7 @@ test("child tasks inherit the permissions of their parent task", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4678,7 +4678,7 @@ test("child tasks inherit the permissions of their parent task", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -4691,7 +4691,7 @@ test("child tasks inherit the permissions of their parent task", async () => {
         ]),
     ).rejects.toThrow(PermissionDeniedError);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4703,7 +4703,7 @@ test("child tasks inherit the permissions of their parent task", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4723,9 +4723,9 @@ test("child tasks inherit the permissions of their parent task multiple levels u
     const taskId4 = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -4761,7 +4761,7 @@ test("child tasks inherit the permissions of their parent task multiple levels u
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4774,7 +4774,7 @@ test("child tasks inherit the permissions of their parent task multiple levels u
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4787,7 +4787,7 @@ test("child tasks inherit the permissions of their parent task multiple levels u
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4801,7 +4801,7 @@ test("child tasks inherit the permissions of their parent task multiple levels u
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -4815,7 +4815,7 @@ test("child tasks inherit the permissions of their parent task multiple levels u
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -4829,7 +4829,7 @@ test("child tasks inherit the permissions of their parent task multiple levels u
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -4842,7 +4842,7 @@ test("child tasks inherit the permissions of their parent task multiple levels u
         ]),
     ).rejects.toThrow(PermissionDeniedError);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4855,7 +4855,7 @@ test("child tasks inherit the permissions of their parent task multiple levels u
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -4869,7 +4869,7 @@ test("child tasks inherit the permissions of their parent task multiple levels u
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -4883,7 +4883,7 @@ test("child tasks inherit the permissions of their parent task multiple levels u
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -4896,7 +4896,7 @@ test("child tasks inherit the permissions of their parent task multiple levels u
         ]),
     ).rejects.toThrow(PermissionDeniedError);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4909,7 +4909,7 @@ test("child tasks inherit the permissions of their parent task multiple levels u
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -4923,7 +4923,7 @@ test("child tasks inherit the permissions of their parent task multiple levels u
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -4937,7 +4937,7 @@ test("child tasks inherit the permissions of their parent task multiple levels u
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -4950,7 +4950,7 @@ test("child tasks inherit the permissions of their parent task multiple levels u
         ]),
     ).rejects.toThrow(PermissionDeniedError);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4962,7 +4962,7 @@ test("child tasks inherit the permissions of their parent task multiple levels u
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4974,7 +4974,7 @@ test("child tasks inherit the permissions of their parent task multiple levels u
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -4986,7 +4986,7 @@ test("child tasks inherit the permissions of their parent task multiple levels u
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5004,9 +5004,9 @@ test("child tasks don't inherit the permissions of their deleted parent task", a
     const taskId2 = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -5042,7 +5042,7 @@ test("child tasks don't inherit the permissions of their deleted parent task", a
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5056,7 +5056,7 @@ test("child tasks don't inherit the permissions of their deleted parent task", a
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -5069,7 +5069,7 @@ test("child tasks don't inherit the permissions of their deleted parent task", a
         ]),
     ).rejects.toThrow(PermissionDeniedError);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5081,7 +5081,7 @@ test("child tasks don't inherit the permissions of their deleted parent task", a
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5093,7 +5093,7 @@ test("child tasks don't inherit the permissions of their deleted parent task", a
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5105,7 +5105,7 @@ test("child tasks don't inherit the permissions of their deleted parent task", a
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -5126,9 +5126,9 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
     const taskId4 = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -5164,7 +5164,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5177,7 +5177,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5190,7 +5190,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5204,7 +5204,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -5218,7 +5218,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -5232,7 +5232,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -5245,7 +5245,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
         ]),
     ).rejects.toThrow(PermissionDeniedError);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5258,7 +5258,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -5272,7 +5272,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -5286,7 +5286,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -5299,7 +5299,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
         ]),
     ).rejects.toThrow(PermissionDeniedError);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5312,7 +5312,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -5326,7 +5326,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -5340,7 +5340,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -5353,7 +5353,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
         ]),
     ).rejects.toThrow(PermissionDeniedError);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5365,7 +5365,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5377,7 +5377,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5389,7 +5389,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5401,7 +5401,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5413,7 +5413,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -5427,7 +5427,7 @@ test("child tasks don't inherit the permissions of their deleted parent task mul
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -5450,7 +5450,7 @@ test("child tasks can be nested more than 5 levels deep", async () => {
     const taskId6 = generateId<TaskId>();
     const taskId7 = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5463,7 +5463,7 @@ test("child tasks can be nested more than 5 levels deep", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5476,7 +5476,7 @@ test("child tasks can be nested more than 5 levels deep", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5489,7 +5489,7 @@ test("child tasks can be nested more than 5 levels deep", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5502,7 +5502,7 @@ test("child tasks can be nested more than 5 levels deep", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5515,7 +5515,7 @@ test("child tasks can be nested more than 5 levels deep", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5528,7 +5528,7 @@ test("child tasks can be nested more than 5 levels deep", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5541,7 +5541,7 @@ test("child tasks can be nested more than 5 levels deep", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5553,7 +5553,7 @@ test("child tasks can be nested more than 5 levels deep", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5565,7 +5565,7 @@ test("child tasks can be nested more than 5 levels deep", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5577,7 +5577,7 @@ test("child tasks can be nested more than 5 levels deep", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5589,7 +5589,7 @@ test("child tasks can be nested more than 5 levels deep", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5601,7 +5601,7 @@ test("child tasks can be nested more than 5 levels deep", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5621,7 +5621,7 @@ test("child tasks can't create a circular dependency", async () => {
     const taskId4 = generateId<TaskId>();
     const taskId5 = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5634,7 +5634,7 @@ test("child tasks can't create a circular dependency", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5647,7 +5647,7 @@ test("child tasks can't create a circular dependency", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5660,7 +5660,7 @@ test("child tasks can't create a circular dependency", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5673,7 +5673,7 @@ test("child tasks can't create a circular dependency", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5686,7 +5686,7 @@ test("child tasks can't create a circular dependency", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5698,7 +5698,7 @@ test("child tasks can't create a circular dependency", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5710,7 +5710,7 @@ test("child tasks can't create a circular dependency", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5722,7 +5722,7 @@ test("child tasks can't create a circular dependency", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5735,7 +5735,7 @@ test("child tasks can't create a circular dependency", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -5758,9 +5758,9 @@ test("child tasks can't create a circular dependency even in race conditions (2 
     const taskId2 = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -5773,7 +5773,7 @@ test("child tasks can't create a circular dependency even in race conditions (2 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5796,7 +5796,7 @@ test("child tasks can't create a circular dependency even in race conditions (2 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5819,11 +5819,11 @@ test("child tasks can't create a circular dependency even in race conditions (2 
         },
     ]);
 
-    const pausePromise = commitTaskSpaceActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
+    const pausePromise = commitTaskActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
         session2.accountId,
     );
 
-    const commitPromise = commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    const commitPromise = commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5837,7 +5837,7 @@ test("child tasks can't create a circular dependency even in race conditions (2 
 
     const {unpause} = await pausePromise;
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5864,9 +5864,9 @@ test("child tasks can't create a circular dependency even in race conditions (3 
     const taskId3 = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -5879,7 +5879,7 @@ test("child tasks can't create a circular dependency even in race conditions (3 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5902,7 +5902,7 @@ test("child tasks can't create a circular dependency even in race conditions (3 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5925,7 +5925,7 @@ test("child tasks can't create a circular dependency even in race conditions (3 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5948,7 +5948,7 @@ test("child tasks can't create a circular dependency even in race conditions (3 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5960,11 +5960,11 @@ test("child tasks can't create a circular dependency even in race conditions (3 
         },
     ]);
 
-    const pausePromise = commitTaskSpaceActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
+    const pausePromise = commitTaskActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
         session2.accountId,
     );
 
-    const commitPromise = commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    const commitPromise = commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -5978,7 +5978,7 @@ test("child tasks can't create a circular dependency even in race conditions (3 
 
     const {unpause} = await pausePromise;
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6007,9 +6007,9 @@ test("child tasks can't create a circular dependency even in race conditions (5 
     const taskId5 = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -6022,7 +6022,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6045,7 +6045,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6068,7 +6068,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6091,7 +6091,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6114,7 +6114,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6137,7 +6137,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6149,7 +6149,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6161,7 +6161,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6173,11 +6173,11 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    const pausePromise = commitTaskSpaceActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
+    const pausePromise = commitTaskActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
         session2.accountId,
     );
 
-    const commitPromise = commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    const commitPromise = commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6191,7 +6191,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
 
     const {unpause} = await pausePromise;
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6220,9 +6220,9 @@ test("child tasks can't create a circular dependency even in race conditions (5 
     const taskId5 = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -6235,7 +6235,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6258,7 +6258,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6281,7 +6281,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6304,7 +6304,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6327,7 +6327,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6350,7 +6350,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6362,7 +6362,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6374,7 +6374,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6386,11 +6386,11 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    const pausePromise = commitTaskSpaceActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
+    const pausePromise = commitTaskActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
         session2.accountId,
     );
 
-    const commitPromise = commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    const commitPromise = commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6404,7 +6404,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
 
     const {unpause} = await pausePromise;
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6433,9 +6433,9 @@ test("child tasks can't create a circular dependency even in race conditions (5 
     const taskId5 = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -6448,7 +6448,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6471,7 +6471,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6494,7 +6494,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6517,7 +6517,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6540,7 +6540,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6563,7 +6563,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6575,7 +6575,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6587,11 +6587,11 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    const pausePromise = commitTaskSpaceActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
+    const pausePromise = commitTaskActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
         session2.accountId,
     );
 
-    const commitPromise = commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    const commitPromise = commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6605,7 +6605,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
 
     const {unpause} = await pausePromise;
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6617,7 +6617,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6646,9 +6646,9 @@ test("child tasks can't create a circular dependency even in race conditions (5 
     const taskId5 = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -6661,7 +6661,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6684,7 +6684,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6707,7 +6707,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6730,7 +6730,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6753,7 +6753,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6776,7 +6776,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6788,7 +6788,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6800,7 +6800,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6812,11 +6812,11 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    const pausePromise = commitTaskSpaceActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
+    const pausePromise = commitTaskActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
         session2.accountId,
     );
 
-    const commitPromise = commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    const commitPromise = commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6830,7 +6830,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
 
     const {unpause} = await pausePromise;
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6859,9 +6859,9 @@ test("child tasks can't create a circular dependency even in race conditions (5 
     const taskId5 = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -6874,7 +6874,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6897,7 +6897,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6920,7 +6920,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6943,7 +6943,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6966,7 +6966,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -6989,7 +6989,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7001,7 +7001,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7013,7 +7013,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7025,11 +7025,11 @@ test("child tasks can't create a circular dependency even in race conditions (5 
         },
     ]);
 
-    const pausePromise = commitTaskSpaceActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
+    const pausePromise = commitTaskActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
         session2.accountId,
     );
 
-    const commitPromise = commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    const commitPromise = commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7043,7 +7043,7 @@ test("child tasks can't create a circular dependency even in race conditions (5 
 
     const {unpause} = await pausePromise;
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7076,9 +7076,9 @@ test("child tasks can't create a circular dependency even in race conditions (9 
     const taskId9 = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -7091,7 +7091,7 @@ test("child tasks can't create a circular dependency even in race conditions (9 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7114,7 +7114,7 @@ test("child tasks can't create a circular dependency even in race conditions (9 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7137,7 +7137,7 @@ test("child tasks can't create a circular dependency even in race conditions (9 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7160,7 +7160,7 @@ test("child tasks can't create a circular dependency even in race conditions (9 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7183,7 +7183,7 @@ test("child tasks can't create a circular dependency even in race conditions (9 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7206,7 +7206,7 @@ test("child tasks can't create a circular dependency even in race conditions (9 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7229,7 +7229,7 @@ test("child tasks can't create a circular dependency even in race conditions (9 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7252,7 +7252,7 @@ test("child tasks can't create a circular dependency even in race conditions (9 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7275,7 +7275,7 @@ test("child tasks can't create a circular dependency even in race conditions (9 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7298,7 +7298,7 @@ test("child tasks can't create a circular dependency even in race conditions (9 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7310,7 +7310,7 @@ test("child tasks can't create a circular dependency even in race conditions (9 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7322,7 +7322,7 @@ test("child tasks can't create a circular dependency even in race conditions (9 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7334,7 +7334,7 @@ test("child tasks can't create a circular dependency even in race conditions (9 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7346,7 +7346,7 @@ test("child tasks can't create a circular dependency even in race conditions (9 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7358,7 +7358,7 @@ test("child tasks can't create a circular dependency even in race conditions (9 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7370,11 +7370,11 @@ test("child tasks can't create a circular dependency even in race conditions (9 
         },
     ]);
 
-    const pausePromise = commitTaskSpaceActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
+    const pausePromise = commitTaskActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
         session2.accountId,
     );
 
-    const commitPromise = commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    const commitPromise = commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7388,7 +7388,7 @@ test("child tasks can't create a circular dependency even in race conditions (9 
 
     const {unpause} = await pausePromise;
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7400,7 +7400,7 @@ test("child tasks can't create a circular dependency even in race conditions (9 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7412,7 +7412,7 @@ test("child tasks can't create a circular dependency even in race conditions (9 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7439,7 +7439,7 @@ test("can create circular dependency involving deleted task", async () => {
     const taskId3 = generateId<TaskId>();
     const taskId4 = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7452,7 +7452,7 @@ test("can create circular dependency involving deleted task", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7465,7 +7465,7 @@ test("can create circular dependency involving deleted task", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7478,7 +7478,7 @@ test("can create circular dependency involving deleted task", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7491,7 +7491,7 @@ test("can create circular dependency involving deleted task", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7503,7 +7503,7 @@ test("can create circular dependency involving deleted task", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7515,7 +7515,7 @@ test("can create circular dependency involving deleted task", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7528,7 +7528,7 @@ test("can create circular dependency involving deleted task", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -7545,7 +7545,7 @@ test("can create circular dependency involving deleted task", async () => {
         ),
     );
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7556,7 +7556,7 @@ test("can create circular dependency involving deleted task", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7569,7 +7569,7 @@ test("can create circular dependency involving deleted task", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -7590,7 +7590,7 @@ test("can use undelete to create circular dependency involving deleted task", as
     const taskId3 = generateId<TaskId>();
     const taskId4 = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7603,7 +7603,7 @@ test("can use undelete to create circular dependency involving deleted task", as
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7616,7 +7616,7 @@ test("can use undelete to create circular dependency involving deleted task", as
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7629,7 +7629,7 @@ test("can use undelete to create circular dependency involving deleted task", as
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7642,7 +7642,7 @@ test("can use undelete to create circular dependency involving deleted task", as
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7654,7 +7654,7 @@ test("can use undelete to create circular dependency involving deleted task", as
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7666,7 +7666,7 @@ test("can use undelete to create circular dependency involving deleted task", as
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7679,7 +7679,7 @@ test("can use undelete to create circular dependency involving deleted task", as
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -7696,7 +7696,7 @@ test("can use undelete to create circular dependency involving deleted task", as
         ),
     );
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7707,7 +7707,7 @@ test("can use undelete to create circular dependency involving deleted task", as
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7720,7 +7720,7 @@ test("can use undelete to create circular dependency involving deleted task", as
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -7734,7 +7734,7 @@ test("can use undelete to create circular dependency involving deleted task", as
         new FailedPreconditionError("Undeleting task would create a circular dependency"),
     );
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7745,7 +7745,7 @@ test("can use undelete to create circular dependency involving deleted task", as
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7757,7 +7757,7 @@ test("can use undelete to create circular dependency involving deleted task", as
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -7780,9 +7780,9 @@ test("can't create a circular dependency with undelete even in race conditions",
     const taskId5 = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -7795,7 +7795,7 @@ test("can't create a circular dependency with undelete even in race conditions",
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7818,7 +7818,7 @@ test("can't create a circular dependency with undelete even in race conditions",
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7841,7 +7841,7 @@ test("can't create a circular dependency with undelete even in race conditions",
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7864,7 +7864,7 @@ test("can't create a circular dependency with undelete even in race conditions",
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7887,7 +7887,7 @@ test("can't create a circular dependency with undelete even in race conditions",
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7910,7 +7910,7 @@ test("can't create a circular dependency with undelete even in race conditions",
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7922,7 +7922,7 @@ test("can't create a circular dependency with undelete even in race conditions",
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7934,7 +7934,7 @@ test("can't create a circular dependency with undelete even in race conditions",
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7946,7 +7946,7 @@ test("can't create a circular dependency with undelete even in race conditions",
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7958,7 +7958,7 @@ test("can't create a circular dependency with undelete even in race conditions",
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7969,11 +7969,11 @@ test("can't create a circular dependency with undelete even in race conditions",
         },
     ]);
 
-    const pausePromise = commitTaskSpaceActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
+    const pausePromise = commitTaskActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
         session2.accountId,
     );
 
-    const commitPromise = commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    const commitPromise = commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -7987,7 +7987,7 @@ test("can't create a circular dependency with undelete even in race conditions",
 
     const {unpause} = await pausePromise;
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8015,9 +8015,9 @@ test("can create a circular dependency with delete", async () => {
     const taskId5 = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -8030,7 +8030,7 @@ test("can create a circular dependency with delete", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8053,7 +8053,7 @@ test("can create a circular dependency with delete", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8076,7 +8076,7 @@ test("can create a circular dependency with delete", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8099,7 +8099,7 @@ test("can create a circular dependency with delete", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8122,7 +8122,7 @@ test("can create a circular dependency with delete", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8145,7 +8145,7 @@ test("can create a circular dependency with delete", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8157,7 +8157,7 @@ test("can create a circular dependency with delete", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8169,7 +8169,7 @@ test("can create a circular dependency with delete", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8181,7 +8181,7 @@ test("can create a circular dependency with delete", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8193,7 +8193,7 @@ test("can create a circular dependency with delete", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8204,7 +8204,7 @@ test("can create a circular dependency with delete", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8223,9 +8223,9 @@ test("can remove the parent of a child task when you don't have access to the pa
     const collectionId1 = generateId<TaskCollectionId>();
     const collectionId2 = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collectionId1,
             collectionAction: {
@@ -8237,7 +8237,7 @@ test("can remove the parent of a child task when you don't have access to the pa
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collectionId2,
             collectionAction: {
@@ -8270,7 +8270,7 @@ test("can remove the parent of a child task when you don't have access to the pa
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8294,7 +8294,7 @@ test("can remove the parent of a child task when you don't have access to the pa
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -8307,7 +8307,7 @@ test("can remove the parent of a child task when you don't have access to the pa
         ]),
     ).rejects.toThrow(PermissionDeniedError);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8319,7 +8319,7 @@ test("can remove the parent of a child task when you don't have access to the pa
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8339,9 +8339,9 @@ test("can change the parent of a child task when you don't have access to the pa
     const collectionId1 = generateId<TaskCollectionId>();
     const collectionId2 = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collectionId1,
             collectionAction: {
@@ -8353,7 +8353,7 @@ test("can change the parent of a child task when you don't have access to the pa
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collectionId2,
             collectionAction: {
@@ -8386,7 +8386,7 @@ test("can change the parent of a child task when you don't have access to the pa
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8430,7 +8430,7 @@ test("can change the parent of a child task when you don't have access to the pa
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -8443,7 +8443,7 @@ test("can change the parent of a child task when you don't have access to the pa
         ]),
     ).rejects.toThrow(PermissionDeniedError);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8455,7 +8455,7 @@ test("can change the parent of a child task when you don't have access to the pa
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8474,9 +8474,9 @@ test("can delete a child task when you don't have access to the parent task", as
     const collectionId1 = generateId<TaskCollectionId>();
     const collectionId2 = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collectionId1,
             collectionAction: {
@@ -8488,7 +8488,7 @@ test("can delete a child task when you don't have access to the parent task", as
             },
         },
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId: collectionId2,
             collectionAction: {
@@ -8521,7 +8521,7 @@ test("can delete a child task when you don't have access to the parent task", as
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8545,7 +8545,7 @@ test("can delete a child task when you don't have access to the parent task", as
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -8558,7 +8558,7 @@ test("can delete a child task when you don't have access to the parent task", as
         ]),
     ).rejects.toThrow(PermissionDeniedError);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8570,7 +8570,7 @@ test("can delete a child task when you don't have access to the parent task", as
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8585,7 +8585,7 @@ test("can delete a child task when you don't have access to the parent task", as
 test("can't update task parent order key when there is no parent", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8599,7 +8599,7 @@ test("can't update task parent order key when there is no parent", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -8617,7 +8617,7 @@ test("can update task parent order key", async () => {
     const taskId1 = generateId<TaskId>();
     const taskId2 = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8649,7 +8649,7 @@ test("can update task parent order key", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8666,7 +8666,7 @@ test("can't update task parent order key with unreasonable updated time", async 
     const taskId1 = generateId<TaskId>();
     const taskId2 = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8699,7 +8699,7 @@ test("can't update task parent order key with unreasonable updated time", async 
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: getUnreasonableTime(),
@@ -8717,7 +8717,7 @@ test("can't update task parent order key when parent is deleted", async () => {
     const taskId1 = generateId<TaskId>();
     const taskId2 = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8749,7 +8749,7 @@ test("can't update task parent order key when parent is deleted", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8761,7 +8761,7 @@ test("can't update task parent order key when parent is deleted", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -8778,7 +8778,7 @@ test("can't update task parent order key when parent is deleted", async () => {
 test("can't update task parent order key when you don't have edit access to parent", async () => {
     const taskId1 = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8793,7 +8793,7 @@ test("can't update task parent order key when you don't have edit access to pare
 
     const {taskId: taskId2} = await createPublicTask(session2, space.id);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8806,7 +8806,7 @@ test("can't update task parent order key when you don't have edit access to pare
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -8819,7 +8819,7 @@ test("can't update task parent order key when you don't have edit access to pare
         ]),
     ).rejects.toThrow(PermissionDeniedError);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8836,7 +8836,7 @@ test("can't update task parent order key if order time is unreasonable", async (
     const taskId1 = generateId<TaskId>();
     const taskId2 = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8869,7 +8869,7 @@ test("can't update task parent order key if order time is unreasonable", async (
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -8886,7 +8886,7 @@ test("can't update task parent order key if order time is unreasonable", async (
 test("can update task status", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8899,7 +8899,7 @@ test("can update task status", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8911,7 +8911,7 @@ test("can update task status", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8927,7 +8927,7 @@ test("can update task status", async () => {
 test("can't update task status with unreasonable updated time", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8941,7 +8941,7 @@ test("can't update task status with unreasonable updated time", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: getUnreasonableTime(),
@@ -8962,7 +8962,7 @@ test("can't update task status with unreasonable updated time", async () => {
 test("can't update task status with unreasonable closed time", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -8976,7 +8976,7 @@ test("can't update task status with unreasonable closed time", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -8997,7 +8997,7 @@ test("can't update task status with unreasonable closed time", async () => {
 test("can't update task status with a closer other than your account", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -9011,7 +9011,7 @@ test("can't update task status with a closer other than your account", async () 
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -9034,7 +9034,7 @@ test("can't update task status with a closer other than your account", async () 
 test("can update task assignee", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -9047,7 +9047,7 @@ test("can update task assignee", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -9063,7 +9063,7 @@ test("can update task assignee", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -9075,7 +9075,7 @@ test("can update task assignee", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -9095,7 +9095,7 @@ test("can update task assignee", async () => {
 test("can't update task assignee with unreasonable updated time", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -9109,7 +9109,7 @@ test("can't update task assignee with unreasonable updated time", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: getUnreasonableTime(),
@@ -9130,7 +9130,7 @@ test("can't update task assignee with unreasonable updated time", async () => {
 test("can't update task assignee with unreasonable assigned time", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -9144,7 +9144,7 @@ test("can't update task assignee with unreasonable assigned time", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -9165,7 +9165,7 @@ test("can't update task assignee with unreasonable assigned time", async () => {
 test("can't update task assignee with an assigner other than your account", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -9179,7 +9179,7 @@ test("can't update task assignee with an assigner other than your account", asyn
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -9202,7 +9202,7 @@ test("can't update task assignee with an assigner other than your account", asyn
 test("can't update task assignee with an assignee outside the current space", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -9216,7 +9216,7 @@ test("can't update task assignee with an assignee outside the current space", as
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -9241,7 +9241,7 @@ test("can't update task assignee with an assignee outside the current space", as
 test("can update task assignee status", async () => {
     const {taskId} = await createPublicTask(session1, space.id);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -9257,7 +9257,7 @@ test("can update task assignee status", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -9273,7 +9273,7 @@ test("can update task assignee status", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -9285,7 +9285,7 @@ test("can update task assignee status", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -9301,7 +9301,7 @@ test("can update task assignee status", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -9317,7 +9317,7 @@ test("can update task assignee status", async () => {
 test("can't update task assignee status with unreasonable updated time", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -9330,7 +9330,7 @@ test("can't update task assignee status with unreasonable updated time", async (
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -9347,7 +9347,7 @@ test("can't update task assignee status with unreasonable updated time", async (
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: getUnreasonableTime(),
@@ -9368,7 +9368,7 @@ test("can't update task assignee status with unreasonable updated time", async (
 test("can't update task assignee status with unreasonable activated time", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -9381,7 +9381,7 @@ test("can't update task assignee status with unreasonable activated time", async
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -9398,7 +9398,7 @@ test("can't update task assignee status with unreasonable activated time", async
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -9419,7 +9419,7 @@ test("can't update task assignee status with unreasonable activated time", async
 test("can't update task assignee status with unreasonable order time", async () => {
     const taskId = generateId<TaskId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -9432,7 +9432,7 @@ test("can't update task assignee status with unreasonable order time", async () 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -9449,7 +9449,7 @@ test("can't update task assignee status with unreasonable order time", async () 
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -9471,9 +9471,9 @@ test("can update task position in a collection", async () => {
     const taskId = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -9506,9 +9506,9 @@ test("can update task position in a collection", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -9524,9 +9524,9 @@ test("can't update task position with an unreasonable update time", async () => 
     const taskId = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -9560,9 +9560,9 @@ test("can't update task position with an unreasonable update time", async () => 
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: getUnreasonableTime(),
                 collectionId,
                 collectionAction: {
@@ -9579,9 +9579,9 @@ test("can't update task position with an unreasonable order time", async () => {
     const taskId = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -9615,9 +9615,9 @@ test("can't update task position with an unreasonable order time", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: clock.now(),
                 collectionId,
                 collectionAction: {
@@ -9634,9 +9634,9 @@ test("can't update task position with a task that doesn't exist", async () => {
     const taskId = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -9670,9 +9670,9 @@ test("can't update task position with a task that doesn't exist", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: clock.now(),
                 collectionId,
                 collectionAction: {
@@ -9690,9 +9690,9 @@ test("can't update task position with a task that's not in the collection", asyn
     const taskId2 = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -9736,9 +9736,9 @@ test("can't update task position with a task that's not in the collection", asyn
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: clock.now(),
                 collectionId,
                 collectionAction: {
@@ -9755,9 +9755,9 @@ test("can't update task position with a task that was removed from the collectio
     const taskId = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -9790,7 +9790,7 @@ test("can't update task position with a task that was removed from the collectio
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -9803,9 +9803,9 @@ test("can't update task position with a task that was removed from the collectio
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: clock.now(),
                 collectionId,
                 collectionAction: {
@@ -9822,9 +9822,9 @@ test("can't update task position when you don't have access to the collection", 
     const taskId = generateId<TaskId>();
     const collectionId = generateId<TaskCollectionId>();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -9857,7 +9857,7 @@ test("can't update task position when you don't have access to the collection", 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -9870,9 +9870,9 @@ test("can't update task position when you don't have access to the collection", 
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: clock.now(),
                 collectionId,
                 collectionAction: {
@@ -9888,7 +9888,7 @@ test("can't update task position when you don't have access to the collection", 
 test("can't update task position when you only have view access to the collection", async () => {
     const {taskId, collectionId} = await createPublicTask(session1, space.id, "View");
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -9901,9 +9901,9 @@ test("can't update task position when you only have view access to the collectio
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: clock.now(),
                 collectionId,
                 collectionAction: {
@@ -9921,9 +9921,9 @@ test("can add task to notepad page", async () => {
     const taskId = generateId<TaskId>();
     const notepadPageId = generateTaskNotepadPageId();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskNotepadPage",
+            type: "UpdateNotepadPage",
             time: clock.now(),
             accountId: session1.accountId,
             notepadPageId,
@@ -9933,7 +9933,7 @@ test("can add task to notepad page", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -9946,9 +9946,9 @@ test("can add task to notepad page", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskNotepadPage",
+            type: "UpdateNotepadPage",
             time: clock.now(),
             accountId: session1.accountId,
             notepadPageId,
@@ -9966,9 +9966,9 @@ test("can add task to notepad page in one transaction", async () => {
     const taskId = generateId<TaskId>();
     const notepadPageId = generateTaskNotepadPageId();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskNotepadPage",
+            type: "UpdateNotepadPage",
             time: clock.now(),
             accountId: session1.accountId,
             notepadPageId,
@@ -9987,7 +9987,7 @@ test("can add task to notepad page in one transaction", async () => {
             },
         },
         {
-            type: "UpdateTaskNotepadPage",
+            type: "UpdateNotepadPage",
             time: clock.now(),
             accountId: session1.accountId,
             notepadPageId,
@@ -10005,7 +10005,7 @@ test("can't add task to notepad page that hasn't been created", async () => {
     const taskId = generateId<TaskId>();
     const notepadPageId = generateTaskNotepadPageId();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -10019,9 +10019,9 @@ test("can't add task to notepad page that hasn't been created", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskNotepadPage",
+                type: "UpdateNotepadPage",
                 time: clock.now(),
                 accountId: session1.accountId,
                 notepadPageId,
@@ -10040,9 +10040,9 @@ test("can't create a notepad page for someone else", async () => {
     const notepadPageId = generateTaskNotepadPageId();
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskNotepadPage",
+                type: "UpdateNotepadPage",
                 time: clock.now(),
                 accountId: session2.accountId,
                 notepadPageId,
@@ -10059,9 +10059,9 @@ test("can't add a task to someone else's notepad page", async () => {
     const taskId = generateId<TaskId>();
     const notepadPageId = generateTaskNotepadPageId();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskNotepadPage",
+            type: "UpdateNotepadPage",
             time: clock.now(),
             accountId: session1.accountId,
             notepadPageId,
@@ -10071,7 +10071,7 @@ test("can't add a task to someone else's notepad page", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -10085,9 +10085,9 @@ test("can't add a task to someone else's notepad page", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+        commitTaskActionTransaction(context.action(session2), space.id, [
             {
-                type: "UpdateTaskNotepadPage",
+                type: "UpdateNotepadPage",
                 time: clock.now(),
                 accountId: session1.accountId,
                 notepadPageId,
@@ -10105,9 +10105,9 @@ test("can't create a notepad page twice", async () => {
     const {space} = await createSeparateSpace();
     const notepadPageId = generateTaskNotepadPageId();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskNotepadPage",
+            type: "UpdateNotepadPage",
             time: clock.now(),
             accountId: session1.accountId,
             notepadPageId,
@@ -10118,9 +10118,9 @@ test("can't create a notepad page twice", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskNotepadPage",
+                type: "UpdateNotepadPage",
                 time: clock.now(),
                 accountId: session1.accountId,
                 notepadPageId,
@@ -10137,7 +10137,7 @@ test("can't remove task from notepad page that hasn't been created", async () =>
     const taskId = generateId<TaskId>();
     const notepadPageId = generateTaskNotepadPageId();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -10151,9 +10151,9 @@ test("can't remove task from notepad page that hasn't been created", async () =>
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskNotepadPage",
+                type: "UpdateNotepadPage",
                 time: clock.now(),
                 accountId: session1.accountId,
                 notepadPageId,
@@ -10171,9 +10171,9 @@ test("can't add task to notepad page with an unreasonable update time", async ()
     const taskId = generateId<TaskId>();
     const notepadPageId = generateTaskNotepadPageId();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskNotepadPage",
+            type: "UpdateNotepadPage",
             time: clock.now(),
             accountId: session1.accountId,
             notepadPageId,
@@ -10183,7 +10183,7 @@ test("can't add task to notepad page with an unreasonable update time", async ()
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -10197,9 +10197,9 @@ test("can't add task to notepad page with an unreasonable update time", async ()
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskNotepadPage",
+                type: "UpdateNotepadPage",
                 time: getUnreasonableTime(),
                 accountId: session1.accountId,
                 notepadPageId,
@@ -10218,9 +10218,9 @@ test("can't add task to notepad page with an unreasonable order time", async () 
     const taskId = generateId<TaskId>();
     const notepadPageId = generateTaskNotepadPageId();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskNotepadPage",
+            type: "UpdateNotepadPage",
             time: clock.now(),
             accountId: session1.accountId,
             notepadPageId,
@@ -10230,7 +10230,7 @@ test("can't add task to notepad page with an unreasonable order time", async () 
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -10244,9 +10244,9 @@ test("can't add task to notepad page with an unreasonable order time", async () 
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskNotepadPage",
+                type: "UpdateNotepadPage",
                 time: clock.now(),
                 accountId: session1.accountId,
                 notepadPageId,
@@ -10265,9 +10265,9 @@ test("can't add task to notepad page that doesn't exist", async () => {
     const taskId = generateId<TaskId>();
     const notepadPageId = generateTaskNotepadPageId();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskNotepadPage",
+            type: "UpdateNotepadPage",
             time: clock.now(),
             accountId: session1.accountId,
             notepadPageId,
@@ -10278,9 +10278,9 @@ test("can't add task to notepad page that doesn't exist", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskNotepadPage",
+                type: "UpdateNotepadPage",
                 time: clock.now(),
                 accountId: session1.accountId,
                 notepadPageId,
@@ -10299,9 +10299,9 @@ test("can't add task you don't have access to to notepad page", async () => {
     const taskId = generateId<TaskId>();
     const notepadPageId = generateTaskNotepadPageId();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskNotepadPage",
+            type: "UpdateNotepadPage",
             time: clock.now(),
             accountId: session1.accountId,
             notepadPageId,
@@ -10311,7 +10311,7 @@ test("can't add task you don't have access to to notepad page", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -10325,9 +10325,9 @@ test("can't add task you don't have access to to notepad page", async () => {
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskNotepadPage",
+                type: "UpdateNotepadPage",
                 time: clock.now(),
                 accountId: session1.accountId,
                 notepadPageId,
@@ -10345,9 +10345,9 @@ test("can add task you have view access to to notepad page", async () => {
     const {space} = await createSeparateSpace();
     const notepadPageId = generateTaskNotepadPageId();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskNotepadPage",
+            type: "UpdateNotepadPage",
             time: clock.now(),
             accountId: session1.accountId,
             notepadPageId,
@@ -10359,9 +10359,9 @@ test("can add task you have view access to to notepad page", async () => {
 
     const {taskId} = await createPublicTask(session2, space.id, "View");
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskNotepadPage",
+            type: "UpdateNotepadPage",
             time: clock.now(),
             accountId: session1.accountId,
             notepadPageId,
@@ -10379,9 +10379,9 @@ test("can remove task from notepad page", async () => {
     const taskId = generateId<TaskId>();
     const notepadPageId = generateTaskNotepadPageId();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskNotepadPage",
+            type: "UpdateNotepadPage",
             time: clock.now(),
             accountId: session1.accountId,
             notepadPageId,
@@ -10391,7 +10391,7 @@ test("can remove task from notepad page", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -10404,9 +10404,9 @@ test("can remove task from notepad page", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskNotepadPage",
+            type: "UpdateNotepadPage",
             time: clock.now(),
             accountId: session1.accountId,
             notepadPageId,
@@ -10418,9 +10418,9 @@ test("can remove task from notepad page", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskNotepadPage",
+            type: "UpdateNotepadPage",
             time: clock.now(),
             accountId: session1.accountId,
             notepadPageId,
@@ -10437,9 +10437,9 @@ test("can remove task from notepad page twice", async () => {
     const taskId = generateId<TaskId>();
     const notepadPageId = generateTaskNotepadPageId();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskNotepadPage",
+            type: "UpdateNotepadPage",
             time: clock.now(),
             accountId: session1.accountId,
             notepadPageId,
@@ -10449,7 +10449,7 @@ test("can remove task from notepad page twice", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -10462,9 +10462,9 @@ test("can remove task from notepad page twice", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskNotepadPage",
+            type: "UpdateNotepadPage",
             time: clock.now(),
             accountId: session1.accountId,
             notepadPageId,
@@ -10476,9 +10476,9 @@ test("can remove task from notepad page twice", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskNotepadPage",
+            type: "UpdateNotepadPage",
             time: clock.now(),
             accountId: session1.accountId,
             notepadPageId,
@@ -10489,9 +10489,9 @@ test("can remove task from notepad page twice", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskNotepadPage",
+            type: "UpdateNotepadPage",
             time: clock.now(),
             accountId: session1.accountId,
             notepadPageId,
@@ -10508,9 +10508,9 @@ test("can remove task from notepad page even if the task was not added", async (
     const taskId = generateId<TaskId>();
     const notepadPageId = generateTaskNotepadPageId();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskNotepadPage",
+            type: "UpdateNotepadPage",
             time: clock.now(),
             accountId: session1.accountId,
             notepadPageId,
@@ -10520,7 +10520,7 @@ test("can remove task from notepad page even if the task was not added", async (
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -10533,9 +10533,9 @@ test("can remove task from notepad page even if the task was not added", async (
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskNotepadPage",
+            type: "UpdateNotepadPage",
             time: clock.now(),
             accountId: session1.accountId,
             notepadPageId,
@@ -10552,9 +10552,9 @@ test("can't remove task from notepad page with an unreasonable update time", asy
     const taskId = generateId<TaskId>();
     const notepadPageId = generateTaskNotepadPageId();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskNotepadPage",
+            type: "UpdateNotepadPage",
             time: clock.now(),
             accountId: session1.accountId,
             notepadPageId,
@@ -10564,7 +10564,7 @@ test("can't remove task from notepad page with an unreasonable update time", asy
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -10577,9 +10577,9 @@ test("can't remove task from notepad page with an unreasonable update time", asy
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskNotepadPage",
+            type: "UpdateNotepadPage",
             time: clock.now(),
             accountId: session1.accountId,
             notepadPageId,
@@ -10592,9 +10592,9 @@ test("can't remove task from notepad page with an unreasonable update time", asy
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskNotepadPage",
+                type: "UpdateNotepadPage",
                 time: getUnreasonableTime(),
                 accountId: session1.accountId,
                 notepadPageId,
@@ -10612,9 +10612,9 @@ test("can't remove task from notepad page when the task doesn't exist", async ()
     const taskId = generateId<TaskId>();
     const notepadPageId = generateTaskNotepadPageId();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskNotepadPage",
+            type: "UpdateNotepadPage",
             time: clock.now(),
             accountId: session1.accountId,
             notepadPageId,
@@ -10625,9 +10625,9 @@ test("can't remove task from notepad page when the task doesn't exist", async ()
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskNotepadPage",
+                type: "UpdateNotepadPage",
                 time: clock.now(),
                 accountId: session1.accountId,
                 notepadPageId,
@@ -10645,9 +10645,9 @@ test("can't remove task you don't have access to from notepad page", async () =>
     const taskId = generateId<TaskId>();
     const notepadPageId = generateTaskNotepadPageId();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskNotepadPage",
+            type: "UpdateNotepadPage",
             time: clock.now(),
             accountId: session1.accountId,
             notepadPageId,
@@ -10657,7 +10657,7 @@ test("can't remove task you don't have access to from notepad page", async () =>
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -10671,9 +10671,9 @@ test("can't remove task you don't have access to from notepad page", async () =>
     ]);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTaskNotepadPage",
+                type: "UpdateNotepadPage",
                 time: clock.now(),
                 accountId: session1.accountId,
                 notepadPageId,
@@ -10690,9 +10690,9 @@ test("can remove task you have view access to from notepad page", async () => {
     const {space} = await createSeparateSpace();
     const notepadPageId = generateTaskNotepadPageId();
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskNotepadPage",
+            type: "UpdateNotepadPage",
             time: clock.now(),
             accountId: session1.accountId,
             notepadPageId,
@@ -10704,9 +10704,9 @@ test("can remove task you have view access to from notepad page", async () => {
 
     const {taskId} = await createPublicTask(session1, space.id, "View");
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskNotepadPage",
+            type: "UpdateNotepadPage",
             time: clock.now(),
             accountId: session1.accountId,
             notepadPageId,
@@ -10718,9 +10718,9 @@ test("can remove task you have view access to from notepad page", async () => {
         },
     ]);
 
-    await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateTaskNotepadPage",
+            type: "UpdateNotepadPage",
             time: clock.now(),
             accountId: session1.accountId,
             notepadPageId,
@@ -10736,7 +10736,7 @@ test("can't update a task's title with an account in a different space", async (
     const {taskId} = await createPublicTask(session1, space.id);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(otherSession), space.id, [
+        commitTaskActionTransaction(context.action(otherSession), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -10754,7 +10754,7 @@ test("can't update a task's title in the context of the wrong space", async () =
     const {taskId} = await createPublicTask(session1, space.id);
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(sharedSession), otherSpace.id, [
+        commitTaskActionTransaction(context.action(sharedSession), otherSpace.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -10767,7 +10767,7 @@ test("can't update a task's title in the context of the wrong space", async () =
         ]),
     ).rejects.toThrow(new PermissionDeniedError("Space mismatch"));
 
-    await commitTaskSpaceActionTransaction(context.action(sharedSession), space.id, [
+    await commitTaskActionTransaction(context.action(sharedSession), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -10784,9 +10784,9 @@ test("can't update a collection's name with an account in a different space", as
     const {collectionId} = await createPublicTask(session1, space.id, "Manage");
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(otherSession), space.id, [
+        commitTaskActionTransaction(context.action(otherSession), space.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: clock.now(),
                 collectionId,
                 collectionAction: {
@@ -10802,9 +10802,9 @@ test("can't update a collection's name in the context of the wrong space", async
     const {collectionId} = await createPublicTask(session1, space.id, "Manage");
 
     await expect(
-        commitTaskSpaceActionTransaction(context.action(sharedSession), otherSpace.id, [
+        commitTaskActionTransaction(context.action(sharedSession), otherSpace.id, [
             {
-                type: "UpdateTaskCollection",
+                type: "UpdateCollection",
                 time: clock.now(),
                 collectionId,
                 collectionAction: {
@@ -10815,9 +10815,9 @@ test("can't update a collection's name in the context of the wrong space", async
         ]),
     ).rejects.toThrow(new PermissionDeniedError("Space mismatch"));
 
-    await commitTaskSpaceActionTransaction(context.action(sharedSession), space.id, [
+    await commitTaskActionTransaction(context.action(sharedSession), space.id, [
         {
-            type: "UpdateTaskCollection",
+            type: "UpdateCollection",
             time: clock.now(),
             collectionId,
             collectionAction: {
@@ -10834,7 +10834,7 @@ test("updating task parents commits extra update children count action", async (
     const taskId3 = generateId<TaskId>();
 
     expect(
-        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        await commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -10847,11 +10847,11 @@ test("updating task parents commits extra update children count action", async (
             },
         ]),
     ).toEqual({
-        extraActions: cast<Array<TaskSpaceAction>>([]),
+        extraActions: cast<Array<TaskAction>>([]),
     });
 
     expect(
-        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        await commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -10864,11 +10864,11 @@ test("updating task parents commits extra update children count action", async (
             },
         ]),
     ).toEqual({
-        extraActions: cast<Array<TaskSpaceAction>>([]),
+        extraActions: cast<Array<TaskAction>>([]),
     });
 
     expect(
-        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        await commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -10881,11 +10881,11 @@ test("updating task parents commits extra update children count action", async (
             },
         ]),
     ).toEqual({
-        extraActions: cast<Array<TaskSpaceAction>>([]),
+        extraActions: cast<Array<TaskAction>>([]),
     });
 
     expect(
-        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        await commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -10897,7 +10897,7 @@ test("updating task parents commits extra update children count action", async (
             },
         ]),
     ).toEqual({
-        extraActions: cast<Array<TaskSpaceAction>>([
+        extraActions: cast<Array<TaskAction>>([
             {
                 type: "UpdateTask",
                 time: expect.any(Array),
@@ -10915,7 +10915,7 @@ test("updating task parents commits extra update children count action", async (
 
     expect(
         (
-            await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            await commitTaskActionTransaction(context.action(session1), space.id, [
                 {
                     type: "UpdateTask",
                     time: clock.now(),
@@ -10932,7 +10932,7 @@ test("updating task parents commits extra update children count action", async (
                 defaultCompareStrings("taskId" in a ? a.taskId : "", "taskId" in b ? b.taskId : ""),
             ),
     ).toEqual(
-        cast<Array<TaskSpaceAction>>([
+        cast<Array<TaskAction>>([
             {
                 type: "UpdateTask",
                 time: expect.any(Array),
@@ -10963,7 +10963,7 @@ test("updating task parents commits extra update children count action", async (
     );
 
     expect(
-        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        await commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -10975,7 +10975,7 @@ test("updating task parents commits extra update children count action", async (
             },
         ]),
     ).toEqual({
-        extraActions: cast<Array<TaskSpaceAction>>([
+        extraActions: cast<Array<TaskAction>>([
             {
                 type: "UpdateTask",
                 time: expect.any(Array),
@@ -10997,7 +10997,7 @@ test("opening and closing a task commits extra update children count action", as
     const taskId2 = generateId<TaskId>();
 
     expect(
-        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        await commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -11010,11 +11010,11 @@ test("opening and closing a task commits extra update children count action", as
             },
         ]),
     ).toEqual({
-        extraActions: cast<Array<TaskSpaceAction>>([]),
+        extraActions: cast<Array<TaskAction>>([]),
     });
 
     expect(
-        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        await commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -11027,11 +11027,11 @@ test("opening and closing a task commits extra update children count action", as
             },
         ]),
     ).toEqual({
-        extraActions: cast<Array<TaskSpaceAction>>([]),
+        extraActions: cast<Array<TaskAction>>([]),
     });
 
     expect(
-        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        await commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -11043,7 +11043,7 @@ test("opening and closing a task commits extra update children count action", as
             },
         ]),
     ).toEqual({
-        extraActions: cast<Array<TaskSpaceAction>>([
+        extraActions: cast<Array<TaskAction>>([
             {
                 type: "UpdateTask",
                 time: expect.any(Array),
@@ -11062,7 +11062,7 @@ test("opening and closing a task commits extra update children count action", as
     const actionTime1 = clock.now();
 
     expect(
-        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        await commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: actionTime1,
@@ -11081,7 +11081,7 @@ test("opening and closing a task commits extra update children count action", as
             },
         ]),
     ).toEqual({
-        extraActions: cast<Array<TaskSpaceAction>>([
+        extraActions: cast<Array<TaskAction>>([
             {
                 type: "UpdateTask",
                 time: expect.any(Array),
@@ -11100,7 +11100,7 @@ test("opening and closing a task commits extra update children count action", as
     const actionTime2 = clock.now();
 
     expect(
-        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        await commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: actionTime2,
@@ -11119,11 +11119,11 @@ test("opening and closing a task commits extra update children count action", as
             },
         ]),
     ).toEqual({
-        extraActions: cast<Array<TaskSpaceAction>>([]),
+        extraActions: cast<Array<TaskAction>>([]),
     });
 
     expect(
-        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        await commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -11135,7 +11135,7 @@ test("opening and closing a task commits extra update children count action", as
             },
         ]),
     ).toEqual({
-        extraActions: cast<Array<TaskSpaceAction>>([
+        extraActions: cast<Array<TaskAction>>([
             {
                 type: "UpdateTask",
                 time: expect.any(Array),
@@ -11152,7 +11152,7 @@ test("opening and closing a task commits extra update children count action", as
     });
 
     expect(
-        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        await commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -11164,13 +11164,13 @@ test("opening and closing a task commits extra update children count action", as
             },
         ]),
     ).toEqual({
-        extraActions: cast<Array<TaskSpaceAction>>([]),
+        extraActions: cast<Array<TaskAction>>([]),
     });
 
     const actionTime3 = clock.now();
 
     expect(
-        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        await commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: actionTime3,
@@ -11189,7 +11189,7 @@ test("opening and closing a task commits extra update children count action", as
             },
         ]),
     ).toEqual({
-        extraActions: cast<Array<TaskSpaceAction>>([
+        extraActions: cast<Array<TaskAction>>([
             {
                 type: "UpdateTask",
                 time: expect.any(Array),
@@ -11212,7 +11212,7 @@ test("changing parents of a closed a task commits extra update children count ac
     const taskId3 = generateId<TaskId>();
 
     expect(
-        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        await commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -11225,11 +11225,11 @@ test("changing parents of a closed a task commits extra update children count ac
             },
         ]),
     ).toEqual({
-        extraActions: cast<Array<TaskSpaceAction>>([]),
+        extraActions: cast<Array<TaskAction>>([]),
     });
 
     expect(
-        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        await commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -11242,11 +11242,11 @@ test("changing parents of a closed a task commits extra update children count ac
             },
         ]),
     ).toEqual({
-        extraActions: cast<Array<TaskSpaceAction>>([]),
+        extraActions: cast<Array<TaskAction>>([]),
     });
 
     expect(
-        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        await commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -11259,11 +11259,11 @@ test("changing parents of a closed a task commits extra update children count ac
             },
         ]),
     ).toEqual({
-        extraActions: cast<Array<TaskSpaceAction>>([]),
+        extraActions: cast<Array<TaskAction>>([]),
     });
 
     expect(
-        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        await commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -11275,7 +11275,7 @@ test("changing parents of a closed a task commits extra update children count ac
             },
         ]),
     ).toEqual({
-        extraActions: cast<Array<TaskSpaceAction>>([
+        extraActions: cast<Array<TaskAction>>([
             {
                 type: "UpdateTask",
                 time: expect.any(Array),
@@ -11294,7 +11294,7 @@ test("changing parents of a closed a task commits extra update children count ac
     const actionTime1 = clock.now();
 
     expect(
-        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        await commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: actionTime1,
@@ -11313,7 +11313,7 @@ test("changing parents of a closed a task commits extra update children count ac
             },
         ]),
     ).toEqual({
-        extraActions: cast<Array<TaskSpaceAction>>([
+        extraActions: cast<Array<TaskAction>>([
             {
                 type: "UpdateTask",
                 time: expect.any(Array),
@@ -11331,7 +11331,7 @@ test("changing parents of a closed a task commits extra update children count ac
 
     expect(
         (
-            await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            await commitTaskActionTransaction(context.action(session1), space.id, [
                 {
                     type: "UpdateTask",
                     time: clock.now(),
@@ -11348,7 +11348,7 @@ test("changing parents of a closed a task commits extra update children count ac
                 defaultCompareStrings("taskId" in a ? a.taskId : "", "taskId" in b ? b.taskId : ""),
             ),
     ).toEqual(
-        cast<Array<TaskSpaceAction>>([
+        cast<Array<TaskAction>>([
             {
                 type: "UpdateTask",
                 time: expect.any(Array),
@@ -11379,7 +11379,7 @@ test("changing parents of a closed a task commits extra update children count ac
     );
 
     expect(
-        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        await commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -11391,7 +11391,7 @@ test("changing parents of a closed a task commits extra update children count ac
             },
         ]),
     ).toEqual({
-        extraActions: cast<Array<TaskSpaceAction>>([
+        extraActions: cast<Array<TaskAction>>([
             {
                 type: "UpdateTask",
                 time: expect.any(Array),
@@ -11416,7 +11416,7 @@ test("moving multiple open and closed tasks around commits extra update children
     const taskId3 = generateId<TaskId>();
 
     expect(
-        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        await commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -11429,11 +11429,11 @@ test("moving multiple open and closed tasks around commits extra update children
             },
         ]),
     ).toEqual({
-        extraActions: cast<Array<TaskSpaceAction>>([]),
+        extraActions: cast<Array<TaskAction>>([]),
     });
 
     expect(
-        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        await commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -11446,11 +11446,11 @@ test("moving multiple open and closed tasks around commits extra update children
             },
         ]),
     ).toEqual({
-        extraActions: cast<Array<TaskSpaceAction>>([]),
+        extraActions: cast<Array<TaskAction>>([]),
     });
 
     expect(
-        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        await commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -11463,11 +11463,11 @@ test("moving multiple open and closed tasks around commits extra update children
             },
         ]),
     ).toEqual({
-        extraActions: cast<Array<TaskSpaceAction>>([]),
+        extraActions: cast<Array<TaskAction>>([]),
     });
 
     expect(
-        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        await commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -11480,11 +11480,11 @@ test("moving multiple open and closed tasks around commits extra update children
             },
         ]),
     ).toEqual({
-        extraActions: cast<Array<TaskSpaceAction>>([]),
+        extraActions: cast<Array<TaskAction>>([]),
     });
 
     expect(
-        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        await commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -11497,11 +11497,11 @@ test("moving multiple open and closed tasks around commits extra update children
             },
         ]),
     ).toEqual({
-        extraActions: cast<Array<TaskSpaceAction>>([]),
+        extraActions: cast<Array<TaskAction>>([]),
     });
 
     expect(
-        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        await commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -11513,7 +11513,7 @@ test("moving multiple open and closed tasks around commits extra update children
             },
         ]),
     ).toEqual({
-        extraActions: cast<Array<TaskSpaceAction>>([
+        extraActions: cast<Array<TaskAction>>([
             {
                 type: "UpdateTask",
                 time: expect.any(Array),
@@ -11530,7 +11530,7 @@ test("moving multiple open and closed tasks around commits extra update children
     });
 
     expect(
-        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        await commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -11542,7 +11542,7 @@ test("moving multiple open and closed tasks around commits extra update children
             },
         ]),
     ).toEqual({
-        extraActions: cast<Array<TaskSpaceAction>>([
+        extraActions: cast<Array<TaskAction>>([
             {
                 type: "UpdateTask",
                 time: expect.any(Array),
@@ -11560,7 +11560,7 @@ test("moving multiple open and closed tasks around commits extra update children
 
     expect(
         (
-            await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            await commitTaskActionTransaction(context.action(session1), space.id, [
                 {
                     type: "UpdateTask",
                     time: clock.now(),
@@ -11577,7 +11577,7 @@ test("moving multiple open and closed tasks around commits extra update children
                 defaultCompareStrings("taskId" in a ? a.taskId : "", "taskId" in b ? b.taskId : ""),
             ),
     ).toEqual(
-        cast<Array<TaskSpaceAction>>([
+        cast<Array<TaskAction>>([
             {
                 type: "UpdateTask",
                 time: expect.any(Array),
@@ -11608,7 +11608,7 @@ test("moving multiple open and closed tasks around commits extra update children
     );
 
     expect(
-        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        await commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: clock.now(),
@@ -11620,7 +11620,7 @@ test("moving multiple open and closed tasks around commits extra update children
             },
         ]),
     ).toEqual({
-        extraActions: cast<Array<TaskSpaceAction>>([
+        extraActions: cast<Array<TaskAction>>([
             {
                 type: "UpdateTask",
                 time: expect.any(Array),
@@ -11638,7 +11638,7 @@ test("moving multiple open and closed tasks around commits extra update children
 
     expect(
         (
-            await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            await commitTaskActionTransaction(context.action(session1), space.id, [
                 {
                     type: "UpdateTask",
                     time: clock.now(),
@@ -11655,7 +11655,7 @@ test("moving multiple open and closed tasks around commits extra update children
                 defaultCompareStrings("taskId" in a ? a.taskId : "", "taskId" in b ? b.taskId : ""),
             ),
     ).toEqual(
-        cast<Array<TaskSpaceAction>>([
+        cast<Array<TaskAction>>([
             {
                 type: "UpdateTask",
                 time: expect.any(Array),
@@ -11687,7 +11687,7 @@ test("moving multiple open and closed tasks around commits extra update children
 
     expect(
         (
-            await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            await commitTaskActionTransaction(context.action(session1), space.id, [
                 {
                     type: "UpdateTask",
                     time: clock.now(),
@@ -11704,7 +11704,7 @@ test("moving multiple open and closed tasks around commits extra update children
                 defaultCompareStrings("taskId" in a ? a.taskId : "", "taskId" in b ? b.taskId : ""),
             ),
     ).toEqual(
-        cast<Array<TaskSpaceAction>>([
+        cast<Array<TaskAction>>([
             {
                 type: "UpdateTask",
                 time: expect.any(Array),
@@ -11737,7 +11737,7 @@ test("moving multiple open and closed tasks around commits extra update children
     const actionTime1 = clock.now();
 
     expect(
-        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        await commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: actionTime1,
@@ -11756,7 +11756,7 @@ test("moving multiple open and closed tasks around commits extra update children
             },
         ]),
     ).toEqual({
-        extraActions: cast<Array<TaskSpaceAction>>([
+        extraActions: cast<Array<TaskAction>>([
             {
                 type: "UpdateTask",
                 time: expect.any(Array),
@@ -11775,7 +11775,7 @@ test("moving multiple open and closed tasks around commits extra update children
     const actionTime2 = clock.now();
 
     expect(
-        await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+        await commitTaskActionTransaction(context.action(session1), space.id, [
             {
                 type: "UpdateTask",
                 time: actionTime2,
@@ -11794,7 +11794,7 @@ test("moving multiple open and closed tasks around commits extra update children
             },
         ]),
     ).toEqual({
-        extraActions: cast<Array<TaskSpaceAction>>([
+        extraActions: cast<Array<TaskAction>>([
             {
                 type: "UpdateTask",
                 time: expect.any(Array),
@@ -11812,7 +11812,7 @@ test("moving multiple open and closed tasks around commits extra update children
 
     expect(
         (
-            await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            await commitTaskActionTransaction(context.action(session1), space.id, [
                 {
                     type: "UpdateTask",
                     time: clock.now(),
@@ -11829,7 +11829,7 @@ test("moving multiple open and closed tasks around commits extra update children
                 defaultCompareStrings("taskId" in a ? a.taskId : "", "taskId" in b ? b.taskId : ""),
             ),
     ).toEqual(
-        cast<Array<TaskSpaceAction>>([
+        cast<Array<TaskAction>>([
             {
                 type: "UpdateTask",
                 time: expect.any(Array),
@@ -11861,7 +11861,7 @@ test("moving multiple open and closed tasks around commits extra update children
 
     expect(
         (
-            await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            await commitTaskActionTransaction(context.action(session1), space.id, [
                 {
                     type: "UpdateTask",
                     time: clock.now(),
@@ -11878,7 +11878,7 @@ test("moving multiple open and closed tasks around commits extra update children
                 defaultCompareStrings("taskId" in a ? a.taskId : "", "taskId" in b ? b.taskId : ""),
             ),
     ).toEqual(
-        cast<Array<TaskSpaceAction>>([
+        cast<Array<TaskAction>>([
             {
                 type: "UpdateTask",
                 time: expect.any(Array),
@@ -11910,7 +11910,7 @@ test("moving multiple open and closed tasks around commits extra update children
 
     expect(
         (
-            await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            await commitTaskActionTransaction(context.action(session1), space.id, [
                 {
                     type: "UpdateTask",
                     time: clock.now(),
@@ -11927,7 +11927,7 @@ test("moving multiple open and closed tasks around commits extra update children
                 defaultCompareStrings("taskId" in a ? a.taskId : "", "taskId" in b ? b.taskId : ""),
             ),
     ).toEqual(
-        cast<Array<TaskSpaceAction>>([
+        cast<Array<TaskAction>>([
             {
                 type: "UpdateTask",
                 time: expect.any(Array),
@@ -11959,7 +11959,7 @@ test("moving multiple open and closed tasks around commits extra update children
 
     expect(
         (
-            await commitTaskSpaceActionTransaction(context.action(session1), space.id, [
+            await commitTaskActionTransaction(context.action(session1), space.id, [
                 {
                     type: "UpdateTask",
                     time: clock.now(),
@@ -11976,7 +11976,7 @@ test("moving multiple open and closed tasks around commits extra update children
                 defaultCompareStrings("taskId" in a ? a.taskId : "", "taskId" in b ? b.taskId : ""),
             ),
     ).toEqual(
-        cast<Array<TaskSpaceAction>>([
+        cast<Array<TaskAction>>([
             {
                 type: "UpdateTask",
                 time: expect.any(Array),
