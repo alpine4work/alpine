@@ -1,7 +1,7 @@
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
-    name = "query",
+    name = "realtime",
     test_deps = [
         "//server/dynamo/test_helpers/shared",
         "//shared/tasks/test_helpers",
