@@ -79,6 +79,13 @@ export class TaskRealtimeActionHistory {
     private _state: {timeout: Timeout} | null = null;
 
     /**
+     * Get the start time of our visibility window.
+     */
+    public getVisibleStartTime() {
+        return Date.now() - this._visibleDuration;
+    }
+
+    /**
      * Asserts that history is well-formed in Jest unit tests.
      */
     public assertCorrectForTest() {

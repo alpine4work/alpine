@@ -1,6 +1,7 @@
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 export type TaskQuerySort =
@@ -18,51 +19,67 @@ export type TaskQuerySort =
 export type TaskQueryStatusSort = {
     readonly type: "Status";
     readonly direction: "Ascending" | "Descending";
+    readonly missing?: undefined;
 };
 
 export type TaskQueryPrioritySort = {
     readonly type: "Priority";
     readonly direction: "Ascending" | "Descending";
+    readonly missing?: undefined;
 };
 
 export type TaskQueryAssigneeSort = {
     readonly type: "Assignee";
-    readonly missingAccountSide: "Start" | "End";
+    readonly missing: "First" | "Last";
+    readonly direction?: undefined;
 };
 
 export type TaskQueryCreatorSort = {
     readonly type: "Creator";
+    readonly direction?: undefined;
+    readonly missing?: undefined;
 };
 
 export type TaskQueryAssignerSort = {
     readonly type: "Assigner";
-    readonly missingAccountSide: "Start" | "End";
+    readonly missing: "First" | "Last";
+    readonly direction?: undefined;
 };
 
 export type TaskQueryDueDateSort = {
     readonly type: "DueDate";
     readonly direction: "Ascending" | "Descending";
+    readonly missing?: undefined;
 };
 
 export type TaskQueryCreatedDateSort = {
     readonly type: "CreatedDate";
     readonly direction: "Ascending" | "Descending";
+    readonly missing?: undefined;
 };
 
 export type TaskQueryAssignedDateSort = {
     readonly type: "AssignedDate";
     readonly direction: "Ascending" | "Descending";
+    readonly missing?: undefined;
 };
 
 export type TaskQueryClosedDateSort = {
     readonly type: "ClosedDate";
     readonly direction: "Ascending" | "Descending";
+    readonly missing?: undefined;
 };
 
 export type TaskQueryActivatedDateSort = {
     readonly type: "ActivatedDate";
     readonly direction: "Ascending" | "Descending";
+    readonly missing?: undefined;
 };
+
+// Must have a `direction` and `missing` property on every sort though they may
+// be optional.
+assertEqualTypes<TaskQuerySort["direction"], "Ascending" | "Descending" | undefined>();
+assertEqualTypes<TaskQuerySort["missing"], "First" | "Last" | undefined>();
 
 export function serializeTaskQuerySortsSearchParam(sorts: ReadonlyArray<TaskQuerySort>): string {
     const buffer = serializeTaskQuerySorts(sorts);
@@ -180,7 +197,7 @@ function serializeTaskQuerySort(sort: TaskQuerySort, view: DataView): void {
             break;
         }
         case "Assignee": {
-            if (sort.missingAccountSide === "Start") {
+            if (sort.missing === "First") {
                 view.setUint8(0, 5);
             } else {
                 view.setUint8(0, 6);
@@ -192,7 +209,7 @@ function serializeTaskQuerySort(sort: TaskQuerySort, view: DataView): void {
             break;
         }
         case "Assigner": {
-            if (sort.missingAccountSide === "Start") {
+            if (sort.missing === "First") {
                 view.setUint8(0, 8);
             } else {
                 view.setUint8(0, 9);
@@ -260,15 +277,15 @@ function deserializeTaskQuerySort(view: DataView): {
         case 4:
             return {sort: {type: "Priority", direction: "Descending"}, byteLength: 1};
         case 5:
-            return {sort: {type: "Assignee", missingAccountSide: "Start"}, byteLength: 1};
+            return {sort: {type: "Assignee", missing: "First"}, byteLength: 1};
         case 6:
-            return {sort: {type: "Assignee", missingAccountSide: "End"}, byteLength: 1};
+            return {sort: {type: "Assignee", missing: "Last"}, byteLength: 1};
         case 7:
             return {sort: {type: "Creator"}, byteLength: 1};
         case 8:
-            return {sort: {type: "Assigner", missingAccountSide: "Start"}, byteLength: 1};
+            return {sort: {type: "Assigner", missing: "First"}, byteLength: 1};
         case 9:
-            return {sort: {type: "Assigner", missingAccountSide: "End"}, byteLength: 1};
+            return {sort: {type: "Assigner", missing: "Last"}, byteLength: 1};
         case 10:
             return {sort: {type: "DueDate", direction: "Ascending"}, byteLength: 1};
         case 11:

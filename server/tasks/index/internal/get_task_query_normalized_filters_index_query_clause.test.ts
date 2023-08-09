@@ -3,9 +3,9 @@ import {SessionItem, getAccountsTableForTest} from "~/server/dynamo/accounts_tab
 import {getSpacesTableForTest} from "~/server/dynamo/spaces_table.js";
 import {commitTaskActionTransaction} from "~/server/dynamo/tasks_table.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
+import {evaluateTaskQueryNormalizedFiltersForIndexDoc} from "~/server/tasks/index/evaluate_task_query_normalized_filters_for_index_doc.js";
+import {getTaskQueryNormalizedFiltersIndexQueryClause} from "~/server/tasks/index/internal/get_task_query_normalized_filters_index_query_clause.js";
 import {TaskIndexDoc, TaskIndexDocType} from "~/server/tasks/index/task_index_doc.js";
-import {evaluateTaskQueryNormalizedFiltersForTaskIndexDoc} from "~/server/tasks/realtime/internal/evaluate_task_query_normalized_filters_for_task_index_doc.js";
-import {getTaskQueryNormalizedFiltersTaskIndexQueryClause} from "~/server/tasks/realtime/internal/get_task_query_normalized_filters_task_index_query_clause.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -271,7 +271,7 @@ async function testQuery(
                     method: "POST",
                     headers: {"content-type": "application/json"},
                     body: JSON.stringify({
-                        query: getTaskQueryNormalizedFiltersTaskIndexQueryClause(
+                        query: getTaskQueryNormalizedFiltersIndexQueryClause(
                             space.id,
                             normalizedFilters,
                         ),
@@ -296,7 +296,7 @@ async function testQuery(
     );
 
     const expectedQueryTasks = allTasks.filter(({task}) =>
-        evaluateTaskQueryNormalizedFiltersForTaskIndexDoc(normalizedFilters, task),
+        evaluateTaskQueryNormalizedFiltersForIndexDoc(normalizedFilters, task),
     );
 
     // `getArray()` caches the underlying array. We don't want `expect().toEqual()`

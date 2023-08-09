@@ -45,7 +45,7 @@ patchedDependencies:
     path: admin/patches/@types__functional-red-black-tree@1.0.1.patch
   '@types/node@20.3.2':
     hash: 4zjoxiw4th676hgmdgid4hevxy
-    path: patches/@types__node@20.3.2.patch
+    path: admin/patches/@types__node@20.3.2.patch
   '@types/react@18.0.15':
     hash: x4axwesafhl3flpnwlimhsgpk4
     path: admin/patches/@types__react@18.0.15.patch
@@ -174,6 +174,9 @@ dependencies:
   '@types/bcrypt':
     specifier: ^5.0.0
     version: 5.0.0
+  '@types/bintrees':
+    specifier: ^1.0.3
+    version: 1.0.3
   '@types/color':
     specifier: ^3.0.3
     version: 3.0.3
@@ -291,6 +294,9 @@ dependencies:
   bcrypt:
     specifier: ^5.1.0
     version: 5.1.0
+  bintrees:
+    specifier: ^1.0.2
+    version: 1.0.2
   browserify-zlib:
     specifier: 0.1.4
     version: 0.1.4(patch_hash=lhhf4zowvg4ngxldsy5aala7hu)
@@ -5750,6 +5756,10 @@ packages:
       '@types/node': 20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy)
     dev: false
 
+  /@types/bintrees@1.0.3:
+    resolution: {integrity: sha512-A/LCJoFzbF6TIfRZ6IzWHaxthLSGj2qiOXiIWn4xjjbaZIZ8+97SUzgIU8E/n1v2ozc2aDGdzwkA2hfXozgKNg==}
+    dev: false
+
   /@types/body-parser@1.19.2:
     resolution: {integrity: sha512-ALYone6pm6QmwZoAgeyNksccT9Q4AWZQ6PvfwR37GT6r6FWUPguq6sUmNGSMV2Wr761oQoBxwGGa6DR5o1DC9g==}
     dependencies:
@@ -6913,6 +6923,10 @@ packages:
     resolution: {integrity: sha512-p2q/t/mhvuOj/UeLlV6566GD/guowlr0hHxClI0W9m7MWYkL1F0hLo+0Aexs9HSPCtR1SXQ0TD3MMKrXZajbiQ==}
     dependencies:
       file-uri-to-path: 1.0.0
+    dev: false
+
+  /bintrees@1.0.2:
+    resolution: {integrity: sha512-VOMgTMwjAaUG580SXn3LacVgjurrbMme7ZZNYGSSV7mmtY6QQRh0Eg3pwIcntQ77DErK1L0NxkbetjcoXzVwKw==}
     dev: false
 
   /bl@4.1.0:

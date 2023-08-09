@@ -1,6 +1,6 @@
 import {createStandardizedServer} from "~/server/node/create_standardized_server.js";
 import {runService} from "~/server/node/run_service.js";
-import {TaskRealtimeActionHistory} from "~/server/tasks/realtime/task_realtime_action_history.js";
+import {TaskRealtimeActionHistory} from "~/server/tasks/realtime/internal/task_realtime_action_history.js";
 import {InternalError, InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";

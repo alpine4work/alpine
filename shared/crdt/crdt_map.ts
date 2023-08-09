@@ -205,6 +205,9 @@ export function createCrdtMap<Key extends string | number, Value extends {}>(
                 });
             }
 
+            // Optimization: If the map didn't change, return the old reference.
+            if (this._map === newMap) return this;
+
             return new CrdtMap(newMap);
         }
 

@@ -1,3 +1,4 @@
+import {OpensearchClientDocWithVersion} from "~/server/opensearch/opensearch_client.js";
 import {
     OpensearchIndexBooleanType,
     OpensearchIndexDateType,
@@ -38,12 +39,10 @@ const TaskCollectionAccessPolicyType = createCrdtRegisterOpensearchType(
  * The type of a document in our task collections index. Can be used to execute
  * arbitrary queries against tasks efficiently.
  */
-export type TaskCollectionIndexDoc = OpensearchIndexTypeType<typeof TaskCollectionIndexDocType> & {
-    readonly version?: {
-        readonly sequenceNumber: number;
-        readonly primaryTerm: number;
-    };
-};
+export type TaskCollectionIndexDoc = OpensearchIndexTypeType<typeof TaskCollectionIndexDocType>;
+
+export type TaskCollectionIndexDocWithVersion =
+    OpensearchClientDocWithVersion<TaskCollectionIndexDoc>;
 
 export const TaskCollectionIndexDocType = OpensearchIndexObjectType.new({
     fields: {

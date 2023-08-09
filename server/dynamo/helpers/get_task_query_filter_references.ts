@@ -21,6 +21,7 @@ export async function getTaskQueryFilterReferences(
             case "Status":
             case "Collections":
             case "Priority":
+            case "Title":
             case "DueDate":
             case "CreatedDate":
             case "AssignedDate":

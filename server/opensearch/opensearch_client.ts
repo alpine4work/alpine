@@ -1,4 +1,3 @@
-import {AppActionContext} from "~/server/dynamo/context/app_action_context.js";
 import {waitForHttpServer} from "~/server/helpers/wait_for_http_server.js";
 import {
     OpensearchIndex,
@@ -6,6 +5,7 @@ import {
     omitOpensearchStaticIndexConfig,
     pickOpensearchStaticIndexConfig,
 } from "~/server/opensearch/opensearch_index.js";
+import {OpensearchQueryClause} from "~/server/opensearch/opensearch_query_clause.js";
 import {FailedPreconditionError, InternalError, UnknownError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -15,6 +15,7 @@ import {partitionArray} from "~/shared/helpers/iterable/partition_array.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {JsonValue} from "~/shared/helpers/types/json_value.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 export type OpensearchClientDocWithVersion<Doc> = Doc & {
     /**
@@ -23,10 +24,10 @@ export type OpensearchClientDocWithVersion<Doc> = Doc & {
      *
      * [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/optimistic-concurrency-control.html
      */
-    readonly version?: {
+    readonly version: {
         readonly sequenceNumber: number;
         readonly primaryTerm: number;
-    };
+    } | null;
 };
 
 export type OpensearchClientBulkWriteOperation<DocId, Doc> = {
@@ -55,7 +56,7 @@ export interface OpensearchClientInterface {
         Doc extends {},
         FlattenedKeys extends string,
     >(
-        context: AppActionContext,
+        tracer: TracerBase,
         index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
         routing: Routing,
         id: DocId,
@@ -73,12 +74,25 @@ export interface OpensearchClientInterface {
      * [2]: https://www.elastic.co/guide/en/elasticsearch/reference/current/optimistic-concurrency-control.html
      */
     bulkWrite<Routing extends string, DocId extends string, Doc, FlattenedKeys extends string>(
-        context: AppActionContext,
+        tracer: TracerBase,
         index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
         routing: Routing,
         operations: ReadonlyArray<OpensearchClientBulkWriteOperation<DocId, Doc>>,
         options?: OpensearchClientBulkWriteOptions,
     ): Promise<void>;
+
+    /**
+     * Lets you execute a search against an OpenSearch index with the [search
+     * API][1].
+     *
+     * [1]: https://opensearch.org/docs/latest/api-reference/search/
+     */
+    search<Routing extends string, DocId extends string, Doc, FlattenedKeys extends string>(
+        tracer: TracerBase,
+        index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
+        routing: Routing,
+        query: OpensearchQueryClause<FlattenedKeys>,
+    ): Promise<Array<Doc>>;
 }
 
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! //
@@ -144,6 +158,13 @@ export interface OpensearchClientInterface {
 // explaining why your chose JSON stringify/parse methodology is safe. Or why
 // you need to use `json-bigint`.
 
+// NOTE(calebmer): We don't currently log `reason` from OpenSearch errors since
+// sometimes we've seen it contain user data.
+type OpensearchError = {
+    readonly type: string;
+    readonly root_cause?: Array<{readonly type: string}>;
+};
+
 /**
  * Lightweight abstraction for making requests to OpenSearch. Implements the
  * following features:
@@ -174,18 +195,18 @@ export class OpensearchClient implements OpensearchClientInterface {
         DocId extends string,
         Doc,
         FlattenedKeys extends string,
-    >(context: AppActionContext, index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>) {
+    >(tracer: TracerBase, index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>) {
         assert(process.env.NODE_ENV !== "production");
 
         return getOrSetDefaultMapValue(this._ensureLocalIndexPromiseByIndex, index, () => {
-            return context.tracer.withSpan("Ensure local OpenSearch index", async context => {
+            return tracer.withSpan("Ensure local OpenSearch index", async tracer => {
                 // We don't wait for OpenSearch to start before executing code in our dev
                 // server and tests. That's because OpenSearch takes ~7s to start. That means
                 // we need to wait for it here before we can use it.
                 await waitForHttpServer(`${this._protocol}://${this._host}`);
 
                 const getResponse = await fetchWithTracer(
-                    context.tracer.getTracer(),
+                    tracer,
                     `${this._protocol}://${this._host}/${index.name}/_settings`,
                     {
                         spanRoute: `/${index.name}`,
@@ -215,7 +236,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                     }
 
                     const putResponse = await fetchWithTracer(
-                        context.tracer.getTracer(),
+                        tracer,
                         `${this._protocol}://${this._host}/${index.name}`,
                         {
                             spanRoute: `/${index.name}`,
@@ -263,7 +284,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                     // https://github.com/elastic/elasticsearch/issues/33036
                     {
                         const getResponse2 = await fetchWithTracer(
-                            context.tracer.getTracer(),
+                            tracer,
                             `${this._protocol}://${this._host}/_cluster/state?filter_path=metadata.indices.${index.name}.routing_num_shards`,
                             {spanRoute: "/_cluster/state"},
                         );
@@ -298,12 +319,12 @@ export class OpensearchClient implements OpensearchClientInterface {
                     }
 
                     const putResponse = await fetchWithTracer(
-                        context.tracer.getTracer(),
+                        tracer,
                         `${this._protocol}://${this._host}/${index.name}/_settings`,
                         {
                             spanRoute: `/${index.name}/_settings`,
                             method: "PUT",
-                            headers: {"content-type": "application/json"},
+                            headers: {"Content-Type": "application/json"},
                             // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
                             // float-64 size in settings. Ok to use native JSON stringifier instead of
                             // `json-bigint`.
@@ -339,17 +360,17 @@ export class OpensearchClient implements OpensearchClientInterface {
         Doc extends {},
         FlattenedKeys extends string,
     >(
-        context: AppActionContext,
+        tracer: TracerBase,
         index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
         routing: Routing,
         id: DocId,
     ): Promise<OpensearchClientDocWithVersion<Doc> | null> {
         if (process.env.NODE_ENV !== "production") {
-            await this._ensureLocalIndex(context, index);
+            await this._ensureLocalIndex(tracer, index);
         }
 
         const response = await fetchWithTracer(
-            context.tracer.getTracer(),
+            tracer,
             `${this._protocol}://${this._host}/${index.name}/_doc/${id}?routing=${routing}`,
             {spanRoute: `/${index.name}/_doc/:taskId`},
         );
@@ -401,14 +422,14 @@ export class OpensearchClient implements OpensearchClientInterface {
         Doc,
         FlattenedKeys extends string,
     >(
-        context: AppActionContext,
+        tracer: TracerBase,
         index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
         routing: Routing,
         operations: ReadonlyArray<OpensearchClientBulkWriteOperation<DocId, Doc>>,
         {retryVersionConflictError}: OpensearchClientBulkWriteOptions,
     ): Promise<void> {
         if (process.env.NODE_ENV !== "production") {
-            await this._ensureLocalIndex(context, index);
+            await this._ensureLocalIndex(tracer, index);
         }
 
         if (operations.length === 0) return;
@@ -416,7 +437,7 @@ export class OpensearchClient implements OpensearchClientInterface {
         const bulkBody: Array<JsonValue> = [];
 
         for (const operation of operations) {
-            if (operation.doc.version === undefined) {
+            if (!operation.doc.version) {
                 bulkBody.push({create: {_id: operation.id}});
                 bulkBody.push(index.type.serialize(operation.doc));
             } else {
@@ -432,12 +453,12 @@ export class OpensearchClient implements OpensearchClientInterface {
         }
 
         const response = await fetchWithTracer(
-            context.tracer.getTracer(),
+            tracer,
             `${this._protocol}://${this._host}/${index.name}/_bulk?routing=${routing}`,
             {
                 spanRoute: `/${index.name}/_bulk`,
                 method: "POST",
-                headers: {"content-type": "application/x-ndjson"},
+                headers: {"Content-Type": "application/x-ndjson"},
                 // NOTE(#opensearch-important-json-disclaimer): `long`s in `_source` are
                 // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s
                 // to strings to maintain precision. Ok to use native JSON stringifier since
@@ -451,8 +472,8 @@ export class OpensearchClient implements OpensearchClientInterface {
         const body = await response.json<{
             errors: boolean;
             items: Array<{
-                create?: {error?: {type: string; reason: string}};
-                index?: {error?: {type: string; reason: string}};
+                create?: {error?: OpensearchError};
+                index?: {error?: OpensearchError};
             }>;
         }>();
 
@@ -482,10 +503,94 @@ export class OpensearchClient implements OpensearchClientInterface {
             const error = new UnknownError(
                 `OpenSearch bulk write partially failed with ${errors.length} error(s) out of ${
                     body.items.length
-                } operation(s)${errors[0] ? `, first error: ${errors[0].type}` : ""}`,
+                } operation(s)${
+                    errors[0]
+                        ? `, first error: "${errors[0].root_cause?.[0]?.type ?? errors[0].type}"`
+                        : ""
+                }`,
             );
 
             throw error;
         }
+    }
+
+    /**
+     * Lets you execute a search against an OpenSearch index with the [search
+     * API][1].
+     *
+     * [1]: https://opensearch.org/docs/latest/api-reference/search/
+     */
+    public async search<
+        Routing extends string,
+        DocId extends string,
+        Doc,
+        FlattenedKeys extends string,
+    >(
+        tracer: TracerBase,
+        index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
+        routing: Routing,
+        query: OpensearchQueryClause<FlattenedKeys>,
+    ): Promise<Array<Doc>> {
+        if (process.env.NODE_ENV !== "production") {
+            await this._ensureLocalIndex(tracer, index);
+        }
+
+        const searchUrl = new URL(`${this._protocol}://${this._host}/${index.name}/_search`);
+        searchUrl.searchParams.set("routing", routing);
+
+        // Important optimization. This means if we've satisfied the search's `size`
+        // limit then we can immediately end the query and return instead of scanning
+        // the entire index. [Works well with index sorting][1].
+        //
+        // [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/index-modules-index-sorting.html#early-terminate
+        searchUrl.searchParams.set("track_total_hits", "false");
+
+        // Don't return partial results in case of error or timeout.
+        searchUrl.searchParams.set("allow_partial_search_results", "false");
+
+        // If a `TaskRealtimeService` search request takes a long time then it may
+        // leave the action history visibility window. Bounding the time a search may
+        // take means we leave the rest of the visibility window (4.5min when the
+        // visibility window is 5min) for indexing actions.
+        searchUrl.searchParams.set("timeout", "30s");
+        searchUrl.searchParams.set("cancel_after_time_interval", "30s");
+
+        const response = await fetchWithTracer(tracer, searchUrl, {
+            spanRoute: `/${index.name}/_search`,
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            // NOTE(#opensearch-important-json-disclaimer): Query comes from TypeScript
+            // code where unknown values are typed as `JsonValue`. This means code
+            // producing the query should take care to correctly serialize big integers.
+            body: JSON.stringify({
+                query,
+                sort: ["createdTime.absoluteTime"],
+            }),
+        });
+
+        // NOTE(#opensearch-important-json-disclaimer): We only use `_source` which is
+        // deserialized with our index object type. `_source`s correctly serialize big
+        // integers for JavaScript (they're stringified).
+        //
+        // However, `sort` values are a problem here! OpenSearch returns sort values in
+        // its internal format. So a `long` will be a JSON number and that JSON number
+        // may be too big to represent in a JavaScript 64-bit float so we'll get an
+        // imprecise value.
+        //
+        // If we ignore `sort` values we'll be fine. Keep in mind that you can't use
+        // `sort` values unless you parse with `json-bigint`.
+        const body = await response.json<
+            | {hits: {hits: Array<{_source: JsonValue}>}; error?: undefined}
+            | {error: OpensearchError; hits?: undefined}
+        >();
+
+        if (body.error) {
+            const errorType = body.error.root_cause?.[0]?.type ?? body.error.type;
+            throw new UnknownError(`OpenSearch search failed: ${errorType}`);
+        }
+
+        const docs = body.hits.hits.map(hit => index.type.deserialize(hit._source));
+
+        return docs;
     }
 }

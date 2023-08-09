@@ -1,6 +1,7 @@
 import {Node, Schema as ProsemirrorSchema} from "prosemirror-model";
 import {prosemirrorToYXmlFragment, yXmlFragmentToProsemirror} from "y-prosemirror";
 import * as Y from "yjs";
+import {areUint8ArraysEqual} from "~/shared/helpers/binary/are_uint8_arrays_equal.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
@@ -125,4 +126,8 @@ export const TaskTitleUpdateSchema = Schema.bytes.transform<TaskTitleUpdate>({
 
 export function applyTaskTitleUpdate(title: TaskTitle, titleUpdate: TaskTitleUpdate): TaskTitle {
     return Y.mergeUpdatesV2([title, titleUpdate]) as TaskTitle;
+}
+
+export function mergeTaskTitles(title1: TaskTitle, title2: TaskTitle): TaskTitle {
+    return Y.mergeUpdatesV2([title1, title2]) as TaskTitle;
 }

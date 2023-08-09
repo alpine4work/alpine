@@ -20,7 +20,7 @@ import {getTaskTitleText} from "~/shared/tasks/task_title.js";
 
 // TypeScript errors here when new normalized filters are added. If you add a
 // new normalized filter you should make sure to update
-// `evaluateTaskQueryNormalizedFiltersForTaskIndexDoc()`.
+// `evaluateTaskQueryNormalizedFiltersForIndexDoc()`.
 assertEqualTypes<
     keyof TaskQueryNormalizedFilters,
     | "statusFilter"
@@ -40,7 +40,7 @@ assertEqualTypes<
 /**
  * Evaluates the provided task query filters against
  */
-export function evaluateTaskQueryNormalizedFiltersForTaskIndexDoc(
+export function evaluateTaskQueryNormalizedFiltersForIndexDoc(
     filters: TaskQueryNormalizedFilters,
     task: TaskIndexDoc,
 ): boolean {

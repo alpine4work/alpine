@@ -1,6 +1,8 @@
+import {OpensearchIndexFlattenedKeysType} from "~/server/opensearch/opensearch_index_type.js";
 import {OpensearchQueryClause} from "~/server/opensearch/opensearch_query_clause.js";
 import {
     TaskDisplayStatusIntegerMapping,
+    TaskIndexDocType,
     TaskPriorityIntegerMapping,
     TaskStatusTypeIntegerMapping,
 } from "~/server/tasks/index/task_index_doc.js";
@@ -37,16 +39,19 @@ assertEqualTypes<
     | "activatedDateFilter"
 >();
 
+type TaskIndexFlattenedKeys = OpensearchIndexFlattenedKeysType<typeof TaskIndexDocType>;
+type TaskIndexQueryClause = OpensearchQueryClause<TaskIndexFlattenedKeys>;
+
 /**
  * Get the OpenSearch query for the provided normalized filters.
  *
  * Returns a query using a filter context and includes standard filters for
  * searching our task index (e.g. exclude deleted tasks).
  */
-export function getTaskQueryNormalizedFiltersTaskIndexQueryClause(
+export function getTaskQueryNormalizedFiltersIndexQueryClause(
     spaceId: SpaceId,
     filters: TaskQueryNormalizedFilters,
-): OpensearchQueryClause {
+): TaskIndexQueryClause {
     return {
         bool: {
             // OpenSearch query clauses to be used in a filter context. Query clauses in
@@ -58,7 +63,7 @@ export function getTaskQueryNormalizedFiltersTaskIndexQueryClause(
                 // Never return deleted tasks.
                 {term: {isDeleted: false}},
 
-                ...getTaskQueryNormalizedFiltersTaskIndexFilterQueryClauses(filters),
+                ...getTaskQueryNormalizedFiltersIndexFilterQueryClauses(filters),
             ],
         },
     };
@@ -71,10 +76,10 @@ export function getTaskQueryNormalizedFiltersTaskIndexQueryClause(
  * These query clauses should also be executed in a filter context so
  * OpenSearch caches them.
  */
-function getTaskQueryNormalizedFiltersTaskIndexFilterQueryClauses(
+function getTaskQueryNormalizedFiltersIndexFilterQueryClauses(
     filters: TaskQueryNormalizedFilters,
-): Array<OpensearchQueryClause> {
-    const filterQueryClauses: Array<OpensearchQueryClause> = [];
+): Array<TaskIndexQueryClause> {
+    const filterQueryClauses: Array<TaskIndexQueryClause> = [];
 
     // Optimization: Use `status.value.type` when possible since that's a part of
     // our index sort. Which will make the search more efficient since we can skip
@@ -148,7 +153,7 @@ function getTaskQueryNormalizedFiltersTaskIndexFilterQueryClauses(
                 continue;
             }
 
-            const shouldTerms = Array.from(clause, ([term, not]) => {
+            const shouldTerms = Array.from(clause, ([term, not]): TaskIndexQueryClause => {
                 if (term === "IsEmpty") {
                     if (!not) {
                         return {bool: {must_not: {exists: {field: "collections.ids"}}}};
@@ -156,10 +161,18 @@ function getTaskQueryNormalizedFiltersTaskIndexFilterQueryClauses(
                         return {exists: {field: "collections.ids"}};
                     }
                 } else {
+                    // NOTE(calebmer): While this is supported in theory by our normalized filter
+                    // type, there's currently no way to construct this filter since you'd need to
+                    // say `collections.has(collectionId) || collections.size === 0` and we don't
+                    // currently have an "OR" operator.
+                    //
+                    // The only "OR" construction we support right now is testing for one of a few
+                    // collections:
+                    // `collections.has(collectionId1) || collections.has(collectionId2)`.
                     if (!not) {
-                        return {bool: {must_not: {term: {"collection.ids": term}}}};
+                        return {bool: {must_not: {term: {"collections.ids": term}}}};
                     } else {
-                        return {term: {"collection.ids": term}};
+                        return {term: {"collections.ids": term}};
                     }
                 }
             });
@@ -251,7 +264,7 @@ function getTaskQueryNormalizedFiltersTaskIndexFilterQueryClauses(
 
     if (filters.assigneeFilter) {
         filterQueryClauses.push(
-            getTaskQueryAccountNormalizedFilterTaskIndexQueryClause(
+            getTaskQueryAccountNormalizedFilterIndexQueryClause(
                 "assignee.value.assignee.accountId",
                 filters.assigneeFilter,
             ),
@@ -260,7 +273,7 @@ function getTaskQueryNormalizedFiltersTaskIndexFilterQueryClauses(
 
     if (filters.creatorFilter) {
         filterQueryClauses.push(
-            getTaskQueryAccountNormalizedFilterTaskIndexQueryClause(
+            getTaskQueryAccountNormalizedFilterIndexQueryClause(
                 "creator.accountId",
                 filters.creatorFilter,
             ),
@@ -269,7 +282,7 @@ function getTaskQueryNormalizedFiltersTaskIndexFilterQueryClauses(
 
     if (filters.assignerFilter) {
         filterQueryClauses.push(
-            getTaskQueryAccountNormalizedFilterTaskIndexQueryClause(
+            getTaskQueryAccountNormalizedFilterIndexQueryClause(
                 "assignee.value.assigner.accountId",
                 filters.assignerFilter,
             ),
@@ -278,7 +291,7 @@ function getTaskQueryNormalizedFiltersTaskIndexFilterQueryClauses(
 
     if (filters.dueDateFilter) {
         filterQueryClauses.push(
-            getTaskQueryDateNormalizedFilterTaskIndexQueryClause(
+            getTaskQueryDateNormalizedFilterIndexQueryClause(
                 "dueDate.value",
                 filters.dueDateFilter,
             ),
@@ -287,7 +300,7 @@ function getTaskQueryNormalizedFiltersTaskIndexFilterQueryClauses(
 
     if (filters.createdDateFilter) {
         filterQueryClauses.push(
-            getTaskQueryDateNormalizedFilterTaskIndexQueryClause(
+            getTaskQueryDateNormalizedFilterIndexQueryClause(
                 "createdTime.setterDate",
                 filters.createdDateFilter,
             ),
@@ -296,7 +309,7 @@ function getTaskQueryNormalizedFiltersTaskIndexFilterQueryClauses(
 
     if (filters.assignedDateFilter) {
         filterQueryClauses.push(
-            getTaskQueryDateNormalizedFilterTaskIndexQueryClause(
+            getTaskQueryDateNormalizedFilterIndexQueryClause(
                 "assignee.value.assignedTime.setterDate",
                 filters.assignedDateFilter,
             ),
@@ -305,7 +318,7 @@ function getTaskQueryNormalizedFiltersTaskIndexFilterQueryClauses(
 
     if (filters.closedDateFilter) {
         filterQueryClauses.push(
-            getTaskQueryDateNormalizedFilterTaskIndexQueryClause(
+            getTaskQueryDateNormalizedFilterIndexQueryClause(
                 "status.value.closedTime.setterDate",
                 filters.closedDateFilter,
             ),
@@ -319,7 +332,7 @@ function getTaskQueryNormalizedFiltersTaskIndexFilterQueryClauses(
         });
 
         filterQueryClauses.push(
-            getTaskQueryDateNormalizedFilterTaskIndexQueryClause(
+            getTaskQueryDateNormalizedFilterIndexQueryClause(
                 "rawAssigneeStatus.value.activatedTime.setterDate",
                 filters.activatedDateFilter,
             ),
@@ -329,10 +342,10 @@ function getTaskQueryNormalizedFiltersTaskIndexFilterQueryClauses(
     return filterQueryClauses;
 }
 
-function getTaskQueryAccountNormalizedFilterTaskIndexQueryClause(
-    fieldName: string,
+function getTaskQueryAccountNormalizedFilterIndexQueryClause(
+    fieldName: TaskIndexFlattenedKeys,
     filter: TaskQueryAccountNormalizedFilter,
-): OpensearchQueryClause {
+): TaskIndexQueryClause {
     switch (filter.type) {
         case "OneOf": {
             let hasMissingAccount = false;
@@ -402,10 +415,10 @@ function getTaskQueryAccountNormalizedFilterTaskIndexQueryClause(
     }
 }
 
-function getTaskQueryDateNormalizedFilterTaskIndexQueryClause(
-    fieldName: string,
+function getTaskQueryDateNormalizedFilterIndexQueryClause(
+    fieldName: TaskIndexFlattenedKeys,
     filter: TaskQueryDateNormalizedFilter | {type: "IsEmpty"},
-): OpensearchQueryClause {
+): TaskIndexQueryClause {
     switch (filter.type) {
         case "IsEmpty": {
             return {bool: {must_not: {exists: {field: fieldName}}}};

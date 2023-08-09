@@ -7,7 +7,8 @@ ts_project(
         "//shared/tasks/test_helpers",
     ],
     deps = [
-        "//:node_modules/unicode-default-word-boundary",
+        "//:node_modules/@types/bintrees",
+        "//:node_modules/bintrees",
         "//server/node",
         "//server/opensearch",
         "//server/tasks/index",

@@ -91,4 +91,8 @@ export class TestDisabledOpensearchClient implements OpensearchClientInterface {
     public bulkWrite(): never {
         throw this._newUnavailableError();
     }
+
+    public search(): never {
+        throw this._newUnavailableError();
+    }
 }

@@ -9,13 +9,14 @@ import {
     OpensearchIndexTypeType,
 } from "~/server/opensearch/opensearch_index_type.js";
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/index/internal/apply_task_action_to_task_index_doc.js";
+import {getTaskQueryNormalizedFiltersIndexQueryClause} from "~/server/tasks/index/internal/get_task_query_normalized_filters_index_query_clause.js";
 import {
-    TaskCollectionIndexDoc,
     TaskCollectionIndexDocType,
+    TaskCollectionIndexDocWithVersion,
 } from "~/server/tasks/index/task_collection_index_doc.js";
 import {
-    TaskIndexDoc,
     TaskIndexDocType,
+    TaskIndexDocWithVersion,
     TaskPositionByAccountIdAndNotepadPageId,
     TaskPositionByCollectionIdMap,
 } from "~/server/tasks/index/task_index_doc.js";
@@ -35,6 +36,7 @@ import {
     TaskParentTaskIdRegister,
 } from "~/shared/tasks/actions/task_task_action.js";
 import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
+import {TaskQueryNormalizedFilters} from "~/shared/tasks/normalize_task_query_filters.js";
 import {TaskAssigneeRegister} from "~/shared/tasks/task_assignee.js";
 import {TaskAssigneeStatusRegister} from "~/shared/tasks/task_assignee_status.js";
 import {TaskCollectionAccessPolicyRegister} from "~/shared/tasks/task_collection_access_policy.js";
@@ -124,7 +126,12 @@ export function getTaskIndexDocIfExistsForTest(
 ) {
     assert(import.meta.jest);
 
-    return context.opensearch.client.getDocIfExists(context, TaskIndex, spaceId, taskId);
+    return context.opensearch.client.getDocIfExists(
+        context.tracer.getTracer(),
+        TaskIndex,
+        spaceId,
+        taskId,
+    );
 }
 
 /**
@@ -139,7 +146,7 @@ export function getTaskCollectionIndexDocIfExistsForTest(
     assert(import.meta.jest);
 
     return context.opensearch.client.getDocIfExists(
-        context,
+        context.tracer.getTracer(),
         TaskCollectionIndex,
         spaceId,
         collectionId,
@@ -180,15 +187,18 @@ class TaskActionTransactionIndexState {
     public readonly spaceId: SpaceId;
     public readonly retry: (error?: unknown) => never;
 
-    private readonly _updatedTaskIndexDocById = new Map<TaskId, TaskIndexDoc>();
-    private readonly _retrievedTaskIndexDocById = new Map<TaskId, Promise<TaskIndexDoc | null>>();
+    private readonly _updatedTaskIndexDocById = new Map<TaskId, TaskIndexDocWithVersion>();
+    private readonly _retrievedTaskIndexDocById = new Map<
+        TaskId,
+        Promise<TaskIndexDocWithVersion | null>
+    >();
     private readonly _updatedCollectionIndexDocById = new Map<
         TaskCollectionId,
-        TaskCollectionIndexDoc
+        TaskCollectionIndexDocWithVersion
     >();
     private readonly _retrievedCollectionIndexDocById = new Map<
         TaskCollectionId,
-        Promise<TaskCollectionIndexDoc | null>
+        Promise<TaskCollectionIndexDocWithVersion | null>
     >();
 
     private constructor(
@@ -230,7 +240,7 @@ class TaskActionTransactionIndexState {
 
             await runAllPromises([
                 state._context.opensearch.client.bulkWrite(
-                    context,
+                    context.tracer.getTracer(),
                     TaskIndex,
                     spaceId,
                     Array.from(state._updatedTaskIndexDocById, ([taskId, task]) => ({
@@ -241,7 +251,7 @@ class TaskActionTransactionIndexState {
                     {retryVersionConflictError: retry},
                 ),
                 state._context.opensearch.client.bulkWrite(
-                    context,
+                    context.tracer.getTracer(),
                     TaskCollectionIndex,
                     spaceId,
                     Array.from(
@@ -270,7 +280,7 @@ class TaskActionTransactionIndexState {
 
         return getOrSetDefaultMapValue(this._retrievedTaskIndexDocById, taskId, async () => {
             const task = await this._context.opensearch.client.getDocIfExists(
-                this._context,
+                this._context.tracer.getTracer(),
                 TaskIndex,
                 this.spaceId,
                 taskId,
@@ -290,7 +300,7 @@ class TaskActionTransactionIndexState {
      * create it. If the task exists with a different version then we need
      * to retry.
      */
-    public putTaskIndexDoc(taskId: TaskId, task: TaskIndexDoc) {
+    public putTaskIndexDoc(taskId: TaskId, task: TaskIndexDocWithVersion) {
         assert(task.spaceId === this.spaceId);
 
         const lastTask = this._updatedTaskIndexDocById.get(taskId);
@@ -317,7 +327,7 @@ class TaskActionTransactionIndexState {
             collectionId,
             async () => {
                 const collection = await this._context.opensearch.client.getDocIfExists(
-                    this._context,
+                    this._context.tracer.getTracer(),
                     TaskCollectionIndex,
                     this.spaceId,
                     collectionId,
@@ -341,7 +351,7 @@ class TaskActionTransactionIndexState {
      */
     public putCollectionIndexDoc(
         collectionId: TaskCollectionId,
-        collection: TaskCollectionIndexDoc,
+        collection: TaskCollectionIndexDocWithVersion,
     ) {
         assert(collection.spaceId === this.spaceId);
 
@@ -373,6 +383,7 @@ async function actuallyIndexTaskAction(
 
             if (!oldTask && action.taskAction.type === "Create") {
                 state.putTaskIndexDoc(action.taskId, {
+                    version: null,
                     spaceId: state.spaceId,
                     creator: action.taskAction.creator,
                     createdTime: new TaskFilterableTime({
@@ -460,6 +471,7 @@ async function actuallyIndexTaskAction(
 
             if (!oldCollection && action.collectionAction.type === "Create") {
                 state.putCollectionIndexDoc(action.collectionId, {
+                    version: null,
                     spaceId: state.spaceId,
                     createdTime: new Date(action.time[0]),
                     rawDeletedTime: null,
@@ -654,4 +666,59 @@ async function actuallyIndexTaskAction(
         default:
             throw exhaustive(action);
     }
+}
+
+/**
+ * Query the task index.
+ *
+ * Remember that the task index will be behind by (hopefully) no more than
+ * 2min. So to catch the query up to the actual present result you need to
+ * replay ~2min of actions since the query started.
+ *
+ * Where do we get 2min from?
+ * `indexDuration + refreshInterval + refreshDuration` should be less than
+ * 2min. What do each of these mean?
+ *
+ * - `indexDuration`: The time it takes from action transaction commit finish
+ *   to action transaction index finish. Basically the duration of
+ *   `indexTaskActionTransactionAssumingItsCommitted()`.
+ *
+ * - `refreshInterval`: The interval at which OpenSearch refreshes its indexes.
+ *   For the task index we've configured this to be 30 seconds.
+ *
+ * - `refreshDuration`: The amount of time it takes to refresh the OpenSearch
+ *   index.
+ *
+ * By default `TaskRealtimeActionHistory` (which is responsible for maintaining
+ * our action history in memory) holds the last ~5min of actions. We also
+ * timeout searches after 30s.
+ *
+ * We should eventually set SLAs for task indexing and OpenSearch to avoid
+ * weird glitches when we can't fully catch up a query.
+ */
+export async function queryTaskIndex(
+    context: AppSystemActionContext,
+    {
+        spaceId,
+        filters,
+    }: {
+        spaceId: SpaceId;
+        filters: TaskQueryNormalizedFilters;
+    },
+) {
+    // Must be a system actor because we do no filtering to check whether you are
+    // allowed to see the queried tasks. Permissions filtering must be done at a
+    // different level.
+    context.actor.authorizeSystem();
+
+    await authorizeSpaceAccess(context, spaceId);
+
+    const tasks = await context.opensearch.client.search(
+        context.tracer.getTracer(),
+        TaskIndex,
+        spaceId,
+        getTaskQueryNormalizedFiltersIndexQueryClause(spaceId, filters),
+    );
+
+    return tasks;
 }

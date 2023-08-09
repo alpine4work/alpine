@@ -432,9 +432,9 @@ const TaskIndexPriorityType = createCrdtRegisterOpensearchType(
  * The type of a document in our tasks index. Can be used to execute arbitrary
  * queries against tasks efficiently.
  */
-export type TaskIndexDoc = OpensearchClientDocWithVersion<
-    OpensearchIndexTypeType<typeof TaskIndexDocType>
->;
+export type TaskIndexDoc = OpensearchIndexTypeType<typeof TaskIndexDocType>;
+
+export type TaskIndexDocWithVersion = OpensearchClientDocWithVersion<TaskIndexDoc>;
 
 export const TaskIndexDocType = OpensearchIndexObjectType.new({
     fields: {

@@ -1,4 +1,4 @@
-import {TaskIndexDoc} from "~/server/tasks/index/task_index_doc.js";
+import {TaskIndexDocWithVersion} from "~/server/tasks/index/task_index_doc.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {
     HybridLogicalTime,
@@ -16,10 +16,10 @@ import {applyTaskTitleUpdate} from "~/shared/tasks/task_title.js";
  * times and we'll converge to the same result every time.
  */
 export function applyTaskActionToTaskIndexDoc(
-    task: TaskIndexDoc,
+    task: TaskIndexDocWithVersion,
     actionTime: HybridLogicalTime,
     action: TaskTaskAction,
-): TaskIndexDoc {
+): TaskIndexDocWithVersion {
     switch (action.type) {
         case "Create": {
             if (

@@ -342,7 +342,8 @@ async function run(
         email: !isLocalAws
             ? new SesEmailContextModule(getAwsHttpClient)
             : new NoopEmailContextModule(),
-        opensearch: null,
+        // NOCOMMIT
+        opensearch: null as any,
     });
 
     let hasSeededDynamo = false;

@@ -1,6 +1,7 @@
 import {
     AppActionContext,
     AppSessionActionContext,
+    AppSystemActionContext,
 } from "~/server/dynamo/context/app_action_context.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema.js";
@@ -28,10 +29,11 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId, getMinId} from "~/shared/id/id.js";
 import {
     AccountId,
     SpaceId,
@@ -1665,4 +1667,52 @@ async function evaluateTaskCollectionItemAccessPolicy(
     }
 
     return false;
+}
+
+/**
+ * Get all action transactions since the provided start time in the
+ * provided space.
+ */
+export async function backfillTaskActionTransactionHistory(
+    context: AppSystemActionContext,
+    spaceId: SpaceId,
+    startCommittedTime: Date,
+): Promise<
+    Array<{
+        spaceId: SpaceId;
+        committedTime: Date;
+        actions: ReadonlyArray<TaskAction>;
+    }>
+> {
+    // Must have system access since we return all actions. We don't
+    // filter out actions the current session doesn't have access to.
+    context.actor.authorizeSystem();
+
+    const actionTransactions: Array<{
+        spaceId: SpaceId;
+        committedTime: Date;
+        actions: ReadonlyArray<TaskAction>;
+    }> = [];
+
+    for await (const item of TaskActionsTable.query(context, {
+        partitionKey: {
+            partitionType: "TaskActions",
+            spaceId,
+        },
+        startSortKey: {
+            sortRangeType: "ActionTransaction",
+            committedTime: startCommittedTime,
+            actionTransactionId: getMinId<TaskActionTransactionId>(),
+        },
+        limit: "All",
+        consistency: "Strong",
+    })) {
+        actionTransactions.push({
+            spaceId: item.spaceId,
+            committedTime: item.committedTime,
+            actions: item.actions,
+        });
+    }
+
+    return actionTransactions;
 }
