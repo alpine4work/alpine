@@ -3,7 +3,7 @@ import {
     TaskQueryAccountNormalizedFilter,
     TaskQueryDateNormalizedFilter,
     TaskQueryNormalizedFilters,
-} from "~/shared/tasks/normalize_task_query_filters.js";
+} from "~/shared/tasks/task_query_normalized_filters.js";
 import {LocalTask} from "~/client/tasks/demo_2/local_tasks_state.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";

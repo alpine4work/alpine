@@ -7,7 +7,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
-import {TaskQueryNormalizedFilters} from "~/shared/tasks/normalize_task_query_filters.js";
+import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 
 /**
  * The horizontally scalable task realtime server. We don't actually run the

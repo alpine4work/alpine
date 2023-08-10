@@ -11,7 +11,7 @@ import {evaluateTaskQueryNormalizedFilters} from "~/client/tasks/demo_2/internal
 import {
     TaskQueryNormalizedFilters,
     normalizeTaskQueryFilters,
-} from "~/shared/tasks/normalize_task_query_filters.js";
+} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 import {
     TaskAssignee,

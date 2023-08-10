@@ -12,13 +12,13 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {AccountId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
+import {TaskPriority} from "~/shared/tasks/task_priority.js";
 import {
     TaskQueryAccountNormalizedFilter,
     TaskQueryDateNormalizedFilter,
     TaskQueryNormalizedFilters,
-} from "~/shared/tasks/normalize_task_query_filters.js";
-import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
-import {TaskPriority} from "~/shared/tasks/task_priority.js";
+} from "~/shared/tasks/task_query_normalized_filters.js";
 
 // TypeScript errors here when new normalized filters are added. If you add a
 // new normalized filter you should make sure to update

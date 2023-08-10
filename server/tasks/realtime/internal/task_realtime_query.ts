@@ -13,7 +13,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskTaskAction} from "~/shared/tasks/actions/task_task_action.js";
-import {TaskQueryNormalizedFilters} from "~/shared/tasks/normalize_task_query_filters.js";
+import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
 type TaskRealtimeQueryTreeEntry = readonly [...ReadonlyArray<TaskQuerySortValue>, TaskId];

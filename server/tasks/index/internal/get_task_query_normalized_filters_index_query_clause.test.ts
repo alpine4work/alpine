@@ -18,7 +18,7 @@ import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id
 import {
     TaskQueryNormalizedFilters,
     normalizeTaskQueryFilters,
-} from "~/shared/tasks/normalize_task_query_filters.js";
+} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskNotepadPageId, generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 import {TaskQueryFilter, TaskQueryFilterDateOperation} from "~/shared/tasks/task_query_filter.js";

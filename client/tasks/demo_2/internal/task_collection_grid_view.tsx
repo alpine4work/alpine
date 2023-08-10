@@ -6,7 +6,7 @@ import {usePeekStackContext} from "~/client/peek/peek_stack.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {normalizeTaskQueryFilters} from "~/shared/tasks/normalize_task_query_filters.js";
+import {normalizeTaskQueryFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/demo_2/internal/task_delete_confirmation_modal_dialog.js";
 import {
     LocalTask,

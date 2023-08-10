@@ -9,7 +9,7 @@ import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {iterableSome} from "~/shared/helpers/iterable/iterable_some.js";
 import {TaskTaskAction} from "~/shared/tasks/actions/task_task_action.js";
-import {TaskQueryNormalizedFilters} from "~/shared/tasks/normalize_task_query_filters.js";
+import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 
 // TypeScript errors here when new normalized filters are added. If you add a
 // new normalized filter you should make sure to update

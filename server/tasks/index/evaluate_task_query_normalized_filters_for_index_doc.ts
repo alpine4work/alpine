@@ -15,7 +15,7 @@ import {
     TaskQueryAccountNormalizedFilter,
     TaskQueryDateNormalizedFilter,
     TaskQueryNormalizedFilters,
-} from "~/shared/tasks/normalize_task_query_filters.js";
+} from "~/shared/tasks/task_query_normalized_filters.js";
 import {getTaskTitleText} from "~/shared/tasks/task_title.js";
 
 // TypeScript errors here when new normalized filters are added. If you add a

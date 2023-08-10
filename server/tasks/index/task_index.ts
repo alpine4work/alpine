@@ -34,8 +34,8 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
-import {TaskQueryNormalizedFilters} from "~/shared/tasks/normalize_task_query_filters.js";
 import {TaskCollectionAccessPolicyRegister} from "~/shared/tasks/task_collection_access_policy.js";
+import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 
 // IMPORTANT: Don't export this. All access to the index should be exposed
 // through functions in this file. Like how we organize DynamoDB tables. By
