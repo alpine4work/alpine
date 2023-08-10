@@ -37,6 +37,7 @@ assertEqualTypes<
     | "assignedDateFilter"
     | "closedDateFilter"
     | "activatedDateFilter"
+    | "notepadPageFilter"
 >();
 
 type TaskIndexFlattenedKeys = OpensearchIndexFlattenedKeysType<typeof TaskIndexDocType>;
@@ -337,6 +338,14 @@ function getTaskQueryNormalizedFiltersIndexFilterQueryClauses(
                 filters.activatedDateFilter,
             ),
         );
+    }
+
+    if (filters.notepadPageFilter) {
+        filterQueryClauses.push({
+            term: {
+                "notepadPages.ids": `${filters.notepadPageFilter.accountId}-${filters.notepadPageFilter.notepadPageId}`,
+            },
+        });
     }
 
     return filterQueryClauses;

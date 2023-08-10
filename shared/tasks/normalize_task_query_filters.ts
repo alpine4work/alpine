@@ -8,6 +8,7 @@ import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {AccountId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {analyzeTaskTitleText} from "~/shared/tasks/analyze_task_title_text.js";
+import {TaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
 import {
     TaskQueryCollectionsFilter,
@@ -65,6 +66,7 @@ export type TaskQueryNormalizedFilters = {
     readonly assignedDateFilter?: TaskQueryDateNormalizedFilter;
     readonly closedDateFilter?: TaskQueryDateNormalizedFilter;
     readonly activatedDateFilter?: TaskQueryDateNormalizedFilter;
+    readonly notepadPageFilter?: TaskQueryNotepadPageNormalizedFilter;
 };
 
 // At least one of the three statuses must be included in this filter. Otherwise
@@ -182,6 +184,11 @@ export type TaskQueryDateNormalizedFilter =
           readonly exclusiveLowerBoundDate: CalendarDate;
           readonly exclusiveUpperBoundDate: CalendarDate | null;
       };
+
+export type TaskQueryNotepadPageNormalizedFilter = {
+    readonly accountId: AccountId;
+    readonly notepadPageId: TaskNotepadPageId;
+};
 
 /**
  * Convert an array of task query filters to a normalized representation which

@@ -28,6 +28,7 @@ assertEqualTypes<
     | "assignedDateFilter"
     | "closedDateFilter"
     | "activatedDateFilter"
+    | "notepadPageFilter"
 >();
 
 /**
@@ -112,8 +113,13 @@ export function mightTaskActionAddVisibleTaskInQueryNormalizedFilters(
             return false;
         }
         case "UpdateNotepadPagePosition": {
-            // No filters match notepad page position.
-            return false;
+            if (!filters.notepadPageFilter) return false;
+
+            return (
+                action.position !== null &&
+                action.accountId === filters.notepadPageFilter.accountId &&
+                action.notepadPageId === filters.notepadPageFilter.notepadPageId
+            );
         }
         case "UpdateStatus": {
             // If all statuses are allowed then changing the status will not change the

@@ -35,6 +35,7 @@ assertEqualTypes<
     | "assignedDateFilter"
     | "closedDateFilter"
     | "activatedDateFilter"
+    | "notepadPageFilter"
 >();
 
 /**
@@ -178,6 +179,16 @@ export function evaluateTaskQueryNormalizedFiltersForIndexDoc(
             !evaluateTaskQueryDateNormalizedFilter(
                 filters.activatedDateFilter,
                 assigneeStatus.type === "Active" ? assigneeStatus.activatedTime.setterDate : null,
+            )
+        ) {
+            return false;
+        }
+    }
+
+    if (filters.notepadPageFilter !== undefined) {
+        if (
+            !task.notepadPages.raw.positionById.has(
+                `${filters.notepadPageFilter.accountId}-${filters.notepadPageFilter.notepadPageId}`,
             )
         ) {
             return false;

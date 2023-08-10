@@ -15,8 +15,12 @@ import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
-import {normalizeTaskQueryFilters} from "~/shared/tasks/normalize_task_query_filters.js";
+import {
+    TaskQueryNormalizedFilters,
+    normalizeTaskQueryFilters,
+} from "~/shared/tasks/normalize_task_query_filters.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
+import {TaskNotepadPageId, generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 import {TaskQueryFilter, TaskQueryFilterDateOperation} from "~/shared/tasks/task_query_filter.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {TaskTitleUpdate} from "~/shared/tasks/task_title.js";
@@ -219,6 +223,13 @@ async function testQuery(
     if (normalizedFiltersResult.type === "Impossible") return [];
     const {normalizedFilters} = normalizedFiltersResult;
 
+    return testQueryWithNormalizedFilters(space, normalizedFilters);
+}
+
+async function testQueryWithNormalizedFilters(
+    space: {id: SpaceId},
+    filters: TaskQueryNormalizedFilters,
+): Promise<Array<TaskId>> {
     // Wait for any indexing processes to finish.
     await ProcessContextModule.waitForTestTasks();
 
@@ -271,10 +282,7 @@ async function testQuery(
                     method: "POST",
                     headers: {"content-type": "application/json"},
                     body: JSON.stringify({
-                        query: getTaskQueryNormalizedFiltersIndexQueryClause(
-                            space.id,
-                            normalizedFilters,
-                        ),
+                        query: getTaskQueryNormalizedFiltersIndexQueryClause(space.id, filters),
                         sort: ["createdTime.absoluteTime"],
                     }),
                 },
@@ -296,7 +304,7 @@ async function testQuery(
     );
 
     const expectedQueryTasks = allTasks.filter(({task}) =>
-        evaluateTaskQueryNormalizedFiltersForIndexDoc(normalizedFilters, task),
+        evaluateTaskQueryNormalizedFiltersForIndexDoc(filters, task),
     );
 
     // `getArray()` caches the underlying array. We don't want `expect().toEqual()`
@@ -8784,4 +8792,138 @@ test("can merge title filters", async () => {
             },
         ]),
     ).toEqual([task1Id, task4Id, task5Id]);
+});
+
+test("can filter by notepad page", async () => {
+    const {space, session1, session2} = await createScenario();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+    const task4Id = generateId<TaskId>();
+    const task5Id = generateId<TaskId>();
+
+    const notepadPage1Id = generateTaskNotepadPageId();
+    const notepadPage2Id = (notepadPage1Id + 1) as TaskNotepadPageId;
+
+    await commitTaskActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdateNotepadPagePosition",
+                accountId: session1.accountId,
+                notepadPageId: notepadPage1Id,
+                position: {orderTime: clock.now(), orderKey: initialOrderKey},
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdateNotepadPagePosition",
+                accountId: session1.accountId,
+                notepadPageId: notepadPage1Id,
+                position: {orderTime: clock.now(), orderKey: initialOrderKey},
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdateNotepadPagePosition",
+                accountId: session1.accountId,
+                notepadPageId: notepadPage2Id,
+                position: {orderTime: clock.now(), orderKey: initialOrderKey},
+            },
+        },
+    ]);
+
+    await commitTaskActionTransaction(context.action(session2), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task5Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session2),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task5Id,
+            taskAction: {
+                type: "UpdateNotepadPagePosition",
+                accountId: session2.accountId,
+                notepadPageId: notepadPage2Id,
+                position: {orderTime: clock.now(), orderKey: initialOrderKey},
+            },
+        },
+    ]);
+
+    expect(
+        await testQueryWithNormalizedFilters(space, {
+            displayStatusFilter: {ifOpenInactive: true, ifOpenActive: true, ifClosed: false},
+            notepadPageFilter: {accountId: session1.accountId, notepadPageId: notepadPage1Id},
+        }),
+    ).toEqual([task1Id, task2Id]);
+
+    expect(
+        await testQueryWithNormalizedFilters(space, {
+            displayStatusFilter: {ifOpenInactive: true, ifOpenActive: true, ifClosed: false},
+            notepadPageFilter: {accountId: session1.accountId, notepadPageId: notepadPage2Id},
+        }),
+    ).toEqual([task3Id]);
+
+    expect(
+        await testQueryWithNormalizedFilters(space, {
+            displayStatusFilter: {ifOpenInactive: true, ifOpenActive: true, ifClosed: false},
+            notepadPageFilter: {accountId: session2.accountId, notepadPageId: notepadPage2Id},
+        }),
+    ).toEqual([task5Id]);
 });
