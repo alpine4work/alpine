@@ -29,7 +29,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
-import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {quote} from "~/shared/helpers/string/quote.js";
@@ -1235,6 +1234,8 @@ async function actuallyCommitTaskActionTransaction(
                                 );
                             }
                             case "AddCollection": {
+                                // If you have collection edit access then you implicitly also have task edit
+                                // access.
                                 await authorizeCollectionAccess(taskAction.collectionId, "Edit");
 
                                 state.updateTaskItem({
@@ -1249,6 +1250,8 @@ async function actuallyCommitTaskActionTransaction(
                                 break;
                             }
                             case "RemoveCollection": {
+                                // If you have collection edit access then you implicitly also have task edit
+                                // access.
                                 await authorizeCollectionAccess(taskAction.collectionId, "Edit");
 
                                 state.updateTaskItem({
@@ -1259,6 +1262,31 @@ async function actuallyCommitTaskActionTransaction(
                                         version: action.time,
                                     }),
                                 });
+                                break;
+                            }
+                            case "UpdateCollectionPosition": {
+                                if (!state.isTimeReasonable(taskAction.position.orderTime[0])) {
+                                    throw new InvalidArgumentError(
+                                        "Action `orderTime` is too far in the future",
+                                    );
+                                }
+
+                                // If you have collection edit access then you implicitly also have task edit
+                                // access.
+                                await authorizeCollectionAccess(taskAction.collectionId, "Edit");
+                                break;
+                            }
+                            case "UpdateNotepadPagePosition": {
+                                if (
+                                    taskAction.position &&
+                                    !state.isTimeReasonable(taskAction.position.orderTime[0])
+                                ) {
+                                    throw new InvalidArgumentError(
+                                        "Action `orderTime` is too far in the future",
+                                    );
+                                }
+
+                                await authorizeTaskItemAccess(taskItem, "View");
                                 break;
                             }
                             case "UpdateStatus": {
@@ -1542,29 +1570,6 @@ async function actuallyCommitTaskActionTransaction(
                                 });
                                 break;
                             }
-                            case "UpdateTaskPosition": {
-                                if (
-                                    !state.isTimeReasonable(collectionAction.position.orderTime[0])
-                                ) {
-                                    throw new InvalidArgumentError(
-                                        "Action `orderTime` is too far in the future",
-                                    );
-                                }
-
-                                // If you have collection edit access then you implicitly also have task edit
-                                // access.
-                                await authorizeCollectionAccess(collectionId, "Edit");
-
-                                const taskItem = await state.getTaskItemIfExists(
-                                    collectionAction.taskId,
-                                );
-                                if (!taskItem) throw new NotFoundError("Task not found");
-
-                                if (!taskItem.collections.has(collectionId)) {
-                                    throw new FailedPreconditionError("Task is not in collection");
-                                }
-                                break;
-                            }
                             default:
                                 throw exhaustive(collectionAction);
                         }
@@ -1581,50 +1586,18 @@ async function actuallyCommitTaskActionTransaction(
 
                 const notepadItem = await state.getActorNotepadItem();
 
-                if (notepadPageAction.type === "Create") {
-                    if (notepadItem.pageIds.has(notepadPageId))
-                        throw new FailedPreconditionError("Notepad page already exists");
+                cast<"Create">(notepadPageAction.type);
 
-                    const newPageIds = new Set(notepadItem.pageIds);
-                    newPageIds.add(notepadPageId);
+                if (notepadItem.pageIds.has(notepadPageId))
+                    throw new FailedPreconditionError("Notepad page already exists");
 
-                    state.updateActorNotepadItem({
-                        ...notepadItem,
-                        pageIds: newPageIds,
-                    });
-                } else {
-                    if (!notepadItem.pageIds.has(notepadPageId))
-                        throw new NotFoundError("Notepad page not found");
+                const newPageIds = new Set(notepadItem.pageIds);
+                newPageIds.add(notepadPageId);
 
-                    switch (notepadPageAction.type) {
-                        case "AddTask": {
-                            if (!state.isTimeReasonable(notepadPageAction.position.orderTime[0])) {
-                                throw new InvalidArgumentError(
-                                    "Action `orderTime` is too far in the future",
-                                );
-                            }
-
-                            const taskItem = await state.getTaskItemIfExists(
-                                notepadPageAction.taskId,
-                            );
-                            if (!taskItem) throw new NotFoundError("Task not found");
-
-                            await authorizeTaskItemAccess(taskItem, "View");
-                            break;
-                        }
-                        case "RemoveTask": {
-                            const taskItem = await state.getTaskItemIfExists(
-                                notepadPageAction.taskId,
-                            );
-                            if (!taskItem) throw new NotFoundError("Task not found");
-
-                            await authorizeTaskItemAccess(taskItem, "View");
-                            break;
-                        }
-                        default:
-                            throw exhaustive(notepadPageAction);
-                    }
-                }
+                state.updateActorNotepadItem({
+                    ...notepadItem,
+                    pageIds: newPageIds,
+                });
                 break;
             }
             default:

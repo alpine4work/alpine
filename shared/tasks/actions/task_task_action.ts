@@ -1,11 +1,12 @@
 import {CalendarDate, parseDate} from "@internationalized/date";
 import {createCrdtRegister} from "~/shared/crdt/crdt_register.js";
-import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskAssigneeSchema} from "~/shared/tasks/task_assignee.js";
 import {TaskAssigneeStatusSchema} from "~/shared/tasks/task_assignee_status.js";
+import {TaskNotepadPageIdSchema} from "~/shared/tasks/task_notepad_page_id.js";
 import {TaskPositionSchema} from "~/shared/tasks/task_position.js";
 import {TaskPrioritySchema} from "~/shared/tasks/task_priority.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
@@ -214,6 +215,61 @@ const TaskRemoveCollectionActionSchema = Schema.object({
 });
 
 /**
+ * Sets a task's position in a collection.
+ *
+ * If the task is not a part of this collection then this update is rejected by
+ * the server. Canonically, a task is a part of the collections in its
+ * `TaskCollectionSet`. We have separate storage for task positions in the
+ * collection. This way updates to a task's position in a collection do not
+ * trigger a `TaskCollectionSet` update which has an expensive related
+ * permissions update.
+ *
+ * If a task is part of a collection and this action has never been commit, the
+ * task's position is considered to be
+ * `{orderTime: collectionSetEntry.updatedTime, orderKey: initialOrderKey}`. In
+ * other words we reuse the `updatedTime` from the task's `TaskCollectionSet`
+ * for this entry. Once this action has been commit, we never revert to the
+ * `updatedTime` in `TaskCollectionSet`.
+ *
+ * If a task is removed from this collection we keep around its position in
+ * case the task is added back to the collection.
+ */
+export type TaskUpdateCollectionPositionAction = SchemaType<
+    typeof TaskUpdateCollectionPositionActionSchema
+>;
+
+const TaskUpdateCollectionPositionActionSchema = Schema.object({
+    type: Schema.value("UpdateCollectionPosition"),
+    collectionId: Schema.id<TaskCollectionId>(),
+    position: TaskPositionSchema,
+});
+
+/**
+ * Updates a task's position in a notepad page.
+ *
+ * If the task does not already exist in the page then we add it to the page.
+ * If the task does exist in the page then it's moved.
+ *
+ * If position is updated to null then the task is removed from the page.
+ *
+ * Similar to the `UpdateCollectionPosition` action except the task's
+ * membership in the notepad page is also completely controlled by this action.
+ * Presence of a task in a collection needs an extra `OrderKey` to determine
+ * where the collection sits relative to other collections attached to the
+ * task.
+ */
+export type TaskUpdateNotepadPagePositionAction = SchemaType<
+    typeof TaskUpdateNotepadPagePositionActionSchema
+>;
+
+const TaskUpdateNotepadPagePositionActionSchema = Schema.object({
+    type: Schema.value("UpdateNotepadPagePosition"),
+    accountId: Schema.id<AccountId>(),
+    notepadPageId: TaskNotepadPageIdSchema,
+    position: TaskPositionSchema.nullable(),
+});
+
+/**
  * Updates the status of a task. Could put a task in an open or
  * closed status.
  *
@@ -339,6 +395,8 @@ export const TaskTaskActionSchema = Schema.union({
     UpdateChildrenCounts: TaskUpdateChildrenCountsActionSchema,
     AddCollection: TaskAddCollectionActionSchema,
     RemoveCollection: TaskRemoveCollectionActionSchema,
+    UpdateCollectionPosition: TaskUpdateCollectionPositionActionSchema,
+    UpdateNotepadPagePosition: TaskUpdateNotepadPagePositionActionSchema,
     UpdateStatus: TaskUpdateStatusActionSchema,
     UpdateAssignee: TaskUpdateAssigneeActionSchema,
     UpdateAssigneeStatus: TaskUpdateAssigneeStatusActionSchema,

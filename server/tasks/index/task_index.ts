@@ -25,6 +25,7 @@ import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exp
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {maxHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -457,17 +458,12 @@ async function actuallyIndexTaskAction(
             return;
         }
         case "UpdateCollection": {
-            const [oldCollection, oldTaskForUpdateTaskPosition] = await runAllPromises([
-                // If this is our initial attempt to create a collection then optimistically
-                // assume it doesn't exist.
+            // If this is our initial attempt to create a collection then optimistically
+            // assume it doesn't exist.
+            const oldCollection =
                 action.collectionAction.type === "Create" && isInitialAttempt
                     ? null
-                    : state.getCollectionIndexDocIfExists(action.collectionId),
-
-                action.collectionAction.type === "UpdateTaskPosition"
-                    ? state.getTaskIndexDocIfExists(action.collectionAction.taskId)
-                    : null,
-            ]);
+                    : await state.getCollectionIndexDocIfExists(action.collectionId);
 
             if (!oldCollection && action.collectionAction.type === "Create") {
                 state.putCollectionIndexDoc(action.collectionId, {
@@ -559,108 +555,13 @@ async function actuallyIndexTaskAction(
                     }
                     break;
                 }
-                case "UpdateTaskPosition": {
-                    // Retry if we can't find the task. Actions may be applied out of order but a
-                    // prerequisite for committing an update task action is having seen a create
-                    // task action. So eventually we expect the task to exist.
-                    if (!oldTaskForUpdateTaskPosition) {
-                        throw state.retry(
-                            new InternalError(
-                                "Task not found, should not be allowed to commit an update action before a create action",
-                            ),
-                        );
-                    }
-
-                    const oldTask = oldTaskForUpdateTaskPosition;
-
-                    const newPositionById = oldTask.collections.raw.positionById.apply({
-                        type: "Set",
-                        key: action.collectionId,
-                        value: action.collectionAction.position,
-                        version: action.time,
-                    });
-
-                    if (newPositionById !== oldTask.collections.raw.positionById) {
-                        state.putTaskIndexDoc(action.collectionAction.taskId, {
-                            ...oldTask,
-                            collections: {
-                                raw: {
-                                    collections: oldTask.collections.raw.collections,
-                                    positionById: newPositionById,
-                                },
-                            },
-                        });
-                    }
-                    break;
-                }
                 default:
                     throw exhaustive(action.collectionAction);
             }
             return;
         }
         case "UpdateNotepadPage": {
-            if (action.notepadPageAction.type === "Create") {
-                // We don't have a notepad page index. That's all stored in a compressed,
-                // binary, integer set.
-                return;
-            }
-
-            const oldTask = await state.getTaskIndexDocIfExists(action.notepadPageAction.taskId);
-
-            // Retry if we can't find the task. Actions may be applied out of order but a
-            // prerequisite for committing an update task action is having seen a create
-            // task action. So eventually we expect the task to exist.
-            if (!oldTask) {
-                throw state.retry(
-                    new InternalError(
-                        "Task not found, should not be allowed to commit an update action before a create action",
-                    ),
-                );
-            }
-
-            switch (action.notepadPageAction.type) {
-                case "AddTask": {
-                    const newPositionById = oldTask.notepadPages.raw.positionById.apply({
-                        type: "Set",
-                        key: `${action.accountId}-${action.notepadPageId}`,
-                        value: action.notepadPageAction.position,
-                        version: action.time,
-                    });
-
-                    if (newPositionById !== oldTask.notepadPages.raw.positionById) {
-                        state.putTaskIndexDoc(action.notepadPageAction.taskId, {
-                            ...oldTask,
-                            notepadPages: {
-                                raw: {
-                                    positionById: newPositionById,
-                                },
-                            },
-                        });
-                    }
-                    break;
-                }
-                case "RemoveTask": {
-                    const newPositionById = oldTask.notepadPages.raw.positionById.apply({
-                        type: "Delete",
-                        key: `${action.accountId}-${action.notepadPageId}`,
-                        version: action.time,
-                    });
-
-                    if (newPositionById !== oldTask.notepadPages.raw.positionById) {
-                        state.putTaskIndexDoc(action.notepadPageAction.taskId, {
-                            ...oldTask,
-                            notepadPages: {
-                                raw: {
-                                    positionById: newPositionById,
-                                },
-                            },
-                        });
-                    }
-                    break;
-                }
-                default:
-                    throw exhaustive(action.notepadPageAction);
-            }
+            cast<"Create">(action.notepadPageAction.type);
             return;
         }
         default:

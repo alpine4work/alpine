@@ -4076,6 +4076,65 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 }
                                                                             }
                                                                         },
+                                                                        "UpdateCollectionPosition": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "UpdateCollectionPosition"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "collectionId": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Id"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "position": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Reference",
+                                                                                        "reuseReferenceId": "c49ee4e1"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "UpdateNotepadPagePosition": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "UpdateNotepadPagePosition"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "accountId": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Id"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "notepadPageId": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Integer"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "position": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Nullable",
+                                                                                        "schema": {
+                                                                                            "type": "Reference",
+                                                                                            "reuseReferenceId": "c49ee4e1"
+                                                                                        }
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
                                                                         "UpdateStatus": {
                                                                             "type": "Object",
                                                                             "propertySchemaByKey": {
@@ -4428,7 +4487,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                 "optional": false
                                                                                             }
                                                                                         },
-                                                                                        "referenceId": "28a5043b"
+                                                                                        "referenceId": "fc17f1fa"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -4489,32 +4548,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 "accessPolicy": {
                                                                                     "valueSchema": {
                                                                                         "type": "Reference",
-                                                                                        "reuseReferenceId": "28a5043b"
-                                                                                    },
-                                                                                    "optional": false
-                                                                                }
-                                                                            }
-                                                                        },
-                                                                        "UpdateTaskPosition": {
-                                                                            "type": "Object",
-                                                                            "propertySchemaByKey": {
-                                                                                "type": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Value",
-                                                                                        "value": "UpdateTaskPosition"
-                                                                                    },
-                                                                                    "optional": false
-                                                                                },
-                                                                                "taskId": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Id"
-                                                                                    },
-                                                                                    "optional": false
-                                                                                },
-                                                                                "position": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Reference",
-                                                                                        "reuseReferenceId": "c49ee4e1"
+                                                                                        "reuseReferenceId": "fc17f1fa"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -4566,49 +4600,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     "valueSchema": {
                                                                                         "type": "Value",
                                                                                         "value": "Create"
-                                                                                    },
-                                                                                    "optional": false
-                                                                                }
-                                                                            }
-                                                                        },
-                                                                        "AddTask": {
-                                                                            "type": "Object",
-                                                                            "propertySchemaByKey": {
-                                                                                "type": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Value",
-                                                                                        "value": "AddTask"
-                                                                                    },
-                                                                                    "optional": false
-                                                                                },
-                                                                                "taskId": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Id"
-                                                                                    },
-                                                                                    "optional": false
-                                                                                },
-                                                                                "position": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Reference",
-                                                                                        "reuseReferenceId": "c49ee4e1"
-                                                                                    },
-                                                                                    "optional": false
-                                                                                }
-                                                                            }
-                                                                        },
-                                                                        "RemoveTask": {
-                                                                            "type": "Object",
-                                                                            "propertySchemaByKey": {
-                                                                                "type": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Value",
-                                                                                        "value": "RemoveTask"
-                                                                                    },
-                                                                                    "optional": false
-                                                                                },
-                                                                                "taskId": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Id"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -4720,7 +4711,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                 "value": {
                                                     "valueSchema": {
                                                         "type": "Reference",
-                                                        "reuseReferenceId": "28a5043b"
+                                                        "reuseReferenceId": "fc17f1fa"
                                                     },
                                                     "optional": false
                                                 },

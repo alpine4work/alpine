@@ -169,6 +169,52 @@ export function applyTaskActionToTaskIndexDoc(
                 },
             };
         }
+        case "UpdateCollectionPosition": {
+            const newPositionById = task.collections.raw.positionById.apply({
+                type: "Set",
+                key: action.collectionId,
+                value: action.position,
+                version: actionTime,
+            });
+
+            if (newPositionById === task.collections.raw.positionById) return task;
+
+            return {
+                ...task,
+                collections: {
+                    raw: {
+                        collections: task.collections.raw.collections,
+                        positionById: newPositionById,
+                    },
+                },
+            };
+        }
+        case "UpdateNotepadPagePosition": {
+            const newPositionById =
+                action.position !== null
+                    ? task.notepadPages.raw.positionById.apply({
+                          type: "Set",
+                          key: `${action.accountId}-${action.notepadPageId}`,
+                          value: action.position,
+                          version: actionTime,
+                      })
+                    : task.notepadPages.raw.positionById.apply({
+                          type: "Delete",
+                          key: `${action.accountId}-${action.notepadPageId}`,
+                          version: actionTime,
+                      });
+
+            if (newPositionById === task.notepadPages.raw.positionById) return task;
+
+            return {
+                ...task,
+                notepadPages: {
+                    raw: {
+                        positionById: newPositionById,
+                    },
+                },
+            };
+        }
         case "UpdateStatus": {
             const newStatus = task.status.apply({
                 value: action.status,

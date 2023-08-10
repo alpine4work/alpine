@@ -1,8 +1,6 @@
-import {TaskId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskCollectionAccessPolicySchema} from "~/shared/tasks/task_collection_access_policy.js";
-import {TaskPositionSchema} from "~/shared/tasks/task_position.js";
 
 export type TaskCollectionAction = SchemaType<typeof TaskCollectionActionSchema>;
 
@@ -79,41 +77,10 @@ const TaskCollectionUpdateAccessPolicyActionSchema = Schema.object({
     accessPolicy: TaskCollectionAccessPolicySchema,
 });
 
-/**
- * Sets a task's position in this collection.
- *
- * If the task is not a part of this collection then this update is rejected by
- * the server. Canonically, a task is a part of the collections in its
- * `TaskCollectionSet`. We have separate storage for task positions in the
- * collection. This way updates to a task's position in a collection do not
- * trigger a `TaskCollectionSet` update which has an expensive related
- * permissions update.
- *
- * If a task is part of a collection and this action has never been commit, the
- * task's position is considered to be
- * `{orderTime: collectionSetEntry.updatedTime, orderKey: initialOrderKey}`. In
- * other words we reuse the `updatedTime` from the task's `TaskCollectionSet`
- * for this entry. Once this action has been commit, we never revert to the
- * `updatedTime` in `TaskCollectionSet`.
- *
- * If a task is removed from this collection we keep around its position in
- * case the task is added back to the collection.
- */
-export type TaskCollectionUpdateTaskPositionAction = SchemaType<
-    typeof TaskCollectionUpdateTaskPositionActionSchema
->;
-
-const TaskCollectionUpdateTaskPositionActionSchema = Schema.object({
-    type: Schema.value("UpdateTaskPosition"),
-    taskId: Schema.id<TaskId>(),
-    position: TaskPositionSchema,
-});
-
 export const TaskCollectionActionSchema = Schema.union({
     Create: TaskCollectionCreateActionSchema,
     Delete: TaskCollectionDeleteActionSchema,
     Undelete: TaskCollectionUndeleteActionSchema,
     UpdateName: TaskCollectionUpdateNameSchema,
     UpdateAccessPolicy: TaskCollectionUpdateAccessPolicyActionSchema,
-    UpdateTaskPosition: TaskCollectionUpdateTaskPositionActionSchema,
 });

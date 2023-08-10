@@ -1545,13 +1545,13 @@ const taskActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateNotepadPage",
+                        type: "UpdateTask",
                         time: time3,
-                        accountId: creator.accountId,
-                        notepadPageId,
-                        notepadPageAction: {
-                            type: "AddTask",
-                            taskId,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateNotepadPagePosition",
+                            accountId: creator.accountId,
+                            notepadPageId,
                             position: {orderTime: time3, orderKey: initialOrderKey},
                         },
                     },
@@ -1604,24 +1604,25 @@ const taskActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateNotepadPage",
+                        type: "UpdateTask",
                         time: time3,
-                        accountId: creator.accountId,
-                        notepadPageId,
-                        notepadPageAction: {
-                            type: "AddTask",
-                            taskId,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateNotepadPagePosition",
+                            accountId: creator.accountId,
+                            notepadPageId,
                             position: {orderTime: time3, orderKey: initialOrderKey},
                         },
                     },
                     {
-                        type: "UpdateNotepadPage",
+                        type: "UpdateTask",
                         time: time4,
-                        accountId: creator.accountId,
-                        notepadPageId,
-                        notepadPageAction: {
-                            type: "RemoveTask",
-                            taskId,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateNotepadPagePosition",
+                            accountId: creator.accountId,
+                            notepadPageId,
+                            position: null,
                         },
                     },
                 ],
@@ -1666,23 +1667,24 @@ const taskActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateNotepadPage",
+                        type: "UpdateTask",
                         time: time3,
-                        accountId: creator.accountId,
-                        notepadPageId,
-                        notepadPageAction: {
-                            type: "RemoveTask",
-                            taskId,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateNotepadPagePosition",
+                            accountId: creator.accountId,
+                            notepadPageId,
+                            position: null,
                         },
                     },
                     {
-                        type: "UpdateNotepadPage",
+                        type: "UpdateTask",
                         time: time4,
-                        accountId: creator.accountId,
-                        notepadPageId,
-                        notepadPageAction: {
-                            type: "AddTask",
-                            taskId,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateNotepadPagePosition",
+                            accountId: creator.accountId,
+                            notepadPageId,
                             position: {orderTime: time4, orderKey: initialOrderKey},
                         },
                     },
@@ -1731,13 +1733,14 @@ const taskActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateNotepadPage",
+                        type: "UpdateTask",
                         time: getNextTime(),
-                        accountId: creator.accountId,
-                        notepadPageId,
-                        notepadPageAction: {
-                            type: "RemoveTask",
-                            taskId,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateNotepadPagePosition",
+                            accountId: creator.accountId,
+                            notepadPageId,
+                            position: null,
                         },
                     },
                 ],
@@ -1782,24 +1785,24 @@ const taskActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateNotepadPage",
+                        type: "UpdateTask",
                         time: time3,
-                        accountId: creator.accountId,
-                        notepadPageId,
-                        notepadPageAction: {
-                            type: "AddTask",
-                            taskId,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateNotepadPagePosition",
+                            accountId: creator.accountId,
+                            notepadPageId,
                             position: {orderTime: time3, orderKey: initialOrderKey},
                         },
                     },
                     {
-                        type: "UpdateNotepadPage",
+                        type: "UpdateTask",
                         time: time4,
-                        accountId: creator.accountId,
-                        notepadPageId,
-                        notepadPageAction: {
-                            type: "AddTask",
-                            taskId,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateNotepadPagePosition",
+                            accountId: creator.accountId,
+                            notepadPageId,
                             position: {orderTime: time3, orderKey: assertOrderKey("a42")},
                         },
                     },
@@ -2212,12 +2215,12 @@ const taskActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateCollection",
+                        type: "UpdateTask",
                         time: time4,
-                        collectionId,
-                        collectionAction: {
-                            type: "UpdateTaskPosition",
-                            taskId,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateCollectionPosition",
+                            collectionId,
                             position: {orderTime: time3, orderKey: assertOrderKey("a42")},
                         },
                     },
@@ -2286,22 +2289,22 @@ const taskActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateCollection",
+                        type: "UpdateTask",
                         time: time4,
-                        collectionId,
-                        collectionAction: {
-                            type: "UpdateTaskPosition",
-                            taskId,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateCollectionPosition",
+                            collectionId,
                             position: {orderTime: time3, orderKey: assertOrderKey("a42")},
                         },
                     },
                     {
-                        type: "UpdateCollection",
+                        type: "UpdateTask",
                         time: time4,
-                        collectionId,
-                        collectionAction: {
-                            type: "UpdateTaskPosition",
-                            taskId,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateCollectionPosition",
+                            collectionId,
                             position: {orderTime: time3, orderKey: assertOrderKey("a43")},
                         },
                     },
@@ -2371,12 +2374,12 @@ const taskActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateCollection",
+                        type: "UpdateTask",
                         time: time4,
-                        collectionId,
-                        collectionAction: {
-                            type: "UpdateTaskPosition",
-                            taskId,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateCollectionPosition",
+                            collectionId,
                             position: {orderTime: time3, orderKey: assertOrderKey("a42")},
                         },
                     },
@@ -2443,12 +2446,12 @@ const taskActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateCollection",
+                        type: "UpdateTask",
                         time: time4,
-                        collectionId,
-                        collectionAction: {
-                            type: "UpdateTaskPosition",
-                            taskId,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateCollectionPosition",
+                            collectionId,
                             position: {orderTime: time4, orderKey: assertOrderKey("a42")},
                         },
                     },
@@ -2526,12 +2529,12 @@ const taskActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateCollection",
+                        type: "UpdateTask",
                         time: time3,
-                        collectionId,
-                        collectionAction: {
-                            type: "UpdateTaskPosition",
-                            taskId,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateCollectionPosition",
+                            collectionId,
                             position: {orderTime: time3, orderKey: assertOrderKey("a42")},
                         },
                     },

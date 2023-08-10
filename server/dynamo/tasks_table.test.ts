@@ -9508,12 +9508,12 @@ test("can update task position in a collection", async () => {
 
     await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateCollection",
+            type: "UpdateTask",
             time: clock.now(),
-            collectionId,
-            collectionAction: {
-                type: "UpdateTaskPosition",
-                taskId,
+            taskId,
+            taskAction: {
+                type: "UpdateCollectionPosition",
+                collectionId,
                 position: {orderTime: clock.now(), orderKey: assertOrderKey("a1")},
             },
         },
@@ -9562,12 +9562,12 @@ test("can't update task position with an unreasonable update time", async () => 
     await expect(
         commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateCollection",
+                type: "UpdateTask",
                 time: getUnreasonableTime(),
-                collectionId,
-                collectionAction: {
-                    type: "UpdateTaskPosition",
-                    taskId,
+                taskId,
+                taskAction: {
+                    type: "UpdateCollectionPosition",
+                    collectionId,
                     position: {orderTime: clock.now(), orderKey: assertOrderKey("a1")},
                 },
             },
@@ -9617,12 +9617,12 @@ test("can't update task position with an unreasonable order time", async () => {
     await expect(
         commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateCollection",
+                type: "UpdateTask",
                 time: clock.now(),
-                collectionId,
-                collectionAction: {
-                    type: "UpdateTaskPosition",
-                    taskId,
+                taskId,
+                taskAction: {
+                    type: "UpdateCollectionPosition",
+                    collectionId,
                     position: {orderTime: getUnreasonableTime(), orderKey: assertOrderKey("a1")},
                 },
             },
@@ -9672,12 +9672,12 @@ test("can't update task position with a task that doesn't exist", async () => {
     await expect(
         commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateCollection",
+                type: "UpdateTask",
                 time: clock.now(),
-                collectionId,
-                collectionAction: {
-                    type: "UpdateTaskPosition",
-                    taskId: generateId(),
+                taskId: generateId(),
+                taskAction: {
+                    type: "UpdateCollectionPosition",
+                    collectionId,
                     position: {orderTime: clock.now(), orderKey: assertOrderKey("a1")},
                 },
             },
@@ -9738,12 +9738,12 @@ test("can't update task position with a task that's not in the collection", asyn
     await expect(
         commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateCollection",
+                type: "UpdateTask",
                 time: clock.now(),
-                collectionId,
-                collectionAction: {
-                    type: "UpdateTaskPosition",
-                    taskId: taskId2,
+                taskId: taskId2,
+                taskAction: {
+                    type: "UpdateCollectionPosition",
+                    collectionId,
                     position: {orderTime: clock.now(), orderKey: assertOrderKey("a1")},
                 },
             },
@@ -9805,12 +9805,12 @@ test("can't update task position with a task that was removed from the collectio
     await expect(
         commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateCollection",
+                type: "UpdateTask",
                 time: clock.now(),
-                collectionId,
-                collectionAction: {
-                    type: "UpdateTaskPosition",
-                    taskId,
+                taskId,
+                taskAction: {
+                    type: "UpdateCollectionPosition",
+                    collectionId,
                     position: {orderTime: clock.now(), orderKey: assertOrderKey("a1")},
                 },
             },
@@ -9872,12 +9872,12 @@ test("can't update task position when you don't have access to the collection", 
     await expect(
         commitTaskActionTransaction(context.action(session2), space.id, [
             {
-                type: "UpdateCollection",
+                type: "UpdateTask",
                 time: clock.now(),
-                collectionId,
-                collectionAction: {
-                    type: "UpdateTaskPosition",
-                    taskId: generateId(),
+                taskId: generateId(),
+                taskAction: {
+                    type: "UpdateCollectionPosition",
+                    collectionId,
                     position: {orderTime: clock.now(), orderKey: assertOrderKey("a1")},
                 },
             },
@@ -9903,12 +9903,12 @@ test("can't update task position when you only have view access to the collectio
     await expect(
         commitTaskActionTransaction(context.action(session2), space.id, [
             {
-                type: "UpdateCollection",
+                type: "UpdateTask",
                 time: clock.now(),
-                collectionId,
-                collectionAction: {
-                    type: "UpdateTaskPosition",
-                    taskId: generateId(),
+                taskId: generateId(),
+                taskAction: {
+                    type: "UpdateCollectionPosition",
+                    collectionId,
                     position: {orderTime: clock.now(), orderKey: assertOrderKey("a1")},
                 },
             },
@@ -9948,13 +9948,13 @@ test("can add task to notepad page", async () => {
 
     await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateNotepadPage",
+            type: "UpdateTask",
             time: clock.now(),
-            accountId: session1.accountId,
-            notepadPageId,
-            notepadPageAction: {
-                type: "AddTask",
-                taskId,
+            taskId,
+            taskAction: {
+                type: "UpdateNotepadPagePosition",
+                accountId: session1.accountId,
+                notepadPageId,
                 position: {orderTime: clock.now(), orderKey: initialOrderKey},
             },
         },
@@ -9987,13 +9987,13 @@ test("can add task to notepad page in one transaction", async () => {
             },
         },
         {
-            type: "UpdateNotepadPage",
+            type: "UpdateTask",
             time: clock.now(),
-            accountId: session1.accountId,
-            notepadPageId,
-            notepadPageAction: {
-                type: "AddTask",
-                taskId,
+            taskId,
+            taskAction: {
+                type: "UpdateNotepadPagePosition",
+                accountId: session1.accountId,
+                notepadPageId,
                 position: {orderTime: clock.now(), orderKey: initialOrderKey},
             },
         },
@@ -10021,13 +10021,13 @@ test("can't add task to notepad page that hasn't been created", async () => {
     await expect(
         commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateNotepadPage",
+                type: "UpdateTask",
                 time: clock.now(),
-                accountId: session1.accountId,
-                notepadPageId,
-                notepadPageAction: {
-                    type: "AddTask",
-                    taskId,
+                taskId,
+                taskAction: {
+                    type: "UpdateNotepadPagePosition",
+                    accountId: session1.accountId,
+                    notepadPageId,
                     position: {orderTime: clock.now(), orderKey: initialOrderKey},
                 },
             },
@@ -10087,13 +10087,13 @@ test("can't add a task to someone else's notepad page", async () => {
     await expect(
         commitTaskActionTransaction(context.action(session2), space.id, [
             {
-                type: "UpdateNotepadPage",
+                type: "UpdateTask",
                 time: clock.now(),
-                accountId: session1.accountId,
-                notepadPageId,
-                notepadPageAction: {
-                    type: "AddTask",
-                    taskId,
+                taskId,
+                taskAction: {
+                    type: "UpdateNotepadPagePosition",
+                    accountId: session1.accountId,
+                    notepadPageId,
                     position: {orderTime: clock.now(), orderKey: initialOrderKey},
                 },
             },
@@ -10153,13 +10153,14 @@ test("can't remove task from notepad page that hasn't been created", async () =>
     await expect(
         commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateNotepadPage",
+                type: "UpdateTask",
                 time: clock.now(),
-                accountId: session1.accountId,
-                notepadPageId,
-                notepadPageAction: {
-                    type: "RemoveTask",
-                    taskId,
+                taskId,
+                taskAction: {
+                    type: "UpdateNotepadPagePosition",
+                    accountId: session1.accountId,
+                    notepadPageId,
+                    position: null,
                 },
             },
         ]),
@@ -10199,13 +10200,13 @@ test("can't add task to notepad page with an unreasonable update time", async ()
     await expect(
         commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateNotepadPage",
+                type: "UpdateTask",
                 time: getUnreasonableTime(),
-                accountId: session1.accountId,
-                notepadPageId,
-                notepadPageAction: {
-                    type: "AddTask",
-                    taskId,
+                taskId,
+                taskAction: {
+                    type: "UpdateNotepadPagePosition",
+                    accountId: session1.accountId,
+                    notepadPageId,
                     position: {orderTime: clock.now(), orderKey: initialOrderKey},
                 },
             },
@@ -10246,13 +10247,13 @@ test("can't add task to notepad page with an unreasonable order time", async () 
     await expect(
         commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateNotepadPage",
+                type: "UpdateTask",
                 time: clock.now(),
-                accountId: session1.accountId,
-                notepadPageId,
-                notepadPageAction: {
-                    type: "AddTask",
-                    taskId,
+                taskId,
+                taskAction: {
+                    type: "UpdateNotepadPagePosition",
+                    accountId: session1.accountId,
+                    notepadPageId,
                     position: {orderTime: getUnreasonableTime(), orderKey: initialOrderKey},
                 },
             },
@@ -10280,13 +10281,13 @@ test("can't add task to notepad page that doesn't exist", async () => {
     await expect(
         commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateNotepadPage",
+                type: "UpdateTask",
                 time: clock.now(),
-                accountId: session1.accountId,
-                notepadPageId,
-                notepadPageAction: {
-                    type: "AddTask",
-                    taskId,
+                taskId,
+                taskAction: {
+                    type: "UpdateNotepadPagePosition",
+                    accountId: session1.accountId,
+                    notepadPageId,
                     position: {orderTime: clock.now(), orderKey: initialOrderKey},
                 },
             },
@@ -10327,13 +10328,13 @@ test("can't add task you don't have access to to notepad page", async () => {
     await expect(
         commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateNotepadPage",
+                type: "UpdateTask",
                 time: clock.now(),
-                accountId: session1.accountId,
-                notepadPageId,
-                notepadPageAction: {
-                    type: "AddTask",
-                    taskId,
+                taskId,
+                taskAction: {
+                    type: "UpdateNotepadPagePosition",
+                    accountId: session1.accountId,
+                    notepadPageId,
                     position: {orderTime: clock.now(), orderKey: initialOrderKey},
                 },
             },
@@ -10361,13 +10362,13 @@ test("can add task you have view access to to notepad page", async () => {
 
     await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateNotepadPage",
+            type: "UpdateTask",
             time: clock.now(),
-            accountId: session1.accountId,
-            notepadPageId,
-            notepadPageAction: {
-                type: "AddTask",
-                taskId,
+            taskId,
+            taskAction: {
+                type: "UpdateNotepadPagePosition",
+                accountId: session1.accountId,
+                notepadPageId,
                 position: {orderTime: clock.now(), orderKey: initialOrderKey},
             },
         },
@@ -10406,13 +10407,13 @@ test("can remove task from notepad page", async () => {
 
     await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateNotepadPage",
+            type: "UpdateTask",
             time: clock.now(),
-            accountId: session1.accountId,
-            notepadPageId,
-            notepadPageAction: {
-                type: "AddTask",
-                taskId,
+            taskId,
+            taskAction: {
+                type: "UpdateNotepadPagePosition",
+                accountId: session1.accountId,
+                notepadPageId,
                 position: {orderTime: clock.now(), orderKey: initialOrderKey},
             },
         },
@@ -10420,13 +10421,14 @@ test("can remove task from notepad page", async () => {
 
     await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateNotepadPage",
+            type: "UpdateTask",
             time: clock.now(),
-            accountId: session1.accountId,
-            notepadPageId,
-            notepadPageAction: {
-                type: "RemoveTask",
-                taskId,
+            taskId,
+            taskAction: {
+                type: "UpdateNotepadPagePosition",
+                accountId: session1.accountId,
+                notepadPageId,
+                position: null,
             },
         },
     ]);
@@ -10464,13 +10466,13 @@ test("can remove task from notepad page twice", async () => {
 
     await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateNotepadPage",
+            type: "UpdateTask",
             time: clock.now(),
-            accountId: session1.accountId,
-            notepadPageId,
-            notepadPageAction: {
-                type: "AddTask",
-                taskId,
+            taskId,
+            taskAction: {
+                type: "UpdateNotepadPagePosition",
+                accountId: session1.accountId,
+                notepadPageId,
                 position: {orderTime: clock.now(), orderKey: initialOrderKey},
             },
         },
@@ -10478,26 +10480,28 @@ test("can remove task from notepad page twice", async () => {
 
     await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateNotepadPage",
+            type: "UpdateTask",
             time: clock.now(),
-            accountId: session1.accountId,
-            notepadPageId,
-            notepadPageAction: {
-                type: "RemoveTask",
-                taskId,
+            taskId,
+            taskAction: {
+                type: "UpdateNotepadPagePosition",
+                accountId: session1.accountId,
+                notepadPageId,
+                position: null,
             },
         },
     ]);
 
     await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateNotepadPage",
+            type: "UpdateTask",
             time: clock.now(),
-            accountId: session1.accountId,
-            notepadPageId,
-            notepadPageAction: {
-                type: "RemoveTask",
-                taskId,
+            taskId,
+            taskAction: {
+                type: "UpdateNotepadPagePosition",
+                accountId: session1.accountId,
+                notepadPageId,
+                position: null,
             },
         },
     ]);
@@ -10535,13 +10539,14 @@ test("can remove task from notepad page even if the task was not added", async (
 
     await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateNotepadPage",
+            type: "UpdateTask",
             time: clock.now(),
-            accountId: session1.accountId,
-            notepadPageId,
-            notepadPageAction: {
-                type: "RemoveTask",
-                taskId,
+            taskId,
+            taskAction: {
+                type: "UpdateNotepadPagePosition",
+                accountId: session1.accountId,
+                notepadPageId,
+                position: null,
             },
         },
     ]);
@@ -10579,13 +10584,13 @@ test("can't remove task from notepad page with an unreasonable update time", asy
 
     await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateNotepadPage",
+            type: "UpdateTask",
             time: clock.now(),
-            accountId: session1.accountId,
-            notepadPageId,
-            notepadPageAction: {
-                type: "AddTask",
-                taskId,
+            taskId,
+            taskAction: {
+                type: "UpdateNotepadPagePosition",
+                accountId: session1.accountId,
+                notepadPageId,
                 position: {orderTime: clock.now(), orderKey: initialOrderKey},
             },
         },
@@ -10594,13 +10599,14 @@ test("can't remove task from notepad page with an unreasonable update time", asy
     await expect(
         commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateNotepadPage",
+                type: "UpdateTask",
                 time: getUnreasonableTime(),
-                accountId: session1.accountId,
-                notepadPageId,
-                notepadPageAction: {
-                    type: "RemoveTask",
-                    taskId,
+                taskId,
+                taskAction: {
+                    type: "UpdateNotepadPagePosition",
+                    accountId: session1.accountId,
+                    notepadPageId,
+                    position: null,
                 },
             },
         ]),
@@ -10627,13 +10633,14 @@ test("can't remove task from notepad page when the task doesn't exist", async ()
     await expect(
         commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateNotepadPage",
+                type: "UpdateTask",
                 time: clock.now(),
-                accountId: session1.accountId,
-                notepadPageId,
-                notepadPageAction: {
-                    type: "RemoveTask",
-                    taskId,
+                taskId,
+                taskAction: {
+                    type: "UpdateNotepadPagePosition",
+                    accountId: session1.accountId,
+                    notepadPageId,
+                    position: null,
                 },
             },
         ]),
@@ -10673,13 +10680,14 @@ test("can't remove task you don't have access to from notepad page", async () =>
     await expect(
         commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateNotepadPage",
+                type: "UpdateTask",
                 time: clock.now(),
-                accountId: session1.accountId,
-                notepadPageId,
-                notepadPageAction: {
-                    type: "RemoveTask",
-                    taskId,
+                taskId,
+                taskAction: {
+                    type: "UpdateNotepadPagePosition",
+                    accountId: session1.accountId,
+                    notepadPageId,
+                    position: null,
                 },
             },
         ]),
@@ -10706,13 +10714,13 @@ test("can remove task you have view access to from notepad page", async () => {
 
     await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateNotepadPage",
+            type: "UpdateTask",
             time: clock.now(),
-            accountId: session1.accountId,
-            notepadPageId,
-            notepadPageAction: {
-                type: "AddTask",
-                taskId,
+            taskId,
+            taskAction: {
+                type: "UpdateNotepadPagePosition",
+                accountId: session1.accountId,
+                notepadPageId,
                 position: {orderTime: clock.now(), orderKey: initialOrderKey},
             },
         },
@@ -10720,13 +10728,14 @@ test("can remove task you have view access to from notepad page", async () => {
 
     await commitTaskActionTransaction(context.action(session1), space.id, [
         {
-            type: "UpdateNotepadPage",
+            type: "UpdateTask",
             time: clock.now(),
-            accountId: session1.accountId,
-            notepadPageId,
-            notepadPageAction: {
-                type: "RemoveTask",
-                taskId,
+            taskId,
+            taskAction: {
+                type: "UpdateNotepadPagePosition",
+                accountId: session1.accountId,
+                notepadPageId,
+                position: null,
             },
         },
     ]);
