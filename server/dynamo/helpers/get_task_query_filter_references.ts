@@ -18,7 +18,7 @@ export async function getTaskQueryFilterReferences(
 
     for (const filter of filters) {
         switch (filter.type) {
-            case "Status":
+            case "DisplayStatus":
             case "Collections":
             case "Priority":
             case "Title":

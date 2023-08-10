@@ -2,24 +2,26 @@ import {
     AppActionContext,
     AppSystemActionContext,
 } from "~/server/dynamo/context/app_action_context.js";
+import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module.js";
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table.js";
+import {SystemActorContextModule} from "~/server/helpers/actor_context_module_interface.js";
+import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {OpensearchIndex} from "~/server/opensearch/opensearch_index.js";
 import {
     OpensearchIndexFlattenedKeysType,
     OpensearchIndexTypeType,
 } from "~/server/opensearch/opensearch_index_type.js";
-import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/index/internal/apply_task_action_to_task_index_doc.js";
+import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/index/apply_task_action_to_task_index_doc.js";
+import {createEmptyTaskIndexDoc} from "~/server/tasks/index/create_empty_task_index_doc.js";
 import {getTaskQueryNormalizedFiltersIndexQueryClause} from "~/server/tasks/index/internal/get_task_query_normalized_filters_index_query_clause.js";
 import {
     TaskCollectionIndexDocType,
     TaskCollectionIndexDocWithVersion,
 } from "~/server/tasks/index/task_collection_index_doc.js";
-import {
-    TaskIndexDocType,
-    TaskIndexDocWithVersion,
-    TaskPositionByAccountIdAndNotepadPageId,
-    TaskPositionByCollectionIdMap,
-} from "~/server/tasks/index/task_index_doc.js";
+import {TaskIndexDocType, TaskIndexDocWithVersion} from "~/server/tasks/index/task_index_doc.js";
+import {CacheContextModule} from "~/shared/context/cache_context_module.js";
+import {Context} from "~/shared/context/context.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -29,24 +31,11 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
-import {
-    TaskDueDateRegister,
-    TaskParentTaskIdRegister,
-} from "~/shared/tasks/actions/task_task_action.js";
 import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/normalize_task_query_filters.js";
-import {TaskAssigneeRegister} from "~/shared/tasks/task_assignee.js";
-import {TaskAssigneeStatusRegister} from "~/shared/tasks/task_assignee_status.js";
 import {TaskCollectionAccessPolicyRegister} from "~/shared/tasks/task_collection_access_policy.js";
-import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
-import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
-import {TaskPositionRegister} from "~/shared/tasks/task_position.js";
-import {TaskPriorityRegister} from "~/shared/tasks/task_priority.js";
-import {TaskStatusRegister} from "~/shared/tasks/task_status.js";
-import {emptyTaskTitle} from "~/shared/tasks/task_title.js";
 
 // IMPORTANT: Don't export this. All access to the index should be exposed
 // through functions in this file. Like how we organize DynamoDB tables. By
@@ -115,6 +104,34 @@ const TaskCollectionIndex = new OpensearchIndex<
     // We want to see new collections in search in near realtime.
     refreshInterval: "1s",
 });
+
+/**
+ * Get multiple tasks in parallel as a system actor. System actors have access
+ * to all tasks in the space.
+ */
+export async function getTaskIndexDocsIfExist(
+    context: Context<{
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        dynamo: DynamoContextModule;
+        opensearch: OpensearchContextModule;
+        actor: SystemActorContextModule;
+    }>,
+    spaceId: SpaceId,
+    taskIds: ReadonlyArray<TaskId>,
+) {
+    // We don't verify that the account is allowed to load these documents. We
+    // require a system actor with access to the entire space.
+    context.actor.authorizeSystem();
+    await authorizeSpaceAccess(context, spaceId);
+
+    return context.opensearch.client.multiGetDocsIfExist(
+        context.tracer.getTracer(),
+        TaskIndex,
+        spaceId,
+        taskIds,
+    );
+}
 
 /**
  * Get a task doc from our index but only in tests. This runs no authorization
@@ -386,44 +403,7 @@ async function actuallyIndexTaskAction(
                 state.putTaskIndexDoc(action.taskId, {
                     version: null,
                     spaceId: state.spaceId,
-                    creator: action.taskAction.creator,
-                    createdTime: new TaskFilterableTime({
-                        absoluteTime: action.time,
-                        setterTimeZone: action.taskAction.creatorTimeZone,
-                    }),
-                    rawDeletedTime: null,
-                    rawUndeletedTime: null,
-                    parent: {
-                        taskId: new TaskParentTaskIdRegister(null, action.time),
-                        position: new TaskPositionRegister(
-                            {orderTime: action.time, orderKey: initialOrderKey},
-                            action.time,
-                        ),
-                    },
-                    addedChildTaskCount: 0,
-                    removedChildTaskCount: 0,
-                    addedClosedChildTaskCount: 0,
-                    removedClosedChildTaskCount: 0,
-                    collections: {
-                        raw: {
-                            collections: TaskCollectionSet.empty,
-                            positionById: TaskPositionByCollectionIdMap.empty,
-                        },
-                    },
-                    notepadPages: {
-                        raw: {
-                            positionById: TaskPositionByAccountIdAndNotepadPageId.empty,
-                        },
-                    },
-                    status: new TaskStatusRegister({type: "Open"}, action.time),
-                    assignee: new TaskAssigneeRegister(null, action.time),
-                    rawAssigneeStatus: new TaskAssigneeStatusRegister(
-                        {type: "Inactive"},
-                        action.time,
-                    ),
-                    title: {raw: emptyTaskTitle.get()},
-                    dueDate: new TaskDueDateRegister(null, action.time),
-                    priority: new TaskPriorityRegister(null, action.time),
+                    ...createEmptyTaskIndexDoc(action.time, action.taskAction),
                 });
                 return;
             }
@@ -438,7 +418,7 @@ async function actuallyIndexTaskAction(
             if (!oldTask) {
                 throw state.retry(
                     new InternalError(
-                        "Task not found, should not be allowed to commit an update action before a create action",
+                        "Task not found in index, shouldn't be allowed to commit an update action before a create action",
                     ),
                 );
             }
@@ -453,7 +433,10 @@ async function actuallyIndexTaskAction(
             // OpenSearch has updated from underneath us. The result if we try to reapply
             // would be the same.
             if (newTask !== oldTask) {
-                state.putTaskIndexDoc(action.taskId, newTask);
+                state.putTaskIndexDoc(
+                    action.taskId,
+                    Object.assign(newTask, {version: oldTask.version}),
+                );
             }
             return;
         }
@@ -487,7 +470,7 @@ async function actuallyIndexTaskAction(
             if (!oldCollection) {
                 throw state.retry(
                     new InternalError(
-                        "Task collection not found, should not be allowed to commit an update action before a create action",
+                        "Task collection not found in index, shouldn't be allowed to commit an update action before a create action",
                     ),
                 );
             }

@@ -10,6 +10,7 @@ import {
     RealmId,
     SpaceId,
     TaskActionTransactionId,
+    TaskId,
     TraceId,
     TraceSpanId,
     WebSocketConnectionId,
@@ -324,6 +325,9 @@ export type TracerEventData = {
         /** Information about the chat the event was fired while looking at. */
         readonly chatId?: ChatId;
 
+        /** Information about the task the event was fired while looking at. */
+        readonly taskId?: TaskId;
+
         /**
          * If this event is coming from a peek then this object will be populated with
          * information about the peek.
@@ -598,11 +602,22 @@ export type TracerEventData = {
          */
         readonly actions?: string;
 
-        /** The number of actions in our action transaction. */
+        /**
+         * The number of actions our event is dealing with. For example:
+         *
+         * - The number of actions in an action transaction
+         * - The number of actions in an action history iteration
+         */
         readonly actionCount?: number;
 
         /** The action transaction we're operating against. */
         readonly actionTransactionId?: TaskActionTransactionId;
+
+        /** The number of action transactions we are iterating over. */
+        readonly actionTransactionCount?: number;
+
+        /** The number of action history segments we are iterating over. */
+        readonly actionHistorySegmentCount?: number;
     };
 };
 

@@ -9,7 +9,7 @@ import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 
 export type TaskQueryFilter =
-    | TaskQueryStatusFilter
+    | TaskQueryDisplayStatusFilter
     | TaskQueryCollectionsFilter
     | TaskQueryPriorityFilter
     | TaskQueryTitleFilter
@@ -107,7 +107,7 @@ function getTaskQueryFilterByteLength(filter: TaskQueryFilter): number {
 function serializeTaskQueryFilter(filter: TaskQueryFilter, view: DataView): void {
     let typeId: number;
     switch (filter.type) {
-        case "Status":
+        case "DisplayStatus":
             typeId = 1;
             break;
         case "Collections":
@@ -181,7 +181,7 @@ function deserializeTaskQueryFilterWithoutIncrementingByteLength(viewWithType: D
 
     switch (typeId) {
         case 1:
-            return deserializeTaskQueryStatusFilter(view);
+            return deserializeTaskQueryDisplayStatusFilter(view);
         case 2:
             return deserializeTaskQueryCollectionsFilter(view);
         case 3:
@@ -211,8 +211,8 @@ function deserializeTaskQueryFilterWithoutIncrementingByteLength(viewWithType: D
 
 function getTaskQueryFilterWithoutTypeByteLength(filter: TaskQueryFilter) {
     switch (filter.type) {
-        case "Status":
-            return getTaskQueryStatusFilterByteLength(filter);
+        case "DisplayStatus":
+            return getTaskQueryDisplayStatusFilterByteLength(filter);
         case "Collections":
             return getTaskQueryCollectionsFilterByteLength(filter);
         case "Priority":
@@ -242,8 +242,8 @@ function getTaskQueryFilterWithoutTypeByteLength(filter: TaskQueryFilter) {
 
 function serializeTaskQueryFilterWithoutType(filter: TaskQueryFilter, view: DataView) {
     switch (filter.type) {
-        case "Status":
-            return serializeTaskQueryStatusFilter(filter, view);
+        case "DisplayStatus":
+            return serializeTaskQueryDisplayStatusFilter(filter, view);
         case "Collections":
             return serializeTaskQueryCollectionsFilter(filter, view);
         case "Priority":
@@ -271,37 +271,40 @@ function serializeTaskQueryFilterWithoutType(filter: TaskQueryFilter, view: Data
     }
 }
 
-export type TaskQueryStatusFilter = {
-    readonly type: "Status";
+export type TaskQueryDisplayStatusFilter = {
+    readonly type: "DisplayStatus";
     readonly operation:
         | {
               readonly type: "OneOf";
-              readonly statuses: ReadonlySet<TaskDisplayStatus>;
+              readonly displayStatuses: ReadonlySet<TaskDisplayStatus>;
           }
         | {
               readonly type: "NoneOf";
-              readonly statuses: ReadonlySet<TaskDisplayStatus>;
+              readonly displayStatuses: ReadonlySet<TaskDisplayStatus>;
           };
 };
 
-function getTaskQueryStatusFilterByteLength(filter: TaskQueryStatusFilter) {
+function getTaskQueryDisplayStatusFilterByteLength(filter: TaskQueryDisplayStatusFilter) {
     return 1;
 }
 
-function serializeTaskQueryStatusFilter(filter: TaskQueryStatusFilter, view: DataView) {
+function serializeTaskQueryDisplayStatusFilter(
+    filter: TaskQueryDisplayStatusFilter,
+    view: DataView,
+) {
     const byte =
         // Operation type is stored in the first 4 bits
         ((filter.operation.type === "OneOf" ? 1 : 2) << 4) |
         // Statuses are stored in the last 4 bits as a bitset
-        (filter.operation.statuses.has("OpenInactive") ? 0b00001000 : 0b00000000) |
-        (filter.operation.statuses.has("OpenActive") ? 0b00000100 : 0b00000000) |
-        (filter.operation.statuses.has("Closed") ? 0b00000010 : 0b00000000);
+        (filter.operation.displayStatuses.has("OpenInactive") ? 0b00001000 : 0b00000000) |
+        (filter.operation.displayStatuses.has("OpenActive") ? 0b00000100 : 0b00000000) |
+        (filter.operation.displayStatuses.has("Closed") ? 0b00000010 : 0b00000000);
 
     view.setUint8(0, byte);
 }
 
-function deserializeTaskQueryStatusFilter(view: DataView): {
-    filter: TaskQueryStatusFilter;
+function deserializeTaskQueryDisplayStatusFilter(view: DataView): {
+    filter: TaskQueryDisplayStatusFilter;
     byteLength: number;
 } {
     const byte = view.getUint8(0);
@@ -326,7 +329,7 @@ function deserializeTaskQueryStatusFilter(view: DataView): {
     if (byte & 0b00000010) statuses.add("Closed");
 
     return {
-        filter: {type: "Status", operation: {type, statuses}},
+        filter: {type: "DisplayStatus", operation: {type, displayStatuses: statuses}},
         byteLength: 1,
     };
 }

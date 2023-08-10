@@ -514,13 +514,13 @@ test("closed tasks are filtered out by default", async () => {
 
     expect(
         await testQuery(session1, space, [
-            {type: "Status", operation: {type: "OneOf", statuses: new Set()}},
+            {type: "DisplayStatus", operation: {type: "OneOf", displayStatuses: new Set()}},
         ]),
     ).toEqual([task1Id, task3Id]);
 
     expect(
         await testQuery(session1, space, [
-            {type: "Status", operation: {type: "NoneOf", statuses: new Set()}},
+            {type: "DisplayStatus", operation: {type: "NoneOf", displayStatuses: new Set()}},
         ]),
     ).toEqual([task1Id, task3Id]);
 });
@@ -606,15 +606,21 @@ test("can filter for closed tasks", async () => {
 
     expect(
         await testQuery(session1, space, [
-            {type: "Status", operation: {type: "OneOf", statuses: new Set(["Closed"])}},
+            {
+                type: "DisplayStatus",
+                operation: {type: "OneOf", displayStatuses: new Set(["Closed"])},
+            },
         ]),
     ).toEqual([task2Id]);
 
     expect(
         await testQuery(session1, space, [
             {
-                type: "Status",
-                operation: {type: "NoneOf", statuses: new Set(["OpenInactive", "OpenActive"])},
+                type: "DisplayStatus",
+                operation: {
+                    type: "NoneOf",
+                    displayStatuses: new Set(["OpenInactive", "OpenActive"]),
+                },
             },
         ]),
     ).toEqual([task2Id]);
@@ -702,8 +708,11 @@ test("can filter for open tasks", async () => {
     expect(
         await testQuery(session1, space, [
             {
-                type: "Status",
-                operation: {type: "OneOf", statuses: new Set(["OpenInactive", "OpenActive"])},
+                type: "DisplayStatus",
+                operation: {
+                    type: "OneOf",
+                    displayStatuses: new Set(["OpenInactive", "OpenActive"]),
+                },
             },
         ]),
     ).toEqual([task1Id, task3Id]);
@@ -711,8 +720,8 @@ test("can filter for open tasks", async () => {
     expect(
         await testQuery(session1, space, [
             {
-                type: "Status",
-                operation: {type: "NoneOf", statuses: new Set(["Closed"])},
+                type: "DisplayStatus",
+                operation: {type: "NoneOf", displayStatuses: new Set(["Closed"])},
             },
         ]),
     ).toEqual([task1Id, task3Id]);
@@ -800,8 +809,8 @@ test("can filter for open inactive tasks", async () => {
     expect(
         await testQuery(session1, space, [
             {
-                type: "Status",
-                operation: {type: "OneOf", statuses: new Set(["OpenInactive"])},
+                type: "DisplayStatus",
+                operation: {type: "OneOf", displayStatuses: new Set(["OpenInactive"])},
             },
         ]),
     ).toEqual([task1Id]);
@@ -809,8 +818,8 @@ test("can filter for open inactive tasks", async () => {
     expect(
         await testQuery(session1, space, [
             {
-                type: "Status",
-                operation: {type: "NoneOf", statuses: new Set(["Closed", "OpenActive"])},
+                type: "DisplayStatus",
+                operation: {type: "NoneOf", displayStatuses: new Set(["Closed", "OpenActive"])},
             },
         ]),
     ).toEqual([task1Id]);
@@ -898,8 +907,8 @@ test("can filter for open active tasks", async () => {
     expect(
         await testQuery(session1, space, [
             {
-                type: "Status",
-                operation: {type: "OneOf", statuses: new Set(["OpenActive"])},
+                type: "DisplayStatus",
+                operation: {type: "OneOf", displayStatuses: new Set(["OpenActive"])},
             },
         ]),
     ).toEqual([task3Id]);
@@ -907,8 +916,8 @@ test("can filter for open active tasks", async () => {
     expect(
         await testQuery(session1, space, [
             {
-                type: "Status",
-                operation: {type: "NoneOf", statuses: new Set(["Closed", "OpenInactive"])},
+                type: "DisplayStatus",
+                operation: {type: "NoneOf", displayStatuses: new Set(["Closed", "OpenInactive"])},
             },
         ]),
     ).toEqual([task3Id]);
@@ -996,8 +1005,8 @@ test("can filter for closed and open inactive tasks", async () => {
     expect(
         await testQuery(session1, space, [
             {
-                type: "Status",
-                operation: {type: "OneOf", statuses: new Set(["Closed", "OpenInactive"])},
+                type: "DisplayStatus",
+                operation: {type: "OneOf", displayStatuses: new Set(["Closed", "OpenInactive"])},
             },
         ]),
     ).toEqual([task1Id, task2Id]);
@@ -1005,8 +1014,8 @@ test("can filter for closed and open inactive tasks", async () => {
     expect(
         await testQuery(session1, space, [
             {
-                type: "Status",
-                operation: {type: "NoneOf", statuses: new Set(["OpenActive"])},
+                type: "DisplayStatus",
+                operation: {type: "NoneOf", displayStatuses: new Set(["OpenActive"])},
             },
         ]),
     ).toEqual([task1Id, task2Id]);
@@ -1094,8 +1103,8 @@ test("can filter for closed and open active tasks", async () => {
     expect(
         await testQuery(session1, space, [
             {
-                type: "Status",
-                operation: {type: "OneOf", statuses: new Set(["Closed", "OpenActive"])},
+                type: "DisplayStatus",
+                operation: {type: "OneOf", displayStatuses: new Set(["Closed", "OpenActive"])},
             },
         ]),
     ).toEqual([task2Id, task3Id]);
@@ -1103,8 +1112,8 @@ test("can filter for closed and open active tasks", async () => {
     expect(
         await testQuery(session1, space, [
             {
-                type: "Status",
-                operation: {type: "NoneOf", statuses: new Set(["OpenInactive"])},
+                type: "DisplayStatus",
+                operation: {type: "NoneOf", displayStatuses: new Set(["OpenInactive"])},
             },
         ]),
     ).toEqual([task2Id, task3Id]);
@@ -1192,8 +1201,8 @@ test("can filter for no statuses", async () => {
     expect(
         await testQuery(session1, space, [
             {
-                type: "Status",
-                operation: {type: "OneOf", statuses: new Set([])},
+                type: "DisplayStatus",
+                operation: {type: "OneOf", displayStatuses: new Set([])},
             },
         ]),
     ).toEqual([task1Id, task3Id]);
@@ -1201,10 +1210,10 @@ test("can filter for no statuses", async () => {
     expect(
         await testQuery(session1, space, [
             {
-                type: "Status",
+                type: "DisplayStatus",
                 operation: {
                     type: "NoneOf",
-                    statuses: new Set(["OpenInactive", "OpenActive", "Closed"]),
+                    displayStatuses: new Set(["OpenInactive", "OpenActive", "Closed"]),
                 },
             },
         ]),
@@ -1293,10 +1302,10 @@ test("can filter for all statuses", async () => {
     expect(
         await testQuery(session1, space, [
             {
-                type: "Status",
+                type: "DisplayStatus",
                 operation: {
                     type: "OneOf",
-                    statuses: new Set(["OpenInactive", "OpenActive", "Closed"]),
+                    displayStatuses: new Set(["OpenInactive", "OpenActive", "Closed"]),
                 },
             },
         ]),
@@ -1305,10 +1314,10 @@ test("can filter for all statuses", async () => {
     expect(
         await testQuery(session1, space, [
             {
-                type: "Status",
+                type: "DisplayStatus",
                 operation: {
                     type: "NoneOf",
-                    statuses: new Set([]),
+                    displayStatuses: new Set([]),
                 },
             },
         ]),
@@ -1397,12 +1406,12 @@ test("will merge multiple status filters", async () => {
     expect(
         await testQuery(session1, space, [
             {
-                type: "Status",
-                operation: {type: "OneOf", statuses: new Set(["OpenInactive", "Closed"])},
+                type: "DisplayStatus",
+                operation: {type: "OneOf", displayStatuses: new Set(["OpenInactive", "Closed"])},
             },
             {
-                type: "Status",
-                operation: {type: "OneOf", statuses: new Set(["OpenActive", "Closed"])},
+                type: "DisplayStatus",
+                operation: {type: "OneOf", displayStatuses: new Set(["OpenActive", "Closed"])},
             },
         ]),
     ).toEqual([task2Id]);
@@ -1410,12 +1419,12 @@ test("will merge multiple status filters", async () => {
     expect(
         await testQuery(session1, space, [
             {
-                type: "Status",
-                operation: {type: "NoneOf", statuses: new Set(["OpenInactive", "Closed"])},
+                type: "DisplayStatus",
+                operation: {type: "NoneOf", displayStatuses: new Set(["OpenInactive", "Closed"])},
             },
             {
-                type: "Status",
-                operation: {type: "NoneOf", statuses: new Set(["OpenActive", "Closed"])},
+                type: "DisplayStatus",
+                operation: {type: "NoneOf", displayStatuses: new Set(["OpenActive", "Closed"])},
             },
         ]),
     ).toEqual([]);
@@ -1423,12 +1432,12 @@ test("will merge multiple status filters", async () => {
     expect(
         await testQuery(session1, space, [
             {
-                type: "Status",
-                operation: {type: "NoneOf", statuses: new Set(["OpenInactive", "Closed"])},
+                type: "DisplayStatus",
+                operation: {type: "NoneOf", displayStatuses: new Set(["OpenInactive", "Closed"])},
             },
             {
-                type: "Status",
-                operation: {type: "NoneOf", statuses: new Set(["Closed"])},
+                type: "DisplayStatus",
+                operation: {type: "NoneOf", displayStatuses: new Set(["Closed"])},
             },
         ]),
     ).toEqual([task3Id]);
@@ -1436,12 +1445,15 @@ test("will merge multiple status filters", async () => {
     expect(
         await testQuery(session1, space, [
             {
-                type: "Status",
-                operation: {type: "OneOf", statuses: new Set(["OpenInactive", "Closed"])},
+                type: "DisplayStatus",
+                operation: {type: "OneOf", displayStatuses: new Set(["OpenInactive", "Closed"])},
             },
             {
-                type: "Status",
-                operation: {type: "OneOf", statuses: new Set(["OpenInactive", "OpenActive"])},
+                type: "DisplayStatus",
+                operation: {
+                    type: "OneOf",
+                    displayStatuses: new Set(["OpenInactive", "OpenActive"]),
+                },
             },
         ]),
     ).toEqual([task1Id]);
@@ -1449,51 +1461,15 @@ test("will merge multiple status filters", async () => {
     expect(
         await testQuery(session1, space, [
             {
-                type: "Status",
-                operation: {type: "NoneOf", statuses: new Set(["OpenInactive", "Closed"])},
+                type: "DisplayStatus",
+                operation: {type: "NoneOf", displayStatuses: new Set(["OpenInactive", "Closed"])},
             },
             {
-                type: "Status",
-                operation: {type: "NoneOf", statuses: new Set(["OpenInactive", "OpenActive"])},
-            },
-        ]),
-    ).toEqual([]);
-
-    expect(
-        await testQuery(session1, space, [
-            {
-                type: "Status",
-                operation: {type: "NoneOf", statuses: new Set(["OpenInactive", "Closed"])},
-            },
-            {
-                type: "Status",
-                operation: {type: "NoneOf", statuses: new Set(["OpenInactive"])},
-            },
-        ]),
-    ).toEqual([task3Id]);
-
-    expect(
-        await testQuery(session1, space, [
-            {
-                type: "Status",
-                operation: {type: "OneOf", statuses: new Set(["OpenInactive", "OpenActive"])},
-            },
-            {
-                type: "Status",
-                operation: {type: "OneOf", statuses: new Set(["OpenActive", "Closed"])},
-            },
-        ]),
-    ).toEqual([task3Id]);
-
-    expect(
-        await testQuery(session1, space, [
-            {
-                type: "Status",
-                operation: {type: "NoneOf", statuses: new Set(["OpenInactive", "OpenActive"])},
-            },
-            {
-                type: "Status",
-                operation: {type: "NoneOf", statuses: new Set(["OpenActive", "Closed"])},
+                type: "DisplayStatus",
+                operation: {
+                    type: "NoneOf",
+                    displayStatuses: new Set(["OpenInactive", "OpenActive"]),
+                },
             },
         ]),
     ).toEqual([]);
@@ -1501,12 +1477,57 @@ test("will merge multiple status filters", async () => {
     expect(
         await testQuery(session1, space, [
             {
-                type: "Status",
-                operation: {type: "NoneOf", statuses: new Set(["OpenActive"])},
+                type: "DisplayStatus",
+                operation: {type: "NoneOf", displayStatuses: new Set(["OpenInactive", "Closed"])},
             },
             {
-                type: "Status",
-                operation: {type: "NoneOf", statuses: new Set(["OpenActive", "Closed"])},
+                type: "DisplayStatus",
+                operation: {type: "NoneOf", displayStatuses: new Set(["OpenInactive"])},
+            },
+        ]),
+    ).toEqual([task3Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "DisplayStatus",
+                operation: {
+                    type: "OneOf",
+                    displayStatuses: new Set(["OpenInactive", "OpenActive"]),
+                },
+            },
+            {
+                type: "DisplayStatus",
+                operation: {type: "OneOf", displayStatuses: new Set(["OpenActive", "Closed"])},
+            },
+        ]),
+    ).toEqual([task3Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "DisplayStatus",
+                operation: {
+                    type: "NoneOf",
+                    displayStatuses: new Set(["OpenInactive", "OpenActive"]),
+                },
+            },
+            {
+                type: "DisplayStatus",
+                operation: {type: "NoneOf", displayStatuses: new Set(["OpenActive", "Closed"])},
+            },
+        ]),
+    ).toEqual([]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "DisplayStatus",
+                operation: {type: "NoneOf", displayStatuses: new Set(["OpenActive"])},
+            },
+            {
+                type: "DisplayStatus",
+                operation: {type: "NoneOf", displayStatuses: new Set(["OpenActive", "Closed"])},
             },
         ]),
     ).toEqual([task1Id]);
@@ -1514,12 +1535,12 @@ test("will merge multiple status filters", async () => {
     expect(
         await testQuery(session1, space, [
             {
-                type: "Status",
-                operation: {type: "OneOf", statuses: new Set(["OpenInactive"])},
+                type: "DisplayStatus",
+                operation: {type: "OneOf", displayStatuses: new Set(["OpenInactive"])},
             },
             {
-                type: "Status",
-                operation: {type: "OneOf", statuses: new Set(["OpenActive"])},
+                type: "DisplayStatus",
+                operation: {type: "OneOf", displayStatuses: new Set(["OpenActive"])},
             },
         ]),
     ).toEqual([]);
@@ -1527,12 +1548,12 @@ test("will merge multiple status filters", async () => {
     expect(
         await testQuery(session1, space, [
             {
-                type: "Status",
-                operation: {type: "NoneOf", statuses: new Set(["OpenInactive"])},
+                type: "DisplayStatus",
+                operation: {type: "NoneOf", displayStatuses: new Set(["OpenInactive"])},
             },
             {
-                type: "Status",
-                operation: {type: "NoneOf", statuses: new Set(["OpenActive"])},
+                type: "DisplayStatus",
+                operation: {type: "NoneOf", displayStatuses: new Set(["OpenActive"])},
             },
         ]),
     ).toEqual([task2Id]);
@@ -7471,10 +7492,10 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
         name: "closed time",
         extraFilters: [
             {
-                type: "Status",
+                type: "DisplayStatus",
                 operation: {
                     type: "OneOf",
-                    statuses: new Set(["OpenInactive", "OpenActive", "Closed"]),
+                    displayStatuses: new Set(["OpenInactive", "OpenActive", "Closed"]),
                 },
             },
         ],

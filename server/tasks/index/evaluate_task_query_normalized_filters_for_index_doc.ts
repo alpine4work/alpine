@@ -23,7 +23,7 @@ import {getTaskTitleText} from "~/shared/tasks/task_title.js";
 // `evaluateTaskQueryNormalizedFiltersForIndexDoc()`.
 assertEqualTypes<
     keyof TaskQueryNormalizedFilters,
-    | "statusFilter"
+    | "displayStatusFilter"
     | "collectionsFilter"
     | "priorityFilter"
     | "titleFilter"
@@ -42,7 +42,7 @@ assertEqualTypes<
  */
 export function evaluateTaskQueryNormalizedFiltersForIndexDoc(
     filters: TaskQueryNormalizedFilters,
-    task: TaskIndexDoc,
+    task: Omit<TaskIndexDoc, "spaceId">,
 ): boolean {
     // Deleted tasks should always be filtered out.
     if (getTaskIndexDocIsDeleted(task)) return false;
@@ -51,9 +51,9 @@ export function evaluateTaskQueryNormalizedFiltersForIndexDoc(
         const displayStatus = getTaskIndexDocDisplayStatus(task);
 
         const pass =
-            (filters.statusFilter.ifOpenInactive && displayStatus === "OpenInactive") ||
-            (filters.statusFilter.ifOpenActive && displayStatus === "OpenActive") ||
-            (filters.statusFilter.ifClosed && displayStatus === "Closed");
+            (filters.displayStatusFilter.ifOpenInactive && displayStatus === "OpenInactive") ||
+            (filters.displayStatusFilter.ifOpenActive && displayStatus === "OpenActive") ||
+            (filters.displayStatusFilter.ifClosed && displayStatus === "Closed");
 
         if (!pass) return false;
     }
@@ -187,7 +187,7 @@ export function evaluateTaskQueryNormalizedFiltersForIndexDoc(
     return true;
 }
 
-function evaluateTaskQueryAccountNormalizedFilter(
+export function evaluateTaskQueryAccountNormalizedFilter(
     filter: TaskQueryAccountNormalizedFilter,
     accountId: AccountId | "MissingAccount",
 ): boolean {
@@ -201,7 +201,7 @@ function evaluateTaskQueryAccountNormalizedFilter(
     }
 }
 
-function evaluateTaskQueryDateNormalizedFilter(
+export function evaluateTaskQueryDateNormalizedFilter(
     filter: TaskQueryDateNormalizedFilter | {type: "IsEmpty"},
     date: CalendarDate | null,
 ): boolean {

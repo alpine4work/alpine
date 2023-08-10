@@ -9,22 +9,22 @@ import {TaskStatusCircle} from "~/client/tasks/demo_2/internal/task_status_circl
 import {addRemLengths, spacing} from "~/shared/design/spacing.js";
 import {isNonNullableOrFalse} from "~/shared/helpers/control/is_non_nullable_or_false.js";
 import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles.js";
-import {TaskQueryStatusFilter} from "~/shared/tasks/task_query_filter.js";
+import {TaskQueryDisplayStatusFilter} from "~/shared/tasks/task_query_filter.js";
 
 export function TaskQueryStatusFilterOperationEditor({
     filter,
     onFilterChange,
 }: {
-    filter: TaskQueryStatusFilter;
-    onFilterChange: (filter: TaskQueryStatusFilter) => void;
+    filter: TaskQueryDisplayStatusFilter;
+    onFilterChange: (filter: TaskQueryDisplayStatusFilter) => void;
 }) {
     const buttonRef = useRef<HTMLButtonElement>(null);
     const {buttonProps, isPressed} = useButton({}, buttonRef);
     const {hoverProps, isHovered} = useHover({});
 
     const statuses = [
-        filter.operation.statuses.has("OpenInactive") &&
-            (filter.operation.statuses.has("OpenActive") ? (
+        filter.operation.displayStatuses.has("OpenInactive") &&
+            (filter.operation.displayStatuses.has("OpenActive") ? (
                 <>
                     <TaskStatusCircle status="OpenInactive" size="3" />
                     <Box paddingLeft="1">open</Box>
@@ -35,14 +35,14 @@ export function TaskQueryStatusFilterOperationEditor({
                     <Box paddingLeft="1">inactive</Box>
                 </>
             )),
-        filter.operation.statuses.has("OpenActive") &&
-            !filter.operation.statuses.has("OpenInactive") && (
+        filter.operation.displayStatuses.has("OpenActive") &&
+            !filter.operation.displayStatuses.has("OpenInactive") && (
                 <>
                     <TaskStatusCircle status="OpenActive" size="3" />
                     <Box paddingLeft="1">active</Box>
                 </>
             ),
-        filter.operation.statuses.has("Closed") && (
+        filter.operation.displayStatuses.has("Closed") && (
             <>
                 <TaskStatusCircle status="Closed" size="3" />
                 <Box paddingLeft="1">closed</Box>
@@ -61,7 +61,10 @@ export function TaskQueryStatusFilterOperationEditor({
                         onPress: () => {
                             onFilterChange({
                                 type: "Status",
-                                operation: {type: "OneOf", statuses: filter.operation.statuses},
+                                operation: {
+                                    type: "OneOf",
+                                    displayStatuses: filter.operation.displayStatuses,
+                                },
                             });
                         },
                     },
@@ -71,7 +74,10 @@ export function TaskQueryStatusFilterOperationEditor({
                         onPress: () => {
                             onFilterChange({
                                 type: "Status",
-                                operation: {type: "NoneOf", statuses: filter.operation.statuses},
+                                operation: {
+                                    type: "NoneOf",
+                                    displayStatuses: filter.operation.displayStatuses,
+                                },
                             });
                         },
                     },
@@ -82,7 +88,7 @@ export function TaskQueryStatusFilterOperationEditor({
                 actions={[
                     {
                         onPress: () => {
-                            const newStatuses = new Set(filter.operation.statuses);
+                            const newStatuses = new Set(filter.operation.displayStatuses);
                             const hasOpenInactive = newStatuses.delete("OpenInactive");
                             const hasOpenActive = newStatuses.delete("OpenActive");
                             if (!hasOpenInactive || !hasOpenActive) {
@@ -92,7 +98,7 @@ export function TaskQueryStatusFilterOperationEditor({
 
                             onFilterChange({
                                 ...filter,
-                                operation: {...filter.operation, statuses: newStatuses},
+                                operation: {...filter.operation, displayStatuses: newStatuses},
                             });
                         },
                         withCustomLayout: true,
@@ -106,8 +112,8 @@ export function TaskQueryStatusFilterOperationEditor({
                             >
                                 <TaskCheckbox
                                     isChecked={
-                                        filter.operation.statuses.has("OpenInactive") &&
-                                        filter.operation.statuses.has("OpenActive")
+                                        filter.operation.displayStatuses.has("OpenInactive") &&
+                                        filter.operation.displayStatuses.has("OpenActive")
                                     }
                                 />
                                 <TaskStatusCircle status="OpenInactive" size="4" />
@@ -128,13 +134,13 @@ export function TaskQueryStatusFilterOperationEditor({
                     },
                     {
                         onPress: () => {
-                            const newStatuses = new Set(filter.operation.statuses);
+                            const newStatuses = new Set(filter.operation.displayStatuses);
                             if (!newStatuses.delete("OpenInactive"))
                                 newStatuses.add("OpenInactive");
 
                             onFilterChange({
                                 ...filter,
-                                operation: {...filter.operation, statuses: newStatuses},
+                                operation: {...filter.operation, displayStatuses: newStatuses},
                             });
                         },
                         withCustomLayout: true,
@@ -148,7 +154,7 @@ export function TaskQueryStatusFilterOperationEditor({
                                 gap="1.5"
                             >
                                 <TaskCheckbox
-                                    isChecked={filter.operation.statuses.has("OpenInactive")}
+                                    isChecked={filter.operation.displayStatuses.has("OpenInactive")}
                                 />
                                 <TaskStatusCircle status="OpenInactive" size="4" />
                                 <Box>Inactive</Box>
@@ -181,12 +187,12 @@ export function TaskQueryStatusFilterOperationEditor({
                     },
                     {
                         onPress: () => {
-                            const newStatuses = new Set(filter.operation.statuses);
+                            const newStatuses = new Set(filter.operation.displayStatuses);
                             if (!newStatuses.delete("OpenActive")) newStatuses.add("OpenActive");
 
                             onFilterChange({
                                 ...filter,
-                                operation: {...filter.operation, statuses: newStatuses},
+                                operation: {...filter.operation, displayStatuses: newStatuses},
                             });
                         },
                         withCustomLayout: true,
@@ -200,7 +206,7 @@ export function TaskQueryStatusFilterOperationEditor({
                                 gap="1.5"
                             >
                                 <TaskCheckbox
-                                    isChecked={filter.operation.statuses.has("OpenActive")}
+                                    isChecked={filter.operation.displayStatuses.has("OpenActive")}
                                 />
                                 <TaskStatusCircle status="OpenActive" size="4" />
                                 <Box>Active</Box>
@@ -234,18 +240,20 @@ export function TaskQueryStatusFilterOperationEditor({
                     },
                     {
                         onPress: () => {
-                            const newStatuses = new Set(filter.operation.statuses);
+                            const newStatuses = new Set(filter.operation.displayStatuses);
                             if (!newStatuses.delete("Closed")) newStatuses.add("Closed");
 
                             onFilterChange({
                                 ...filter,
-                                operation: {...filter.operation, statuses: newStatuses},
+                                operation: {...filter.operation, displayStatuses: newStatuses},
                             });
                         },
                         withCustomLayout: true,
                         render: () => (
                             <Box padding="1.5" display="flex" alignItems="center" gap="1.5">
-                                <TaskCheckbox isChecked={filter.operation.statuses.has("Closed")} />
+                                <TaskCheckbox
+                                    isChecked={filter.operation.displayStatuses.has("Closed")}
+                                />
                                 <TaskStatusCircle status="Closed" size="4" />
                                 <Box>Closed</Box>
                             </Box>

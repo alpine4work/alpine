@@ -48,6 +48,9 @@ export interface OpensearchClientInterface {
     /**
      * Gets a document by the provided ID using the [get document API][1].
      *
+     * We do not automatically batch calls to this function. To load multiple
+     * documents with one API call see `multiGetDocsIfExist()`.
+     *
      * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/get-documents/
      */
     getDocIfExists<
@@ -61,6 +64,26 @@ export interface OpensearchClientInterface {
         routing: Routing,
         id: DocId,
     ): Promise<OpensearchClientDocWithVersion<Doc> | null>;
+
+    /**
+     * Gets multiple documents in one network request using the [multi-get
+     * documents API][1].
+     *
+     * Documents are returned in the order `DocId`s were provided in.
+     *
+     * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/multi-get/
+     */
+    multiGetDocsIfExist<
+        Routing extends string,
+        DocId extends string,
+        Doc extends {},
+        FlattenedKeys extends string,
+    >(
+        tracer: TracerBase,
+        index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
+        routing: Routing,
+        ids: ReadonlyArray<DocId>,
+    ): Promise<Array<OpensearchClientDocWithVersion<Doc> | null>>;
 
     /**
      * Lets you add, update, or delete multiple documents in a single request using
@@ -352,6 +375,9 @@ export class OpensearchClient implements OpensearchClientInterface {
     /**
      * Gets a document by the provided ID using the [get document API][1].
      *
+     * We do not automatically batch calls to this function. To load multiple
+     * documents with one API call see `multiGetDocsIfExist()`.
+     *
      * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/get-documents/
      */
     public async getDocIfExists<
@@ -403,6 +429,84 @@ export class OpensearchClient implements OpensearchClientInterface {
                 primaryTerm: body._primary_term,
             },
         });
+    }
+
+    /**
+     * Gets multiple documents in one network request using the [multi-get
+     * documents API][1].
+     *
+     * Documents are returned in the order `DocId`s were provided in.
+     *
+     * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/multi-get/
+     */
+    public async multiGetDocsIfExist<
+        Routing extends string,
+        DocId extends string,
+        Doc extends {},
+        FlattenedKeys extends string,
+    >(
+        tracer: TracerBase,
+        index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
+        routing: Routing,
+        ids: ReadonlyArray<DocId>,
+    ): Promise<Array<OpensearchClientDocWithVersion<Doc> | null>> {
+        if (process.env.NODE_ENV !== "production") {
+            await this._ensureLocalIndex(tracer, index);
+        }
+
+        const response = await fetchWithTracer(
+            tracer,
+            `${this._protocol}://${this._host}/${index.name}/_mget?routing=${routing}`,
+            {
+                spanRoute: `/${index.name}/_mget`,
+                method: "POST",
+                // NOTE(#opensearch-important-json-disclaimer): We only include IDs which are
+                // strings and so JSON safe. Stringify is fine here.
+                body: JSON.stringify({
+                    docs: ids.map(id => ({_id: id})),
+                }),
+            },
+        );
+
+        // NOTE(#opensearch-important-json-disclaimer): `long`s in `_source` are
+        // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s
+        // to strings to maintain precision. Ok to use native JSON parser since `long`s
+        // will be strings and we know how to handle those strings.
+        const body = await response.json<{
+            docs: Array<
+                {
+                    _id: string;
+                    _seq_no: number;
+                    _primary_term: number;
+                } & (
+                    | {found: false}
+                    | {
+                          found: true;
+                          _source: JsonValue;
+                      }
+                )
+            >;
+        }>();
+
+        const docById = new Map<string, OpensearchClientDocWithVersion<Doc>>();
+
+        for (const bodyDoc of body.docs) {
+            if (!bodyDoc.found) continue;
+            const doc = index.type.deserialize(bodyDoc._source);
+
+            // Add the version number to the doc so we can perform updates.
+            docById.set(
+                bodyDoc._id,
+                Object.assign(doc, {
+                    version: {
+                        sequenceNumber: bodyDoc._seq_no,
+                        primaryTerm: bodyDoc._primary_term,
+                    },
+                }),
+            );
+        }
+
+        return ids.map(id => docById.get(id) ?? null);
     }
 
     /**

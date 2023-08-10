@@ -11,12 +11,12 @@ import {analyzeTaskTitleText} from "~/shared/tasks/analyze_task_title_text.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
 import {
     TaskQueryCollectionsFilter,
+    TaskQueryDisplayStatusFilter,
     TaskQueryFilter,
     TaskQueryFilterAccountOperation,
     TaskQueryFilterDateOperation,
     TaskQueryFilterDateOperationDate,
     TaskQueryPriorityFilter,
-    TaskQueryStatusFilter,
 } from "~/shared/tasks/task_query_filter.js";
 
 type NonEmptyReadonlyArray<T> = readonly [T, ...ReadonlyArray<T>];
@@ -53,7 +53,7 @@ function assertNonEmptyReadonlyMap<K, V>(map: ReadonlyMap<K, V>): NonEmptyReadon
  * Leverages TypeScript to make sure impossible states are actually impossible.
  */
 export type TaskQueryNormalizedFilters = {
-    readonly statusFilter: TaskQueryStatusNormalizedFilter;
+    readonly displayStatusFilter: TaskQueryDisplayStatusNormalizedFilter;
     readonly collectionsFilter?: TaskQueryCollectionsNormalizedFilter;
     readonly priorityFilter?: TaskQueryPriorityNormalizedFilter;
     readonly titleFilter?: TaskQueryTitleNormalizedFilter;
@@ -69,7 +69,7 @@ export type TaskQueryNormalizedFilters = {
 
 // At least one of the three statuses must be included in this filter. Otherwise
 // the filter is impossible.
-export type TaskQueryStatusNormalizedFilter =
+export type TaskQueryDisplayStatusNormalizedFilter =
     | {
           readonly ifOpenInactive: true;
           readonly ifOpenActive: boolean;
@@ -201,7 +201,7 @@ export function normalizeTaskQueryFilters(
     const normalizedFilters: {
         -readonly [K in keyof TaskQueryNormalizedFilters]: TaskQueryNormalizedFilters[K];
     } = {
-        statusFilter: {
+        displayStatusFilter: {
             ifOpenInactive: true,
             ifOpenActive: true,
             ifClosed: false,
@@ -210,22 +210,22 @@ export function normalizeTaskQueryFilters(
 
     for (const filter of filters) {
         switch (filter.type) {
-            case "Status": {
-                const normalizeResult = normalizeTaskQueryStatusFilter(filter);
+            case "DisplayStatus": {
+                const normalizeResult = normalizeTaskQueryDisplayStatusFilter(filter);
                 if (normalizeResult.type === "Undefined") continue;
                 if (normalizeResult.type === "AlwaysFalse") return {type: "Impossible"};
 
                 if (hasDefaultStatusFilter) {
-                    normalizedFilters.statusFilter = normalizeResult.filter;
+                    normalizedFilters.displayStatusFilter = normalizeResult.filter;
                     hasDefaultStatusFilter = false;
                 } else {
-                    const mergeResult = mergeTaskQueryStatusFilters(
-                        normalizedFilters.statusFilter,
+                    const mergeResult = mergeTaskQueryDisplayStatusFilters(
+                        normalizedFilters.displayStatusFilter,
                         normalizeResult.filter,
                     );
                     if (mergeResult.type === "AlwaysFalse") return {type: "Impossible"};
 
-                    normalizedFilters.statusFilter = mergeResult.filter;
+                    normalizedFilters.displayStatusFilter = mergeResult.filter;
                 }
                 break;
             }
@@ -505,13 +505,13 @@ export function normalizeTaskQueryFilters(
     return {type: "Possible", normalizedFilters};
 }
 
-function normalizeTaskQueryStatusFilter(
-    filter: TaskQueryStatusFilter,
+function normalizeTaskQueryDisplayStatusFilter(
+    filter: TaskQueryDisplayStatusFilter,
 ):
-    | {type: "Filter"; filter: TaskQueryStatusNormalizedFilter}
+    | {type: "Filter"; filter: TaskQueryDisplayStatusNormalizedFilter}
     | {type: "Undefined"}
     | {type: "AlwaysFalse"} {
-    if (filter.operation.statuses.size === 0) return {type: "Undefined"};
+    if (filter.operation.displayStatuses.size === 0) return {type: "Undefined"};
 
     let ifOpenInactive: boolean;
     let ifOpenActive: boolean;
@@ -519,15 +519,15 @@ function normalizeTaskQueryStatusFilter(
 
     switch (filter.operation.type) {
         case "OneOf": {
-            ifOpenInactive = filter.operation.statuses.has("OpenInactive");
-            ifOpenActive = filter.operation.statuses.has("OpenActive");
-            ifClosed = filter.operation.statuses.has("Closed");
+            ifOpenInactive = filter.operation.displayStatuses.has("OpenInactive");
+            ifOpenActive = filter.operation.displayStatuses.has("OpenActive");
+            ifClosed = filter.operation.displayStatuses.has("Closed");
             break;
         }
         case "NoneOf": {
-            ifOpenInactive = !filter.operation.statuses.has("OpenInactive");
-            ifOpenActive = !filter.operation.statuses.has("OpenActive");
-            ifClosed = !filter.operation.statuses.has("Closed");
+            ifOpenInactive = !filter.operation.displayStatuses.has("OpenInactive");
+            ifOpenActive = !filter.operation.displayStatuses.has("OpenActive");
+            ifClosed = !filter.operation.displayStatuses.has("Closed");
             break;
         }
         default:
@@ -545,10 +545,10 @@ function normalizeTaskQueryStatusFilter(
     }
 }
 
-function mergeTaskQueryStatusFilters(
-    filter1: TaskQueryStatusNormalizedFilter,
-    filter2: TaskQueryStatusNormalizedFilter,
-): {type: "Filter"; filter: TaskQueryStatusNormalizedFilter} | {type: "AlwaysFalse"} {
+function mergeTaskQueryDisplayStatusFilters(
+    filter1: TaskQueryDisplayStatusNormalizedFilter,
+    filter2: TaskQueryDisplayStatusNormalizedFilter,
+): {type: "Filter"; filter: TaskQueryDisplayStatusNormalizedFilter} | {type: "AlwaysFalse"} {
     const ifOpenInactive = filter1.ifOpenInactive && filter2.ifOpenInactive;
     const ifOpenActive = filter1.ifOpenActive && filter2.ifOpenActive;
     const ifClosed = filter1.ifClosed && filter2.ifClosed;

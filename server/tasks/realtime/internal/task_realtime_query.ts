@@ -5,18 +5,21 @@ import {
     TaskPriorityIntegerMapping,
     TaskStatusTypeIntegerMapping,
 } from "~/server/tasks/index/task_index_doc.js";
+import {mightTaskActionAddVisibleTaskInQueryNormalizedFilters} from "~/server/tasks/realtime/internal/might_task_action_add_visible_task_in_query_normalized_filters.js";
+import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {TaskTaskAction} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/normalize_task_query_filters.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
 type TaskRealtimeQueryTreeEntry = readonly [...ReadonlyArray<TaskQuerySortValue>, TaskId];
 
-const previousTaskIndexDocByIdByQueryForTest =
-    process.env.NODE_ENV === "test"
+const previousTaskIdByQueryForTest =
+    process.env.NODE_ENV !== "production"
         ? new WeakMap<TaskRealtimeQuery, Map<TaskId, TaskIndexDoc>>()
         : null;
 
@@ -25,6 +28,7 @@ export class TaskRealtimeQuery {
     private readonly _filters: TaskQueryNormalizedFilters;
     private readonly _sort: ReadonlyArray<TaskQuerySort>;
 
+    // NOCOMMIT: Test sort consistency with OpenSearch
     private readonly _tree = new RBTree<TaskRealtimeQueryTreeEntry>((entry1, entry2) => {
         const sortLength = this._sort.length;
         let i = 0;
@@ -63,6 +67,22 @@ export class TaskRealtimeQuery {
         return 0;
     });
 
+    /**
+     * When a task that's visible in our query changes `TaskRealtimeStore` calls
+     * this function. The query is then responsible for:
+     *
+     * 1. Determining if the task is still visible after the update
+     * 2. Moving the task to its new position if the sort order changed
+     * 3. Propagating this update to connected clients
+     *
+     * Expectations:
+     *
+     * - The `TaskId` must be visible in the query
+     * - `oldTask` must be exactly the same as the last task object our query
+     *   has seen for this `TaskId`
+     *
+     * If expectations fail then we throw an error in dev and test.
+     */
     public onVisibleTaskUpdate(
         taskId: TaskId,
         oldTask: TaskIndexDoc,
@@ -70,20 +90,25 @@ export class TaskRealtimeQuery {
     ): {isStillVisible: boolean} {
         // When testing, track that the query class observes every update to a task and
         // that no updates are skipped.
-        if (process.env.NODE_ENV === "test") {
-            assert(previousTaskIndexDocByIdByQueryForTest);
+        if (process.env.NODE_ENV !== "production") {
+            assert(previousTaskIdByQueryForTest);
 
-            const previousTaskIndexDocById = getOrSetDefaultMapValue(
-                previousTaskIndexDocByIdByQueryForTest,
+            const previousTaskById = getOrSetDefaultMapValue(
+                previousTaskIdByQueryForTest,
                 this,
                 () => new Map(),
             );
 
+            const previousTask = previousTaskById.get(taskId);
             assert(
-                previousTaskIndexDocById.get(taskId) === oldTask,
-                "Query must observe all updates to a task through `onVisibleTaskUpdate`",
+                previousTask,
+                "Query can't update hidden task that hasn't been added with `maybeAddVisibleTask()`",
             );
-            previousTaskIndexDocById.set(taskId, newTask);
+            assert(
+                previousTask === oldTask,
+                "Query must observe all updates to a visible task through `onVisibleTaskUpdate()`",
+            );
+            previousTaskById.set(taskId, newTask);
         }
 
         const oldSortValues = this._sort.map(sort =>
@@ -100,8 +125,8 @@ export class TaskRealtimeQuery {
             assert(wasRemoved);
 
             // When testing, track that the task has been removed from the query.
-            if (process.env.NODE_ENV === "test") {
-                assertExists(previousTaskIndexDocByIdByQueryForTest).get(this)?.delete(taskId);
+            if (process.env.NODE_ENV !== "production") {
+                assertExists(previousTaskIdByQueryForTest).get(this)?.delete(taskId);
             }
 
             return {isStillVisible: false};
@@ -125,16 +150,70 @@ export class TaskRealtimeQuery {
 
         return {isStillVisible: true};
     }
+
+    public mightActionAddVisibleTask(
+        actionTime: HybridLogicalTime,
+        action: TaskTaskAction,
+    ): boolean {
+        return mightTaskActionAddVisibleTaskInQueryNormalizedFilters(
+            actionTime,
+            action,
+            this._filters,
+        );
+    }
+
+    /**
+     * Tests whether the task is visible in our query and adds it if so.
+     *
+     * Expectations:
+     *
+     * - The task must be hidden in our query, whether or not we end up adding
+     *   it as a visible task
+     *
+     * If expectations fail then we throw an error in dev and test.
+     */
+    public maybeAddVisibleTask(taskId: TaskId, task: TaskIndexDoc): {isVisible: boolean} {
+        // When testing, track that the query class observes every update to a task and
+        // that no updates are skipped.
+        if (process.env.NODE_ENV !== "production") {
+            assert(
+                !assertExists(previousTaskIdByQueryForTest).get(this)?.get(taskId),
+                "Query can't add task that's already visible again with `maybeAddVisibleTask()`",
+            );
+        }
+
+        const isVisible = evaluateTaskQueryNormalizedFiltersForIndexDoc(this._filters, task);
+        if (!isVisible) return {isVisible: false};
+
+        const sortValues = this._sort.map(sort => getTaskQuerySortValueFromIndexDoc(sort, task));
+        this._tree.insert([...sortValues, taskId]);
+
+        // When testing, track that the task has been added to the query.
+        if (process.env.NODE_ENV !== "production") {
+            assert(previousTaskIdByQueryForTest);
+
+            const previousTaskById = getOrSetDefaultMapValue(
+                previousTaskIdByQueryForTest,
+                this,
+                () => new Map(),
+            );
+
+            previousTaskById.set(taskId, task);
+        }
+
+        return {isVisible: true};
+    }
 }
 
 type TaskQuerySortValue = string | number | null;
 
+// NOCOMMIT: Test sort consistency with OpenSearch
 function getTaskQuerySortValueFromIndexDoc(
     sort: TaskQuerySort,
     task: TaskIndexDoc,
 ): TaskQuerySortValue {
     switch (sort.type) {
-        case "Status": {
+        case "DisplayStatus": {
             return TaskStatusTypeIntegerMapping.into(task.status.value.type);
         }
         case "Priority": {

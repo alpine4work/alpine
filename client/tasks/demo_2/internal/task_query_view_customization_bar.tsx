@@ -85,7 +85,7 @@ export function TaskQueryViewCustomizationBar({
                                         type: "Status",
                                         operation: {
                                             type: "OneOf",
-                                            statuses: new Set([]),
+                                            displayStatuses: new Set([]),
                                         },
                                     });
                                 },

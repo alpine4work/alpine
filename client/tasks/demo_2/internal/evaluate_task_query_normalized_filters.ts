@@ -42,9 +42,9 @@ export function evaluateTaskQueryNormalizedFilters(
                 : "Closed";
 
         const pass =
-            (filters.statusFilter.ifOpenInactive && status === "OpenInactive") ||
-            (filters.statusFilter.ifOpenActive && status === "OpenActive") ||
-            (filters.statusFilter.ifClosed && status === "Closed");
+            (filters.displayStatusFilter.ifOpenInactive && status === "OpenInactive") ||
+            (filters.displayStatusFilter.ifOpenActive && status === "OpenActive") ||
+            (filters.displayStatusFilter.ifClosed && status === "Closed");
 
         if (!pass) return false;
     }

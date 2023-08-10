@@ -17,37 +17,66 @@ const testCases: Array<{name: string; filters: Array<TaskQueryFilter>}> = [
     {
         name: "open status",
         filters: [
-            {type: "Status", operation: {type: "OneOf", statuses: new Set(["OpenInactive"])}},
+            {
+                type: "DisplayStatus",
+                operation: {type: "OneOf", displayStatuses: new Set(["OpenInactive"])},
+            },
         ],
     },
     {
         name: "not open status",
         filters: [
-            {type: "Status", operation: {type: "NoneOf", statuses: new Set(["OpenInactive"])}},
+            {
+                type: "DisplayStatus",
+                operation: {type: "NoneOf", displayStatuses: new Set(["OpenInactive"])},
+            },
         ],
     },
     {
         name: "active status",
-        filters: [{type: "Status", operation: {type: "OneOf", statuses: new Set(["OpenActive"])}}],
+        filters: [
+            {
+                type: "DisplayStatus",
+                operation: {type: "OneOf", displayStatuses: new Set(["OpenActive"])},
+            },
+        ],
     },
     {
         name: "not active status",
-        filters: [{type: "Status", operation: {type: "NoneOf", statuses: new Set(["OpenActive"])}}],
+        filters: [
+            {
+                type: "DisplayStatus",
+                operation: {type: "NoneOf", displayStatuses: new Set(["OpenActive"])},
+            },
+        ],
     },
     {
         name: "closed status",
-        filters: [{type: "Status", operation: {type: "OneOf", statuses: new Set(["Closed"])}}],
+        filters: [
+            {
+                type: "DisplayStatus",
+                operation: {type: "OneOf", displayStatuses: new Set(["Closed"])},
+            },
+        ],
     },
     {
         name: "not closed status",
-        filters: [{type: "Status", operation: {type: "NoneOf", statuses: new Set(["Closed"])}}],
+        filters: [
+            {
+                type: "DisplayStatus",
+                operation: {type: "NoneOf", displayStatuses: new Set(["Closed"])},
+            },
+        ],
     },
     {
         name: "open and active status",
         filters: [
             {
-                type: "Status",
-                operation: {type: "OneOf", statuses: new Set(["OpenInactive", "OpenActive"])},
+                type: "DisplayStatus",
+                operation: {
+                    type: "OneOf",
+                    displayStatuses: new Set(["OpenInactive", "OpenActive"]),
+                },
             },
         ],
     },
@@ -55,8 +84,11 @@ const testCases: Array<{name: string; filters: Array<TaskQueryFilter>}> = [
         name: "not open and active status",
         filters: [
             {
-                type: "Status",
-                operation: {type: "NoneOf", statuses: new Set(["OpenInactive", "OpenActive"])},
+                type: "DisplayStatus",
+                operation: {
+                    type: "NoneOf",
+                    displayStatuses: new Set(["OpenInactive", "OpenActive"]),
+                },
             },
         ],
     },
@@ -64,8 +96,11 @@ const testCases: Array<{name: string; filters: Array<TaskQueryFilter>}> = [
         name: "open and active status in different order",
         filters: [
             {
-                type: "Status",
-                operation: {type: "OneOf", statuses: new Set(["OpenActive", "OpenInactive"])},
+                type: "DisplayStatus",
+                operation: {
+                    type: "OneOf",
+                    displayStatuses: new Set(["OpenActive", "OpenInactive"]),
+                },
             },
         ],
     },
@@ -73,20 +108,35 @@ const testCases: Array<{name: string; filters: Array<TaskQueryFilter>}> = [
         name: "not open and active status in different order",
         filters: [
             {
-                type: "Status",
-                operation: {type: "NoneOf", statuses: new Set(["OpenActive", "OpenInactive"])},
+                type: "DisplayStatus",
+                operation: {
+                    type: "NoneOf",
+                    displayStatuses: new Set(["OpenActive", "OpenInactive"]),
+                },
             },
         ],
     },
     {
         name: "multiple status filters",
         filters: [
-            {type: "Status", operation: {type: "OneOf", statuses: new Set(["OpenInactive"])}},
-            {type: "Status", operation: {type: "NoneOf", statuses: new Set(["Closed"])}},
-            {type: "Status", operation: {type: "OneOf", statuses: new Set(["OpenInactive"])}},
             {
-                type: "Status",
-                operation: {type: "OneOf", statuses: new Set(["OpenInactive", "OpenActive"])},
+                type: "DisplayStatus",
+                operation: {type: "OneOf", displayStatuses: new Set(["OpenInactive"])},
+            },
+            {
+                type: "DisplayStatus",
+                operation: {type: "NoneOf", displayStatuses: new Set(["Closed"])},
+            },
+            {
+                type: "DisplayStatus",
+                operation: {type: "OneOf", displayStatuses: new Set(["OpenInactive"])},
+            },
+            {
+                type: "DisplayStatus",
+                operation: {
+                    type: "OneOf",
+                    displayStatuses: new Set(["OpenInactive", "OpenActive"]),
+                },
             },
         ],
     },

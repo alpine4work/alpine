@@ -80,11 +80,15 @@ export class TestDisabledOpensearchClient implements OpensearchClientInterface {
 
     private _newUnavailableError() {
         return new UnavailableError(
-            "OpenSearch is not enabled for this test, try setting `shouldStartOpensearch` to true in `createTestContext()`",
+            "OpenSearch is not enabled for this test, try setting `shouldStartOpensearch: true` in `createTestContext()`",
         );
     }
 
     public getDocIfExists(): never {
+        throw this._newUnavailableError();
+    }
+
+    public multiGetDocsIfExist(): never {
         throw this._newUnavailableError();
     }
 

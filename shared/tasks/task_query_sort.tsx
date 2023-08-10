@@ -5,7 +5,7 @@ import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 export type TaskQuerySort =
-    | TaskQueryStatusSort
+    | TaskQueryDisplayStatusSort
     | TaskQueryPrioritySort
     | TaskQueryAssigneeSort
     | TaskQueryCreatorSort
@@ -16,8 +16,8 @@ export type TaskQuerySort =
     | TaskQueryClosedDateSort
     | TaskQueryActivatedDateSort;
 
-export type TaskQueryStatusSort = {
-    readonly type: "Status";
+export type TaskQueryDisplayStatusSort = {
+    readonly type: "DisplayStatus";
     readonly direction: "Ascending" | "Descending";
     readonly missing?: undefined;
 };
@@ -153,7 +153,7 @@ export function deserializeTaskQuerySorts(buffer: ArrayBuffer): ReadonlyArray<Ta
 
 function getTaskQuerySortByteLength(sort: TaskQuerySort): number {
     switch (sort.type) {
-        case "Status":
+        case "DisplayStatus":
             return 1;
         case "Priority":
             return 1;
@@ -180,7 +180,7 @@ function getTaskQuerySortByteLength(sort: TaskQuerySort): number {
 
 function serializeTaskQuerySort(sort: TaskQuerySort, view: DataView): void {
     switch (sort.type) {
-        case "Status": {
+        case "DisplayStatus": {
             if (sort.direction === "Ascending") {
                 view.setUint8(0, 1);
             } else {
@@ -269,9 +269,9 @@ function deserializeTaskQuerySort(view: DataView): {
 
     switch (typeByte) {
         case 1:
-            return {sort: {type: "Status", direction: "Ascending"}, byteLength: 1};
+            return {sort: {type: "DisplayStatus", direction: "Ascending"}, byteLength: 1};
         case 2:
-            return {sort: {type: "Status", direction: "Descending"}, byteLength: 1};
+            return {sort: {type: "DisplayStatus", direction: "Descending"}, byteLength: 1};
         case 3:
             return {sort: {type: "Priority", direction: "Ascending"}, byteLength: 1};
         case 4:

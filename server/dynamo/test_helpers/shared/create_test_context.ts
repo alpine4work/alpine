@@ -43,20 +43,18 @@ import {
     TestDisabledOpensearchClient,
 } from "~/server/opensearch/opensearch_context_module.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
-import {writeTracerEventToFileInDev} from "~/server/tracer/write_tracer_event_to_file_in_dev.js";
+import {testTracer} from "~/server/tracer/test_tracer.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
-import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
 // This file should only run in a Node.js test environment. Either Jest
 // or Playwright.
@@ -115,16 +113,6 @@ export function createTestContext({
     // The timeout shouldn't be too long since it will make it harder to debug
     // actual test failures due to timeout.
     if (import.meta.jest) import.meta.jest.setTimeout(1000 * 10);
-
-    const tracer = TracerRoot.new({
-        serviceName: "Test",
-        jsHost: "Node",
-        untrusted: false,
-        clock: unsynchronizedSystemClock,
-        // Don't send events from tests to Honeycomb. That feels like too much. But do
-        // write events to our dev files. This can help developers debug.
-        sendEvent: writeTracerEventToFileInDev,
-    });
 
     let dynamoLocal: DynamoLocal | null = null;
     let opensearchLocal: OpensearchLocal | null = null;
@@ -223,7 +211,7 @@ export function createTestContext({
 
     const processContext = Context.new<AppProcessContextModules>({
         process: ProcessContextModule.test(testSharedHooks),
-        tracer: new TracerContextModule(tracer),
+        tracer: new TracerContextModule(testTracer),
         dynamo: dynamoContextModule,
         email: new NoopEmailContextModule(),
         opensearch: opensearchContextModule,

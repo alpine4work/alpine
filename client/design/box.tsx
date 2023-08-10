@@ -4,10 +4,10 @@ import {Sprinkles, sprinkles} from "~/shared/styles/styles.js";
 const BoxForwardRef = forwardRef(Box);
 export {BoxForwardRef as Box};
 
-// TODO(calebmer, #swc): Someday, we should build a SWC compiler plugin that
-// inlines this component into `<div>`s and pre-computes the `sprinkles()`
-// function call. The only time we shouldn't inline this component if there's a
-// spread in the props we can't statically analyze.
+// TODO(calebmer, #swc-transform): Someday, we should build a SWC compiler
+// plugin that inlines this component into `<div>`s and pre-computes the
+// `sprinkles()` function call. The only time we shouldn't inline this
+// component is if there's a spread in the props we can't statically analyze.
 function Box(
     props: Sprinkles & Omit<HTMLAttributes<HTMLDivElement>, keyof Sprinkles>,
     ref: Ref<HTMLDivElement>,

@@ -1,6 +1,5 @@
 import {getAccount} from "~/server/dynamo/accounts_table.js";
 import {AppActionContext} from "~/server/dynamo/context/app_action_context.js";
-import {AppActorContextModule} from "~/server/dynamo/context/app_actor_context_module.js";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context.js";
 import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants.js";
@@ -10,6 +9,7 @@ import {
     DynamoTableItemType,
     DynamoTableSchema,
 } from "~/server/dynamo/internal/dynamo_table_schema.js";
+import {ActorContextModule} from "~/server/helpers/actor_context_module_interface.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {CacheContextModule, ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -161,8 +161,8 @@ const SpaceAccountContextCache = new ContextCache<
 export async function isAccountMemberOfSpace(
     context: Context<{
         tracer: TracerContextModule;
-        dynamo: DynamoContextModule;
         cache: CacheContextModule;
+        dynamo: DynamoContextModule;
     }>,
     spaceId: SpaceId,
     accountId: AccountId,
@@ -185,9 +185,9 @@ export async function isAccountMemberOfSpace(
 export async function authorizeSpaceAccess(
     context: Context<{
         tracer: TracerContextModule;
-        dynamo: DynamoContextModule;
         cache: CacheContextModule;
-        actor: AppActorContextModule;
+        dynamo: DynamoContextModule;
+        actor: ActorContextModule;
     }>,
     spaceId: SpaceId,
 ): Promise<void> {

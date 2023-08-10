@@ -52,6 +52,23 @@ export abstract class TracerBase {
     }
 
     /**
+     * Runs some synchronous code with a span around it. See `withSpan()` (the
+     * async version) for more information.
+     */
+    public withSpanSync<Value>(name: string, action: (span: TracerSpan) => Value): Value {
+        const {span, finishSpan} = this.startSpan(name);
+        try {
+            const value = action(span);
+            finishSpan();
+            return value;
+        } catch (error) {
+            span.addException(error);
+            finishSpan();
+            throw error;
+        }
+    }
+
+    /**
      * Returns a tracer where all spans created by the tracer will include the data
      * passed into this function. The propagated data will also be sent over
      * network boundaries.

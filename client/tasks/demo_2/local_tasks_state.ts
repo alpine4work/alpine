@@ -589,7 +589,10 @@ class LocalTasksDatabase {
             // creating a new task. New tasks don't have an assignee so we'd have to
             // auto-assign to the current account. This could create a lot of active task
             // cards making their active task section less useful.
-            if (!filters.statusFilter.ifOpenInactive && filters.statusFilter.ifClosed) {
+            if (
+                !filters.displayStatusFilter.ifOpenInactive &&
+                filters.displayStatusFilter.ifClosed
+            ) {
                 task = {
                     ...task,
                     status: {

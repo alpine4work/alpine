@@ -133,6 +133,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         channelId: Schema.id(),
         postId: Schema.id(),
         chatId: Schema.id(),
+        taskId: Schema.id(),
         peek: {
             aboveDocumentId: Schema.id(),
             aboveChannelId: Schema.id(),
@@ -218,6 +219,8 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         actions: Schema.string,
         actionCount: Schema.integer,
         actionTransactionId: Schema.id(),
+        actionTransactionCount: Schema.integer,
+        actionHistorySegmentCount: Schema.integer,
     },
 };
 

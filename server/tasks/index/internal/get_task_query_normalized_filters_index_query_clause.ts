@@ -25,7 +25,7 @@ import {TaskPriority} from "~/shared/tasks/task_priority.js";
 // `getTaskQueryNormalizedFiltersTaskIndexQueryClause()`.
 assertEqualTypes<
     keyof TaskQueryNormalizedFilters,
-    | "statusFilter"
+    | "displayStatusFilter"
     | "collectionsFilter"
     | "priorityFilter"
     | "titleFilter"
@@ -85,33 +85,33 @@ function getTaskQueryNormalizedFiltersIndexFilterQueryClauses(
     // our index sort. Which will make the search more efficient since we can skip
     // over documents.
     if (
-        filters.statusFilter.ifOpenActive &&
-        filters.statusFilter.ifOpenInactive &&
-        !filters.statusFilter.ifClosed
+        filters.displayStatusFilter.ifOpenActive &&
+        filters.displayStatusFilter.ifOpenInactive &&
+        !filters.displayStatusFilter.ifClosed
     ) {
         filterQueryClauses.push({
             term: {"status.value.type": TaskStatusTypeIntegerMapping.into("Open")},
         });
     } else if (
-        filters.statusFilter.ifClosed &&
-        !filters.statusFilter.ifOpenActive &&
-        !filters.statusFilter.ifOpenInactive
+        filters.displayStatusFilter.ifClosed &&
+        !filters.displayStatusFilter.ifOpenActive &&
+        !filters.displayStatusFilter.ifOpenInactive
     ) {
         filterQueryClauses.push({
             term: {"status.value.type": TaskStatusTypeIntegerMapping.into("Closed")},
         });
     } else if (
-        filters.statusFilter.ifClosed &&
-        filters.statusFilter.ifOpenActive &&
-        filters.statusFilter.ifOpenInactive
+        filters.displayStatusFilter.ifClosed &&
+        filters.displayStatusFilter.ifOpenActive &&
+        filters.displayStatusFilter.ifOpenInactive
     ) {
         // Don't add a filter clause if the task can be any status...
     } else {
         const terms: Array<TaskDisplayStatus> = [];
 
-        if (filters.statusFilter.ifOpenActive) terms.push("OpenActive");
-        if (filters.statusFilter.ifOpenInactive) terms.push("OpenInactive");
-        if (filters.statusFilter.ifClosed) terms.push("Closed");
+        if (filters.displayStatusFilter.ifOpenActive) terms.push("OpenActive");
+        if (filters.displayStatusFilter.ifOpenInactive) terms.push("OpenInactive");
+        if (filters.displayStatusFilter.ifClosed) terms.push("Closed");
 
         if (terms.length === 1) {
             filterQueryClauses.push({

@@ -513,7 +513,9 @@ export function getTaskIndexDocDisplayStatus(task: {
         : ("OpenInactive" as const);
 }
 
-export function getTaskIndexDocAssigneeStatus(task: TaskIndexDoc): TaskAssigneeStatus {
+export function getTaskIndexDocAssigneeStatus(
+    task: Omit<TaskIndexDoc, "spaceId">,
+): TaskAssigneeStatus {
     return task.status.value.type === "Open" && task.assignee.value
         ? task.rawAssigneeStatus.value
         : {type: "Inactive"};
