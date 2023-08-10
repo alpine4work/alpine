@@ -42,12 +42,31 @@ type TaskRealtimeActionHistorySpaceSegmentActionTransaction = {
 };
 
 /**
+ * `TaskRealtimeActionHistory` interface where you can only read actions and
+ * not add new actions.
+ */
+export interface ReadonlyTaskRealtimeActionHistory {
+    iterateActions(
+        tracer: TracerBase,
+        spaceId: SpaceId,
+        callback: (action: TaskAction) => void,
+    ): void;
+
+    iterateTaskActions(
+        tracer: TracerBase,
+        spaceId: SpaceId,
+        taskId: TaskId,
+        callback: (actionTime: HybridLogicalTime, action: TaskTaskAction) => void,
+    ): void;
+}
+
+/**
  * Holds all actions within the last 5 minutes (by default) so we can replay
  * the recent action history after loading some data from OpenSearch to make
  * sure what we send to the user is fully caught up and can be maintained in
  * realtime.
  */
-export class TaskRealtimeActionHistory {
+export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHistory {
     /**
      * Determines the history visibility window. We keep track of actions committed
      * this long before the present. By default the visibility window is 5

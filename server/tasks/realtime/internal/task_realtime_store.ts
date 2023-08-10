@@ -3,7 +3,7 @@ import {mergeTaskIndexDocs} from "~/server/tasks/index/merge_task_index_docs.js"
 import {getTaskIndexDocsIfExist} from "~/server/tasks/index/task_index.js";
 import {TaskIndexDoc} from "~/server/tasks/index/task_index_doc.js";
 import {TaskRealtimeActionContext} from "~/server/tasks/realtime/internal/task_realtime_action_context.js";
-import {TaskRealtimeActionHistory} from "~/server/tasks/realtime/internal/task_realtime_action_history.js";
+import {ReadonlyTaskRealtimeActionHistory} from "~/server/tasks/realtime/internal/task_realtime_action_history.js";
 import {TaskRealtimeQuery} from "~/server/tasks/realtime/internal/task_realtime_query.js";
 import {InternalError} from "~/shared/error/error.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
@@ -15,6 +15,7 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 
 type TaskRealtimeStoreTaskEntry = {
     task: TaskIndexDoc;
@@ -23,7 +24,9 @@ type TaskRealtimeStoreTaskEntry = {
 
 export class TaskRealtimeStore {
     public readonly spaceId: SpaceId;
-    private readonly _actionHistory: TaskRealtimeActionHistory;
+    private readonly _actionHistory: ReadonlyTaskRealtimeActionHistory;
+
+    private readonly _queries = new Set<TaskRealtimeQuery>();
 
     private readonly _taskEntryById = new Map<TaskId, TaskRealtimeStoreTaskEntry>();
     private readonly _loadingTaskPromiseById = new Map<
@@ -52,7 +55,7 @@ export class TaskRealtimeStore {
         query: TaskRealtimeQuery,
         tasks: ReadonlyArray<{taskId: TaskId; task: TaskIndexDoc}>,
     ): Promise<void> {
-        const {maybeAddVisibleTaskIdsToLoad} = this._addSearchedVisibleTasksForQuerySync(
+        const maybeAddVisibleTaskIdsToLoad = this._addSearchedVisibleTasksForQuerySync(
             context,
             query,
             tasks,
@@ -241,7 +244,7 @@ export class TaskRealtimeStore {
             }
         }
 
-        return {maybeAddVisibleTaskIdsToLoad};
+        return maybeAddVisibleTaskIdsToLoad;
     }
 
     private async _addSearchedVisibleTasksForQueryAsync(
@@ -269,6 +272,167 @@ export class TaskRealtimeStore {
                         const {isVisible} = query.maybeAddVisibleTask(taskId, taskEntry.task);
                         if (isVisible) {
                             taskEntry.visibleInQueries.add(query);
+                        }
+                    }
+                }),
+            ),
+        );
+    }
+
+    /**
+     * Apply a committed action transaction to our store after we've added the
+     * transaction to our action history. Does the following:
+     *
+     * - Reports any updates to subscribed queries
+     * - If the transaction hides a task in a query then we remove the task from
+     *   the query
+     * - We iterate through all queries to see if an updated task that was hidden
+     *   in the query will now be visible
+     * - If the transaction updates a task that's not in our store then we ignore
+     *   it unless we suspect the updated task will be visible in a query, then we
+     *   load the task from OpenSearch and check
+     */
+    public applyActionTransaction(
+        context: TaskRealtimeActionContext,
+        actions: ReadonlyArray<TaskAction>,
+    ): Promise<void> {
+        const queriesByMaybeAddVisibleTaskIdToLoad = this._applyActionTransactionSync(actions);
+        return this._applyActionTransactionAsync(context, queriesByMaybeAddVisibleTaskIdToLoad);
+    }
+
+    // The synchronous part of `applyActionTransaction()`. Carefully updates our
+    // data structures while assuming no concurrent code is running which would
+    // observe a partial state.
+    private _applyActionTransactionSync(actions: ReadonlyArray<TaskAction>) {
+        const updatedTaskEntriesById = new Map<
+            TaskId,
+            {taskEntry: TaskRealtimeStoreTaskEntry; oldTask: TaskIndexDoc}
+        >();
+
+        const queriesByMaybeAddVisibleTaskIdToLoad = new Map<TaskId, Set<TaskRealtimeQuery>>();
+
+        for (const action of actions) {
+            switch (action.type) {
+                case "UpdateTask": {
+                    const taskEntry = this._taskEntryById.get(action.taskId);
+
+                    if (taskEntry !== undefined) {
+                        const oldTask = taskEntry.task;
+                        const newTask = applyTaskActionToTaskIndexDoc(
+                            oldTask,
+                            action.time,
+                            action.taskAction,
+                        );
+                        taskEntry.task = newTask;
+
+                        // We will call `query.onVisibleTaskUpdate()` once per task after our history
+                        // iteration instead of once for each time a task is changed.
+                        //
+                        // We will also call `query.maybeAddVisibleTask()` on all our other queries in
+                        // case this task should appear there.
+                        if (oldTask !== newTask && !updatedTaskEntriesById.has(action.taskId)) {
+                            updatedTaskEntriesById.set(action.taskId, {taskEntry, oldTask});
+                        }
+                    }
+                    // If we do not have an entry for this task, then check with all our queries to
+                    // see if this action might result in a new visible task. We need to load these
+                    // tasks to fully compare them against the query's filters.
+                    else {
+                        for (const query of this._queries) {
+                            if (query.mightActionAddVisibleTask(action.time, action.taskAction)) {
+                                getOrSetDefaultMapValue(
+                                    queriesByMaybeAddVisibleTaskIdToLoad,
+                                    action.taskId,
+                                    () => new Set(),
+                                ).add(query);
+                            }
+                        }
+                    }
+                    break;
+                }
+                case "UpdateCollection": {
+                    switch (action.collectionAction.type) {
+                        case "Create":
+                        case "Delete":
+                        case "Undelete":
+                        case "UpdateName":
+                        case "UpdateAccessPolicy": {
+                            // Doesn't affect query
+                            break;
+                        }
+                        default:
+                            throw exhaustive(action.collectionAction);
+                    }
+                    break;
+                }
+                case "UpdateNotepadPage": {
+                    cast<"Create">(action.notepadPageAction.type);
+                    // Doesn't affect query
+                    break;
+                }
+                default:
+                    throw exhaustive(action);
+            }
+        }
+
+        for (const [taskId, {taskEntry, oldTask}] of updatedTaskEntriesById) {
+            const newlyVisibleInQueries = new Set();
+
+            // For queries this task is not currently visible in, see if it is now visible.
+            for (const query of this._queries) {
+                if (taskEntry.visibleInQueries.has(query)) continue;
+
+                const {isVisible} = query.maybeAddVisibleTask(taskId, taskEntry.task);
+                if (isVisible) {
+                    newlyVisibleInQueries.add(query);
+                    taskEntry.visibleInQueries.add(query);
+                }
+            }
+
+            // For queries this task is currently visible in, update the query and see if
+            // the task is now hidden from the query.
+            for (const query of taskEntry.visibleInQueries) {
+                if (newlyVisibleInQueries.has(query)) continue;
+
+                const {isStillVisible} = query.onVisibleTaskUpdate(taskId, oldTask, taskEntry.task);
+                if (!isStillVisible) {
+                    taskEntry.visibleInQueries.delete(query);
+                    if (taskEntry.visibleInQueries.size === 0) {
+                        // NOCOMMIT: Evict the task after some time?
+                    }
+                }
+            }
+        }
+
+        return queriesByMaybeAddVisibleTaskIdToLoad;
+    }
+
+    private async _applyActionTransactionAsync(
+        context: TaskRealtimeActionContext,
+        queriesByMaybeAddVisibleTaskIdToLoad: Map<TaskId, Set<TaskRealtimeQuery>>,
+    ) {
+        await runAllPromises(
+            Array.from(queriesByMaybeAddVisibleTaskIdToLoad, ([taskId, queries]) =>
+                retryWithExponentialBackoff(async retry => {
+                    const taskEntry = await this._loadTaskIfExists(context, taskId);
+
+                    if (!taskEntry) {
+                        throw retry(
+                            new InternalError(
+                                "Task not found in index, we saw an update action which means the task should eventually exist",
+                            ),
+                        );
+                    }
+
+                    for (const query of queries) {
+                        // If the task is still not visible in this query (some concurrent process may
+                        // have made it visible) then attempt to add the task to the query given the
+                        // task passes the query's filters.
+                        if (!taskEntry.visibleInQueries.has(query)) {
+                            const {isVisible} = query.maybeAddVisibleTask(taskId, taskEntry.task);
+                            if (isVisible) {
+                                taskEntry.visibleInQueries.add(query);
+                            }
                         }
                     }
                 }),
