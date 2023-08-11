@@ -3,6 +3,7 @@ import {evaluateTaskQueryNormalizedFiltersForIndexDoc} from "~/server/tasks/inde
 import {getTaskQueryNormalizedSortCursorFromIndexDoc} from "~/server/tasks/index/get_task_query_normalized_sort_cursor_from_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/index/task_index_doc.js";
 import {mightTaskActionAddVisibleTaskInQueryNormalizedFilters} from "~/server/tasks/realtime/internal/might_task_action_add_visible_task_in_query_normalized_filters.js";
+import {TaskRealtimeStore} from "~/server/tasks/realtime/internal/task_realtime_store.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -22,13 +23,51 @@ const previousTaskIdByQueryForTest =
         : null;
 
 export class TaskRealtimeQuery {
-    public readonly spaceId: SpaceId;
+    private readonly _store: TaskRealtimeStore;
     private readonly _filters: TaskQueryNormalizedFilters;
     private readonly _sorts: ReadonlyArray<TaskQueryNormalizedSort>;
 
+    /**
+     * Tasks in a query are represented with a red-black tree. We use a red-black
+     * tree to get O(log(n)) insertion/removal of tasks at any point in the list.
+     *
+     * We only store task cursors in our tree (to establish order). The full task
+     * object can be found in `TaskRealtimeStore` which is shared across all
+     * queries in a space.
+     *
+     * Queries have a "loaded range" in which we keep all tasks in the query of
+     * that range available in realtime. We don't load all tasks in a query at once
+     * as that would be inefficient for really large queries. The start of our
+     * loaded range is the start of the tree and the end is `loadedBeforeCursor`
+     * (inclusive).
+     *
+     * We may have tasks in the query outside of the loaded range. This happens
+     * when a task inside the loaded range moves outside of the loaded range or
+     * when we add a newly visible task to the query and it happens to land outside
+     * of the loaded range. So when iterating over tasks, stop at
+     * `loadedBeforeCursor`. Otherwise you'll get a sparse and inconsistent list
+     * of tasks.
+     */
     private readonly _tree = new RBTree<TaskQuerySortCursor>((cursor1, cursor2) =>
         compareTaskQuerySortCursors(this._sorts, cursor1, cursor2),
     );
+
+    /**
+     * The range from the beginning of `tree` to `loadedBeforeCursor` (inclusive)
+     * is considered the "loaded range". We will have loaded all tasks within the
+     * loaded range and keep them up-to-date in realtime.
+     */
+    private _loadedBeforeCursor: TaskQuerySortCursor | null;
+
+    public static load({
+        spaceId,
+        filters,
+        sorts,
+    }: {
+        spaceId: SpaceId;
+        filters: TaskQueryNormalizedFilters;
+        sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+    }) {}
 
     /**
      * When a task that's visible in our query changes `TaskRealtimeStore` calls

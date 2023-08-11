@@ -50,7 +50,7 @@ export class TaskRealtimeStore {
      *   task (if it's not already loaded) and test it against the query's filters.
      * - Remove any tasks from the search result that are no longer visible.
      */
-    public addSearchedVisibleTasksForQuerySync(
+    public addSearchedVisibleTasksForQuery(
         context: TaskRealtimeActionContext,
         query: TaskRealtimeQuery,
         tasks: ReadonlyArray<{taskId: TaskId; task: TaskIndexDoc}>,
@@ -75,8 +75,6 @@ export class TaskRealtimeStore {
         query: TaskRealtimeQuery,
         tasks: ReadonlyArray<{taskId: TaskId; task: TaskIndexDoc}>,
     ) {
-        assert(this.spaceId === query.spaceId);
-
         const freshTaskIds = new Set<TaskId>();
 
         for (const {taskId, task: searchedTask} of tasks) {
