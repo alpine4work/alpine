@@ -4,7 +4,7 @@ import {getSpacesTableForTest} from "~/server/dynamo/spaces_table.js";
 import {commitTaskActionTransaction} from "~/server/dynamo/tasks_table.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
 import {evaluateTaskQueryNormalizedFiltersForIndexDoc} from "~/server/tasks/index/evaluate_task_query_normalized_filters_for_index_doc.js";
-import {getTaskQueryNormalizedFiltersIndexQueryClause} from "~/server/tasks/index/internal/get_task_query_normalized_filters_index_query_clause.js";
+import {getTaskQueryNormalizedFiltersOpensearchQueryClause} from "~/server/tasks/index/internal/get_task_query_normalized_filters_opensearch_query_clause.js";
 import {TaskIndexDoc, TaskIndexDocType} from "~/server/tasks/index/task_index_doc.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -15,13 +15,13 @@ import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
+import {TaskNotepadPageId, generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
+import {TaskQueryFilter, TaskQueryFilterDateOperation} from "~/shared/tasks/task_query_filter.js";
 import {
     TaskQueryNormalizedFilters,
     normalizeTaskQueryFilters,
 } from "~/shared/tasks/task_query_normalized_filters.js";
-import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
-import {TaskNotepadPageId, generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
-import {TaskQueryFilter, TaskQueryFilterDateOperation} from "~/shared/tasks/task_query_filter.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {TaskTitleUpdate} from "~/shared/tasks/task_title.js";
 import {
@@ -233,7 +233,7 @@ async function testQueryWithNormalizedFilters(
     // Wait for any indexing processes to finish.
     await ProcessContextModule.waitForTestTasks();
 
-    // We have to manually refresh. OpenSearch in unit tests.
+    // We have to manually refresh OpenSearch in unit tests.
     {
         // eslint-disable-next-line no-global-fetch
         const response = await fetch(
@@ -282,7 +282,10 @@ async function testQueryWithNormalizedFilters(
                     method: "POST",
                     headers: {"content-type": "application/json"},
                     body: JSON.stringify({
-                        query: getTaskQueryNormalizedFiltersIndexQueryClause(space.id, filters),
+                        query: getTaskQueryNormalizedFiltersOpensearchQueryClause(
+                            space.id,
+                            filters,
+                        ),
                         sort: ["createdTime.absoluteTime"],
                     }),
                 },

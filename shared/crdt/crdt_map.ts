@@ -22,6 +22,11 @@ export interface CrdtMap<Key extends string | number, Value extends {}> {
     get(key: Key): Value | undefined;
 
     /**
+     * Gets the value for the specified key and its version along with it.
+     */
+    getWithVersion(key: Key): {value: Value; version: HybridLogicalTime} | undefined;
+
+    /**
      * Is there an entry for this key in the map?
      */
     has(key: Key): boolean;
@@ -151,6 +156,12 @@ export function createCrdtMap<Key extends string | number, Value extends {}>(
 
         public get(key: Key): Value | undefined {
             return this._map.get(key)?.value ?? undefined;
+        }
+
+        public getWithVersion(key: Key): {value: Value; version: HybridLogicalTime} | undefined {
+            const register = this._map.get(key);
+            if (!register || register.value === null) return undefined;
+            return {value: register.value, version: register.version};
         }
 
         public has(key: Key): boolean {

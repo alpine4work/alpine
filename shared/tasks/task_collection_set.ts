@@ -84,6 +84,10 @@ export class TaskCollectionSet {
         return this._entries.has(collectionId);
     }
 
+    public getVersion(collectionId: TaskCollectionId): HybridLogicalTime | undefined {
+        return this._entries.getWithVersion(collectionId)?.version;
+    }
+
     public push(
         clock: HybridLogicalClock,
         collectionId: TaskCollectionId,

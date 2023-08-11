@@ -13,7 +13,8 @@ import {
 } from "~/server/opensearch/opensearch_index_type.js";
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/index/apply_task_action_to_task_index_doc.js";
 import {createEmptyTaskIndexDoc} from "~/server/tasks/index/create_empty_task_index_doc.js";
-import {getTaskQueryNormalizedFiltersIndexQueryClause} from "~/server/tasks/index/internal/get_task_query_normalized_filters_index_query_clause.js";
+import {getTaskQueryNormalizedFiltersOpensearchQueryClause} from "~/server/tasks/index/internal/get_task_query_normalized_filters_opensearch_query_clause.js";
+import {getTaskQueryNormalizedSortsOpensearchSortClause} from "~/server/tasks/index/internal/get_task_query_normalized_sorts_opensearch_sort_clause.js";
 import {
     TaskCollectionIndexDocType,
     TaskCollectionIndexDocWithVersion,
@@ -36,6 +37,7 @@ import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
 import {TaskCollectionAccessPolicyRegister} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
+import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 
 // IMPORTANT: Don't export this. All access to the index should be exposed
 // through functions in this file. Like how we organize DynamoDB tables. By
@@ -585,9 +587,11 @@ export async function queryTaskIndex(
     {
         spaceId,
         filters,
+        sorts,
     }: {
         spaceId: SpaceId;
         filters: TaskQueryNormalizedFilters;
+        sorts: ReadonlyArray<TaskQueryNormalizedSort>;
     },
 ) {
     // Must be a system actor because we do no filtering to check whether you are
@@ -601,7 +605,10 @@ export async function queryTaskIndex(
         context.tracer.getTracer(),
         TaskIndex,
         spaceId,
-        getTaskQueryNormalizedFiltersIndexQueryClause(spaceId, filters),
+        {
+            query: getTaskQueryNormalizedFiltersOpensearchQueryClause(spaceId, filters),
+            sort: getTaskQueryNormalizedSortsOpensearchSortClause(sorts),
+        },
     );
 
     return tasks;

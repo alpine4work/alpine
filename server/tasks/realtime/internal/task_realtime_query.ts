@@ -1,22 +1,20 @@
 import {RBTree} from "bintrees";
 import {evaluateTaskQueryNormalizedFiltersForIndexDoc} from "~/server/tasks/index/evaluate_task_query_normalized_filters_for_index_doc.js";
-import {
-    TaskIndexDoc,
-    TaskPriorityIntegerMapping,
-    TaskStatusTypeIntegerMapping,
-} from "~/server/tasks/index/task_index_doc.js";
+import {getTaskQueryNormalizedSortCursorFromIndexDoc} from "~/server/tasks/index/get_task_query_normalized_sort_cursor_from_index_doc.js";
+import {TaskIndexDoc} from "~/server/tasks/index/task_index_doc.js";
 import {mightTaskActionAddVisibleTaskInQueryNormalizedFilters} from "~/server/tasks/realtime/internal/might_task_action_add_visible_task_in_query_normalized_filters.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskTaskAction} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
-import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
-
-type TaskRealtimeQueryTreeEntry = readonly [...ReadonlyArray<TaskQuerySortValue>, TaskId];
+import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
+import {
+    TaskQuerySortCursor,
+    compareTaskQuerySortCursors,
+} from "~/shared/tasks/task_query_sort_cursor.js";
 
 const previousTaskIdByQueryForTest =
     process.env.NODE_ENV !== "production"
@@ -26,46 +24,11 @@ const previousTaskIdByQueryForTest =
 export class TaskRealtimeQuery {
     public readonly spaceId: SpaceId;
     private readonly _filters: TaskQueryNormalizedFilters;
-    private readonly _sort: ReadonlyArray<TaskQuerySort>;
+    private readonly _sorts: ReadonlyArray<TaskQueryNormalizedSort>;
 
-    // NOCOMMIT: Test sort consistency with OpenSearch
-    private readonly _tree = new RBTree<TaskRealtimeQueryTreeEntry>((entry1, entry2) => {
-        const sortLength = this._sort.length;
-        let i = 0;
-        for (i = 0; i < sortLength; i++) {
-            const {direction = "Ascending", missing = "Last"} = this._sort[i]!;
-            const sortValue1 = entry1[i] as TaskQuerySortValue;
-            const sortValue2 = entry2[i] as TaskQuerySortValue;
-
-            if (sortValue1 === null && sortValue2 === null) continue;
-            if (sortValue1 === null) return missing === "Last" ? 1 : -1;
-            if (sortValue2 === null) return missing === "Last" ? -1 : 1;
-
-            if (typeof sortValue1 === "number") {
-                if (typeof sortValue2 !== "number") return -1;
-                let comparison = sortValue1 - sortValue2;
-                if (comparison === 0) continue;
-                comparison *= direction === "Ascending" ? 1 : -1;
-                return comparison;
-            }
-
-            if (typeof sortValue1 === "string") {
-                if (typeof sortValue2 !== "string") return 1;
-                if (sortValue1 < sortValue2) return direction === "Ascending" ? -1 : 1;
-                if (sortValue1 > sortValue2) return direction === "Ascending" ? 1 : -1;
-                continue;
-            }
-
-            throw exhaustive(sortValue1);
-        }
-
-        const taskId1 = entry1[i] as TaskId;
-        const taskId2 = entry1[i] as TaskId;
-
-        if (taskId1 < taskId2) return -1;
-        if (taskId1 > taskId2) return 1;
-        return 0;
-    });
+    private readonly _tree = new RBTree<TaskQuerySortCursor>((cursor1, cursor2) =>
+        compareTaskQuerySortCursors(this._sorts, cursor1, cursor2),
+    );
 
     /**
      * When a task that's visible in our query changes `TaskRealtimeStore` calls
@@ -111,8 +74,10 @@ export class TaskRealtimeQuery {
             previousTaskById.set(taskId, newTask);
         }
 
-        const oldSortValues = this._sort.map(sort =>
-            getTaskQuerySortValueFromIndexDoc(sort, oldTask),
+        const oldCursor = getTaskQueryNormalizedSortCursorFromIndexDoc(
+            this._sorts,
+            taskId,
+            oldTask,
         );
 
         // If the task is no longer visible, remove it from our tree.
@@ -121,7 +86,7 @@ export class TaskRealtimeQuery {
             newTask,
         );
         if (!isStillVisible) {
-            const wasRemoved = this._tree.remove([...oldSortValues, taskId]);
+            const wasRemoved = this._tree.remove(oldCursor);
             assert(wasRemoved);
 
             // When testing, track that the task has been removed from the query.
@@ -132,20 +97,21 @@ export class TaskRealtimeQuery {
             return {isStillVisible: false};
         }
 
-        const newSortValues = this._sort.map(sort =>
-            getTaskQuerySortValueFromIndexDoc(sort, newTask),
+        const newCursor = getTaskQueryNormalizedSortCursorFromIndexDoc(
+            this._sorts,
+            taskId,
+            newTask,
         );
 
         // If the sort values of our task have changed then we want to move it to a new
         // position in our tree. This has O(log(n)) performance since we use a binary
         // search tree.
-        const haveSortValuesChanged = oldSortValues.some(
-            (oldSortValue, i) => newSortValues[i] !== oldSortValue,
-        );
+        const haveSortValuesChanged =
+            compareTaskQuerySortCursors(this._sorts, oldCursor, newCursor) !== 0;
         if (haveSortValuesChanged) {
-            const wasRemoved = this._tree.remove([...oldSortValues, taskId]);
+            const wasRemoved = this._tree.remove(oldCursor);
             assert(wasRemoved);
-            this._tree.insert([...newSortValues, taskId]);
+            this._tree.insert(newCursor);
         }
 
         return {isStillVisible: true};
@@ -185,8 +151,8 @@ export class TaskRealtimeQuery {
         const isVisible = evaluateTaskQueryNormalizedFiltersForIndexDoc(this._filters, task);
         if (!isVisible) return {isVisible: false};
 
-        const sortValues = this._sort.map(sort => getTaskQuerySortValueFromIndexDoc(sort, task));
-        this._tree.insert([...sortValues, taskId]);
+        const cursor = getTaskQueryNormalizedSortCursorFromIndexDoc(this._sorts, taskId, task);
+        this._tree.insert(cursor);
 
         // When testing, track that the task has been added to the query.
         if (process.env.NODE_ENV !== "production") {
@@ -202,56 +168,5 @@ export class TaskRealtimeQuery {
         }
 
         return {isVisible: true};
-    }
-}
-
-type TaskQuerySortValue = string | number | null;
-
-// NOCOMMIT: Test sort consistency with OpenSearch
-function getTaskQuerySortValueFromIndexDoc(
-    sort: TaskQuerySort,
-    task: TaskIndexDoc,
-): TaskQuerySortValue {
-    switch (sort.type) {
-        case "DisplayStatus": {
-            return TaskStatusTypeIntegerMapping.into(task.status.value.type);
-        }
-        case "Priority": {
-            return task.priority.value === null
-                ? 0
-                : TaskPriorityIntegerMapping.into(task.priority.value);
-        }
-        case "Assignee": {
-            return task.assignee.value?.assignee.workingAccountName ?? null;
-        }
-        case "Creator": {
-            return task.creator?.workingAccountName ?? null;
-        }
-        case "Assigner": {
-            return task.assignee.value?.assigner.workingAccountName ?? null;
-        }
-        case "DueDate": {
-            return task.dueDate.value?.toDate("UTC").getTime() ?? null;
-        }
-        case "CreatedDate": {
-            return task.createdTime.absoluteTime[0];
-        }
-        case "AssignedDate": {
-            return task.assignee.value?.assignedTime.absoluteTime[0] ?? null;
-        }
-        case "ClosedDate": {
-            return task.status.value.type === "Closed"
-                ? task.status.value.closedTime.absoluteTime[0]
-                : null;
-        }
-        case "ActivatedDate": {
-            return task.status.value.type === "Open" &&
-                task.assignee.value &&
-                task.rawAssigneeStatus.value.type === "Active"
-                ? task.rawAssigneeStatus.value.activatedTime.absoluteTime[0]
-                : null;
-        }
-        default:
-            throw exhaustive(sort);
     }
 }

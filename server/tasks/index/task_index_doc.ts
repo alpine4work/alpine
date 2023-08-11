@@ -31,6 +31,7 @@ import {initialOrderKey, isOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {createEnumIntegerMapping} from "~/shared/helpers/string/create_enum_integer_mapping.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {
     TaskDueDateRegister,
@@ -40,6 +41,7 @@ import {TaskAssignee, TaskAssigneeRegister} from "~/shared/tasks/task_assignee.j
 import {
     TaskAssigneeStatus,
     TaskAssigneeStatusRegister,
+    TaskAssigneeStatusSchema,
 } from "~/shared/tasks/task_assignee_status.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
@@ -171,13 +173,17 @@ const TaskIndexCollectionsType = OpensearchIndexObjectType.new({
     computed: {
         fields: {
             ids: new OpensearchIndexArrayType(
-                new OpensearchIndexKeywordType({isFilterable: true}).validate<TaskCollectionId>(
-                    isId,
-                ),
+                new OpensearchIndexKeywordType({
+                    isFilterable: true,
+                    isUsableInScripts: true,
+                }).validate<TaskCollectionId>(isId),
             ),
             positionOrderTimes: new OpensearchIndexArrayType(SortableHybridLogicalTimeType),
             positionOrderKeys: new OpensearchIndexArrayType(
-                new OpensearchIndexKeywordType({isSortable: true}).validate(isOrderKey),
+                new OpensearchIndexKeywordType({
+                    isSortable: true,
+                    isUsableInScripts: true,
+                }).validate(isOrderKey),
             ),
         },
         compute: ({raw: {collections, positionById}}) => ({
@@ -221,16 +227,20 @@ const TaskIndexNotepadPagesType = OpensearchIndexObjectType.new({
     computed: {
         fields: {
             ids: new OpensearchIndexArrayType(
-                new OpensearchIndexKeywordType({isFilterable: true}).validate(
-                    (value): value is `${AccountId}-${TaskNotepadPageId}` => {
-                        const [value1 = "", value2 = ""] = value.split("-", 2);
-                        return isId(value1) && !isNaN(parseInt(value2, 10));
-                    },
-                ),
+                new OpensearchIndexKeywordType({
+                    isFilterable: true,
+                    isUsableInScripts: true,
+                }).validate((value): value is `${AccountId}-${TaskNotepadPageId}` => {
+                    const [value1 = "", value2 = ""] = value.split("-", 2);
+                    return isId(value1) && !isNaN(parseInt(value2, 10));
+                }),
             ),
             positionOrderTimes: new OpensearchIndexArrayType(SortableHybridLogicalTimeType),
             positionOrderKeys: new OpensearchIndexArrayType(
-                new OpensearchIndexKeywordType({isSortable: true}).validate(isOrderKey),
+                new OpensearchIndexKeywordType({
+                    isSortable: true,
+                    isUsableInScripts: true,
+                }).validate(isOrderKey),
             ),
         },
         compute: ({raw: {positionById}}) => ({
@@ -469,10 +479,17 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
         assignee: TaskIndexAssigneeType,
         // Raw since this is a register that can independently update from `status` and
         // `assignee` but the true value depends on these fields. If `status` is closed
-        // or `assignee` is null then `assigneeStatus` is always inactive. We don't
-        // have a computed field with the real `assigneeStatus` since we don't need to
-        // index the computed field.
-        rawAssigneeStatus: TaskIndexAssigneeStatusType,
+        // or `assignee` is null then `assigneeStatus` is always inactive.
+        rawAssigneeStatus: new OpensearchIndexIgnoredObjectType(
+            Schema.object({
+                value: TaskAssigneeStatusSchema,
+                version: HybridLogicalTimeSchema,
+            }),
+        ).transform<TaskAssigneeStatusRegister>({
+            serialize: register => ({value: register.value, version: register.version}),
+            deserialize: register =>
+                new TaskAssigneeStatusRegister(register.value, register.version),
+        }),
 
         title: TaskIndexTitleType,
         dueDate: TaskIndexDueDateType,
@@ -482,10 +499,15 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
         fields: {
             isDeleted: new OpensearchIndexBooleanType({isFilterable: true, isSortable: true}),
             displayStatus: TaskIndexDisplayStatusType,
+            assigneeStatus: TaskIndexAssigneeStatusType.nullable(),
         },
         compute: task => ({
             isDeleted: getTaskIndexDocIsDeleted(task),
             displayStatus: getTaskIndexDocDisplayStatus(task),
+            assigneeStatus:
+                task.status.value.type === "Open" && task.assignee.value
+                    ? task.rawAssigneeStatus
+                    : null,
         }),
     },
 });

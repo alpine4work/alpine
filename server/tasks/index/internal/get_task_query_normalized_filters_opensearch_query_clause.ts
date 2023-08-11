@@ -41,7 +41,6 @@ assertEqualTypes<
 >();
 
 type TaskIndexFlattenedKeys = OpensearchIndexFlattenedKeysType<typeof TaskIndexDocType>;
-type TaskIndexQueryClause = OpensearchQueryClause<TaskIndexFlattenedKeys>;
 
 /**
  * Get the OpenSearch query for the provided normalized filters.
@@ -49,10 +48,10 @@ type TaskIndexQueryClause = OpensearchQueryClause<TaskIndexFlattenedKeys>;
  * Returns a query using a filter context and includes standard filters for
  * searching our task index (e.g. exclude deleted tasks).
  */
-export function getTaskQueryNormalizedFiltersIndexQueryClause(
+export function getTaskQueryNormalizedFiltersOpensearchQueryClause(
     spaceId: SpaceId,
     filters: TaskQueryNormalizedFilters,
-): TaskIndexQueryClause {
+): OpensearchQueryClause<TaskIndexFlattenedKeys> {
     return {
         bool: {
             // OpenSearch query clauses to be used in a filter context. Query clauses in
@@ -64,7 +63,7 @@ export function getTaskQueryNormalizedFiltersIndexQueryClause(
                 // Never return deleted tasks.
                 {term: {isDeleted: false}},
 
-                ...getTaskQueryNormalizedFiltersIndexFilterQueryClauses(filters),
+                ...getTaskQueryNormalizedFiltersOpensearchFilterQueryClauses(filters),
             ],
         },
     };
@@ -77,10 +76,10 @@ export function getTaskQueryNormalizedFiltersIndexQueryClause(
  * These query clauses should also be executed in a filter context so
  * OpenSearch caches them.
  */
-function getTaskQueryNormalizedFiltersIndexFilterQueryClauses(
+function getTaskQueryNormalizedFiltersOpensearchFilterQueryClauses(
     filters: TaskQueryNormalizedFilters,
-): Array<TaskIndexQueryClause> {
-    const filterQueryClauses: Array<TaskIndexQueryClause> = [];
+): Array<OpensearchQueryClause<TaskIndexFlattenedKeys>> {
+    const filterQueryClauses: Array<OpensearchQueryClause<TaskIndexFlattenedKeys>> = [];
 
     // Optimization: Use `status.value.type` when possible since that's a part of
     // our index sort. Which will make the search more efficient since we can skip
@@ -154,29 +153,32 @@ function getTaskQueryNormalizedFiltersIndexFilterQueryClauses(
                 continue;
             }
 
-            const shouldTerms = Array.from(clause, ([term, not]): TaskIndexQueryClause => {
-                if (term === "IsEmpty") {
-                    if (!not) {
-                        return {bool: {must_not: {exists: {field: "collections.ids"}}}};
+            const shouldTerms = Array.from(
+                clause,
+                ([term, not]): OpensearchQueryClause<TaskIndexFlattenedKeys> => {
+                    if (term === "IsEmpty") {
+                        if (!not) {
+                            return {bool: {must_not: {exists: {field: "collections.ids"}}}};
+                        } else {
+                            return {exists: {field: "collections.ids"}};
+                        }
                     } else {
-                        return {exists: {field: "collections.ids"}};
+                        // NOTE(calebmer): While this is supported in theory by our normalized filter
+                        // type, there's currently no way to construct this filter since you'd need to
+                        // say `collections.has(collectionId) || collections.size === 0` and we don't
+                        // currently have an "OR" operator.
+                        //
+                        // The only "OR" construction we support right now is testing for one of a few
+                        // collections:
+                        // `collections.has(collectionId1) || collections.has(collectionId2)`.
+                        if (!not) {
+                            return {bool: {must_not: {term: {"collections.ids": term}}}};
+                        } else {
+                            return {term: {"collections.ids": term}};
+                        }
                     }
-                } else {
-                    // NOTE(calebmer): While this is supported in theory by our normalized filter
-                    // type, there's currently no way to construct this filter since you'd need to
-                    // say `collections.has(collectionId) || collections.size === 0` and we don't
-                    // currently have an "OR" operator.
-                    //
-                    // The only "OR" construction we support right now is testing for one of a few
-                    // collections:
-                    // `collections.has(collectionId1) || collections.has(collectionId2)`.
-                    if (!not) {
-                        return {bool: {must_not: {term: {"collections.ids": term}}}};
-                    } else {
-                        return {term: {"collections.ids": term}};
-                    }
-                }
-            });
+                },
+            );
 
             if (shouldTerms.length === 1) {
                 filterQueryClauses.push(shouldTerms[0]!);
@@ -265,7 +267,7 @@ function getTaskQueryNormalizedFiltersIndexFilterQueryClauses(
 
     if (filters.assigneeFilter) {
         filterQueryClauses.push(
-            getTaskQueryAccountNormalizedFilterIndexQueryClause(
+            getTaskQueryAccountNormalizedFilterOpensearchQueryClause(
                 "assignee.value.assignee.accountId",
                 filters.assigneeFilter,
             ),
@@ -274,7 +276,7 @@ function getTaskQueryNormalizedFiltersIndexFilterQueryClauses(
 
     if (filters.creatorFilter) {
         filterQueryClauses.push(
-            getTaskQueryAccountNormalizedFilterIndexQueryClause(
+            getTaskQueryAccountNormalizedFilterOpensearchQueryClause(
                 "creator.accountId",
                 filters.creatorFilter,
             ),
@@ -283,7 +285,7 @@ function getTaskQueryNormalizedFiltersIndexFilterQueryClauses(
 
     if (filters.assignerFilter) {
         filterQueryClauses.push(
-            getTaskQueryAccountNormalizedFilterIndexQueryClause(
+            getTaskQueryAccountNormalizedFilterOpensearchQueryClause(
                 "assignee.value.assigner.accountId",
                 filters.assignerFilter,
             ),
@@ -292,7 +294,7 @@ function getTaskQueryNormalizedFiltersIndexFilterQueryClauses(
 
     if (filters.dueDateFilter) {
         filterQueryClauses.push(
-            getTaskQueryDateNormalizedFilterIndexQueryClause(
+            getTaskQueryDateNormalizedFilterOpensearchQueryClause(
                 "dueDate.value",
                 filters.dueDateFilter,
             ),
@@ -301,7 +303,7 @@ function getTaskQueryNormalizedFiltersIndexFilterQueryClauses(
 
     if (filters.createdDateFilter) {
         filterQueryClauses.push(
-            getTaskQueryDateNormalizedFilterIndexQueryClause(
+            getTaskQueryDateNormalizedFilterOpensearchQueryClause(
                 "createdTime.setterDate",
                 filters.createdDateFilter,
             ),
@@ -310,7 +312,7 @@ function getTaskQueryNormalizedFiltersIndexFilterQueryClauses(
 
     if (filters.assignedDateFilter) {
         filterQueryClauses.push(
-            getTaskQueryDateNormalizedFilterIndexQueryClause(
+            getTaskQueryDateNormalizedFilterOpensearchQueryClause(
                 "assignee.value.assignedTime.setterDate",
                 filters.assignedDateFilter,
             ),
@@ -319,7 +321,7 @@ function getTaskQueryNormalizedFiltersIndexFilterQueryClauses(
 
     if (filters.closedDateFilter) {
         filterQueryClauses.push(
-            getTaskQueryDateNormalizedFilterIndexQueryClause(
+            getTaskQueryDateNormalizedFilterOpensearchQueryClause(
                 "status.value.closedTime.setterDate",
                 filters.closedDateFilter,
             ),
@@ -327,14 +329,9 @@ function getTaskQueryNormalizedFiltersIndexFilterQueryClauses(
     }
 
     if (filters.activatedDateFilter) {
-        // `rawAssigneeStatus` may be set even when the task itself isn't active.
-        filterQueryClauses.push({
-            term: {displayStatus: TaskDisplayStatusIntegerMapping.into("OpenActive")},
-        });
-
         filterQueryClauses.push(
-            getTaskQueryDateNormalizedFilterIndexQueryClause(
-                "rawAssigneeStatus.value.activatedTime.setterDate",
+            getTaskQueryDateNormalizedFilterOpensearchQueryClause(
+                "assigneeStatus.value.activatedTime.setterDate",
                 filters.activatedDateFilter,
             ),
         );
@@ -351,10 +348,10 @@ function getTaskQueryNormalizedFiltersIndexFilterQueryClauses(
     return filterQueryClauses;
 }
 
-function getTaskQueryAccountNormalizedFilterIndexQueryClause(
+function getTaskQueryAccountNormalizedFilterOpensearchQueryClause(
     fieldName: TaskIndexFlattenedKeys,
     filter: TaskQueryAccountNormalizedFilter,
-): TaskIndexQueryClause {
+): OpensearchQueryClause<TaskIndexFlattenedKeys> {
     switch (filter.type) {
         case "OneOf": {
             let hasMissingAccount = false;
@@ -424,10 +421,10 @@ function getTaskQueryAccountNormalizedFilterIndexQueryClause(
     }
 }
 
-function getTaskQueryDateNormalizedFilterIndexQueryClause(
+function getTaskQueryDateNormalizedFilterOpensearchQueryClause(
     fieldName: TaskIndexFlattenedKeys,
     filter: TaskQueryDateNormalizedFilter | {type: "IsEmpty"},
-): TaskIndexQueryClause {
+): OpensearchQueryClause<TaskIndexFlattenedKeys> {
     switch (filter.type) {
         case "IsEmpty": {
             return {bool: {must_not: {exists: {field: fieldName}}}};

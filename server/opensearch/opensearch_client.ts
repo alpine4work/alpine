@@ -6,6 +6,7 @@ import {
     pickOpensearchStaticIndexConfig,
 } from "~/server/opensearch/opensearch_index.js";
 import {OpensearchQueryClause} from "~/server/opensearch/opensearch_query_clause.js";
+import {OpensearchSortClause} from "~/server/opensearch/opensearch_sort_clause.js";
 import {FailedPreconditionError, InternalError, UnknownError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -114,7 +115,10 @@ export interface OpensearchClientInterface {
         tracer: TracerBase,
         index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
         routing: Routing,
-        query: OpensearchQueryClause<FlattenedKeys>,
+        options: {
+            query: OpensearchQueryClause<FlattenedKeys>;
+            sort: OpensearchSortClause<FlattenedKeys>;
+        },
     ): Promise<Array<Doc>>;
 }
 
@@ -624,6 +628,7 @@ export class OpensearchClient implements OpensearchClientInterface {
      *
      * [1]: https://opensearch.org/docs/latest/api-reference/search/
      */
+    // NOCOMMIT: Include a query template without any values in span
     public async search<
         Routing extends string,
         DocId extends string,
@@ -633,7 +638,13 @@ export class OpensearchClient implements OpensearchClientInterface {
         tracer: TracerBase,
         index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
         routing: Routing,
-        query: OpensearchQueryClause<FlattenedKeys>,
+        {
+            query,
+            sort,
+        }: {
+            query: OpensearchQueryClause<FlattenedKeys>;
+            sort: OpensearchSortClause<FlattenedKeys>;
+        },
     ): Promise<Array<Doc>> {
         if (process.env.NODE_ENV !== "production") {
             await this._ensureLocalIndex(tracer, index);
@@ -666,10 +677,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             // NOTE(#opensearch-important-json-disclaimer): Query comes from TypeScript
             // code where unknown values are typed as `JsonValue`. This means code
             // producing the query should take care to correctly serialize big integers.
-            body: JSON.stringify({
-                query,
-                sort: ["createdTime.absoluteTime"],
-            }),
+            body: JSON.stringify({query, sort}),
         });
 
         // NOTE(#opensearch-important-json-disclaimer): We only use `_source` which is

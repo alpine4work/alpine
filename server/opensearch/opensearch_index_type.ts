@@ -194,15 +194,17 @@ class OpensearchIndexValidatedType<
 type OpensearchIndexTypeCapabilities = {
     readonly isFilterable?: boolean;
     readonly isSortable?: boolean;
+    readonly isUsableInScripts?: boolean;
 };
 
 function getOpensearchIndexTypeCapabilitiesConfig({
     isFilterable = false,
     isSortable = false,
+    isUsableInScripts = false,
 }: OpensearchIndexTypeCapabilities) {
     return {
         index: isFilterable,
-        doc_values: isSortable,
+        doc_values: isSortable || isUsableInScripts,
     };
 }
 
@@ -606,7 +608,7 @@ export class OpensearchIndexObjectType<
         | {
               readonly [Key in keyof ComputedFields & string]: OpensearchIndexTypePrependKey<
                   Key,
-                  OpensearchIndexFlattenedKeysType<Fields[Key]>
+                  OpensearchIndexFlattenedKeysType<ComputedFields[Key]>
               >;
           }[keyof ComputedFields & string]
     > {

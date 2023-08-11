@@ -8,6 +8,18 @@ import {AccountId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 
+/**
+ * A filter that determines whether a task is visible in a task query. The UI
+ * allows users to edit filters which are represented by this type.
+ *
+ * These filters are redundant, unoptimized, contain dynamic placeholders, and
+ * are hard to work with when actually implementing filter evaluation. So
+ * before any meaningful work with filters we normalize a list of filters to
+ * `TaskQueryNormalizedFilters`.
+ *
+ * Normalized filters also include some internal filters we don't expose to
+ * the UI.
+ */
 export type TaskQueryFilter =
     | TaskQueryDisplayStatusFilter
     | TaskQueryCollectionsFilter

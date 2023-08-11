@@ -22,6 +22,7 @@ export const HybridLogicalTimeType = new OpensearchIndexLongType().transform<Hyb
 // by then we can use unsigned longs as index sort fields in OpenSearch.
 export const SortableHybridLogicalTimeType = new OpensearchIndexLongType({
     isSortable: true,
+    isUsableInScripts: true,
 }).transform<HybridLogicalTime>({
     serialize: serializeHybridLogicalTime,
     deserialize: deserializeHybridLogicalTime,

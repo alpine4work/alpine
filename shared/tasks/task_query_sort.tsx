@@ -1,9 +1,17 @@
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
+/**
+ * A sort determines what order tasks are in when showing a query to the user.
+ * The UI allows users to edit sorts which are represented by this type.
+ *
+ * Before we execute a query we normalize sorts to `TaskQueryNormalizedSort`.
+ * This adds a created time filter and removes any duplicate filters. The
+ * `TaskQueryNormalizedSort` filter type also supports some internal filters
+ * which are not available in the UI.
+ */
 export type TaskQuerySort =
     | TaskQueryDisplayStatusSort
     | TaskQueryPrioritySort
@@ -11,75 +19,59 @@ export type TaskQuerySort =
     | TaskQueryCreatorSort
     | TaskQueryAssignerSort
     | TaskQueryDueDateSort
-    | TaskQueryCreatedDateSort
-    | TaskQueryAssignedDateSort
-    | TaskQueryClosedDateSort
-    | TaskQueryActivatedDateSort;
+    | TaskQueryCreatedTimeSort
+    | TaskQueryAssignedTimeSort
+    | TaskQueryClosedTimeSort
+    | TaskQueryActivatedTimeSort;
 
 export type TaskQueryDisplayStatusSort = {
     readonly type: "DisplayStatus";
     readonly direction: "Ascending" | "Descending";
-    readonly missing?: undefined;
 };
 
 export type TaskQueryPrioritySort = {
     readonly type: "Priority";
     readonly direction: "Ascending" | "Descending";
-    readonly missing?: undefined;
 };
 
 export type TaskQueryAssigneeSort = {
     readonly type: "Assignee";
     readonly missing: "First" | "Last";
-    readonly direction?: undefined;
 };
 
 export type TaskQueryCreatorSort = {
     readonly type: "Creator";
-    readonly direction?: undefined;
-    readonly missing?: undefined;
 };
 
 export type TaskQueryAssignerSort = {
     readonly type: "Assigner";
     readonly missing: "First" | "Last";
-    readonly direction?: undefined;
 };
 
 export type TaskQueryDueDateSort = {
     readonly type: "DueDate";
     readonly direction: "Ascending" | "Descending";
-    readonly missing?: undefined;
 };
 
-export type TaskQueryCreatedDateSort = {
-    readonly type: "CreatedDate";
+export type TaskQueryCreatedTimeSort = {
+    readonly type: "CreatedTime";
     readonly direction: "Ascending" | "Descending";
-    readonly missing?: undefined;
 };
 
-export type TaskQueryAssignedDateSort = {
-    readonly type: "AssignedDate";
+export type TaskQueryAssignedTimeSort = {
+    readonly type: "AssignedTime";
     readonly direction: "Ascending" | "Descending";
-    readonly missing?: undefined;
 };
 
-export type TaskQueryClosedDateSort = {
-    readonly type: "ClosedDate";
+export type TaskQueryClosedTimeSort = {
+    readonly type: "ClosedTime";
     readonly direction: "Ascending" | "Descending";
-    readonly missing?: undefined;
 };
 
-export type TaskQueryActivatedDateSort = {
-    readonly type: "ActivatedDate";
+export type TaskQueryActivatedTimeSort = {
+    readonly type: "ActivatedTime";
     readonly direction: "Ascending" | "Descending";
-    readonly missing?: undefined;
 };
-
-// Must have a `direction` and `missing` property on every sort though they may
-// be optional.
-assertEqualTypes<TaskQuerySort["direction"], "Ascending" | "Descending" | undefined>();
-assertEqualTypes<TaskQuerySort["missing"], "First" | "Last" | undefined>();
 
 export function serializeTaskQuerySortsSearchParam(sorts: ReadonlyArray<TaskQuerySort>): string {
     const buffer = serializeTaskQuerySorts(sorts);
@@ -165,13 +157,13 @@ function getTaskQuerySortByteLength(sort: TaskQuerySort): number {
             return 1;
         case "DueDate":
             return 1;
-        case "CreatedDate":
+        case "CreatedTime":
             return 1;
-        case "AssignedDate":
+        case "AssignedTime":
             return 1;
-        case "ClosedDate":
+        case "ClosedTime":
             return 1;
-        case "ActivatedDate":
+        case "ActivatedTime":
             return 1;
         default:
             throw exhaustive(sort);
@@ -224,7 +216,7 @@ function serializeTaskQuerySort(sort: TaskQuerySort, view: DataView): void {
             }
             break;
         }
-        case "CreatedDate": {
+        case "CreatedTime": {
             if (sort.direction === "Ascending") {
                 view.setUint8(0, 12);
             } else {
@@ -232,7 +224,7 @@ function serializeTaskQuerySort(sort: TaskQuerySort, view: DataView): void {
             }
             break;
         }
-        case "AssignedDate": {
+        case "AssignedTime": {
             if (sort.direction === "Ascending") {
                 view.setUint8(0, 14);
             } else {
@@ -240,7 +232,7 @@ function serializeTaskQuerySort(sort: TaskQuerySort, view: DataView): void {
             }
             break;
         }
-        case "ClosedDate": {
+        case "ClosedTime": {
             if (sort.direction === "Ascending") {
                 view.setUint8(0, 16);
             } else {
@@ -248,7 +240,7 @@ function serializeTaskQuerySort(sort: TaskQuerySort, view: DataView): void {
             }
             break;
         }
-        case "ActivatedDate": {
+        case "ActivatedTime": {
             if (sort.direction === "Ascending") {
                 view.setUint8(0, 18);
             } else {
@@ -291,21 +283,21 @@ function deserializeTaskQuerySort(view: DataView): {
         case 11:
             return {sort: {type: "DueDate", direction: "Descending"}, byteLength: 1};
         case 12:
-            return {sort: {type: "CreatedDate", direction: "Ascending"}, byteLength: 1};
+            return {sort: {type: "CreatedTime", direction: "Ascending"}, byteLength: 1};
         case 13:
-            return {sort: {type: "CreatedDate", direction: "Descending"}, byteLength: 1};
+            return {sort: {type: "CreatedTime", direction: "Descending"}, byteLength: 1};
         case 14:
-            return {sort: {type: "AssignedDate", direction: "Ascending"}, byteLength: 1};
+            return {sort: {type: "AssignedTime", direction: "Ascending"}, byteLength: 1};
         case 15:
-            return {sort: {type: "AssignedDate", direction: "Descending"}, byteLength: 1};
+            return {sort: {type: "AssignedTime", direction: "Descending"}, byteLength: 1};
         case 16:
-            return {sort: {type: "ClosedDate", direction: "Ascending"}, byteLength: 1};
+            return {sort: {type: "ClosedTime", direction: "Ascending"}, byteLength: 1};
         case 17:
-            return {sort: {type: "ClosedDate", direction: "Descending"}, byteLength: 1};
+            return {sort: {type: "ClosedTime", direction: "Descending"}, byteLength: 1};
         case 18:
-            return {sort: {type: "ActivatedDate", direction: "Ascending"}, byteLength: 1};
+            return {sort: {type: "ActivatedTime", direction: "Ascending"}, byteLength: 1};
         case 19:
-            return {sort: {type: "ActivatedDate", direction: "Descending"}, byteLength: 1};
+            return {sort: {type: "ActivatedTime", direction: "Descending"}, byteLength: 1};
         default:
             throw new InvalidArgumentError(`Unrecognized sort type ${typeByte}`);
     }

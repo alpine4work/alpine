@@ -1,4 +1,4 @@
-import {createCrdtRegister} from "~/shared/crdt/crdt_register.js";
+import {CrdtRegister, createCrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskPositionSchema} from "~/shared/tasks/task_position.js";
@@ -29,3 +29,4 @@ export const TaskAssigneeStatusSchema = Schema.union({
 });
 
 export const TaskAssigneeStatusRegister = createCrdtRegister(TaskAssigneeStatusSchema);
+export type TaskAssigneeStatusRegister = CrdtRegister<TaskAssigneeStatus>;
