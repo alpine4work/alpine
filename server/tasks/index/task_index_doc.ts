@@ -443,7 +443,7 @@ const TaskIndexPriorityType = createCrdtRegisterOpensearchType(
  * queries against tasks efficiently.
  */
 export type TaskIndexDoc = OpensearchIndexTypeType<typeof TaskIndexDocType>;
-
+export type TaskIndexDocWithId = TaskIndexDoc & {readonly id: TaskId};
 export type TaskIndexDocWithVersion = OpensearchClientDocWithVersion<TaskIndexDoc>;
 
 export const TaskIndexDocType = OpensearchIndexObjectType.new({

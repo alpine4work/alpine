@@ -3,6 +3,8 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "index",
     test_deps = [
+        "//:node_modules/@types/json-bigint",
+        "//:node_modules/json-bigint",
         "//server/dynamo/test_helpers/shared",
         "//shared/tasks/test_helpers",
     ],

@@ -1,10 +1,14 @@
 import {parseAbsolute, toCalendarDate} from "@internationalized/date";
+import createJsonBigInt from "json-bigint";
 import {SessionItem, getAccountsTableForTest} from "~/server/dynamo/accounts_table.js";
 import {getSpacesTableForTest} from "~/server/dynamo/spaces_table.js";
 import {commitTaskActionTransaction} from "~/server/dynamo/tasks_table.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
 import {getTaskQueryNormalizedSortCursorFromIndexDoc} from "~/server/tasks/index/get_task_query_normalized_sort_cursor_from_index_doc.js";
-import {getTaskQueryNormalizedSortsOpensearchSortClause} from "~/server/tasks/index/internal/get_task_query_normalized_sorts_opensearch_sort_clause.js";
+import {
+    convertTaskQuerySortCursorToOpensearchCursor,
+    getTaskQueryNormalizedSortsOpensearchSortClause,
+} from "~/server/tasks/index/internal/get_task_query_normalized_sorts_opensearch_sort_clause.js";
 import {TaskIndexDoc, TaskIndexDocType} from "~/server/tasks/index/task_index_doc.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -26,6 +30,8 @@ import {
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 import {compareTaskQuerySortCursors} from "~/shared/tasks/task_query_sort_cursor.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
+
+const JsonBigInt = createJsonBigInt({useNativeBigInt: true});
 
 const context = createTestContext({shouldStartOpensearch: true});
 
@@ -201,7 +207,7 @@ async function testQueryWithNormalizedSorts(
     }
 
     const [allTasks, sortedTasks] = await runAllPromiseThunks(
-        async (): Promise<Array<{id: TaskId; task: TaskIndexDoc}>> => {
+        async (): Promise<Array<TaskIndexDoc & {id: TaskId}>> => {
             // eslint-disable-next-line no-global-fetch
             const allHitsResponse = await fetch(
                 `http://localhost:${context.getOpensearchLocalPort()}/tasks/_search?track_total_hits=false`,
@@ -221,12 +227,11 @@ async function testQueryWithNormalizedSorts(
                 throw new InternalError(`OpenSearch search failed: ${JSON.stringify(allHitsBody)}`);
             }
 
-            return allHitsBody.hits.hits.map((hit: any) => ({
-                id: hit._id,
-                task: TaskIndexDocType.deserialize(hit._source),
-            }));
+            return allHitsBody.hits.hits.map((hit: any) =>
+                Object.assign(TaskIndexDocType.deserialize(hit._source), {id: hit._id}),
+            );
         },
-        async (): Promise<Array<{id: TaskId; task: TaskIndexDoc}>> => {
+        async (): Promise<Array<TaskIndexDoc & {id: TaskId}>> => {
             // eslint-disable-next-line no-global-fetch
             const sortedHitsResponse = await fetch(
                 `http://localhost:${context.getOpensearchLocalPort()}/tasks/_search?track_total_hits=false`,
@@ -240,7 +245,9 @@ async function testQueryWithNormalizedSorts(
                 },
             );
 
-            const sortedHitsBody = await sortedHitsResponse.json<any>();
+            // We need to use `json-bigint` here so that the `sort` values are
+            // parsed correctly.
+            const sortedHitsBody = JsonBigInt.parse(await sortedHitsResponse.text());
 
             if (!sortedHitsResponse.ok) {
                 throw new InternalError(
@@ -248,23 +255,35 @@ async function testQueryWithNormalizedSorts(
                 );
             }
 
-            return sortedHitsBody.hits.hits.map((hit: any) => ({
-                id: hit._id,
-                task: TaskIndexDocType.deserialize(hit._source),
-            }));
+            return sortedHitsBody.hits.hits.map((hit: any) => {
+                const task = Object.assign(TaskIndexDocType.deserialize(hit._source), {
+                    id: hit._id,
+                });
+
+                // Make sure `convertTaskQuerySortCursorToOpensearchCursor()` produces the same
+                // cursors as OpenSearch itself.
+                expect(
+                    convertTaskQuerySortCursorToOpensearchCursor(
+                        sorts,
+                        getTaskQueryNormalizedSortCursorFromIndexDoc(sorts, task.id, task),
+                    ),
+                ).toEqual(hit.sort);
+
+                return task;
+            });
         },
     );
 
     const expectedSortedTasks = [...allTasks].sort((task1, task2) => {
-        const cursor1 = getTaskQueryNormalizedSortCursorFromIndexDoc(sorts, task1.id, task1.task);
-        const cursor2 = getTaskQueryNormalizedSortCursorFromIndexDoc(sorts, task2.id, task2.task);
+        const cursor1 = getTaskQueryNormalizedSortCursorFromIndexDoc(sorts, task1.id, task1);
+        const cursor2 = getTaskQueryNormalizedSortCursorFromIndexDoc(sorts, task2.id, task2);
         return compareTaskQuerySortCursors(sorts, cursor1, cursor2);
     });
 
     // `getArray()` caches the underlying array. We don't want `expect().toEqual()`
     // to consider a difference in whether the array is cached or not so always
     // compute it.
-    for (const {task} of [...sortedTasks, ...expectedSortedTasks]) {
+    for (const task of [...sortedTasks, ...expectedSortedTasks]) {
         task.collections.raw.collections.getArray();
     }
 

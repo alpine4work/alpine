@@ -1,14 +1,17 @@
 import {RBTree} from "bintrees";
 import {evaluateTaskQueryNormalizedFiltersForIndexDoc} from "~/server/tasks/index/evaluate_task_query_normalized_filters_for_index_doc.js";
 import {getTaskQueryNormalizedSortCursorFromIndexDoc} from "~/server/tasks/index/get_task_query_normalized_sort_cursor_from_index_doc.js";
+import {queryTaskIndex} from "~/server/tasks/index/task_index.js";
 import {TaskIndexDoc} from "~/server/tasks/index/task_index_doc.js";
 import {mightTaskActionAddVisibleTaskInQueryNormalizedFilters} from "~/server/tasks/realtime/internal/might_task_action_add_visible_task_in_query_normalized_filters.js";
+import {TaskRealtimeActionContext} from "~/server/tasks/realtime/internal/task_realtime_action_context.js";
 import {TaskRealtimeQueryStore} from "~/server/tasks/realtime/internal/task_realtime_query_store.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {TaskId} from "~/shared/id/types/id_types.js";
 import {TaskTaskAction} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
@@ -22,6 +25,24 @@ const previousTaskIdByQueryForTest =
         ? new WeakMap<TaskRealtimeQuery, Map<TaskId, TaskIndexDoc>>()
         : null;
 
+/**
+ * Keeps a list of tasks up-to-date in realtime based on some defined filters
+ * and sorts. A query's filters and sorts are immutable. If you want to change
+ * them, create a new query.
+ *
+ * Works closely with `TaskRealtimeQueryStore` where the subscribed tasks in a
+ * space are stored and kept up-to-date in realtime. This class does not hold
+ * the task objects themselves, since multiple queries can reference the same
+ * task tasks are stored in `TaskRealtimeQueryStore` (which also owns query
+ * classes).
+ *
+ * The entire query doesn't need to be loaded at once. We may have a partially
+ * loaded query. You can call `load()` to load more tasks into the query.
+ *
+ * This query class is agnostic to subscribed sessions. We do no extra
+ * filtering based on task permission rules. We have another layer on top of
+ * this query class that manages client WebSocket connections and permissions.
+ */
 export class TaskRealtimeQuery {
     private readonly _store: TaskRealtimeQueryStore;
     private readonly _filters: TaskQueryNormalizedFilters;
@@ -55,19 +76,125 @@ export class TaskRealtimeQuery {
     /**
      * The range from the beginning of `tree` to `loadedBeforeCursor` (inclusive)
      * is considered the "loaded range". We will have loaded all tasks within the
-     * loaded range and keep them up-to-date in realtime.
+     * loaded range and kept them up-to-date in realtime.
      */
-    private _loadedBeforeCursor: TaskQuerySortCursor | null;
+    private _loadedBeforeCursor: TaskQuerySortCursor | null = null;
 
-    public static load({
-        spaceId,
-        filters,
-        sorts,
-    }: {
-        spaceId: SpaceId;
-        filters: TaskQueryNormalizedFilters;
-        sorts: ReadonlyArray<TaskQueryNormalizedSort>;
-    }) {}
+    /**
+     * We only want one operation to load new tasks into our query at a time. This
+     * state property helps us schedule loads.
+     */
+    private _loadingState: {
+        readonly limit: number;
+        readonly promise: Promise<void>;
+    } | null = null;
+
+    constructor(
+        store: TaskRealtimeQueryStore,
+        {
+            filters,
+            sorts,
+        }: {
+            filters: TaskQueryNormalizedFilters;
+            sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+        },
+    ) {
+        this._store = store;
+        this._filters = filters;
+        this._sorts = sorts;
+    }
+
+    /**
+     * Load some tasks into the query. If there is another load executing
+     * concurrently on this query then we can reuse its results.
+     */
+    public async load(context: TaskRealtimeActionContext, limit: number): Promise<void> {
+        while (this._loadingState !== null) {
+            // The pending load will cover this call...
+            if (this._loadingState.limit >= limit) return this._loadingState.promise;
+
+            try {
+                await this._loadingState.promise;
+
+                // We can load fewer tasks if the pending load completes successfully since it
+                // will have filled those tasks in.
+                limit -= this._loadingState.limit;
+            } catch {
+                // noop...
+            }
+        }
+
+        this._loadingState = {
+            limit,
+            promise: this._load(context, limit),
+        };
+        this._loadingState.promise.finally(() => (this._loadingState = null));
+
+        return this._loadingState.promise;
+    }
+
+    private async _load(context: TaskRealtimeActionContext, limit: number): Promise<void> {
+        // Our query is already fully loaded!
+        if (this._loadedBeforeCursor === null) return;
+
+        const [tasks] = await runAllPromises([
+            queryTaskIndex(context, {
+                spaceId: this._store.spaceId,
+                filters: this._filters,
+                sorts: this._sorts,
+                // Load one extra task (which we'll throw away) to know if there are more tasks
+                // in the query.
+                limit: limit + 1,
+                afterCursor: this._loadedBeforeCursor,
+            }),
+            // We need to make sure we have a full action history store before calling
+            // `onQueryTasksLoad()` which needs the action history to catch up our
+            // OpenSearch query result.
+            this._store.ensureFullActionHistory(context),
+        ]);
+
+        const taskCount = Math.min(tasks.length, limit);
+        const hasMoreTasks = tasks.length > taskCount;
+        const hadNoVisibleTasks = this._tree.size === 0;
+
+        let lastCursor = null;
+        for (let i = 0; i < taskCount; i++) {
+            const task = tasks[i]!;
+
+            const cursor = getTaskQueryNormalizedSortCursorFromIndexDoc(this._sorts, task.id, task);
+
+            // If the task is already visible in our query, don't add it again. When we
+            // call `store.onQueryTasksLoad()`, it will move the task to its correct
+            // position.
+            //
+            // Optimization: If there were no visible tasks in the query when we started,
+            // we don't need to consult the store.
+            if (hadNoVisibleTasks || !this._store.isTaskVisibleInQuery(task.id, this)) {
+                this._tree.insert(cursor);
+            }
+
+            lastCursor = cursor;
+        }
+
+        this._loadedBeforeCursor = hasMoreTasks ? lastCursor : null;
+
+        // Add all the tasks we searched to our store so we can load them later. This
+        // call will also iterate through our action history and apply any relevant
+        // updates to our query.
+        await this._store.onQueryTasksLoad(context, this, tasks);
+
+        // NOTE(calebmer): It's possible that we get here and
+        // `store.onQueryTasksLoad()` has moved one or more tasks outside of our loaded
+        // range so that we don't have enough tasks to address `limit` anymore. We
+        // could call `loadMore()` and keep looping until we have enough tasks. Not
+        // implementing this for now since I believe it's a little better to return
+        // what we have to the client and let the client choose to load more instead of
+        // spending more time trying to load tasks.
+        //
+        // When we're missing only one or two tasks it's likely the client won't have
+        // reached its "load more" threshold and we'll have delayed returning data to
+        // the user unnecessarily.
+    }
 
     /**
      * When a task that's visible in our query changes `TaskRealtimeQueryStore`

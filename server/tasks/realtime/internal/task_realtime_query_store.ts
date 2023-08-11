@@ -1,7 +1,7 @@
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/index/apply_task_action_to_task_index_doc.js";
 import {mergeTaskIndexDocs} from "~/server/tasks/index/merge_task_index_docs.js";
 import {getTaskIndexDocsIfExist} from "~/server/tasks/index/task_index.js";
-import {TaskIndexDoc} from "~/server/tasks/index/task_index_doc.js";
+import {TaskIndexDoc, TaskIndexDocWithId} from "~/server/tasks/index/task_index_doc.js";
 import {TaskRealtimeActionContext} from "~/server/tasks/realtime/internal/task_realtime_action_context.js";
 import {ReadonlyTaskRealtimeActionHistory} from "~/server/tasks/realtime/internal/task_realtime_action_history.js";
 import {TaskRealtimeQuery} from "~/server/tasks/realtime/internal/task_realtime_query.js";
@@ -38,9 +38,26 @@ export class TaskRealtimeQueryStore {
         readonly promiseResolver: PromiseResolver<TaskRealtimeQueryStoreTaskEntry | null>;
     }> | null = null;
 
+    public ensureFullActionHistory(context: TaskRealtimeActionContext) {
+        // NOCOMMIT
+    }
+
+    /**
+     * Is the provided `TaskId` visible some query?
+     */
+    public isTaskVisibleInQuery(taskId: TaskId, query: TaskRealtimeQuery): boolean {
+        return this._taskEntryById.get(taskId)?.visibleInQueries.has(query) ?? false;
+    }
+
     /**
      * Called after we execute a query in OpenSearch with the tasks returned by
-     * OpenSearch. This function:
+     * OpenSearch.
+     *
+     * You should make sure you've called `ensureFullActionHistory()` before
+     * calling this function! It will iterate over our action history to catch
+     * up tasks so we need to make sure we have the actions we need loaded.
+     *
+     * This function:
      *
      * - Adds tasks into to our store (or updates tasks already in the store).
      * - For tasks newly added to the store (we call these "fresh" tasks) iterate
@@ -50,34 +67,27 @@ export class TaskRealtimeQueryStore {
      *   task (if it's not already loaded) and test it against the query's filters.
      * - Remove any tasks from the search result that are no longer visible.
      */
-    public addSearchedVisibleTasksForQuery(
+    public onQueryTasksLoad(
         context: TaskRealtimeActionContext,
         query: TaskRealtimeQuery,
-        tasks: ReadonlyArray<{taskId: TaskId; task: TaskIndexDoc}>,
+        tasks: ReadonlyArray<TaskIndexDocWithId>,
     ): Promise<void> {
-        const maybeAddVisibleTaskIdsToLoad = this._addSearchedVisibleTasksForQuerySync(
-            context,
-            query,
-            tasks,
-        );
-        return this._addSearchedVisibleTasksForQueryAsync(
-            context,
-            query,
-            maybeAddVisibleTaskIdsToLoad,
-        );
+        const maybeAddVisibleTaskIdsToLoad = this._onQueryTasksLoadSync(context, query, tasks);
+        return this._onQueryTasksLoadAsync(context, query, maybeAddVisibleTaskIdsToLoad);
     }
 
-    // The synchronous part of `addSearchedVisibleTasksForQuery()`. Carefully
+    // The synchronous part of `onQueryTasksLoad()`. Carefully
     // updates our data structures while assuming no concurrent code is running
     // which would observe a partial state.
-    private _addSearchedVisibleTasksForQuerySync(
+    private _onQueryTasksLoadSync(
         context: TaskRealtimeActionContext,
         query: TaskRealtimeQuery,
-        tasks: ReadonlyArray<{taskId: TaskId; task: TaskIndexDoc}>,
+        tasks: ReadonlyArray<TaskIndexDocWithId>,
     ) {
         const freshTaskIds = new Set<TaskId>();
 
-        for (const {taskId, task: searchedTask} of tasks) {
+        for (const searchedTask of tasks) {
+            const taskId = searchedTask.id;
             const taskEntry = this._taskEntryById.get(taskId);
 
             // If we haven't seen this task before it's "fresh". The task may be outdated
@@ -245,7 +255,7 @@ export class TaskRealtimeQueryStore {
         return maybeAddVisibleTaskIdsToLoad;
     }
 
-    private async _addSearchedVisibleTasksForQueryAsync(
+    private async _onQueryTasksLoadAsync(
         context: TaskRealtimeActionContext,
         query: TaskRealtimeQuery,
         maybeAddVisibleTaskIdsToLoad: Array<TaskId>,

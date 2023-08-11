@@ -4,7 +4,10 @@ import {
 } from "~/server/dynamo/context/app_action_context.js";
 import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module.js";
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table.js";
-import {SystemActorContextModule} from "~/server/helpers/actor_context_module_interface.js";
+import {
+    ActorContextModule,
+    SystemActorContextModule,
+} from "~/server/helpers/actor_context_module_interface.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {OpensearchIndex} from "~/server/opensearch/opensearch_index.js";
 import {
@@ -14,7 +17,10 @@ import {
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/index/apply_task_action_to_task_index_doc.js";
 import {createEmptyTaskIndexDoc} from "~/server/tasks/index/create_empty_task_index_doc.js";
 import {getTaskQueryNormalizedFiltersOpensearchQueryClause} from "~/server/tasks/index/internal/get_task_query_normalized_filters_opensearch_query_clause.js";
-import {getTaskQueryNormalizedSortsOpensearchSortClause} from "~/server/tasks/index/internal/get_task_query_normalized_sorts_opensearch_sort_clause.js";
+import {
+    convertTaskQuerySortCursorToOpensearchCursor,
+    getTaskQueryNormalizedSortsOpensearchSortClause,
+} from "~/server/tasks/index/internal/get_task_query_normalized_sorts_opensearch_sort_clause.js";
 import {
     TaskCollectionIndexDocType,
     TaskCollectionIndexDocWithVersion,
@@ -38,6 +44,7 @@ import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
 import {TaskCollectionAccessPolicyRegister} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
+import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
 
 // IMPORTANT: Don't export this. All access to the index should be exposed
 // through functions in this file. Like how we organize DynamoDB tables. By
@@ -555,7 +562,7 @@ async function actuallyIndexTaskAction(
 }
 
 /**
- * Query the task index.
+ * Query the OpenSearch task index.
  *
  * Remember that the task index will be behind by (hopefully) no more than
  * 2min. So to catch the query up to the actual present result you need to
@@ -583,15 +590,25 @@ async function actuallyIndexTaskAction(
  * weird glitches when we can't fully catch up a query.
  */
 export async function queryTaskIndex(
-    context: AppSystemActionContext,
+    context: Context<{
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        dynamo: DynamoContextModule;
+        opensearch: OpensearchContextModule;
+        actor: ActorContextModule;
+    }>,
     {
         spaceId,
         filters,
         sorts,
+        limit,
+        afterCursor,
     }: {
         spaceId: SpaceId;
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+        limit: number;
+        afterCursor?: TaskQuerySortCursor;
     },
 ) {
     // Must be a system actor because we do no filtering to check whether you are
@@ -608,6 +625,10 @@ export async function queryTaskIndex(
         {
             query: getTaskQueryNormalizedFiltersOpensearchQueryClause(spaceId, filters),
             sort: getTaskQueryNormalizedSortsOpensearchSortClause(sorts),
+            size: limit,
+            searchAfter: afterCursor
+                ? convertTaskQuerySortCursorToOpensearchCursor(sorts, afterCursor)
+                : undefined,
         },
     );
 

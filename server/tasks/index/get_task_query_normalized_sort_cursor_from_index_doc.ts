@@ -46,7 +46,7 @@ function getTaskQueryNormalizedSortCursorValueFromIndexDoc(
             return task.assignee.value?.assignee.workingAccountName ?? null;
         }
         case "Creator": {
-            return task.creator?.workingAccountName ?? null;
+            return task.creator.workingAccountName;
         }
         case "Assigner": {
             return task.assignee.value?.assigner.workingAccountName ?? null;

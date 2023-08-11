@@ -1,3 +1,4 @@
+import createJsonBigInt from "json-bigint";
 import {waitForHttpServer} from "~/server/helpers/wait_for_http_server.js";
 import {
     OpensearchIndex,
@@ -14,9 +15,11 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
 import {partitionArray} from "~/shared/helpers/iterable/partition_array.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {JsonValue} from "~/shared/helpers/types/json_value.js";
+import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
+
+const JsonBigInt = createJsonBigInt({useNativeBigInt: true});
 
 export type OpensearchClientDocWithVersion<Doc> = Doc & {
     /**
@@ -111,15 +114,22 @@ export interface OpensearchClientInterface {
      *
      * [1]: https://opensearch.org/docs/latest/api-reference/search/
      */
-    search<Routing extends string, DocId extends string, Doc, FlattenedKeys extends string>(
+    search<
+        Routing extends string,
+        DocId extends string,
+        Doc extends {},
+        FlattenedKeys extends string,
+    >(
         tracer: TracerBase,
         index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
         routing: Routing,
         options: {
             query: OpensearchQueryClause<FlattenedKeys>;
             sort: OpensearchSortClause<FlattenedKeys>;
+            size: number;
+            searchAfter?: ReadonlyArray<JsonScalarValue | bigint>;
         },
-    ): Promise<Array<Doc>>;
+    ): Promise<Array<Doc & {readonly id: DocId}>>;
 }
 
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! //
@@ -632,7 +642,7 @@ export class OpensearchClient implements OpensearchClientInterface {
     public async search<
         Routing extends string,
         DocId extends string,
-        Doc,
+        Doc extends {},
         FlattenedKeys extends string,
     >(
         tracer: TracerBase,
@@ -641,17 +651,22 @@ export class OpensearchClient implements OpensearchClientInterface {
         {
             query,
             sort,
+            size,
+            searchAfter,
         }: {
             query: OpensearchQueryClause<FlattenedKeys>;
             sort: OpensearchSortClause<FlattenedKeys>;
+            size: number;
+            searchAfter?: ReadonlyArray<JsonScalarValue | bigint>;
         },
-    ): Promise<Array<Doc>> {
+    ): Promise<Array<Doc & {readonly id: DocId}>> {
         if (process.env.NODE_ENV !== "production") {
             await this._ensureLocalIndex(tracer, index);
         }
 
         const searchUrl = new URL(`${this._protocol}://${this._host}/${index.name}/_search`);
         searchUrl.searchParams.set("routing", routing);
+        searchUrl.searchParams.set("size", String(size));
 
         // Important optimization. This means if we've satisfied the search's `size`
         // limit then we can immediately end the query and return instead of scanning
@@ -674,10 +689,10 @@ export class OpensearchClient implements OpensearchClientInterface {
             spanRoute: `/${index.name}/_search`,
             method: "POST",
             headers: {"Content-Type": "application/json"},
-            // NOTE(#opensearch-important-json-disclaimer): Query comes from TypeScript
-            // code where unknown values are typed as `JsonValue`. This means code
-            // producing the query should take care to correctly serialize big integers.
-            body: JSON.stringify({query, sort}),
+            // NOTE(#opensearch-important-json-disclaimer): `searchAfter` may contain
+            // bigints we want to stringify as JSON integer literals so we need to use
+            // `json-bigint`.
+            body: JsonBigInt.stringify({query, sort, search_after: searchAfter}),
         });
 
         // NOTE(#opensearch-important-json-disclaimer): We only use `_source` which is
@@ -692,7 +707,7 @@ export class OpensearchClient implements OpensearchClientInterface {
         // If we ignore `sort` values we'll be fine. Keep in mind that you can't use
         // `sort` values unless you parse with `json-bigint`.
         const body = await response.json<
-            | {hits: {hits: Array<{_source: JsonValue}>}; error?: undefined}
+            | {hits: {hits: Array<{_id: string; _source: JsonValue}>}; error?: undefined}
             | {error: OpensearchError; hits?: undefined}
         >();
 
@@ -701,7 +716,11 @@ export class OpensearchClient implements OpensearchClientInterface {
             throw new UnknownError(`OpenSearch search failed: ${errorType}`);
         }
 
-        const docs = body.hits.hits.map(hit => index.type.deserialize(hit._source));
+        const docs = body.hits.hits.map(hit =>
+            Object.assign(index.type.deserialize(hit._source), {
+                id: hit._id as DocId,
+            }),
+        );
 
         return docs;
     }
