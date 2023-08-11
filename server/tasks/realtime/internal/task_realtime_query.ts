@@ -3,7 +3,7 @@ import {evaluateTaskQueryNormalizedFiltersForIndexDoc} from "~/server/tasks/inde
 import {getTaskQueryNormalizedSortCursorFromIndexDoc} from "~/server/tasks/index/get_task_query_normalized_sort_cursor_from_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/index/task_index_doc.js";
 import {mightTaskActionAddVisibleTaskInQueryNormalizedFilters} from "~/server/tasks/realtime/internal/might_task_action_add_visible_task_in_query_normalized_filters.js";
-import {TaskRealtimeStore} from "~/server/tasks/realtime/internal/task_realtime_store.js";
+import {TaskRealtimeQueryStore} from "~/server/tasks/realtime/internal/task_realtime_query_store.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -23,7 +23,7 @@ const previousTaskIdByQueryForTest =
         : null;
 
 export class TaskRealtimeQuery {
-    private readonly _store: TaskRealtimeStore;
+    private readonly _store: TaskRealtimeQueryStore;
     private readonly _filters: TaskQueryNormalizedFilters;
     private readonly _sorts: ReadonlyArray<TaskQueryNormalizedSort>;
 
@@ -32,7 +32,7 @@ export class TaskRealtimeQuery {
      * tree to get O(log(n)) insertion/removal of tasks at any point in the list.
      *
      * We only store task cursors in our tree (to establish order). The full task
-     * object can be found in `TaskRealtimeStore` which is shared across all
+     * object can be found in `TaskRealtimeQueryStore` which is shared across all
      * queries in a space.
      *
      * Queries have a "loaded range" in which we keep all tasks in the query of
@@ -70,8 +70,8 @@ export class TaskRealtimeQuery {
     }) {}
 
     /**
-     * When a task that's visible in our query changes `TaskRealtimeStore` calls
-     * this function. The query is then responsible for:
+     * When a task that's visible in our query changes `TaskRealtimeQueryStore`
+     * calls this function. The query is then responsible for:
      *
      * 1. Determining if the task is still visible after the update
      * 2. Moving the task to its new position if the sort order changed

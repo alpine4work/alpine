@@ -17,25 +17,25 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 
-type TaskRealtimeStoreTaskEntry = {
+type TaskRealtimeQueryStoreTaskEntry = {
     task: TaskIndexDoc;
     readonly visibleInQueries: Set<TaskRealtimeQuery>;
 };
 
-export class TaskRealtimeStore {
+export class TaskRealtimeQueryStore {
     public readonly spaceId: SpaceId;
     private readonly _actionHistory: ReadonlyTaskRealtimeActionHistory;
 
     private readonly _queries = new Set<TaskRealtimeQuery>();
 
-    private readonly _taskEntryById = new Map<TaskId, TaskRealtimeStoreTaskEntry>();
+    private readonly _taskEntryById = new Map<TaskId, TaskRealtimeQueryStoreTaskEntry>();
     private readonly _loadingTaskPromiseById = new Map<
         TaskId,
-        Promise<TaskRealtimeStoreTaskEntry | null>
+        Promise<TaskRealtimeQueryStoreTaskEntry | null>
     >();
     private _scheduledTaskLoadBatch: Array<{
         readonly taskId: TaskId;
-        readonly promiseResolver: PromiseResolver<TaskRealtimeStoreTaskEntry | null>;
+        readonly promiseResolver: PromiseResolver<TaskRealtimeQueryStoreTaskEntry | null>;
     }> | null = null;
 
     /**
@@ -150,7 +150,7 @@ export class TaskRealtimeStore {
 
         const visibleTaskUpdateById = new Map<
             TaskId,
-            {taskEntry: TaskRealtimeStoreTaskEntry; oldTask: TaskIndexDoc}
+            {taskEntry: TaskRealtimeQueryStoreTaskEntry; oldTask: TaskIndexDoc}
         >();
 
         const maybeAddVisibleTaskIds = new Set<TaskId>();
@@ -304,7 +304,7 @@ export class TaskRealtimeStore {
     private _applyActionTransactionSync(actions: ReadonlyArray<TaskAction>) {
         const updatedTaskEntriesById = new Map<
             TaskId,
-            {taskEntry: TaskRealtimeStoreTaskEntry; oldTask: TaskIndexDoc}
+            {taskEntry: TaskRealtimeQueryStoreTaskEntry; oldTask: TaskIndexDoc}
         >();
 
         const queriesByMaybeAddVisibleTaskIdToLoad = new Map<TaskId, Set<TaskRealtimeQuery>>();
@@ -446,7 +446,7 @@ export class TaskRealtimeStore {
     private _loadTaskIfExists(
         context: TaskRealtimeActionContext,
         taskId: TaskId,
-    ): Promise<TaskRealtimeStoreTaskEntry | null> {
+    ): Promise<TaskRealtimeQueryStoreTaskEntry | null> {
         const taskEntry = this._taskEntryById.get(taskId);
 
         // If we've already loaded the task, great! No need to load it now.
@@ -469,7 +469,7 @@ export class TaskRealtimeStore {
                 });
             }
 
-            const promiseResolver = createPromiseResolver<TaskRealtimeStoreTaskEntry | null>();
+            const promiseResolver = createPromiseResolver<TaskRealtimeQueryStoreTaskEntry | null>();
             this._scheduledTaskLoadBatch.push({taskId, promiseResolver});
 
             // Once the promise has settled, delete it from `loadingTaskPromiseById`. You
@@ -488,7 +488,7 @@ export class TaskRealtimeStore {
         context: TaskRealtimeActionContext,
         taskLoadBatch: Array<{
             taskId: TaskId;
-            promiseResolver: PromiseResolver<TaskRealtimeStoreTaskEntry | null>;
+            promiseResolver: PromiseResolver<TaskRealtimeQueryStoreTaskEntry | null>;
         }>,
     ): Promise<void> {
         const tasks = await getTaskIndexDocsIfExist(
@@ -508,7 +508,7 @@ export class TaskRealtimeStore {
         context: TaskRealtimeActionContext,
         taskLoadBatch: Array<{
             taskId: TaskId;
-            promiseResolver: PromiseResolver<TaskRealtimeStoreTaskEntry | null>;
+            promiseResolver: PromiseResolver<TaskRealtimeQueryStoreTaskEntry | null>;
         }>,
         tasks: Array<TaskIndexDoc | null>,
     ): void {
@@ -516,7 +516,7 @@ export class TaskRealtimeStore {
             TaskId,
             {
                 freshTask: TaskIndexDoc;
-                promiseResolver: PromiseResolver<TaskRealtimeStoreTaskEntry | null>;
+                promiseResolver: PromiseResolver<TaskRealtimeQueryStoreTaskEntry | null>;
             }
         >();
 
@@ -552,7 +552,7 @@ export class TaskRealtimeStore {
                 },
             );
 
-            const taskEntry: TaskRealtimeStoreTaskEntry = {
+            const taskEntry: TaskRealtimeQueryStoreTaskEntry = {
                 task,
                 // NOCOMMIT: Evict if we don't get a query
                 visibleInQueries: new Set([]),
