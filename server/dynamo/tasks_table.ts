@@ -3,6 +3,7 @@ import {
     AppSessionActionContext,
     AppSystemActionContext,
 } from "~/server/dynamo/context/app_action_context.js";
+import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema.js";
 import {
@@ -10,7 +11,12 @@ import {
     DynamoTableSchema,
 } from "~/server/dynamo/internal/dynamo_table_schema.js";
 import {authorizeSpaceAccess, isAccountMemberOfSpace} from "~/server/dynamo/spaces_table.js";
+import {SystemActorContextModule} from "~/server/helpers/actor_context_module_interface.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
+import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
+import {CacheContextModule} from "~/shared/context/cache_context_module.js";
+import {Context} from "~/shared/context/context.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {createCrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {
     FailedPreconditionError,
@@ -1647,7 +1653,13 @@ async function evaluateTaskCollectionItemAccessPolicy(
  * provided space.
  */
 export async function backfillTaskActionTransactionHistory(
-    context: AppSystemActionContext,
+    context: Context<{
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        dynamo: DynamoContextModule;
+        opensearch: OpensearchContextModule;
+        actor: SystemActorContextModule;
+    }>,
     spaceId: SpaceId,
     startCommittedTime: Date,
 ): Promise<
@@ -1660,6 +1672,8 @@ export async function backfillTaskActionTransactionHistory(
     // Must have system access since we return all actions. We don't
     // filter out actions the current session doesn't have access to.
     context.actor.authorizeSystem();
+
+    await authorizeSpaceAccess(context, spaceId);
 
     const actionTransactions: Array<{
         spaceId: SpaceId;

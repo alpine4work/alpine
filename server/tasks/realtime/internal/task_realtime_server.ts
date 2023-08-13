@@ -1,13 +1,14 @@
-import {AppSystemActionContext} from "~/server/dynamo/context/app_action_context.js";
 import {backfillTaskActionTransactionHistory} from "~/server/dynamo/tasks_table.js";
-import {queryTaskIndex} from "~/server/tasks/index/task_index.js";
+import {TaskIndexDoc} from "~/server/tasks/index/task_index_doc.js";
+import {TaskRealtimeActionContext} from "~/server/tasks/realtime/internal/task_realtime_action_context.js";
 import {TaskRealtimeActionHistory} from "~/server/tasks/realtime/internal/task_realtime_action_history.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {TaskRealtimeQueryStore} from "~/server/tasks/realtime/internal/task_realtime_query_store.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
+import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 
 /**
  * The horizontally scalable task realtime server. We don't actually run the
@@ -35,8 +36,35 @@ export class TaskRealtimeServer {
         readonly discoveredPromise: Promise<{readonly discoveredTime: number}>;
     } | null = null;
 
-    private readonly _actionHistory = new TaskRealtimeActionHistory();
+    private readonly _actionHistory: TaskRealtimeActionHistory;
+    private readonly _startActionHistory: () => void;
+    private readonly _stopActionHistory: () => void;
     private readonly _backfillActionHistoryPromiseBySpaceId = new Map<SpaceId, Promise<void>>();
+
+    private readonly _storeBySpaceId = new Map<SpaceId, TaskRealtimeQueryStore>();
+
+    private constructor() {
+        const [actionHistory, {start: startActionHistory, stop: stopActionHistory}] =
+            TaskRealtimeActionHistory.new();
+
+        this._actionHistory = actionHistory;
+        this._startActionHistory = startActionHistory;
+        this._stopActionHistory = stopActionHistory;
+    }
+
+    public static new(): [
+        TaskRealtimeServer,
+        {start: (discoveredPromise: Promise<void>) => void; stop: () => void},
+    ] {
+        const server = new TaskRealtimeServer();
+        return [
+            server,
+            {
+                start: discoveredPromise => server._start(discoveredPromise),
+                stop: () => server._stop(),
+            },
+        ];
+    }
 
     /**
      * Start running our server. We don't actually run the HTTP server from this
@@ -50,7 +78,7 @@ export class TaskRealtimeServer {
      * `sendActionTransaction()` before we've been fully discovered. However, some
      * server functionality must wait for the server to be discovered.
      */
-    public start(discoveredPromise: Promise<void>) {
+    private _start(discoveredPromise: Promise<void>) {
         assert(this._state === null);
 
         this._state = {
@@ -59,26 +87,16 @@ export class TaskRealtimeServer {
             })),
         };
 
-        this._actionHistory.start();
+        this._startActionHistory();
     }
 
     /**
      * Stops our server from running.
      */
-    public stop() {
+    private _stop() {
         assert(this._state !== null);
         this._state = null;
-        this._actionHistory.stop();
-    }
-
-    public async query(
-        context: AppSystemActionContext,
-        {spaceId, filters}: {spaceId: SpaceId; filters: TaskQueryNormalizedFilters},
-    ) {
-        const [tasks] = await runAllPromises([
-            queryTaskIndex(context, {spaceId, filters}),
-            this._ensureFullActionHistory(context, spaceId),
-        ]);
+        this._stopActionHistory();
     }
 
     /**
@@ -86,7 +104,7 @@ export class TaskRealtimeServer {
      * server was recently discovered that means we haven't been receiving
      * `sendActionTransaction()` calls and we need to catch up.
      */
-    public async _ensureFullActionHistory(context: AppSystemActionContext, spaceId: SpaceId) {
+    private async _ensureFullActionHistory(context: TaskRealtimeActionContext, spaceId: SpaceId) {
         assert(this._state !== null);
         const {discoveredTime} = await this._state.discoveredPromise;
         const visibleStartTime = this._actionHistory.getVisibleStartTime();
@@ -122,13 +140,44 @@ export class TaskRealtimeServer {
         );
     }
 
-    public sendActionTransaction(actionTransaction: {
-        spaceId: SpaceId;
-        committedTime: Date;
-        actions: ReadonlyArray<TaskAction>;
-    }) {
+    public async loadQuery(
+        context: TaskRealtimeActionContext,
+        options: {
+            spaceId: SpaceId;
+            filters: TaskQueryNormalizedFilters;
+            sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+            limit: number;
+        },
+    ): Promise<{
+        tasks: Array<TaskIndexDoc>;
+        hasMoreTasks: boolean;
+    }> {
+        const store = getOrSetDefaultMapValue(
+            this._storeBySpaceId,
+            options.spaceId,
+            () =>
+                new TaskRealtimeQueryStore({
+                    spaceId: options.spaceId,
+                    actionHistory: this._actionHistory,
+                    ensureFullActionHistory: context =>
+                        this._ensureFullActionHistory(context, options.spaceId),
+                }),
+        );
+
+        return store.loadQuery(context, options);
+    }
+
+    public async applyActionTransaction(
+        context: TaskRealtimeActionContext,
+        actionTransaction: {
+            spaceId: SpaceId;
+            committedTime: Date;
+            actions: ReadonlyArray<TaskAction>;
+        },
+    ) {
         this._actionHistory.addActionTransaction(actionTransaction);
 
-        // NOCOMMIT: Apply to queries...
+        const store = this._storeBySpaceId.get(actionTransaction.spaceId);
+        await store?.applyActionTransaction(context, actionTransaction.actions);
     }
 }

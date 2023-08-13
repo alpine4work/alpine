@@ -29,6 +29,7 @@ import {
 import {isTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {initialOrderKey, isOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {createEnumIntegerMapping} from "~/shared/helpers/string/create_enum_integer_mapping.js";
+import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
@@ -442,8 +443,10 @@ const TaskIndexPriorityType = createCrdtRegisterOpensearchType(
  * The type of a document in our tasks index. Can be used to execute arbitrary
  * queries against tasks efficiently.
  */
-export type TaskIndexDoc = OpensearchIndexTypeType<typeof TaskIndexDocType>;
-export type TaskIndexDocWithId = TaskIndexDoc & {readonly id: TaskId};
+export type TaskIndexDoc = MergeObjectIntersection<
+    {readonly id: TaskId} & OpensearchIndexTypeType<typeof TaskIndexDocType>
+>;
+
 export type TaskIndexDocWithVersion = OpensearchClientDocWithVersion<TaskIndexDoc>;
 
 export const TaskIndexDocType = OpensearchIndexObjectType.new({

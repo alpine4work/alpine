@@ -27,6 +27,9 @@ test("null and undefined are not equal", () => {
     testDeepEqual([null], [undefined], false);
     testDeepEqual({p: null}, {p: undefined}, false);
     testDeepEqual({p: undefined}, {p: undefined}, true);
+});
+
+test("missing object property is different from an undefined object property", () => {
     testDeepEqual({}, {p: undefined}, false);
 });
 

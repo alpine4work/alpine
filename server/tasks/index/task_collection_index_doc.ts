@@ -12,8 +12,9 @@ import {createCrdtRegisterOpensearchType} from "~/server/tasks/index/internal/cr
 import {HybridLogicalTimeType} from "~/server/tasks/index/internal/hybrid_logical_time_type.js";
 import {compareHybridLogicalTimes} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
+import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {isId} from "~/shared/id/id.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
 import {
     TaskCollectionAccessPolicyRegister,
@@ -39,7 +40,11 @@ const TaskCollectionAccessPolicyType = createCrdtRegisterOpensearchType(
  * The type of a document in our task collections index. Can be used to execute
  * arbitrary queries against tasks efficiently.
  */
-export type TaskCollectionIndexDoc = OpensearchIndexTypeType<typeof TaskCollectionIndexDocType>;
+export type TaskCollectionIndexDoc = MergeObjectIntersection<
+    {
+        readonly id: TaskCollectionId;
+    } & OpensearchIndexTypeType<typeof TaskCollectionIndexDocType>
+>;
 
 export type TaskCollectionIndexDocWithVersion =
     OpensearchClientDocWithVersion<TaskCollectionIndexDoc>;

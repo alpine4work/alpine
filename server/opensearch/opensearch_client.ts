@@ -21,6 +21,10 @@ import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 const JsonBigInt = createJsonBigInt({useNativeBigInt: true});
 
+export type OpensearchClientDocWithId<DocId, Doc> = {
+    readonly id: DocId;
+} & Doc;
+
 export type OpensearchClientDocWithVersion<Doc> = Doc & {
     /**
      * The version of the document used for [optimistic concurrency
@@ -34,10 +38,13 @@ export type OpensearchClientDocWithVersion<Doc> = Doc & {
     } | null;
 };
 
+export type OpensearchClientDocWithIdAndVersion<DocId, Doc> = OpensearchClientDocWithVersion<
+    OpensearchClientDocWithId<DocId, Doc>
+>;
+
 export type OpensearchClientBulkWriteOperation<DocId, Doc> = {
     readonly type: "IndexIfVersion";
-    readonly id: DocId;
-    readonly doc: OpensearchClientDocWithVersion<Doc>;
+    readonly doc: OpensearchClientDocWithIdAndVersion<DocId, Doc>;
 };
 
 export type OpensearchClientBulkWriteOptions = {
@@ -67,7 +74,7 @@ export interface OpensearchClientInterface {
         index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
         routing: Routing,
         id: DocId,
-    ): Promise<OpensearchClientDocWithVersion<Doc> | null>;
+    ): Promise<OpensearchClientDocWithIdAndVersion<DocId, Doc> | null>;
 
     /**
      * Gets multiple documents in one network request using the [multi-get
@@ -87,7 +94,7 @@ export interface OpensearchClientInterface {
         index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
         routing: Routing,
         ids: ReadonlyArray<DocId>,
-    ): Promise<Array<OpensearchClientDocWithVersion<Doc> | null>>;
+    ): Promise<Array<OpensearchClientDocWithIdAndVersion<DocId, Doc> | null>>;
 
     /**
      * Lets you add, update, or delete multiple documents in a single request using
@@ -404,7 +411,7 @@ export class OpensearchClient implements OpensearchClientInterface {
         index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
         routing: Routing,
         id: DocId,
-    ): Promise<OpensearchClientDocWithVersion<Doc> | null> {
+    ): Promise<OpensearchClientDocWithIdAndVersion<DocId, Doc> | null> {
         if (process.env.NODE_ENV !== "production") {
             await this._ensureLocalIndex(tracer, index);
         }
@@ -427,6 +434,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                 | {found: false}
                 | {
                       found: true;
+                      _id: string;
                       _source: JsonValue;
                   }
             )
@@ -438,6 +446,7 @@ export class OpensearchClient implements OpensearchClientInterface {
 
         // Add the version number to the doc so we can perform updates.
         return Object.assign(doc, {
+            id: body._id as DocId,
             version: {
                 sequenceNumber: body._seq_no,
                 primaryTerm: body._primary_term,
@@ -463,7 +472,7 @@ export class OpensearchClient implements OpensearchClientInterface {
         index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
         routing: Routing,
         ids: ReadonlyArray<DocId>,
-    ): Promise<Array<OpensearchClientDocWithVersion<Doc> | null>> {
+    ): Promise<Array<OpensearchClientDocWithIdAndVersion<DocId, Doc> | null>> {
         if (process.env.NODE_ENV !== "production") {
             await this._ensureLocalIndex(tracer, index);
         }
@@ -502,7 +511,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             >;
         }>();
 
-        const docById = new Map<string, OpensearchClientDocWithVersion<Doc>>();
+        const docById = new Map<string, OpensearchClientDocWithIdAndVersion<DocId, Doc>>();
 
         for (const bodyDoc of body.docs) {
             if (!bodyDoc.found) continue;
@@ -512,6 +521,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             docById.set(
                 bodyDoc._id,
                 Object.assign(doc, {
+                    id: bodyDoc._id as DocId,
                     version: {
                         sequenceNumber: bodyDoc._seq_no,
                         primaryTerm: bodyDoc._primary_term,
@@ -556,12 +566,12 @@ export class OpensearchClient implements OpensearchClientInterface {
 
         for (const operation of operations) {
             if (!operation.doc.version) {
-                bulkBody.push({create: {_id: operation.id}});
+                bulkBody.push({create: {_id: operation.doc.id}});
                 bulkBody.push(index.type.serialize(operation.doc));
             } else {
                 bulkBody.push({
                     index: {
-                        _id: operation.id,
+                        _id: operation.doc.id,
                         if_seq_no: operation.doc.version.sequenceNumber,
                         if_primary_term: operation.doc.version.primaryTerm,
                     },
@@ -636,6 +646,11 @@ export class OpensearchClient implements OpensearchClientInterface {
      * Lets you execute a search against an OpenSearch index with the [search
      * API][1].
      *
+     * Returned documents do not include the document version (`sequenceNumber` and
+     * `primaryTerm`). This is not returned by default from the OpenSearch search
+     * API. It may be expensive to fetch the version because search is operating on
+     * potentially stale data until the next refresh.
+     *
      * [1]: https://opensearch.org/docs/latest/api-reference/search/
      */
     // NOCOMMIT: Include a query template without any values in span
@@ -659,7 +674,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             size: number;
             searchAfter?: ReadonlyArray<JsonScalarValue | bigint>;
         },
-    ): Promise<Array<Doc & {readonly id: DocId}>> {
+    ): Promise<Array<OpensearchClientDocWithId<DocId, Doc>>> {
         if (process.env.NODE_ENV !== "production") {
             await this._ensureLocalIndex(tracer, index);
         }
