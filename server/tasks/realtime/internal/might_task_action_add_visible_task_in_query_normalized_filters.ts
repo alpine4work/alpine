@@ -49,7 +49,9 @@ assertEqualTypes<
  * visible as a result of this action. Returning true means it might but we
  * don't know for sure. You'd need to load the task to find out.
  */
-// NOCOMMIT: Tests!
+// TODO(calebmer): This could really use some tests. Maybe an assertion in
+// development mode that `false` is truly `false`. The return value of this
+// function is critical.
 export function mightTaskActionAddVisibleTaskInQueryNormalizedFilters(
     actionTime: HybridLogicalTime,
     action: TaskTaskAction,
