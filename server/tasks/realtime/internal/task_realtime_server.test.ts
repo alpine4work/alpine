@@ -3451,3 +3451,280 @@ test("after loading tasks we will replay actions to add missing tasks if the tas
         ]),
     });
 });
+
+test("task updates in query after change", async () => {
+    const space = await TestScenarioSpace.create(context);
+    const session = await space.createSession();
+
+    const server = new TestScenarioTaskRealtimeServer(context);
+
+    const [task1, task2, task3] = await runAllPromises([
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
+    ]);
+
+    await server.wait();
+    const oldTask2IndexDoc = await task2.getIndexDoc();
+
+    expect(await server.loadQuery(session)).toEqual({
+        hasMoreTasks: false,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+            task3.getIndexDoc(),
+        ]),
+    });
+
+    const updatedTime = testScenarioClock.now();
+    await task2.updatePriority(session, "High", {time: updatedTime});
+
+    await server.wait();
+
+    const expectedTask2IndexDoc = {
+        ...oldTask2IndexDoc,
+        priority: oldTask2IndexDoc.priority.apply({value: "High", version: updatedTime}),
+    };
+
+    expect(await task2.getIndexDoc()).toEqual(expectedTask2IndexDoc);
+
+    expect(await server.loadQuery(session)).toEqual({
+        hasMoreTasks: false,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            expectedTask2IndexDoc,
+            task3.getIndexDoc(),
+        ]),
+    });
+});
+
+test("task updates in query after change and is hidden", async () => {
+    const space = await TestScenarioSpace.create(context);
+    const session = await space.createSession();
+
+    const server = new TestScenarioTaskRealtimeServer(context);
+
+    const [task1, task2, task3] = await runAllPromises([
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
+    ]);
+
+    await server.wait();
+    const oldTask2IndexDoc = await task2.getIndexDoc();
+
+    expect(
+        await server.loadQuery(session, {
+            filters: [
+                {type: "Priority", operation: {type: "NoneOf", priorities: new Set(["High"])}},
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+            task3.getIndexDoc(),
+        ]),
+    });
+
+    const updatedTime = testScenarioClock.now();
+    await task2.updatePriority(session, "High", {time: updatedTime});
+
+    await server.wait();
+
+    const expectedTask2IndexDoc = {
+        ...oldTask2IndexDoc,
+        priority: oldTask2IndexDoc.priority.apply({value: "High", version: updatedTime}),
+    };
+
+    expect(await task2.getIndexDoc()).toEqual(expectedTask2IndexDoc);
+
+    expect(
+        await server.loadQuery(session, {
+            filters: [
+                {type: "Priority", operation: {type: "NoneOf", priorities: new Set(["High"])}},
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: await runAllPromises([task1.getIndexDoc(), task3.getIndexDoc()]),
+    });
+});
+
+test("task updates in query after change and is shown", async () => {
+    const space = await TestScenarioSpace.create(context);
+    const session = await space.createSession();
+
+    const server = new TestScenarioTaskRealtimeServer(context);
+
+    const [task1, task2, task3] = await runAllPromises([
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
+    ]);
+
+    await task1.updatePriority(session, "High");
+    await task3.updatePriority(session, "High");
+    await server.wait();
+    const oldTask2IndexDoc = await task2.getIndexDoc();
+
+    expect(
+        await server.loadQuery(session, {
+            filters: [
+                {type: "Priority", operation: {type: "OneOf", priorities: new Set(["High"])}},
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: await runAllPromises([task1.getIndexDoc(), task3.getIndexDoc()]),
+    });
+
+    const updatedTime = testScenarioClock.now();
+    await task2.updatePriority(session, "High", {time: updatedTime});
+
+    await server.wait();
+
+    const expectedTask2IndexDoc = {
+        ...oldTask2IndexDoc,
+        priority: oldTask2IndexDoc.priority.apply({value: "High", version: updatedTime}),
+    };
+
+    expect(await task2.getIndexDoc()).toEqual(expectedTask2IndexDoc);
+
+    expect(
+        await server.loadQuery(session, {
+            filters: [
+                {type: "Priority", operation: {type: "OneOf", priorities: new Set(["High"])}},
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            expectedTask2IndexDoc,
+            task3.getIndexDoc(),
+        ]),
+    });
+});
+
+test("task updates in query after change and is shown when task is loaded", async () => {
+    const space = await TestScenarioSpace.create(context);
+    const session = await space.createSession();
+
+    const server = new TestScenarioTaskRealtimeServer(context);
+
+    const [task1, task2, task3] = await runAllPromises([
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
+    ]);
+
+    await task1.updatePriority(session, "High");
+    await task3.updatePriority(session, "High");
+    await server.wait();
+    const oldTask2IndexDoc = await task2.getIndexDoc();
+
+    expect(await server.loadQuery(session)).toEqual({
+        hasMoreTasks: false,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+            task3.getIndexDoc(),
+        ]),
+    });
+
+    expect(
+        await server.loadQuery(session, {
+            filters: [
+                {type: "Priority", operation: {type: "OneOf", priorities: new Set(["High"])}},
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: await runAllPromises([task1.getIndexDoc(), task3.getIndexDoc()]),
+    });
+
+    const updatedTime = testScenarioClock.now();
+    await task2.updatePriority(session, "High", {time: updatedTime});
+
+    await server.wait();
+
+    const expectedTask2IndexDoc = {
+        ...oldTask2IndexDoc,
+        priority: oldTask2IndexDoc.priority.apply({value: "High", version: updatedTime}),
+    };
+
+    expect(await task2.getIndexDoc()).toEqual(expectedTask2IndexDoc);
+
+    expect(
+        await server.loadQuery(session, {
+            filters: [
+                {type: "Priority", operation: {type: "OneOf", priorities: new Set(["High"])}},
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            expectedTask2IndexDoc,
+            task3.getIndexDoc(),
+        ]),
+    });
+});
+
+test("task updates in query after change and is moved", async () => {
+    const space = await TestScenarioSpace.create(context);
+    const session = await space.createSession();
+
+    const server = new TestScenarioTaskRealtimeServer(context);
+
+    const [task1, task2, task3] = await runAllPromises([
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
+    ]);
+
+    await task1.updatePriority(session, "High");
+    await task3.updatePriority(session, "High");
+    await server.wait();
+    const oldTask2IndexDoc = await task2.getIndexDoc();
+
+    expect(
+        await server.loadQuery(session, {
+            sorts: [{type: "Priority", direction: "Ascending"}],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            task3.getIndexDoc(),
+            task2.getIndexDoc(),
+        ]),
+    });
+
+    const updatedTime = testScenarioClock.now();
+    await task2.updatePriority(session, "Low", {time: updatedTime});
+
+    await server.wait();
+
+    const expectedTask2IndexDoc = {
+        ...oldTask2IndexDoc,
+        priority: oldTask2IndexDoc.priority.apply({value: "Low", version: updatedTime}),
+    };
+
+    expect(await task2.getIndexDoc()).toEqual(expectedTask2IndexDoc);
+
+    expect(
+        await server.loadQuery(session, {
+            sorts: [{type: "Priority", direction: "Ascending"}],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: await runAllPromises([
+            expectedTask2IndexDoc,
+            task1.getIndexDoc(),
+            task3.getIndexDoc(),
+        ]),
+    });
+});
