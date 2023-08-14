@@ -6,7 +6,6 @@ import {
 } from "~/server/tasks/index/task_index_doc.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {
     TaskQuerySortCursor,
@@ -15,7 +14,6 @@ import {
 
 export function getTaskQueryNormalizedSortCursorFromIndexDoc(
     sorts: ReadonlyArray<TaskQueryNormalizedSort>,
-    taskId: TaskId,
     task: TaskIndexDoc,
 ): TaskQuerySortCursor {
     const cursor: Array<TaskQuerySortCursorValue> = [];
@@ -24,7 +22,7 @@ export function getTaskQueryNormalizedSortCursorFromIndexDoc(
         cursor.push(getTaskQueryNormalizedSortCursorValueFromIndexDoc(sort, task));
     }
 
-    cursor.push(taskId);
+    cursor.push(task.id);
 
     return cursor as TaskQuerySortCursor;
 }

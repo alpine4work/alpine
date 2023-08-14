@@ -1,3 +1,4 @@
+import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/index/apply_task_action_to_task_index_doc.js";
 import {mergeTaskIndexDocs} from "~/server/tasks/index/merge_task_index_docs.js";
 import {getTaskIndexDocsIfExist} from "~/server/tasks/index/task_index.js";
@@ -92,8 +93,11 @@ export class TaskRealtimeQueryStore {
 
 type TaskRealtimeQueryStoreTaskEntry = {
     task: TaskIndexDoc;
-    readonly visibleInQueries: Set<TaskRealtimeQuery>;
+    visibleInQueries: Set<TaskRealtimeQuery>;
+    shouldTryAddingToAllQueriesNextAction: boolean;
 };
+
+export const taskRealtimeQueryStoreLoadTaskTestCheckpoint = new TestCheckpoint<SpaceId>();
 
 // Our store implementation has some public methods that `TaskRealtimeQuery` is
 // allowed to call but external users of `TaskRealtimeQueryStore` should not
@@ -124,6 +128,16 @@ export class TaskRealtimeQueryStoreInternal {
      * instead of in `TaskRealtimeQuery`. We keep a reference to all the queries
      * which subscribe to the task and evict any tasks that have no subscribed
      * queries.
+     *
+     * Queries a task is visible in are accessible in the `visibleInQueries` set. A
+     * task may not be visible in every query whose filters pass for the task.
+     * That's because when we load 100 tasks for a new query, we don't want to
+     * spend the time checking whether those tasks are part of unrelated queries.
+     * Queries discover new visible tasks in two ways:
+     *
+     * 1. When loading more tasks a query consults OpenSearch and the action
+     *    history to find new visible tasks in its new loaded range
+     * 2. When actions are applied a hidden task may become visible
      */
     private readonly _taskEntryById = new Map<TaskId, TaskRealtimeQueryStoreTaskEntry>();
 
@@ -227,6 +241,8 @@ export class TaskRealtimeQueryStoreInternal {
         tasks: Array<TaskIndexDoc>;
         hasMoreTasks: boolean;
     }> {
+        assert(Number.isInteger(limit) && limit >= 0);
+
         // NOCOMMIT: Evict if there are no subscribers?
         const query = getOrSetDefaultMapValue(
             this._queries,
@@ -238,8 +254,8 @@ export class TaskRealtimeQueryStoreInternal {
         await query.loadMoreTasks(context, limit - query.getLoadedTaskCount());
 
         return {
-            tasks: query.getLoadedTasks(),
-            hasMoreTasks: query.hasMoreUnloadedTasks(),
+            tasks: query.getLoadedTasks(limit),
+            hasMoreTasks: query.hasMoreUnloadedTasks(limit),
         };
     }
 
@@ -292,6 +308,20 @@ export class TaskRealtimeQueryStoreInternal {
                 this._taskEntryById.set(taskId, {
                     task: searchedTask,
                     visibleInQueries: new Set([query]),
+                    // The next time an action is applied to this task we need to loop over
+                    // `queries` and call `query.maybeAddVisibleTask()`. The action will not change
+                    // the task if OpenSearch has applied the action before us so our
+                    // `oldTask !== newTask` check will fail and we may miss an action that made
+                    // this task visible in a query where it was hidden before. This flag makes sure
+                    // we always test visibility in other queries for the next action in case
+                    // OpenSearch is ahead.
+                    //
+                    // We could loop over `queries` here but we choose to defer until the next time
+                    // `applyActionTransaction()` is called for this task. If the task never updates
+                    // then we never need to run this loop. We also don't need to pay the
+                    // O(freshTasks * queries) price which is unrelated the load we're performing
+                    // which needs fast latency.
+                    shouldTryAddingToAllQueriesNextAction: true,
                 });
                 continue;
             }
@@ -300,17 +330,35 @@ export class TaskRealtimeQueryStoreInternal {
             const newTask = mergeTaskIndexDocs(oldTask, searchedTask);
             taskEntry.task = newTask;
 
-            // If the task changed, notify queries where the task is visible. We may need
-            // to remove the task from the query if it's no longer visible, we may need to
-            // change the tasks's sort position, or we may need to notify subscribers about
-            // the change.
+            // If the task changed, notify our queries. We may need to remove the task from
+            // the query if it's no longer visible, we may need to change the tasks's sort
+            // position, we may need to notify subscribers about the change, or we may need
+            // to add the task to another query.
             //
             // This should happen rarely but it's not impossible. It means OpenSearch is
             // ahead of the actions received by task realtime service. If OpenSearch just
             // refreshed and there's a delay in sending notifications to our service this
             // case could happen.
             if (oldTask !== newTask) {
+                const newlyVisibleInQueries = new Set();
+
+                // For queries this task is not currently visible in, see if it is now visible.
+                for (const otherQuery of this._queries.values()) {
+                    if (otherQuery === query) continue;
+                    if (taskEntry.visibleInQueries.has(otherQuery)) continue;
+
+                    const {isVisible} = otherQuery.maybeAddVisibleTask(taskId, taskEntry.task);
+                    if (isVisible) {
+                        newlyVisibleInQueries.add(otherQuery);
+                        taskEntry.visibleInQueries.add(otherQuery);
+                    }
+                }
+
+                // For queries this task is currently visible in, update the query and see if
+                // the task is now hidden from the query.
                 for (const otherQuery of taskEntry.visibleInQueries) {
+                    if (newlyVisibleInQueries.has(otherQuery)) continue;
+
                     const {isStillVisible} = otherQuery.onVisibleTaskUpdate(
                         taskId,
                         oldTask,
@@ -433,6 +481,7 @@ export class TaskRealtimeQueryStoreInternal {
 
         for (const taskId of maybeAddVisibleTaskIds) {
             const taskEntry = this._taskEntryById.get(taskId);
+
             // If we haven't loaded this task into our store yet, we need to first load it
             // and then we can try adding it to the query.
             if (taskEntry === undefined) {
@@ -527,12 +576,23 @@ export class TaskRealtimeQueryStoreInternal {
                         );
                         taskEntry.task = newTask;
 
-                        // We will call `query.onVisibleTaskUpdate()` once per task after our history
-                        // iteration instead of once for each time a task is changed.
+                        const {shouldTryAddingToAllQueriesNextAction} = taskEntry;
+                        if (shouldTryAddingToAllQueriesNextAction)
+                            taskEntry.shouldTryAddingToAllQueriesNextAction = false;
+
+                        // If the task changed then we need to call `query.onVisibleTaskUpdate()` so
+                        // that queries see the new task object and we need to call
+                        // `query.maybeAddVisibleTask()` in case queries this task object is visible in
+                        // queries it used to be hidden in.
                         //
-                        // We will also call `query.maybeAddVisibleTask()` on all our other queries in
-                        // case this task should appear there.
-                        if (oldTask !== newTask && !updatedTaskEntriesById.has(action.taskId)) {
+                        // We may be instructed to call `query.maybeAddVisibleTask()` regardless of
+                        // whether the task changed with the `shouldTryAddingToAllQueriesNextAction`
+                        // flag. Code which loads possibly ahead tasks from OpenSearch will set this
+                        // to true.
+                        if (
+                            (shouldTryAddingToAllQueriesNextAction || oldTask !== newTask) &&
+                            !updatedTaskEntriesById.has(action.taskId)
+                        ) {
                             updatedTaskEntriesById.set(action.taskId, {taskEntry, oldTask});
                         }
                     }
@@ -593,14 +653,20 @@ export class TaskRealtimeQueryStoreInternal {
 
             // For queries this task is currently visible in, update the query and see if
             // the task is now hidden from the query.
-            for (const query of taskEntry.visibleInQueries) {
-                if (newlyVisibleInQueries.has(query)) continue;
+            if (oldTask !== taskEntry.task) {
+                for (const query of taskEntry.visibleInQueries) {
+                    if (newlyVisibleInQueries.has(query)) continue;
 
-                const {isStillVisible} = query.onVisibleTaskUpdate(taskId, oldTask, taskEntry.task);
-                if (!isStillVisible) {
-                    taskEntry.visibleInQueries.delete(query);
-                    if (taskEntry.visibleInQueries.size === 0) {
-                        // NOCOMMIT: Evict the task after some time?
+                    const {isStillVisible} = query.onVisibleTaskUpdate(
+                        taskId,
+                        oldTask,
+                        taskEntry.task,
+                    );
+                    if (!isStillVisible) {
+                        taskEntry.visibleInQueries.delete(query);
+                        if (taskEntry.visibleInQueries.size === 0) {
+                            // NOCOMMIT: Evict the task after some time?
+                        }
                     }
                 }
             }
@@ -651,10 +717,11 @@ export class TaskRealtimeQueryStoreInternal {
         context: TaskRealtimeActionContext,
         taskId: TaskId,
     ): Promise<TaskRealtimeQueryStoreTaskEntry | null> {
-        const taskEntry = this._taskEntryById.get(taskId);
-
         // If we've already loaded the task, great! No need to load it now.
-        if (taskEntry !== undefined) return Promise.resolve(taskEntry);
+        {
+            const taskEntry = this._taskEntryById.get(taskId);
+            if (taskEntry !== undefined) return Promise.resolve(taskEntry);
+        }
 
         return getOrSetDefaultMapValue(this._loadingTaskPromiseById, taskId, () => {
             if (!this._scheduledTaskLoadBatch) {
@@ -695,11 +762,22 @@ export class TaskRealtimeQueryStoreInternal {
             promiseResolver: PromiseResolver<TaskRealtimeQueryStoreTaskEntry | null>;
         }>,
     ): Promise<void> {
+        await taskRealtimeQueryStoreLoadTaskTestCheckpoint.waitForTest(this.spaceId);
+
         const tasks = await getTaskIndexDocsIfExist(
             context,
             this.spaceId,
             taskLoadBatch.map(({taskId}) => taskId),
         );
+
+        // Remove the `version` property from loaded tasks. The tasks we keep track of
+        // in our store don't have the OpenSearch version since we update the tasks
+        // independently.
+        for (const task of tasks) {
+            if (task !== null && "version" in task) {
+                delete (task as any).version;
+            }
+        }
 
         this._executeLoadTaskBatchSync(context, taskLoadBatch, tasks);
     }
@@ -760,6 +838,7 @@ export class TaskRealtimeQueryStoreInternal {
                 task,
                 // NOCOMMIT: Evict if we don't get a query
                 visibleInQueries: new Set([]),
+                shouldTryAddingToAllQueriesNextAction: true,
             };
 
             this._taskEntryById.set(taskId, taskEntry);

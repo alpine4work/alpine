@@ -230,7 +230,7 @@ export async function createNotificationsScenario(context: TestContext) {
         space: {id: spaceId},
         otherSpace: {id: otherSpaceId},
         session1: {
-            item: account1SessionItem,
+            ...account1SessionItem,
             account: new AccountModel({
                 id: account1Id,
                 name: "Account 1",
@@ -239,7 +239,7 @@ export async function createNotificationsScenario(context: TestContext) {
             }),
         },
         session2: {
-            item: account2SessionItem,
+            ...account2SessionItem,
             account: new AccountModel({
                 id: account2Id,
                 name: "Account 2",
@@ -248,7 +248,7 @@ export async function createNotificationsScenario(context: TestContext) {
             }),
         },
         session3: {
-            item: account3SessionItem,
+            ...account3SessionItem,
             account: new AccountModel({
                 id: account3Id,
                 name: "Account 3",
@@ -257,7 +257,7 @@ export async function createNotificationsScenario(context: TestContext) {
             }),
         },
         otherSession: {
-            item: otherAccountSessionItem,
+            ...otherAccountSessionItem,
             account: new AccountModel({
                 id: otherAccountId,
                 name: "Account 4",
@@ -266,7 +266,7 @@ export async function createNotificationsScenario(context: TestContext) {
             }),
         },
         sharedSession: {
-            item: sharedAccountSessionItem,
+            ...sharedAccountSessionItem,
             account: new AccountModel({
                 id: sharedAccountId,
                 name: "Account 5",

@@ -9,11 +9,10 @@ import {generateId} from "~/shared/id/id.js";
 import {AccountId, SessionId} from "~/shared/id/types/id_types.js";
 
 export type TestSession = {
-    readonly id: SessionId;
+    readonly sessionId: SessionId;
     readonly accountId: AccountId;
-    readonly accountName: string;
+    readonly createdTime: Date;
     readonly account: AccountModel;
-    readonly item: SessionItem;
 };
 
 let accountNameCounter = 1;
@@ -82,10 +81,9 @@ export function createTestSession(
     });
 
     return {
-        id: sessionId,
+        sessionId,
         accountId,
-        accountName: account.name,
+        createdTime: sessionItem.createdTime,
         account,
-        item: sessionItem,
     };
 }

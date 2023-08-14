@@ -1,13 +1,12 @@
-import {
-    AppActionContext,
-    AppSystemActionContext,
-} from "~/server/dynamo/context/app_action_context.js";
+import {AppSystemActionContext} from "~/server/dynamo/context/app_action_context.js";
 import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module.js";
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table.js";
 import {
     ActorContextModule,
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module_interface.js";
+import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
+import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {OpensearchIndex} from "~/server/opensearch/opensearch_index.js";
 import {
@@ -147,7 +146,7 @@ export async function getTaskIndexDocsIfExist(
  * which is why it's not safe to use outside of tests.
  */
 export function getTaskIndexDocIfExistsForTest(
-    context: AppActionContext,
+    context: Context<{tracer: TracerContextModule; opensearch: OpensearchContextModule}>,
     spaceId: SpaceId,
     taskId: TaskId,
 ) {
@@ -166,7 +165,7 @@ export function getTaskIndexDocIfExistsForTest(
  * authorization which is why it's not safe to use outside of tests.
  */
 export function getTaskCollectionIndexDocIfExistsForTest(
-    context: AppActionContext,
+    context: Context<{tracer: TracerContextModule; opensearch: OpensearchContextModule}>,
     spaceId: SpaceId,
     collectionId: TaskCollectionId,
 ) {
@@ -179,6 +178,20 @@ export function getTaskCollectionIndexDocIfExistsForTest(
         collectionId,
     );
 }
+
+/**
+ * Manually refresh the task index in tests. This means any changes to the task
+ * index will be available when searching.
+ */
+export function refreshTaskIndexForTest(
+    context: Context<{tracer: TracerContextModule; opensearch: OpensearchContextModule}>,
+) {
+    assert(import.meta.jest);
+
+    return context.opensearch.client.refresh(context.tracer.getTracer(), TaskIndex);
+}
+
+export const indexTaskActionTransactionTestCheckpoint = new TestCheckpoint<SpaceId>();
 
 /**
  * Takes a transaction of `TaskAction`s and indexes them in our OpenSearch
@@ -249,6 +262,8 @@ class TaskActionTransactionIndexState {
         let hasAlreadyAttempted = false;
 
         return retryWithExponentialBackoff(async _retry => {
+            await indexTaskActionTransactionTestCheckpoint.waitForTest(spaceId);
+
             const isInitialAttempt = !hasAlreadyAttempted;
             hasAlreadyAttempted = true;
 
@@ -410,9 +425,10 @@ async function actuallyIndexTaskAction(
 
             if (!oldTask && action.taskAction.type === "Create") {
                 state.putTaskIndexDoc(action.taskId, {
-                    version: null,
+                    id: action.taskId,
                     spaceId: state.spaceId,
                     ...createEmptyTaskIndexDoc(action.time, action.taskAction),
+                    version: null,
                 });
                 return;
             }
@@ -459,6 +475,7 @@ async function actuallyIndexTaskAction(
 
             if (!oldCollection && action.collectionAction.type === "Create") {
                 state.putCollectionIndexDoc(action.collectionId, {
+                    id: action.collectionId,
                     version: null,
                     spaceId: state.spaceId,
                     createdTime: new Date(action.time[0]),
@@ -561,6 +578,8 @@ async function actuallyIndexTaskAction(
     }
 }
 
+export const queryTaskIndexTestCounter = new TestCounter<SpaceId>();
+
 /**
  * Query the OpenSearch task index.
  *
@@ -608,7 +627,7 @@ export async function queryTaskIndex(
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
         limit: number;
-        afterCursor?: TaskQuerySortCursor;
+        afterCursor: TaskQuerySortCursor | null;
     },
 ) {
     // Must be a system actor because we do no filtering to check whether you are
@@ -617,6 +636,8 @@ export async function queryTaskIndex(
     context.actor.authorizeSystem();
 
     await authorizeSpaceAccess(context, spaceId);
+
+    queryTaskIndexTestCounter.incrementForTest(spaceId);
 
     const tasks = await context.opensearch.client.search(
         context.tracer.getTracer(),

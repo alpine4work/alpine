@@ -617,18 +617,19 @@ function accountEmailAddressSignInLockedError(hoursUntilUnlocked: number) {
 
 export class Session {
     public readonly id: SessionId;
-    public readonly createdTime: Date;
     public readonly accountId: AccountId;
+    public readonly createdTime: Date;
     private readonly _preloadedAccount: AccountModel | null;
 
     private constructor(
-        sessionId: SessionId,
-        sessionItem: SessionItem,
+        id: SessionId,
+        accountId: AccountId,
+        createdTime: Date,
         preloadedAccount: AccountModel | null,
     ) {
-        this.id = sessionId;
-        this.createdTime = sessionItem.createdTime;
-        this.accountId = sessionItem.accountId;
+        this.id = id;
+        this.accountId = accountId;
+        this.createdTime = createdTime;
         this._preloadedAccount = preloadedAccount;
     }
 
@@ -664,7 +665,8 @@ export class Session {
 
         return new Session(
             sessionId,
-            sessionItem,
+            sessionItem.accountId,
+            sessionItem.createdTime,
             accountItem ? createAccountModelFromItem(accountItem) : null,
         );
     }
@@ -673,9 +675,30 @@ export class Session {
      * Allow creating a session class directly from ID and database item object
      * in tests. Can only run in test environments.
      */
-    public static test(sessionItem: SessionItem) {
+    public static test(
+        sessionItem:
+            | {id: SessionId; account: {id: AccountId}; createdTime: Date}
+            | {sessionId: SessionId; accountId: AccountId; createdTime: Date},
+    ) {
         assert(process.env.NODE_ENV === "test");
-        return new Session(sessionItem.sessionId, sessionItem, null);
+
+        // Support passing in a session model object (e.g. `TestScenarioSession`) and
+        // passing a `SessionItem` object in directly.
+        if ("id" in sessionItem) {
+            return new Session(
+                sessionItem.id,
+                sessionItem.account.id,
+                sessionItem.createdTime,
+                null,
+            );
+        } else {
+            return new Session(
+                sessionItem.sessionId,
+                sessionItem.accountId,
+                sessionItem.createdTime,
+                null,
+            );
+        }
     }
 
     private _accountPromise: Promise<AccountModel> | null = null;

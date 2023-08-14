@@ -20,6 +20,7 @@ import {TaskNotepadPageId, generateTaskNotepadPageId} from "~/shared/tasks/task_
 import {TaskQueryFilter, TaskQueryFilterDateOperation} from "~/shared/tasks/task_query_filter.js";
 import {
     TaskQueryNormalizedFilters,
+    defaultTaskQueryNormalizedFilters,
     normalizeTaskQueryFilters,
 } from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
@@ -135,19 +136,16 @@ async function createScenario() {
     return {
         space: {id: spaceId},
         session1: {
-            accountId: account1Id,
-            accountName: account1Item.name,
-            item: account1SessionItem,
+            ...account1SessionItem,
+            account: {id: account1Id, name: account1Item.name},
         },
         session2: {
-            accountId: account2Id,
-            accountName: account2Item.name,
-            item: account2SessionItem,
+            ...account2SessionItem,
+            account: {id: account2Id, name: account2Item.name},
         },
         session3: {
-            accountId: account3Id,
-            accountName: account3Item.name,
-            item: account3SessionItem,
+            ...account3SessionItem,
+            account: {id: account3Id, name: account3Item.name},
         },
     };
 }
@@ -198,12 +196,12 @@ function permutator<Item>(inputArray: ReadonlyArray<Item>): Array<Array<Item>> {
 }
 
 async function testQuery(
-    {accountId}: {accountId: AccountId},
+    {account}: {account: {id: AccountId}},
     space: {id: SpaceId},
     filters: Array<TaskQueryFilter>,
 ): Promise<Array<TaskId>> {
     const executionContext = {
-        currentAccountId: accountId,
+        currentAccountId: account.id,
         currentDate: toCalendarDate(
             parseAbsolute(new Date(mockStartTime - dayDurationMs * 2).toISOString(), "UTC"),
         ),
@@ -1631,7 +1629,7 @@ test("can filter by one of collections", async () => {
             collectionAction: {
                 type: "Create",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
                     defaultGrant: null,
                 },
             },
@@ -1643,7 +1641,7 @@ test("can filter by one of collections", async () => {
             collectionAction: {
                 type: "Create",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
                     defaultGrant: null,
                 },
             },
@@ -1655,7 +1653,7 @@ test("can filter by one of collections", async () => {
             collectionAction: {
                 type: "Create",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
                     defaultGrant: null,
                 },
             },
@@ -1667,7 +1665,7 @@ test("can filter by one of collections", async () => {
             collectionAction: {
                 type: "Create",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
                     defaultGrant: null,
                 },
             },
@@ -1848,7 +1846,7 @@ test("can filter by all of collections", async () => {
             collectionAction: {
                 type: "Create",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
                     defaultGrant: null,
                 },
             },
@@ -1860,7 +1858,7 @@ test("can filter by all of collections", async () => {
             collectionAction: {
                 type: "Create",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
                     defaultGrant: null,
                 },
             },
@@ -1872,7 +1870,7 @@ test("can filter by all of collections", async () => {
             collectionAction: {
                 type: "Create",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
                     defaultGrant: null,
                 },
             },
@@ -1884,7 +1882,7 @@ test("can filter by all of collections", async () => {
             collectionAction: {
                 type: "Create",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
                     defaultGrant: null,
                 },
             },
@@ -2065,7 +2063,7 @@ test("can filter by excludes all of collections", async () => {
             collectionAction: {
                 type: "Create",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
                     defaultGrant: null,
                 },
             },
@@ -2077,7 +2075,7 @@ test("can filter by excludes all of collections", async () => {
             collectionAction: {
                 type: "Create",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
                     defaultGrant: null,
                 },
             },
@@ -2089,7 +2087,7 @@ test("can filter by excludes all of collections", async () => {
             collectionAction: {
                 type: "Create",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
                     defaultGrant: null,
                 },
             },
@@ -2101,7 +2099,7 @@ test("can filter by excludes all of collections", async () => {
             collectionAction: {
                 type: "Create",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
                     defaultGrant: null,
                 },
             },
@@ -2294,7 +2292,7 @@ test("can filter by empty collections", async () => {
             collectionAction: {
                 type: "Create",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
                     defaultGrant: null,
                 },
             },
@@ -2306,7 +2304,7 @@ test("can filter by empty collections", async () => {
             collectionAction: {
                 type: "Create",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
                     defaultGrant: null,
                 },
             },
@@ -2318,7 +2316,7 @@ test("can filter by empty collections", async () => {
             collectionAction: {
                 type: "Create",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
                     defaultGrant: null,
                 },
             },
@@ -2330,7 +2328,7 @@ test("can filter by empty collections", async () => {
             collectionAction: {
                 type: "Create",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
                     defaultGrant: null,
                 },
             },
@@ -2448,7 +2446,7 @@ test("can filter against collections without providing collection ids", async ()
             collectionAction: {
                 type: "Create",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
                     defaultGrant: null,
                 },
             },
@@ -2460,7 +2458,7 @@ test("can filter against collections without providing collection ids", async ()
             collectionAction: {
                 type: "Create",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
                     defaultGrant: null,
                 },
             },
@@ -2472,7 +2470,7 @@ test("can filter against collections without providing collection ids", async ()
             collectionAction: {
                 type: "Create",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
                     defaultGrant: null,
                 },
             },
@@ -2484,7 +2482,7 @@ test("can filter against collections without providing collection ids", async ()
             collectionAction: {
                 type: "Create",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
                     defaultGrant: null,
                 },
             },
@@ -2631,7 +2629,7 @@ test("can merge collection filters in various ways", async () => {
             collectionAction: {
                 type: "Create",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
                     defaultGrant: null,
                 },
             },
@@ -2643,7 +2641,7 @@ test("can merge collection filters in various ways", async () => {
             collectionAction: {
                 type: "Create",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
                     defaultGrant: null,
                 },
             },
@@ -2655,7 +2653,7 @@ test("can merge collection filters in various ways", async () => {
             collectionAction: {
                 type: "Create",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
                     defaultGrant: null,
                 },
             },
@@ -2667,7 +2665,7 @@ test("can merge collection filters in various ways", async () => {
             collectionAction: {
                 type: "Create",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
                     defaultGrant: null,
                 },
             },
@@ -4595,7 +4593,7 @@ test("can filter for a single assignee account", async () => {
                 type: "Assignee",
                 operation: {
                     type: "OneOf",
-                    accounts: [{type: "Account", accountId: session1.accountId}],
+                    accounts: [{type: "Account", accountId: session1.account.id}],
                 },
             },
         ]),
@@ -4607,7 +4605,7 @@ test("can filter for a single assignee account", async () => {
                 type: "Assignee",
                 operation: {
                     type: "OneOf",
-                    accounts: [{type: "Account", accountId: session2.accountId}],
+                    accounts: [{type: "Account", accountId: session2.account.id}],
                 },
             },
         ]),
@@ -4723,8 +4721,8 @@ test("can filter for multiple assignee accounts", async () => {
                 operation: {
                     type: "OneOf",
                     accounts: [
-                        {type: "Account", accountId: session1.accountId},
-                        {type: "Account", accountId: session2.accountId},
+                        {type: "Account", accountId: session1.account.id},
+                        {type: "Account", accountId: session2.account.id},
                     ],
                 },
             },
@@ -4864,7 +4862,7 @@ test("can negative filter for a single assignee account", async () => {
                 type: "Assignee",
                 operation: {
                     type: "NoneOf",
-                    accounts: [{type: "Account", accountId: session1.accountId}],
+                    accounts: [{type: "Account", accountId: session1.account.id}],
                 },
             },
         ]),
@@ -4876,7 +4874,7 @@ test("can negative filter for a single assignee account", async () => {
                 type: "Assignee",
                 operation: {
                     type: "NoneOf",
-                    accounts: [{type: "Account", accountId: session2.accountId}],
+                    accounts: [{type: "Account", accountId: session2.account.id}],
                 },
             },
         ]),
@@ -4992,8 +4990,8 @@ test("can negative filter for multiple assignee accounts", async () => {
                 operation: {
                     type: "NoneOf",
                     accounts: [
-                        {type: "Account", accountId: session1.accountId},
-                        {type: "Account", accountId: session2.accountId},
+                        {type: "Account", accountId: session1.account.id},
+                        {type: "Account", accountId: session2.account.id},
                     ],
                 },
             },
@@ -5213,8 +5211,8 @@ test("can merge assignee filters", async () => {
                 operation: {
                     type: "OneOf",
                     accounts: [
-                        {type: "Account", accountId: session1.accountId},
-                        {type: "Account", accountId: session2.accountId},
+                        {type: "Account", accountId: session1.account.id},
+                        {type: "Account", accountId: session2.account.id},
                     ],
                 },
             },
@@ -5235,8 +5233,8 @@ test("can merge assignee filters", async () => {
                 operation: {
                     type: "NoneOf",
                     accounts: [
-                        {type: "Account", accountId: session1.accountId},
-                        {type: "Account", accountId: session2.accountId},
+                        {type: "Account", accountId: session1.account.id},
+                        {type: "Account", accountId: session2.account.id},
                     ],
                 },
             },
@@ -5256,7 +5254,7 @@ test("can merge assignee filters", async () => {
                 type: "Assignee",
                 operation: {
                     type: "NoneOf",
-                    accounts: [{type: "Account", accountId: session2.accountId}],
+                    accounts: [{type: "Account", accountId: session2.account.id}],
                 },
             },
             {
@@ -5275,7 +5273,7 @@ test("can merge assignee filters", async () => {
                 type: "Assignee",
                 operation: {
                     type: "NoneOf",
-                    accounts: [{type: "Account", accountId: session2.accountId}],
+                    accounts: [{type: "Account", accountId: session2.account.id}],
                 },
             },
             {
@@ -5295,8 +5293,8 @@ test("can merge assignee filters", async () => {
                 operation: {
                     type: "OneOf",
                     accounts: [
-                        {type: "Account", accountId: session1.accountId},
-                        {type: "Account", accountId: session2.accountId},
+                        {type: "Account", accountId: session1.account.id},
+                        {type: "Account", accountId: session2.account.id},
                     ],
                 },
             },
@@ -5410,7 +5408,7 @@ test("can filter for a single creator account", async () => {
                 type: "Creator",
                 operation: {
                     type: "OneOf",
-                    accounts: [{type: "Account", accountId: session1.accountId}],
+                    accounts: [{type: "Account", accountId: session1.account.id}],
                 },
             },
         ]),
@@ -5422,7 +5420,7 @@ test("can filter for a single creator account", async () => {
                 type: "Creator",
                 operation: {
                     type: "OneOf",
-                    accounts: [{type: "Account", accountId: session2.accountId}],
+                    accounts: [{type: "Account", accountId: session2.account.id}],
                 },
             },
         ]),
@@ -5505,8 +5503,8 @@ test("can filter for multiple creator accounts", async () => {
                 operation: {
                     type: "OneOf",
                     accounts: [
-                        {type: "Account", accountId: session1.accountId},
-                        {type: "Account", accountId: session2.accountId},
+                        {type: "Account", accountId: session1.account.id},
+                        {type: "Account", accountId: session2.account.id},
                     ],
                 },
             },
@@ -5613,7 +5611,7 @@ test("can negative filter for a single creator account", async () => {
                 type: "Creator",
                 operation: {
                     type: "NoneOf",
-                    accounts: [{type: "Account", accountId: session1.accountId}],
+                    accounts: [{type: "Account", accountId: session1.account.id}],
                 },
             },
         ]),
@@ -5625,7 +5623,7 @@ test("can negative filter for a single creator account", async () => {
                 type: "Creator",
                 operation: {
                     type: "NoneOf",
-                    accounts: [{type: "Account", accountId: session2.accountId}],
+                    accounts: [{type: "Account", accountId: session2.account.id}],
                 },
             },
         ]),
@@ -5708,8 +5706,8 @@ test("can negative filter for multiple creator accounts", async () => {
                 operation: {
                     type: "NoneOf",
                     accounts: [
-                        {type: "Account", accountId: session1.accountId},
-                        {type: "Account", accountId: session2.accountId},
+                        {type: "Account", accountId: session1.account.id},
+                        {type: "Account", accountId: session2.account.id},
                     ],
                 },
             },
@@ -5863,8 +5861,8 @@ test("can merge creator filters", async () => {
                 operation: {
                     type: "OneOf",
                     accounts: [
-                        {type: "Account", accountId: session1.accountId},
-                        {type: "Account", accountId: session2.accountId},
+                        {type: "Account", accountId: session1.account.id},
+                        {type: "Account", accountId: session2.account.id},
                     ],
                 },
             },
@@ -5885,8 +5883,8 @@ test("can merge creator filters", async () => {
                 operation: {
                     type: "NoneOf",
                     accounts: [
-                        {type: "Account", accountId: session1.accountId},
-                        {type: "Account", accountId: session2.accountId},
+                        {type: "Account", accountId: session1.account.id},
+                        {type: "Account", accountId: session2.account.id},
                     ],
                 },
             },
@@ -5906,7 +5904,7 @@ test("can merge creator filters", async () => {
                 type: "Creator",
                 operation: {
                     type: "NoneOf",
-                    accounts: [{type: "Account", accountId: session2.accountId}],
+                    accounts: [{type: "Account", accountId: session2.account.id}],
                 },
             },
             {
@@ -5925,7 +5923,7 @@ test("can merge creator filters", async () => {
                 type: "Creator",
                 operation: {
                     type: "NoneOf",
-                    accounts: [{type: "Account", accountId: session2.accountId}],
+                    accounts: [{type: "Account", accountId: session2.account.id}],
                 },
             },
             {
@@ -5945,8 +5943,8 @@ test("can merge creator filters", async () => {
                 operation: {
                     type: "OneOf",
                     accounts: [
-                        {type: "Account", accountId: session1.accountId},
-                        {type: "Account", accountId: session2.accountId},
+                        {type: "Account", accountId: session1.account.id},
+                        {type: "Account", accountId: session2.account.id},
                     ],
                 },
             },
@@ -6019,7 +6017,7 @@ test("can filter for a single assigner account", async () => {
             collectionAction: {
                 type: "Create",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
                     defaultGrant: {type: "Space", level: "Manage"},
                 },
             },
@@ -6153,7 +6151,7 @@ test("can filter for a single assigner account", async () => {
                 type: "Assigner",
                 operation: {
                     type: "OneOf",
-                    accounts: [{type: "Account", accountId: session1.accountId}],
+                    accounts: [{type: "Account", accountId: session1.account.id}],
                 },
             },
         ]),
@@ -6165,7 +6163,7 @@ test("can filter for a single assigner account", async () => {
                 type: "Assigner",
                 operation: {
                     type: "OneOf",
-                    accounts: [{type: "Account", accountId: session2.accountId}],
+                    accounts: [{type: "Account", accountId: session2.account.id}],
                 },
             },
         ]),
@@ -6230,7 +6228,7 @@ test("can filter for multiple assigner accounts", async () => {
             collectionAction: {
                 type: "Create",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
                     defaultGrant: {type: "Space", level: "Manage"},
                 },
             },
@@ -6341,8 +6339,8 @@ test("can filter for multiple assigner accounts", async () => {
                 operation: {
                     type: "OneOf",
                     accounts: [
-                        {type: "Account", accountId: session1.accountId},
-                        {type: "Account", accountId: session2.accountId},
+                        {type: "Account", accountId: session1.account.id},
+                        {type: "Account", accountId: session2.account.id},
                     ],
                 },
             },
@@ -6408,7 +6406,7 @@ test("can negative filter for a single assigner account", async () => {
             collectionAction: {
                 type: "Create",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
                     defaultGrant: {type: "Space", level: "Manage"},
                 },
             },
@@ -6542,7 +6540,7 @@ test("can negative filter for a single assigner account", async () => {
                 type: "Assigner",
                 operation: {
                     type: "NoneOf",
-                    accounts: [{type: "Account", accountId: session1.accountId}],
+                    accounts: [{type: "Account", accountId: session1.account.id}],
                 },
             },
         ]),
@@ -6554,7 +6552,7 @@ test("can negative filter for a single assigner account", async () => {
                 type: "Assigner",
                 operation: {
                     type: "NoneOf",
-                    accounts: [{type: "Account", accountId: session2.accountId}],
+                    accounts: [{type: "Account", accountId: session2.account.id}],
                 },
             },
         ]),
@@ -6619,7 +6617,7 @@ test("can negative filter for multiple assigner accounts", async () => {
             collectionAction: {
                 type: "Create",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
                     defaultGrant: {type: "Space", level: "Manage"},
                 },
             },
@@ -6730,8 +6728,8 @@ test("can negative filter for multiple assigner accounts", async () => {
                 operation: {
                     type: "NoneOf",
                     accounts: [
-                        {type: "Account", accountId: session1.accountId},
-                        {type: "Account", accountId: session2.accountId},
+                        {type: "Account", accountId: session1.account.id},
+                        {type: "Account", accountId: session2.account.id},
                     ],
                 },
             },
@@ -6797,7 +6795,7 @@ test("can filter with empty assigner accounts", async () => {
             collectionAction: {
                 type: "Create",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
                     defaultGrant: {type: "Space", level: "Manage"},
                 },
             },
@@ -6972,7 +6970,7 @@ test("can merge assigner filters", async () => {
             collectionAction: {
                 type: "Create",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
                     defaultGrant: {type: "Space", level: "Manage"},
                 },
             },
@@ -7071,8 +7069,8 @@ test("can merge assigner filters", async () => {
                 operation: {
                     type: "OneOf",
                     accounts: [
-                        {type: "Account", accountId: session1.accountId},
-                        {type: "Account", accountId: session2.accountId},
+                        {type: "Account", accountId: session1.account.id},
+                        {type: "Account", accountId: session2.account.id},
                     ],
                 },
             },
@@ -7093,8 +7091,8 @@ test("can merge assigner filters", async () => {
                 operation: {
                     type: "NoneOf",
                     accounts: [
-                        {type: "Account", accountId: session1.accountId},
-                        {type: "Account", accountId: session2.accountId},
+                        {type: "Account", accountId: session1.account.id},
+                        {type: "Account", accountId: session2.account.id},
                     ],
                 },
             },
@@ -7114,7 +7112,7 @@ test("can merge assigner filters", async () => {
                 type: "Assigner",
                 operation: {
                     type: "NoneOf",
-                    accounts: [{type: "Account", accountId: session2.accountId}],
+                    accounts: [{type: "Account", accountId: session2.account.id}],
                 },
             },
             {
@@ -7133,7 +7131,7 @@ test("can merge assigner filters", async () => {
                 type: "Assigner",
                 operation: {
                     type: "NoneOf",
-                    accounts: [{type: "Account", accountId: session2.accountId}],
+                    accounts: [{type: "Account", accountId: session2.account.id}],
                 },
             },
             {
@@ -7153,8 +7151,8 @@ test("can merge assigner filters", async () => {
                 operation: {
                     type: "OneOf",
                     accounts: [
-                        {type: "Account", accountId: session1.accountId},
-                        {type: "Account", accountId: session2.accountId},
+                        {type: "Account", accountId: session1.account.id},
+                        {type: "Account", accountId: session2.account.id},
                     ],
                 },
             },
@@ -7174,7 +7172,7 @@ type DateFilterTestCase = {
     extraFilters?: Array<TaskQueryFilter>;
     filter: (operation: TaskQueryFilterDateOperation) => TaskQueryFilter;
     setup: () => Promise<{
-        session1: {accountId: AccountId};
+        session1: {account: {id: AccountId}};
         space: {id: SpaceId};
         task1Id: TaskId;
         task2Id: TaskId;
@@ -8856,7 +8854,7 @@ test("can filter by notepad page", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "UpdateNotepadPagePosition",
-                accountId: session1.accountId,
+                accountId: session1.account.id,
                 notepadPageId: notepadPage1Id,
                 position: {orderTime: clock.now(), orderKey: initialOrderKey},
             },
@@ -8867,7 +8865,7 @@ test("can filter by notepad page", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "UpdateNotepadPagePosition",
-                accountId: session1.accountId,
+                accountId: session1.account.id,
                 notepadPageId: notepadPage1Id,
                 position: {orderTime: clock.now(), orderKey: initialOrderKey},
             },
@@ -8878,7 +8876,7 @@ test("can filter by notepad page", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "UpdateNotepadPagePosition",
-                accountId: session1.accountId,
+                accountId: session1.account.id,
                 notepadPageId: notepadPage2Id,
                 position: {orderTime: clock.now(), orderKey: initialOrderKey},
             },
@@ -8902,7 +8900,7 @@ test("can filter by notepad page", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "UpdateNotepadPagePosition",
-                accountId: session2.accountId,
+                accountId: session2.account.id,
                 notepadPageId: notepadPage2Id,
                 position: {orderTime: clock.now(), orderKey: initialOrderKey},
             },
@@ -8911,22 +8909,22 @@ test("can filter by notepad page", async () => {
 
     expect(
         await testQueryWithNormalizedFilters(space, {
-            displayStatusFilter: {ifOpenInactive: true, ifOpenActive: true, ifClosed: false},
-            notepadPageFilter: {accountId: session1.accountId, notepadPageId: notepadPage1Id},
+            ...defaultTaskQueryNormalizedFilters,
+            notepadPageFilter: {accountId: session1.account.id, notepadPageId: notepadPage1Id},
         }),
     ).toEqual([task1Id, task2Id]);
 
     expect(
         await testQueryWithNormalizedFilters(space, {
-            displayStatusFilter: {ifOpenInactive: true, ifOpenActive: true, ifClosed: false},
-            notepadPageFilter: {accountId: session1.accountId, notepadPageId: notepadPage2Id},
+            ...defaultTaskQueryNormalizedFilters,
+            notepadPageFilter: {accountId: session1.account.id, notepadPageId: notepadPage2Id},
         }),
     ).toEqual([task3Id]);
 
     expect(
         await testQueryWithNormalizedFilters(space, {
-            displayStatusFilter: {ifOpenInactive: true, ifOpenActive: true, ifClosed: false},
-            notepadPageFilter: {accountId: session2.accountId, notepadPageId: notepadPage2Id},
+            ...defaultTaskQueryNormalizedFilters,
+            notepadPageFilter: {accountId: session2.account.id, notepadPageId: notepadPage2Id},
         }),
     ).toEqual([task5Id]);
 });

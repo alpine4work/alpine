@@ -320,15 +320,15 @@ async function createScenario() {
     return {
         spaceA: {id: spaceAId},
         spaceB: {id: spaceBId},
-        sessionA1: {accountId: accountA1Id, item: accountA1SessionItem},
-        sessionA2: {accountId: accountA2Id, item: accountA2SessionItem},
-        sessionA3: {accountId: accountA3Id, item: accountA3SessionItem},
-        sessionB1: {accountId: accountB1Id, item: accountB1SessionItem},
-        sessionB2: {accountId: accountB2Id, item: accountB2SessionItem},
-        sessionB3: {accountId: accountB3Id, item: accountB3SessionItem},
-        sessionX1: {accountId: accountX1Id, item: accountX1SessionItem},
-        sessionX2: {accountId: accountX2Id, item: accountX2SessionItem},
-        sessionX3: {accountId: accountX3Id, item: accountX3SessionItem},
+        sessionA1: accountA1SessionItem,
+        sessionA2: accountA2SessionItem,
+        sessionA3: accountA3SessionItem,
+        sessionB1: accountB1SessionItem,
+        sessionB2: accountB2SessionItem,
+        sessionB3: accountB3SessionItem,
+        sessionX1: accountX1SessionItem,
+        sessionX2: accountX2SessionItem,
+        sessionX3: accountX3SessionItem,
     };
 }
 

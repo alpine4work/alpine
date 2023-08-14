@@ -55,9 +55,20 @@ export class TaskSortableAccount {
      * Create from a `TestSession` object we use in server tests (see
      * `createTestContext()`).
      */
-    public static test({accountId, accountName}: {accountId: AccountId; accountName: string}) {
+    public static test(
+        options:
+            | {account: {id: AccountId; name: string} | {id: AccountId; initialName: string}}
+            | {id: AccountId; name: string}
+            | {id: AccountId; initialName: string},
+    ) {
         assert(process.env.NODE_ENV === "test");
-        return new TaskSortableAccount({accountId, workingAccountName: accountName});
+
+        const account = "account" in options ? options.account : options;
+
+        return new TaskSortableAccount({
+            accountId: account.id,
+            workingAccountName: "initialName" in account ? account.initialName : account.name,
+        });
     }
 
     public isEqual(other: TaskSortableAccount): boolean {

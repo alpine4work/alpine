@@ -1,7 +1,11 @@
 import {InvalidArgumentError} from "~/shared/error/error.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {generateId} from "~/shared/id/id.js";
+
+const referenceIds = new WeakMap<object, string>();
 
 /**
  * Stringifies a value such that
@@ -60,9 +64,13 @@ function stringifyObjectForDeepEqualCheck(
             if (object instanceof Set) return stringifySetForDeepEqualCheck(seen, object);
             if (object instanceof Date) return stringifyDateForDeepEqualCheck(seen, object);
 
-            throw new InvalidArgumentError(
-                quote`Unrecognized object ${(object as any).constructor?.name ?? ""}`,
-            );
+            const constructorName = (object as any).constructor?.name ?? "";
+            return `Reference("${constructorName}", "${getOrSetDefaultMapValue(
+                referenceIds,
+                object,
+                generateId,
+            )}")`;
+            throw new InvalidArgumentError(quote`Unrecognized object ${constructorName}`);
         }
 
         const entries = [];

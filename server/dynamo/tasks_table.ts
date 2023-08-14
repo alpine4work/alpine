@@ -1,7 +1,6 @@
 import {
     AppActionContext,
     AppSessionActionContext,
-    AppSystemActionContext,
 } from "~/server/dynamo/context/app_action_context.js";
 import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry.js";
@@ -13,6 +12,7 @@ import {
 import {authorizeSpaceAccess, isAccountMemberOfSpace} from "~/server/dynamo/spaces_table.js";
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module_interface.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
+import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -33,6 +33,7 @@ import {
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
@@ -284,6 +285,17 @@ export const commitTaskActionTransactionBeforeExecuteTestCheckpoint =
     new TestCheckpoint<AccountId>();
 
 /**
+ * Allow tests to subscribe to committed action transactions
+ */
+export const afterCommitTaskActionTransactionEventEmitterForTest = import.meta.jest
+    ? new EventEmitter<{
+          spaceId: SpaceId;
+          committedTime: Date;
+          actions: ReadonlyArray<TaskAction>;
+      }>()
+    : null;
+
+/**
  * Commit a transaction of `TaskAction`s. Authorizes that each action is
  * valid before committing it.
  *
@@ -314,11 +326,8 @@ export function commitTaskActionTransaction(
             },
         });
 
-        const {actionTransactionId, extraActions} = await TaskActionTransactionCommitState.commit(
-            context,
-            spaceId,
-            actions,
-        );
+        const {actionTransactionId, committedTime, extraActions} =
+            await TaskActionTransactionCommitState.commit(context, spaceId, actions);
 
         span.addData({
             tasks: {
@@ -345,6 +354,12 @@ export function commitTaskActionTransaction(
             actionTransactionId,
             finalActions,
         );
+
+        afterCommitTaskActionTransactionEventEmitterForTest?.emit({
+            spaceId,
+            committedTime,
+            actions: finalActions,
+        });
 
         return {extraActions};
     });
@@ -1648,6 +1663,8 @@ async function evaluateTaskCollectionItemAccessPolicy(
     return false;
 }
 
+export const backfillTaskActionTransactionHistoryTestCounter = new TestCounter<SpaceId>();
+
 /**
  * Get all action transactions since the provided start time in the
  * provided space.
@@ -1680,6 +1697,8 @@ export async function backfillTaskActionTransactionHistory(
         committedTime: Date;
         actions: ReadonlyArray<TaskAction>;
     }> = [];
+
+    backfillTaskActionTransactionHistoryTestCounter.incrementForTest(spaceId);
 
     for await (const item of TaskActionsTable.query(context, {
         partitionKey: {

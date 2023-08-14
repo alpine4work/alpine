@@ -11,7 +11,7 @@ import {
     WorkerSessionActionContext,
     WorkerSystemActionContext,
 } from "~/server/cloudflare/context/worker_action_context.js";
-import {Session, SessionItem} from "~/server/dynamo/accounts_table.js";
+import {Session} from "~/server/dynamo/accounts_table.js";
 import {
     AppSessionActionContext,
     AppSessionActionContextModules,
@@ -54,7 +54,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 
 // This file should only run in a Node.js test environment. Either Jest
 // or Playwright.
@@ -81,7 +81,11 @@ export type TestContext = AppProcessContext & {
     getDynamoLocalPort(): number;
     getOpensearchLocalPort(): number;
     unauthenticatedAction(): AppUnknownActionContext;
-    action(session: {item: SessionItem}): TestSessionActionContext;
+    action(
+        session:
+            | {id: SessionId; account: {id: AccountId}; createdTime: Date}
+            | {sessionId: SessionId; accountId: AccountId; createdTime: Date},
+    ): TestSessionActionContext;
     systemAction(spaceId: SpaceId): TestSystemActionContext;
 };
 
@@ -176,11 +180,15 @@ export function createTestContext({
         });
     };
 
-    const createSessionContext = (session: {item: SessionItem}): TestSessionActionContext => {
+    const createSessionContext = (
+        session:
+            | {id: SessionId; account: {id: AccountId}; createdTime: Date}
+            | {sessionId: SessionId; accountId: AccountId; createdTime: Date},
+    ): TestSessionActionContext => {
         return processContext.clone({
             cache: new CacheContextModule(),
             dynamoBatchContext: new DynamoBatchContextModule(),
-            actor: AppSessionActorContextModule.dangerouslyNew("Test", Session.test(session.item)),
+            actor: AppSessionActorContextModule.dangerouslyNew("Test", Session.test(session)),
             rpc: new LocalRpcContextModule(),
             notifications: new TestNotificationsContextModule({dangerouslyEscalateToSystemContext}),
             tasks: createTasksContextModule(),

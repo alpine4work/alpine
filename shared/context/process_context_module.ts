@@ -52,6 +52,8 @@ export class ProcessContextModule extends ContextModuleBase {
         this._waitUntil(typeof action === "function" ? action() : action);
     }
 
+    private static _waitForTestTasksPromise?: Promise<void>;
+
     /**
      * Wait for all the promises passed into the `waitUntil()` function of
      * `ProcessContextModule.test()`s to resolve.
@@ -59,11 +61,19 @@ export class ProcessContextModule extends ContextModuleBase {
     public static async waitForTestTasks() {
         assert(process.env.NODE_ENV === "test");
 
-        while (afterEachPromisesForTest.length > 0) {
-            const promises = afterEachPromisesForTest;
-            afterEachPromisesForTest = [];
-            await runAllPromises(promises);
+        if (!this._waitForTestTasksPromise) {
+            this._waitForTestTasksPromise = (async () => {
+                while (afterEachPromisesForTest.length > 0) {
+                    const promises = afterEachPromisesForTest;
+                    afterEachPromisesForTest = [];
+                    await runAllPromises(promises);
+                }
+            })().finally(() => {
+                this._waitForTestTasksPromise = undefined;
+            });
         }
+
+        await this._waitForTestTasksPromise;
     }
 }
 

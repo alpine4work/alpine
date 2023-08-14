@@ -139,19 +139,16 @@ async function createScenario() {
     return {
         space: {id: spaceId},
         session1: {
-            accountId: account1Id,
-            accountName: account1Item.name,
-            item: account1SessionItem,
+            ...account1SessionItem,
+            account: {id: account1Id, name: account1Item.name},
         },
         session2: {
-            accountId: account2Id,
-            accountName: account2Item.name,
-            item: account2SessionItem,
+            ...account2SessionItem,
+            account: {id: account2Id, name: account2Item.name},
         },
         session3: {
-            accountId: account3Id,
-            accountName: account3Item.name,
-            item: account3SessionItem,
+            ...account3SessionItem,
+            account: {id: account3Id, name: account3Item.name},
         },
     };
 }
@@ -265,7 +262,7 @@ async function testQueryWithNormalizedSorts(
                 expect(
                     convertTaskQuerySortCursorToOpensearchCursor(
                         sorts,
-                        getTaskQueryNormalizedSortCursorFromIndexDoc(sorts, task.id, task),
+                        getTaskQueryNormalizedSortCursorFromIndexDoc(sorts, task),
                     ),
                 ).toEqual(hit.sort);
 
@@ -275,8 +272,8 @@ async function testQueryWithNormalizedSorts(
     );
 
     const expectedSortedTasks = [...allTasks].sort((task1, task2) => {
-        const cursor1 = getTaskQueryNormalizedSortCursorFromIndexDoc(sorts, task1.id, task1);
-        const cursor2 = getTaskQueryNormalizedSortCursorFromIndexDoc(sorts, task2.id, task2);
+        const cursor1 = getTaskQueryNormalizedSortCursorFromIndexDoc(sorts, task1);
+        const cursor2 = getTaskQueryNormalizedSortCursorFromIndexDoc(sorts, task2);
         return compareTaskQuerySortCursors(sorts, cursor1, cursor2);
     });
 
@@ -1767,7 +1764,7 @@ test("sorts by collection position", async () => {
             collectionAction: {
                 type: "Create",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
                     defaultGrant: null,
                 },
             },
@@ -1779,7 +1776,7 @@ test("sorts by collection position", async () => {
             collectionAction: {
                 type: "Create",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
                     defaultGrant: null,
                 },
             },
@@ -2072,7 +2069,7 @@ test("sorts by notepad page position", async () => {
         {
             type: "UpdateNotepadPage",
             time: clock.now(),
-            accountId: session1.accountId,
+            accountId: session1.account.id,
             notepadPageId: notepadPage1Id,
             notepadPageAction: {
                 type: "Create",
@@ -2081,7 +2078,7 @@ test("sorts by notepad page position", async () => {
         {
             type: "UpdateNotepadPage",
             time: clock.now(),
-            accountId: session1.accountId,
+            accountId: session1.account.id,
             notepadPageId: notepadPage2Id,
             notepadPageAction: {
                 type: "Create",
@@ -2187,7 +2184,7 @@ test("sorts by notepad page position", async () => {
             taskAction: {
                 type: "UpdateNotepadPagePosition",
                 notepadPageId: notepadPage1Id,
-                accountId: session1.accountId,
+                accountId: session1.account.id,
                 position: {orderTime: time1, orderKey: initialOrderKey},
             },
         },
@@ -2198,7 +2195,7 @@ test("sorts by notepad page position", async () => {
             taskAction: {
                 type: "UpdateNotepadPagePosition",
                 notepadPageId: notepadPage1Id,
-                accountId: session1.accountId,
+                accountId: session1.account.id,
                 position: {orderTime: time2, orderKey: initialOrderKey},
             },
         },
@@ -2209,7 +2206,7 @@ test("sorts by notepad page position", async () => {
             taskAction: {
                 type: "UpdateNotepadPagePosition",
                 notepadPageId: notepadPage1Id,
-                accountId: session1.accountId,
+                accountId: session1.account.id,
                 position: {orderTime: time3, orderKey: initialOrderKey},
             },
         },
@@ -2220,7 +2217,7 @@ test("sorts by notepad page position", async () => {
             taskAction: {
                 type: "UpdateNotepadPagePosition",
                 notepadPageId: notepadPage1Id,
-                accountId: session1.accountId,
+                accountId: session1.account.id,
                 position: {orderTime: time4, orderKey: initialOrderKey},
             },
         },
@@ -2231,7 +2228,7 @@ test("sorts by notepad page position", async () => {
             taskAction: {
                 type: "UpdateNotepadPagePosition",
                 notepadPageId: notepadPage1Id,
-                accountId: session1.accountId,
+                accountId: session1.account.id,
                 position: {orderTime: time5, orderKey: initialOrderKey},
             },
         },
@@ -2242,7 +2239,7 @@ test("sorts by notepad page position", async () => {
             taskAction: {
                 type: "UpdateNotepadPagePosition",
                 notepadPageId: notepadPage1Id,
-                accountId: session1.accountId,
+                accountId: session1.account.id,
                 position: {orderTime: time2, orderKey: assertOrderKey("Zz")},
             },
         },
@@ -2253,7 +2250,7 @@ test("sorts by notepad page position", async () => {
             taskAction: {
                 type: "UpdateNotepadPagePosition",
                 notepadPageId: notepadPage1Id,
-                accountId: session1.accountId,
+                accountId: session1.account.id,
                 position: {orderTime: time7, orderKey: initialOrderKey},
             },
         },
@@ -2264,7 +2261,7 @@ test("sorts by notepad page position", async () => {
             taskAction: {
                 type: "UpdateNotepadPagePosition",
                 notepadPageId: notepadPage1Id,
-                accountId: session1.accountId,
+                accountId: session1.account.id,
                 position: {orderTime: time8, orderKey: assertOrderKey("a1")},
             },
         },
@@ -2275,7 +2272,7 @@ test("sorts by notepad page position", async () => {
             taskAction: {
                 type: "UpdateNotepadPagePosition",
                 notepadPageId: notepadPage1Id,
-                accountId: session1.accountId,
+                accountId: session1.account.id,
                 position: {orderTime: time8, orderKey: assertOrderKey("a2")},
             },
         },
@@ -2289,7 +2286,7 @@ test("sorts by notepad page position", async () => {
             taskAction: {
                 type: "UpdateNotepadPagePosition",
                 notepadPageId: notepadPage2Id,
-                accountId: session1.accountId,
+                accountId: session1.account.id,
                 position: {orderTime: clock.now(), orderKey: initialOrderKey},
             },
         },
@@ -2300,7 +2297,7 @@ test("sorts by notepad page position", async () => {
             taskAction: {
                 type: "UpdateNotepadPagePosition",
                 notepadPageId: notepadPage1Id,
-                accountId: session1.accountId,
+                accountId: session1.account.id,
                 position: {orderTime: clock.now(), orderKey: initialOrderKey},
             },
         },
@@ -2311,7 +2308,7 @@ test("sorts by notepad page position", async () => {
             {
                 type: "NotepadPagePosition",
                 notepadPageId: notepadPage1Id,
-                accountId: session1.accountId,
+                accountId: session1.account.id,
                 direction: "Ascending",
                 missing: "Last",
             },
@@ -2324,7 +2321,7 @@ test("sorts by notepad page position", async () => {
             {
                 type: "NotepadPagePosition",
                 notepadPageId: notepadPage1Id,
-                accountId: session1.accountId,
+                accountId: session1.account.id,
                 direction: "Descending",
                 missing: "Last",
             },
@@ -2340,7 +2337,7 @@ test("sorts by notepad page position", async () => {
             taskAction: {
                 type: "UpdateNotepadPagePosition",
                 notepadPageId: notepadPage1Id,
-                accountId: session1.accountId,
+                accountId: session1.account.id,
                 position: null,
             },
         },
@@ -2351,7 +2348,7 @@ test("sorts by notepad page position", async () => {
             {
                 type: "NotepadPagePosition",
                 notepadPageId: notepadPage1Id,
-                accountId: session1.accountId,
+                accountId: session1.account.id,
                 direction: "Ascending",
                 missing: "Last",
             },
@@ -2364,7 +2361,7 @@ test("sorts by notepad page position", async () => {
             {
                 type: "NotepadPagePosition",
                 notepadPageId: notepadPage1Id,
-                accountId: session1.accountId,
+                accountId: session1.account.id,
                 direction: "Descending",
                 missing: "Last",
             },

@@ -137,6 +137,21 @@ export interface OpensearchClientInterface {
             searchAfter?: ReadonlyArray<JsonScalarValue | bigint>;
         },
     ): Promise<Array<Doc & {readonly id: DocId}>>;
+
+    /**
+     * Manually refresh an OpenSearch index using the [refresh API][1].
+     *
+     * [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-refresh.html
+     */
+    refresh<
+        Routing extends string,
+        DocId extends string,
+        Doc extends {},
+        FlattenedKeys extends string,
+    >(
+        tracer: TracerBase,
+        index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
+    ): Promise<void>;
 }
 
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! //
@@ -483,6 +498,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             {
                 spanRoute: `/${index.name}/_mget`,
                 method: "POST",
+                headers: {"Content-Type": "application/json"},
                 // NOTE(#opensearch-important-json-disclaimer): We only include IDs which are
                 // strings and so JSON safe. Stringify is fine here.
                 body: JSON.stringify({
@@ -738,5 +754,31 @@ export class OpensearchClient implements OpensearchClientInterface {
         );
 
         return docs;
+    }
+
+    /**
+     * Manually refresh an OpenSearch index using the [refresh API][1].
+     *
+     * [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-refresh.html
+     */
+    public async refresh<
+        Routing extends string,
+        DocId extends string,
+        Doc extends {},
+        FlattenedKeys extends string,
+    >(tracer: TracerBase, index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>) {
+        if (process.env.NODE_ENV !== "production") {
+            await this._ensureLocalIndex(tracer, index);
+        }
+
+        const response = await fetchWithTracer(
+            tracer,
+            `${this._protocol}://${this._host}/${index.name}/_refresh`,
+            {spanRoute: `/${index.name}/_refresh`, method: "POST"},
+        );
+
+        if (!response.ok) {
+            throw new InternalError("OpenSearch refresh failed");
+        }
     }
 }

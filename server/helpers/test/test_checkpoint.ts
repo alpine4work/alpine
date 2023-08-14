@@ -48,6 +48,8 @@ export class TestCheckpoint<
      * test unpauses.
      */
     public async waitForTest(key: Key): Promise<void> {
+        if (!import.meta.jest) return;
+
         const keyString = jsonStableStringify(key);
         const promiseResolver1 = this._promiseResolverByKey.get(keyString);
         if (!promiseResolver1) return;
@@ -88,7 +90,6 @@ export class TestCheckpoint<
         return {
             unpause: () => {
                 assert(this._promiseResolverByKey.get(keyString) === promiseResolver1);
-                this._promiseResolverByKey.delete(keyString);
                 promiseResolver2.resolve();
             },
         };

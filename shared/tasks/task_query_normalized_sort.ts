@@ -14,6 +14,10 @@ export type TaskQueryNormalizedSort =
     | TaskQueryNotepadPagePositionNormalizedSort
     | TaskQueryAssigneeStatusActivePositionNormalizedSort;
 
+export const defaultTaskQueryNormalizedSorts: ReadonlyArray<TaskQueryNormalizedSort> = [
+    {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+];
+
 export type TaskQueryBasicNormalizedSort = {
     readonly type:
         | "DisplayStatus"
@@ -61,11 +65,14 @@ assertAssignableTypes<
  *
  * - Removes duplicates
  * - Adds a `CreatedDate` sort to the end
+ *
+ * Will also accept an already normalized list of sorts. If sorts are already
+ * normalized we should return the same value back.
  */
 export function normalizeTaskQuerySorts(
-    sorts: ReadonlyArray<TaskQuerySort>,
+    sorts: ReadonlyArray<TaskQuerySort | TaskQueryNormalizedSort>,
 ): Array<TaskQueryNormalizedSort> {
-    const sortTypes = new Set<TaskQueryBasicNormalizedSort["type"]>();
+    const sortTypes = new Set<TaskQueryNormalizedSort["type"]>();
     const normalizedSorts: Array<TaskQueryNormalizedSort> = [];
 
     for (const sort of sorts) {

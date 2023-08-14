@@ -28,6 +28,8 @@ export class TestCounter<
      * the count if we are recording with `recordForTest()`.
      */
     public incrementForTest(key: Key): void {
+        if (!import.meta.jest) return;
+
         const keyString = jsonStableStringify(key);
         const count = this._countByKey.get(keyString);
 

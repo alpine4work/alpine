@@ -3,6 +3,7 @@ import {InternalError} from "~/shared/error/error.js";
 import {areUint8ArraysEqual} from "~/shared/helpers/binary/are_uint8_arrays_equal.js";
 import {maxHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {mergeTaskTitles} from "~/shared/tasks/task_title.js";
 
 /**
@@ -20,6 +21,9 @@ import {mergeTaskTitles} from "~/shared/tasks/task_title.js";
  * time won't be the same.
  */
 export function mergeTaskIndexDocs(task1: TaskIndexDoc, task2: TaskIndexDoc): TaskIndexDoc {
+    if (task1.id !== task2.id) {
+        throw new InternalError("Task `id` should never change");
+    }
     if (task1.spaceId !== task2.spaceId) {
         throw new InternalError("Task `spaceId` should never change");
     }
@@ -31,6 +35,7 @@ export function mergeTaskIndexDocs(task1: TaskIndexDoc, task2: TaskIndexDoc): Ta
     }
 
     const newTask: TaskIndexDoc = {
+        id: task1.id,
         spaceId: task1.spaceId,
         creator: task1.creator,
         createdTime: task1.createdTime,
@@ -96,7 +101,13 @@ export function mergeTaskIndexDocs(task1: TaskIndexDoc, task2: TaskIndexDoc): Ta
     //
     // Deep equality checks referential identity for anything that's not a plain
     // object.
-    if (isDeepEqual(task1, newTask)) return task1;
+    if (
+        "version" in task1
+            ? isDeepEqual(omitObject(task1, ["version"]), newTask)
+            : isDeepEqual(task1, newTask)
+    ) {
+        return task1;
+    }
 
     return newTask;
 }

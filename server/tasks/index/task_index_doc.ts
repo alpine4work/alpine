@@ -539,7 +539,7 @@ export function getTaskIndexDocDisplayStatus(task: {
 }
 
 export function getTaskIndexDocAssigneeStatus(
-    task: Omit<TaskIndexDoc, "spaceId">,
+    task: Omit<TaskIndexDoc, "id" | "spaceId">,
 ): TaskAssigneeStatus {
     return task.status.value.type === "Open" && task.assignee.value
         ? task.rawAssigneeStatus.value

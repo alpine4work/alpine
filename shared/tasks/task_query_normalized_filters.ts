@@ -69,6 +69,10 @@ export type TaskQueryNormalizedFilters = {
     readonly notepadPageFilter?: TaskQueryNotepadPageNormalizedFilter;
 };
 
+export const defaultTaskQueryNormalizedFilters: TaskQueryNormalizedFilters = {
+    displayStatusFilter: {ifOpenInactive: true, ifOpenActive: true, ifClosed: false},
+};
+
 // At least one of the three statuses must be included in this filter. Otherwise
 // the filter is impossible.
 export type TaskQueryDisplayStatusNormalizedFilter =
