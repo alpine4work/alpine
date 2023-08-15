@@ -20,26 +20,13 @@ export async function createDevProxyServer(port1: number, port2: number) {
         function request() {
             requestAttemptCount++;
 
-            const req = http.request(
-                {
-                    hostname: "localhost",
-                    port: port2,
-                    path: proxyReq.url,
-                    method: proxyReq.method,
-                    headers: proxyReq.headers,
-                },
-                res => {
-                    res.on("error", error => {
-                        // eslint-disable-next-line no-console
-                        console.error("Exception in response from proxied server:");
-                        // eslint-disable-next-line no-console
-                        console.error(error);
-                    });
-
-                    proxyRes.writeHead(res.statusCode!, res.headers);
-                    res.pipe(proxyRes, {end: true});
-                },
-            );
+            const req = http.request({
+                hostname: "localhost",
+                port: port2,
+                path: proxyReq.url,
+                method: proxyReq.method,
+                headers: proxyReq.headers,
+            });
 
             req.on("error", error => {
                 // If we get an `ECONNREFUSED` error then the server may not have started yet.
@@ -62,6 +49,18 @@ export async function createDevProxyServer(port1: number, port2: number) {
                 proxyRes.end("504 Gateway Timeout");
             });
 
+            req.on("response", res => {
+                res.on("error", error => {
+                    // eslint-disable-next-line no-console
+                    console.error("Exception in response from proxied server:");
+                    // eslint-disable-next-line no-console
+                    console.error(error);
+                });
+
+                proxyRes.writeHead(res.statusCode!, res.headers);
+                res.pipe(proxyRes, {end: true});
+            });
+
             proxyReq.pipe(req, {end: true});
         }
     });
@@ -82,35 +81,13 @@ export async function createDevProxyServer(port1: number, port2: number) {
         function request() {
             requestAttemptCount++;
 
-            const req = http.request(
-                {
-                    hostname: "localhost",
-                    port: port2,
-                    path: proxyReq.url,
-                    method: proxyReq.method,
-                    headers: proxyReq.headers,
-                },
-                res => {
-                    res.on("error", error => {
-                        // eslint-disable-next-line no-console
-                        console.error("Exception in response from proxied server:");
-                        // eslint-disable-next-line no-console
-                        console.error(error);
-                    });
-
-                    const headers = [];
-                    for (let i = 0; i < res.rawHeaders.length; i += 2) {
-                        headers.push(`${res.rawHeaders[i]!}: ${res.rawHeaders[i + 1]!}`);
-                    }
-
-                    proxySocket.write(
-                        `HTTP/1.1 ${res.statusCode!} ${http.STATUS_CODES[res.statusCode!]!}\r\n` +
-                            `${headers.join("\r\n")}\r\n` +
-                            "\r\n",
-                    );
-                    res.pipe(proxySocket, {end: true});
-                },
-            );
+            const req = http.request({
+                hostname: "localhost",
+                port: port2,
+                path: proxyReq.url,
+                method: proxyReq.method,
+                headers: proxyReq.headers,
+            });
 
             req.on("error", error => {
                 // If we get an `ECONNREFUSED` error then the server may not have started yet.
@@ -137,7 +114,26 @@ export async function createDevProxyServer(port1: number, port2: number) {
                 );
             });
 
-            proxyReq.pipe(req, {end: true});
+            req.on("response", res => {
+                res.on("error", error => {
+                    // eslint-disable-next-line no-console
+                    console.error("Exception in response from proxied server:");
+                    // eslint-disable-next-line no-console
+                    console.error(error);
+                });
+
+                const headers = [];
+                for (let i = 0; i < res.rawHeaders.length; i += 2) {
+                    headers.push(`${res.rawHeaders[i]!}: ${res.rawHeaders[i + 1]!}`);
+                }
+
+                proxySocket.write(
+                    `HTTP/1.1 ${res.statusCode!} ${http.STATUS_CODES[res.statusCode!]!}\r\n` +
+                        `${headers.join("\r\n")}\r\n` +
+                        "\r\n",
+                );
+                res.pipe(proxySocket, {end: true});
+            });
 
             req.on("upgrade", (res, socket, head) => {
                 res.on("error", error => {
@@ -163,6 +159,8 @@ export async function createDevProxyServer(port1: number, port2: number) {
                 proxySocket.pipe(socket, {end: true});
                 socket.pipe(proxySocket, {end: true});
             });
+
+            proxyReq.pipe(req, {end: true});
         }
     });
 
