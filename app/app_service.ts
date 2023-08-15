@@ -8,35 +8,34 @@ import fs from "fs-extra";
 import {createServer} from "http";
 import {join as joinPath} from "path";
 import createServeStaticMiddleware from "serve-static";
+import {seedDynamo} from "~/app/seed_dynamo.js";
 import {defaultClientInfo, defaultMobileClientInfo} from "~/client/remix/client_info_context.js";
 import {Session} from "~/server/accounts/accounts_table.js";
-import {
-    AppSystemActionContext,
-    AppSystemActionContextModules,
-} from "~/server/dynamo/context/app_action_context.js";
 import {
     DynamoActorContextModule,
     DynamoSessionActorContextModule,
     DynamoSystemActorContextModule,
     DynamoUnknownActorContextModule,
 } from "~/server/accounts/dynamo_actor_context_module.js";
-import {AppProcessContextModules} from "~/server/dynamo/context/app_process_context.js";
-import {NotificationsContextModule} from "~/server/dynamo/context/notifications_context_module.js";
-import {TasksContextModule} from "~/server/tasks/data/tasks_context_module.js";
+import {
+    ServerSystemActionContext,
+    ServerSystemActionContextModules,
+} from "~/server/context/server_action_context.js";
+import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {
     DynamoBatchContextModule,
     DynamoContextModule,
 } from "~/server/dynamo/core/dynamo_context_module.js";
-import {seedDynamo} from "~/app/seed_dynamo.js";
-import {isAccountMemberOfSpace} from "~/server/spaces/spaces_table.js";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
 import {SesEmailContextModule} from "~/server/emails/ses_email_context_module.js";
 import {createStandardizedRequestListener} from "~/server/node/create_standardized_server.js";
 import {runService} from "~/server/node/run_service.js";
+import {NotificationsContextModule} from "~/server/notifications/data/notifications_context_module.js";
 import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {LoaderContextModule, LoaderContextModules} from "~/server/remix/loader_context.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
+import {isAccountMemberOfSpace} from "~/server/spaces/spaces_table.js";
 import {SessionCookie, withSessionCookie} from "~/server/tokens/session_cookie.js";
 import {AppServiceTokenAgent} from "~/server/tokens/token_agent.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -321,7 +320,7 @@ async function run(
         }));
     };
 
-    const processContext = Context.new<AppProcessContextModules>({
+    const processContext = Context.new<ServerProcessContextModules>({
         process: new ProcessContextModule({
             waitUntil: promise => {
                 promise.catch(error => {
@@ -416,12 +415,12 @@ async function run(
                     actor: DynamoActorContextModule;
                 }>,
                 spaceId: SpaceId,
-                action: (context: AppSystemActionContext) => Promise<void>,
+                action: (context: ServerSystemActionContext) => Promise<void>,
             ): Promise<void> => {
                 return processContext.with<
                     Omit<
-                        AppSystemActionContextModules,
-                        Exclude<keyof AppProcessContextModules, "tracer">
+                        ServerSystemActionContextModules,
+                        Exclude<keyof ServerProcessContextModules, "tracer">
                     >,
                     // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
                     void
@@ -435,9 +434,6 @@ async function run(
                             edgeServiceUrl,
                             tokenAgent,
                         }),
-                        tasks: new TasksContextModule({
-                            dangerouslyEscalateToSystemContext,
-                        }),
                         actor: DynamoSystemActorContextModule.dangerouslyNew(
                             context.actor.serviceName,
                             spaceId,
@@ -448,7 +444,7 @@ async function run(
             };
 
             return processContext.with<
-                Omit<LoaderContextModules, Exclude<keyof AppProcessContextModules, "tracer">>,
+                Omit<LoaderContextModules, Exclude<keyof ServerProcessContextModules, "tracer">>,
                 globalThis.Response
             >(
                 {
@@ -466,9 +462,6 @@ async function run(
                         dangerouslyEscalateToSystemContext,
                         edgeServiceUrl,
                         tokenAgent,
-                    }),
-                    tasks: new TasksContextModule({
-                        dangerouslyEscalateToSystemContext,
                     }),
                 },
                 context => {

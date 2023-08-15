@@ -59,7 +59,7 @@ export async function createDevProxyServer(port1: number, port2: number) {
                 console.error(error);
 
                 proxyRes.writeHead(504, {"content-type": "text/plain"});
-                proxyRes.end("Gateway Timeout");
+                proxyRes.end("504 Gateway Timeout");
             });
 
             proxyReq.pipe(req, {end: true});
@@ -133,7 +133,7 @@ export async function createDevProxyServer(port1: number, port2: number) {
                     "HTTP/1.1 504 Web Gateway Timeout\r\n" +
                         "Content-Type: text/plain\r\n" +
                         "\r\n" +
-                        "Gateway Timeout\r\n",
+                        "504 Gateway Timeout\r\n",
                 );
             });
 

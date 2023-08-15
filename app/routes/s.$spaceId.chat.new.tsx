@@ -8,10 +8,10 @@ import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_wit
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
-import {getAccount} from "~/server/accounts/accounts_table.js";
 import {selectChatForAccounts} from "~/server/chat/data/chat_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {getAccount} from "~/server/spaces/spaces_table.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
