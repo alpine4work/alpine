@@ -9,7 +9,7 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {TextInput} from "~/client/design/text_input.js";
 import {useActionDataWithSchema} from "~/client/remix/use_action_data_with_schema.js";
-import {regenerateOneTimePasswordSignIn} from "~/server/dynamo/accounts_table.js";
+import {regenerateOneTimePasswordSignIn} from "~/server/accounts/accounts_table.js";
 import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";

@@ -1,17 +1,37 @@
 load("@aspect_rules_js//js:defs.bzl", "js_library")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
+# The `:rpc` rule has limited visibility within the `//server` directory,
+# but you can use it in any test file. This alias expands visibility for
+# tests only.
+alias(
+    name = "rpc_testonly",
+    testonly = True,
+    actual = ":rpc",
+    visibility = [
+        "//server:__subpackages__",
+    ],
+)
+
 ts_project(
     name = "rpc",
     visibility = [
+        "//admin/adhoc:__subpackages__",
         "//app:__subpackages__",
-        "//server/dynamo:__subpackages__",
         "//server/remix:__subpackages__",
     ],
     deps = [
         ":all_rpc_implementations",
-        "//server/dynamo",
+        "//server/accounts",
+        "//server/alpha",
+        "//server/chat/data",
+        "//server/content",
+        "//server/context",
+        "//server/documents/data",
         "//server/emails",
+        "//server/forum/data",
+        "//server/notifications/data",
+        "//server/spaces",
         "//shared/error",
         "//shared/helpers",
         "//shared/rpc",

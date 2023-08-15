@@ -20,7 +20,7 @@ import {RetentionDays} from "aws-cdk-lib/aws-logs";
 import {Secret} from "aws-cdk-lib/aws-secretsmanager";
 import {join as joinPath} from "path";
 import {runfilesPath} from "~/admin/helpers/runfiles_path.js";
-import {DynamoClientAction} from "~/server/dynamo/helpers/dynamo_client_action.js";
+import {DynamoClientAction} from "~/server/dynamo/core/dynamo_client_action.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
 

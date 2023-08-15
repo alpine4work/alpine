@@ -1,4 +1,4 @@
-import {getAllApprovedAlphaAccessRequestEmailAddresses} from "~/server/dynamo/alpha_access_table.js";
+import {getAllApprovedAlphaAccessRequestEmailAddresses} from "~/server/alpha/alpha_access_table.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";

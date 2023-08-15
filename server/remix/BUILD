@@ -7,7 +7,7 @@ ts_project(
         "//:node_modules/@remix-run/dev",
         "//:node_modules/@remix-run/node",
         "//:node_modules/@remix-run/server-runtime",
-        "//server/dynamo",
+        "//server/context",
         "//server/helpers",
         "//server/rpc",
         "//shared/context",

@@ -1,5 +1,5 @@
-import {getAccount} from "~/server/dynamo/accounts_table.js";
 import {implementRpc} from "~/server/rpc/internal/implement_rpc.js";
+import {getAccount} from "~/server/spaces/spaces_table.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import * as definition from "~/shared/rpc/accounts_rpc_definitions.js";
 

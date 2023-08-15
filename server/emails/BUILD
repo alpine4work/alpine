@@ -4,8 +4,7 @@ ts_project(
     name = "emails",
     visibility = [
         "//app:__subpackages__",
-        "//server/dynamo:__subpackages__",
-        "//server/rpc:__subpackages__",
+        "//server:__subpackages__",
     ],
     deps = [
         "//:node_modules/@aws-sdk/client-ses",

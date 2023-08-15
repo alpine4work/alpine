@@ -6,9 +6,9 @@ import {
     getInboxEntries,
     observeInbox,
     unarchiveInboxEntry,
-} from "~/server/dynamo/notifications_table.js";
-import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table.js";
+} from "~/server/notifications/data/notifications_table.js";
 import {implementRpc} from "~/server/rpc/internal/implement_rpc.js";
+import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import * as definition from "~/shared/rpc/notifications_rpc_definitions.js";
 
 implementRpc(

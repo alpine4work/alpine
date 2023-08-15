@@ -1,28 +1,23 @@
 import {parseAbsolute, toCalendarDate} from "@internationalized/date";
-import {getAccountsTableForTest} from "~/server/dynamo/accounts_table.js";
-// TODO(calebmer): We should move the test scenario helpers that needs this
-// function near the `server/dynamo` directory.
-// eslint-disable-next-line no-internal-imports
-import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema.js";
-import {getSpacesTableForTest} from "~/server/dynamo/spaces_table.js";
-import {
-    afterCommitTaskActionTransactionEventEmitterForTest,
-    backfillTaskActionTransactionHistoryTestCounter,
-    commitTaskActionTransaction,
-} from "~/server/dynamo/tasks_table.js";
-import {
-    TestContext,
-    createTestContext,
-} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
-import {getTaskQueryNormalizedSortCursorFromIndexDoc} from "~/server/tasks/index/get_task_query_normalized_sort_cursor_from_index_doc.js";
+import {getAccountsTableForTest} from "~/server/accounts/accounts_table.js";
+import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
+import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {getSpacesTableForTest} from "~/server/spaces/spaces_table.js";
+import {getTaskQueryNormalizedSortCursorFromIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_from_index_doc.js";
 import {
     getTaskIndexDocIfExistsForTest,
     indexTaskActionTransactionTestCheckpoint,
     queryTaskIndex,
     queryTaskIndexTestCounter,
     refreshTaskIndexForTest,
-} from "~/server/tasks/index/task_index.js";
-import {TaskIndexDoc, TaskIndexDocWithVersion} from "~/server/tasks/index/task_index_doc.js";
+} from "~/server/tasks/data/task_index.js";
+import {TaskIndexDoc, TaskIndexDocWithVersion} from "~/server/tasks/data/task_index_doc.js";
+import {TestTasksContextModule} from "~/server/tasks/data/tasks_context_module.js";
+import {
+    afterCommitTaskActionTransactionEventEmitterForTest,
+    backfillTaskActionTransactionHistoryTestCounter,
+    commitTaskActionTransaction,
+} from "~/server/tasks/data/tasks_table.js";
 import {taskRealtimeQueryStoreLoadTaskTestCheckpoint} from "~/server/tasks/realtime/internal/task_realtime_query_store.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/internal/task_realtime_server.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -298,7 +293,7 @@ class TestScenarioTask {
     public static async create(session: TestScenarioSpaceSession) {
         const id = generateId<TaskId>();
 
-        await commitTaskActionTransaction(session.action(), session.space.id, [
+        await commitTaskActionTransaction(TestScenarioTask._action(session), session.space.id, [
             {
                 type: "UpdateTask",
                 time: testScenarioClock.now(),
@@ -312,6 +307,15 @@ class TestScenarioTask {
         ]);
 
         return new TestScenarioTask(session.context, session.space, id);
+    }
+
+    private static _action(session: TestScenarioSpaceSession) {
+        return session.action().clone({
+            tasks: new TestTasksContextModule({
+                shouldSkipIndexing: false,
+                dangerouslyEscalateToSystemContext: session.context.escalateToSystemContext,
+            }),
+        });
     }
 
     public async getIndexDocWithVersion(): Promise<TaskIndexDocWithVersion> {
@@ -340,7 +344,7 @@ class TestScenarioTask {
                       closedTime: TaskFilterableTime.test(time),
                   };
 
-        await commitTaskActionTransaction(session.action(), session.space.id, [
+        await commitTaskActionTransaction(TestScenarioTask._action(session), session.space.id, [
             {
                 type: "UpdateTask",
                 time,
@@ -358,7 +362,7 @@ class TestScenarioTask {
         priority: TaskPriority | null,
         {time}: {time?: HybridLogicalTime} = {},
     ) {
-        await commitTaskActionTransaction(session.action(), session.space.id, [
+        await commitTaskActionTransaction(TestScenarioTask._action(session), session.space.id, [
             {
                 type: "UpdateTask",
                 time: time ?? testScenarioClock.now(),

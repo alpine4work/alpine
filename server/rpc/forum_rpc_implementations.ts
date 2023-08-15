@@ -1,3 +1,4 @@
+import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {
     authorizePostAccess,
     backfillPostComments,
@@ -12,8 +13,7 @@ import {
     updateChannelName,
     updatePostCommentContent,
     updatePostContent,
-} from "~/server/dynamo/forum_table.js";
-import {getContentReferencesForNode} from "~/server/dynamo/helpers/get_content_references.js";
+} from "~/server/forum/data/forum_table.js";
 import {implementRpc} from "~/server/rpc/internal/implement_rpc.js";
 import {PostCommentModel} from "~/shared/forum/post_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";

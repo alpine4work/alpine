@@ -1,9 +1,9 @@
-import {createEmptyTaskIndexDoc} from "~/server/tasks/index/create_empty_task_index_doc.js";
+import {createEmptyTaskIndexDoc} from "~/server/tasks/data/create_empty_task_index_doc.js";
 import {
     evaluateTaskQueryAccountNormalizedFilter,
     evaluateTaskQueryDateNormalizedFilter,
     evaluateTaskQueryNormalizedFiltersForIndexDoc,
-} from "~/server/tasks/index/evaluate_task_query_normalized_filters_for_index_doc.js";
+} from "~/server/tasks/data/evaluate_task_query_normalized_filters_for_index_doc.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";

@@ -15,7 +15,7 @@
  * dependents on `//server/dynamo` changes.
  */
 export const tracerEventDataDynamoConsumedCapacityKeys = [
-    "Accounts",
+            "Accounts",
     "AlphaAccess",
     "Chat",
     "Documents",

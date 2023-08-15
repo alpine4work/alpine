@@ -4,16 +4,15 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "realtime_lib",
     test_deps = [
-        "//server/dynamo/test_helpers/shared",
+        "//server/dynamo/test_helpers",
         "//shared/tasks/test_helpers",
     ],
     deps = [
         "//:node_modules/@types/bintrees",
         "//:node_modules/bintrees",
-        "//server/dynamo",
         "//server/node",
         "//server/opensearch",
-        "//server/tasks/index",
+        "//server/tasks/data",
         "//shared/error",
         "//shared/helpers",
         "//shared/id",

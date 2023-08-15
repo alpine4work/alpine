@@ -1,5 +1,5 @@
 import {ServerRoute} from "@remix-run/server-runtime";
-import {AppUnknownActionContextModules} from "~/server/dynamo/context/app_action_context.js";
+import {ServerUnknownActionContextModules} from "~/server/context/server_action_context.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {SessionCookie} from "~/server/tokens/session_cookie.js";
 import {Context} from "~/shared/context/context.js";
@@ -11,7 +11,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 export type LoaderContext = Context<LoaderContextModules>;
 
 export type LoaderContextModules = MergeObjectIntersection<
-    AppUnknownActionContextModules & {
+    ServerUnknownActionContextModules & {
         rpc: LocalRpcContextModule;
         loader: LoaderContextModule;
     }

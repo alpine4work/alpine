@@ -6,8 +6,8 @@ import {
     getChatMessagesFromStart,
     sendChatMessage,
     updateChatMessageContent,
-} from "~/server/dynamo/chat_table.js";
-import {getContentReferencesForNode} from "~/server/dynamo/helpers/get_content_references.js";
+} from "~/server/chat/data/chat_table.js";
+import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {implementRpc} from "~/server/rpc/internal/implement_rpc.js";
 import {ChatMessageModel} from "~/shared/chat/chat_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";

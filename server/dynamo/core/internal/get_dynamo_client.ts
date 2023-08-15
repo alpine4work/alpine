@@ -1,0 +1,22 @@
+import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
+import {DynamoClient} from "~/server/dynamo/core/internal/dynamo_client.js";
+
+/**
+ * Get the DynamoDB client from context.
+ */
+export function getDynamoClient(context: DynamoContext): DynamoClient {
+    // @ts-expect-error: The client property is not private to our
+    // `internal` folder.
+    return context.dynamo._client;
+}
+
+/**
+ * Get the DynamoDB `retryTransaction()` function from context.
+ */
+export function getDynamoRetryTransactionIfExists(
+    context: DynamoContext,
+): ((error?: unknown) => never) | null {
+    // @ts-expect-error: The `retryTransaction` property is not private to our
+    // `internal` folder.
+    return context.dynamo._retryTransaction;
+}

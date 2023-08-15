@@ -9,7 +9,7 @@ import {
     createDocument,
     getDocument,
     getDocumentCommentThreadAndInitialComments,
-} from "~/server/dynamo/documents_table.js";
+} from "~/server/documents/data/documents_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references.js";

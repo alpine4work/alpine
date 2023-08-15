@@ -13,8 +13,8 @@ ts_project(
         "//:node_modules/constructs",
         "//:node_modules/fs-extra",
         "//:node_modules/pretty-ms",
+        "//admin/dynamo",
         "//admin/helpers",
-        "//server/dynamo",
     ],
 )
 

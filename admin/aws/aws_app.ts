@@ -5,14 +5,14 @@ import {addAllDynamoAwsResources} from "~/admin/aws/internal/add_all_dynamo_aws_
 
 const outputDirectoryPath = fileURLToPath(new URL("output", import.meta.url));
 
-export function createAwsApp() {
+export async function createAwsApp() {
     const app = new App({autoSynth: false, outdir: outputDirectoryPath});
     const stack = new Stack(app, "CyberworldsStack", {env: {region: "us-east-1"}});
-    addAwsResources(stack);
+    await addAwsResources(stack);
     return app;
 }
 
-function addAwsResources(stack: Stack) {
-    const {dynamoTables} = addAllDynamoAwsResources(stack);
+async function addAwsResources(stack: Stack) {
+    const {dynamoTables} = await addAllDynamoAwsResources(stack);
     addAllContainerAwsResources(stack, {dynamoTables});
 }

@@ -1,5 +1,5 @@
-import {AppActionContext} from "~/server/dynamo/context/app_action_context.js";
-import {AppActorServiceName} from "~/server/dynamo/context/app_actor_context_module.js";
+import {DynamoActorServiceName} from "~/server/accounts/dynamo_actor_context_module.js";
+import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {quote} from "~/shared/helpers/string/quote.js";
@@ -9,10 +9,10 @@ import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 export type RpcImplementation = {
     execute(
-        context: AppActionContext,
+        context: ServerActionContext,
         input: SchemaSerializedValue,
     ): Promise<SchemaSerializedValue>;
-    executeWithoutSerialization(context: AppActionContext, input: unknown): Promise<unknown>;
+    executeWithoutSerialization(context: ServerActionContext, input: unknown): Promise<unknown>;
 };
 
 /**
@@ -27,11 +27,11 @@ export type RpcImplementation = {
  */
 export function implementRpc<Input, Output>(
     definition: RpcDefinition<Input, Output>,
-    {visibility: visibilityArray}: {visibility: "Public" | ReadonlyArray<AppActorServiceName>},
-    implementation: (context: AppActionContext, input: Input) => Promise<BlockInference<Output>>,
+    {visibility: visibilityArray}: {visibility: "Public" | ReadonlyArray<DynamoActorServiceName>},
+    implementation: (context: ServerActionContext, input: Input) => Promise<BlockInference<Output>>,
 ) {
     const visibility =
-        visibilityArray === "Public" ? "Public" : new Set<AppActorServiceName>(visibilityArray);
+        visibilityArray === "Public" ? "Public" : new Set<DynamoActorServiceName>(visibilityArray);
 
     assert(
         !rpcImplementationByName.has(definition.name),
@@ -39,7 +39,7 @@ export function implementRpc<Input, Output>(
     );
 
     const executeWithoutSerialization = (
-        context: AppActionContext,
+        context: ServerActionContext,
         input: Input,
     ): Promise<Output> => {
         return context.tracer.withSpan(`RPC server ${definition.name}`, async context => {
@@ -66,7 +66,7 @@ export function implementRpc<Input, Output>(
     };
 
     const execute = async (
-        context: AppActionContext,
+        context: ServerActionContext,
         serializedInput: SchemaSerializedValue,
     ): Promise<SchemaSerializedValue> => {
         const input = definition.inputSchema.deserialize(serializedInput);

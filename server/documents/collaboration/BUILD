@@ -1,0 +1,26 @@
+load("//admin/typescript:typescript.bzl", "ts_project")
+
+ts_project(
+    name = "collaboration",
+    test_deps = [
+        "//server/dynamo/test_helpers",
+        "//server/rpc:rpc_testonly",
+    ],
+    visibility = ["//server/edge:__subpackages__"],
+    deps = [
+        "//:node_modules/prosemirror-transform",
+        "//server/cloudflare",
+        "//server/helpers",
+        "//server/messaging/realtime",
+        "//server/tracer",
+        "//shared/content",
+        "//shared/context",
+        "//shared/documents",
+        "//shared/error",
+        "//shared/helpers",
+        "//shared/id",
+        "//shared/prosemirror",
+        "//shared/schema",
+        "//shared/tracer",
+    ],
+)

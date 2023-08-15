@@ -235,7 +235,7 @@ export default {fetch: handleFetch};
 // We refer to the Cloudflare Worker which proxies our `AppService` as
 // `EdgeService`. We refer to the broader collection of services owned by
 // `EdgeService` as `EdgeServiceFamily`.
-export {DocumentCollaborationDurableObject} from "~/server/documents/document_collaboration_durable_object.js";
-export {PostRealtimeDurableObject} from "~/server/forum/post_realtime_durable_object.js";
-export {ChatRealtimeDurableObject} from "~/server/chat/chat_realtime_durable_object.js";
-export {MyAccountDurableObject} from "~/server/notifications/my_account_durable_object.js";
+export {DocumentCollaborationDurableObject} from "~/server/documents/collaboration/document_collaboration_durable_object.js";
+export {PostRealtimeDurableObject} from "~/server/forum/realtime/post_realtime_durable_object.js";
+export {ChatRealtimeDurableObject} from "~/server/chat/realtime/chat_realtime_durable_object.js";
+export {MyAccountDurableObject} from "~/server/notifications/my_account/my_account_durable_object.js";

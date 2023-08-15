@@ -2,7 +2,7 @@ import {
     approveAlphaAccessRequest,
     denyAlphaAccessRequest,
     saveAlphaConfiguration,
-} from "~/server/dynamo/alpha_access_table.js";
+} from "~/server/alpha/alpha_access_table.js";
 import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {implementRpc} from "~/server/rpc/internal/implement_rpc.js";
 import * as definition from "~/shared/rpc/alpha_rpc_definitions.js";

@@ -10,7 +10,7 @@ import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {
     getAlphaConfiguration,
     getUndecidedAlphaAccessRequests,
-} from "~/server/dynamo/alpha_access_table.js";
+} from "~/server/alpha/alpha_access_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {AlphaAccessRequestModel} from "~/shared/alpha/alpha_access_request_model.js";

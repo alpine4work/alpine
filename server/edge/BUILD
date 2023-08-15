@@ -7,11 +7,11 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "edge_lib",
     deps = [
-        "//server/chat",
+        "//server/chat/realtime",
         "//server/cloudflare",
-        "//server/documents",
-        "//server/forum",
-        "//server/notifications",
+        "//server/documents/collaboration",
+        "//server/forum/realtime",
+        "//server/notifications/my_account",
         "//server/tracer",
         "//shared/helpers",
         "//shared/schema",

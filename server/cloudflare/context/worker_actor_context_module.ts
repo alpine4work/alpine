@@ -2,7 +2,7 @@ import {
     ActorContextModuleBase,
     SessionActorContextModule,
     SystemActorContextModule,
-} from "~/server/helpers/actor_context_module_interface.js";
+} from "~/server/helpers/actor_context_module.js";
 import {TokenAgentBase} from "~/server/tokens/token_agent.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";

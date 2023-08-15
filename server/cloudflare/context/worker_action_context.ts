@@ -3,7 +3,7 @@ import {
     ActorContextModule,
     SessionActorContextModule,
     SystemActorContextModule,
-} from "~/server/helpers/actor_context_module_interface.js";
+} from "~/server/helpers/actor_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";

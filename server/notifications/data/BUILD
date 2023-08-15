@@ -1,0 +1,38 @@
+load("//admin/typescript:typescript.bzl", "ts_project")
+
+ts_project(
+    name = "data",
+    test_deps = [
+        "//server/dynamo/test_helpers",
+        "//server/notifications/data/test_helpers",
+    ],
+    visibility = [
+        "//admin/dynamo:__pkg__",
+        "//app:__pkg__",
+        "//server/rpc:__pkg__",
+    ],
+    deps = [
+        "//:node_modules/date-fns",
+        "//server/chat/data",
+        "//server/content",
+        "//server/documents/data",
+        "//server/dynamo/core",
+        "//server/dynamo/core/general_realtime",
+        "//server/forum/data",
+        "//server/helpers",
+        "//server/notifications/core",
+        "//server/spaces",
+        "//shared/accounts",
+        "//shared/chat",
+        "//shared/content",
+        "//shared/documents",
+        "//shared/dynamo",
+        "//shared/error",
+        "//shared/forum",
+        "//shared/helpers",
+        "//shared/id",
+        "//shared/messaging",
+        "//shared/notifications",
+        "//shared/schema",
+    ],
+)

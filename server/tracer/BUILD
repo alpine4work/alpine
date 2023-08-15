@@ -22,7 +22,7 @@ ts_project(
 write_source_files(
     name = "write_tracer_event_data_dynamo_consumed_capacity_keys",
     files = {
-        "internal/tracer_event_data_dynamo_consumed_capacity_keys.ts": "//admin/dynamo:tracer_event_data_dynamo_consumed_capacity_keys",
+        "internal/tracer_event_data_dynamo_consumed_capacity_keys.ts": "//admin/dynamo:tracer_event_data_dynamo_consumed_capacity_keys.ts",
     },
     visibility = ["//admin/dynamo:__pkg__"],
 )

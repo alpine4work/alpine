@@ -10,7 +10,7 @@ ts_project(
         "//:node_modules/aws4fetch",
         "//:node_modules/fs-extra",
         "//admin/helpers",
-        "//server/dynamo",
+        "//server/rpc",
         "//server/tracer",
         "//shared/content",
         "//shared/context",

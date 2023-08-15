@@ -1,4 +1,7 @@
-import {getAccount} from "~/server/dynamo/accounts_table.js";
+import {
+    getContentReferences,
+    getContentReferencesForNode,
+} from "~/server/content/get_content_references.js";
 import {
     authorizeDocumentAccess,
     backfillDocumentComments,
@@ -12,13 +15,10 @@ import {
     getDocumentPreviewIfExists,
     updateDocumentCommentContent,
     updateDocumentContent,
-} from "~/server/dynamo/documents_table.js";
-import {
-    getContentReferences,
-    getContentReferencesForNode,
-} from "~/server/dynamo/helpers/get_content_references.js";
-import {getDocumentContentReferences} from "~/server/dynamo/helpers/get_document_content_references.js";
+} from "~/server/documents/data/documents_table.js";
+import {getDocumentContentReferences} from "~/server/documents/data/get_document_content_references.js";
 import {implementRpc} from "~/server/rpc/internal/implement_rpc.js";
+import {getAccount} from "~/server/spaces/spaces_table.js";
 import {DocumentCommentModel} from "~/shared/documents/document_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import * as definition from "~/shared/rpc/documents_rpc_definitions.js";

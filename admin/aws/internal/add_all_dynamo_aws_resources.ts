@@ -1,6 +1,6 @@
 import {Stack} from "aws-cdk-lib";
 import {AttributeType, BillingMode, ProjectionType, Table} from "aws-cdk-lib/aws-dynamodb";
-import {getAllDynamoTableSchemas} from "~/server/dynamo/get_all_dynamo_table_schemas.js";
+import {getAllDynamoTableSchemas} from "~/admin/dynamo/get_all_dynamo_table_schemas.js";
 
 /**
  * Adds all DynamoDB AWS resources to the provided scope.
@@ -9,10 +9,12 @@ import {getAllDynamoTableSchemas} from "~/server/dynamo/get_all_dynamo_table_sch
  * `server/dynamo` and finding all the `DynamoTableSchema`s that were
  * constructed by those imported modules.
  */
-export function addAllDynamoAwsResources(stack: Stack): {dynamoTables: ReadonlyArray<Table>} {
+export async function addAllDynamoAwsResources(
+    stack: Stack,
+): Promise<{dynamoTables: ReadonlyArray<Table>}> {
     const tables: Array<Table> = [];
 
-    for (const tableSchema of getAllDynamoTableSchemas()) {
+    for (const tableSchema of await getAllDynamoTableSchemas()) {
         const tableName = tableSchema.getName();
         const tableDescription = tableSchema.getDescription();
 

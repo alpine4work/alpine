@@ -9,26 +9,26 @@ import {createServer} from "http";
 import {join as joinPath} from "path";
 import createServeStaticMiddleware from "serve-static";
 import {defaultClientInfo, defaultMobileClientInfo} from "~/client/remix/client_info_context.js";
-import {Session} from "~/server/dynamo/accounts_table.js";
+import {Session} from "~/server/accounts/accounts_table.js";
 import {
     AppSystemActionContext,
     AppSystemActionContextModules,
 } from "~/server/dynamo/context/app_action_context.js";
 import {
-    AppActorContextModule,
-    AppSessionActorContextModule,
-    AppSystemActorContextModule,
-    AppUnknownActorContextModule,
-} from "~/server/dynamo/context/app_actor_context_module.js";
+    DynamoActorContextModule,
+    DynamoSessionActorContextModule,
+    DynamoSystemActorContextModule,
+    DynamoUnknownActorContextModule,
+} from "~/server/accounts/dynamo_actor_context_module.js";
 import {AppProcessContextModules} from "~/server/dynamo/context/app_process_context.js";
 import {NotificationsContextModule} from "~/server/dynamo/context/notifications_context_module.js";
-import {TasksContextModule} from "~/server/dynamo/context/tasks_context_module.js";
+import {TasksContextModule} from "~/server/tasks/data/tasks_context_module.js";
 import {
     DynamoBatchContextModule,
     DynamoContextModule,
-} from "~/server/dynamo/dynamo_context_module.js";
-import {seedDynamo} from "~/server/dynamo/seed_dynamo.js";
-import {isAccountMemberOfSpace} from "~/server/dynamo/spaces_table.js";
+} from "~/server/dynamo/core/dynamo_context_module.js";
+import {seedDynamo} from "~/app/seed_dynamo.js";
+import {isAccountMemberOfSpace} from "~/server/spaces/spaces_table.js";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
 import {SesEmailContextModule} from "~/server/emails/ses_email_context_module.js";
 import {createStandardizedRequestListener} from "~/server/node/create_standardized_server.js";
@@ -413,7 +413,7 @@ async function run(
             const dangerouslyEscalateToSystemContext = (
                 context: Context<{
                     tracer: TracerContextModule;
-                    actor: AppActorContextModule;
+                    actor: DynamoActorContextModule;
                 }>,
                 spaceId: SpaceId,
                 action: (context: AppSystemActionContext) => Promise<void>,
@@ -438,7 +438,7 @@ async function run(
                         tasks: new TasksContextModule({
                             dangerouslyEscalateToSystemContext,
                         }),
-                        actor: AppSystemActorContextModule.dangerouslyNew(
+                        actor: DynamoSystemActorContextModule.dangerouslyNew(
                             context.actor.serviceName,
                             spaceId,
                         ),
@@ -536,7 +536,7 @@ function createActorContextModule(
     // never gets called. You can also parallelize other network requests with
     // authentication deeper in a route. Once we authenticate it is cached for
     // the route.
-    return new AppUnknownActorContextModule(async context => {
+    return new DynamoUnknownActorContextModule(async context => {
         const sessionCookiePayload = await sessionCookie.getIfExists();
         const authorizationHeader = request.headers.get("authorization");
 
@@ -592,7 +592,7 @@ function createActorContextModule(
 
             // If we receive a session cookie, we treat the request as if it came from a
             // user's web browser and use the `AppClient` service name.
-            return AppSessionActorContextModule.dangerouslyNew("AppClient", session);
+            return DynamoSessionActorContextModule.dangerouslyNew("AppClient", session);
         }
 
         // 2. Authorization header authentication
@@ -619,10 +619,10 @@ function createActorContextModule(
                     if (!session) {
                         throw new PermissionDeniedError("Session not found");
                     }
-                    return AppSessionActorContextModule.dangerouslyNew(serviceName, session);
+                    return DynamoSessionActorContextModule.dangerouslyNew(serviceName, session);
                 }
                 case "System": {
-                    return AppSystemActorContextModule.dangerouslyNew(
+                    return DynamoSystemActorContextModule.dangerouslyNew(
                         serviceName,
                         authorizationHeaderPayload.spaceId,
                     );

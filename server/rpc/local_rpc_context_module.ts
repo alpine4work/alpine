@@ -1,4 +1,4 @@
-import {AppUnknownActionContextModules} from "~/server/dynamo/context/app_action_context.js";
+import {ServerUnknownActionContextModules} from "~/server/context/server_action_context.js";
 import {getRpcImplementationIfExists} from "~/server/rpc/get_rpc_implementation.js";
 import {InternalError} from "~/shared/error/error.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
@@ -15,7 +15,7 @@ import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
  * important to the logic of the RPC. For example, validating a string is only
  * a single line.
  */
-export class LocalRpcContextModule extends RpcContextModuleBase<AppUnknownActionContextModules> {
+export class LocalRpcContextModule extends RpcContextModuleBase<ServerUnknownActionContextModules> {
     public async execute<Input, Output>(
         definition: RpcDefinition<Input, Output>,
         input: Input,

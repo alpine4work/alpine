@@ -1,6 +1,6 @@
 import {redirect} from "@remix-run/router";
-import {getAlphaConfiguration} from "~/server/dynamo/alpha_access_table.js";
-import {DynamoContext} from "~/server/dynamo/context/dynamo_context.js";
+import {getAlphaConfiguration} from "~/server/alpha/alpha_access_table.js";
+import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 
 /**
  * Redirect to the homepage for an account if they are successfully

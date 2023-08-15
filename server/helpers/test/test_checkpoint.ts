@@ -90,6 +90,7 @@ export class TestCheckpoint<
         return {
             unpause: () => {
                 assert(this._promiseResolverByKey.get(keyString) === promiseResolver1);
+                this._promiseResolverByKey.delete(keyString);
                 promiseResolver2.resolve();
             },
         };

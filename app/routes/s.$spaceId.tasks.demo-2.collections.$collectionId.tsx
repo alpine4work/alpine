@@ -9,7 +9,7 @@ import {
     deserializeTaskQuerySortsSearchParam,
     serializeTaskQuerySortsSearchParam,
 } from "~/shared/tasks/task_query_sort.js";
-import {getTaskQueryFilterReferences} from "~/server/dynamo/helpers/get_task_query_filter_references.js";
+import {getTaskQueryFilterReferences} from "~/server/tasks/data/get_task_query_filter_references.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {LocalTaskCollectionId, SpaceId} from "~/shared/id/types/id_types.js";
