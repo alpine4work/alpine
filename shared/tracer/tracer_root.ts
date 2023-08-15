@@ -122,7 +122,10 @@ export class TracerRoot extends TracerBase {
                 js: {
                     realmId: getRealmId(),
                     host: jsHost,
-                    nodeEnv: assertExists(process.env.NODE_ENV),
+                    nodeEnv: assertExists(
+                        process.env.NODE_ENV,
+                        "`NODE_ENV` environment variable is not set",
+                    ),
                 },
             },
             propagatedEventData: null,

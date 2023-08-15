@@ -1,6 +1,7 @@
+import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table.js";
 import {backfillTaskActionTransactionHistory} from "~/server/dynamo/tasks_table.js";
 import {TaskIndexDoc} from "~/server/tasks/index/task_index_doc.js";
-import {TaskRealtimeActionContext} from "~/server/tasks/realtime/internal/task_realtime_action_context.js";
+import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/internal/task_realtime_action_context.js";
 import {TaskRealtimeActionHistory} from "~/server/tasks/realtime/internal/task_realtime_action_history.js";
 import {TaskRealtimeQueryStore} from "~/server/tasks/realtime/internal/task_realtime_query_store.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -104,7 +105,10 @@ export class TaskRealtimeServer {
      * server was recently discovered that means we haven't been receiving
      * `sendActionTransaction()` calls and we need to catch up.
      */
-    private async _ensureFullActionHistory(context: TaskRealtimeActionContext, spaceId: SpaceId) {
+    private async _ensureFullActionHistory(
+        context: TaskRealtimeSystemActionContext,
+        spaceId: SpaceId,
+    ) {
         assert(this._state !== null);
         const {discoveredTime} = await this._state.discoveredPromise;
         const visibleStartTime = this._actionHistory.getVisibleStartTime();
@@ -141,7 +145,7 @@ export class TaskRealtimeServer {
     }
 
     public async loadQuery(
-        context: TaskRealtimeActionContext,
+        context: TaskRealtimeSystemActionContext,
         options: {
             spaceId: SpaceId;
             filters: TaskQueryNormalizedFilters;
@@ -152,6 +156,13 @@ export class TaskRealtimeServer {
         tasks: Array<TaskIndexDoc>;
         hasMoreTasks: boolean;
     }> {
+        // Must be a system actor because we do no filtering to check whether you are
+        // allowed to see the queried tasks. Permissions filtering is done at a
+        // different level.
+        context.actor.authorizeSystem();
+
+        await authorizeSpaceAccess(context, options.spaceId);
+
         const store = getOrSetDefaultMapValue(
             this._storeBySpaceId,
             options.spaceId,
@@ -168,13 +179,19 @@ export class TaskRealtimeServer {
     }
 
     public async applyActionTransaction(
-        context: TaskRealtimeActionContext,
+        context: TaskRealtimeSystemActionContext,
         actionTransaction: {
             spaceId: SpaceId;
             committedTime: Date;
             actions: ReadonlyArray<TaskAction>;
         },
     ) {
+        // Must be a system actor since the action transaction doesn't include
+        // information about the actor which committed it.
+        context.actor.authorizeSystem();
+
+        await authorizeSpaceAccess(context, actionTransaction.spaceId);
+
         this._actionHistory.addActionTransaction(actionTransaction);
 
         const store = this._storeBySpaceId.get(actionTransaction.spaceId);

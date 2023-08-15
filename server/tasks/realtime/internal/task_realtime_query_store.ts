@@ -3,7 +3,7 @@ import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/index/apply_task_act
 import {mergeTaskIndexDocs} from "~/server/tasks/index/merge_task_index_docs.js";
 import {getTaskIndexDocsIfExist} from "~/server/tasks/index/task_index.js";
 import {TaskIndexDoc} from "~/server/tasks/index/task_index_doc.js";
-import {TaskRealtimeActionContext} from "~/server/tasks/realtime/internal/task_realtime_action_context.js";
+import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/internal/task_realtime_action_context.js";
 import {ReadonlyTaskRealtimeActionHistory} from "~/server/tasks/realtime/internal/task_realtime_action_history.js";
 import {TaskRealtimeQuery} from "~/server/tasks/realtime/internal/task_realtime_query.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -41,7 +41,7 @@ export class TaskRealtimeQueryStore {
     constructor(options: {
         spaceId: SpaceId;
         actionHistory: ReadonlyTaskRealtimeActionHistory;
-        ensureFullActionHistory: (context: TaskRealtimeActionContext) => Promise<void>;
+        ensureFullActionHistory: (context: TaskRealtimeSystemActionContext) => Promise<void>;
     }) {
         this._internal = new TaskRealtimeQueryStoreInternal(options);
 
@@ -51,7 +51,7 @@ export class TaskRealtimeQueryStore {
     }
 
     public async loadQuery(
-        context: TaskRealtimeActionContext,
+        context: TaskRealtimeSystemActionContext,
         options: {
             filters: TaskQueryNormalizedFilters;
             sorts: ReadonlyArray<TaskQueryNormalizedSort>;
@@ -75,7 +75,7 @@ export class TaskRealtimeQueryStore {
     }
 
     public applyActionTransaction(
-        context: TaskRealtimeActionContext,
+        context: TaskRealtimeSystemActionContext,
         actions: ReadonlyArray<TaskAction>,
     ): Promise<void> {
         let promise = this._internal.applyActionTransaction(context, actions);
@@ -112,7 +112,9 @@ export class TaskRealtimeQueryStoreInternal {
      * promise resolves. If our service was recently discovered that means we
      * haven't been receiving actions so we don't have a full view of history.
      */
-    public readonly ensureFullActionHistory: (context: TaskRealtimeActionContext) => Promise<void>;
+    public readonly ensureFullActionHistory: (
+        context: TaskRealtimeSystemActionContext,
+    ) => Promise<void>;
 
     /**
      * All the queries maintained by our query store. The queries are keyed by
@@ -167,7 +169,7 @@ export class TaskRealtimeQueryStoreInternal {
     }: {
         spaceId: SpaceId;
         actionHistory: ReadonlyTaskRealtimeActionHistory;
-        ensureFullActionHistory: (context: TaskRealtimeActionContext) => Promise<void>;
+        ensureFullActionHistory: (context: TaskRealtimeSystemActionContext) => Promise<void>;
     }) {
         this.spaceId = spaceId;
         this._actionHistory = actionHistory;
@@ -227,7 +229,7 @@ export class TaskRealtimeQueryStoreInternal {
      * more tasks.
      */
     public async loadQuery(
-        context: TaskRealtimeActionContext,
+        context: TaskRealtimeSystemActionContext,
         {
             filters,
             sorts,
@@ -278,7 +280,7 @@ export class TaskRealtimeQueryStoreInternal {
      * - Remove any tasks from the search result that are no longer visible.
      */
     public onQueryTasksLoad(
-        context: TaskRealtimeActionContext,
+        context: TaskRealtimeSystemActionContext,
         query: TaskRealtimeQuery,
         tasks: ReadonlyArray<TaskIndexDoc>,
     ): Promise<void> {
@@ -290,7 +292,7 @@ export class TaskRealtimeQueryStoreInternal {
     // updates our data structures while assuming no concurrent code is running
     // which would observe a partial state.
     private _onQueryTasksLoadSync(
-        context: TaskRealtimeActionContext,
+        context: TaskRealtimeSystemActionContext,
         query: TaskRealtimeQuery,
         tasks: ReadonlyArray<TaskIndexDoc>,
     ) {
@@ -499,7 +501,7 @@ export class TaskRealtimeQueryStoreInternal {
     }
 
     private async _onQueryTasksLoadAsync(
-        context: TaskRealtimeActionContext,
+        context: TaskRealtimeSystemActionContext,
         query: TaskRealtimeQuery,
         maybeAddVisibleTaskIdsToLoad: Array<TaskId>,
     ) {
@@ -544,7 +546,7 @@ export class TaskRealtimeQueryStoreInternal {
      *   load the task from OpenSearch and check
      */
     public applyActionTransaction(
-        context: TaskRealtimeActionContext,
+        context: TaskRealtimeSystemActionContext,
         actions: ReadonlyArray<TaskAction>,
     ): Promise<void> {
         const queriesByMaybeAddVisibleTaskIdToLoad = this._applyActionTransactionSync(actions);
@@ -676,7 +678,7 @@ export class TaskRealtimeQueryStoreInternal {
     }
 
     private async _applyActionTransactionAsync(
-        context: TaskRealtimeActionContext,
+        context: TaskRealtimeSystemActionContext,
         queriesByMaybeAddVisibleTaskIdToLoad: Map<TaskId, Set<TaskRealtimeQuery>>,
     ) {
         await runAllPromises(
@@ -714,7 +716,7 @@ export class TaskRealtimeQueryStoreInternal {
      * Batches and dedupes load requests behind the scenes.
      */
     private _loadTaskIfExists(
-        context: TaskRealtimeActionContext,
+        context: TaskRealtimeSystemActionContext,
         taskId: TaskId,
     ): Promise<TaskRealtimeQueryStoreTaskEntry | null> {
         // If we've already loaded the task, great! No need to load it now.
@@ -756,7 +758,7 @@ export class TaskRealtimeQueryStoreInternal {
     }
 
     private async _executeLoadTaskBatch(
-        context: TaskRealtimeActionContext,
+        context: TaskRealtimeSystemActionContext,
         taskLoadBatch: Array<{
             taskId: TaskId;
             promiseResolver: PromiseResolver<TaskRealtimeQueryStoreTaskEntry | null>;
@@ -787,7 +789,7 @@ export class TaskRealtimeQueryStoreInternal {
     // internal store state and we don't want to think about concurrent
     // readers/writers.
     private _executeLoadTaskBatchSync(
-        context: TaskRealtimeActionContext,
+        context: TaskRealtimeSystemActionContext,
         taskLoadBatch: Array<{
             taskId: TaskId;
             promiseResolver: PromiseResolver<TaskRealtimeQueryStoreTaskEntry | null>;

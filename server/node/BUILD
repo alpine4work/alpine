@@ -7,7 +7,6 @@ ts_project(
         "//server:__subpackages__",
     ],
     deps = [
-        "//:node_modules/@remix-run/node",
         "//:node_modules/@types/node",
         "//server/tracer",
         "//shared/context",

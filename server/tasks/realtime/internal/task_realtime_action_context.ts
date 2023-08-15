@@ -5,7 +5,7 @@ import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 
-export type TaskRealtimeActionContext = Context<{
+export type TaskRealtimeSystemActionContext = Context<{
     tracer: TracerContextModule;
     cache: CacheContextModule;
     dynamo: DynamoContextModule;

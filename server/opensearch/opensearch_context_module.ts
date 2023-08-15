@@ -99,4 +99,8 @@ export class TestDisabledOpensearchClient implements OpensearchClientInterface {
     public search(): never {
         throw this._newUnavailableError();
     }
+
+    public refresh(): never {
+        throw this._newUnavailableError();
+    }
 }

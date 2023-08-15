@@ -4,7 +4,7 @@ import {getTaskQueryNormalizedSortCursorFromIndexDoc} from "~/server/tasks/index
 import {queryTaskIndex} from "~/server/tasks/index/task_index.js";
 import {TaskIndexDoc} from "~/server/tasks/index/task_index_doc.js";
 import {mightTaskActionAddVisibleTaskInQueryNormalizedFilters} from "~/server/tasks/realtime/internal/might_task_action_add_visible_task_in_query_normalized_filters.js";
-import {TaskRealtimeActionContext} from "~/server/tasks/realtime/internal/task_realtime_action_context.js";
+import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/internal/task_realtime_action_context.js";
 import {TaskRealtimeQueryStoreInternal} from "~/server/tasks/realtime/internal/task_realtime_query_store.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
@@ -252,7 +252,10 @@ export class TaskRealtimeQuery {
      * Callers are expected to look again at the number of tasks and decide whether
      * to load more tasks or not.
      */
-    public async loadMoreTasks(context: TaskRealtimeActionContext, limit: number): Promise<void> {
+    public async loadMoreTasks(
+        context: TaskRealtimeSystemActionContext,
+        limit: number,
+    ): Promise<void> {
         assert(Number.isInteger(limit));
         if (limit < 0) return;
 
@@ -280,7 +283,10 @@ export class TaskRealtimeQuery {
         return this._loadingState.promise;
     }
 
-    private async _loadMoreTasks(context: TaskRealtimeActionContext, limit: number): Promise<void> {
+    private async _loadMoreTasks(
+        context: TaskRealtimeSystemActionContext,
+        limit: number,
+    ): Promise<void> {
         assert(limit >= 0);
 
         // Our query is already fully loaded!

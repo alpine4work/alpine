@@ -48,7 +48,7 @@ process.title = "dev";
 
 const env = parseDotenv();
 
-const appPort = parseInt(assertExists(env.APP_PORT), 10);
+const appDevPort = parseInt(assertExists(env.APP_DEV_PORT), 10);
 const appDevPrivatePort = parseInt(assertExists(env.APP_DEV_PRIVATE_PORT), 10);
 const honeycombApiKey = env.HONEYCOMB_API_KEY;
 const remixDevServerPort = parseInt(assertExists(env.REMIX_DEV_SERVER_PORT), 10);
@@ -60,6 +60,8 @@ const edgeDevPrivatePort = parseInt(assertExists(env.EDGE_DEV_PRIVATE_PORT), 10)
 const opensearchLocalDataPath = joinPath(devEnvPaths.data, "opensearch");
 const opensearchLocalLogsPath = joinPath(devEnvPaths.log, "opensearch");
 const opensearchLocalPort = parseInt(assertExists(env.OPENSEARCH_LOCAL_PORT), 10);
+const taskRealtimeDevPort = parseInt(assertExists(env.TASK_REALTIME_DEV_PORT), 10);
+const taskRealtimeDevPrivatePort = parseInt(assertExists(env.TASK_REALTIME_DEV_PRIVATE_PORT), 10);
 
 type Artifact = {
     readonly bazelTarget: string;
@@ -82,7 +84,7 @@ const artifacts: ReadonlyArray<Artifact> = [
         bazelTarget: "//app",
         executablePath: "app/app.sh",
         env: {BAZEL_BINDIR: "."},
-        port: appPort,
+        port: appDevPort,
         privatePort: appDevPrivatePort,
         args: [
             `--edgeServiceUrl=http://localhost:${edgeDevPort}`,
@@ -92,6 +94,7 @@ const artifacts: ReadonlyArray<Artifact> = [
             `--remixDevServerPort=${remixDevServerPort}`,
             `--dynamoLocalPort=${dynamoLocalPort}`,
             "--shouldSeedDynamo",
+            `--opensearchLocalPort=${opensearchLocalPort}`,
             ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
         ],
         server: new AsyncMutex<ArtifactServer | null>(null),
@@ -106,12 +109,20 @@ const artifacts: ReadonlyArray<Artifact> = [
         port: edgeDevPort,
         privatePort: edgeDevPrivatePort,
         args: [
-            `--appServiceUrl=http://localhost:${appPort}`,
+            `--appServiceUrl=http://localhost:${appDevPort}`,
             `--appServicePublicKey=${devAppServicePublicKeyPath}`,
             `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
             `--edgeServiceFamilyPrivateKey=${devEdgeServiceFamilyPrivateKeyPath}`,
             ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
         ],
+        server: new AsyncMutex<ArtifactServer | null>(null),
+    },
+    {
+        bazelTarget: "//server/tasks/realtime",
+        executablePath: "server/tasks/realtime/realtime.sh",
+        port: taskRealtimeDevPort,
+        privatePort: taskRealtimeDevPrivatePort,
+        args: [...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : [])],
         server: new AsyncMutex<ArtifactServer | null>(null),
     },
 ];

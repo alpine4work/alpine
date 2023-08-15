@@ -1,6 +1,6 @@
 import {createStandardizedServer} from "~/server/node/create_standardized_server.js";
 import {runService} from "~/server/node/run_service.js";
-import {TaskRealtimeActionHistory} from "~/server/tasks/realtime/internal/task_realtime_action_history.js";
+import {TaskRealtimeServer} from "~/server/tasks/realtime/internal/task_realtime_server.js";
 import {InternalError, InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
@@ -25,16 +25,18 @@ runService({
         const port = portString ? parseInt(portString, 10) : null;
         if (!port || !Number.isInteger(port)) throw new InternalError("Missing integer `port` arg");
 
-        const actionHistory = new TaskRealtimeActionHistory();
-        actionHistory.start();
+        const [server, {start}] = TaskRealtimeServer.new();
 
-        const server = createStandardizedServer(tracer, async (request, url) => {
+        // NOCOMMIT: Real discovery promise!
+        start(Promise.resolve());
+
+        const httpServer = createStandardizedServer(tracer, async (request, url) => {
             const result = await captureResultPromise(async () => {
                 switch (url.pathname) {
                     // This endpoint should be called every time an action transaction is commit in
                     // a space that's part of this server's space partition. We add the actions to
                     // our action history and broadcast realtime events to all connected clients.
-                    case "/send-action-transaction": {
+                    case "/apply-action-transaction": {
                         if (request.method !== "POST") {
                             throw new InvalidArgumentError(
                                 quote`Invalid request method ${request.method}`,
@@ -46,7 +48,7 @@ runService({
                                 await request.json(),
                             );
 
-                        actionHistory.addActionTransaction(actionTransaction);
+                        await server.applyActionTransaction(actionTransaction);
                         return;
                     }
                     default:
@@ -70,7 +72,7 @@ runService({
             }
         });
 
-        server.listen(port, () => {
+        httpServer.listen(port, () => {
             // Log when ready in production to help when debugging container startup.
             if (process.env.NODE_ENV === "production") {
                 // eslint-disable-next-line no-console

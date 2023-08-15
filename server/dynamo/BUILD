@@ -30,6 +30,7 @@ ts_project(
         "//server/dynamo:__subpackages__",
         "//server/remix:__pkg__",
         "//server/rpc:__pkg__",
+        "//server/tasks/realtime:__pkg__",
     ],
     deps = [
         ":all_dynamo_tables",

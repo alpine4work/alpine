@@ -1,11 +1,5 @@
-import {
-    Request as NodeRequest,
-    RequestInit as NodeRequestInit,
-    Response as NodeResponse,
-    writeReadableStreamToWritable,
-} from "@remix-run/node";
 import {IncomingHttpHeaders, IncomingMessage, ServerResponse, createServer} from "http";
-import {PassThrough} from "stream";
+import {Readable} from "stream";
 import {traceStandardizedRequest} from "~/server/tracer/trace_standardized_request.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -55,7 +49,7 @@ export function createStandardizedRequestListener(
             );
 
             responsePromise.then(
-                response => sendStandardizedResponse(res, response as NodeResponse),
+                response => sendStandardizedResponse(res, response),
                 handleUnhandledError,
             );
         } catch (error) {
@@ -72,19 +66,25 @@ export function createStandardizedRequest(req: IncomingMessage): Request {
     const host = req.headers.host;
     const url = `${protocol}://${host!}${req.url!}`;
 
-    const init: NodeRequestInit = {
+    const init: RequestInit = {
         method: req.method,
         headers: createStandardizedRequestHeaders(req.headers),
     };
 
     if (req.method !== "GET" && req.method !== "HEAD") {
-        // Derived from the following. Unclear to me how the `highWaterMark` number
-        // was picked.
-        // https://github.com/mcansh/remix-node-http-server/blob/230a8b5f270231011466c6b9452c543224588603/packages/remix-raw-http/src/server.ts#L90
-        init.body = req.pipe(new PassThrough({highWaterMark: 16384}));
+        const body = Readable.toWeb(req);
+
+        // @ts-expect-error: Global `ReadableStream` type is incompatible with Node.js
+        // `ReadableStream` type.
+        init.body = body;
+
+        // @ts-expect-error: Expected by the WhatWG fetch API when `body` is a
+        // `ReadableStream` but it's not supported in the types yet.
+        // https://github.com/nodejs/node/issues/46221
+        init.duplex = "half";
     }
 
-    return new NodeRequest(url, init);
+    return new Request(url, init);
 }
 
 /**
@@ -115,12 +115,16 @@ export function createStandardizedRequestHeaders(reqHeaders: IncomingHttpHeaders
 export async function sendStandardizedResponse(res: ServerResponse, response: Response) {
     res.statusCode = response.status;
 
-    for (const [key, values] of Object.entries((response as NodeResponse).headers.raw())) {
-        res.setHeader(key, values);
+    for (const [key, value] of response.headers.entries()) {
+        res.setHeader(key, value);
     }
 
     if (response.body) {
-        await writeReadableStreamToWritable(response.body, res);
+        Readable.fromWeb(
+            // @ts-expect-error: Global `ReadableStream` type is incompatible with Node.js
+            // `ReadableStream` type.
+            response.body,
+        ).pipe(res, {end: true});
     } else {
         res.end();
     }

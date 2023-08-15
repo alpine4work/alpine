@@ -869,8 +869,7 @@ async function actuallyCommitTaskActionTransaction(
         );
 
         // We evaluate the access policies for all collections on a task but we only
-        // need one passing access policy. We set that access policy as a dependency of
-        // our transaction.
+        // need one passing access policy.
         if (authorizingCollectionItems.some(isNonNullable)) return;
 
         if (taskItem.parentTaskId.value) {

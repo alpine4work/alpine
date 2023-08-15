@@ -1,5 +1,3 @@
-import "~/app/helpers/install_remix_globals.js";
-
 import {fromContainerMetadata} from "@aws-sdk/credential-providers";
 import * as build from "@remix-run/dev/server-build";
 import {createRequestHandler} from "@remix-run/node";
@@ -35,6 +33,8 @@ import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.
 import {SesEmailContextModule} from "~/server/emails/ses_email_context_module.js";
 import {createStandardizedRequestListener} from "~/server/node/create_standardized_server.js";
 import {runService} from "~/server/node/run_service.js";
+import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
+import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {LoaderContextModule, LoaderContextModules} from "~/server/remix/loader_context.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {SessionCookie, withSessionCookie} from "~/server/tokens/session_cookie.js";
@@ -114,6 +114,7 @@ runService({
         remixDevServerPort: {type: "string"},
         dynamoLocalPort: {type: "string"},
         shouldSeedDynamo: {type: "boolean"},
+        opensearchLocalPort: {type: "string"},
     },
     run,
 });
@@ -130,6 +131,7 @@ async function run(
         remixDevServerPort?: string;
         dynamoLocalPort?: string;
         shouldSeedDynamo?: boolean;
+        opensearchLocalPort?: string;
     },
     tracer: TracerRoot,
 ) {
@@ -146,6 +148,7 @@ async function run(
         remixDevServerPort,
         dynamoLocalPort,
         shouldSeedDynamo,
+        opensearchLocalPort,
     } = options;
 
     if (!portString) throw new InternalError("Missing `port` arg");
@@ -342,8 +345,19 @@ async function run(
         email: !isLocalAws
             ? new SesEmailContextModule(getAwsHttpClient)
             : new NoopEmailContextModule(),
-        // NOCOMMIT
-        opensearch: null as any,
+        opensearch: OpensearchContextModule.new(
+            // NOCOMMIT: Production OpenSearch
+            new OpensearchClient({
+                protocol: "http",
+                host: `http://localhost:${parseInt(
+                    assertExists(
+                        opensearchLocalPort,
+                        "OpenSearch local port must be provided when running OpenSearch locally",
+                    ),
+                    10,
+                )}`,
+            }),
+        ),
     });
 
     let hasSeededDynamo = false;

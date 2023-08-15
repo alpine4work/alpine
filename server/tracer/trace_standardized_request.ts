@@ -103,7 +103,13 @@ export async function traceStandardizedRequest(
                 },
             });
 
-            request = new Request(request, {body: newRequestBody});
+            request = new Request(request, {
+                body: newRequestBody,
+                // @ts-expect-error: Expected by the WhatWG fetch API when `body` is a
+                // `ReadableStream` but it's not supported in the types yet.
+                // https://github.com/nodejs/node/issues/46221
+                duplex: "half",
+            });
         }
 
         const response = await action(span, request);

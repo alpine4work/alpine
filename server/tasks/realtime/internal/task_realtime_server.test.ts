@@ -26,7 +26,7 @@ import {TaskIndexDoc, TaskIndexDocWithVersion} from "~/server/tasks/index/task_i
 import {taskRealtimeQueryStoreLoadTaskTestCheckpoint} from "~/server/tasks/realtime/internal/task_realtime_query_store.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/internal/task_realtime_server.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {NotFoundError} from "~/shared/error/error.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {
@@ -393,7 +393,7 @@ async function waitForIndexActionTransactions(context: TestContext) {
 
 class TestScenarioTaskRealtimeServer {
     public readonly context: TestContext;
-    private readonly _server: TaskRealtimeServer;
+    public readonly server: TaskRealtimeServer;
     private _applyActionTransactionPromises: Array<Promise<void>> = [];
 
     private _applyActionTransactionsPauseState:
@@ -428,7 +428,7 @@ class TestScenarioTaskRealtimeServer {
                 });
             } else {
                 this._applyActionTransactionPromises.push(
-                    this._server.applyActionTransaction(context.systemAction(spaceId), {
+                    this.server.applyActionTransaction(context.systemAction(spaceId), {
                         spaceId,
                         committedTime,
                         actions,
@@ -440,7 +440,7 @@ class TestScenarioTaskRealtimeServer {
         afterEachCleanupCallbacks.push(unsubscribe);
 
         this.context = context;
-        this._server = server;
+        this.server = server;
     }
 
     public pauseApplyActionTransactions() {
@@ -455,7 +455,7 @@ class TestScenarioTaskRealtimeServer {
         for (const {spaceId, committedTime, actions} of this._applyActionTransactionsPauseState
             .actionTransactions) {
             this._applyActionTransactionPromises.push(
-                this._server.applyActionTransaction(context.systemAction(spaceId), {
+                this.server.applyActionTransaction(context.systemAction(spaceId), {
                     spaceId,
                     committedTime,
                     actions,
@@ -513,7 +513,7 @@ class TestScenarioTaskRealtimeServer {
 
         if (filters.type === "Impossible") return {tasks: [], hasMoreTasks: false};
 
-        return this._server.loadQuery(session.space.systemAction(), {
+        return this.server.loadQuery(session.space.systemAction(), {
             spaceId: session.space.id,
             filters: filters.normalizedFilters,
             sorts: normalizeTaskQuerySorts(options?.sorts ?? []),
@@ -593,6 +593,70 @@ test("loads a query with three tasks", async () => {
             task2.getIndexDoc(),
             task3.getIndexDoc(),
         ]),
+    });
+});
+
+test("can't load a query as the wrong space", async () => {
+    const space = await TestScenarioSpace.create(context);
+    const otherSpace = await TestScenarioSpace.create(context);
+    const session = await space.createSession();
+    const [task1, task2, task3] = await runAllPromises([
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
+    ]);
+    const server = new TestScenarioTaskRealtimeServer(context);
+
+    await server.wait();
+
+    await expect(
+        server.server.loadQuery(otherSpace.systemAction(), {
+            spaceId: session.space.id,
+            filters: defaultTaskQueryNormalizedFilters,
+            sorts: defaultTaskQueryNormalizedSorts,
+            limit: 100,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    expect(await server.loadQuery(session)).toEqual({
+        hasMoreTasks: false,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+            task3.getIndexDoc(),
+        ]),
+    });
+
+    await expect(
+        server.server.loadQuery(otherSpace.systemAction(), {
+            spaceId: session.space.id,
+            filters: defaultTaskQueryNormalizedFilters,
+            sorts: defaultTaskQueryNormalizedSorts,
+            limit: 100,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+});
+
+test("can't apply an action transaction as the wrong space", async () => {
+    const space = await TestScenarioSpace.create(context);
+    const otherSpace = await TestScenarioSpace.create(context);
+    const session = await space.createSession();
+    const server = new TestScenarioTaskRealtimeServer(context);
+
+    await server.wait();
+
+    await expect(
+        server.server.applyActionTransaction(otherSpace.systemAction(), {
+            spaceId: session.space.id,
+            committedTime: new Date(),
+            actions: [],
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await server.server.applyActionTransaction(space.systemAction(), {
+        spaceId: session.space.id,
+        committedTime: new Date(),
+        actions: [],
     });
 });
 
