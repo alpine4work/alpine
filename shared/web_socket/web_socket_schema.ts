@@ -2,7 +2,7 @@ import {
     WebSocketProtocolBase,
     WebSocketProtocolEventType,
     WebSocketProtocolProceduresType,
-} from "~/shared/cloudflare/web_socket_protocol.js";
+} from "~/shared/web_socket/web_socket_protocol.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {WebSocketProcedureRequestId} from "~/shared/id/types/id_types.js";

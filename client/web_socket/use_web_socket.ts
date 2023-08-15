@@ -1,5 +1,5 @@
 import {Memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
-import {WebSocketClient, WebSocketClientProcedures} from "~/client/cloudflare/web_socket_client.js";
+import {WebSocketClient, WebSocketClientProcedures} from "~/client/web_socket/web_socket_client.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -8,7 +8,7 @@ import {
     WebSocketProtocolBase,
     WebSocketProtocolEventType,
     WebSocketProtocolProceduresType,
-} from "~/shared/cloudflare/web_socket_protocol.js";
+} from "~/shared/web_socket/web_socket_protocol.js";
 import {InternalError} from "~/shared/error/error.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";

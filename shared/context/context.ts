@@ -71,6 +71,14 @@ export type Context<Modules extends {[key: string]: ContextModuleBase}> = {
         newModules: NewModules,
         action: (context: Context<Replace<Modules, NewModules>>) => Promise<Value>,
     ): Promise<Value>;
+
+    /**
+     * Synchronous version of `with()`.
+     */
+    withSync<NewModules extends {[key: string]: ContextModuleBase}, Value>(
+        newModules: NewModules,
+        action: (context: Context<Replace<Modules, NewModules>>) => Value,
+    ): Value;
 };
 
 /**
@@ -128,6 +136,14 @@ type ContextStatic = {
         modules: Modules & ContextModulesDependencies<Modules>,
         action: (context: Context<Modules>) => Promise<Value>,
     ): Promise<Value>;
+
+    /**
+     * The synchronous version of `with()`.
+     */
+    withSync<Modules extends {[key: string]: ContextModuleBase}, Value>(
+        modules: Modules & ContextModulesDependencies<Modules>,
+        action: (context: Context<Modules>) => Promise<Value>,
+    ): Promise<Value>;
 };
 
 export const Context: ContextStatic = {
@@ -173,6 +189,65 @@ export const Context: ContextStatic = {
 
             try {
                 const result = await action(context);
+                return result;
+            } finally {
+                // Wait for all our tasks to resolve before we can destroy our request context.
+                // The tasks may end up using the request context.
+                //
+                // We need to loop since while waiting for our tasks to finish, we may queue
+                // more tasks.
+                const loop = () => {
+                    const currentTaskPromises = taskPromises;
+                    taskPromises = [];
+
+                    if (currentTaskPromises.length === 0) {
+                        context.destroy();
+                    } else {
+                        Promise.allSettled(currentTaskPromises).finally(loop);
+                    }
+                };
+
+                loop();
+            }
+        }
+    },
+
+    withSync<Modules extends {[key: string]: ContextModuleBase}, Value>(
+        modules: Modules & ContextModulesDependencies<Modules>,
+        action: (context: Context<Modules>) => Value,
+    ): Value {
+        // If we have a `ProcessContextModule` then extend the lifetime of the context
+        // with any `context.process.waitUntil()` calls.
+        if (!modules.process) {
+            const context = Context.new(modules);
+            try {
+                const value = action(context);
+                return value;
+            } finally {
+                context.destroy();
+            }
+        } else {
+            const processContextModule = modules.process;
+            assert(processContextModule instanceof ProcessContextModule);
+
+            let taskPromises: Array<Promise<void>> = [];
+
+            const context = Context.new<Modules>({
+                ...modules,
+                process: new ProcessContextModule({
+                    waitUntil: promise => {
+                        processContextModule.waitUntil(promise);
+
+                        // We keep track of tasks our request is waiting on since we don't want to
+                        // destroy the request context until all tasks have completed. Since the task
+                        // may reference the request context.
+                        taskPromises.push(promise);
+                    },
+                }),
+            });
+
+            try {
+                const result = action(context);
                 return result;
             } finally {
                 // Wait for all our tasks to resolve before we can destroy our request context.
@@ -337,6 +412,65 @@ const ContextImplementation = class Context {
 
             try {
                 const result = await action(newContext);
+                return result;
+            } finally {
+                // Wait for all our tasks to resolve before we can destroy our request context.
+                // The tasks may end up using the request context.
+                //
+                // We need to loop since while waiting for our tasks to finish, we may queue
+                // more tasks.
+                const loop = () => {
+                    const currentTaskPromises = taskPromises;
+                    taskPromises = [];
+
+                    if (currentTaskPromises.length === 0) {
+                        newContext.destroy();
+                    } else {
+                        Promise.allSettled(currentTaskPromises).finally(loop);
+                    }
+                };
+
+                loop();
+            }
+        }
+    }
+
+    public withSync<Value>(
+        newModules: {[key: string]: ContextModuleBase<{}>},
+        action: (context: Context) => Value,
+    ): Value {
+        // If we have a `ProcessContextModule` then extend the lifetime of the context
+        // with any `context.process.waitUntil()` calls.
+        if (!this._modules.process && !newModules.process) {
+            const newContext = this.clone(newModules);
+            try {
+                const value = action(newContext);
+                return value;
+            } finally {
+                newContext.destroy();
+            }
+        } else {
+            const processContextModule = newModules.process ?? this._modules.process;
+            assert(processContextModule instanceof ProcessContextModule);
+
+            let taskPromises: Array<Promise<void>> = [];
+
+            const newContext = this.clone({
+                ...newModules,
+                process: new ProcessContextModule({
+                    waitUntil: promise => {
+                        processContextModule.waitUntil(promise);
+
+                        // We keep track of tasks our request is waiting on since we don't want to
+                        // destroy the request context until all tasks have completed. Since the task
+                        // may reference the request context.
+                        taskPromises.push(promise);
+                    },
+                }),
+            });
+
+            try {
+                const result = action(newContext);
                 return result;
             } finally {
                 // Wait for all our tasks to resolve before we can destroy our request context.

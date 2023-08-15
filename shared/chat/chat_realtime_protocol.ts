@@ -2,7 +2,7 @@ import {ChatMessageModel} from "~/shared/chat/chat_model.js";
 import {
     WebSocketProtocolEventType,
     defineWebSocketProtocol,
-} from "~/shared/cloudflare/web_socket_protocol.js";
+} from "~/shared/web_socket/web_socket_protocol.js";
 import {
     createMessagingRealtimeEventSchemas,
     createMessagingRealtimeProcedureSchemas,

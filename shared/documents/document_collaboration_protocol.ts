@@ -1,7 +1,7 @@
 import {
     WebSocketProtocolEventType,
     defineWebSocketProtocol,
-} from "~/shared/cloudflare/web_socket_protocol.js";
+} from "~/shared/web_socket/web_socket_protocol.js";
 import {DocumentContentReferencesSchema} from "~/shared/documents/document_content_references.js";
 import {DocumentContentStepSchema} from "~/shared/documents/document_content_schema.js";
 import {

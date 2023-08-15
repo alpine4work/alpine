@@ -1,14 +1,11 @@
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
-    name = "cloudflare",
+    name = "web_socket",
     visibility = ["//server:__subpackages__"],
     deps = [
-        "//:node_modules/@cloudflare/workers-types",
         "//server/helpers",
-        "//server/tokens",
         "//server/tracer",
-        "//server/web_socket",
         "//shared/context",
         "//shared/error",
         "//shared/helpers",
@@ -16,5 +13,6 @@ ts_project(
         "//shared/rpc",
         "//shared/schema",
         "//shared/tracer",
+        "//shared/web_socket",
     ],
 )

@@ -1,6 +1,6 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {AddMarkStep, RemoveMarkStep, ReplaceStep} from "prosemirror-transform";
-import {WebSocketServerTestConnection} from "~/server/cloudflare/web_socket_server.js";
+import {WebSocketServerTestConnection} from "~/server/web_socket/web_socket_server.js";
 import {DocumentCollaborationConnection} from "~/server/documents/collaboration/document_collaboration_connection.js";
 import {
     documentCollaborationContentManagerBeforePersistTestCheckpoint,

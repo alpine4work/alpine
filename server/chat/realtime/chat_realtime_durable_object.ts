@@ -5,7 +5,7 @@ import {
 } from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {createDurableObject} from "~/server/cloudflare/create_durable_object.js";
-import {WebSocketServer} from "~/server/cloudflare/web_socket_server.js";
+import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
 import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {NotFoundError} from "~/shared/error/error.js";

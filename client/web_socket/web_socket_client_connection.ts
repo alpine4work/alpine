@@ -1,16 +1,16 @@
 import {AppContext} from "~/client/context/app_context.js";
-import {webSocketExpirationTimeoutMs} from "~/shared/cloudflare/web_socket_expiration_timeout_ms.js";
+import {webSocketExpirationTimeoutMs} from "~/shared/web_socket/web_socket_expiration_timeout_ms.js";
 import {
     WebSocketProtocolBase,
     WebSocketProtocolEventType,
     WebSocketProtocolProceduresType,
-} from "~/shared/cloudflare/web_socket_protocol.js";
+} from "~/shared/web_socket/web_socket_protocol.js";
 import {
     WebSocketMessageFromClient,
     WebSocketMessageFromServer,
     createWebSocketMessageFromClientSchema,
     createWebSocketMessageFromServerSchema,
-} from "~/shared/cloudflare/web_socket_schema.js";
+} from "~/shared/web_socket/web_socket_schema.js";
 import {InternalError, UnavailableError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {createInterval} from "~/shared/helpers/async/interval.js";

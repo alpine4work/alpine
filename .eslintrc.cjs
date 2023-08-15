@@ -107,7 +107,10 @@ module.exports = {
         // `void` is kind of like `unknown` for convenience in function return
         // types. However, if you want to use `void` in a type then what you
         // actually want is probably `undefined`.
-        "@typescript-eslint/no-invalid-void-type": "warn",
+        //
+        // NOTE(calebmer): This lint rule gets many valid uses of `void` wrong so
+        // turning it off.
+        "@typescript-eslint/no-invalid-void-type": "off",
 
         // Use `// @ts-expect-error` instead of `// @ts-ignore` since the former
         // will error if there is no error on the line underneath.

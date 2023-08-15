@@ -1,7 +1,7 @@
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
-    name = "cloudflare",
+    name = "web_socket",
     visibility = [
         "//app:__subpackages__",
         "//client:__subpackages__",
@@ -11,9 +11,9 @@ ts_project(
         "//:node_modules/react",
         "//client/context",
         "//client/helpers",
-        "//shared/cloudflare",
         "//shared/error",
         "//shared/helpers",
         "//shared/schema",
+        "//shared/web_socket",
     ],
 )

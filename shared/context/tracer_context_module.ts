@@ -79,6 +79,24 @@ export class TracerContextModule extends ContextModuleBase {
     }
 
     /**
+     * Synchronous version of `withSpan()`.
+     */
+    public withSpanSync<Modules extends {}, Value>(
+        this: ContextModuleBase<Modules> & TracerContextModule,
+        name: string,
+        action: (
+            context: Context<Replace<Modules, {tracer: TracerContextModule}>>,
+            span: TracerSpan,
+        ) => Value,
+    ): Value {
+        return this._tracer.withSpanSync(name, span => {
+            return this._context.withSync({tracer: new TracerContextModule(span)}, context =>
+                action(context, span),
+            );
+        });
+    }
+
+    /**
      * Returns a context where all spans created by the tracer will include the
      * data passed into this function. The propagated data will also be sent over
      * network boundaries.

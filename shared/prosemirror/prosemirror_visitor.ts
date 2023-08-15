@@ -11,7 +11,6 @@ export type ProsemirrorVisitor = {
      * Called for ProseMirror nodes. If this function returns false then we will
      * not visit the children or marks of this node.
      */
-    // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
     readonly visitNode?: (node: Node) => boolean | void;
 
     /**

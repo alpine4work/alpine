@@ -1,6 +1,6 @@
 import {WorkerActionContext} from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
-import {WebSocketConnectionProcedures} from "~/server/cloudflare/web_socket_server.js";
+import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import {
     DocumentCollaborationContentManager,
     DocumentCollaborationContentManagerOptimisticCommentThread,

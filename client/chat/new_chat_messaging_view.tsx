@@ -2,7 +2,7 @@
 
 import {useCallback, useRef} from "react";
 import {chatMessagingHeader} from "~/client/chat/chat_view.js";
-import {useWebSocket} from "~/client/cloudflare/use_web_socket.js";
+import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {MessagingView} from "~/client/messaging/messaging_view.js";

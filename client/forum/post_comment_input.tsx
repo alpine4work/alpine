@@ -1,5 +1,5 @@
 import {Ref, RefObject, useCallback, useImperativeHandle} from "react";
-import {useWebSocket} from "~/client/cloudflare/use_web_socket.js";
+import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageInput} from "~/client/messaging/message_input.js";

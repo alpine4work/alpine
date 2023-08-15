@@ -5,7 +5,7 @@ import {
 } from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {createDurableObject} from "~/server/cloudflare/create_durable_object.js";
-import {WebSocketServer} from "~/server/cloudflare/web_socket_server.js";
+import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {MyAccountConnection} from "~/server/notifications/my_account/my_account_connection.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";

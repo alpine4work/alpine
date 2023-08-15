@@ -1,26 +1,11 @@
+import {SessionActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {
-    WorkerActionContextModules,
-    WorkerSessionActionContext,
-} from "~/server/cloudflare/context/worker_action_context.js";
-import {WorkerSessionActorContextModule} from "~/server/cloudflare/context/worker_actor_context_module.js";
-import {
-    WorkerProcessContext,
-    WorkerProcessContextModules,
-} from "~/server/cloudflare/context/worker_process_context.js";
+    ForkActionContextModule,
+    ForkActionContextModuleDetachedForker,
+} from "~/server/helpers/fork_action_context_module.js";
 import {validateTracerEventFlatDataForPropagation} from "~/server/tracer/validate_tracer_event_flat_data.js";
-import {webSocketExpirationTimeoutMs} from "~/shared/cloudflare/web_socket_expiration_timeout_ms.js";
-import {
-    WebSocketProtocolBase,
-    WebSocketProtocolEventType,
-    WebSocketProtocolProceduresType,
-} from "~/shared/cloudflare/web_socket_protocol.js";
-import {
-    WebSocketMessageFromClient,
-    WebSocketMessageFromServer,
-    createWebSocketMessageFromClientSchema,
-    createWebSocketMessageFromServerSchema,
-} from "~/shared/cloudflare/web_socket_schema.js";
-import {CacheContextModule} from "~/shared/context/cache_context_module.js";
+import {Context} from "~/shared/context/context.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
@@ -30,34 +15,60 @@ import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, SessionId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
-import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
+import {AccountId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {webSocketExpirationTimeoutMs} from "~/shared/web_socket/web_socket_expiration_timeout_ms.js";
+import {
+    WebSocketProtocolBase,
+    WebSocketProtocolEventType,
+    WebSocketProtocolProceduresType,
+} from "~/shared/web_socket/web_socket_protocol.js";
+import {
+    WebSocketMessageFromClient,
+    WebSocketMessageFromServer,
+    createWebSocketMessageFromClientSchema,
+    createWebSocketMessageFromServerSchema,
+} from "~/shared/web_socket/web_socket_schema.js";
 
-export type WebSocketConnectionProcedures<Protocol extends WebSocketProtocolBase> =
-    _WebSocketConnectionProcedures<WebSocketProtocolProceduresType<Protocol>>;
+export type WebSocketConnectionProcedures<
+    SessionActionContextModules extends {},
+    Protocol extends WebSocketProtocolBase,
+> = _WebSocketConnectionProcedures<
+    SessionActionContextModules,
+    WebSocketProtocolProceduresType<Protocol>
+>;
 
-type _WebSocketConnectionProcedures<Procedures extends {[name: string]: {input: {}; output: {}}}> =
-    {
-        [Name in keyof Procedures]: (
-            context: WorkerSessionActionContext,
-            input: Procedures[Name]["input"],
-            span: TracerSpan,
-        ) => Promise<Procedures[Name]["output"]>;
-    };
+type _WebSocketConnectionProcedures<
+    SessionActionContextModules extends {},
+    Procedures extends {[name: string]: {input: {}; output: {}}},
+> = {
+    [Name in keyof Procedures]: (
+        context: Context<SessionActionContextModules>,
+        input: Procedures[Name]["input"],
+        span: TracerSpan,
+    ) => Promise<Procedures[Name]["output"]>;
+};
 
 declare const anySecret: unique symbol;
 
-export interface WebSocketServerConnectionBase<Protocol extends WebSocketProtocolBase> {
+export interface WebSocketServerConnectionBase<
+    ProcessContextModules extends {},
+    SessionActionContextModules extends {},
+    Protocol extends WebSocketProtocolBase,
+> {
     // If `Protocol` matches `anySecret` then we consider it to be the `any` type.
     // If `Protocol` is `any` then make the full `procedures` object `any` to
     // simplify some compatibility checks.
     readonly procedures: [Protocol] extends [typeof anySecret]
         ? any
-        : WebSocketConnectionProcedures<Protocol>;
-    handleClose?(context: WorkerProcessContext): void;
+        : WebSocketConnectionProcedures<SessionActionContextModules, Protocol>;
+
+    handleClose?(
+        context: Context<Replace<ProcessContextModules, {tracer: TracerContextModule}>>,
+    ): void;
 }
 
 /**
@@ -65,22 +76,34 @@ export interface WebSocketServerConnectionBase<Protocol extends WebSocketProtoco
  * `WebSocketClient` for the client side of this class.
  */
 export class WebSocketServer<
+    ProcessContextModules extends {
+        process: ProcessContextModule;
+        tracer: TracerContextModule;
+    },
+    SessionActionContextModules extends ProcessContextModules & {
+        actor: SessionActorContextModule;
+        fork: ForkActionContextModule<SessionActionContextModules>;
+    },
     Protocol extends WebSocketProtocolBase,
-    Connection extends WebSocketServerConnectionBase<Protocol>,
+    Connection extends WebSocketServerConnectionBase<
+        ProcessContextModules,
+        SessionActionContextModules,
+        Protocol
+    >,
 > {
-    private readonly _processContext: WorkerProcessContext;
+    private readonly _processContext: Context<ProcessContextModules>;
     private readonly _protocol: Protocol;
     private readonly _messageFromClientSchema: Schema<WebSocketMessageFromClient<Protocol>>;
     private readonly _messageFromServerSchema: Schema<WebSocketMessageFromServer<Protocol>>;
     private readonly _createConnection: (connection: {
-        connectActionContext: WorkerSessionActionContext;
+        connectActionContext: Context<SessionActionContextModules>;
         connectionId: WebSocketConnectionId;
         sendEvent: (
-            context: WorkerProcessContext,
+            context: Context<ProcessContextModules>,
             message: WebSocketProtocolEventType<Protocol>,
         ) => void;
         sendEventToOthers: (
-            context: WorkerProcessContext,
+            context: Context<ProcessContextModules>,
             message: WebSocketProtocolEventType<Protocol>,
         ) => void;
         iterateOtherConnections: () => Iterable<Connection>;
@@ -88,26 +111,38 @@ export class WebSocketServer<
 
     private readonly _connections = new Map<
         WebSocketConnectionId,
-        WebSocketServerConnectionWrapperBase<Connection>
+        WebSocketServerConnectionWrapperBase<ProcessContextModules, Connection>
     >();
     private _expirationInterval: Interval | null = null;
 
+    /**
+     * Used to pass a `context` object from our `close()` function call to the
+     * event listener which logs a close event.
+     */
+    private readonly _contextForCloseEventListenerRef: {
+        current: Context<Replace<ProcessContextModules, {tracer: TracerContextModule}>> | null;
+    } = {current: null};
+
     constructor(
-        processContext: WorkerProcessContext,
+        processContext: Context<ProcessContextModules>,
         protocol: Protocol,
-        createConnection: (connection: {
-            connectActionContext: WorkerSessionActionContext;
-            connectionId: WebSocketConnectionId;
-            sendEvent: (
-                context: WorkerProcessContext,
-                message: WebSocketProtocolEventType<Protocol>,
-            ) => void;
-            sendEventToOthers: (
-                context: WorkerProcessContext,
-                message: WebSocketProtocolEventType<Protocol>,
-            ) => void;
-            iterateOtherConnections: () => Iterable<Connection>;
-        }) => Promise<Connection>,
+        {
+            createConnection,
+        }: {
+            createConnection: (connection: {
+                connectActionContext: Context<SessionActionContextModules>;
+                connectionId: WebSocketConnectionId;
+                sendEvent: (
+                    context: Context<ProcessContextModules>,
+                    message: WebSocketProtocolEventType<Protocol>,
+                ) => void;
+                sendEventToOthers: (
+                    context: Context<ProcessContextModules>,
+                    message: WebSocketProtocolEventType<Protocol>,
+                ) => void;
+                iterateOtherConnections: () => Iterable<Connection>;
+            }) => Promise<Connection>;
+        },
     ) {
         this._processContext = processContext;
         this._protocol = protocol;
@@ -165,7 +200,7 @@ export class WebSocketServer<
      * Upgrade an HTTP request to a WebSocket connection.
      */
     public async upgrade(
-        connectActionContext: WorkerSessionActionContext,
+        connectActionContext: Context<SessionActionContextModules>,
         request: Request,
     ): Promise<Response> {
         if (request.headers.get("upgrade") !== "websocket")
@@ -178,7 +213,7 @@ export class WebSocketServer<
         const response = new Response(null, {status: 101, webSocket: clientSocket});
 
         const sendEvent = (
-            context: WorkerProcessContext,
+            context: Context<ProcessContextModules>,
             event: WebSocketProtocolEventType<Protocol>,
         ) => {
             connection.sendMessage(context, {
@@ -188,7 +223,7 @@ export class WebSocketServer<
         };
 
         const sendEventToOthers = (
-            context: WorkerProcessContext,
+            context: Context<ProcessContextModules>,
             event: WebSocketProtocolEventType<Protocol>,
         ) => {
             this._sendEventToOthers(context, connection.id, event);
@@ -216,16 +251,21 @@ export class WebSocketServer<
             iterateOtherConnections,
         });
 
-        const connection = new WebSocketServerConnectionWrapper({
+        const connection = new WebSocketServerConnectionWrapper<
+            ProcessContextModules,
+            SessionActionContextModules,
+            Protocol,
+            Connection
+        >({
             id: connectionId,
             processContext: connectionProcessContext,
             socket: serverSocket,
             messageFromClientSchema: this._messageFromClientSchema,
             messageFromServerSchema: this._messageFromServerSchema,
             connection: actualConnection,
-            sessionId: connectActionContext.actor.getSessionId(),
             accountId: connectActionContext.actor.getAccountId(),
-            rpcContextModule: connectActionContext.rpc.clone(),
+            detachedForker: connectActionContext.fork.getDetachedForker(),
+            contextForCloseEventListenerRef: this._contextForCloseEventListenerRef,
         });
 
         assert(!this._connections.has(connection.id));
@@ -237,7 +277,7 @@ export class WebSocketServer<
             this._handleConnectionClose(
                 // Hopefully this is fired synchronously and we get the context object passed
                 // into our `close()` call.
-                contextForCloseEventListener ?? connectionProcessContext,
+                this._contextForCloseEventListenerRef.current ?? connectionProcessContext,
                 connection,
             );
         });
@@ -261,8 +301,8 @@ export class WebSocketServer<
      * firing so we call this function multiple times when a socket is closing.
      */
     private _handleConnectionClose(
-        context: WorkerProcessContext,
-        connection: WebSocketServerConnectionWrapperBase<Connection>,
+        context: Context<Replace<ProcessContextModules, {tracer: TracerContextModule}>>,
+        connection: WebSocketServerConnectionWrapperBase<ProcessContextModules, Connection>,
     ) {
         const existingConnection = this._connections.get(connection.id);
         if (existingConnection && existingConnection === connection) {
@@ -294,83 +334,69 @@ export class WebSocketServer<
      * Send a message to all connected clients.
      */
     public sendEventToAll(
-        context: WorkerProcessContext,
+        context: Context<ProcessContextModules>,
         event: WebSocketProtocolEventType<Protocol>,
     ) {
         const messageType = `Event:${event.type}`;
-        const {span, finishSpan} = context.tracer.startSpan(
+        context.tracer.withSpanSync(
             `Sending all WebSocket connections message ${messageType}`,
+            (context, span) => {
+                span.addData({webSocket: {messageType}});
+
+                const serializedMessage = this._messageFromServerSchema.serialize({
+                    type: "Event",
+                    event,
+                });
+                const serializedMessageString = JSON.stringify(serializedMessage);
+
+                for (const connection of this._connections.values()) {
+                    // Don't send new messages to soft closed connections.
+                    if (connection.isSoftClosed()) continue;
+
+                    connection.dangerouslySendRawMessageEvenWhenSoftClosed(
+                        context,
+                        messageType,
+                        serializedMessageString,
+                    );
+                }
+            },
         );
-        span.addData({webSocket: {messageType}});
-        context = context.clone({tracer: new TracerContextModule(span)});
-
-        try {
-            const serializedMessage = this._messageFromServerSchema.serialize({
-                type: "Event",
-                event,
-            });
-            const serializedMessageString = JSON.stringify(serializedMessage);
-
-            for (const connection of this._connections.values()) {
-                // Don't send new messages to soft closed connections.
-                if (connection.isSoftClosed()) continue;
-
-                connection.dangerouslySendRawMessageEvenWhenSoftClosed(
-                    context,
-                    messageType,
-                    serializedMessageString,
-                );
-            }
-
-            finishSpan();
-        } catch (error) {
-            span.addException(error);
-            finishSpan();
-            throw error;
-        }
     }
 
     /**
      * Send a message to connected clients besides the provided connection ID.
      */
     private _sendEventToOthers(
-        context: WorkerProcessContext,
+        context: Context<ProcessContextModules>,
         ourConnectionId: WebSocketConnectionId,
         event: WebSocketProtocolEventType<Protocol>,
     ) {
         const messageType = `Event:${event.type}`;
-        const {span, finishSpan} = context.tracer.startSpan(
+        context.tracer.withSpanSync(
             `Sending all other WebSocket connections message ${messageType}`,
+            (context, span) => {
+                span.addData({webSocket: {messageType}});
+
+                const serializedMessage = this._messageFromServerSchema.serialize({
+                    type: "Event",
+                    event,
+                });
+                const serializedMessageString = JSON.stringify(serializedMessage);
+
+                for (const connection of this._connections.values()) {
+                    if (connection.id === ourConnectionId) continue;
+
+                    // Don't send new messages to soft closed connections.
+                    if (connection.isSoftClosed()) continue;
+
+                    connection.dangerouslySendRawMessageEvenWhenSoftClosed(
+                        context,
+                        messageType,
+                        serializedMessageString,
+                    );
+                }
+            },
         );
-        span.addData({webSocket: {messageType}});
-        context = context.clone({tracer: new TracerContextModule(span)});
-
-        try {
-            const serializedMessage = this._messageFromServerSchema.serialize({
-                type: "Event",
-                event,
-            });
-            const serializedMessageString = JSON.stringify(serializedMessage);
-
-            for (const connection of this._connections.values()) {
-                if (connection.id === ourConnectionId) continue;
-
-                // Don't send new messages to soft closed connections.
-                if (connection.isSoftClosed()) continue;
-
-                connection.dangerouslySendRawMessageEvenWhenSoftClosed(
-                    context,
-                    messageType,
-                    serializedMessageString,
-                );
-            }
-
-            finishSpan();
-        } catch (error) {
-            span.addException(error);
-            finishSpan();
-            throw error;
-        }
     }
 
     /**
@@ -385,11 +411,8 @@ export class WebSocketServer<
     /**
      * Close all connected clients.
      */
-    public closeAll(context: WorkerProcessContext) {
-        const {span, finishSpan} = context.tracer.startSpan("Closing all WebSocket connections");
-        context = context.clone({tracer: new TracerContextModule(span)});
-
-        try {
+    public closeAll(context: Context<ProcessContextModules>) {
+        context.tracer.withSpanSync("Closing all WebSocket connections", context => {
             for (const connection of this._connections.values()) {
                 connection.close(context, 1001, "Closing all WebSocket connections");
 
@@ -398,13 +421,7 @@ export class WebSocketServer<
                 // to calling `close()` I'm paranoid and adding a second call here.
                 this._handleConnectionClose(context, connection);
             }
-
-            finishSpan();
-        } catch (error) {
-            span.addException(error);
-            finishSpan();
-            throw error;
-        }
+        });
     }
 
     /**
@@ -413,19 +430,26 @@ export class WebSocketServer<
      * client/server interface which only works in a trusted environment.
      */
     public async connectForTest(
-        connectActionContext: WorkerSessionActionContext,
-    ): Promise<WebSocketServerTestConnection<Protocol, Connection>> {
+        connectActionContext: Context<SessionActionContextModules>,
+    ): Promise<
+        WebSocketServerTestConnection<
+            ProcessContextModules,
+            SessionActionContextModules,
+            Protocol,
+            Connection
+        >
+    > {
         assert(import.meta.jest);
 
         const sendEvent = (
-            context: WorkerProcessContext,
+            context: Context<ProcessContextModules>,
             event: WebSocketProtocolEventType<Protocol>,
         ) => {
             connection._sendEvent(event);
         };
 
         const sendEventToOthers = (
-            context: WorkerProcessContext,
+            context: Context<ProcessContextModules>,
             event: WebSocketProtocolEventType<Protocol>,
         ) => {
             this._sendEventToOthers(context, connection.id, event);
@@ -470,7 +494,7 @@ export class WebSocketServer<
             this._handleConnectionClose(
                 // Hopefully this is fired synchronously and we get the context object passed
                 // into our `close()` call.
-                contextForCloseEventListener ?? connectionProcessContext,
+                this._contextForCloseEventListenerRef.current ?? connectionProcessContext,
                 connection,
             );
         });
@@ -494,7 +518,7 @@ export class WebSocketServer<
  * WebSocket server connections are implemented either with a real WebSocket
  * client or a test WebSocket client only available in unit tests.
  */
-interface WebSocketServerConnectionWrapperBase<Connection> {
+interface WebSocketServerConnectionWrapperBase<ProcessContextModules extends {}, Connection> {
     /**
      * A unique identifier for this connection.
      */
@@ -513,7 +537,7 @@ interface WebSocketServerConnectionWrapperBase<Connection> {
     /**
      * Closes the connection. Does nothing if the connection is already closed.
      */
-    close(context: WorkerProcessContext, code?: number, reason?: string): void;
+    close(context: Context<{}>, code?: number, reason?: string): void;
 
     /**
      * Is the connection soft closed? While soft closed we stop sending the
@@ -532,7 +556,7 @@ interface WebSocketServerConnectionWrapperBase<Connection> {
      * `isSoftClosed()` before sending your message.
      */
     dangerouslySendRawMessageEvenWhenSoftClosed(
-        context: WorkerProcessContext,
+        context: Context<{tracer: TracerContextModule}>,
         messageType: string,
         message: string,
     ): void;
@@ -542,23 +566,36 @@ interface WebSocketServerConnectionWrapperBase<Connection> {
      * gone offline. When the WebSocket server's expiration check timer triggers it
      * calls this function. Does nothing if the connection is already closed.
      */
-    maybeExpire(context: WorkerProcessContext, currentTimeMs: number): void;
+    maybeExpire(
+        context: Context<Replace<ProcessContextModules, {tracer: TracerContextModule}>>,
+        currentTimeMs: number,
+    ): void;
 }
 
 class WebSocketServerConnectionWrapper<
+    ProcessContextModules extends {process: ProcessContextModule; tracer: TracerContextModule},
+    SessionActionContextModules extends ProcessContextModules,
     Protocol extends WebSocketProtocolBase,
-    Connection extends WebSocketServerConnectionBase<Protocol>,
-> implements WebSocketServerConnectionWrapperBase<Connection>
+    Connection extends WebSocketServerConnectionBase<
+        ProcessContextModules,
+        SessionActionContextModules,
+        Protocol
+    >,
+> implements WebSocketServerConnectionWrapperBase<ProcessContextModules, Connection>
 {
     public readonly id: WebSocketConnectionId;
-    private readonly _processContext: WorkerProcessContext;
+    private readonly _processContext: Context<
+        Replace<ProcessContextModules, {tracer: TracerContextModule}>
+    >;
     private readonly _socket: WebSocket;
     private readonly _messageFromClientSchema: Schema<WebSocketMessageFromClient<Protocol>>;
     private readonly _messageFromServerSchema: Schema<WebSocketMessageFromServer<Protocol>>;
     public readonly connection: Connection;
-    private readonly _sessionId: SessionId;
     private readonly _accountId: AccountId;
-    private readonly _rpcContextModule: RpcContextModuleBase;
+    private readonly _detachedForker: ForkActionContextModuleDetachedForker<SessionActionContextModules>;
+    private readonly _contextForCloseEventListenerRef: {
+        current: Context<Replace<ProcessContextModules, {tracer: TracerContextModule}>> | null;
+    };
     private _lastMessageTimeMs: number = Date.now();
 
     /**
@@ -582,19 +619,21 @@ class WebSocketServerConnectionWrapper<
         messageFromClientSchema,
         messageFromServerSchema,
         connection,
-        sessionId,
         accountId,
-        rpcContextModule,
+        detachedForker,
+        contextForCloseEventListenerRef,
     }: {
         id: WebSocketConnectionId;
-        processContext: WorkerProcessContext;
+        processContext: Context<Replace<ProcessContextModules, {tracer: TracerContextModule}>>;
         socket: WebSocket;
         messageFromClientSchema: Schema<WebSocketMessageFromClient<Protocol>>;
         messageFromServerSchema: Schema<WebSocketMessageFromServer<Protocol>>;
         connection: Connection;
-        sessionId: SessionId;
         accountId: AccountId;
-        rpcContextModule: RpcContextModuleBase;
+        detachedForker: ForkActionContextModuleDetachedForker<SessionActionContextModules>;
+        contextForCloseEventListenerRef: {
+            current: Context<Replace<ProcessContextModules, {tracer: TracerContextModule}>> | null;
+        };
     }) {
         this.id = id;
         this._processContext = processContext;
@@ -602,9 +641,9 @@ class WebSocketServerConnectionWrapper<
         this._messageFromClientSchema = messageFromClientSchema;
         this._messageFromServerSchema = messageFromServerSchema;
         this.connection = connection;
-        this._sessionId = sessionId;
         this._accountId = accountId;
-        this._rpcContextModule = rpcContextModule;
+        this._detachedForker = detachedForker;
+        this._contextForCloseEventListenerRef = contextForCloseEventListenerRef;
 
         this._socket.addEventListener("message", event => {
             this._processContext.process.waitUntil(async () => {
@@ -644,9 +683,24 @@ class WebSocketServerConnectionWrapper<
                         .startSpan(spanName));
                 }
 
-                await this._processContext.with(
-                    {tracer: new TracerContextModule(span)},
-                    async context => {
+                // TODO(calebmer): If an account loses access to the entity this WebSocket
+                // server is representing then they should be disconnected from the WebSocket.
+                // Right now, at best, we authenticate accounts once when they connect and then
+                // RPCs will run authentication logic.
+                //
+                // Given WebSocket servers have access to their own information which needs to
+                // be secured (new realtime messages and their contents) we should check
+                // whether a connection is still authenticated every 30s or so and disconnect
+                // if they are not.
+                //
+                // This is really important to fix as it represents a permission leak (albeit a
+                // small permission leak that requires social engineering (since you need
+                // initial access to the entity) and technical sophistication to exploit).
+                await this._detachedForker.withForkFromCustomSpan(
+                    {span, finishSpan},
+                    async (context, span) => {
+                        span.addPropagatedData({context: {accountId: this._accountId}});
+
                         try {
                             const spanMessageType =
                                 message.type === "ProcedureRequest"
@@ -674,24 +728,6 @@ class WebSocketServerConnectionWrapper<
                                     "WebSocket connection can not process new procedures when soft closed",
                                 );
 
-                            // TODO(calebmer): If an account loses access to the entity this WebSocket
-                            // server is representing then they should be disconnected from the WebSocket.
-                            // Right now, at best, we authenticate accounts once when they connect and then
-                            // RPCs will run authentication logic.
-                            //
-                            // Given WebSocket servers have access to their own information which needs to
-                            // be secured (new realtime messages and their contents) we should check
-                            // whether a connection is still authenticated every 30s or so and disconnect
-                            // if they are not.
-                            //
-                            // Not implementing for now while I'm working on the `AppService` to Node.js
-                            // migration but this is a bit of a misuse of a dangerous method since we're
-                            // not verifying (current) access.
-                            const actor = WorkerSessionActorContextModule.dangerouslyNew(
-                                this._sessionId,
-                                this._accountId,
-                            );
-
                             switch (message.type) {
                                 // In response to a ping event, we want to send "pong" to the client so it
                                 // knows we are alive and didn't silently disconnect.
@@ -705,19 +741,10 @@ class WebSocketServerConnectionWrapper<
                                     } = message;
 
                                     try {
-                                        const output = await context.with(
-                                            {
-                                                cache: new CacheContextModule(),
-                                                actor,
-                                                rpc: this._rpcContextModule,
-                                            },
-                                            (context: WorkerSessionActionContext) => {
-                                                return this.connection.procedures[type](
-                                                    context,
-                                                    input,
-                                                    span,
-                                                );
-                                            },
+                                        const output = await this.connection.procedures[type](
+                                            context,
+                                            input,
+                                            span,
                                         );
 
                                         this.sendMessage(context, {
@@ -778,7 +805,10 @@ class WebSocketServerConnectionWrapper<
         return this.isClosed() || this._isSoftClosed;
     }
 
-    public maybeExpire(context: WorkerProcessContext, currentTimeMs: number) {
+    public maybeExpire(
+        context: Context<Replace<ProcessContextModules, {tracer: TracerContextModule}>>,
+        currentTimeMs: number,
+    ) {
         // If our socket is already closed then we don't need to expire.
         if (this.isClosed()) return;
 
@@ -795,7 +825,7 @@ class WebSocketServerConnectionWrapper<
      * connection is closed!
      */
     public sendMessage(
-        context: WorkerProcessContext,
+        context: Context<{tracer: TracerContextModule}>,
         message: WebSocketMessageFromServer<Protocol>,
     ) {
         // Do not send events to a soft closed WebSocket. A soft closed WebSocket is
@@ -837,7 +867,7 @@ class WebSocketServerConnectionWrapper<
      * are calling this function you should check `isSoftClosed()` before calling.
      */
     public dangerouslySendRawMessageEvenWhenSoftClosed(
-        context: WorkerProcessContext,
+        context: Context<{tracer: TracerContextModule}>,
         messageType: string,
         message: string,
     ) {
@@ -864,16 +894,20 @@ class WebSocketServerConnectionWrapper<
      *
      * [1]: https://www.rfc-editor.org/rfc/rfc6455.html#section-7.4.1
      */
-    public close(context: WorkerProcessContext, code?: number, reason?: string) {
+    public close(
+        context: Context<Replace<ProcessContextModules, {tracer: TracerContextModule}>>,
+        code?: number,
+        reason?: string,
+    ) {
         // WebSocket is already closed.
         if (this.isClosed()) return;
 
-        const previousContextForCloseEventListener = contextForCloseEventListener;
-        contextForCloseEventListener = context;
+        const previousContextForCloseEventListener = this._contextForCloseEventListenerRef.current;
+        this._contextForCloseEventListenerRef.current = context;
         try {
             this._socket.close(code, reason);
         } finally {
-            contextForCloseEventListener = previousContextForCloseEventListener;
+            this._contextForCloseEventListenerRef.current = previousContextForCloseEventListener;
         }
     }
 }
@@ -890,8 +924,14 @@ export type WebSocketServerTestConnectionProcedures<
  * A connection object to be used for testing our WebSocket server.
  */
 export interface WebSocketServerTestConnection<
+    ProcessContextModules extends {},
+    SessionActionContextModules extends {},
     Protocol extends WebSocketProtocolBase,
-    Connection extends WebSocketServerConnectionBase<Protocol>,
+    Connection extends WebSocketServerConnectionBase<
+        ProcessContextModules,
+        SessionActionContextModules,
+        Protocol
+    >,
 > {
     readonly id: WebSocketConnectionId;
     readonly connection: Connection;
@@ -931,13 +971,22 @@ export interface WebSocketServerTestConnection<
 }
 
 class WebSocketServerTestConnectionWrapper<
+    ProcessContextModules extends {},
+    SessionActionContextModules extends {
+        tracer: TracerContextModule;
+        fork: ForkActionContextModule<SessionActionContextModules>;
+    },
     Protocol extends WebSocketProtocolBase,
-    Connection extends WebSocketServerConnectionBase<Protocol>,
-> implements WebSocketServerConnectionWrapperBase<Connection>
+    Connection extends WebSocketServerConnectionBase<
+        ProcessContextModules,
+        SessionActionContextModules,
+        Protocol
+    >,
+> implements WebSocketServerConnectionWrapperBase<ProcessContextModules, Connection>
 {
     public readonly id: WebSocketConnectionId;
     public readonly connection: Connection;
-    private readonly _actionContext: WorkerSessionActionContext;
+    private readonly _actionContext: Context<SessionActionContextModules>;
     private readonly _messageFromClientSchema: Schema<WebSocketMessageFromClient<Protocol>>;
     private readonly _messageFromServerSchema: Schema<WebSocketMessageFromServer<Protocol>>;
     private _isClosed = false;
@@ -953,7 +1002,7 @@ class WebSocketServerTestConnectionWrapper<
         connection,
     }: {
         id: WebSocketConnectionId;
-        actionContext: WorkerSessionActionContext;
+        actionContext: Context<SessionActionContextModules>;
         messageFromClientSchema: Schema<WebSocketMessageFromClient<Protocol>>;
         messageFromServerSchema: Schema<WebSocketMessageFromServer<Protocol>>;
         connection: Connection;
@@ -974,31 +1023,12 @@ class WebSocketServerTestConnectionWrapper<
         name: Name,
         input: WebSocketProtocolProceduresType<Protocol>[Name]["input"],
     ): Promise<WebSocketProtocolProceduresType<Protocol>[Name]["output"]> {
-        const output = await this._actionContext.tracer.withSpan(
+        const output = await this._actionContext.fork.withFork(
             "Received test WebSocket message",
             async (context, span) => {
-                return context.with<
-                    // Reset non-process action modules when going to execute a procedure. In tests
-                    // the context will actually be a `TestSessionActionContext`. Hopefully there
-                    // aren't other relevant modules on the action we need to reset.
-                    //
-                    // Notably, we are inheriting the lifetime of whatever test action established
-                    // the connection.
-                    Omit<
-                        WorkerActionContextModules,
-                        keyof WorkerProcessContextModules | "actor" | "rpc"
-                    >,
-                    unknown
-                >(
-                    {
-                        cache: new CacheContextModule(),
-                    },
-                    (context: WorkerSessionActionContext) => {
-                        // Thrown errors should be handled by the test. We do not send acknowledgement
-                        // messages in test connections.
-                        return this.connection.procedures[name](context, input, span);
-                    },
-                );
+                // Thrown errors should be handled by the test. We do not send acknowledgement
+                // messages in test connections.
+                return this.connection.procedures[name](context, input, span);
             },
         );
 
@@ -1041,7 +1071,7 @@ class WebSocketServerTestConnectionWrapper<
     }
 
     public dangerouslySendRawMessageEvenWhenSoftClosed(
-        context: WorkerProcessContext,
+        context: Context<Replace<ProcessContextModules, {tracer: TracerContextModule}>>,
         messageType: string,
         rawMessage: string,
     ) {
@@ -1053,9 +1083,3 @@ class WebSocketServerTestConnectionWrapper<
         // Test connections never expire...
     }
 }
-
-/**
- * Used to pass a `context` object from our `close()` function call to the
- * event listener which logs a close event.
- */
-let contextForCloseEventListener: WorkerProcessContext | null = null;

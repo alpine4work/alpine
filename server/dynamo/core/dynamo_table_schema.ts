@@ -3985,7 +3985,6 @@ export interface DynamoTableSchemaIndex<QueryItem, ItemKey, IndexPartitionKey, I
      */
     serializeOpaqueCursor(
         // Allow method to be dereferenced without binding `this`.
-        // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
         this: void,
         itemKey:
             | MergeObjectIntersection<ItemKey & IndexPartitionKey & IndexSortKey>

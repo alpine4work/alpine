@@ -1,5 +1,5 @@
 import {Memo, ReactNode, createContext, useContext, useMemo} from "react";
-import {useWebSocket} from "~/client/cloudflare/use_web_socket.js";
+import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {InternalError} from "~/shared/error/error.js";

@@ -4,7 +4,7 @@ import {
     WebSocketClient,
     WebSocketClientProcedures,
     WebSocketClientState,
-} from "~/client/cloudflare/web_socket_client.js";
+} from "~/client/web_socket/web_socket_client.js";
 import {
     ContentEditorReferencesAction,
     ContentEditorState,
@@ -14,7 +14,7 @@ import {AppContext} from "~/client/context/app_context.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
-import {WebSocketProtocolProceduresType} from "~/shared/cloudflare/web_socket_protocol.js";
+import {WebSocketProtocolProceduresType} from "~/shared/web_socket/web_socket_protocol.js";
 import {
     DocumentCollaborationPresenceState,
     DocumentCollaborationProtocol,

@@ -4,7 +4,7 @@ import {
 } from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {createDurableObject} from "~/server/cloudflare/create_durable_object.js";
-import {WebSocketServer} from "~/server/cloudflare/web_socket_server.js";
+import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {DocumentCollaborationConnection} from "~/server/documents/collaboration/document_collaboration_connection.js";
 import {DocumentCollaborationContentManager} from "~/server/documents/collaboration/document_collaboration_content_manager.js";
 import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";

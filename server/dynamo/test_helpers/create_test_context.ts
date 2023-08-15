@@ -145,7 +145,6 @@ export function createTestContext({
                 ServerSystemActionContextModules,
                 Exclude<keyof ServerProcessContextModules, "tracer">
             >,
-            // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
             void
         >(
             {
