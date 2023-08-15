@@ -1,5 +1,7 @@
 import {Clock} from "~/shared/helpers/clock/clock.js";
 
+declare const process: {hrtime: {bigint: () => bigint}} | undefined;
+
 /**
  * A clock that never decreases. Not subject to system clock adjustments that
  * put the time in the past.

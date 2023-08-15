@@ -1,0 +1,16 @@
+diff --git a/index.d.ts b/index.d.ts
+index bb088049c03229f1a91dca77c41071d6626e49db..40aabe7718a14751b9ea95f12514eac04be77eaa 100644
+--- a/index.d.ts
++++ b/index.d.ts
+@@ -37,7 +37,10 @@ declare abstract class Body {
+   readonly bodyUsed: boolean;
+   arrayBuffer(): Promise<ArrayBuffer>;
+   text(): Promise<string>;
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   formData(): Promise<FormData>;
+   blob(): Promise<Blob>;
+ }

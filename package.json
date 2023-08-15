@@ -199,7 +199,8 @@
             "react-router-dom@6.14.0": "admin/patches/react-router-dom@6.14.0.patch",
             "y-prosemirror@1.2.1": "admin/patches/y-prosemirror@1.2.1.patch",
             "wrangler@3.1.2": "admin/patches/wrangler@3.1.2.patch",
-            "@types/node@20.3.2": "admin/patches/@types__node@20.3.2.patch"
+            "@types/node@20.3.2": "admin/patches/@types__node@20.3.2.patch",
+            "@cloudflare/workers-types@3.18.0": "admin/patches/@cloudflare__workers-types@3.18.0.patch"
         },
         "allowedDeprecatedVersions": {
             "@types/keyv": "4.2.0",

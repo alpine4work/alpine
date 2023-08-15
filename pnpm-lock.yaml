@@ -13,6 +13,9 @@ overrides:
   '@vanilla-extract/integration@6.2.1>esbuild': 0.17.10
 
 patchedDependencies:
+  '@cloudflare/workers-types@3.18.0':
+    hash: hd2oz2xlphxbe5w65c4x3qmfrm
+    path: admin/patches/@cloudflare__workers-types@3.18.0.patch
   '@playwright/test@1.31.1':
     hash: 645z6zzf2yttz7gk24haek5rhi
     path: admin/patches/@playwright__test@1.31.1.patch
@@ -104,7 +107,7 @@ dependencies:
     version: 5.7.1
   '@cloudflare/workers-types':
     specifier: ^3.18.0
-    version: 3.18.0
+    version: 3.18.0(patch_hash=hd2oz2xlphxbe5w65c4x3qmfrm)
   '@dnd-kit/core':
     specifier: ^6.0.8
     version: 6.0.8(react-dom@18.2.0)(react@18.2.0)
@@ -2623,9 +2626,10 @@ packages:
     dev: false
     optional: true
 
-  /@cloudflare/workers-types@3.18.0:
+  /@cloudflare/workers-types@3.18.0(patch_hash=hd2oz2xlphxbe5w65c4x3qmfrm):
     resolution: {integrity: sha512-ehKOJVLMeR+tZkYhWEaLYQxl0TaIZu/kE86HF3/RidR8Xv5LuQxpbh+XXAoKVqsaphWLhIgBhgnlN5HGdheXSQ==}
     dev: false
+    patched: true
 
   /@dnd-kit/accessibility@3.0.1(react@18.2.0):
     resolution: {integrity: sha512-HXRrwS9YUYQO9lFRc/49uO/VICbM+O+ZRpFDe9Pd1rwVv2PCNkRiTZRdxrDgng/UkvdC3Re9r2vwPpXXrWeFzg==}

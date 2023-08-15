@@ -276,13 +276,12 @@ export class OpensearchClient implements OpensearchClientInterface {
                 // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
                 // float-64 size in settings. Ok to use native JSON parser instead of
                 // `json-bigint`.
-                const getBody = await getResponse.json<
+                const getBody:
                     | {error: {type: string}}
                     | {
                           error: undefined;
                           [key: string]: OpensearchIndexConfig<string> | undefined;
-                      }
-                >();
+                      } = await getResponse.json();
 
                 // If the index does not already exists then create a new one.
                 if (getBody.error) {
@@ -351,7 +350,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                             // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
                             // float-64 size in settings. Ok to use native JSON parser instead of
                             // `json-bigint`.
-                            (await getResponse2.json<any>()).metadata.indices[index.name]
+                            (await getResponse2.json()).metadata.indices[index.name]
                                 .routing_num_shards,
                         );
 
@@ -441,19 +440,17 @@ export class OpensearchClient implements OpensearchClientInterface {
         // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s
         // to strings to maintain precision. Ok to use native JSON parser since `long`s
         // will be strings and we know how to handle those strings.
-        const body = await response.json<
-            {
-                _seq_no: number;
-                _primary_term: number;
-            } & (
-                | {found: false}
-                | {
-                      found: true;
-                      _id: string;
-                      _source: JsonValue;
-                  }
-            )
-        >();
+        const body: {
+            _seq_no: number;
+            _primary_term: number;
+        } & (
+            | {found: false}
+            | {
+                  found: true;
+                  _id: string;
+                  _source: JsonValue;
+              }
+        ) = await response.json();
 
         if (!body.found) return null;
 
@@ -511,7 +508,7 @@ export class OpensearchClient implements OpensearchClientInterface {
         // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s
         // to strings to maintain precision. Ok to use native JSON parser since `long`s
         // will be strings and we know how to handle those strings.
-        const body = await response.json<{
+        const body: {
             docs: Array<
                 {
                     _id: string;
@@ -525,7 +522,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                       }
                 )
             >;
-        }>();
+        } = await response.json();
 
         const docById = new Map<string, OpensearchClientDocWithIdAndVersion<DocId, Doc>>();
 
@@ -613,13 +610,13 @@ export class OpensearchClient implements OpensearchClientInterface {
 
         // NOTE(#opensearch-important-json-disclaimer): This response only contains
         // errors and the error numbers fit in 64-bit floats.
-        const body = await response.json<{
+        const body: {
             errors: boolean;
             items: Array<{
                 create?: {error?: OpensearchError};
                 index?: {error?: OpensearchError};
             }>;
-        }>();
+        } = await response.json();
 
         if (body.errors) {
             const maybeRecoverableErrors = filterMapArray(
@@ -737,10 +734,9 @@ export class OpensearchClient implements OpensearchClientInterface {
         //
         // If we ignore `sort` values we'll be fine. Keep in mind that you can't use
         // `sort` values unless you parse with `json-bigint`.
-        const body = await response.json<
+        const body:
             | {hits: {hits: Array<{_id: string; _source: JsonValue}>}; error?: undefined}
-            | {error: OpensearchError; hits?: undefined}
-        >();
+            | {error: OpensearchError; hits?: undefined} = await response.json();
 
         if (body.error) {
             const errorType = body.error.root_cause?.[0]?.type ?? body.error.type;

@@ -10,6 +10,7 @@ ts_project(
         "//:node_modules/@opensearch-project/opensearch",
         "//:node_modules/@types/json-bigint",
         "//:node_modules/json-bigint",
+        "//server/helpers",
         "//shared/context",
         "//shared/error",
         "//shared/helpers",

@@ -1,5 +1,6 @@
 import cluster from "cluster";
 import * as os from "os";
+import process from "process";
 import {ParseArgsConfig, ParsedResults, parseArgs} from "util";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {InternalError} from "~/shared/error/error.js";

@@ -50,6 +50,8 @@ def ts_project(
     if test_srcs == None:
         test_srcs = native.glob(["**/*.test.ts", "**/*.test.tsx"])
 
+    tags = kwargs.pop("tags", default = [])
+
     _ts_project(
         name = name,
         srcs = srcs,
@@ -64,6 +66,7 @@ def ts_project(
         # type checking since it's out of the critical dev path.
         # https://github.com/aspect-build/rules_ts/issues/361
         supports_workers = False,
+        tags = ["typescript"] + tags,
         **kwargs
     )
 
@@ -287,12 +290,14 @@ EOF
             base_tsconfig_path = "{}/tsconfig.bazel.json".format(workspace_relative_path),
             include_paths = ", ".join(["\"{}\"".format(src) for src in srcs]),
         ),
+        tags = ["typescript"],
     )
 
     _ts_typings(
         name = "{}_deps_typings".format(name),
         srcs = deps,
         testonly = True,
+        tags = ["typescript"],
     )
 
     typescript_bin.tsc_test(
@@ -304,6 +309,7 @@ EOF
             ":{}_deps_typings".format(name),
         ],
         size = "small",
+        tags = ["typescript"],
     )
 
 def _dedupe_labels(labels):
