@@ -1,5 +1,5 @@
 import {ServerSessionActionContextModules} from "~/server/context/server_action_context.js";
-import {TaskRealtimeServer} from "~/server/tasks/realtime/internal/task_realtime_server.js";
+import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TaskRealtimeProtocol} from "~/shared/tasks/task_realtime_protocol.js";

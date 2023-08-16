@@ -18,8 +18,8 @@ import {
     backfillTaskActionTransactionHistoryTestCounter,
     commitTaskActionTransaction,
 } from "~/server/tasks/data/tasks_table.js";
-import {taskRealtimeQueryStoreLoadTaskTestCheckpoint} from "~/server/tasks/realtime/internal/task_realtime_query_store.js";
-import {TaskRealtimeServer} from "~/server/tasks/realtime/internal/task_realtime_server.js";
+import {taskRealtimeQueryStoreLoadTaskTestCheckpoint} from "~/server/tasks/realtime/task_realtime_query_store.js";
+import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";

@@ -25,9 +25,9 @@ import {createStandardizedServerWithWebSockets} from "~/server/node/create_stand
 import {runService} from "~/server/node/run_service.js";
 import {NotificationsContextModule} from "~/server/notifications/data/notifications_context_module.js";
 import {authorizeSpaceAccess, isAccountMemberOfSpace} from "~/server/spaces/spaces_table.js";
-import {TaskRealtimeConnection} from "~/server/tasks/realtime/internal/task_realtime_connection.js";
-import {TaskRealtimeServer} from "~/server/tasks/realtime/internal/task_realtime_server.js";
-import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/internal/task_realtime_system_action_context.js";
+import {TaskRealtimeConnection} from "~/server/tasks/realtime/task_realtime_connection.js";
+import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
+import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
 import {TaskRealtimeServiceTokenAgent} from "~/server/tokens/token_agent.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";

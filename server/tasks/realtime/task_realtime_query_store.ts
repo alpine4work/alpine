@@ -3,9 +3,9 @@ import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/data/apply_task_acti
 import {mergeTaskIndexDocs} from "~/server/tasks/data/merge_task_index_docs.js";
 import {getTaskIndexDocsIfExist} from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
-import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/internal/task_realtime_system_action_context.js";
-import {ReadonlyTaskRealtimeActionHistory} from "~/server/tasks/realtime/internal/task_realtime_action_history.js";
-import {TaskRealtimeQuery} from "~/server/tasks/realtime/internal/task_realtime_query.js";
+import {ReadonlyTaskRealtimeActionHistory} from "~/server/tasks/realtime/task_realtime_action_history.js";
+import {TaskRealtimeQuery} from "~/server/tasks/realtime/task_realtime_query.js";
+import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
 import {InternalError} from "~/shared/error/error.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
