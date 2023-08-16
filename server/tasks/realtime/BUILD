@@ -10,9 +10,12 @@ ts_project(
     deps = [
         "//:node_modules/@types/bintrees",
         "//:node_modules/bintrees",
+        "//:node_modules/fs-extra",
         "//server/node",
         "//server/opensearch",
         "//server/tasks/data",
+        "//server/tokens",
+        "//server/web_socket",
         "//shared/error",
         "//shared/helpers",
         "//shared/id",

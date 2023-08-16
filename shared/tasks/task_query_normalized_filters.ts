@@ -6,8 +6,11 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {isId} from "~/shared/id/id.js";
 import {AccountId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {ObjectSchema, Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
 import {analyzeTaskTitleText} from "~/shared/tasks/analyze_task_title_text.js";
+import {CalendarDateSchema} from "~/shared/tasks/helpers/calendar_date_schema.js";
 import {TaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
 import {
@@ -92,6 +95,12 @@ export type TaskQueryDisplayStatusNormalizedFilter =
           readonly ifClosed: true;
       };
 
+const TaskQueryDisplayStatusNormalizedFilterSchema = Schema.object({
+    ifOpenInactive: Schema.boolean,
+    ifOpenActive: Schema.boolean,
+    ifClosed: Schema.boolean,
+}) as Schema<TaskQueryDisplayStatusNormalizedFilter>;
+
 /**
  * The normalized format for collection filters is in [conjunctive normal
  * form][1].
@@ -120,11 +129,63 @@ export type TaskQueryCollectionsNormalizedFilterClause = NonEmptyReadonlyMap<
     boolean
 >;
 
+const TaskQueryCollectionsNormalizedFilterSchema = Schema.array(
+    Schema.map(Schema.string, Schema.boolean),
+).transform<TaskQueryCollectionsNormalizedFilter>({
+    serialize: filter => filter,
+    deserialize: filter => {
+        if (filter.length === 0) throw new SchemaDeserializationError("Expected non-empty array");
+
+        for (const filterClause of filter) {
+            if (filterClause.size === 0)
+                throw new SchemaDeserializationError("Expected non-empty map");
+
+            for (const term of filterClause.keys()) {
+                if (term !== "IsEmpty" && !isId(term)) {
+                    throw new SchemaDeserializationError(
+                        'Expected map keys to either be a `TaskCollectionId` or the string "IsEmpty"',
+                    );
+                }
+            }
+        }
+
+        return filter as TaskQueryCollectionsNormalizedFilter;
+    },
+});
+
 export type TaskQueryTitleNormalizedFilter = NonEmptyReadonlyArray<{
     readonly operationType: "Includes" | "Excludes";
     readonly titleQuery: string;
     readonly titleQueryWords: NonEmptyReadonlyArray<string>;
 }>;
+
+const TaskQueryTitleNormalizedFilterSchema = Schema.array(
+    Schema.object({
+        operationType: Schema.enum(["Includes", "Excludes"]),
+        titleQuery: Schema.string,
+    }),
+).transform<TaskQueryTitleNormalizedFilter>({
+    serialize: filter => filter,
+    deserialize: serializedFilter => {
+        const filter = serializedFilter.map(operation => {
+            const titleQueryWords = analyzeTaskTitleText(operation.titleQuery);
+
+            if (!isNonEmptyReadonlyArray(titleQueryWords))
+                throw new SchemaDeserializationError("Expected non-empty title query");
+
+            return {
+                operationType: operation.operationType,
+                titleQuery: operation.titleQuery,
+                titleQueryWords,
+            };
+        });
+
+        if (!isNonEmptyReadonlyArray(filter))
+            throw new SchemaDeserializationError("Expected non-empty array");
+
+        return filter;
+    },
+});
 
 // At least one of the five priorities must be included in this filter. Otherwise
 // the filter is impossible.
@@ -165,6 +226,14 @@ export type TaskQueryPriorityNormalizedFilter =
           readonly ifUrgent: true;
       };
 
+const TaskQueryPriorityNormalizedFilterSchema = Schema.object({
+    ifNull: Schema.boolean,
+    ifLow: Schema.boolean,
+    ifMedium: Schema.boolean,
+    ifHigh: Schema.boolean,
+    ifUrgent: Schema.boolean,
+}) as Schema<TaskQueryPriorityNormalizedFilter>;
+
 export type TaskQueryAccountNormalizedFilter =
     | {
           readonly type: "OneOf";
@@ -174,6 +243,36 @@ export type TaskQueryAccountNormalizedFilter =
           readonly type: "NoneOf";
           readonly accountIds: NonEmptyReadonlySet<AccountId | "MissingAccount">;
       };
+
+const TaskQueryAccountNormalizedFilterAccountIdsSchema = Schema.set(Schema.string).transform<
+    NonEmptyReadonlySet<AccountId | "MissingAccount">
+>({
+    serialize: accountIds => accountIds,
+    deserialize: accountIds => {
+        if (accountIds.size === 0) throw new SchemaDeserializationError("Expected non-empty set");
+
+        for (const accountId of accountIds) {
+            if (accountId !== "MissingAccount" && !isId(accountId)) {
+                throw new SchemaDeserializationError(
+                    'Expected set values to either be an `AccountId` or the string "MissingAccount"',
+                );
+            }
+        }
+
+        return accountIds as NonEmptyReadonlySet<AccountId | "MissingAccount">;
+    },
+});
+
+const TaskQueryAccountNormalizedFilterSchema = Schema.union({
+    OneOf: Schema.object({
+        type: Schema.value("OneOf"),
+        accountIds: TaskQueryAccountNormalizedFilterAccountIdsSchema,
+    }),
+    NoneOf: Schema.object({
+        type: Schema.value("NoneOf"),
+        accountIds: TaskQueryAccountNormalizedFilterAccountIdsSchema,
+    }),
+});
 
 // At least one of `exclusiveUpperBoundDate` or `exclusiveLowerBoundDate` must
 // be set.
@@ -189,10 +288,40 @@ export type TaskQueryDateNormalizedFilter =
           readonly exclusiveUpperBoundDate: CalendarDate | null;
       };
 
+const TaskQueryDateNormalizedFilterSchema = Schema.object({
+    type: Schema.value("Range"),
+    exclusiveLowerBoundDate: CalendarDateSchema.nullable(),
+    exclusiveUpperBoundDate: CalendarDateSchema.nullable(),
+}) as ObjectSchema<TaskQueryDateNormalizedFilter>;
+
 export type TaskQueryNotepadPageNormalizedFilter = {
     readonly accountId: AccountId;
     readonly notepadPageId: TaskNotepadPageId;
 };
+
+const TaskQueryNotepadPageNormalizedFilterSchema = Schema.object({
+    accountId: Schema.id<AccountId>(),
+    notepadPageId: Schema.integer as any as Schema<TaskNotepadPageId>,
+});
+
+export const TaskQueryNormalizedFiltersSchema: Schema<TaskQueryNormalizedFilters> = Schema.object({
+    displayStatusFilter: TaskQueryDisplayStatusNormalizedFilterSchema,
+    collectionsFilter: TaskQueryCollectionsNormalizedFilterSchema.optional(),
+    priorityFilter: TaskQueryPriorityNormalizedFilterSchema.optional(),
+    titleFilter: TaskQueryTitleNormalizedFilterSchema.optional(),
+    assigneeFilter: TaskQueryAccountNormalizedFilterSchema.optional(),
+    creatorFilter: TaskQueryAccountNormalizedFilterSchema.optional(),
+    assignerFilter: TaskQueryAccountNormalizedFilterSchema.optional(),
+    dueDateFilter: Schema.union({
+        Range: TaskQueryDateNormalizedFilterSchema,
+        IsEmpty: Schema.object({type: Schema.value("IsEmpty")}),
+    }).optional(),
+    createdDateFilter: TaskQueryDateNormalizedFilterSchema.optional(),
+    assignedDateFilter: TaskQueryDateNormalizedFilterSchema.optional(),
+    closedDateFilter: TaskQueryDateNormalizedFilterSchema.optional(),
+    activatedDateFilter: TaskQueryDateNormalizedFilterSchema.optional(),
+    notepadPageFilter: TaskQueryNotepadPageNormalizedFilterSchema.optional(),
+});
 
 /**
  * Convert an array of task query filters to a normalized representation which

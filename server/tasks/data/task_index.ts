@@ -1,3 +1,4 @@
+import {DynamoSystemActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
 import {ServerSystemActionContext} from "~/server/context/server_action_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {
@@ -39,7 +40,7 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
-import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
+import {LabelStringRegister} from "~/shared/tasks/helpers/label_string_register.js";
 import {TaskCollectionAccessPolicyRegister} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
@@ -614,7 +615,7 @@ export async function queryTaskIndex(
         cache: CacheContextModule;
         dynamo: DynamoContextModule;
         opensearch: OpensearchContextModule;
-        actor: ActorContextModule;
+        actor: DynamoSystemActorContextModule;
     }>,
     {
         spaceId,

@@ -45,6 +45,7 @@ import {WebSocketProtocolBase} from "~/shared/web_socket/web_socket_protocol.js"
 export type DurableObjectEnv = {
     APP_SERVICE_PUBLIC_KEY?: string;
     EDGE_SERVICE_FAMILY_PUBLIC_KEY?: string;
+    TASK_REALTIME_SERVICE_PUBLIC_KEY?: string;
     EDGE_SERVICE_FAMILY_PRIVATE_KEY?: string;
     HONEYCOMB_API_KEY?: string;
 };
@@ -126,6 +127,10 @@ export function createDurableObject<
             if (!edgeServiceFamilyPublicKey)
                 throw new InternalError("Missing `EDGE_SERVICE_FAMILY_PUBLIC_KEY` env variable");
 
+            const taskRealtimeServicePublicKey = env.TASK_REALTIME_SERVICE_PUBLIC_KEY;
+            if (!taskRealtimeServicePublicKey)
+                throw new InternalError("Missing `TASK_REALTIME_SERVICE_PUBLIC_KEY` env variable");
+
             const edgeServiceFamilyPrivateKey = env.EDGE_SERVICE_FAMILY_PRIVATE_KEY;
             if (!edgeServiceFamilyPrivateKey)
                 throw new InternalError("Missing `EDGE_SERVICE_FAMILY_PRIVATE_KEY` env variable");
@@ -134,6 +139,7 @@ export function createDurableObject<
                 serviceName,
                 appServicePublicKey,
                 edgeServiceFamilyPublicKey,
+                taskRealtimeServicePublicKey,
                 edgeServiceFamilyPrivateKey,
             });
 
@@ -233,7 +239,7 @@ export function createDurableObject<
                             cache: new CacheContextModule(),
                             actor: actorContextModule,
                             rpc: rpcContextModule,
-                            fork: createWorkerForkActionContextModule(
+                            fork: createForkActionContextModule(
                                 this._processContext,
                                 actorContextModule,
                                 rpcContextModule,
@@ -348,7 +354,7 @@ export function createDurableObject<
     };
 }
 
-function createWorkerForkActionContextModule(
+function createForkActionContextModule(
     processContext: WorkerProcessContext,
     actorContextModule: WorkerActorContextModule,
     rpcContextModule: WorkerRpcContextModule,

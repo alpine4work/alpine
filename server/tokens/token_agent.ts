@@ -42,7 +42,11 @@ const tokenEdgeServiceFamilyNames = [
     "MyAccountService",
 ] as const;
 
-const tokenServiceNames = ["AppService", ...tokenEdgeServiceFamilyNames] as const;
+const tokenServiceNames = [
+    "AppService",
+    "TaskRealtimeService",
+    ...tokenEdgeServiceFamilyNames,
+] as const;
 
 export type TokenEdgeServiceFamilyName = (typeof tokenEdgeServiceFamilyNames)[number];
 export type TokenServiceName = (typeof tokenServiceNames)[number];
@@ -61,6 +65,7 @@ assertAssignableTypes<DurableObjectServiceName, TokenEdgeServiceFamilyName>();
 export abstract class TokenAgentBase {
     protected readonly _appServicePublicKey: KeyLike;
     protected readonly _edgeServiceFamilyPublicKey: KeyLike;
+    protected readonly _taskRealtimeServicePublicKey: KeyLike;
 
     protected abstract readonly _serviceName: TokenServiceName;
     protected abstract readonly _servicePrivateKey: KeyLike;
@@ -68,12 +73,15 @@ export abstract class TokenAgentBase {
     protected constructor({
         appServicePublicKey,
         edgeServiceFamilyPublicKey,
+        taskRealtimeServicePublicKey,
     }: {
         appServicePublicKey: KeyLike;
         edgeServiceFamilyPublicKey: KeyLike;
+        taskRealtimeServicePublicKey: KeyLike;
     }) {
         this._appServicePublicKey = appServicePublicKey;
         this._edgeServiceFamilyPublicKey = edgeServiceFamilyPublicKey;
+        this._taskRealtimeServicePublicKey = taskRealtimeServicePublicKey;
     }
 
     protected _getServicePublicKeyByName(serviceName: TokenServiceName): KeyLike {
@@ -86,6 +94,8 @@ export abstract class TokenAgentBase {
             case "ChatRealtimeService":
             case "MyAccountService":
                 return this._edgeServiceFamilyPublicKey;
+            case "TaskRealtimeService":
+                return this._taskRealtimeServicePublicKey;
             default:
                 throw exhaustive(serviceName);
         }
@@ -169,13 +179,15 @@ export class AppServiceTokenAgent extends TokenAgentBase {
     private constructor({
         appServicePublicKey,
         edgeServiceFamilyPublicKey,
+        taskRealtimeServicePublicKey,
         appServicePrivateKey,
     }: {
         appServicePublicKey: KeyLike;
         edgeServiceFamilyPublicKey: KeyLike;
+        taskRealtimeServicePublicKey: KeyLike;
         appServicePrivateKey: KeyLike;
     }) {
-        super({appServicePublicKey, edgeServiceFamilyPublicKey});
+        super({appServicePublicKey, edgeServiceFamilyPublicKey, taskRealtimeServicePublicKey});
         this._serviceName = "AppService";
         this._servicePrivateKey = appServicePrivateKey;
     }
@@ -183,22 +195,30 @@ export class AppServiceTokenAgent extends TokenAgentBase {
     public static async new({
         appServicePublicKey: appServicePublicKeyString,
         edgeServiceFamilyPublicKey: edgeServiceFamilyPublicKeyString,
+        taskRealtimeServicePublicKey: taskRealtimeServicePublicKeyString,
         appServicePrivateKey: appServicePrivateKeyString,
     }: {
         appServicePublicKey: string;
         edgeServiceFamilyPublicKey: string;
+        taskRealtimeServicePublicKey: string;
         appServicePrivateKey: string;
     }) {
-        const [appServicePublicKey, edgeServiceFamilyPublicKey, appServicePrivateKey] =
-            await runAllPromises([
-                importSPKI(appServicePublicKeyString, "RS256"),
-                importSPKI(edgeServiceFamilyPublicKeyString, "RS256"),
-                importPKCS8(appServicePrivateKeyString, "RS256"),
-            ]);
+        const [
+            appServicePublicKey,
+            edgeServiceFamilyPublicKey,
+            taskRealtimeServicePublicKey,
+            appServicePrivateKey,
+        ] = await runAllPromises([
+            importSPKI(appServicePublicKeyString, "RS256"),
+            importSPKI(edgeServiceFamilyPublicKeyString, "RS256"),
+            importSPKI(taskRealtimeServicePublicKeyString, "RS256"),
+            importPKCS8(appServicePrivateKeyString, "RS256"),
+        ]);
 
         return new AppServiceTokenAgent({
             appServicePublicKey,
             edgeServiceFamilyPublicKey,
+            taskRealtimeServicePublicKey,
             appServicePrivateKey,
         });
     }
@@ -244,14 +264,16 @@ export class EdgeServiceFamilyTokenAgent extends TokenAgentBase {
         serviceName,
         appServicePublicKey,
         edgeServiceFamilyPublicKey,
+        taskRealtimeServicePublicKey,
         edgeServiceFamilyPrivateKey,
     }: {
         serviceName: TokenEdgeServiceFamilyName;
         appServicePublicKey: KeyLike;
         edgeServiceFamilyPublicKey: KeyLike;
+        taskRealtimeServicePublicKey: KeyLike;
         edgeServiceFamilyPrivateKey: KeyLike;
     }) {
-        super({appServicePublicKey, edgeServiceFamilyPublicKey});
+        super({appServicePublicKey, edgeServiceFamilyPublicKey, taskRealtimeServicePublicKey});
         this._serviceName = serviceName;
         this._servicePrivateKey = edgeServiceFamilyPrivateKey;
     }
@@ -260,25 +282,85 @@ export class EdgeServiceFamilyTokenAgent extends TokenAgentBase {
         serviceName,
         appServicePublicKey: appServicePublicKeyString,
         edgeServiceFamilyPublicKey: edgeServiceFamilyPublicKeyString,
+        taskRealtimeServicePublicKey: taskRealtimeServicePublicKeyString,
         edgeServiceFamilyPrivateKey: edgeServiceFamilyPrivateKeyString,
     }: {
         serviceName: TokenEdgeServiceFamilyName;
         appServicePublicKey: string;
         edgeServiceFamilyPublicKey: string;
+        taskRealtimeServicePublicKey: string;
         edgeServiceFamilyPrivateKey: string;
     }) {
-        const [appServicePublicKey, edgeServiceFamilyPublicKey, edgeServiceFamilyPrivateKey] =
-            await runAllPromises([
-                importSPKI(appServicePublicKeyString, "RS256"),
-                importSPKI(edgeServiceFamilyPublicKeyString, "RS256"),
-                importPKCS8(edgeServiceFamilyPrivateKeyString, "RS256"),
-            ]);
+        const [
+            appServicePublicKey,
+            edgeServiceFamilyPublicKey,
+            taskRealtimeServicePublicKey,
+            edgeServiceFamilyPrivateKey,
+        ] = await runAllPromises([
+            importSPKI(appServicePublicKeyString, "RS256"),
+            importSPKI(edgeServiceFamilyPublicKeyString, "RS256"),
+            importSPKI(taskRealtimeServicePublicKeyString, "RS256"),
+            importPKCS8(edgeServiceFamilyPrivateKeyString, "RS256"),
+        ]);
 
         return new EdgeServiceFamilyTokenAgent({
             serviceName,
             appServicePublicKey,
             edgeServiceFamilyPublicKey,
+            taskRealtimeServicePublicKey,
             edgeServiceFamilyPrivateKey,
+        });
+    }
+}
+
+export class TaskRealtimeServiceTokenAgent extends TokenAgentBase {
+    protected override readonly _serviceName: TokenServiceName;
+    protected override readonly _servicePrivateKey: KeyLike;
+
+    private constructor({
+        appServicePublicKey,
+        edgeServiceFamilyPublicKey,
+        taskRealtimeServicePublicKey,
+        taskRealtimeServicePrivateKey,
+    }: {
+        appServicePublicKey: KeyLike;
+        edgeServiceFamilyPublicKey: KeyLike;
+        taskRealtimeServicePublicKey: KeyLike;
+        taskRealtimeServicePrivateKey: KeyLike;
+    }) {
+        super({appServicePublicKey, edgeServiceFamilyPublicKey, taskRealtimeServicePublicKey});
+        this._serviceName = "TaskRealtimeService";
+        this._servicePrivateKey = taskRealtimeServicePrivateKey;
+    }
+
+    public static async new({
+        appServicePublicKey: appServicePublicKeyString,
+        edgeServiceFamilyPublicKey: edgeServiceFamilyPublicKeyString,
+        taskRealtimeServicePublicKey: taskRealtimeServicePublicKeyString,
+        taskRealtimeServicePrivateKey: taskRealtimeServicePrivateKeyString,
+    }: {
+        appServicePublicKey: string;
+        edgeServiceFamilyPublicKey: string;
+        taskRealtimeServicePublicKey: string;
+        taskRealtimeServicePrivateKey: string;
+    }) {
+        const [
+            appServicePublicKey,
+            edgeServiceFamilyPublicKey,
+            taskRealtimeServicePublicKey,
+            taskRealtimeServicePrivateKey,
+        ] = await runAllPromises([
+            importSPKI(appServicePublicKeyString, "RS256"),
+            importSPKI(edgeServiceFamilyPublicKeyString, "RS256"),
+            importSPKI(taskRealtimeServicePublicKeyString, "RS256"),
+            importPKCS8(taskRealtimeServicePrivateKeyString, "RS256"),
+        ]);
+
+        return new TaskRealtimeServiceTokenAgent({
+            appServicePublicKey,
+            edgeServiceFamilyPublicKey,
+            taskRealtimeServicePublicKey,
+            taskRealtimeServicePrivateKey,
         });
     }
 }

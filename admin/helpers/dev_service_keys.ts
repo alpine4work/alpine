@@ -18,6 +18,15 @@ export const devEdgeServiceFamilyPublicKeyPath = joinPath(
     "edge_service_family_rsa.pub",
 );
 
+export const devTaskRealtimeServicePrivateKeyPath = joinPath(
+    devKeysDirectoryPath,
+    "task_realtime_service_rsa",
+);
+export const devTaskRealtimeServicePublicKeyPath = joinPath(
+    devKeysDirectoryPath,
+    "task_realtime_service_rsa.pub",
+);
+
 /**
  * Make sure our development key files exist. If our key files do not exist
  * then we generate new keys. Otherwise this function does nothing.
@@ -76,6 +85,33 @@ export async function ensureDevServiceKeys() {
             await runAllPromises([
                 fs.writeFile(devEdgeServiceFamilyPrivateKeyPath, privateKey),
                 fs.writeFile(devEdgeServiceFamilyPublicKeyPath, publicKey),
+            ]);
+        })(),
+        (async () => {
+            if (await fs.pathExists(devTaskRealtimeServicePrivateKeyPath)) return;
+            await fs.ensureDir(devKeysDirectoryPath);
+
+            const {publicKey, privateKey} = await new Promise<{
+                publicKey: string;
+                privateKey: string;
+            }>((resolve, reject) =>
+                generateKeyPair(
+                    "rsa",
+                    {
+                        modulusLength: 2048,
+                        publicKeyEncoding: {type: "spki", format: "pem"},
+                        privateKeyEncoding: {type: "pkcs8", format: "pem"},
+                    },
+                    (error, publicKey, privateKey) => {
+                        if (error) reject(error);
+                        else resolve({publicKey, privateKey});
+                    },
+                ),
+            );
+
+            await runAllPromises([
+                fs.writeFile(devTaskRealtimeServicePrivateKeyPath, privateKey),
+                fs.writeFile(devTaskRealtimeServicePublicKeyPath, publicKey),
             ]);
         })(),
     ]);

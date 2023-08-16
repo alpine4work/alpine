@@ -12,6 +12,7 @@ type EdgeServiceEnv = {
     MyAccountDurableObjectNamespace: DurableObjectNamespace;
     APP_SERVICE_PUBLIC_KEY?: string;
     EDGE_SERVICE_FAMILY_PUBLIC_KEY?: string;
+    TASK_REALTIME_SERVICE_PUBLIC_KEY?: string;
     EDGE_SERVICE_FAMILY_PRIVATE_KEY?: string;
     HONEYCOMB_API_KEY?: string;
 };
@@ -88,6 +89,12 @@ async function handleFetch(
                         "Missing `EDGE_SERVICE_FAMILY_PUBLIC_KEY` env variable",
                     );
 
+                const taskRealtimeServicePublicKey = env.TASK_REALTIME_SERVICE_PUBLIC_KEY;
+                if (!taskRealtimeServicePublicKey)
+                    throw new InternalError(
+                        "Missing `TASK_REALTIME_SERVICE_PUBLIC_KEY` env variable",
+                    );
+
                 const edgeServiceFamilyPrivateKey = env.EDGE_SERVICE_FAMILY_PRIVATE_KEY;
                 if (!edgeServiceFamilyPrivateKey)
                     throw new InternalError(
@@ -98,6 +105,7 @@ async function handleFetch(
                     serviceName: "EdgeService",
                     appServicePublicKey,
                     edgeServiceFamilyPublicKey,
+                    taskRealtimeServicePublicKey,
                     edgeServiceFamilyPrivateKey,
                 });
 

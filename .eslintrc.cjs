@@ -80,10 +80,11 @@ module.exports = {
         "no-unused-expressions": "off",
         "@typescript-eslint/no-unused-expressions": "warn",
 
-        // Constructor's that don't assign to `this` are dead code, you may
-        // delete them.
+        // When you first write a constructor it's useless. It's annoying to see a lint
+        // warning while you're typing. A truly useless constructor doesn't really hurt
+        // anyone.
         "no-useless-constructor": "off",
-        "@typescript-eslint/no-useless-constructor": "warn",
+        "@typescript-eslint/no-useless-constructor": "off",
 
         // Allow re-declaring types and values. For example `type Foo` and
         // `const Foo` in the same file should be ok.

@@ -4,6 +4,7 @@ import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {CalendarDateSchema} from "~/shared/tasks/helpers/calendar_date_schema.js";
 import {TaskAssigneeSchema} from "~/shared/tasks/task_assignee.js";
 import {TaskAssigneeStatusSchema} from "~/shared/tasks/task_assignee_status.js";
 import {TaskNotepadPageIdSchema} from "~/shared/tasks/task_notepad_page_id.js";
@@ -357,11 +358,6 @@ export type TaskUpdateTitleAction = SchemaType<typeof TaskUpdateTitleActionSchem
 const TaskUpdateTitleActionSchema = Schema.object({
     type: Schema.value("UpdateTitle"),
     titleUpdate: TaskTitleUpdateSchema,
-});
-
-const CalendarDateSchema = Schema.string.transform<CalendarDate>({
-    serialize: date => date.toString(),
-    deserialize: date => parseDate(date),
 });
 
 export const TaskDueDateRegister = createCrdtRegister(CalendarDateSchema.nullable());

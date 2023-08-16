@@ -1,5 +1,5 @@
+import {WorkerSessionActionContextModules} from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
-import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import {
     BackfillMessagesFunction,
     CreateMessageFunction,
@@ -7,6 +7,7 @@ import {
     MessagingRealtimeConnection,
     UpdateMessageContentFunction,
 } from "~/server/messaging/realtime/messaging_realtime_connection.js";
+import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import {ChatMessageModel} from "~/shared/chat/chat_model.js";
 import {ChatRealtimeEvent, ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -53,7 +54,10 @@ export class ChatRealtimeConnection {
         });
     }
 
-    public readonly procedures: WebSocketConnectionProcedures<typeof ChatRealtimeProtocol> = {
+    public readonly procedures: WebSocketConnectionProcedures<
+        WorkerSessionActionContextModules,
+        typeof ChatRealtimeProtocol
+    > = {
         backfillMessages: (context, input) => this._connection.backfillMessages(context, input),
         createMessage: (context, input) => this._connection.createMessage(context, input),
         updateMessageContent: (context, input) =>

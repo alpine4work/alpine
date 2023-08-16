@@ -15,7 +15,7 @@ import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
-import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
+import {LabelStringRegister} from "~/shared/tasks/helpers/label_string_register.js";
 import {
     TaskCollectionAccessPolicyRegister,
     TaskCollectionAccessPolicySchema,

@@ -69,12 +69,10 @@ interface DynamoActorContextModuleBase extends ActorContextModuleBase {
  */
 export class DynamoUnknownActorContextModule<
     Modules extends {
-        process: ProcessContextModule;
         tracer: TracerContextModule;
         dynamo: DynamoContextModule;
         cache: CacheContextModule;
     } = {
-        process: ProcessContextModule;
         tracer: TracerContextModule;
         dynamo: DynamoContextModule;
         cache: CacheContextModule;

@@ -1,12 +1,15 @@
-import {WorkerActionContext} from "~/server/cloudflare/context/worker_action_context.js";
+import {
+    WorkerActionContext,
+    WorkerSessionActionContextModules,
+} from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
-import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import {
     DocumentCollaborationContentManager,
     DocumentCollaborationContentManagerOptimisticCommentThread,
 } from "~/server/documents/collaboration/document_collaboration_content_manager.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {MessagingRealtimeConnection} from "~/server/messaging/realtime/messaging_realtime_connection.js";
+import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {
     DocumentCollaborationEvent,
@@ -103,6 +106,7 @@ export class DocumentCollaborationConnection {
     }
 
     public readonly procedures: WebSocketConnectionProcedures<
+        WorkerSessionActionContextModules,
         typeof DocumentCollaborationProtocol
     > = {
         backfill: (context, input, span) =>

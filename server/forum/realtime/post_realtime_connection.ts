@@ -1,5 +1,5 @@
+import {WorkerSessionActionContextModules} from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
-import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import {
     BackfillMessagesFunction,
     CreateMessageFunction,
@@ -7,6 +7,7 @@ import {
     MessagingRealtimeConnection,
     UpdateMessageContentFunction,
 } from "~/server/messaging/realtime/messaging_realtime_connection.js";
+import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import {PostCommentModel} from "~/shared/forum/post_model.js";
 import {PostRealtimeEvent, PostRealtimeProtocol} from "~/shared/forum/post_realtime_protocol.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -54,7 +55,10 @@ export class PostRealtimeConnection {
         });
     }
 
-    public readonly procedures: WebSocketConnectionProcedures<typeof PostRealtimeProtocol> = {
+    public readonly procedures: WebSocketConnectionProcedures<
+        WorkerSessionActionContextModules,
+        typeof PostRealtimeProtocol
+    > = {
         backfillComments: async (
             context,
             {
