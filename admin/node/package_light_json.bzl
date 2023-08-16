@@ -14,6 +14,7 @@ plugins need.
 """
 
 load("@aspect_bazel_lib//lib:copy_file.bzl", "copy_file_action")
+load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
 
 def _package_light_json_impl(ctx):
     file = ctx.actions.declare_file("package.json", sibling = ctx.file.src)
@@ -37,4 +38,11 @@ def package_light_json(**kwargs):
         name = "package_light_json_file",
         src = "package_light.json",
         **kwargs
+    )
+
+    write_source_files(
+        name = "write_package_light_json_file",
+        files = {
+            "package_light.json": "//admin/node:package_light_json_file",
+        },
     )

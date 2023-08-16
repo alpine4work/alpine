@@ -1,3 +1,4 @@
+import {WebSocket, WebSocketPair} from "#server/web_socket/internal/web_socket_pair.js";
 import {SessionActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {
     ForkActionContextModule,
@@ -32,6 +33,16 @@ import {
     createWebSocketMessageFromClientSchema,
     createWebSocketMessageFromServerSchema,
 } from "~/shared/web_socket/web_socket_schema.js";
+
+// Cloudflare allows attaching a `webSocket` to a response object. Our Node.js
+// `createStandardizedServer()` implementation knows to look for this property.
+//
+// https://developers.cloudflare.com/workers/runtime-apis/websockets/use-websockets/
+declare global {
+    interface ResponseInit {
+        webSocket?: globalThis.WebSocket | null;
+    }
+}
 
 export type WebSocketConnectionProcedures<
     SessionActionContextModules extends {},
@@ -126,23 +137,19 @@ export class WebSocketServer<
     constructor(
         processContext: Context<ProcessContextModules>,
         protocol: Protocol,
-        {
-            createConnection,
-        }: {
-            createConnection: (connection: {
-                connectActionContext: Context<SessionActionContextModules>;
-                connectionId: WebSocketConnectionId;
-                sendEvent: (
-                    context: Context<ProcessContextModules>,
-                    message: WebSocketProtocolEventType<Protocol>,
-                ) => void;
-                sendEventToOthers: (
-                    context: Context<ProcessContextModules>,
-                    message: WebSocketProtocolEventType<Protocol>,
-                ) => void;
-                iterateOtherConnections: () => Iterable<Connection>;
-            }) => Promise<Connection>;
-        },
+        createConnection: (connection: {
+            connectActionContext: Context<SessionActionContextModules>;
+            connectionId: WebSocketConnectionId;
+            sendEvent: (
+                context: Context<ProcessContextModules>,
+                message: WebSocketProtocolEventType<Protocol>,
+            ) => void;
+            sendEventToOthers: (
+                context: Context<ProcessContextModules>,
+                message: WebSocketProtocolEventType<Protocol>,
+            ) => void;
+            iterateOtherConnections: () => Iterable<Connection>;
+        }) => Promise<Connection>,
     ) {
         this._processContext = processContext;
         this._protocol = protocol;
@@ -210,7 +217,13 @@ export class WebSocketServer<
         const clientSocket = socketPair[0];
         const serverSocket = socketPair[1];
 
-        const response = new Response(null, {status: 101, webSocket: clientSocket});
+        const response = new Response(null, {
+            status: 101,
+            // Cloudflare's WebSocket implementation doesn't fully comply with the
+            // TypeScript DOM WebSocket type (e.g. there is no `bufferedAmount` or
+            // `binaryType` property) but everything seems to be fine regardless.
+            webSocket: clientSocket as any as globalThis.WebSocket,
+        });
 
         const sendEvent = (
             context: Context<ProcessContextModules>,
@@ -282,7 +295,6 @@ export class WebSocketServer<
             );
         });
 
-        // @ts-expect-error: Why aren't my cloudflare types getting picked up properly?
         serverSocket.accept();
 
         connectActionContext.tracer.log("WebSocket connected", {
@@ -651,6 +663,9 @@ class WebSocketServerConnectionWrapper<
 
                 let message: WebSocketMessageFromClient<Protocol>;
                 try {
+                    if (event.data instanceof ArrayBuffer)
+                        throw new InvalidArgumentError("Unexpected binary WebSocket message");
+
                     const serializedMessage = JSON.parse(event.data);
                     message = this._messageFromClientSchema.deserialize(serializedMessage);
                 } catch (error) {

@@ -20,7 +20,10 @@ ts_project(
 
 esbuild(
     name = "edge_service_bundle_file",
-    srcs = [":edge_lib"],
+    srcs = [
+        ":edge_lib",
+        "//:package_light_json_file",
+    ],
     config = "edge_esbuild_config.cjs",
     entry_point = "edge_service.js",
     output = "edge_service_bundle.js",

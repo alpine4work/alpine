@@ -32,7 +32,7 @@ patchedDependencies:
     hash: ykd4naedzjmzggcdstyfvaxp2e
     path: admin/patches/@react-aria__ssr@3.6.0.patch
   '@remix-run/dev@1.18.0':
-    hash: nxnyrxfaccwqsj5foon33siae4
+    hash: itiedt3cl57srvgj5h5hhmmvmm
     path: admin/patches/@remix-run__dev@1.18.0.patch
   '@remix-run/react@1.18.0':
     hash: tq6lzw5uol6zuaek2c4ohjysse
@@ -149,7 +149,7 @@ dependencies:
     version: 3.18.1(react@18.2.0)
   '@remix-run/dev':
     specifier: 1.18.0
-    version: 1.18.0(patch_hash=nxnyrxfaccwqsj5foon33siae4)(@types/node@20.3.2)
+    version: 1.18.0(patch_hash=itiedt3cl57srvgj5h5hhmmvmm)(@types/node@20.3.2)(bufferutil@4.0.7)(utf-8-validate@5.0.10)
   '@remix-run/eslint-config':
     specifier: 1.18.0
     version: 1.18.0(eslint@8.20.0)(jest@28.1.3)(react@18.2.0)(typescript@5.1.3)
@@ -303,6 +303,9 @@ dependencies:
   browserify-zlib:
     specifier: 0.1.4
     version: 0.1.4(patch_hash=lhhf4zowvg4ngxldsy5aala7hu)
+  bufferutil:
+    specifier: ^4.0.1
+    version: 4.0.7
   chalk:
     specifier: ^4.1.2
     version: 4.1.2
@@ -428,7 +431,7 @@ dependencies:
     version: 28.1.3(@types/node@20.3.2)
   jest-environment-jsdom:
     specifier: ^28.1.3
-    version: 28.1.3
+    version: 28.1.3(bufferutil@4.0.7)(utf-8-validate@5.0.10)
   jose:
     specifier: ^4.10.4
     version: 4.10.4
@@ -446,7 +449,7 @@ dependencies:
     version: 2.0.2(patch_hash=saj64dz6s226nfs27aiqrqatfi)
   miniflare:
     specifier: 2.14.0
-    version: 2.14.0
+    version: 2.14.0(bufferutil@4.0.7)(utf-8-validate@5.0.10)
   mjml:
     specifier: ^4.13.0
     version: 4.13.0
@@ -564,12 +567,15 @@ dependencies:
   unicode-default-word-boundary:
     specifier: ^13.0.0
     version: 13.0.0
+  utf-8-validate:
+    specifier: ^5.0.2
+    version: 5.0.10
   wrangler:
     specifier: ^3.1.2
-    version: 3.1.2(patch_hash=wvv6e4atuqi3hqcxstrbgwwagy)
+    version: 3.1.2(patch_hash=wvv6e4atuqi3hqcxstrbgwwagy)(bufferutil@4.0.7)(utf-8-validate@5.0.10)
   ws:
     specifier: ^8.10.0
-    version: 8.10.0
+    version: 8.10.0(bufferutil@4.0.7)(utf-8-validate@5.0.10)
   y-prosemirror:
     specifier: ^1.2.1
     version: 1.2.1(patch_hash=t5jeqsjsho2xiqouqfojkcxvhq)(prosemirror-model@1.18.1)(prosemirror-state@1.4.2)(prosemirror-view@1.27.2)(y-protocols@1.0.5)(yjs@13.6.6)
@@ -3578,17 +3584,17 @@ packages:
       undici: 5.20.0
     dev: false
 
-  /@miniflare/http-server@2.14.0:
+  /@miniflare/http-server@2.14.0(bufferutil@4.0.7)(utf-8-validate@5.0.10):
     resolution: {integrity: sha512-APaBlvGRAW+W18ph5ruPXX26/iKdByPz1tZH1OjPAKBDAiKFZSGek4QzUmQALBWLx5VMTMrt7QIe7KE4nM4sdw==}
     engines: {node: '>=16.13'}
     dependencies:
       '@miniflare/core': 2.14.0
       '@miniflare/shared': 2.14.0
-      '@miniflare/web-sockets': 2.14.0
+      '@miniflare/web-sockets': 2.14.0(bufferutil@4.0.7)(utf-8-validate@5.0.10)
       kleur: 4.1.5
       selfsigned: 2.1.1
       undici: 5.20.0
-      ws: 8.13.0
+      ws: 8.13.0(bufferutil@4.0.7)(utf-8-validate@5.0.10)
       youch: 2.2.2
     transitivePeerDependencies:
       - bufferutil
@@ -3675,14 +3681,14 @@ packages:
       '@miniflare/shared': 2.14.0
     dev: false
 
-  /@miniflare/web-sockets@2.14.0:
+  /@miniflare/web-sockets@2.14.0(bufferutil@4.0.7)(utf-8-validate@5.0.10):
     resolution: {integrity: sha512-lB1CB4rBq0mbCuh55WgIEH4L3c4/i4MNDBfrQL+6r+wGcr/BJUqF8BHpsfAt5yHWUJVtK5mlMeesS/xpg4Ao1w==}
     engines: {node: '>=16.13'}
     dependencies:
       '@miniflare/core': 2.14.0
       '@miniflare/shared': 2.14.0
       undici: 5.20.0
-      ws: 8.13.0
+      ws: 8.13.0(bufferutil@4.0.7)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
@@ -5064,7 +5070,7 @@ packages:
       react: 18.2.0
     dev: false
 
-  /@remix-run/dev@1.18.0(patch_hash=nxnyrxfaccwqsj5foon33siae4)(@types/node@20.3.2):
+  /@remix-run/dev@1.18.0(patch_hash=itiedt3cl57srvgj5h5hhmmvmm)(@types/node@20.3.2)(bufferutil@4.0.7)(utf-8-validate@5.0.10):
     resolution: {integrity: sha512-hKoLRjkKuuspJep+cGQv3OmQ4FJDuz4EpePSQe2cGoVjOHDryKm8ikVD/cM5MaGdAMYXj6Ka+LBQRhWwqZnbcw==}
     engines: {node: '>=14.0.0'}
     hasBin: true
@@ -5126,7 +5132,7 @@ packages:
       sort-package-json: 1.57.0
       tar-fs: 2.1.1
       tsconfig-paths: 4.1.0
-      ws: 7.5.9
+      ws: 7.5.9(bufferutil@4.0.7)(utf-8-validate@5.0.10)
       xdm: 2.1.0
     transitivePeerDependencies:
       - '@types/node'
@@ -7041,6 +7047,14 @@ packages:
     dependencies:
       base64-js: 1.5.1
       ieee754: 1.2.1
+    dev: false
+
+  /bufferutil@4.0.7:
+    resolution: {integrity: sha512-kukuqc39WOHtdxtw4UScxF/WVnMFVSQVKhtx3AjZJzhd0RGZZldcrfSEbVsWWe6KNH253574cq5F+wpv0G9pJw==}
+    engines: {node: '>=6.14.2'}
+    requiresBuild: true
+    dependencies:
+      node-gyp-build: 4.6.0
     dev: false
 
   /builtins@5.0.1:
@@ -10098,7 +10112,7 @@ packages:
       pretty-format: 28.1.3
     dev: false
 
-  /jest-environment-jsdom@28.1.3:
+  /jest-environment-jsdom@28.1.3(bufferutil@4.0.7)(utf-8-validate@5.0.10):
     resolution: {integrity: sha512-HnlGUmZRdxfCByd3GM2F100DgQOajUBzEitjGqIREcb45kGjZvRrKUdlaF6escXBdcXNl0OBh+1ZrfeZT3GnAg==}
     engines: {node: ^12.13.0 || ^14.15.0 || ^16.10.0 || >=17.0.0}
     dependencies:
@@ -10109,7 +10123,7 @@ packages:
       '@types/node': 20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy)
       jest-mock: 28.1.3
       jest-util: 28.1.3
-      jsdom: 19.0.0
+      jsdom: 19.0.0(bufferutil@4.0.7)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
       - bufferutil
       - canvas
@@ -10432,7 +10446,7 @@ packages:
       argparse: 2.0.1
     dev: false
 
-  /jsdom@19.0.0:
+  /jsdom@19.0.0(bufferutil@4.0.7)(utf-8-validate@5.0.10):
     resolution: {integrity: sha512-RYAyjCbxy/vri/CfnjUWJQQtZ3LKlLnDqj+9XLNnJPgEGeirZs3hllKR20re8LUZ6o1b1X4Jat+Qd26zmP41+A==}
     engines: {node: '>=12'}
     peerDependencies:
@@ -10466,7 +10480,7 @@ packages:
       whatwg-encoding: 2.0.0
       whatwg-mimetype: 3.0.0
       whatwg-url: 10.0.0
-      ws: 8.10.0
+      ws: 8.10.0(bufferutil@4.0.7)(utf-8-validate@5.0.10)
       xml-name-validator: 4.0.0
     transitivePeerDependencies:
       - bufferutil
@@ -11295,7 +11309,7 @@ packages:
     engines: {node: '>=4'}
     dev: false
 
-  /miniflare@2.14.0:
+  /miniflare@2.14.0(bufferutil@4.0.7)(utf-8-validate@5.0.10):
     resolution: {integrity: sha512-xBOUccq1dm5riOfaqoMWCC1uCqT71EW0x4akQQuGYgm+Q44N1ETEmzXSbFVroJgOHe8Hwpqxo2D7OOFwqFevew==}
     engines: {node: '>=16.13'}
     hasBin: true
@@ -11317,7 +11331,7 @@ packages:
       '@miniflare/d1': 2.14.0
       '@miniflare/durable-objects': 2.14.0
       '@miniflare/html-rewriter': 2.14.0
-      '@miniflare/http-server': 2.14.0
+      '@miniflare/http-server': 2.14.0(bufferutil@4.0.7)(utf-8-validate@5.0.10)
       '@miniflare/kv': 2.14.0
       '@miniflare/queues': 2.14.0
       '@miniflare/r2': 2.14.0
@@ -11327,7 +11341,7 @@ packages:
       '@miniflare/sites': 2.14.0
       '@miniflare/storage-file': 2.14.0
       '@miniflare/storage-memory': 2.14.0
-      '@miniflare/web-sockets': 2.14.0
+      '@miniflare/web-sockets': 2.14.0(bufferutil@4.0.7)(utf-8-validate@5.0.10)
       kleur: 4.1.5
       semiver: 1.1.0
       source-map-support: 0.5.21
@@ -11337,7 +11351,7 @@ packages:
       - utf-8-validate
     dev: false
 
-  /miniflare@3.20230628.0:
+  /miniflare@3.20230628.0(bufferutil@4.0.7)(utf-8-validate@5.0.10):
     resolution: {integrity: sha512-5tg+hWlY9kCZaJ8y1CA7Y1SuPOCjJWFthLLsJKX5Mj1KfUR96MHY2Hcboyk3KbzDiIWUd3eEIoEoriQ/H9egUw==}
     engines: {node: '>=16.13'}
     dependencies:
@@ -11354,7 +11368,7 @@ packages:
       stoppable: 1.1.0
       undici: 5.20.0
       workerd: 1.20230628.0
-      ws: 8.13.0
+      ws: 8.13.0(bufferutil@4.0.7)(utf-8-validate@5.0.10)
       youch: 3.2.3
       zod: 3.21.4
     transitivePeerDependencies:
@@ -11971,6 +11985,11 @@ packages:
   /node-forge@1.3.1:
     resolution: {integrity: sha512-dPEtOeMvF9VMcYV/1Wb8CPoVAXtp6MKMlcbAt4ddqmGqUJ6fQZFXkNZNkNlfevtNkGtaSoXf/vNNNSvgrdXwtA==}
     engines: {node: '>= 6.13.0'}
+    dev: false
+
+  /node-gyp-build@4.6.0:
+    resolution: {integrity: sha512-NTZVKn9IylLwUzaKjkas1e4u2DLNcV4rdYagA4PWdPwW87Bi7z+BznyKSRwS/761tV/lzCGXplWsiaMjLqP2zQ==}
+    hasBin: true
     dev: false
 
   /node-gyp@8.4.1:
@@ -14440,6 +14459,14 @@ packages:
       react: 18.2.0
     dev: false
 
+  /utf-8-validate@5.0.10:
+    resolution: {integrity: sha512-Z6czzLq4u8fPOyx7TU6X3dvUZVvoJmxSQ+IcrlmagKhilxlhZgxPK6C5Jqbkw1IDUmFTM+cz9QDnnLTwDz/2gQ==}
+    engines: {node: '>=6.14.2'}
+    requiresBuild: true
+    dependencies:
+      node-gyp-build: 4.6.0
+    dev: false
+
   /util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
     dev: false
@@ -14751,7 +14778,7 @@ packages:
       '@cloudflare/workerd-windows-64': 1.20230628.0
     dev: false
 
-  /wrangler@3.1.2(patch_hash=wvv6e4atuqi3hqcxstrbgwwagy):
+  /wrangler@3.1.2(patch_hash=wvv6e4atuqi3hqcxstrbgwwagy)(bufferutil@4.0.7)(utf-8-validate@5.0.10):
     resolution: {integrity: sha512-UvpKpemw2Bt0tSS3Dspkw0tp/d2dR3W3hdHjyM7jEsv+xgmQgEZqoN8gdA/2sgECO3FXRdLuQZDdcuOO43aHFw==}
     engines: {node: '>=16.13.0'}
     hasBin: true
@@ -14762,7 +14789,7 @@ packages:
       blake3-wasm: 2.1.5
       chokidar: 3.5.3
       esbuild: 0.16.3
-      miniflare: 3.20230628.0
+      miniflare: 3.20230628.0(bufferutil@4.0.7)(utf-8-validate@5.0.10)
       nanoid: 3.3.6
       path-to-regexp: 6.2.1
       selfsigned: 2.1.1
@@ -14798,7 +14825,7 @@ packages:
       signal-exit: 3.0.7
     dev: false
 
-  /ws@7.5.9:
+  /ws@7.5.9(bufferutil@4.0.7)(utf-8-validate@5.0.10):
     resolution: {integrity: sha512-F+P9Jil7UiSKSkppIiD94dN07AwvFixvLIj1Og1Rl9GGMuNipJnV9JzjD6XuqmAeiswGvUmNLjr5cFuXwNS77Q==}
     engines: {node: '>=8.3.0'}
     peerDependencies:
@@ -14809,9 +14836,12 @@ packages:
         optional: true
       utf-8-validate:
         optional: true
+    dependencies:
+      bufferutil: 4.0.7
+      utf-8-validate: 5.0.10
     dev: false
 
-  /ws@8.10.0:
+  /ws@8.10.0(bufferutil@4.0.7)(utf-8-validate@5.0.10):
     resolution: {integrity: sha512-+s49uSmZpvtAsd2h37vIPy1RBusaLawVe8of+GyEPsaJTCMpj/2v8NpeK1SHXjBlQ95lQTmQofOJnFiLoaN3yw==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
@@ -14822,9 +14852,12 @@ packages:
         optional: true
       utf-8-validate:
         optional: true
+    dependencies:
+      bufferutil: 4.0.7
+      utf-8-validate: 5.0.10
     dev: false
 
-  /ws@8.13.0:
+  /ws@8.13.0(bufferutil@4.0.7)(utf-8-validate@5.0.10):
     resolution: {integrity: sha512-x9vcZYTrFPC7aSIbj7sRCYo7L/Xb8Iy+pW0ng0wt2vCJv7M9HOMy0UoN3rr+IFC7hb7vXoqS+P9ktyLLLhO+LA==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
@@ -14835,6 +14868,9 @@ packages:
         optional: true
       utf-8-validate:
         optional: true
+    dependencies:
+      bufferutil: 4.0.7
+      utf-8-validate: 5.0.10
     dev: false
 
   /xdm@2.1.0:

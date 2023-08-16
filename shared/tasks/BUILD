@@ -18,5 +18,6 @@ ts_project(
         "//shared/id",
         "//shared/prosemirror",
         "//shared/schema",
+        "//shared/web_socket",
     ],
 )

@@ -1,11 +1,15 @@
 import {
     WorkerActionContext,
     WorkerSessionActionContext,
+    WorkerSessionActionContextModules,
 } from "~/server/cloudflare/context/worker_action_context.js";
-import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
+import {
+    WorkerProcessContext,
+    WorkerProcessContextModules,
+} from "~/server/cloudflare/context/worker_process_context.js";
 import {createDurableObject} from "~/server/cloudflare/create_durable_object.js";
-import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {PostRealtimeConnection} from "~/server/forum/realtime/post_realtime_connection.js";
+import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {PostRealtimeProtocol} from "~/shared/forum/post_realtime_protocol.js";
@@ -21,6 +25,8 @@ class PostRealtimeDurableObject {
     private readonly _postId: PostId;
 
     private readonly _webSocketServer: WebSocketServer<
+        WorkerProcessContextModules,
+        WorkerSessionActionContextModules,
         typeof PostRealtimeProtocol,
         PostRealtimeConnection
     >;
@@ -60,7 +66,12 @@ class PostRealtimeDurableObject {
         this._spaceId = spaceId;
         this._postId = postId;
 
-        this._webSocketServer = new WebSocketServer(
+        this._webSocketServer = new WebSocketServer<
+            WorkerProcessContextModules,
+            WorkerSessionActionContextModules,
+            typeof PostRealtimeProtocol,
+            PostRealtimeConnection
+        >(
             this._processContext,
             PostRealtimeProtocol,
             async ({

@@ -4,12 +4,12 @@ ts_project(
     name = "realtime",
     test_deps = [
         "//server/dynamo/test_helpers",
+        "//server/forum/data:data_testonly",
         "//server/messaging/realtime/test_helpers",
     ],
     visibility = ["//server/edge:__subpackages__"],
     deps = [
         "//server/cloudflare",
-        "//server/forum/data",
         "//server/messaging/realtime",
         "//shared/error",
         "//shared/forum",

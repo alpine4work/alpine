@@ -58,6 +58,20 @@ index 7d9a287a4f58b2ca35ce829f18a7a3b5ace3f78a..f2ac850cd22032616ac619e56dad07da
            return {
              path: args.path,
              namespace: "empty-module"
+diff --git a/dist/compiler/server/compiler.js b/dist/compiler/server/compiler.js
+index 10850b2ec9650954dab23be2fd838ae41354e911..9e4c9b92edeb11bdeb472ef516eabd8c28b96aea 100644
+--- a/dist/compiler/server/compiler.js
++++ b/dist/compiler/server/compiler.js
+@@ -93,7 +93,8 @@ const createEsbuildConfig = (ctx, refs) => {
+     minifySyntax: true,
+     minify: ctx.options.mode === "production" && ctx.config.serverMinify,
+     mainFields: ctx.config.serverMainFields,
+-    target: "node14",
++    // NOTE(calebmer): Target the version of Node.js we run in.
++    target: "node20.3.1",
+     loader: loaders.loaders,
+     bundle: true,
+     logLevel: "silent",
 diff --git a/dist/compiler/server/plugins/bareImports.js b/dist/compiler/server/plugins/bareImports.js
 index 54f469ac40950ace84f0ccb9f8b40376b305b860..2fa03a1019217f49be1ce0d51774d5c2f33b6e41 100644
 --- a/dist/compiler/server/plugins/bareImports.js

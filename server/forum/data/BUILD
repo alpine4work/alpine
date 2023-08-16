@@ -1,5 +1,14 @@
 load("//admin/typescript:typescript.bzl", "ts_project")
 
+alias(
+    name = "data_testonly",
+    testonly = True,
+    actual = ":data",
+    visibility = [
+        "//server/forum:__subpackages__",
+    ],
+)
+
 ts_project(
     name = "data",
     test_deps = [
@@ -9,7 +18,6 @@ ts_project(
     visibility = [
         "//admin/dynamo:__pkg__",
         "//app:__pkg__",
-        "//server/forum:__subpackages__",
         "//server/notifications/data:__pkg__",
         "//server/rpc:__pkg__",
     ],

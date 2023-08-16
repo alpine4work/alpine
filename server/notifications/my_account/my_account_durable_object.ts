@@ -2,11 +2,15 @@ import {differenceInMinutes} from "date-fns";
 import {
     WorkerActionContext,
     WorkerSessionActionContext,
+    WorkerSessionActionContextModules,
 } from "~/server/cloudflare/context/worker_action_context.js";
-import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
+import {
+    WorkerProcessContext,
+    WorkerProcessContextModules,
+} from "~/server/cloudflare/context/worker_process_context.js";
 import {createDurableObject} from "~/server/cloudflare/create_durable_object.js";
-import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {MyAccountConnection} from "~/server/notifications/my_account/my_account_connection.js";
+import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -23,6 +27,8 @@ class MyAccountDurableObject {
     private readonly _authorizer: MyAccountDurableObjectAuthorizer;
 
     private readonly _webSocketServer: WebSocketServer<
+        WorkerProcessContextModules,
+        WorkerSessionActionContextModules,
         typeof MyAccountProtocol,
         MyAccountConnection
     >;
@@ -64,17 +70,15 @@ class MyAccountDurableObject {
         this._accountId = accountId;
         this._authorizer = authorizer;
 
-        this._webSocketServer = new WebSocketServer(
-            this._processContext,
-            MyAccountProtocol,
-            async ({connectActionContext}) => {
-                await this._authorizer.authorizeMyAccountAccess(
-                    connectActionContext,
-                    this._accountId,
-                );
-                return new MyAccountConnection();
-            },
-        );
+        this._webSocketServer = new WebSocketServer<
+            WorkerProcessContextModules,
+            WorkerSessionActionContextModules,
+            typeof MyAccountProtocol,
+            MyAccountConnection
+        >(this._processContext, MyAccountProtocol, async ({connectActionContext}) => {
+            await this._authorizer.authorizeMyAccountAccess(connectActionContext, this._accountId);
+            return new MyAccountConnection();
+        });
     }
 
     public async fetch(context: WorkerActionContext, request: Request): Promise<Response> {

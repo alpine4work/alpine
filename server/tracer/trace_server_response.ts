@@ -22,7 +22,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
  */
 // TODO(calebmer, #tracer): Include the HTTP route in the span name like we do
 // with `fetchWithTracer()`.
-export async function traceStandardizedRequest(
+export async function traceServerResponse(
     tracer: TracerRoot,
     request: Request,
     requestUrl: URL,

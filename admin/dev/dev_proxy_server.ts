@@ -1,9 +1,14 @@
 import http from "http";
+import net from "net";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 // This will be ~20s of retrying.
 const retryDurationMs = 50;
 const maxRetryAttemptCount = 400;
+
+const keepAliveAgent = new http.Agent({keepAlive: true});
+const dontKeepAliveAgent = new http.Agent({keepAlive: false});
 
 /**
  * Create a server on `port1` that fully proxies the server on `port2`.
@@ -21,6 +26,7 @@ export async function createDevProxyServer(port1: number, port2: number) {
             requestAttemptCount++;
 
             const req = http.request({
+                agent: keepAliveAgent,
                 hostname: "localhost",
                 port: port2,
                 path: proxyReq.url,
@@ -58,14 +64,16 @@ export async function createDevProxyServer(port1: number, port2: number) {
                 });
 
                 proxyRes.writeHead(res.statusCode!, res.headers);
-                res.pipe(proxyRes, {end: true});
+                res.pipe(proxyRes);
             });
 
-            proxyReq.pipe(req, {end: true});
+            proxyReq.pipe(req);
         }
     });
 
     proxyServer.on("upgrade", (proxyReq, proxySocket, proxyHead) => {
+        assert(proxySocket instanceof net.Socket);
+
         proxySocket.on("error", error => {
             // Thrown when the other side of the socket closes. This is normal. Ignore
             // the error.
@@ -82,6 +90,11 @@ export async function createDevProxyServer(port1: number, port2: number) {
             requestAttemptCount++;
 
             const req = http.request({
+                // NOTE(calebmer): Don't keep WebSocket sockets alive. I don't know all the
+                // details of TCP keep-alive and the WebSocket protocol but it's causing issues
+                // when the partner disconnects from the socket, Node.js is not informed, and
+                // we try to reuse it.
+                agent: dontKeepAliveAgent,
                 hostname: "localhost",
                 port: port2,
                 path: proxyReq.url,
@@ -132,7 +145,7 @@ export async function createDevProxyServer(port1: number, port2: number) {
                         `${headers.join("\r\n")}\r\n` +
                         "\r\n",
                 );
-                res.pipe(proxySocket, {end: true});
+                res.pipe(proxySocket);
             });
 
             req.on("upgrade", (res, socket, head) => {
@@ -156,11 +169,11 @@ export async function createDevProxyServer(port1: number, port2: number) {
 
                 proxySocket.write(head);
                 socket.write(proxyHead);
-                proxySocket.pipe(socket, {end: true});
-                socket.pipe(proxySocket, {end: true});
+                proxySocket.pipe(socket);
+                socket.pipe(proxySocket);
             });
 
-            proxyReq.pipe(req, {end: true});
+            proxyReq.pipe(req);
         }
     });
 

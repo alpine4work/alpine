@@ -382,7 +382,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                         {
                             spanRoute: `/${index.name}/_settings`,
                             method: "PUT",
-                            headers: {"Content-Type": "application/json"},
+                            headers: {"content-type": "application/json"},
                             // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
                             // float-64 size in settings. Ok to use native JSON stringifier instead of
                             // `json-bigint`.
@@ -495,7 +495,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             {
                 spanRoute: `/${index.name}/_mget`,
                 method: "POST",
-                headers: {"Content-Type": "application/json"},
+                headers: {"content-type": "application/json"},
                 // NOTE(#opensearch-important-json-disclaimer): We only include IDs which are
                 // strings and so JSON safe. Stringify is fine here.
                 body: JSON.stringify({
@@ -599,7 +599,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             {
                 spanRoute: `/${index.name}/_bulk`,
                 method: "POST",
-                headers: {"Content-Type": "application/x-ndjson"},
+                headers: {"content-type": "application/x-ndjson"},
                 // NOTE(#opensearch-important-json-disclaimer): `long`s in `_source` are
                 // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s
                 // to strings to maintain precision. Ok to use native JSON stringifier since
@@ -716,7 +716,7 @@ export class OpensearchClient implements OpensearchClientInterface {
         const response = await fetchWithTracer(tracer, searchUrl, {
             spanRoute: `/${index.name}/_search`,
             method: "POST",
-            headers: {"Content-Type": "application/json"},
+            headers: {"content-type": "application/json"},
             // NOTE(#opensearch-important-json-disclaimer): `searchAfter` may contain
             // bigints we want to stringify as JSON integer literals so we need to use
             // `json-bigint`.

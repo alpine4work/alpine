@@ -3,6 +3,12 @@
     "private": true,
     "name": "cyberworlds",
     "version": "0.0.0",
+    "imports": {
+        "#server/web_socket/internal/web_socket_pair.js": {
+            "worker": "./server/web_socket/internal/web_socket_pair_worker.js",
+            "import": "./server/web_socket/internal/web_socket_pair_node.js"
+        }
+    },
     "dependencies": {
         "@remix-run/node": "1.18.0",
         "@remix-run/react": "1.18.0",

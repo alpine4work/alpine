@@ -68,7 +68,7 @@ export default async function handleRequest(
                 : 400
             : responseStatusCode;
 
-        responseHeaders.set("Content-Type", "text/html");
+        responseHeaders.set("content-type", "text/html");
 
         const response = new Response("<!DOCTYPE html>" + markup, {
             status: responseStatusCode,

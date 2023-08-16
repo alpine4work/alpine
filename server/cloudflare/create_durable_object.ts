@@ -17,7 +17,7 @@ import {ForkActionContextModule} from "~/server/helpers/fork_action_context_modu
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {EdgeServiceFamilyTokenAgent} from "~/server/tokens/token_agent.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
-import {traceStandardizedRequest} from "~/server/tracer/trace_standardized_request.js";
+import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
 import {
     WebSocketServerConnectionBase,
     WebSocketServerTestConnection,
@@ -168,7 +168,7 @@ export function createDurableObject<
         public fetch(request: Request): Promise<Response> {
             const url = new URL(request.url);
 
-            return traceStandardizedRequest(this._tracer, request, url, async (span, request) => {
+            return traceServerResponse(this._tracer, request, url, async (span, request) => {
                 try {
                     const idName = request.headers.get("cyberworlds-durable-object-id-name");
                     if (idName === null)
@@ -187,7 +187,7 @@ export function createDurableObject<
                     ) {
                         return new Response("412 Precondition Failed", {
                             status: 412,
-                            headers: {"Content-Type": "text/plain"},
+                            headers: {"content-type": "text/plain"},
                         });
                     }
 

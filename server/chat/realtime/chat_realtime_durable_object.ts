@@ -2,8 +2,12 @@ import {ChatRealtimeConnection} from "~/server/chat/realtime/chat_realtime_conne
 import {
     WorkerActionContext,
     WorkerSessionActionContext,
+    WorkerSessionActionContextModules,
 } from "~/server/cloudflare/context/worker_action_context.js";
-import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
+import {
+    WorkerProcessContext,
+    WorkerProcessContextModules,
+} from "~/server/cloudflare/context/worker_process_context.js";
 import {createDurableObject} from "~/server/cloudflare/create_durable_object.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
@@ -21,6 +25,8 @@ class ChatRealtimeDurableObject {
     private readonly _chatId: ChatId;
 
     private readonly _webSocketServer: WebSocketServer<
+        WorkerProcessContextModules,
+        WorkerSessionActionContextModules,
         typeof ChatRealtimeProtocol,
         ChatRealtimeConnection
     >;
@@ -60,7 +66,12 @@ class ChatRealtimeDurableObject {
         this._spaceId = spaceId;
         this._chatId = chatId;
 
-        this._webSocketServer = new WebSocketServer(
+        this._webSocketServer = new WebSocketServer<
+            WorkerProcessContextModules,
+            WorkerSessionActionContextModules,
+            typeof ChatRealtimeProtocol,
+            ChatRealtimeConnection
+        >(
             this._processContext,
             ChatRealtimeProtocol,
             async ({

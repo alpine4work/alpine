@@ -69,7 +69,7 @@ export async function loadInitialPeekDataForServer(
 async function processLoaderResult(result: unknown): Promise<unknown> {
     if (!(result instanceof Response)) return result;
 
-    const contentType = result.headers.get("Content-Type");
+    const contentType = result.headers.get("content-type");
 
     // Derived from:
     // https://github.com/remix-run/react-router/blob/bc2552840147206716544e5cdcdb54f649f9193f/packages/router/router.ts#L3649-L3656
