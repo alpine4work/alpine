@@ -240,11 +240,7 @@ runService({
                             tracer: new TracerContextModule(context.tracer.getTracer()),
                             cache: new CacheContextModule(),
                             dynamoBatchContext: new DynamoBatchContextModule(),
-                            notifications: new NotificationsContextModule({
-                                dangerouslyEscalateToSystemContext,
-                                edgeServiceUrl,
-                                tokenAgent,
-                            }),
+                            notifications: notificationsContextModule,
                             actor: DynamoSystemActorContextModule.dangerouslyNew(
                                 context.actor.serviceName,
                                 spaceId,
@@ -253,6 +249,12 @@ runService({
                         action,
                     );
                 };
+
+                const notificationsContextModule = new NotificationsContextModule({
+                    dangerouslyEscalateToSystemContext,
+                    edgeServiceUrl,
+                    tokenAgent,
+                });
 
                 return processContext.with<
                     Omit<
@@ -274,11 +276,7 @@ runService({
                         cache: new CacheContextModule(),
                         dynamoBatchContext: new DynamoBatchContextModule(),
                         actor: createActorContextModule(request, url, tokenAgent, sessionCookie),
-                        notifications: new NotificationsContextModule({
-                            dangerouslyEscalateToSystemContext,
-                            edgeServiceUrl,
-                            tokenAgent,
-                        }),
+                        notifications: notificationsContextModule,
                     },
                     context => {
                         // The first time our server process runs in development, seed DynamoDB with
