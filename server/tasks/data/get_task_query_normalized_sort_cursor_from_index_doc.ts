@@ -70,6 +70,10 @@ function getTaskQueryNormalizedSortCursorValueFromIndexDoc(
                 ? task.rawAssigneeStatus.value.activatedTime.absoluteTime
                 : null;
         }
+        case "ParentPosition": {
+            const position = task.parent.position.value;
+            return [position.orderTime[0], position.orderTime[1], position.orderKey];
+        }
         case "CollectionPosition": {
             const position = task.collections.raw.positionById.get(sort.collectionId);
             const version = task.collections.raw.collections.getVersion(sort.collectionId);

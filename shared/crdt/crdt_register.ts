@@ -4,6 +4,7 @@ import {
     HybridLogicalTime,
     compareHybridLogicalTimes,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -22,11 +23,16 @@ export interface CrdtRegister<Value> {
      * Merges two registers and picks a winner. This method is commutative and
      * idempotent.
      *
-     * In the rare case we have an `updatedTime` conflict we will arbitrarily pick
+     * In the rare case we have an `version` conflict we will arbitrarily pick
      * one of the registers as the winner. Which winner we pick isn't predictable
      * but all clients will consistently pick the same winner.
      */
     merge(other: CrdtRegister<Value>): CrdtRegister<Value>;
+
+    /**
+     * Is this CRDT register equal to the other one?
+     */
+    isEqual(other: CrdtRegister<Value>): boolean;
 
     /**
      * Creates an action you can apply with `apply()` that updates this
@@ -112,6 +118,20 @@ export function createCrdtRegister<Value>(valueSchema: Schema<Value>): CrdtRegis
             if (fallbackComparison > 0) return this;
             if (fallbackComparison < 0) return other;
             return this;
+        }
+
+        public isEqual(other: CrdtRegister): boolean {
+            const comparison = compareHybridLogicalTimes(this.version, other.version);
+            if (comparison !== 0) return false;
+
+            // Getting a `version` conflict should be rare. In this case, fallback
+            // to the values' structural order. All that matters is the decision is
+            // consistent, since `version` conflict should be rare we don't really care
+            // about which value wins. Only that the same value wins every time.
+            return isDeepEqual(
+                valueSchema.serialize(this.value),
+                valueSchema.serialize(other.value),
+            );
         }
 
         public set(clock: HybridLogicalClock, value: Value): CrdtRegisterAction<Value> {

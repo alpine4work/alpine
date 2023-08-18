@@ -25,6 +25,7 @@ async function main() {
             appServiceUrl,
             appServicePublicKey: appServicePublicKeyPath,
             edgeServiceFamilyPublicKey: edgeServiceFamilyPublicKeyPath,
+            taskRealtimeServicePublicKey: taskRealtimeServicePublicKeyPath,
             edgeServiceFamilyPrivateKey: edgeServiceFamilyPrivateKeyPath,
             honeycombApiKey,
         },
@@ -34,6 +35,7 @@ async function main() {
             appServiceUrl: {type: "string"},
             appServicePublicKey: {type: "string"},
             edgeServiceFamilyPublicKey: {type: "string"},
+            taskRealtimeServicePublicKey: {type: "string"},
             edgeServiceFamilyPrivateKey: {type: "string"},
             honeycombApiKey: {type: "string"},
         },
@@ -44,15 +46,22 @@ async function main() {
     if (!appServicePublicKeyPath) throw new Error("Missing `appServicePublicKey` arg");
     if (!edgeServiceFamilyPublicKeyPath)
         throw new Error("Missing `edgeServiceFamilyPublicKeyPath` arg");
+    if (!taskRealtimeServicePublicKeyPath)
+        throw new Error("Missing `taskRealtimeServicePublicKeyPath` arg");
     if (!edgeServiceFamilyPrivateKeyPath)
         throw new Error("Missing `edgeServiceFamilyPrivateKey` arg");
 
-    const [appServicePublicKey, edgeServiceFamilyPublicKey, edgeServiceFamilyPrivateKey] =
-        await Promise.all([
-            fs.readFile(appServicePublicKeyPath, "utf8"),
-            fs.readFile(edgeServiceFamilyPublicKeyPath, "utf8"),
-            fs.readFile(edgeServiceFamilyPrivateKeyPath, "utf8"),
-        ]);
+    const [
+        appServicePublicKey,
+        edgeServiceFamilyPublicKey,
+        taskRealtimeServicePublicKey,
+        edgeServiceFamilyPrivateKey,
+    ] = await Promise.all([
+        fs.readFile(appServicePublicKeyPath, "utf8"),
+        fs.readFile(edgeServiceFamilyPublicKeyPath, "utf8"),
+        fs.readFile(taskRealtimeServicePublicKeyPath, "utf8"),
+        fs.readFile(edgeServiceFamilyPrivateKeyPath, "utf8"),
+    ]);
 
     const port = parseInt(portString, 10);
 
@@ -73,6 +82,7 @@ async function main() {
         bindings: {
             APP_SERVICE_PUBLIC_KEY: appServicePublicKey,
             EDGE_SERVICE_FAMILY_PUBLIC_KEY: edgeServiceFamilyPublicKey,
+            TASK_REALTIME_SERVICE_PUBLIC_KEY: taskRealtimeServicePublicKey,
             EDGE_SERVICE_FAMILY_PRIVATE_KEY: edgeServiceFamilyPrivateKey,
             HONEYCOMB_API_KEY: honeycombApiKey,
         },

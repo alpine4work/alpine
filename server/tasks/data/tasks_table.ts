@@ -1631,6 +1631,8 @@ async function actuallyCommitTaskActionTransaction(
  *
  * Returns true if the account has access.
  */
+// NOCOMMIT: Handle deleted collections!
+// NOCOMMIT: Handle assignee!
 async function evaluateTaskCollectionItemAccessPolicy(
     context: ServerActionContext,
     collectionItem: TaskCollectionEssentialAttributesItem,

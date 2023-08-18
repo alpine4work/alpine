@@ -72,6 +72,12 @@ export interface CrdtMap<Key extends string | number, Value extends {}> {
     merge(other: CrdtMap<Key, Value>): CrdtMap<Key, Value>;
 
     /**
+     * Is this CRDT map equal to the other? This means all versions and gravestones
+     * in the map have to be equal too.
+     */
+    isEqual(other: CrdtMap<Key, Value>): boolean;
+
+    /**
      * Creates an action that sets a key in our map to the provided value. You can
      * apply the action with `apply()`.
      */
@@ -220,6 +226,19 @@ export function createCrdtMap<Key extends string | number, Value extends {}>(
             if (this._map === newMap) return this;
 
             return new CrdtMap(newMap);
+        }
+
+        public isEqual(other: CrdtMap): boolean {
+            const keys1 = new Set(this._map.keys());
+
+            for (const [key2, value2] of other._map) {
+                const value1 = this._map.get(key2);
+                if (!value1) return false;
+                if (!value1.isEqual(value2)) return false;
+                keys1.delete(key2);
+            }
+
+            return keys1.size === 0;
         }
 
         public set(clock: HybridLogicalClock, key: Key, value: Value): CrdtMapAction<Key, Value> {

@@ -48,6 +48,12 @@ export function getTaskQueryNormalizedSortsOpensearchSortClause(
                     return [{"status.value.closedTime.absoluteTime": item}];
                 case "ActivatedTime":
                     return [{"assigneeStatus.value.activatedTime.absoluteTime": item}];
+                case "ParentPosition": {
+                    return [
+                        {"parent.position.value.orderTime": item},
+                        {"parent.position.value.orderKey": item},
+                    ];
+                }
                 case "CollectionPosition": {
                     const missingValue =
                         sort.direction === "Ascending"
@@ -244,6 +250,19 @@ export function convertTaskQuerySortCursorToOpensearchCursor(
                     assert(typeof sortValue[0] === "number" && typeof sortValue[1] === "number");
                     newCursor.push(serializeHybridLogicalTime([sortValue[0], sortValue[1]]));
                 }
+                break;
+            }
+            case "ParentPosition": {
+                assert(Array.isArray(sortValue));
+                assert(
+                    typeof sortValue[0] === "number" &&
+                        typeof sortValue[1] === "number" &&
+                        typeof sortValue[2] === "string",
+                );
+                // When sending this to OpenSearch we'll need to use a special JSON stringifier
+                // that works with bigints.
+                newCursor.push(serializeHybridLogicalTime([sortValue[0], sortValue[1]]));
+                newCursor.push(sortValue[2]);
                 break;
             }
             case "CollectionPosition":

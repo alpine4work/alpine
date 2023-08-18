@@ -41,6 +41,7 @@ export class TaskRealtimeServer {
     private readonly _startActionHistory: () => void;
     private readonly _stopActionHistory: () => void;
     private readonly _backfillActionHistoryPromiseBySpaceId = new Map<SpaceId, Promise<void>>();
+    private _disableActionHistoryBackfillForTest?: boolean;
 
     private readonly _storeBySpaceId = new Map<SpaceId, TaskRealtimeQueryStore>();
 
@@ -98,6 +99,30 @@ export class TaskRealtimeServer {
         assert(this._state !== null);
         this._state = null;
         this._stopActionHistory();
+
+        // In tests, backfill when the server starts again. Restarting the server
+        // resets `clearActionHistoryForTest()`.
+        if (this._disableActionHistoryBackfillForTest === true) {
+            this._disableActionHistoryBackfillForTest = false;
+        }
+    }
+
+    /**
+     * Clear the action history in test environments. You should only do this if
+     * you know the task index has incorporated all actions and refreshed!
+     */
+    public clearActionHistoryForTest() {
+        assert(import.meta.jest);
+
+        // Calling stop/start on action history clears it.
+        if (this._state !== null) {
+            this._stopActionHistory();
+            this._startActionHistory();
+        }
+
+        // Don't backfill history. We want to pretend like time has moved past when the
+        // history visible window starts.
+        this._disableActionHistoryBackfillForTest = true;
     }
 
     /**
@@ -121,6 +146,11 @@ export class TaskRealtimeServer {
         // free up some memory.
         if (visibleStartTime >= discoveredTime) {
             this._backfillActionHistoryPromiseBySpaceId.clear();
+            return;
+        }
+
+        if (this._disableActionHistoryBackfillForTest === true) {
+            assert(import.meta.jest);
             return;
         }
 

@@ -134,6 +134,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         postId: Schema.id(),
         chatId: Schema.id(),
         taskId: Schema.id(),
+        taskCollectionId: Schema.id(),
         peek: {
             aboveDocumentId: Schema.id(),
             aboveChannelId: Schema.id(),

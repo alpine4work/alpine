@@ -390,7 +390,7 @@ afterEach(async () => {
 /**
  * Wait for OpenSearch to have indexed all our action transactions.
  */
-async function waitForIndexActionTransactions(context: TestContext) {
+async function waitForIndexActionTransactionsWithoutClearingActionHistory(context: TestContext) {
     await ProcessContextModule.waitForTestTasks();
     await refreshTaskIndexForTest(context);
 }
@@ -481,12 +481,22 @@ class TestScenarioTaskRealtimeServer {
     }
 
     /**
+     * Wait for all `indexTaskActionTransaction()` calls to resolve and for the
+     * task index to refresh. Then we also clear action history to act as if we're
+     * at a time far away from when the actions were commit.
+     */
+    public async waitForIndexActionTransactions() {
+        await waitForIndexActionTransactionsWithoutClearingActionHistory(this.context);
+        this.server.clearActionHistoryForTest();
+    }
+
+    /**
      * Wait until all parallel processing tasks have settled to make sure
      * `loadQuery()` doesn't see stale data.
      */
     public async wait() {
         await runAllPromises([
-            waitForIndexActionTransactions(this.context),
+            this.waitForIndexActionTransactions(),
             this.waitForApplyActionTransactions(),
         ]);
     }
@@ -1059,6 +1069,120 @@ test("will load with a limit of zero when there are no tasks", async () => {
     expect(getCount()).toEqual(1);
 });
 
+test("will load with a limit of zero to discover there are no more tasks", async () => {
+    const space = await TestScenarioSpace.create(context);
+    const {getCount} = queryTaskIndexTestCounter.recordForTest(space.id);
+    const session = await space.createSession();
+    const [task1, task2, task3, task4] = await runAllPromises([
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
+    ]);
+    const server = new TestScenarioTaskRealtimeServer(context);
+
+    await server.wait();
+
+    expect(getCount()).toEqual(0);
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 0,
+            filters: [
+                {type: "Priority", operation: {type: "NoneOf", priorities: new Set(["Urgent"])}},
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: [],
+    });
+
+    expect(getCount()).toEqual(1);
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 3,
+            filters: [
+                {type: "Priority", operation: {type: "NoneOf", priorities: new Set(["Urgent"])}},
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+            task3.getIndexDoc(),
+        ]),
+    });
+
+    expect(getCount()).toEqual(2);
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 0,
+            filters: [
+                {type: "Priority", operation: {type: "NoneOf", priorities: new Set(["Urgent"])}},
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: [],
+    });
+
+    expect(getCount()).toEqual(2);
+
+    await task4.updatePriority(session, "Urgent");
+    await server.wait();
+
+    expect(getCount()).toEqual(2);
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 0,
+            filters: [
+                {type: "Priority", operation: {type: "NoneOf", priorities: new Set(["Urgent"])}},
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: [],
+    });
+
+    expect(getCount()).toEqual(2);
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 3,
+            filters: [
+                {type: "Priority", operation: {type: "NoneOf", priorities: new Set(["Urgent"])}},
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+            task3.getIndexDoc(),
+        ]),
+    });
+
+    expect(getCount()).toEqual(3);
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 0,
+            filters: [
+                {type: "Priority", operation: {type: "NoneOf", priorities: new Set(["Urgent"])}},
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: [],
+    });
+
+    expect(getCount()).toEqual(3);
+});
+
 test("won't load with a negative limit", async () => {
     const space = await TestScenarioSpace.create(context);
     const session = await space.createSession();
@@ -1258,7 +1382,7 @@ test("will backfill action history to load a query and catch up a query with par
     const {getCount} = backfillTaskActionTransactionHistoryTestCounter.recordForTest(space.id);
 
     const [task1, task2] = await runAllPromises([session.createTask(), session.createTask()]);
-    await waitForIndexActionTransactions(context);
+    await waitForIndexActionTransactionsWithoutClearingActionHistory(context);
     const [task3, task4] = await runAllPromises([session.createTask(), session.createTask()]);
 
     const server = new TestScenarioTaskRealtimeServer(context);
@@ -1331,7 +1455,7 @@ test("can load an empty task array when there are still more visible tasks in th
     expect(getCount()).toEqual(2);
 
     await task3.updateStatus(session, "Closed");
-    await waitForIndexActionTransactions(context);
+    await server.waitForIndexActionTransactions();
 
     expect(getCount()).toEqual(2);
 
@@ -1635,7 +1759,7 @@ test("can load while server receiving action transactions is delayed (scenario 1
 
     const [task1, task2] = await runAllPromises([session.createTask(), session.createTask()]);
 
-    await waitForIndexActionTransactions(context);
+    await server.waitForIndexActionTransactions();
 
     const [task3] = await runAllPromises([session.createTask()]);
 
@@ -1644,7 +1768,7 @@ test("can load while server receiving action transactions is delayed (scenario 1
         tasks: await runAllPromises([task1.getIndexDoc(), task2.getIndexDoc()]),
     });
 
-    await waitForIndexActionTransactions(context);
+    await server.waitForIndexActionTransactions();
 
     const [task4] = await runAllPromises([session.createTask()]);
 
@@ -1681,7 +1805,7 @@ test("can load while server receiving action transactions is delayed (scenario 2
 
     const [task1, task2] = await runAllPromises([session.createTask(), session.createTask()]);
 
-    await waitForIndexActionTransactions(context);
+    await server.waitForIndexActionTransactions();
 
     const [task3] = await runAllPromises([session.createTask()]);
 
@@ -1690,7 +1814,7 @@ test("can load while server receiving action transactions is delayed (scenario 2
         tasks: [],
     });
 
-    await waitForIndexActionTransactions(context);
+    await server.waitForIndexActionTransactions();
 
     const [task4] = await runAllPromises([session.createTask()]);
 
@@ -1713,7 +1837,7 @@ test("can load while server receiving action transactions is delayed (scenario 2
     });
 });
 
-test("load can introduce new task data which moves task outside of loaded range", async () => {
+test("load can't introduce new task data which moves task outside of loaded range", async () => {
     const space = await TestScenarioSpace.create(context);
     const session = await space.createSession();
 
@@ -1753,7 +1877,7 @@ test("load can introduce new task data which moves task outside of loaded range"
     const oldTask2IndexDoc = await task2.getIndexDoc();
 
     await task2.updatePriority(session, "High");
-    await waitForIndexActionTransactions(context);
+    await server.waitForIndexActionTransactions();
 
     expect(oldTask2IndexDoc).not.toEqual(await task2.getIndexDoc());
 
@@ -1776,7 +1900,7 @@ test("load can introduce new task data which moves task outside of loaded range"
         }),
     ).toEqual({
         hasMoreTasks: false,
-        tasks: await runAllPromises([task2.getIndexDoc()]),
+        tasks: await runAllPromises([]),
     });
 
     expect(
@@ -1786,11 +1910,7 @@ test("load can introduce new task data which moves task outside of loaded range"
         }),
     ).toEqual({
         hasMoreTasks: true,
-        tasks: await runAllPromises([
-            task1.getIndexDoc(),
-            task3.getIndexDoc(),
-            task4.getIndexDoc(),
-        ]),
+        tasks: await runAllPromises([task1.getIndexDoc(), oldTask2IndexDoc, task3.getIndexDoc()]),
     });
 
     server.unpauseApplyActionTransactions();
@@ -1824,9 +1944,21 @@ test("load can introduce new task data which moves task outside of loaded range"
             task2.getIndexDoc(),
         ]),
     });
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 3,
+            filters: [
+                {type: "Priority", operation: {type: "OneOf", priorities: new Set(["High"])}},
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: await runAllPromises([task2.getIndexDoc()]),
+    });
 });
 
-test("load can introduce new task data which keeps task inside loaded range", async () => {
+test("load can't introduce new task data which keeps task inside loaded range", async () => {
     const space = await TestScenarioSpace.create(context);
     const session = await space.createSession();
 
@@ -1866,7 +1998,7 @@ test("load can introduce new task data which keeps task inside loaded range", as
     const oldTask1IndexDoc = await task1.getIndexDoc();
 
     await task1.updatePriority(session, "Medium");
-    await waitForIndexActionTransactions(context);
+    await server.waitForIndexActionTransactions();
 
     expect(oldTask1IndexDoc).not.toEqual(await task1.getIndexDoc());
 
@@ -1889,11 +2021,7 @@ test("load can introduce new task data which keeps task inside loaded range", as
         }),
     ).toEqual({
         hasMoreTasks: true,
-        tasks: await runAllPromises([
-            task1.getIndexDoc(),
-            task3.getIndexDoc(),
-            task4.getIndexDoc(),
-        ]),
+        tasks: await runAllPromises([task3.getIndexDoc(), task4.getIndexDoc()]),
     });
 
     expect(
@@ -1903,11 +2031,7 @@ test("load can introduce new task data which keeps task inside loaded range", as
         }),
     ).toEqual({
         hasMoreTasks: true,
-        tasks: await runAllPromises([
-            task2.getIndexDoc(),
-            task1.getIndexDoc(),
-            task3.getIndexDoc(),
-        ]),
+        tasks: await runAllPromises([oldTask1IndexDoc, task2.getIndexDoc(), task3.getIndexDoc()]),
     });
 
     server.unpauseApplyActionTransactions();
@@ -1941,9 +2065,25 @@ test("load can introduce new task data which keeps task inside loaded range", as
             task5.getIndexDoc(),
         ]),
     });
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 3,
+            filters: [
+                {type: "Priority", operation: {type: "OneOf", priorities: new Set(["Medium"])}},
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            task3.getIndexDoc(),
+            task4.getIndexDoc(),
+        ]),
+    });
 });
 
-test("load can introduce new task data which removes task from query", async () => {
+test("load can't introduce new task data which removes task from query", async () => {
     const space = await TestScenarioSpace.create(context);
     const session = await space.createSession();
 
@@ -1985,7 +2125,7 @@ test("load can introduce new task data which removes task from query", async () 
     const oldTask2IndexDoc = await task2.getIndexDoc();
 
     await task2.updatePriority(session, "Low");
-    await waitForIndexActionTransactions(context);
+    await server.waitForIndexActionTransactions();
 
     expect(oldTask2IndexDoc).not.toEqual(await task1.getIndexDoc());
 
@@ -2007,11 +2147,7 @@ test("load can introduce new task data which removes task from query", async () 
         }),
     ).toEqual({
         hasMoreTasks: true,
-        tasks: await runAllPromises([
-            task1.getIndexDoc(),
-            task2.getIndexDoc(),
-            task3.getIndexDoc(),
-        ]),
+        tasks: await runAllPromises([task1.getIndexDoc(), oldTask2IndexDoc, task3.getIndexDoc()]),
     });
 
     expect(
@@ -2023,11 +2159,7 @@ test("load can introduce new task data which removes task from query", async () 
         }),
     ).toEqual({
         hasMoreTasks: true,
-        tasks: await runAllPromises([
-            task1.getIndexDoc(),
-            task3.getIndexDoc(),
-            task4.getIndexDoc(),
-        ]),
+        tasks: await runAllPromises([task1.getIndexDoc(), oldTask2IndexDoc, task3.getIndexDoc()]),
     });
 
     server.unpauseApplyActionTransactions();
@@ -2064,9 +2196,22 @@ test("load can introduce new task data which removes task from query", async () 
             task5.getIndexDoc(),
         ]),
     });
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 3,
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+            task3.getIndexDoc(),
+        ]),
+    });
 });
 
-test("load can introduce new task data which adds updated task to query", async () => {
+test("load can't introduce new task data which adds updated task to query", async () => {
     const space = await TestScenarioSpace.create(context);
     const session = await space.createSession();
 
@@ -2115,8 +2260,145 @@ test("load can introduce new task data which adds updated task to query", async 
         ]),
     });
 
+    const oldTask2IndexDoc = await task2.getIndexDoc();
+
     await task2.updatePriority(session, "Medium");
-    await waitForIndexActionTransactions(context);
+    await server.waitForIndexActionTransactions();
+
+    expect(await task2.getIndexDoc()).not.toEqual(oldTask2IndexDoc);
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 3,
+            filters: [
+                {type: "Priority", operation: {type: "OneOf", priorities: new Set(["Medium"])}},
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            task3.getIndexDoc(),
+            task4.getIndexDoc(),
+        ]),
+    });
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 3,
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises([task1.getIndexDoc(), oldTask2IndexDoc, task3.getIndexDoc()]),
+    });
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 3,
+            filters: [
+                {type: "Priority", operation: {type: "OneOf", priorities: new Set(["Medium"])}},
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            task3.getIndexDoc(),
+            task4.getIndexDoc(),
+        ]),
+    });
+
+    server.unpauseApplyActionTransactions();
+    await server.waitForApplyActionTransactions();
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 3,
+            filters: [
+                {type: "Priority", operation: {type: "OneOf", priorities: new Set(["Medium"])}},
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+            task3.getIndexDoc(),
+        ]),
+    });
+
+    expect(
+        await server.loadQuery(session, {
+            filters: [
+                {type: "Priority", operation: {type: "OneOf", priorities: new Set(["Medium"])}},
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+            task3.getIndexDoc(),
+            task4.getIndexDoc(),
+            task5.getIndexDoc(),
+        ]),
+    });
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 3,
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+            task3.getIndexDoc(),
+        ]),
+    });
+});
+
+test("load can't introduce new task data which adds fresh task to query", async () => {
+    const space = await TestScenarioSpace.create(context);
+    const session = await space.createSession();
+
+    const server = new TestScenarioTaskRealtimeServer(context);
+
+    const [task1, task2, task3, task4, task5] = await runAllPromises([
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
+    ]);
+
+    await task1.updatePriority(session, "Medium");
+    await task2.updatePriority(session, "Low");
+    await task3.updatePriority(session, "Medium");
+    await task4.updatePriority(session, "Medium");
+    await task5.updatePriority(session, "Medium");
+
+    await server.wait();
+    server.pauseApplyActionTransactions();
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 3,
+            filters: [
+                {type: "Priority", operation: {type: "OneOf", priorities: new Set(["Medium"])}},
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            task3.getIndexDoc(),
+            task4.getIndexDoc(),
+        ]),
+    });
+
+    await task2.updatePriority(session, "Medium");
+    await server.waitForIndexActionTransactions();
 
     expect(
         await server.loadQuery(session, {
@@ -2158,8 +2440,8 @@ test("load can introduce new task data which adds updated task to query", async 
         hasMoreTasks: true,
         tasks: await runAllPromises([
             task1.getIndexDoc(),
-            task2.getIndexDoc(),
             task3.getIndexDoc(),
+            task4.getIndexDoc(),
         ]),
     });
 
@@ -2200,13 +2482,16 @@ test("load can introduce new task data which adds updated task to query", async 
     });
 });
 
-test("load can introduce new task data which adds fresh task to query", async () => {
+test("load gets task that's ahead of actions when it's fresh", async () => {
     const space = await TestScenarioSpace.create(context);
     const session = await space.createSession();
 
     const server = new TestScenarioTaskRealtimeServer(context);
 
-    const [task1, task2, task3, task4, task5] = await runAllPromises([
+    const [task1, task2, task3, task4, task5, task6, task7, task8] = await runAllPromises([
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
         session.createTask(),
         session.createTask(),
         session.createTask(),
@@ -2214,74 +2499,70 @@ test("load can introduce new task data which adds fresh task to query", async ()
         session.createTask(),
     ]);
 
-    await task1.updatePriority(session, "Medium");
+    await task1.updatePriority(session, "Low");
     await task2.updatePriority(session, "Low");
     await task3.updatePriority(session, "Medium");
     await task4.updatePriority(session, "Medium");
-    await task5.updatePriority(session, "Medium");
+    await task5.updatePriority(session, "High");
+    await task6.updatePriority(session, "High");
+    await task7.updatePriority(session, "Urgent");
+    await task8.updatePriority(session, "Urgent");
 
     await server.wait();
     server.pauseApplyActionTransactions();
 
-    expect(
-        await server.loadQuery(session, {
-            limit: 3,
-            filters: [
-                {type: "Priority", operation: {type: "OneOf", priorities: new Set(["Medium"])}},
-            ],
-        }),
-    ).toEqual({
-        hasMoreTasks: true,
-        tasks: await runAllPromises([
-            task1.getIndexDoc(),
-            task3.getIndexDoc(),
-            task4.getIndexDoc(),
-        ]),
-    });
+    const oldTask8IndexDoc = await task8.getIndexDoc();
 
-    await task2.updatePriority(session, "Medium");
-    await waitForIndexActionTransactions(context);
+    await task8.updatePriority(session, "Low");
+    await server.waitForIndexActionTransactions();
+
+    expect(oldTask8IndexDoc).not.toEqual(await task8.getIndexDoc());
 
     expect(
         await server.loadQuery(session, {
-            limit: 3,
-            filters: [
-                {type: "Priority", operation: {type: "OneOf", priorities: new Set(["Medium"])}},
-            ],
-        }),
-    ).toEqual({
-        hasMoreTasks: true,
-        tasks: await runAllPromises([
-            task1.getIndexDoc(),
-            task3.getIndexDoc(),
-            task4.getIndexDoc(),
-        ]),
-    });
-
-    expect(
-        await server.loadQuery(session, {
-            limit: 3,
+            limit: 5,
+            sorts: [{type: "Priority", direction: "Ascending"}],
         }),
     ).toEqual({
         hasMoreTasks: true,
         tasks: await runAllPromises([
             task1.getIndexDoc(),
             task2.getIndexDoc(),
+            task8.getIndexDoc(),
             task3.getIndexDoc(),
+            task4.getIndexDoc(),
         ]),
     });
 
     expect(
         await server.loadQuery(session, {
-            limit: 3,
-            filters: [
-                {type: "Priority", operation: {type: "OneOf", priorities: new Set(["Medium"])}},
-            ],
+            sorts: [{type: "Priority", direction: "Descending"}],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: await runAllPromises([
+            task7.getIndexDoc(),
+            task5.getIndexDoc(),
+            task6.getIndexDoc(),
+            task3.getIndexDoc(),
+            task4.getIndexDoc(),
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+            task8.getIndexDoc(),
+        ]),
+    });
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 5,
+            sorts: [{type: "Priority", direction: "Ascending"}],
         }),
     ).toEqual({
         hasMoreTasks: true,
         tasks: await runAllPromises([
             task1.getIndexDoc(),
+            task2.getIndexDoc(),
+            task8.getIndexDoc(),
             task3.getIndexDoc(),
             task4.getIndexDoc(),
         ]),
@@ -2292,10 +2573,75 @@ test("load can introduce new task data which adds fresh task to query", async ()
 
     expect(
         await server.loadQuery(session, {
-            limit: 3,
-            filters: [
-                {type: "Priority", operation: {type: "OneOf", priorities: new Set(["Medium"])}},
-            ],
+            limit: 5,
+            sorts: [{type: "Priority", direction: "Ascending"}],
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+            task8.getIndexDoc(),
+            task3.getIndexDoc(),
+            task4.getIndexDoc(),
+        ]),
+    });
+
+    expect(
+        await server.loadQuery(session, {
+            sorts: [{type: "Priority", direction: "Descending"}],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: await runAllPromises([
+            task7.getIndexDoc(),
+            task5.getIndexDoc(),
+            task6.getIndexDoc(),
+            task3.getIndexDoc(),
+            task4.getIndexDoc(),
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+            task8.getIndexDoc(),
+        ]),
+    });
+});
+
+test("load gets old task at old position that's ahead of actions when already loaded", async () => {
+    const space = await TestScenarioSpace.create(context);
+    const session = await space.createSession();
+
+    const server = new TestScenarioTaskRealtimeServer(context);
+
+    const [task1, task2, task3, task4, task5, task6, task7, task8] = await runAllPromises([
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
+    ]);
+
+    await task1.updatePriority(session, "Low");
+    await task2.updatePriority(session, "Low");
+    await task3.updatePriority(session, "Medium");
+    await task4.updatePriority(session, "Medium");
+    await task5.updatePriority(session, "High");
+    await task6.updatePriority(session, "High");
+    await task7.updatePriority(session, "Urgent");
+    await task8.updatePriority(session, "Urgent");
+
+    await runAllPromises([
+        waitForIndexActionTransactionsWithoutClearingActionHistory(context),
+        server.waitForApplyActionTransactions(),
+    ]);
+    server.pauseApplyActionTransactions();
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 5,
+            sorts: [{type: "Priority", direction: "Ascending"}],
         }),
     ).toEqual({
         hasMoreTasks: true,
@@ -2303,14 +2649,211 @@ test("load can introduce new task data which adds fresh task to query", async ()
             task1.getIndexDoc(),
             task2.getIndexDoc(),
             task3.getIndexDoc(),
+            task4.getIndexDoc(),
+            task5.getIndexDoc(),
+        ]),
+    });
+
+    const oldTask8IndexDoc = await task8.getIndexDoc();
+
+    await task8.updatePriority(session, "Low");
+    await waitForIndexActionTransactionsWithoutClearingActionHistory(context);
+
+    expect(oldTask8IndexDoc).not.toEqual(await task8.getIndexDoc());
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 5,
+            sorts: [{type: "Priority", direction: "Ascending"}],
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+            task3.getIndexDoc(),
+            task4.getIndexDoc(),
+            task5.getIndexDoc(),
         ]),
     });
 
     expect(
         await server.loadQuery(session, {
-            filters: [
-                {type: "Priority", operation: {type: "OneOf", priorities: new Set(["Medium"])}},
-            ],
+            sorts: [{type: "Priority", direction: "Descending"}],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: await runAllPromises([
+            task7.getIndexDoc(),
+            oldTask8IndexDoc,
+            task5.getIndexDoc(),
+            task6.getIndexDoc(),
+            task3.getIndexDoc(),
+            task4.getIndexDoc(),
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+        ]),
+    });
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 5,
+            sorts: [{type: "Priority", direction: "Ascending"}],
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+            task3.getIndexDoc(),
+            task4.getIndexDoc(),
+            task5.getIndexDoc(),
+        ]),
+    });
+
+    server.unpauseApplyActionTransactions();
+    await waitForIndexActionTransactionsWithoutClearingActionHistory(context);
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 5,
+            sorts: [{type: "Priority", direction: "Ascending"}],
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+            task8.getIndexDoc(),
+            task3.getIndexDoc(),
+            task4.getIndexDoc(),
+        ]),
+    });
+
+    expect(
+        await server.loadQuery(session, {
+            sorts: [{type: "Priority", direction: "Descending"}],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: await runAllPromises([
+            task7.getIndexDoc(),
+            task5.getIndexDoc(),
+            task6.getIndexDoc(),
+            task3.getIndexDoc(),
+            task4.getIndexDoc(),
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+            task8.getIndexDoc(),
+        ]),
+    });
+});
+
+test("load gets old task at old position that's ahead of actions when already loaded and clearing action history", async () => {
+    const space = await TestScenarioSpace.create(context);
+    const session = await space.createSession();
+
+    const server = new TestScenarioTaskRealtimeServer(context);
+
+    const [task1, task2, task3, task4, task5, task6, task7, task8] = await runAllPromises([
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
+    ]);
+
+    await task1.updatePriority(session, "Low");
+    await task2.updatePriority(session, "Low");
+    await task3.updatePriority(session, "Medium");
+    await task4.updatePriority(session, "Medium");
+    await task5.updatePriority(session, "High");
+    await task6.updatePriority(session, "High");
+    await task7.updatePriority(session, "Urgent");
+    await task8.updatePriority(session, "Urgent");
+
+    await server.wait();
+    server.pauseApplyActionTransactions();
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 5,
+            sorts: [{type: "Priority", direction: "Ascending"}],
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+            task3.getIndexDoc(),
+            task4.getIndexDoc(),
+            task5.getIndexDoc(),
+        ]),
+    });
+
+    const oldTask8IndexDoc = await task8.getIndexDoc();
+
+    await task8.updatePriority(session, "Low");
+    await server.waitForIndexActionTransactions();
+
+    expect(oldTask8IndexDoc).not.toEqual(await task8.getIndexDoc());
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 5,
+            sorts: [{type: "Priority", direction: "Ascending"}],
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+            task3.getIndexDoc(),
+            task4.getIndexDoc(),
+            task5.getIndexDoc(),
+        ]),
+    });
+
+    expect(
+        await server.loadQuery(session, {
+            sorts: [{type: "Priority", direction: "Descending"}],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: await runAllPromises([
+            task7.getIndexDoc(),
+            task5.getIndexDoc(),
+            task6.getIndexDoc(),
+            task3.getIndexDoc(),
+            task4.getIndexDoc(),
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+            task8.getIndexDoc(),
+        ]),
+    });
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 5,
+            sorts: [{type: "Priority", direction: "Ascending"}],
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+            task3.getIndexDoc(),
+            task4.getIndexDoc(),
+            task5.getIndexDoc(),
+        ]),
+    });
+
+    expect(
+        await server.loadQuery(session, {
+            sorts: [{type: "Priority", direction: "Ascending"}],
         }),
     ).toEqual({
         hasMoreTasks: false,
@@ -2320,6 +2863,153 @@ test("load can introduce new task data which adds fresh task to query", async ()
             task3.getIndexDoc(),
             task4.getIndexDoc(),
             task5.getIndexDoc(),
+            task6.getIndexDoc(),
+            task7.getIndexDoc(),
+        ]),
+    });
+
+    server.unpauseApplyActionTransactions();
+    await server.waitForApplyActionTransactions();
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 5,
+            sorts: [{type: "Priority", direction: "Ascending"}],
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+            task8.getIndexDoc(),
+            task3.getIndexDoc(),
+            task4.getIndexDoc(),
+        ]),
+    });
+
+    expect(
+        await server.loadQuery(session, {
+            sorts: [{type: "Priority", direction: "Descending"}],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: await runAllPromises([
+            task7.getIndexDoc(),
+            task5.getIndexDoc(),
+            task6.getIndexDoc(),
+            task3.getIndexDoc(),
+            task4.getIndexDoc(),
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+            task8.getIndexDoc(),
+        ]),
+    });
+});
+
+test("load doesn't put loaded task in already loaded range", async () => {
+    const space = await TestScenarioSpace.create(context);
+    const session = await space.createSession();
+
+    const server = new TestScenarioTaskRealtimeServer(context);
+
+    const [task1, task2, task3, task4, task5, task6, task7, task8] = await runAllPromises([
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
+    ]);
+
+    await task1.updatePriority(session, "Low");
+    await task2.updatePriority(session, "Low");
+    await task3.updatePriority(session, "Medium");
+    await task4.updatePriority(session, "Medium");
+    await task5.updatePriority(session, "High");
+    await task6.updatePriority(session, "High");
+    await task7.updatePriority(session, "Urgent");
+    await task8.updatePriority(session, "Urgent");
+
+    await server.wait();
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 5,
+            sorts: [{type: "Priority", direction: "Ascending"}],
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+            task3.getIndexDoc(),
+            task4.getIndexDoc(),
+            task5.getIndexDoc(),
+        ]),
+    });
+
+    const pausePromise = taskRealtimeQueryStoreLoadTaskTestCheckpoint.pauseForTest(space.id);
+
+    await task8.updatePriority(session, "Low");
+    const applyActionTransactionPromise = server.waitForApplyActionTransactions();
+
+    const {unpause} = await pausePromise;
+
+    expect(
+        await server.loadQuery(session, {
+            sorts: [{type: "Priority", direction: "Ascending"}],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+            task3.getIndexDoc(),
+            task4.getIndexDoc(),
+            task5.getIndexDoc(),
+            task6.getIndexDoc(),
+            task7.getIndexDoc(),
+        ]),
+    });
+
+    unpause();
+    await applyActionTransactionPromise;
+
+    expect(
+        await server.loadQuery(session, {
+            sorts: [{type: "Priority", direction: "Ascending"}],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+            task8.getIndexDoc(),
+            task3.getIndexDoc(),
+            task4.getIndexDoc(),
+            task5.getIndexDoc(),
+            task6.getIndexDoc(),
+            task7.getIndexDoc(),
+        ]),
+    });
+
+    expect(
+        await server.loadQuery(session, {
+            sorts: [{type: "Priority", direction: "Descending"}],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: await runAllPromises([
+            task7.getIndexDoc(),
+            task5.getIndexDoc(),
+            task6.getIndexDoc(),
+            task3.getIndexDoc(),
+            task4.getIndexDoc(),
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+            task8.getIndexDoc(),
         ]),
     });
 });
@@ -2502,6 +3192,133 @@ test("if loaded task is older than store task then query will return store task 
     await task3.updatePriority(session, "Medium");
     await task4.updatePriority(session, "Medium");
     await task5.updatePriority(session, "High");
+    await runAllPromises([
+        waitForIndexActionTransactionsWithoutClearingActionHistory(context),
+        server.waitForApplyActionTransactions(),
+    ]);
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 3,
+            sorts: [{type: "Priority", direction: "Ascending"}],
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            task3.getIndexDoc(),
+            task4.getIndexDoc(),
+        ]),
+    });
+
+    const oldTask2IndexDoc = await task2.getIndexDoc();
+
+    await task2.updatePriority(session, "Medium");
+    await server.waitForApplyActionTransactions();
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 3,
+            sorts: [{type: "Priority", direction: "Ascending"}],
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+            task3.getIndexDoc(),
+        ]),
+    });
+
+    expect(
+        await testQueryTaskIndex(space, {
+            limit: 5,
+            sorts: [
+                {type: "Priority", direction: "Ascending", missing: "Last"},
+                {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+            ],
+        }),
+    ).toEqual(
+        await runAllPromises([
+            task1.getIndexDoc(),
+            task3.getIndexDoc(),
+            task4.getIndexDoc(),
+            oldTask2IndexDoc,
+            task5.getIndexDoc(),
+        ]),
+    );
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 5,
+            sorts: [{type: "Priority", direction: "Ascending"}],
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+            task3.getIndexDoc(),
+            task4.getIndexDoc(),
+        ]),
+    });
+
+    await server.wait();
+
+    expect(
+        await testQueryTaskIndex(space, {
+            limit: 5,
+            sorts: [
+                {type: "Priority", direction: "Ascending", missing: "Last"},
+                {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+            ],
+        }),
+    ).toEqual(
+        await runAllPromises([
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+            task3.getIndexDoc(),
+            task4.getIndexDoc(),
+            task5.getIndexDoc(),
+        ]),
+    );
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 5,
+            sorts: [{type: "Priority", direction: "Ascending"}],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: await runAllPromises([
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+            task3.getIndexDoc(),
+            task4.getIndexDoc(),
+            task5.getIndexDoc(),
+        ]),
+    });
+});
+
+test("if loaded task is older than store task then query will return store task (scenario 4)", async () => {
+    const space = await TestScenarioSpace.create(context);
+    const session = await space.createSession();
+
+    const server = new TestScenarioTaskRealtimeServer(context);
+
+    const [task1, task2, task3, task4, task5] = await runAllPromises([
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
+        session.createTask(),
+    ]);
+
+    await task1.updatePriority(session, "Medium");
+    await task2.updatePriority(session, "High");
+    await task3.updatePriority(session, "Medium");
+    await task4.updatePriority(session, "Medium");
+    await task5.updatePriority(session, "High");
     await server.wait();
 
     expect(
@@ -2522,6 +3339,8 @@ test("if loaded task is older than store task then query will return store task 
 
     await task2.updatePriority(session, "Medium");
     await server.waitForApplyActionTransactions();
+
+    expect(await task2.getIndexDoc()).not.toEqual(oldTask2IndexDoc);
 
     expect(
         await server.loadQuery(session, {

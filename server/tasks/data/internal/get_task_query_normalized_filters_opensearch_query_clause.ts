@@ -37,6 +37,7 @@ assertEqualTypes<
     | "assignedDateFilter"
     | "closedDateFilter"
     | "activatedDateFilter"
+    | "parentFilter"
     | "notepadPageFilter"
 >();
 
@@ -335,6 +336,14 @@ function getTaskQueryNormalizedFiltersOpensearchFilterQueryClauses(
                 filters.activatedDateFilter,
             ),
         );
+    }
+
+    if (filters.parentFilter) {
+        filterQueryClauses.push({
+            term: {
+                "parent.taskId.value": filters.parentFilter.parentTaskId,
+            },
+        });
     }
 
     if (filters.notepadPageFilter) {

@@ -10,6 +10,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {iterableSome} from "~/shared/helpers/iterable/iterable_some.js";
 import {TaskTaskAction} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
+import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 
 // TypeScript errors here when new normalized filters are added. If you add a
 // new normalized filter you should make sure to update
@@ -28,34 +29,77 @@ assertEqualTypes<
     | "assignedDateFilter"
     | "closedDateFilter"
     | "activatedDateFilter"
+    | "parentFilter"
     | "notepadPageFilter"
 >();
 
+// TypeScript errors here when new normalized sorts are added. If you add a
+// new normalized filter you should make sure to update
+// `mightTaskActionMoveVisibleTaskForQueryNormalizedSorts()`.
+assertEqualTypes<
+    TaskQueryNormalizedSort["type"],
+    | "DisplayStatus"
+    | "Priority"
+    | "Assignee"
+    | "Creator"
+    | "Assigner"
+    | "DueDate"
+    | "CreatedTime"
+    | "AssignedTime"
+    | "ClosedTime"
+    | "ActivatedTime"
+    | "ParentPosition"
+    | "CollectionPosition"
+    | "NotepadPagePosition"
+    | "AssigneeStatusActivePosition"
+>();
+
 /**
- * Returns false if when this action is applied to a task that does not pass
- * the provided filters the task will still not pass the provided filters.
- * Returns true if applying the action might make the task pass the provided
- * filters.
+ * For a query with the provided filters/sorts.
+ *
+ * Let there be a task outside of the query's loaded range.
+ *
+ * This function returns false if that task definitely won't be added to the
+ * query's loaded range after the provided action. This function returns true
+ * if the task MAY be added to the query's loaded range after the provided
+ * action.
+ *
+ * Returning false is definite. Returning true means the caller needs to load
+ * the underlying task and test it against the query's filters/sorts to see if
+ * the task needs to be added.
  *
  * This function does not know what the state of the task is so must err on the
  * side of caution. If there's any case where the underlying task may pass the
- * filters you must return true.
+ * filters you must return true. It's critical that this function returns false
+ * only if it absolutely knows for sure an action outside the query's loaded
+ * range will not be added to the query's loaded range.
  *
  * This function is used as an optimization to prevent some unnecessary
  * computation. If this function always returns true it shouldn't affect the
  * behavior of the system, only its efficiency.
  *
- * Again: Returning false means we definitively know a task will not be made
- * visible as a result of this action. Returning true means it might but we
- * don't know for sure. You'd need to load the task to find out.
+ * - For filters: We check if a hidden task may be made visible with the
+ *   provided action.
+ *
+ * - For sorts: We check if a task near the bottom of the query (outside the
+ *   loaded range) may be moved to the top (inside the loaded range) with the
+ *   provided action.
+ *
+ * Sometimes we use a combination of both filters and sorts. For example if
+ * you're sorting on `ParentPosition` then task updating its `parentTaskId`
+ * will change the parent position possibly moving the task into the query's
+ * loaded range. However, if you're sorting on `ParentPosition` and filtering
+ * with `parentFilter` then we only need to care about `parentTaskId` updates
+ * that match the filter.
  */
 // TODO(calebmer): This could really use some tests. Maybe an assertion in
 // development mode that `false` is truly `false`. The return value of this
 // function is critical.
-export function mightTaskActionAddVisibleTaskInQueryNormalizedFilters(
+export function mightTaskActionAddTaskToQueryLoadedRange(
     actionTime: HybridLogicalTime,
     action: TaskTaskAction,
     filters: TaskQueryNormalizedFilters,
+    sorts: ReadonlyArray<TaskQueryNormalizedSort>,
 ): boolean {
     switch (action.type) {
         case "Create": {
@@ -74,13 +118,46 @@ export function mightTaskActionAddVisibleTaskInQueryNormalizedFilters(
             // the task.
             return true;
         }
-        case "UpdateParentTaskId":
+        case "UpdateParentTaskId": {
+            // This action updates the task's parent position. If you are sorting by parent
+            // position with no parent filter then every parent task update may move a task
+            // into the loaded range.
+            //
+            // However, this is inefficient in the common case where you are filtering for
+            // a specific parent task and sorting its children. We don't want this function
+            // to return true for every parent task update. In that case, if another task's
+            // parent changes but its outside the filter it doesn't matter that it's parent
+            // position changed, it can never appear in our query.
+            if (
+                sorts.some(sort => sort.type === "ParentPosition") &&
+                (!filters.parentFilter || filters.parentFilter.parentTaskId === action.parentTaskId)
+            ) {
+                return true;
+            }
+
+            if (!filters.parentFilter) return false;
+
+            return filters.parentFilter.parentTaskId === action.parentTaskId;
+        }
         case "UpdateChildrenCounts":
         case "UpdateParentPosition": {
             // We don't currently have filters for parent/child tasks.
             return false;
         }
         case "AddCollection": {
+            // Sorting by collection position may move a task into the loaded range when
+            // the collection is added.
+            if (
+                sorts.some(sort => sort.type === "CollectionPosition") &&
+                sorts.every(
+                    sort =>
+                        sort.type !== "CollectionPosition" ||
+                        sort.collectionId === action.collectionId,
+                )
+            ) {
+                return true;
+            }
+
             if (!filters.collectionsFilter) return false;
 
             // If any term, whether it is "AND"ed or "OR"ed, would match a task with the
@@ -96,6 +173,19 @@ export function mightTaskActionAddVisibleTaskInQueryNormalizedFilters(
             );
         }
         case "RemoveCollection": {
+            // Sorting by collection position may move a task into the loaded range when
+            // the collection is removed.
+            if (
+                sorts.some(sort => sort.type === "CollectionPosition") &&
+                sorts.every(
+                    sort =>
+                        sort.type !== "CollectionPosition" ||
+                        sort.collectionId === action.collectionId,
+                )
+            ) {
+                return true;
+            }
+
             if (!filters.collectionsFilter) return false;
 
             // If any term, whether it is "AND"ed or "OR"ed, would match a task with the
@@ -111,10 +201,37 @@ export function mightTaskActionAddVisibleTaskInQueryNormalizedFilters(
             );
         }
         case "UpdateCollectionPosition": {
+            // Sorting by collection position may move a task into the loaded range when the
+            // collection position changes.
+            if (
+                sorts.some(sort => sort.type === "CollectionPosition") &&
+                sorts.every(
+                    sort =>
+                        sort.type !== "CollectionPosition" ||
+                        sort.collectionId === action.collectionId,
+                )
+            ) {
+                return true;
+            }
+
             // No filters match collection position.
             return false;
         }
         case "UpdateNotepadPagePosition": {
+            // Sorting by positions in the same notepad page we are updating may
+            // move tasks.
+            if (
+                sorts.some(sort => sort.type === "NotepadPagePosition") &&
+                sorts.every(
+                    sort =>
+                        sort.type !== "NotepadPagePosition" ||
+                        (sort.accountId === action.accountId &&
+                            sort.notepadPageId === action.notepadPageId),
+                )
+            ) {
+                return true;
+            }
+
             if (!filters.notepadPageFilter) return false;
 
             return (
@@ -124,6 +241,20 @@ export function mightTaskActionAddVisibleTaskInQueryNormalizedFilters(
             );
         }
         case "UpdateStatus": {
+            if (
+                sorts.some(
+                    sort =>
+                        sort.type === "DisplayStatus" ||
+                        sort.type === "ClosedTime" ||
+                        // Updating status may reset assignee status so may change sorting related to
+                        // assignee status...
+                        sort.type === "ActivatedTime" ||
+                        sort.type === "AssigneeStatusActivePosition",
+                )
+            ) {
+                return true;
+            }
+
             // If all statuses are allowed then changing the status will not change the
             // visibility state.
             if (
@@ -159,6 +290,22 @@ export function mightTaskActionAddVisibleTaskInQueryNormalizedFilters(
             }
         }
         case "UpdateAssignee": {
+            if (
+                sorts.some(
+                    sort =>
+                        sort.type === "Assignee" ||
+                        sort.type === "Assigner" ||
+                        sort.type === "AssignedTime" ||
+                        // Updating status may reset assignee status so may change sorting related to
+                        // assignee status...
+                        sort.type === "DisplayStatus" ||
+                        sort.type === "ActivatedTime" ||
+                        sort.type === "AssigneeStatusActivePosition",
+                )
+            ) {
+                return true;
+            }
+
             // When we change a task's assignee, it also resets our assignee status from
             // active to inactive. If we are filtering for inactive tasks and not active
             // tasks then this change might expose the task.
@@ -194,6 +341,17 @@ export function mightTaskActionAddVisibleTaskInQueryNormalizedFilters(
             return pass1 && pass2 && pass3;
         }
         case "UpdateAssigneeStatus": {
+            if (
+                sorts.some(
+                    sort =>
+                        sort.type === "DisplayStatus" ||
+                        sort.type === "ActivatedTime" ||
+                        sort.type === "AssigneeStatusActivePosition",
+                )
+            ) {
+                return true;
+            }
+
             // If all open statuses are allowed then changing the status will not change
             // the visibility state.
             if (
@@ -231,10 +389,14 @@ export function mightTaskActionAddVisibleTaskInQueryNormalizedFilters(
             return !!filters.titleFilter;
         }
         case "UpdateDueDate": {
+            if (sorts.some(sort => sort.type === "DueDate")) return true;
+
             if (!filters.dueDateFilter) return false;
             return evaluateTaskQueryDateNormalizedFilter(filters.dueDateFilter, action.dueDate);
         }
         case "UpdatePriority": {
+            if (sorts.some(sort => sort.type === "Priority")) return true;
+
             if (!filters.priorityFilter) return false;
 
             switch (action.priority) {

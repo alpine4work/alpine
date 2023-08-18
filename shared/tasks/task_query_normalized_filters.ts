@@ -7,7 +7,7 @@ import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {isId} from "~/shared/id/id.js";
-import {AccountId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {ObjectSchema, Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
 import {analyzeTaskTitleText} from "~/shared/tasks/analyze_task_title_text.js";
 import {CalendarDateSchema} from "~/shared/tasks/helpers/calendar_date_schema.js";
@@ -69,6 +69,7 @@ export type TaskQueryNormalizedFilters = {
     readonly assignedDateFilter?: TaskQueryDateNormalizedFilter;
     readonly closedDateFilter?: TaskQueryDateNormalizedFilter;
     readonly activatedDateFilter?: TaskQueryDateNormalizedFilter;
+    readonly parentFilter?: TaskQueryParentNormalizedFilter;
     readonly notepadPageFilter?: TaskQueryNotepadPageNormalizedFilter;
 };
 
@@ -294,6 +295,19 @@ const TaskQueryDateNormalizedFilterSchema = Schema.object({
     exclusiveUpperBoundDate: CalendarDateSchema.nullable(),
 }) as ObjectSchema<TaskQueryDateNormalizedFilter>;
 
+export type TaskQueryParentNormalizedFilter = {
+    readonly parentTaskId: TaskId;
+};
+
+const TaskQueryParentNormalizedFilterSchema = Schema.object({
+    parentTaskId: Schema.id<TaskId>(),
+});
+
+/**
+ * The notepad page filter is not exposed in the UI to users but is instead
+ * used when a user opens one of their notepad pages to just view the tasks in
+ * that page.
+ */
 export type TaskQueryNotepadPageNormalizedFilter = {
     readonly accountId: AccountId;
     readonly notepadPageId: TaskNotepadPageId;
@@ -320,6 +334,7 @@ export const TaskQueryNormalizedFiltersSchema: Schema<TaskQueryNormalizedFilters
     assignedDateFilter: TaskQueryDateNormalizedFilterSchema.optional(),
     closedDateFilter: TaskQueryDateNormalizedFilterSchema.optional(),
     activatedDateFilter: TaskQueryDateNormalizedFilterSchema.optional(),
+    parentFilter: TaskQueryParentNormalizedFilterSchema.optional(),
     notepadPageFilter: TaskQueryNotepadPageNormalizedFilterSchema.optional(),
 });
 

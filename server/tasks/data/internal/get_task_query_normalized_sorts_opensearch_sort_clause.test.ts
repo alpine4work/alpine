@@ -2063,6 +2063,416 @@ test("sorts by collection position", async () => {
     ).toEqual([task5Id, task4Id, task1Id, task2Id, task3Id, task6Id, task7Id, task8Id]);
 });
 
+test("sorts by parent position", async () => {
+    const {space, session1} = await createScenario();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+    const task4Id = generateId<TaskId>();
+    const task5Id = generateId<TaskId>();
+    const task6Id = generateId<TaskId>();
+    const task7Id = generateId<TaskId>();
+    const task8Id = generateId<TaskId>();
+
+    const parentTask1Id = generateId<TaskId>();
+    const parentTask2Id = generateId<TaskId>();
+
+    await commitTaskActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: parentTask1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: parentTask2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task5Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task6Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task7Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task8Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: parentTask1Id,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: parentTask1Id,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: parentTask1Id,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: parentTask1Id,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task5Id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: parentTask1Id,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task6Id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: parentTask1Id,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task7Id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: parentTask1Id,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task8Id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: parentTask1Id,
+            },
+        },
+    ]);
+
+    const time1 = clock.now();
+    const time2 = clock.now();
+    const time3 = clock.now();
+    const time4 = clock.now();
+    const time5 = clock.now();
+    const time6 = clock.now();
+    const time7 = clock.now();
+    const time8 = clock.now();
+    const time9 = clock.now();
+
+    await commitTaskActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: time1,
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdateParentPosition",
+                parentPosition: {orderTime: time1, orderKey: initialOrderKey},
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time2,
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdateParentPosition",
+                parentPosition: {orderTime: time2, orderKey: initialOrderKey},
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time3,
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdateParentPosition",
+                parentPosition: {orderTime: time3, orderKey: initialOrderKey},
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time4,
+            taskId: task4Id,
+            taskAction: {
+                type: "UpdateParentPosition",
+                parentPosition: {orderTime: time4, orderKey: initialOrderKey},
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time5,
+            taskId: task5Id,
+            taskAction: {
+                type: "UpdateParentPosition",
+                parentPosition: {orderTime: time5, orderKey: initialOrderKey},
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time6,
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdateParentPosition",
+                parentPosition: {orderTime: time2, orderKey: assertOrderKey("Zz")},
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time7,
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdateParentPosition",
+                parentPosition: {orderTime: time7, orderKey: initialOrderKey},
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time8,
+            taskId: task4Id,
+            taskAction: {
+                type: "UpdateParentPosition",
+                parentPosition: {orderTime: time8, orderKey: assertOrderKey("a1")},
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time9,
+            taskId: task5Id,
+            taskAction: {
+                type: "UpdateParentPosition",
+                parentPosition: {orderTime: time8, orderKey: assertOrderKey("a2")},
+            },
+        },
+    ]);
+
+    await commitTaskActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task7Id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: parentTask2Id,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task8Id,
+            taskAction: {
+                type: "UpdateParentPosition",
+                parentPosition: {orderTime: clock.now(), orderKey: initialOrderKey},
+            },
+        },
+    ]);
+
+    expect(
+        await testQueryWithNormalizedSorts(space, [
+            {
+                type: "ParentPosition",
+                direction: "Ascending",
+                missing: "Last",
+            },
+            {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+        ]),
+    ).toEqual([
+        parentTask1Id,
+        parentTask2Id,
+        task6Id,
+        task3Id,
+        task2Id,
+        task1Id,
+        task4Id,
+        task5Id,
+        task7Id,
+        task8Id,
+    ]);
+
+    expect(
+        await testQueryWithNormalizedSorts(space, [
+            {
+                type: "ParentPosition",
+                direction: "Descending",
+                missing: "Last",
+            },
+            {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+        ]),
+    ).toEqual(
+        [
+            parentTask1Id,
+            parentTask2Id,
+            task6Id,
+            task3Id,
+            task2Id,
+            task1Id,
+            task4Id,
+            task5Id,
+            task7Id,
+            task8Id,
+        ].reverse(),
+    );
+
+    await commitTaskActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: null,
+            },
+        },
+    ]);
+
+    expect(
+        await testQueryWithNormalizedSorts(space, [
+            {
+                type: "ParentPosition",
+                direction: "Ascending",
+                missing: "Last",
+            },
+            {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+        ]),
+    ).toEqual([
+        parentTask1Id,
+        parentTask2Id,
+        task6Id,
+        task3Id,
+        task1Id,
+        task4Id,
+        task5Id,
+        task7Id,
+        task8Id,
+        task2Id,
+    ]);
+
+    expect(
+        await testQueryWithNormalizedSorts(space, [
+            {
+                type: "ParentPosition",
+                direction: "Descending",
+                missing: "Last",
+            },
+            {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+        ]),
+    ).toEqual(
+        [
+            parentTask1Id,
+            parentTask2Id,
+            task6Id,
+            task3Id,
+            task1Id,
+            task4Id,
+            task5Id,
+            task7Id,
+            task8Id,
+            task2Id,
+        ].reverse(),
+    );
+});
+
 test("sorts by notepad page position", async () => {
     const {space, session1} = await createScenario();
 

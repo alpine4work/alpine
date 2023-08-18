@@ -2,8 +2,13 @@ import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
-import {TaskAction, TaskUpdateTaskAction} from "~/shared/tasks/actions/task_action.js";
+import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {
+    TaskAction,
+    TaskUpdateCollectionAction,
+    TaskUpdateTaskAction,
+} from "~/shared/tasks/actions/task_action.js";
+import {TaskCollectionAction} from "~/shared/tasks/actions/task_collection_action.js";
 import {TaskTaskAction} from "~/shared/tasks/actions/task_task_action.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
@@ -34,6 +39,7 @@ type TaskRealtimeActionHistorySegment = {
 type TaskRealtimeActionHistorySpaceSegment = {
     readonly actionTransactions: Array<TaskRealtimeActionHistorySpaceSegmentActionTransaction>;
     readonly actionsByTaskId: Map<TaskId, Array<TaskUpdateTaskAction>>;
+    readonly actionsByCollectionId: Map<TaskCollectionId, Array<TaskUpdateCollectionAction>>;
 };
 
 type TaskRealtimeActionHistorySpaceSegmentActionTransaction = {
@@ -57,6 +63,13 @@ export interface ReadonlyTaskRealtimeActionHistory {
         spaceId: SpaceId,
         taskId: TaskId,
         callback: (actionTime: HybridLogicalTime, action: TaskTaskAction) => void,
+    ): void;
+
+    iterateCollectionActions(
+        tracer: TracerBase,
+        spaceId: SpaceId,
+        collectionId: TaskCollectionId,
+        callback: (actionTime: HybridLogicalTime, action: TaskCollectionAction) => void,
     ): void;
 }
 
@@ -321,6 +334,7 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
         const spaceSegment = getOrSetDefaultMapValue(segment.spaceSegmentById, spaceId, () => ({
             actionTransactions: [],
             actionsByTaskId: new Map(),
+            actionsByCollectionId: new Map(),
         }));
 
         spaceSegment.actionTransactions.push({
@@ -329,11 +343,28 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
         });
 
         for (const action of actions) {
-            if (action.type !== "UpdateTask") continue;
-
-            getOrSetDefaultMapValue(spaceSegment.actionsByTaskId, action.taskId, () => []).push(
-                action,
-            );
+            switch (action.type) {
+                case "UpdateTask": {
+                    getOrSetDefaultMapValue(
+                        spaceSegment.actionsByTaskId,
+                        action.taskId,
+                        () => [],
+                    ).push(action);
+                    break;
+                }
+                case "UpdateCollection": {
+                    getOrSetDefaultMapValue(
+                        spaceSegment.actionsByCollectionId,
+                        action.collectionId,
+                        () => [],
+                    ).push(action);
+                    break;
+                }
+                default: {
+                    // Ignore...
+                    break;
+                }
+            }
         }
     }
 
@@ -421,6 +452,55 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
 
                     for (const action of actions) {
                         callback(action.time, action.taskAction);
+                    }
+                }
+
+                segment = segment.newerSegment;
+            }
+
+            span.addData({
+                tasks: {
+                    actionHistorySegmentCount,
+                    actionCount,
+                },
+            });
+        });
+    }
+
+    /**
+     * Iterate through all the action transactions for the provided collection in
+     * our history.
+     */
+    public iterateCollectionActions(
+        tracer: TracerBase,
+        spaceId: SpaceId,
+        collectionId: TaskCollectionId,
+        callback: (actionTime: HybridLogicalTime, action: TaskCollectionAction) => void,
+    ) {
+        tracer.withSpanSync("Iterate individual task collection action history", span => {
+            span.addData({
+                context: {
+                    spaceId,
+                    taskCollectionId: collectionId,
+                },
+            });
+
+            let actionHistorySegmentCount = 0;
+            let actionCount = 0;
+
+            let segment = this._oldestSegment;
+            while (segment !== null) {
+                actionHistorySegmentCount++;
+
+                const actions = segment.spaceSegmentById
+                    .get(spaceId)
+                    ?.actionsByCollectionId.get(collectionId);
+
+                if (actions !== undefined) {
+                    actionCount += actions.length;
+
+                    for (const action of actions) {
+                        callback(action.time, action.collectionAction);
                     }
                 }
 

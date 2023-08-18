@@ -119,4 +119,8 @@ export class TaskCollectionSet {
         if (this._entries === newEntries) return this;
         return new TaskCollectionSet(newEntries);
     }
+
+    public isEqual(other: TaskCollectionSet) {
+        return this._entries.isEqual(other._entries);
+    }
 }

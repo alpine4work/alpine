@@ -35,6 +35,7 @@ assertEqualTypes<
     | "assignedDateFilter"
     | "closedDateFilter"
     | "activatedDateFilter"
+    | "parentFilter"
     | "notepadPageFilter"
 >();
 
@@ -185,14 +186,20 @@ export function evaluateTaskQueryNormalizedFiltersForIndexDoc(
         }
     }
 
-    if (filters.notepadPageFilter !== undefined) {
-        if (
-            !task.notepadPages.raw.positionById.has(
-                `${filters.notepadPageFilter.accountId}-${filters.notepadPageFilter.notepadPageId}`,
-            )
-        ) {
-            return false;
-        }
+    if (
+        filters.parentFilter !== undefined &&
+        filters.parentFilter.parentTaskId !== task.parent.taskId.value
+    ) {
+        return false;
+    }
+
+    if (
+        filters.notepadPageFilter !== undefined &&
+        !task.notepadPages.raw.positionById.has(
+            `${filters.notepadPageFilter.accountId}-${filters.notepadPageFilter.notepadPageId}`,
+        )
+    ) {
+        return false;
     }
 
     return true;

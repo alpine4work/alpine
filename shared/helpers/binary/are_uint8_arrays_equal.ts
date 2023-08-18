@@ -17,7 +17,7 @@ export function areUint8ArraysEqual(array1: Uint8Array, array2: Uint8Array) {
         b = new Uint16Array(b.buffer, b.byteOffset, b.byteLength / 2);
     }
 
-    // Iterate back to front so we start with the most significant bis.
+    // Iterate back to front so we start with the most significant bits.
     for (let i = a.length; -1 < i; i -= 1) {
         if (a[i] !== b[i]) {
             return false;

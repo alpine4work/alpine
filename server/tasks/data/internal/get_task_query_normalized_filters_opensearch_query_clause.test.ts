@@ -8808,6 +8808,145 @@ test("can merge title filters", async () => {
     ).toEqual([task1Id, task4Id, task5Id]);
 });
 
+test("can filter by parent task", async () => {
+    const {space, session1} = await createScenario();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+    const task4Id = generateId<TaskId>();
+    const task5Id = generateId<TaskId>();
+
+    const parentTask1Id = generateId<TaskId>();
+    const parentTask2Id = generateId<TaskId>();
+
+    await commitTaskActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: parentTask1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: parentTask2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: parentTask1Id,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: parentTask1Id,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: parentTask2Id,
+            },
+        },
+    ]);
+
+    await commitTaskActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task5Id,
+            taskAction: {
+                type: "Create",
+                creator: TaskSortableAccount.test(session1),
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task5Id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: parentTask2Id,
+            },
+        },
+    ]);
+
+    expect(
+        await testQueryWithNormalizedFilters(space, {
+            ...defaultTaskQueryNormalizedFilters,
+            parentFilter: {parentTaskId: parentTask1Id},
+        }),
+    ).toEqual([task1Id, task2Id]);
+
+    expect(
+        await testQueryWithNormalizedFilters(space, {
+            ...defaultTaskQueryNormalizedFilters,
+            parentFilter: {parentTaskId: parentTask2Id},
+        }),
+    ).toEqual([task3Id, task5Id]);
+});
+
 test("can filter by notepad page", async () => {
     const {space, session1, session2} = await createScenario();
 

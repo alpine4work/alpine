@@ -11,6 +11,7 @@ import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
  */
 export type TaskQueryNormalizedSort =
     | TaskQueryBasicNormalizedSort
+    | TaskQueryParentPositionNormalizedSort
     | TaskQueryCollectionPositionNormalizedSort
     | TaskQueryNotepadPagePositionNormalizedSort
     | TaskQueryAssigneeStatusActivePositionNormalizedSort;
@@ -94,6 +95,18 @@ const TaskQueryBasicNormalizedSortSchemas: {
     }),
 };
 
+export type TaskQueryParentPositionNormalizedSort = {
+    readonly type: "ParentPosition";
+    readonly direction: "Ascending" | "Descending";
+    readonly missing: "Last";
+};
+
+const TaskQueryParentPositionNormalizedSortSchema = Schema.object({
+    type: Schema.value("ParentPosition"),
+    direction: Schema.enum(["Ascending", "Descending"]),
+    missing: Schema.value("Last"),
+});
+
 export type TaskQueryCollectionPositionNormalizedSort = {
     readonly type: "CollectionPosition";
     readonly collectionId: TaskCollectionId;
@@ -138,6 +151,7 @@ const TaskQueryAssigneeStatusActivePositionNormalizedSortSchema = Schema.object(
 
 export const TaskQueryNormalizedSortSchema: Schema<TaskQueryNormalizedSort> = Schema.union({
     ...TaskQueryBasicNormalizedSortSchemas,
+    ParentPosition: TaskQueryParentPositionNormalizedSortSchema,
     CollectionPosition: TaskQueryCollectionPositionNormalizedSortSchema,
     NotepadPagePosition: TaskQueryNotepadPagePositionNormalizedSortSchema,
     AssigneeStatusActivePosition: TaskQueryAssigneeStatusActivePositionNormalizedSortSchema,
