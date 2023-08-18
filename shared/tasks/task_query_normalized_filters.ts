@@ -294,6 +294,11 @@ const TaskQueryDateNormalizedFilterSchema = Schema.object({
     exclusiveUpperBoundDate: CalendarDateSchema.nullable(),
 }) as ObjectSchema<TaskQueryDateNormalizedFilter>;
 
+/**
+ * The notepad page filter is not exposed in the UI to users but is instead
+ * used when a user opens one of their notepad pages to just view the tasks in
+ * that page.
+ */
 export type TaskQueryNotepadPageNormalizedFilter = {
     readonly accountId: AccountId;
     readonly notepadPageId: TaskNotepadPageId;
