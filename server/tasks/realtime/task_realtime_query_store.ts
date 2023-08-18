@@ -1,16 +1,10 @@
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/data/apply_task_action_to_task_index_doc.js";
-import {applyTaskCollectionActionToCollectionIndexDoc} from "~/server/tasks/data/apply_task_collection_action_to_collection_index_doc.js";
 import {mergeTaskIndexDocs} from "~/server/tasks/data/merge_task_index_docs.js";
-import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
-import {
-    getTaskCollectionIndexDocsIfExist,
-    getTaskIndexDocsIfExist,
-} from "~/server/tasks/data/task_index.js";
+import {getTaskIndexDocsIfExist} from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {ReadonlyTaskRealtimeActionHistory} from "~/server/tasks/realtime/task_realtime_action_history.js";
 import {TaskRealtimeQuery} from "~/server/tasks/realtime/task_realtime_query.js";
-import {TaskRealtimeQuerySubscription} from "~/server/tasks/realtime/task_realtime_query_subscription.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
 import {InternalError} from "~/shared/error/error.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
@@ -22,7 +16,7 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {stringifyForDeepEqualCheck} from "~/shared/helpers/control/stringify_for_deep_equal_check.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
@@ -97,6 +91,12 @@ export class TaskRealtimeQueryStore {
     }
 }
 
+type TaskRealtimeQueryStoreTaskEntry = {
+    task: TaskIndexDoc;
+    visibleInQueries: Set<TaskRealtimeQuery>;
+    shouldTryAddingToAllQueriesNextAction: boolean;
+};
+
 export const taskRealtimeQueryStoreLoadTaskTestCheckpoint = new TestCheckpoint<SpaceId>();
 
 // Our store implementation has some public methods that `TaskRealtimeQuery` is
@@ -131,8 +131,8 @@ export class TaskRealtimeQueryStoreInternal {
      * which subscribe to the task and evict any tasks that have no subscribed
      * queries.
      *
-     * Queries a task is visible in are accessible in the `queryDependencies` set.
-     * A task may not be visible in every query whose filters pass for the task.
+     * Queries a task is visible in are accessible in the `visibleInQueries` set. A
+     * task may not be visible in every query whose filters pass for the task.
      * That's because when we load 100 tasks for a new query, we don't want to
      * spend the time checking whether those tasks are part of unrelated queries.
      * Queries discover new visible tasks in two ways:
@@ -160,30 +160,6 @@ export class TaskRealtimeQueryStoreInternal {
     private _scheduledTaskLoadBatch: Array<{
         readonly taskId: TaskId;
         readonly promiseResolver: PromiseResolver<TaskRealtimeQueryStoreTaskEntry | null>;
-    }> | null = null;
-
-    /**
-     * Collections we've loaded from OpenSearch and keep up-to-date in realtime in
-     * our store.
-     *
-     * Similar to `taskEntryById`.
-     */
-    private readonly _collectionEntryById = new Map<
-        TaskCollectionId,
-        TaskRealtimeQueryStoreCollectionEntry
-    >();
-
-    /**
-     * Similar to `loadingTaskPromiseById` but for collections.
-     */
-    private readonly _loadingCollectionPromiseById = new Map<
-        TaskCollectionId,
-        Promise<TaskRealtimeQueryStoreCollectionEntry | null>
-    >();
-
-    private _scheduledCollectionLoadBatch: Array<{
-        readonly collectionId: TaskCollectionId;
-        readonly promiseResolver: PromiseResolver<TaskRealtimeQueryStoreCollectionEntry | null>;
     }> | null = null;
 
     constructor({
@@ -214,7 +190,7 @@ export class TaskRealtimeQueryStoreInternal {
         }
 
         for (const [taskId, taskEntry] of this._taskEntryById) {
-            for (const query of taskEntry.iterateQueryDependents()) {
+            for (const query of taskEntry.visibleInQueries) {
                 assert(
                     visibleTaskIdsByQuery.get(query)?.has(taskId),
                     "Store thinks task is visible in query but query disagrees",
@@ -227,41 +203,62 @@ export class TaskRealtimeQueryStoreInternal {
      * Is the provided `TaskId` visible some query?
      */
     public isTaskVisibleInQuery(query: TaskRealtimeQuery, taskId: TaskId): boolean {
-        return this._taskEntryById.get(taskId)?.hasQueryDependent(query) ?? false;
+        return this._taskEntryById.get(taskId)?.visibleInQueries.has(query) ?? false;
     }
 
     /**
-     * Get a task on behalf of a query. The task must be visible in the query.
+     * Gets a task on behalf of a query. The task must be visible in the query
+     * or else we'll throw an error.
      */
     public getTaskForQuery(query: TaskRealtimeQuery, taskId: TaskId): TaskIndexDoc {
         const taskEntry = this._taskEntryById.get(taskId);
-        if (!taskEntry) throw new InternalError("Task not found in store");
-
-        if (process.env.NODE_ENV !== "production") {
-            assert(taskEntry.hasQueryDependent(query), "Task must be visible in query");
-        }
-
-        return taskEntry.getTask();
+        assert(taskEntry?.visibleInQueries.has(query));
+        return taskEntry!.task;
     }
 
     /**
-     * Get a query for the provided filters and sorts. We will reuse queries with
-     * identical filters and sorts. If a subscription is not promptly added then
-     * the query will be evicted on the next eviction cycle.
+     * Executes a query and keeps it up-to-date in realtime as long as there are
+     * subscribers. If an equivalent query is already in our store then we reuse
+     * the already loaded data from that query.
+     *
+     * May return fewer tasks than we requested with `limit`. This happens in
+     * realtime edge cases where we start loading tasks before a realtime event
+     * that moves tasks outside of the loaded range. Also remember that we start
+     * loading tasks from OpenSearch which is ~60s behind. Up to the client to
+     * check how many tasks were loaded and decide whether they need to load
+     * more tasks.
      */
-    public getQuery({
-        filters,
-        sorts,
-    }: {
-        filters: TaskQueryNormalizedFilters;
-        sorts: ReadonlyArray<TaskQueryNormalizedSort>;
-    }) {
+    public async loadQuery(
+        context: TaskRealtimeSystemActionContext,
+        {
+            filters,
+            sorts,
+            limit,
+        }: {
+            filters: TaskQueryNormalizedFilters;
+            sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+            limit: number;
+        },
+    ): Promise<{
+        tasks: Array<TaskIndexDoc>;
+        hasMoreTasks: boolean;
+    }> {
+        assert(Number.isInteger(limit) && limit >= 0);
+
         // NOCOMMIT: Evict if there are no subscribers?
-        return getOrSetDefaultMapValue(
+        const query = getOrSetDefaultMapValue(
             this._queries,
             stringifyForDeepEqualCheck({filters, sorts}),
             () => new TaskRealtimeQuery(this, {filters, sorts}),
         );
+
+        // Load enough tasks to satisfy our `limit`.
+        await query.loadMoreTasks(context, limit - query.getLoadedTaskCount());
+
+        return {
+            tasks: query.getLoadedTasks(limit),
+            hasMoreTasks: query.hasMoreUnloadedTasks(limit),
+        };
     }
 
     /**
@@ -310,32 +307,30 @@ export class TaskRealtimeQueryStoreInternal {
             if (taskEntry === undefined) {
                 freshTaskIds.add(taskId);
 
-                const freshTaskEntry = new TaskRealtimeQueryStoreTaskEntry(this, searchedTask);
-
-                freshTaskEntry.addQueryDependent(query);
-
-                // The next time an action is applied to this task we need to loop over
-                // `queries` and call `query.maybeAddVisibleTask()`. The action will not change
-                // the task if OpenSearch has applied the action before us so our
-                // `oldTask !== newTask` check will fail and we may miss an action that made
-                // this task visible in a query where it was hidden before. This flag makes sure
-                // we always test visibility in other queries for the next action in case
-                // OpenSearch is ahead.
-                //
-                // We could loop over `queries` here but we choose to defer until the next time
-                // `applyActionTransaction()` is called for this task. If the task never updates
-                // then we never need to run this loop. We also don't need to pay the
-                // O(freshTasks * queries) price which is unrelated the load we're performing
-                // which needs fast latency.
-                freshTaskEntry.shouldTryAddingToAllQueriesNextAction = true;
-
-                this._taskEntryById.set(taskId, freshTaskEntry);
+                this._taskEntryById.set(taskId, {
+                    task: searchedTask,
+                    visibleInQueries: new Set([query]),
+                    // The next time an action is applied to this task we need to loop over
+                    // `queries` and call `query.maybeAddVisibleTask()`. The action will not change
+                    // the task if OpenSearch has applied the action before us so our
+                    // `oldTask !== newTask` check will fail and we may miss an action that made
+                    // this task visible in a query where it was hidden before. This flag makes sure
+                    // we always test visibility in other queries for the next action in case
+                    // OpenSearch is ahead.
+                    //
+                    // We could loop over `queries` here but we choose to defer until the next time
+                    // `applyActionTransaction()` is called for this task. If the task never updates
+                    // then we never need to run this loop. We also don't need to pay the
+                    // O(freshTasks * queries) price which is unrelated the load we're performing
+                    // which needs fast latency.
+                    shouldTryAddingToAllQueriesNextAction: true,
+                });
                 continue;
             }
 
-            const oldTask = taskEntry.getTask();
+            const oldTask = taskEntry.task;
             const newTask = mergeTaskIndexDocs(oldTask, searchedTask);
-            taskEntry.setTask(newTask);
+            taskEntry.task = newTask;
 
             // If the task changed, notify our queries. We may need to remove the task from
             // the query if it's no longer visible, we may need to change the tasks's sort
@@ -347,43 +342,41 @@ export class TaskRealtimeQueryStoreInternal {
             // refreshed and there's a delay in sending notifications to our service this
             // case could happen.
             if (oldTask !== newTask) {
-                const addedQueryDependencies = new Set();
+                const newlyVisibleInQueries = new Set();
 
                 // For queries this task is not currently visible in, see if it is now visible.
                 for (const otherQuery of this._queries.values()) {
                     if (otherQuery === query) continue;
-                    if (taskEntry.hasQueryDependent(otherQuery)) continue;
+                    if (taskEntry.visibleInQueries.has(otherQuery)) continue;
 
-                    const {isVisible} = otherQuery.maybeAddVisibleTask(
-                        context,
-                        taskId,
-                        taskEntry.getTask(),
-                    );
+                    const {isVisible} = otherQuery.maybeAddVisibleTask(taskId, taskEntry.task);
                     if (isVisible) {
-                        addedQueryDependencies.add(otherQuery);
-                        taskEntry.addQueryDependent(otherQuery);
+                        newlyVisibleInQueries.add(otherQuery);
+                        taskEntry.visibleInQueries.add(otherQuery);
                     }
                 }
 
                 // For queries this task is currently visible in, update the query and see if
                 // the task is now hidden from the query.
-                for (const otherQuery of taskEntry.iterateQueryDependents()) {
-                    if (addedQueryDependencies.has(otherQuery)) continue;
+                for (const otherQuery of taskEntry.visibleInQueries) {
+                    if (newlyVisibleInQueries.has(otherQuery)) continue;
 
                     const {isStillVisible} = otherQuery.onVisibleTaskUpdate(
-                        context,
                         taskId,
                         oldTask,
                         newTask,
                     );
                     if (!isStillVisible) {
-                        taskEntry.removeQueryDependent(otherQuery);
+                        taskEntry.visibleInQueries.delete(otherQuery);
+                        if (taskEntry.visibleInQueries.size === 0) {
+                            // NOCOMMIT: Evict the task after some time?
+                        }
                     }
                 }
             }
 
-            const wasAlreadyVisibleInQuery = taskEntry.hasQueryDependent(query);
-            if (!wasAlreadyVisibleInQuery) taskEntry.addQueryDependent(query);
+            const wasAlreadyVisibleInQuery = taskEntry.visibleInQueries.has(query);
+            if (!wasAlreadyVisibleInQuery) taskEntry.visibleInQueries.add(query);
 
             // If the task is different from what we found in our search and the searched
             // task is currently stored in our query, then we need to tell the query which
@@ -399,14 +392,12 @@ export class TaskRealtimeQueryStoreInternal {
                 !wasAlreadyVisibleInQuery &&
                 mergeTaskIndexDocs(searchedTask, newTask) !== searchedTask
             ) {
-                const {isStillVisible} = query.onVisibleTaskUpdate(
-                    context,
-                    taskId,
-                    searchedTask,
-                    newTask,
-                );
+                const {isStillVisible} = query.onVisibleTaskUpdate(taskId, searchedTask, newTask);
                 if (!isStillVisible) {
-                    taskEntry.removeQueryDependent(query);
+                    taskEntry.visibleInQueries.delete(query);
+                    if (taskEntry.visibleInQueries.size === 0) {
+                        // NOCOMMIT: Evict the task after some time?
+                    }
                 }
             }
         }
@@ -428,13 +419,13 @@ export class TaskRealtimeQueryStoreInternal {
                     if (freshTaskIds.has(action.taskId)) {
                         assert(taskEntry);
 
-                        const oldTask = taskEntry.getTask();
+                        const oldTask = taskEntry.task;
                         const newTask = applyTaskActionToTaskIndexDoc(
                             oldTask,
                             action.time,
                             action.taskAction,
                         );
-                        taskEntry.setTask(newTask);
+                        taskEntry.task = newTask;
 
                         // We will call `query.onVisibleTaskUpdate()` once per task after our history
                         // iteration instead of once for each time a task is changed.
@@ -446,7 +437,7 @@ export class TaskRealtimeQueryStoreInternal {
                     // haven't seen yet then we need to load the task so we can evaluate the query
                     // filter against it and if the task passes add the task to our query.
                     else if (
-                        (!taskEntry || !taskEntry.hasQueryDependent(query)) &&
+                        (!taskEntry || !taskEntry.visibleInQueries.has(query)) &&
                         query.mightActionAddVisibleTask(action.time, action.taskAction)
                     ) {
                         maybeAddVisibleTaskIds.add(action.taskId);
@@ -479,14 +470,12 @@ export class TaskRealtimeQueryStoreInternal {
         });
 
         for (const [taskId, {taskEntry, oldTask}] of visibleTaskUpdateById) {
-            const {isStillVisible} = query.onVisibleTaskUpdate(
-                context,
-                taskId,
-                oldTask,
-                taskEntry.getTask(),
-            );
+            const {isStillVisible} = query.onVisibleTaskUpdate(taskId, oldTask, taskEntry.task);
             if (!isStillVisible) {
-                taskEntry.removeQueryDependent(query);
+                taskEntry.visibleInQueries.delete(query);
+                if (taskEntry.visibleInQueries.size === 0) {
+                    // NOCOMMIT: Evict the task after some time?
+                }
             }
         }
 
@@ -502,9 +491,9 @@ export class TaskRealtimeQueryStoreInternal {
                 continue;
             }
 
-            const {isVisible} = query.maybeAddVisibleTask(context, taskId, taskEntry.getTask());
+            const {isVisible} = query.maybeAddVisibleTask(taskId, taskEntry.task);
             if (isVisible) {
-                taskEntry.addQueryDependent(query);
+                taskEntry.visibleInQueries.add(query);
             }
         }
 
@@ -519,7 +508,7 @@ export class TaskRealtimeQueryStoreInternal {
         await runAllPromises(
             maybeAddVisibleTaskIdsToLoad.map(taskId =>
                 retryWithExponentialBackoff(async retry => {
-                    const taskEntry = await this.loadTaskIfExists(context, taskId);
+                    const taskEntry = await this._loadTaskIfExists(context, taskId);
 
                     if (!taskEntry) {
                         throw retry(
@@ -532,14 +521,10 @@ export class TaskRealtimeQueryStoreInternal {
                     // If the task is still not visible in this query (some concurrent process may
                     // have made it visible) then attempt to add the task to the query given the
                     // task passes the query's filters.
-                    if (!taskEntry.hasQueryDependent(query)) {
-                        const {isVisible} = query.maybeAddVisibleTask(
-                            context,
-                            taskId,
-                            taskEntry.getTask(),
-                        );
+                    if (!taskEntry.visibleInQueries.has(query)) {
+                        const {isVisible} = query.maybeAddVisibleTask(taskId, taskEntry.task);
                         if (isVisible) {
-                            taskEntry.addQueryDependent(query);
+                            taskEntry.visibleInQueries.add(query);
                         }
                     }
                 }),
@@ -564,20 +549,14 @@ export class TaskRealtimeQueryStoreInternal {
         context: TaskRealtimeSystemActionContext,
         actions: ReadonlyArray<TaskAction>,
     ): Promise<void> {
-        const queriesByMaybeAddVisibleTaskIdToLoad = this._applyActionTransactionSync(
-            context,
-            actions,
-        );
+        const queriesByMaybeAddVisibleTaskIdToLoad = this._applyActionTransactionSync(actions);
         return this._applyActionTransactionAsync(context, queriesByMaybeAddVisibleTaskIdToLoad);
     }
 
     // The synchronous part of `applyActionTransaction()`. Carefully updates our
     // data structures while assuming no concurrent code is running which would
     // observe a partial state.
-    private _applyActionTransactionSync(
-        context: TaskRealtimeSystemActionContext,
-        actions: ReadonlyArray<TaskAction>,
-    ) {
+    private _applyActionTransactionSync(actions: ReadonlyArray<TaskAction>) {
         const updatedTaskEntriesById = new Map<
             TaskId,
             {taskEntry: TaskRealtimeQueryStoreTaskEntry; oldTask: TaskIndexDoc}
@@ -591,13 +570,13 @@ export class TaskRealtimeQueryStoreInternal {
                     const taskEntry = this._taskEntryById.get(action.taskId);
 
                     if (taskEntry !== undefined) {
-                        const oldTask = taskEntry.getTask();
+                        const oldTask = taskEntry.task;
                         const newTask = applyTaskActionToTaskIndexDoc(
                             oldTask,
                             action.time,
                             action.taskAction,
                         );
-                        taskEntry.setTask(newTask);
+                        taskEntry.task = newTask;
 
                         const {shouldTryAddingToAllQueriesNextAction} = taskEntry;
                         if (shouldTryAddingToAllQueriesNextAction)
@@ -618,8 +597,6 @@ export class TaskRealtimeQueryStoreInternal {
                         ) {
                             updatedTaskEntriesById.set(action.taskId, {taskEntry, oldTask});
                         }
-
-                        // NOCOMMIT: Reauthorize...
                     }
                     // If we do not have an entry for this task, then check with all our queries to
                     // see if this action might result in a new visible task. We need to load these
@@ -638,24 +615,23 @@ export class TaskRealtimeQueryStoreInternal {
                     break;
                 }
                 case "UpdateCollection": {
-                    const collectionEntry = this._collectionEntryById.get(action.collectionId);
-
-                    if (collectionEntry !== undefined) {
-                        const oldCollection = collectionEntry.getCollection();
-                        const newCollection = applyTaskCollectionActionToCollectionIndexDoc(
-                            oldCollection,
-                            action.time,
-                            action.collectionAction,
-                        );
-                        collectionEntry.setCollection(newCollection);
+                    switch (action.collectionAction.type) {
+                        case "Create":
+                        case "Delete":
+                        case "Undelete":
+                        case "UpdateName":
+                        case "UpdateAccessPolicy": {
+                            // Doesn't affect query
+                            break;
+                        }
+                        default:
+                            throw exhaustive(action.collectionAction);
                     }
-
-                    // NOCOMMIT: Reauthorize...
                     break;
                 }
                 case "UpdateNotepadPage": {
                     cast<"Create">(action.notepadPageAction.type);
-                    // Doesn't affect store data
+                    // Doesn't affect query
                     break;
                 }
                 default:
@@ -664,33 +640,35 @@ export class TaskRealtimeQueryStoreInternal {
         }
 
         for (const [taskId, {taskEntry, oldTask}] of updatedTaskEntriesById) {
-            const addedQueryDependencies = new Set();
+            const newlyVisibleInQueries = new Set();
 
             // For queries this task is not currently visible in, see if it is now visible.
             for (const query of this._queries.values()) {
-                if (taskEntry.hasQueryDependent(query)) continue;
+                if (taskEntry.visibleInQueries.has(query)) continue;
 
-                const {isVisible} = query.maybeAddVisibleTask(context, taskId, taskEntry.getTask());
+                const {isVisible} = query.maybeAddVisibleTask(taskId, taskEntry.task);
                 if (isVisible) {
-                    addedQueryDependencies.add(query);
-                    taskEntry.addQueryDependent(query);
+                    newlyVisibleInQueries.add(query);
+                    taskEntry.visibleInQueries.add(query);
                 }
             }
 
             // For queries this task is currently visible in, update the query and see if
             // the task is now hidden from the query.
-            if (oldTask !== taskEntry.getTask()) {
-                for (const query of taskEntry.iterateQueryDependents()) {
-                    if (addedQueryDependencies.has(query)) continue;
+            if (oldTask !== taskEntry.task) {
+                for (const query of taskEntry.visibleInQueries) {
+                    if (newlyVisibleInQueries.has(query)) continue;
 
                     const {isStillVisible} = query.onVisibleTaskUpdate(
-                        context,
                         taskId,
                         oldTask,
-                        taskEntry.getTask(),
+                        taskEntry.task,
                     );
                     if (!isStillVisible) {
-                        taskEntry.removeQueryDependent(query);
+                        taskEntry.visibleInQueries.delete(query);
+                        if (taskEntry.visibleInQueries.size === 0) {
+                            // NOCOMMIT: Evict the task after some time?
+                        }
                     }
                 }
             }
@@ -706,7 +684,7 @@ export class TaskRealtimeQueryStoreInternal {
         await runAllPromises(
             Array.from(queriesByMaybeAddVisibleTaskIdToLoad, ([taskId, queries]) =>
                 retryWithExponentialBackoff(async retry => {
-                    const taskEntry = await this.loadTaskIfExists(context, taskId);
+                    const taskEntry = await this._loadTaskIfExists(context, taskId);
 
                     if (!taskEntry) {
                         throw retry(
@@ -720,14 +698,10 @@ export class TaskRealtimeQueryStoreInternal {
                         // If the task is still not visible in this query (some concurrent process may
                         // have made it visible) then attempt to add the task to the query given the
                         // task passes the query's filters.
-                        if (!taskEntry.hasQueryDependent(query)) {
-                            const {isVisible} = query.maybeAddVisibleTask(
-                                context,
-                                taskId,
-                                taskEntry.getTask(),
-                            );
+                        if (!taskEntry.visibleInQueries.has(query)) {
+                            const {isVisible} = query.maybeAddVisibleTask(taskId, taskEntry.task);
                             if (isVisible) {
-                                taskEntry.addQueryDependent(query);
+                                taskEntry.visibleInQueries.add(query);
                             }
                         }
                     }
@@ -741,7 +715,7 @@ export class TaskRealtimeQueryStoreInternal {
      *
      * Batches and dedupes load requests behind the scenes.
      */
-    public loadTaskIfExists(
+    private _loadTaskIfExists(
         context: TaskRealtimeSystemActionContext,
         taskId: TaskId,
     ): Promise<TaskRealtimeQueryStoreTaskEntry | null> {
@@ -775,10 +749,9 @@ export class TaskRealtimeQueryStoreInternal {
             // can now get the task from `taskEntryById`.
             //
             // If the task entry is evicted then we should create a new loading promise.
-            promiseResolver.promise.then(
-                () => this._loadingTaskPromiseById.delete(taskId),
-                () => this._loadingTaskPromiseById.delete(taskId),
-            );
+            promiseResolver.promise.finally(() => {
+                this._loadingTaskPromiseById.delete(taskId);
+            });
 
             return promiseResolver.promise;
         });
@@ -811,10 +784,10 @@ export class TaskRealtimeQueryStoreInternal {
         this._executeLoadTaskBatchSync(context, taskLoadBatch, tasks);
     }
 
-    // The synchronous part of `_executeLoadTaskBatch()` to be run after the
-    // network request. It's useful to make this synchronous since we'll be
-    // updating our internal store state and we don't want to think about
-    // concurrent readers/writers.
+    // The synchronous part of `_loadTaskBatch()` to be run after the network
+    // request. It's useful to make this synchronous since we'll be updating our
+    // internal store state and we don't want to think about concurrent
+    // readers/writers.
     private _executeLoadTaskBatchSync(
         context: TaskRealtimeSystemActionContext,
         taskLoadBatch: Array<{
@@ -849,7 +822,7 @@ export class TaskRealtimeQueryStoreInternal {
             }
         }
 
-        // Catch up our tasks which are freshly loaded from OpenSearch with any actions
+        // Catch up our tasks are freshly loaded from OpenSearch with any actions
         // in our history so they're up-to-date in realtime.
         for (const [taskId, {freshTask, promiseResolver}] of freshTaskById) {
             let task = freshTask;
@@ -863,465 +836,16 @@ export class TaskRealtimeQueryStoreInternal {
                 },
             );
 
-            const taskEntry = new TaskRealtimeQueryStoreTaskEntry(this, task);
-            taskEntry.shouldTryAddingToAllQueriesNextAction = true;
+            const taskEntry: TaskRealtimeQueryStoreTaskEntry = {
+                task,
+                // NOCOMMIT: Evict if we don't get a query
+                visibleInQueries: new Set([]),
+                shouldTryAddingToAllQueriesNextAction: true,
+            };
 
             this._taskEntryById.set(taskId, taskEntry);
 
             promiseResolver.resolve(taskEntry);
         }
-    }
-
-    /**
-     * Load an entry for a collection from OpenSearch and put it in
-     * `collectionEntryById`.
-     *
-     * Batches and dedupes load requests behind the scenes.
-     */
-    public loadCollectionIfExists(
-        context: TaskRealtimeSystemActionContext,
-        collectionId: TaskCollectionId,
-    ): Promise<TaskRealtimeQueryStoreCollectionEntry | null> {
-        // If we've already loaded the collection, great! No need to load it now.
-        {
-            const collectionEntry = this._collectionEntryById.get(collectionId);
-            if (collectionEntry !== undefined) return Promise.resolve(collectionEntry);
-        }
-
-        return getOrSetDefaultMapValue(this._loadingCollectionPromiseById, collectionId, () => {
-            if (!this._scheduledCollectionLoadBatch) {
-                this._scheduledCollectionLoadBatch = [];
-
-                scheduleMicrotask(() => {
-                    assert(this._scheduledCollectionLoadBatch);
-                    const collectionLoadBatch = this._scheduledCollectionLoadBatch;
-                    this._scheduledCollectionLoadBatch = null;
-
-                    this._executeLoadCollectionBatch(context, collectionLoadBatch).catch(error => {
-                        for (const {promiseResolver} of collectionLoadBatch) {
-                            promiseResolver.reject(error);
-                        }
-                    });
-                });
-            }
-
-            const promiseResolver =
-                createPromiseResolver<TaskRealtimeQueryStoreCollectionEntry | null>();
-            this._scheduledCollectionLoadBatch.push({collectionId, promiseResolver});
-
-            // Once the promise has settled, delete it from `loadingCollectionPromiseById`.
-            // You can now get the task from `collectionEntryById`.
-            //
-            // If the task entry is evicted then we should create a new loading promise.
-            promiseResolver.promise.then(
-                () => this._loadingCollectionPromiseById.delete(collectionId),
-                () => this._loadingCollectionPromiseById.delete(collectionId),
-            );
-
-            return promiseResolver.promise;
-        });
-    }
-
-    private async _executeLoadCollectionBatch(
-        context: TaskRealtimeSystemActionContext,
-        collectionLoadBatch: Array<{
-            collectionId: TaskCollectionId;
-            promiseResolver: PromiseResolver<TaskRealtimeQueryStoreCollectionEntry | null>;
-        }>,
-    ): Promise<void> {
-        const collections = await getTaskCollectionIndexDocsIfExist(
-            context,
-            this.spaceId,
-            collectionLoadBatch.map(({collectionId}) => collectionId),
-        );
-
-        // Remove the `version` property from loaded collections. The collections we
-        // keep track of in our store don't have the OpenSearch version since we update
-        // the collections independently.
-        for (const collection of collections) {
-            if (collection !== null && "version" in collection) {
-                delete (collection as any).version;
-            }
-        }
-
-        this._executeLoadCollectionBatchSync(context, collectionLoadBatch, collections);
-    }
-
-    // The synchronous part of `_executeLoadCollectionBatch()` to be run after the
-    // network request. It's useful to make this synchronous since we'll be
-    // updating our internal store state and we don't want to think about
-    // concurrent readers/writers.
-    private _executeLoadCollectionBatchSync(
-        context: TaskRealtimeSystemActionContext,
-        collectionLoadBatch: Array<{
-            collectionId: TaskCollectionId;
-            promiseResolver: PromiseResolver<TaskRealtimeQueryStoreCollectionEntry | null>;
-        }>,
-        collections: Array<TaskCollectionIndexDoc | null>,
-    ): void {
-        const freshCollectionById = new Map<
-            TaskCollectionId,
-            {
-                freshCollection: TaskCollectionIndexDoc;
-                promiseResolver: PromiseResolver<TaskRealtimeQueryStoreCollectionEntry | null>;
-            }
-        >();
-
-        // Check if any of the collections were loaded concurrently while we were
-        // waiting on our network request. We can immediately resolve any that were.
-        for (let i = 0; i < collectionLoadBatch.length; i++) {
-            const {collectionId, promiseResolver} = collectionLoadBatch[i]!;
-            const collectionEntry = this._collectionEntryById.get(collectionId);
-
-            if (collectionEntry !== undefined) {
-                promiseResolver.resolve(collectionEntry);
-            } else {
-                const collection = collections[i];
-                if (!collection) {
-                    promiseResolver.resolve(null);
-                } else {
-                    freshCollectionById.set(collectionId, {
-                        freshCollection: collection,
-                        promiseResolver,
-                    });
-                }
-            }
-        }
-
-        // Catch up our collections which are freshly loaded from OpenSearch with any
-        // actions in our history so they're up-to-date in realtime.
-        for (const [collectionId, {freshCollection, promiseResolver}] of freshCollectionById) {
-            let collection = freshCollection;
-
-            this._actionHistory.iterateCollectionActions(
-                context.tracer.getTracer(),
-                this.spaceId,
-                collectionId,
-                (actionTime, action) => {
-                    collection = applyTaskCollectionActionToCollectionIndexDoc(
-                        collection,
-                        actionTime,
-                        action,
-                    );
-                },
-            );
-
-            const collectionEntry = new TaskRealtimeQueryStoreCollectionEntry(collection);
-
-            this._collectionEntryById.set(collectionId, collectionEntry);
-
-            promiseResolver.resolve(collectionEntry);
-        }
-    }
-}
-
-/**
- * The representation of a task in our store.
- */
-export class TaskRealtimeQueryStoreTaskEntry {
-    private readonly _store: TaskRealtimeQueryStoreInternal;
-
-    /** The current task object. */
-    private _task: TaskIndexDoc;
-
-    /**
-     * If true then the next time we see an action for this task we will call
-     * `query.maybeAddVisibleTask()` on all queries this task is not already in.
-     *
-     * Set this to true when you are updating a task outside of
-     * `applyActionTransaction()` and want to add the task to queries in
-     * `applyActionTransaction()` as if the update was received from an action.
-     *
-     * This is important for correctness since we may skip propagating updates to
-     * queries otherwise when we later see the related action in
-     * `applyActionTransaction()` if you update the task outside of
-     * `applyActionTransaction()`.
-     */
-    public shouldTryAddingToAllQueriesNextAction = false;
-
-    /**
-     * A reference to our task's parent task.
-     *
-     * This reference is lazily initialized so even if the underlying task object
-     * has a parent task this may be null until `getParentTask()` is called.
-     */
-    private _parentTaskEntry: Promise<TaskRealtimeQueryStoreTaskEntry> | null = null;
-
-    /**
-     * A reference to the collections our task is in.
-     *
-     * This map is lazily initialized so it may not include some collections our
-     * task object says it's in until `getCollections()` has been called.
-     */
-    private readonly _collectionEntryById = new Map<
-        TaskCollectionId,
-        Promise<TaskRealtimeQueryStoreCollectionEntry>
-    >();
-
-    /**
-     * The child tasks of this task which hold a reference to us in `parentTaskEntry`.
-     *
-     * This is not the full list of children of this task. Only the children that
-     * have been loaded by some query. Additionally, a task's collections are
-     * lazily initialized so this is not populated until `getCollections()` is
-     * called.
-     */
-    // NOCOMMIT: Mark for eviction if no dependencies...
-    private readonly _childTaskEntryDependentById = new Map<
-        TaskId,
-        TaskRealtimeQueryStoreTaskEntry
-    >();
-
-    /**
-     * Queries that depend on this task. If a query is in this set then our task
-     * must be visible in the query.
-     */
-    // NOCOMMIT: Mark for eviction if no dependencies...
-    private readonly _queryDependents = new Set<TaskRealtimeQuery>();
-
-    constructor(store: TaskRealtimeQueryStoreInternal, task: TaskIndexDoc) {
-        this._store = store;
-        this._task = task;
-    }
-
-    /**
-     * Get the current task object in our entry.
-     */
-    public getTask() {
-        return this._task;
-    }
-
-    /**
-     * Set the task object in our entry to a new value. Invalidates any
-     * dependencies of this entry.
-     */
-    public setTask(task: TaskIndexDoc) {
-        assert(this._task.id === task.id);
-        this._task = task;
-
-        // If the task parent changed then remove our reference to the loaded parent
-        // task entry and remove the back reference which points back to us.
-        if (this._task.parent.taskId.value !== task.parent.taskId.value) {
-            void this._parentTaskEntry?.then(parentTaskEntry => {
-                parentTaskEntry.removeChildTaskDependent(this);
-            });
-            this._parentTaskEntry = null;
-        }
-
-        // If the task's collections change then for any collections that were removed,
-        // remove our reference to the collection entry and remove the back reference
-        // which points back to us.
-        if (this._task.collections.raw.collections !== task.collections.raw.collections) {
-            const removedCollectionIds = new Set(
-                this._task.collections.raw.collections
-                    .getArray()
-                    .map(({collectionId}) => collectionId),
-            );
-
-            for (const {collectionId} of task.collections.raw.collections.getArray()) {
-                removedCollectionIds.delete(collectionId);
-            }
-
-            for (const collectionId of removedCollectionIds) {
-                void this._collectionEntryById.get(collectionId)?.then(collectionEntry => {
-                    collectionEntry.removeTaskDependent(this);
-
-                    for (const query of this.iterateQueryDependents()) {
-                        collectionEntry.removeIndirectQueryDependent(query);
-                    }
-                });
-                this._collectionEntryById.delete(collectionId);
-            }
-        }
-    }
-
-    /**
-     * Get a reference to our task's parent task. If we haven't loaded the parent
-     * task yet then calling this function will kick off that process.
-     */
-    public getParentTask(
-        context: TaskRealtimeSystemActionContext,
-    ): Promise<TaskRealtimeQueryStoreTaskEntry | null> {
-        if (this._task.parent.taskId.value === null) {
-            assert(this._parentTaskEntry === null);
-            return Promise.resolve(null);
-        }
-
-        if (this._parentTaskEntry === null) {
-            this._parentTaskEntry = this._store
-                .loadTaskIfExists(context, this._task.parent.taskId.value)
-                .then(parentTaskEntry => {
-                    if (!parentTaskEntry) throw new InternalError("Task not found");
-
-                    parentTaskEntry.addChildTaskDependent(this);
-
-                    return parentTaskEntry;
-                });
-        }
-
-        return this._parentTaskEntry;
-    }
-
-    /**
-     * Get a reference to our task's collections. If we haven't loaded this task's
-     * collections yet then calling this function will kick off that process.
-     */
-    public getCollections(
-        context: TaskRealtimeSystemActionContext,
-    ): Promise<Array<TaskRealtimeQueryStoreCollectionEntry>> {
-        return runAllPromises(
-            this._task.collections.raw.collections.getArray().map(({collectionId}) => {
-                return getOrSetDefaultMapValue(this._collectionEntryById, collectionId, () => {
-                    // It's important that we capture query dependents before we start loading. If
-                    // `addQueryDependent()` is called while we're loading then it will cue an
-                    // `addIndirectQueryDependent()` call.
-                    //
-                    // NOCOMMIT: Test this!!
-                    const indirectQueryDependents = Array.from(this.iterateQueryDependents());
-
-                    return this._store
-                        .loadCollectionIfExists(context, collectionId)
-                        .then(collectionEntry => {
-                            if (!collectionEntry)
-                                throw new InternalError("Task collection not found");
-
-                            collectionEntry.addTaskDependent(this);
-
-                            for (const query of indirectQueryDependents) {
-                                collectionEntry.addIndirectQueryDependent(query);
-                            }
-
-                            return collectionEntry;
-                        });
-                });
-            }),
-        );
-    }
-
-    public iterateQueryDependents(): IterableIterator<TaskRealtimeQuery> {
-        return this._queryDependents.values();
-    }
-
-    public hasQueryDependent(query: TaskRealtimeQuery) {
-        return this._queryDependents.has(query);
-    }
-
-    public addQueryDependent(query: TaskRealtimeQuery) {
-        // NOCOMMIT: Remove from if no dependencies...
-        this._queryDependents.add(query);
-
-        for (const collectionEntry of this._collectionEntryById.values()) {
-            void collectionEntry.then(collectionEntry =>
-                collectionEntry.addIndirectQueryDependent(query),
-            );
-        }
-    }
-
-    public removeQueryDependent(query: TaskRealtimeQuery) {
-        if (process.env.NODE_ENV !== "production") {
-            assert(this._queryDependents.has(query), "Query was not added as a dependent to task");
-        }
-
-        // NOCOMMIT: Mark for eviction if no dependencies...
-        this._queryDependents.delete(query);
-
-        for (const collectionEntry of this._collectionEntryById.values()) {
-            void collectionEntry.then(collectionEntry =>
-                collectionEntry.removeIndirectQueryDependent(query),
-            );
-        }
-    }
-
-    public addChildTaskDependent(task: TaskRealtimeQueryStoreTaskEntry) {
-        // NOCOMMIT: Revive from eviction if dependencies...
-        this._childTaskEntryDependentById.set(task._task.id, task);
-    }
-
-    public removeChildTaskDependent(task: TaskRealtimeQueryStoreTaskEntry) {
-        if (process.env.NODE_ENV !== "production") {
-            assert(
-                this._childTaskEntryDependentById.get(task._task.id) === task,
-                "Child task was not added as a dependent to task",
-            );
-        }
-
-        // NOCOMMIT: Mark for eviction if no dependencies...
-        this._childTaskEntryDependentById.delete(task._task.id);
-    }
-
-    public addQuerySubscriptionDependent(querySubscription: TaskRealtimeQuerySubscription) {
-        // NOCOMMIT: Revive from eviction...
-    }
-
-    public removeQuerySubscriptionDependent(querySubscription: TaskRealtimeQuerySubscription) {
-        // NOCOMMIT: Mark for eviction...
-    }
-}
-
-export class TaskRealtimeQueryStoreCollectionEntry {
-    private _collection: TaskCollectionIndexDoc;
-
-    // NOCOMMIT: Mark for eviction if no dependencies...
-    private readonly _taskDependentById = new Map<TaskId, TaskRealtimeQueryStoreTaskEntry>();
-
-    private readonly _indirectQueryDependents = new Map<TaskRealtimeQuery, number>();
-
-    constructor(collection: TaskCollectionIndexDoc) {
-        this._collection = collection;
-    }
-
-    public getCollection() {
-        return this._collection;
-    }
-
-    public setCollection(collection: TaskCollectionIndexDoc) {
-        assert(this._collection.id === collection.id);
-        this._collection = collection;
-    }
-
-    public addTaskDependent(task: TaskRealtimeQueryStoreTaskEntry) {
-        // NOCOMMIT: Revive from eviction
-        this._taskDependentById.set(task.getTask().id, task);
-    }
-
-    public removeTaskDependent(task: TaskRealtimeQueryStoreTaskEntry) {
-        if (process.env.NODE_ENV !== "production") {
-            assert(
-                this._taskDependentById.get(task.getTask().id) === task,
-                "Task was not added as a dependent to collection",
-            );
-        }
-
-        // NOCOMMIT: Schedule for eviction
-        this._taskDependentById.delete(task.getTask().id);
-    }
-
-    public addIndirectQueryDependent(query: TaskRealtimeQuery) {
-        const count = (this._indirectQueryDependents.get(query) ?? 0) + 1;
-        this._indirectQueryDependents.set(query, count);
-    }
-
-    public removeIndirectQueryDependent(query: TaskRealtimeQuery) {
-        const count = (this._indirectQueryDependents.get(query) ?? 0) - 1;
-        if (count <= 0) {
-            if (process.env.NODE_ENV !== "production") {
-                assert(
-                    count === 0,
-                    "`removeIndirectQueryDependent()` called without matching `addIndirectQueryDependent()`",
-                );
-            }
-
-            this._indirectQueryDependents.delete(query);
-        } else {
-            this._indirectQueryDependents.set(query, count);
-        }
-    }
-
-    public addQuerySubscriptionDependent(querySubscription: TaskRealtimeQuerySubscription) {
-        // NOCOMMIT: Revive from eviction...
-    }
-
-    public removeQuerySubscriptionDependent(querySubscription: TaskRealtimeQuerySubscription) {
-        // NOCOMMIT: Mark for eviction...
     }
 }

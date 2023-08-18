@@ -11,9 +11,9 @@ import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {applyTaskTitleUpdate} from "~/shared/tasks/task_title.js";
 
 /**
- * Applies a `TaskTaskAction` to a `TaskIndexDoc`. `TaskTaskAction`s are
- * commutative and idempotent. This means they can be applied in any order or
- * multiple times and we'll converge to the same result every time.
+ * Applies a `TaskAction` to a `TaskIndexDoc`. `TaskAction`s are commutative
+ * and idempotent. This means they can be applied in any order or multiple
+ * times and we'll converge to the same result every time.
  */
 export function applyTaskActionToTaskIndexDoc(
     task: TaskIndexDoc,

@@ -17,9 +17,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
  */
 export class PromiseImmediate<Value> implements PromiseLike<Value> {
     private _state: PromiseState<Value>;
-    // We use `any` for `value` here since it's important that
-    // `PromiseImmediate<Value>` is covariant in `Value` type.
-    private _onResolvedCallbacks: Array<(value: any) => void> | null;
+    private _onResolvedCallbacks: Array<(value: Value) => void> | null;
     private _onRejectedCallbacks: Array<(error: unknown) => void> | null;
 
     constructor(
@@ -190,7 +188,7 @@ export class PromiseImmediate<Value> implements PromiseLike<Value> {
                                 reject(error);
                             }
                         } else {
-                            resolve(value as NewValue1);
+                            resolve(value as any as NewValue1);
                         }
                     });
 

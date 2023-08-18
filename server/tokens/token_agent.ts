@@ -62,8 +62,6 @@ assertAssignableTypes<DurableObjectServiceName, TokenEdgeServiceFamilyName>();
 /**
  * The token agent helps sign and verify JWTs from across our services.
  */
-// TODO(calebmer, #security): We should eventually implement key rotation. No
-// human should ever have access to our system's private keys.
 export abstract class TokenAgentBase {
     protected readonly _appServicePublicKey: KeyLike;
     protected readonly _edgeServiceFamilyPublicKey: KeyLike;

@@ -10,7 +10,6 @@ import {
     RealmId,
     SpaceId,
     TaskActionTransactionId,
-    TaskCollectionId,
     TaskId,
     TraceId,
     TraceSpanId,
@@ -328,9 +327,6 @@ export type TracerEventData = {
 
         /** Information about the task the event was fired while looking at. */
         readonly taskId?: TaskId;
-
-        /** Information about the task collection the event was fired while looking at. */
-        readonly taskCollectionId?: TaskCollectionId;
 
         /**
          * If this event is coming from a peek then this object will be populated with

@@ -698,10 +698,10 @@ class WebSocketServerConnectionWrapper<
                         .startSpan(spanName));
                 }
 
-                // TODO(calebmer, #security): If an account loses access to the entity this
-                // WebSocket server is representing then they should be disconnected from the
-                // WebSocket. Right now, at best, we authenticate accounts once when they
-                // connect and then RPCs will run authentication logic.
+                // TODO(calebmer): If an account loses access to the entity this WebSocket
+                // server is representing then they should be disconnected from the WebSocket.
+                // Right now, at best, we authenticate accounts once when they connect and then
+                // RPCs will run authentication logic.
                 //
                 // Given WebSocket servers have access to their own information which needs to
                 // be secured (new realtime messages and their contents) we should check

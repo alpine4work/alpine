@@ -1,7 +1,10 @@
 import {DynamoSystemActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
 import {ServerSystemActionContext} from "~/server/context/server_action_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
-import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
+import {
+    ActorContextModule,
+    SystemActorContextModule,
+} from "~/server/helpers/actor_context_module.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
@@ -12,7 +15,6 @@ import {
 } from "~/server/opensearch/opensearch_index_type.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/data/apply_task_action_to_task_index_doc.js";
-import {applyTaskCollectionActionToCollectionIndexDoc} from "~/server/tasks/data/apply_task_collection_action_to_collection_index_doc.js";
 import {createEmptyTaskIndexDoc} from "~/server/tasks/data/create_empty_task_index_doc.js";
 import {getTaskQueryNormalizedFiltersOpensearchQueryClause} from "~/server/tasks/data/internal/get_task_query_normalized_filters_opensearch_query_clause.js";
 import {
@@ -30,6 +32,7 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {maxHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -136,34 +139,6 @@ export async function getTaskIndexDocsIfExist(
         TaskIndex,
         spaceId,
         taskIds,
-    );
-}
-
-/**
- * Get multiple collections in parallel as a system actor. System actors have
- * access to all collections in the space.
- */
-export async function getTaskCollectionIndexDocsIfExist(
-    context: Context<{
-        tracer: TracerContextModule;
-        cache: CacheContextModule;
-        dynamo: DynamoContextModule;
-        opensearch: OpensearchContextModule;
-        actor: SystemActorContextModule;
-    }>,
-    spaceId: SpaceId,
-    collectionIds: ReadonlyArray<TaskCollectionId>,
-) {
-    // We don't verify that the account is allowed to load these documents. We
-    // require a system actor with access to the entire space.
-    context.actor.authorizeSystem();
-    await authorizeSpaceAccess(context, spaceId);
-
-    return context.opensearch.client.multiGetDocsIfExist(
-        context.tracer.getTracer(),
-        TaskCollectionIndex,
-        spaceId,
-        collectionIds,
     );
 }
 
@@ -527,24 +502,71 @@ async function actuallyIndexTaskAction(
                 );
             }
 
-            const newCollection = applyTaskCollectionActionToCollectionIndexDoc(
-                oldCollection,
-                action.time,
-                action.collectionAction,
-            );
+            switch (action.collectionAction.type) {
+                case "Create": {
+                    if (oldCollection.createdTime.getTime() !== action.time[0]) {
+                        throw new FailedPreconditionError("Incompatible create action");
+                    }
+                    break;
+                }
+                case "Delete": {
+                    const newRawDeletedTime =
+                        oldCollection.rawDeletedTime !== null
+                            ? maxHybridLogicalTime(oldCollection.rawDeletedTime, action.time)
+                            : action.time;
 
-            // NOTE(calebmer): Maintaining referential identity to avoid having to make an
-            // update network request is an important optimization.
-            //
-            // In addition to avoiding a network request, this optimization can help avoid
-            // some retries too under high contention workloads since it's ok if the doc in
-            // OpenSearch has updated from underneath us. The result if we try to reapply
-            // would be the same.
-            if (newCollection !== oldCollection) {
-                state.putCollectionIndexDoc(
-                    action.collectionId,
-                    Object.assign(newCollection, {version: oldCollection.version}),
-                );
+                    if (newRawDeletedTime !== oldCollection.rawDeletedTime) {
+                        state.putCollectionIndexDoc(action.collectionId, {
+                            ...oldCollection,
+                            rawDeletedTime: newRawDeletedTime,
+                        });
+                    }
+                    break;
+                }
+                case "Undelete": {
+                    const newRawUndeletedTime =
+                        oldCollection.rawUndeletedTime !== null
+                            ? maxHybridLogicalTime(oldCollection.rawUndeletedTime, action.time)
+                            : action.time;
+
+                    if (newRawUndeletedTime !== oldCollection.rawUndeletedTime) {
+                        state.putCollectionIndexDoc(action.collectionId, {
+                            ...oldCollection,
+                            rawUndeletedTime: newRawUndeletedTime,
+                        });
+                    }
+                    break;
+                }
+                case "UpdateName": {
+                    const newName = oldCollection.name.apply({
+                        value: action.collectionAction.name,
+                        version: action.time,
+                    });
+
+                    if (oldCollection.name !== newName) {
+                        state.putCollectionIndexDoc(action.collectionId, {
+                            ...oldCollection,
+                            name: newName,
+                        });
+                    }
+                    break;
+                }
+                case "UpdateAccessPolicy": {
+                    const newAccessPolicy = oldCollection.accessPolicy.apply({
+                        value: action.collectionAction.accessPolicy,
+                        version: action.time,
+                    });
+
+                    if (oldCollection.accessPolicy !== newAccessPolicy) {
+                        state.putCollectionIndexDoc(action.collectionId, {
+                            ...oldCollection,
+                            accessPolicy: newAccessPolicy,
+                        });
+                    }
+                    break;
+                }
+                default:
+                    throw exhaustive(action.collectionAction);
             }
             return;
         }
