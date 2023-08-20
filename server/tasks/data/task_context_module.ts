@@ -17,7 +17,7 @@ import {TaskAction, getTaskActionLabel} from "~/shared/tasks/actions/task_action
  * - Escalating to system permission level when indexing a task action.
  * - Communicating with the task query realtime service.
  */
-export class TasksContextModule extends ContextModuleBase<{
+export class TaskContextModule extends ContextModuleBase<{
     process: ProcessContextModule;
     tracer: TracerContextModule;
     actor: DynamoActorContextModule;
@@ -91,7 +91,7 @@ export class TasksContextModule extends ContextModuleBase<{
     }
 }
 
-export class TestTasksContextModule extends TasksContextModule {
+export class TestTaskContextModule extends TaskContextModule {
     private readonly _shouldSkipIndexing: boolean;
 
     constructor({

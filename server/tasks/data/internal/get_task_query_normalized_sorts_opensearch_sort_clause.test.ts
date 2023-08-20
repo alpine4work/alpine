@@ -9,8 +9,8 @@ import {
     getTaskQueryNormalizedSortsOpensearchSortClause,
 } from "~/server/tasks/data/internal/get_task_query_normalized_sorts_opensearch_sort_clause.js";
 import {TaskIndexDoc, TaskIndexDocType} from "~/server/tasks/data/task_index_doc.js";
-import {TestTasksContextModule} from "~/server/tasks/data/tasks_context_module.js";
-import {commitTaskActionTransaction} from "~/server/tasks/data/tasks_table.js";
+import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js";
+import {commitTaskActionTransaction} from "~/server/tasks/data/task_table.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -40,7 +40,7 @@ const context = {
     ...baseContext,
     action: session => {
         return baseContext.action(session).clone({
-            tasks: new TestTasksContextModule({
+            tasks: new TestTaskContextModule({
                 shouldSkipIndexing: false,
                 dangerouslyEscalateToSystemContext: baseContext.escalateToSystemContext,
             }),

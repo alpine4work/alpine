@@ -12,12 +12,12 @@ import {
     refreshTaskIndexForTest,
 } from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc, TaskIndexDocWithVersion} from "~/server/tasks/data/task_index_doc.js";
-import {TestTasksContextModule} from "~/server/tasks/data/tasks_context_module.js";
+import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {
     afterCommitTaskActionTransactionEventEmitterForTest,
     backfillTaskActionTransactionHistoryTestCounter,
     commitTaskActionTransaction,
-} from "~/server/tasks/data/tasks_table.js";
+} from "~/server/tasks/data/task_table.js";
 import {taskRealtimeQueryStoreLoadTaskTestCheckpoint} from "~/server/tasks/realtime/task_realtime_query_store.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -311,7 +311,7 @@ class TestScenarioTask {
 
     private static _action(session: TestScenarioSpaceSession) {
         return session.action().clone({
-            tasks: new TestTasksContextModule({
+            tasks: new TestTaskContextModule({
                 shouldSkipIndexing: false,
                 dangerouslyEscalateToSystemContext: session.context.escalateToSystemContext,
             }),

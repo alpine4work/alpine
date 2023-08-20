@@ -1,6 +1,6 @@
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
-import {backfillTaskActionTransactionHistory} from "~/server/tasks/data/tasks_table.js";
+import {backfillTaskActionTransactionHistory} from "~/server/tasks/data/task_table.js";
 import {TaskRealtimeActionHistory} from "~/server/tasks/realtime/task_realtime_action_history.js";
 import {TaskRealtimeQueryStore} from "~/server/tasks/realtime/task_realtime_query_store.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";

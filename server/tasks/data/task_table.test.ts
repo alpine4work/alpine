@@ -4,11 +4,11 @@ import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/creat
 import {TestSession, createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {getSpacesTableForTest} from "~/server/spaces/spaces_table.js";
-import {TestTasksContextModule} from "~/server/tasks/data/tasks_context_module.js";
+import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {
     commitTaskActionTransaction,
     commitTaskActionTransactionBeforeExecuteTestCheckpoint,
-} from "~/server/tasks/data/tasks_table.js";
+} from "~/server/tasks/data/task_table.js";
 import {
     FailedPreconditionError,
     InvalidArgumentError,
@@ -40,7 +40,7 @@ const context = {
     ...baseContext,
     action: session => {
         return baseContext.action(session).clone({
-            tasks: new TestTasksContextModule({
+            tasks: new TestTaskContextModule({
                 shouldSkipIndexing: true,
                 dangerouslyEscalateToSystemContext: baseContext.escalateToSystemContext,
             }),

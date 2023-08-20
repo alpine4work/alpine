@@ -12,7 +12,7 @@ import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {authorizeSpaceAccess, isAccountMemberOfSpace} from "~/server/spaces/spaces_table.js";
-import {TasksContextModule} from "~/server/tasks/data/tasks_context_module.js";
+import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -78,7 +78,7 @@ import {TaskStatus} from "~/shared/tasks/task_status.js";
  * are basically only accessed in disaster recovery scenarios so they can go
  * into low cost S3 storage.
  */
-const TaskActionsTable = DynamoTableSchema.new({
+const TaskActionTable = DynamoTableSchema.new({
     name: "TaskActions",
     partitions: [
         {
@@ -126,7 +126,7 @@ const TaskStatusTypeRegister = createCrdtRegister(
  * `EssentialAttributes` items) and some data unrelated to task fields which
  * don't participate in querying (like notes, comments, revision history).
  */
-const TasksTable = DynamoTableSchema.new({
+const TaskTable = DynamoTableSchema.new({
     name: "Tasks",
     partitions: [
         {
@@ -261,21 +261,21 @@ const TasksTable = DynamoTableSchema.new({
 });
 
 type TaskActionTransactionItem = DynamoTableItemType<
-    typeof TaskActionsTable,
+    typeof TaskActionTable,
     "TaskActions",
     "ActionTransaction"
 >;
 
-type TaskAccountNotepadItem = DynamoTableItemType<typeof TasksTable, "Account", "Notepad">;
+type TaskAccountNotepadItem = DynamoTableItemType<typeof TaskTable, "Account", "Notepad">;
 
 type TaskEssentialAttributesItem = DynamoTableItemType<
-    typeof TasksTable,
+    typeof TaskTable,
     "Task",
     "EssentialAttributes"
 >;
 
 type TaskCollectionEssentialAttributesItem = DynamoTableItemType<
-    typeof TasksTable,
+    typeof TaskTable,
     "TaskCollection",
     "EssentialAttributes"
 >;
@@ -313,7 +313,7 @@ export const afterCommitTaskActionTransactionEventEmitterForTest = import.meta.j
  * property).
  */
 export function commitTaskActionTransaction(
-    context: Context<ServerSessionActionContextModules & {tasks: TasksContextModule}>,
+    context: Context<ServerSessionActionContextModules & {tasks: TaskContextModule}>,
     spaceId: SpaceId,
     actions: ReadonlyArray<TaskAction>,
 ): Promise<{extraActions: ReadonlyArray<TaskAction>}> {
@@ -442,19 +442,19 @@ class TaskActionTransactionCommitState {
                 switch (transactionEntry.action) {
                     case "CreateItem": {
                         transactionEntries.push(
-                            TasksTable.transactionCreateItem(transactionEntry.taskItem),
+                            TaskTable.transactionCreateItem(transactionEntry.taskItem),
                         );
                         break;
                     }
                     case "DirectlyUpdateItem": {
                         transactionEntries.push(
-                            TasksTable.transactionDirectlyUpdateItem(transactionEntry.taskItem),
+                            TaskTable.transactionDirectlyUpdateItem(transactionEntry.taskItem),
                         );
                         break;
                     }
                     case "DirectlyUpdateItemLockVersion": {
                         transactionEntries.push(
-                            TasksTable.transactionDirectlyUpdateItemLockVersion(
+                            TaskTable.transactionDirectlyUpdateItemLockVersion(
                                 transactionEntry.taskItem,
                                 transactionEntry.taskItem.updateLockVersion,
                             ),
@@ -493,13 +493,13 @@ class TaskActionTransactionCommitState {
                 switch (transactionEntry.action) {
                     case "CreateItem": {
                         transactionEntries.push(
-                            TasksTable.transactionCreateItem(transactionEntry.collectionItem),
+                            TaskTable.transactionCreateItem(transactionEntry.collectionItem),
                         );
                         break;
                     }
                     case "DirectlyUpdateItem": {
                         transactionEntries.push(
-                            TasksTable.transactionDirectlyUpdateItem(
+                            TaskTable.transactionDirectlyUpdateItem(
                                 transactionEntry.collectionItem,
                             ),
                         );
@@ -512,7 +512,7 @@ class TaskActionTransactionCommitState {
 
             if (state._actorNotepadItemTransactionEntry) {
                 transactionEntries.push(
-                    TasksTable.transactionDirectlyUpdateItem(
+                    TaskTable.transactionDirectlyUpdateItem(
                         state._actorNotepadItemTransactionEntry,
                     ),
                 );
@@ -533,12 +533,12 @@ class TaskActionTransactionCommitState {
 
             if (transactionEntries.length > 0) {
                 transactionEntries.push(
-                    TaskActionsTable.transactionCreateOrReplaceItem(actionTransactionItem),
+                    TaskActionTable.transactionCreateOrReplaceItem(actionTransactionItem),
                 );
 
                 await DynamoTableSchema.executeTransaction(context, transactionEntries);
             } else {
-                await TaskActionsTable.createOrReplaceItem(context, actionTransactionItem);
+                await TaskActionTable.createOrReplaceItem(context, actionTransactionItem);
             }
 
             return {
@@ -574,7 +574,7 @@ class TaskActionTransactionCommitState {
 
     public getTaskItemIfExists(taskId: TaskId): Promise<TaskEssentialAttributesItem | null> {
         return getOrSetDefaultMapValue(this._taskItemById, taskId, async () => {
-            const taskItem = await TasksTable.getItemIfExists(this._context, {
+            const taskItem = await TaskTable.getItemIfExists(this._context, {
                 partitionType: "Task",
                 sortRangeType: "EssentialAttributes",
                 taskId,
@@ -704,7 +704,7 @@ class TaskActionTransactionCommitState {
         collectionId: TaskCollectionId,
     ): Promise<TaskCollectionEssentialAttributesItem | null> {
         return getOrSetDefaultMapValue(this._collectionItemById, collectionId, async () => {
-            const collectionItem = await TasksTable.getItemIfExists(this._context, {
+            const collectionItem = await TaskTable.getItemIfExists(this._context, {
                 partitionType: "TaskCollection",
                 sortRangeType: "EssentialAttributes",
                 collectionId,
@@ -789,7 +789,7 @@ class TaskActionTransactionCommitState {
     public getActorNotepadItem(): Promise<TaskAccountNotepadItem> {
         if (this._actorNotepadItemPromise === null) {
             this._actorNotepadItemPromise = (async () => {
-                let notepadPagesItem = await TasksTable.getItemIfExists(this._context, {
+                let notepadPagesItem = await TaskTable.getItemIfExists(this._context, {
                     partitionType: "Account",
                     sortRangeType: "Notepad",
                     accountId: this._context.actor.getAccountId(),
@@ -1700,7 +1700,7 @@ export async function backfillTaskActionTransactionHistory(
 
     backfillTaskActionTransactionHistoryTestCounter.incrementForTest(spaceId);
 
-    for await (const item of TaskActionsTable.query(context, {
+    for await (const item of TaskActionTable.query(context, {
         partitionKey: {
             partitionType: "TaskActions",
             spaceId,

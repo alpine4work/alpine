@@ -1,17 +1,17 @@
-import {WebSocketClientConnection} from "~/client/web_socket/web_socket_client_connection.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
-import {
-    WebSocketProtocolBase,
-    WebSocketProtocolEventType,
-    WebSocketProtocolProceduresType,
-} from "~/shared/web_socket/web_socket_protocol.js";
+import {WebSocketClientConnection} from "~/client/web_socket/web_socket_client_connection.js";
 import {InternalError} from "~/shared/error/error.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {
+    WebSocketProtocolBase,
+    WebSocketProtocolEventType,
+    WebSocketProtocolProceduresType,
+} from "~/shared/web_socket/web_socket_protocol.js";
 
 const reconnectTimeoutBaseMs = 1200;
 const maxReconnectTimeoutMs = 2500;
