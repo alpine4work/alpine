@@ -2,7 +2,10 @@ import {WorkerSessionActionContext} from "~/server/cloudflare/context/worker_act
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {TestSession, createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
+import {
+    TestSessionItem,
+    createTestSession,
+} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {
     CreateMessageFunction,
@@ -68,7 +71,7 @@ export function testMessagingRealtimeImplementation<
         createRoom: (
             context: ServerSessionActionContext,
             spaceId: SpaceId,
-            sessions: Array<TestSession>,
+            sessions: Array<TestSessionItem>,
         ) => Promise<RoomInterface<RoomKey>>;
         createRealtimeConnection: (options: {
             spaceId: SpaceId;

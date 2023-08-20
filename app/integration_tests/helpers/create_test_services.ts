@@ -17,7 +17,7 @@ import {waitForHttpServer} from "~/server/helpers/wait_for_http_server.js";
 import {waitForProcessExit} from "~/admin/helpers/wait_for_process_exit.js";
 import {waitForProcessSpawn} from "~/admin/helpers/wait_for_process_spawn.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {TestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
+import {TestSessionItem} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {getSessionCookieSetCookieHeaderForTest} from "~/server/tokens/session_cookie.js";
 import {AppServiceTokenAgent} from "~/server/tokens/token_agent.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -37,7 +37,7 @@ export type TestServer = {
      * Sign a session in to the test browser context by setting the
      * appropriate cookies.
      */
-    signIn(browserContext: BrowserContext, session: TestSession): Promise<void>;
+    signIn(browserContext: BrowserContext, session: TestSessionItem): Promise<void>;
 
     /**
      * Get the one time passwords generated during the current test. The array
@@ -172,7 +172,7 @@ export function createTestServices(context: TestContext): TestServer {
         ]);
     });
 
-    const signIn = async (browserContext: BrowserContext, session: TestSession) => {
+    const signIn = async (browserContext: BrowserContext, session: TestSessionItem) => {
         const tokenAgent = await appServiceTokenAgentPromise;
 
         const sessionCookieHeader = await getSessionCookieSetCookieHeaderForTest(tokenAgent, {

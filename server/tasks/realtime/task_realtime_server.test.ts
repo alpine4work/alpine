@@ -1,8 +1,8 @@
 import {parseAbsolute, toCalendarDate} from "@internationalized/date";
-import {getAccountsTableForTest} from "~/server/accounts/accounts_table.js";
-import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {getSpacesTableForTest} from "~/server/spaces/spaces_table.js";
+import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
+import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {getTaskQueryNormalizedSortCursorFromIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_from_index_doc.js";
 import {
     getTaskIndexDocIfExistsForTest,
@@ -11,34 +11,25 @@ import {
     queryTaskIndexTestCounter,
     refreshTaskIndexForTest,
 } from "~/server/tasks/data/task_index.js";
-import {TaskIndexDoc, TaskIndexDocWithVersion} from "~/server/tasks/data/task_index_doc.js";
-import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js";
+import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {
     afterCommitTaskActionTransactionEventEmitterForTest,
     backfillTaskActionTransactionHistoryTestCounter,
-    commitTaskActionTransaction,
 } from "~/server/tasks/data/task_table.js";
 import {taskRealtimeQueryStoreLoadTaskTestCheckpoint} from "~/server/tasks/realtime/task_realtime_query_store.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
+import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {PermissionDeniedError} from "~/shared/error/error.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {
-    HybridLogicalClock,
-    HybridLogicalTime,
-} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, SessionId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
-import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
-import {TaskPriority} from "~/shared/tasks/task_priority.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {
@@ -52,329 +43,6 @@ import {
     normalizeTaskQuerySorts,
 } from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
-import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
-import {TaskStatus} from "~/shared/tasks/task_status.js";
-
-let testSpaceCount = 1;
-let testAccountCount = 1;
-
-const testScenarioClock = (() => {
-    const clock = new HybridLogicalClock(unsynchronizedSystemClock);
-
-    /**
-     * Returns the current time. Never returns the same time and never returns a
-     * decreasing time (aka this function is monotonic).
-     *
-     * Based on a `HybridLogicalClock` but returns a `Date` object.
-     */
-    function nowDate() {
-        const [time, ticks] = clock.now();
-        if (ticks === 0) return new Date(time);
-
-        clock.tick([time + 1, 0]);
-        return new Date(time + 1);
-    }
-
-    return Object.assign(clock, {nowDate});
-})();
-
-type TestScenarioSpaceCreateOptions = {
-    name?: string;
-};
-
-// TODO(calebmer): I think this test scenario machinery should maybe become
-// the main way we write tests in Cyberworlds? Deprecating
-// `createTestSession()`.
-//
-// Some conventions:
-// - Try to avoid properties that change on the scenario object
-// - All common actions should be dot-accessible (e.g. `session.createTask()`
-//   instead of `TestScenarioTask.create(session)`)
-//
-// Need to figure out how to do package splitting? Don't want all chat tests to
-// depend on task code for example.
-class TestScenarioSpace {
-    public readonly context: TestContext;
-    public readonly id: SpaceId;
-
-    private constructor(context: TestContext, spaceId: SpaceId) {
-        this.context = context;
-        this.id = spaceId;
-    }
-
-    public static async create(context: TestContext, options?: TestScenarioSpaceCreateOptions) {
-        const SpacesTable = getSpacesTableForTest();
-
-        const id = generateId<SpaceId>();
-
-        await SpacesTable.createItem(context, {
-            partitionType: "Space",
-            sortRangeType: "Attributes",
-            spaceId: id,
-            name: options?.name ?? `Test Space ${testSpaceCount++}`,
-            createdTime: testScenarioClock.nowDate(),
-        });
-
-        return new TestScenarioSpace(context, id);
-    }
-
-    public systemAction() {
-        return this.context.systemAction(this.id);
-    }
-
-    public async createSession(account?: TestScenarioAccount) {
-        const AccountsTable = getAccountsTableForTest();
-        const SpacesTable = getSpacesTableForTest();
-
-        const transactionEntries = [];
-
-        const accountId = account?.id ?? generateId<AccountId>();
-        const sessionId = generateId<SessionId>();
-
-        const createdTime = testScenarioClock.nowDate();
-
-        if (!account) {
-            const accountName = TestScenarioAccount.getNewName();
-
-            transactionEntries.push(
-                AccountsTable.transactionCreateItem({
-                    partitionType: "Account",
-                    sortRangeType: "Attributes",
-                    accountId,
-                    name: accountName,
-                    createdTime,
-                }),
-            );
-
-            account = TestScenarioAccount._newAssumingExists(context, accountId, accountName);
-        }
-
-        transactionEntries.push(
-            AccountsTable.transactionCreateItem({
-                partitionType: "Session",
-                sortRangeType: "Attributes",
-                sessionId,
-                accountId,
-                createdTime,
-                initialIpAddress: null,
-                initialUserAgent: null,
-            }),
-        );
-
-        transactionEntries.push(
-            SpacesTable.transactionCreateItem({
-                partitionType: "Space",
-                sortRangeType: "Account",
-                spaceId: this.id,
-                accountId,
-                joinedTime: createdTime,
-            }),
-        );
-
-        await DynamoTableSchema.executeTransaction(context, transactionEntries);
-
-        return TestScenarioSpaceSession._newAssumingExists(this, account, sessionId, createdTime);
-    }
-}
-
-type TestScenarioAccountCreateOptions = {
-    name?: string;
-};
-
-class TestScenarioAccount {
-    public readonly context: TestContext;
-    public readonly id: AccountId;
-    public readonly initialName: string;
-
-    private constructor(context: TestContext, id: AccountId, initialName: string) {
-        this.context = context;
-        this.id = id;
-        this.initialName = initialName;
-    }
-
-    public static _newAssumingExists(context: TestContext, id: AccountId, initialName: string) {
-        return new TestScenarioAccount(context, id, initialName);
-    }
-
-    public static async create(context: TestContext, options?: TestScenarioAccountCreateOptions) {
-        const AccountsTable = getAccountsTableForTest();
-
-        const id = generateId<AccountId>();
-        const name = options?.name ?? TestScenarioAccount.getNewName();
-
-        await AccountsTable.createItem(context, {
-            partitionType: "Account",
-            sortRangeType: "Attributes",
-            accountId: id,
-            name,
-            createdTime: testScenarioClock.nowDate(),
-        });
-
-        return new TestScenarioAccount(context, id, name);
-    }
-
-    public static getNewName() {
-        return `Test Account ${testAccountCount++}`;
-    }
-}
-
-class TestScenarioSpaceSession {
-    public readonly context: TestContext;
-    public readonly space: TestScenarioSpace;
-    public readonly account: TestScenarioAccount;
-    public readonly id: SessionId;
-    public readonly createdTime: Date;
-
-    private constructor(
-        space: TestScenarioSpace,
-        account: TestScenarioAccount,
-        id: SessionId,
-        createdTime: Date,
-    ) {
-        assert(space.context === account.context);
-
-        this.context = space.context;
-        this.space = space;
-        this.account = account;
-        this.id = id;
-        this.createdTime = createdTime;
-    }
-
-    public static _newAssumingExists(
-        space: TestScenarioSpace,
-        account: TestScenarioAccount,
-        id: SessionId,
-        createdTime: Date,
-    ) {
-        return new TestScenarioSpaceSession(space, account, id, createdTime);
-    }
-
-    public static async create(space: TestScenarioSpace, account: TestScenarioAccount) {
-        assert(space.context === account.context);
-
-        const AccountsTable = getAccountsTableForTest();
-
-        const id = generateId<SessionId>();
-        const createdTime = testScenarioClock.nowDate();
-
-        await AccountsTable.createItem(space.context, {
-            partitionType: "Session",
-            sortRangeType: "Attributes",
-            sessionId: id,
-            accountId: account.id,
-            createdTime,
-            initialIpAddress: null,
-            initialUserAgent: null,
-        });
-
-        return new TestScenarioSpaceSession(space, account, id, createdTime);
-    }
-
-    public action() {
-        return this.context.action(this);
-    }
-
-    public createTask() {
-        return TestScenarioTask.create(this);
-    }
-}
-
-class TestScenarioTask {
-    public readonly context: TestContext;
-    public readonly space: TestScenarioSpace;
-    public readonly id: TaskId;
-
-    private constructor(context: TestContext, space: TestScenarioSpace, id: TaskId) {
-        this.context = context;
-        this.space = space;
-        this.id = id;
-    }
-
-    public static async create(session: TestScenarioSpaceSession) {
-        const id = generateId<TaskId>();
-
-        await commitTaskActionTransaction(TestScenarioTask._action(session), session.space.id, [
-            {
-                type: "UpdateTask",
-                time: testScenarioClock.now(),
-                taskId: id,
-                taskAction: {
-                    type: "Create",
-                    creator: TaskSortableAccount.test(session.account),
-                    creatorTimeZone: defaultTimeZone,
-                },
-            },
-        ]);
-
-        return new TestScenarioTask(session.context, session.space, id);
-    }
-
-    private static _action(session: TestScenarioSpaceSession) {
-        return session.action().clone({
-            tasks: new TestTaskContextModule({
-                shouldSkipIndexing: false,
-                dangerouslyEscalateToSystemContext: session.context.escalateToSystemContext,
-            }),
-        });
-    }
-
-    public async getIndexDocWithVersion(): Promise<TaskIndexDocWithVersion> {
-        // Wait for any indexing tasks before loading doc...
-        await ProcessContextModule.waitForTestTasks();
-
-        const task = await getTaskIndexDocIfExistsForTest(this.context, this.space.id, this.id);
-        if (!task) throw new NotFoundError("Task not found");
-        return task;
-    }
-
-    public async getIndexDoc(): Promise<TaskIndexDoc> {
-        const {version, ...task} = await this.getIndexDocWithVersion();
-        return task;
-    }
-
-    public async updateStatus(session: TestScenarioSpaceSession, statusType: TaskStatus["type"]) {
-        const time = testScenarioClock.now();
-
-        const status: TaskStatus =
-            statusType === "Open"
-                ? {type: "Open"}
-                : {
-                      type: "Closed",
-                      closer: TaskSortableAccount.test(session),
-                      closedTime: TaskFilterableTime.test(time),
-                  };
-
-        await commitTaskActionTransaction(TestScenarioTask._action(session), session.space.id, [
-            {
-                type: "UpdateTask",
-                time,
-                taskId: this.id,
-                taskAction: {
-                    type: "UpdateStatus",
-                    status,
-                },
-            },
-        ]);
-    }
-
-    public async updatePriority(
-        session: TestScenarioSpaceSession,
-        priority: TaskPriority | null,
-        {time}: {time?: HybridLogicalTime} = {},
-    ) {
-        await commitTaskActionTransaction(TestScenarioTask._action(session), session.space.id, [
-            {
-                type: "UpdateTask",
-                time: time ?? testScenarioClock.now(),
-                taskId: this.id,
-                taskAction: {
-                    type: "UpdatePriority",
-                    priority,
-                },
-            },
-        ]);
-    }
-}
 
 const context = createTestContext({shouldStartOpensearch: true});
 
@@ -502,7 +170,7 @@ class TestScenarioTaskRealtimeServer {
     }
 
     public async loadQuery(
-        session: TestScenarioSpaceSession,
+        session: TestSpaceSession,
         options?: {
             filters?: ReadonlyArray<TaskQueryFilter> | TaskQueryNormalizedFilters;
             sorts?: ReadonlyArray<TaskQuerySort> | ReadonlyArray<TaskQueryNormalizedSort>;
@@ -515,7 +183,7 @@ class TestScenarioTaskRealtimeServer {
         const evaluationContext: TaskQueryEvaluationContext = {
             currentAccountId: session.account.id,
             currentDate: toCalendarDate(
-                parseAbsolute(testScenarioClock.nowDate().toISOString(), defaultTimeZone),
+                parseAbsolute(testClock.nowDate().toISOString(), defaultTimeZone),
             ),
         };
 
@@ -537,7 +205,7 @@ class TestScenarioTaskRealtimeServer {
 }
 
 function testQueryTaskIndex(
-    space: TestScenarioSpace,
+    space: TestSpace,
     {
         filters = defaultTaskQueryNormalizedFilters,
         sorts = defaultTaskQueryNormalizedSorts,
@@ -562,7 +230,7 @@ function testQueryTaskIndex(
 }
 
 test("loads an empty query when no tasks are in the space", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
     const server = new TestScenarioTaskRealtimeServer(context);
 
@@ -575,9 +243,9 @@ test("loads an empty query when no tasks are in the space", async () => {
 });
 
 test("loads a query with one task", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
-    const task = await session.createTask();
+    const task = await TestTask.create(session);
     const server = new TestScenarioTaskRealtimeServer(context);
 
     await server.wait();
@@ -589,12 +257,12 @@ test("loads a query with one task", async () => {
 });
 
 test("loads a query with three tasks", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
     const [task1, task2, task3] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
     const server = new TestScenarioTaskRealtimeServer(context);
 
@@ -611,13 +279,13 @@ test("loads a query with three tasks", async () => {
 });
 
 test("can't load a query as the wrong space", async () => {
-    const space = await TestScenarioSpace.create(context);
-    const otherSpace = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
     const session = await space.createSession();
     const [task1, task2, task3] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
     const server = new TestScenarioTaskRealtimeServer(context);
 
@@ -652,8 +320,8 @@ test("can't load a query as the wrong space", async () => {
 });
 
 test("can't apply an action transaction as the wrong space", async () => {
-    const space = await TestScenarioSpace.create(context);
-    const otherSpace = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
     const session = await space.createSession();
     const server = new TestScenarioTaskRealtimeServer(context);
 
@@ -675,14 +343,14 @@ test("can't apply an action transaction as the wrong space", async () => {
 });
 
 test("reuses a loaded query with three tasks", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const {getCount} = queryTaskIndexTestCounter.recordForTest(space.id);
     const session = await space.createSession();
     const [task1, task2, task3, task4] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
     const server = new TestScenarioTaskRealtimeServer(context);
 
@@ -752,20 +420,20 @@ test("reuses a loaded query with three tasks", async () => {
 });
 
 test("can query multiple spaces", async () => {
-    const space1 = await TestScenarioSpace.create(context);
-    const space2 = await TestScenarioSpace.create(context);
+    const space1 = await TestSpace.create(context);
+    const space2 = await TestSpace.create(context);
     const {getCount: getCount1} = queryTaskIndexTestCounter.recordForTest(space1.id);
     const {getCount: getCount2} = queryTaskIndexTestCounter.recordForTest(space2.id);
     const session1 = await space1.createSession();
     const session2 = await space2.createSession();
 
     const [task1, task2, task3, task4, task5, task6] = await runAllPromises([
-        session1.createTask(),
-        session1.createTask(),
-        session1.createTask(),
-        session2.createTask(),
-        session2.createTask(),
-        session2.createTask(),
+        TestTask.create(session1),
+        TestTask.create(session1),
+        TestTask.create(session1),
+        TestTask.create(session2),
+        TestTask.create(session2),
+        TestTask.create(session2),
     ]);
 
     const server = new TestScenarioTaskRealtimeServer(context);
@@ -822,16 +490,16 @@ test("can query multiple spaces", async () => {
 });
 
 test("reuses a loaded query with slightly different but equivalent filters", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const {getCount} = queryTaskIndexTestCounter.recordForTest(space.id);
     const [session1, session2] = await runAllPromises([
         space.createSession(),
         space.createSession(),
     ]);
     const [task1, task2, task3] = await runAllPromises([
-        session1.createTask(),
-        session2.createTask(),
-        session1.createTask(),
+        TestTask.create(session1),
+        TestTask.create(session2),
+        TestTask.create(session1),
     ]);
     const server = new TestScenarioTaskRealtimeServer(context);
 
@@ -895,16 +563,16 @@ test("reuses a loaded query with slightly different but equivalent filters", asy
 });
 
 test("loads up to the limit even when reusing a query", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const {getCount} = queryTaskIndexTestCounter.recordForTest(space.id);
     const session = await space.createSession();
     const [task1, task2, task3, task4, task5, task6] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
     const server = new TestScenarioTaskRealtimeServer(context);
 
@@ -952,13 +620,13 @@ test("loads up to the limit even when reusing a query", async () => {
 });
 
 test("has more tasks is true when loading a subset of a reused query", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const {getCount} = queryTaskIndexTestCounter.recordForTest(space.id);
     const session = await space.createSession();
     const [task1, task2, task3] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
     const server = new TestScenarioTaskRealtimeServer(context);
 
@@ -997,13 +665,13 @@ test("has more tasks is true when loading a subset of a reused query", async () 
 });
 
 test("will load with a limit of zero", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const {getCount} = queryTaskIndexTestCounter.recordForTest(space.id);
     const session = await space.createSession();
     const [task1, task2, task3] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
     const server = new TestScenarioTaskRealtimeServer(context);
 
@@ -1038,7 +706,7 @@ test("will load with a limit of zero", async () => {
 });
 
 test("will load with a limit of zero when there are no tasks", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const {getCount} = queryTaskIndexTestCounter.recordForTest(space.id);
     const session = await space.createSession();
     const server = new TestScenarioTaskRealtimeServer(context);
@@ -1070,14 +738,14 @@ test("will load with a limit of zero when there are no tasks", async () => {
 });
 
 test("will load with a limit of zero to discover there are no more tasks", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const {getCount} = queryTaskIndexTestCounter.recordForTest(space.id);
     const session = await space.createSession();
     const [task1, task2, task3, task4] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
     const server = new TestScenarioTaskRealtimeServer(context);
 
@@ -1184,9 +852,13 @@ test("will load with a limit of zero to discover there are no more tasks", async
 });
 
 test("won't load with a negative limit", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
-    await runAllPromises([session.createTask(), session.createTask(), session.createTask()]);
+    await runAllPromises([
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+    ]);
     const server = new TestScenarioTaskRealtimeServer(context);
 
     await server.wait();
@@ -1195,9 +867,13 @@ test("won't load with a negative limit", async () => {
 });
 
 test("won't load with a non-integer limit", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
-    await runAllPromises([session.createTask(), session.createTask(), session.createTask()]);
+    await runAllPromises([
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+    ]);
     const server = new TestScenarioTaskRealtimeServer(context);
 
     await server.wait();
@@ -1206,16 +882,16 @@ test("won't load with a non-integer limit", async () => {
 });
 
 test("will dedupe parallel loads (scenario 1)", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const {getCount} = queryTaskIndexTestCounter.recordForTest(space.id);
     const session = await space.createSession();
     const [task1, task2, task3, task4, task5] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
     const server = new TestScenarioTaskRealtimeServer(context);
 
@@ -1271,16 +947,16 @@ test("will dedupe parallel loads (scenario 1)", async () => {
 });
 
 test("will dedupe parallel loads (scenario 2)", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const {getCount} = queryTaskIndexTestCounter.recordForTest(space.id);
     const session = await space.createSession();
     const [task1, task2, task3, task4, task5] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
     const server = new TestScenarioTaskRealtimeServer(context);
 
@@ -1336,15 +1012,21 @@ test("will dedupe parallel loads (scenario 2)", async () => {
 });
 
 test("will backfill action history to load a query", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
     const {getCount} = backfillTaskActionTransactionHistoryTestCounter.recordForTest(space.id);
 
-    const [task1, task2] = await runAllPromises([session.createTask(), session.createTask()]);
+    const [task1, task2] = await runAllPromises([
+        TestTask.create(session),
+        TestTask.create(session),
+    ]);
 
     const server = new TestScenarioTaskRealtimeServer(context);
 
-    const [task3, task4] = await runAllPromises([session.createTask(), session.createTask()]);
+    const [task3, task4] = await runAllPromises([
+        TestTask.create(session),
+        TestTask.create(session),
+    ]);
 
     await server.waitForApplyActionTransactions();
 
@@ -1377,17 +1059,26 @@ test("will backfill action history to load a query", async () => {
 });
 
 test("will backfill action history to load a query and catch up a query with partial results", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
     const {getCount} = backfillTaskActionTransactionHistoryTestCounter.recordForTest(space.id);
 
-    const [task1, task2] = await runAllPromises([session.createTask(), session.createTask()]);
+    const [task1, task2] = await runAllPromises([
+        TestTask.create(session),
+        TestTask.create(session),
+    ]);
     await waitForIndexActionTransactionsWithoutClearingActionHistory(context);
-    const [task3, task4] = await runAllPromises([session.createTask(), session.createTask()]);
+    const [task3, task4] = await runAllPromises([
+        TestTask.create(session),
+        TestTask.create(session),
+    ]);
 
     const server = new TestScenarioTaskRealtimeServer(context);
 
-    const [task5, task6] = await runAllPromises([session.createTask(), session.createTask()]);
+    const [task5, task6] = await runAllPromises([
+        TestTask.create(session),
+        TestTask.create(session),
+    ]);
 
     await server.waitForApplyActionTransactions();
 
@@ -1426,14 +1117,14 @@ test("will backfill action history to load a query and catch up a query with par
 });
 
 test("can load an empty task array when there are still more visible tasks in the query", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const {getCount} = queryTaskIndexTestCounter.recordForTest(space.id);
     const session = await space.createSession();
 
     const [task1, task2, task3] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
 
     const server = new TestScenarioTaskRealtimeServer(context);
@@ -1459,7 +1150,10 @@ test("can load an empty task array when there are still more visible tasks in th
 
     expect(getCount()).toEqual(2);
 
-    const [task4, task5] = await runAllPromises([session.createTask(), session.createTask()]);
+    const [task4, task5] = await runAllPromises([
+        TestTask.create(session),
+        TestTask.create(session),
+    ]);
     await server.waitForApplyActionTransactions();
 
     expect(getCount()).toEqual(2);
@@ -1484,17 +1178,17 @@ test("can load an empty task array when there are still more visible tasks in th
 });
 
 test("may not return enough tasks to meet the limit when index is behind", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const {getCount} = queryTaskIndexTestCounter.recordForTest(space.id);
     const session = await space.createSession();
 
     const [task1, task2, task3, task4, task5, task6] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
 
     const server = new TestScenarioTaskRealtimeServer(context);
@@ -1540,19 +1234,19 @@ test("may not return enough tasks to meet the limit when index is behind", async
 });
 
 test("pagination cursor is maintained even if the underlying item moves", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const {getCount} = queryTaskIndexTestCounter.recordForTest(space.id);
     const session = await space.createSession();
 
     const [task1, task2, task3, task4, task5, task6, task7, task8] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
 
     await task1.updatePriority(session, "Low");
@@ -1638,19 +1332,19 @@ test("pagination cursor is maintained even if the underlying item moves", async 
 });
 
 test("pagination cursor is maintained even if the underlying item moves and index updates", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const {getCount} = queryTaskIndexTestCounter.recordForTest(space.id);
     const session = await space.createSession();
 
     const [task1, task2, task3, task4, task5, task6, task7, task8] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
 
     await task1.updatePriority(session, "Low");
@@ -1736,7 +1430,7 @@ test("pagination cursor is maintained even if the underlying item moves and inde
 });
 
 test("can load while server receiving action transactions is delayed (scenario 1)", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const server = new TestScenarioTaskRealtimeServer(context);
@@ -1757,11 +1451,14 @@ test("can load while server receiving action transactions is delayed (scenario 1
         tasks: [],
     });
 
-    const [task1, task2] = await runAllPromises([session.createTask(), session.createTask()]);
+    const [task1, task2] = await runAllPromises([
+        TestTask.create(session),
+        TestTask.create(session),
+    ]);
 
     await server.waitForIndexActionTransactions();
 
-    const [task3] = await runAllPromises([session.createTask()]);
+    const [task3] = await runAllPromises([TestTask.create(session)]);
 
     expect(await server.loadQuery(session)).toEqual({
         hasMoreTasks: false,
@@ -1770,7 +1467,7 @@ test("can load while server receiving action transactions is delayed (scenario 1
 
     await server.waitForIndexActionTransactions();
 
-    const [task4] = await runAllPromises([session.createTask()]);
+    const [task4] = await runAllPromises([TestTask.create(session)]);
 
     expect(await server.loadQuery(session)).toEqual({
         hasMoreTasks: false,
@@ -1792,7 +1489,7 @@ test("can load while server receiving action transactions is delayed (scenario 1
 });
 
 test("can load while server receiving action transactions is delayed (scenario 2)", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const server = new TestScenarioTaskRealtimeServer(context);
@@ -1803,11 +1500,14 @@ test("can load while server receiving action transactions is delayed (scenario 2
         tasks: [],
     });
 
-    const [task1, task2] = await runAllPromises([session.createTask(), session.createTask()]);
+    const [task1, task2] = await runAllPromises([
+        TestTask.create(session),
+        TestTask.create(session),
+    ]);
 
     await server.waitForIndexActionTransactions();
 
-    const [task3] = await runAllPromises([session.createTask()]);
+    const [task3] = await runAllPromises([TestTask.create(session)]);
 
     expect(await server.loadQuery(session)).toEqual({
         hasMoreTasks: false,
@@ -1816,7 +1516,7 @@ test("can load while server receiving action transactions is delayed (scenario 2
 
     await server.waitForIndexActionTransactions();
 
-    const [task4] = await runAllPromises([session.createTask()]);
+    const [task4] = await runAllPromises([TestTask.create(session)]);
 
     expect(await server.loadQuery(session)).toEqual({
         hasMoreTasks: false,
@@ -1838,17 +1538,17 @@ test("can load while server receiving action transactions is delayed (scenario 2
 });
 
 test("load can't introduce new task data which moves task outside of loaded range", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const server = new TestScenarioTaskRealtimeServer(context);
 
     const [task1, task2, task3, task4, task5] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
 
     await task1.updatePriority(session, "Low");
@@ -1959,17 +1659,17 @@ test("load can't introduce new task data which moves task outside of loaded rang
 });
 
 test("load can't introduce new task data which keeps task inside loaded range", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const server = new TestScenarioTaskRealtimeServer(context);
 
     const [task1, task2, task3, task4, task5] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
 
     await task1.updatePriority(session, "Low");
@@ -2084,17 +1784,17 @@ test("load can't introduce new task data which keeps task inside loaded range", 
 });
 
 test("load can't introduce new task data which removes task from query", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const server = new TestScenarioTaskRealtimeServer(context);
 
     const [task1, task2, task3, task4, task5] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
 
     await task1.updatePriority(session, "Medium");
@@ -2212,17 +1912,17 @@ test("load can't introduce new task data which removes task from query", async (
 });
 
 test("load can't introduce new task data which adds updated task to query", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const server = new TestScenarioTaskRealtimeServer(context);
 
     const [task1, task2, task3, task4, task5] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
 
     await task1.updatePriority(session, "Medium");
@@ -2359,17 +2059,17 @@ test("load can't introduce new task data which adds updated task to query", asyn
 });
 
 test("load can't introduce new task data which adds fresh task to query", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const server = new TestScenarioTaskRealtimeServer(context);
 
     const [task1, task2, task3, task4, task5] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
 
     await task1.updatePriority(session, "Medium");
@@ -2483,20 +2183,20 @@ test("load can't introduce new task data which adds fresh task to query", async 
 });
 
 test("load gets task that's ahead of actions when it's fresh", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const server = new TestScenarioTaskRealtimeServer(context);
 
     const [task1, task2, task3, task4, task5, task6, task7, task8] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
 
     await task1.updatePriority(session, "Low");
@@ -2607,20 +2307,20 @@ test("load gets task that's ahead of actions when it's fresh", async () => {
 });
 
 test("load gets old task at old position that's ahead of actions when already loaded", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const server = new TestScenarioTaskRealtimeServer(context);
 
     const [task1, task2, task3, task4, task5, task6, task7, task8] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
 
     await task1.updatePriority(session, "Low");
@@ -2750,20 +2450,20 @@ test("load gets old task at old position that's ahead of actions when already lo
 });
 
 test("load gets old task at old position that's ahead of actions when already loaded and clearing action history", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const server = new TestScenarioTaskRealtimeServer(context);
 
     const [task1, task2, task3, task4, task5, task6, task7, task8] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
 
     await task1.updatePriority(session, "Low");
@@ -2907,20 +2607,20 @@ test("load gets old task at old position that's ahead of actions when already lo
 });
 
 test("load doesn't put loaded task in already loaded range", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const server = new TestScenarioTaskRealtimeServer(context);
 
     const [task1, task2, task3, task4, task5, task6, task7, task8] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
 
     await task1.updatePriority(session, "Low");
@@ -3015,15 +2715,15 @@ test("load doesn't put loaded task in already loaded range", async () => {
 });
 
 test("if loaded task is older than store task then query will return store task (scenario 1)", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const server = new TestScenarioTaskRealtimeServer(context);
 
     const [task1, task2, task3] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
 
     await task1.updatePriority(session, "Medium");
@@ -3090,15 +2790,15 @@ test("if loaded task is older than store task then query will return store task 
 });
 
 test("if loaded task is older than store task then query will return store task (scenario 2)", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const server = new TestScenarioTaskRealtimeServer(context);
 
     const [task1, task2, task3] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
 
     await task1.updatePriority(session, "Medium");
@@ -3174,17 +2874,17 @@ test("if loaded task is older than store task then query will return store task 
 });
 
 test("if loaded task is older than store task then query will return store task (scenario 3)", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const server = new TestScenarioTaskRealtimeServer(context);
 
     const [task1, task2, task3, task4, task5] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
 
     await task1.updatePriority(session, "Medium");
@@ -3301,17 +3001,17 @@ test("if loaded task is older than store task then query will return store task 
 });
 
 test("if loaded task is older than store task then query will return store task (scenario 4)", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const server = new TestScenarioTaskRealtimeServer(context);
 
     const [task1, task2, task3, task4, task5] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
 
     await task1.updatePriority(session, "Medium");
@@ -3427,17 +3127,17 @@ test("if loaded task is older than store task then query will return store task 
 });
 
 test("after loading tasks we will replay actions to catch stale data up", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const server = new TestScenarioTaskRealtimeServer(context);
 
     const [task1, task2, task3] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
 
     await server.wait();
@@ -3482,17 +3182,17 @@ test("after loading tasks we will replay actions to catch stale data up", async 
 });
 
 test("after loading tasks we will replay actions that hide tasks", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const server = new TestScenarioTaskRealtimeServer(context);
 
     const [task1, task2, task3, task4, task5] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
 
     await server.wait();
@@ -3574,17 +3274,17 @@ test("after loading tasks we will replay actions that hide tasks", async () => {
 });
 
 test("after loading tasks we will replay actions that move tasks", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const server = new TestScenarioTaskRealtimeServer(context);
 
     const [task1, task2, task3, task4, task5] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
 
     await server.wait();
@@ -3686,15 +3386,15 @@ test("after loading tasks we will replay actions that move tasks", async () => {
 });
 
 test("after loading tasks we will replay actions to add missing tasks", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const server = new TestScenarioTaskRealtimeServer(context);
 
     const [task1, task2, task3] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
 
     await task1.updatePriority(session, "Medium");
@@ -3775,15 +3475,15 @@ test("after loading tasks we will replay actions to add missing tasks", async ()
 });
 
 test("after loading tasks we will replay actions to add missing tasks that have already been loaded", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const server = new TestScenarioTaskRealtimeServer(context);
 
     const [task1, task2, task3] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
 
     await task1.updatePriority(session, "Medium");
@@ -3873,17 +3573,17 @@ test("after loading tasks we will replay actions to add missing tasks that have 
 });
 
 test("after loading tasks we will replay actions but won't add false positive missing tasks", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const server = new TestScenarioTaskRealtimeServer(context);
 
     const [task1, task2, task3, task4, task5] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
 
     await task1.updatePriority(session, "Medium");
@@ -3974,17 +3674,17 @@ test("after loading tasks we will replay actions but won't add false positive mi
 });
 
 test("after loading tasks we will replay actions but won't add false positive missing tasks that were already loaded", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const server = new TestScenarioTaskRealtimeServer(context);
 
     const [task1, task2, task3, task4, task5] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
 
     await task1.updatePriority(session, "Medium");
@@ -4098,15 +3798,15 @@ test("after loading tasks we will replay actions but won't add false positive mi
 });
 
 test("after loading tasks we will replay actions to add missing tasks and works if before we can add task it is added by other means", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const server = new TestScenarioTaskRealtimeServer(context);
 
     const [task1, task2, task3] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
 
     await task1.updatePriority(session, "Medium");
@@ -4208,15 +3908,15 @@ test("after loading tasks we will replay actions to add missing tasks and works 
 });
 
 test("after loading tasks we will replay actions to add missing tasks if the task is stale we catch it up", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const server = new TestScenarioTaskRealtimeServer(context);
 
     const [task1, task2, task3] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
 
     await task1.updatePriority(session, "Medium");
@@ -4228,7 +3928,7 @@ test("after loading tasks we will replay actions to add missing tasks if the tas
     await server.waitForApplyActionTransactions();
 
     const pausePromise = indexTaskActionTransactionTestCheckpoint.pauseForTest(space.id);
-    const updatedTime = testScenarioClock.now();
+    const updatedTime = testClock.nowLogical();
     const updatePromise = task2.updatePriority(session, "High", {time: updatedTime});
     const {unpause} = await pausePromise;
     await server.waitForApplyActionTransactions();
@@ -4340,15 +4040,15 @@ test("after loading tasks we will replay actions to add missing tasks if the tas
 });
 
 test("task updates in query after change", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const server = new TestScenarioTaskRealtimeServer(context);
 
     const [task1, task2, task3] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
 
     await server.wait();
@@ -4363,7 +4063,7 @@ test("task updates in query after change", async () => {
         ]),
     });
 
-    const updatedTime = testScenarioClock.now();
+    const updatedTime = testClock.nowLogical();
     await task2.updatePriority(session, "High", {time: updatedTime});
 
     await server.wait();
@@ -4386,15 +4086,15 @@ test("task updates in query after change", async () => {
 });
 
 test("task updates in query after change and is hidden", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const server = new TestScenarioTaskRealtimeServer(context);
 
     const [task1, task2, task3] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
 
     await server.wait();
@@ -4415,7 +4115,7 @@ test("task updates in query after change and is hidden", async () => {
         ]),
     });
 
-    const updatedTime = testScenarioClock.now();
+    const updatedTime = testClock.nowLogical();
     await task2.updatePriority(session, "High", {time: updatedTime});
 
     await server.wait();
@@ -4440,15 +4140,15 @@ test("task updates in query after change and is hidden", async () => {
 });
 
 test("task updates in query after change and is shown", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const server = new TestScenarioTaskRealtimeServer(context);
 
     const [task1, task2, task3] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
 
     await task1.updatePriority(session, "High");
@@ -4467,7 +4167,7 @@ test("task updates in query after change and is shown", async () => {
         tasks: await runAllPromises([task1.getIndexDoc(), task3.getIndexDoc()]),
     });
 
-    const updatedTime = testScenarioClock.now();
+    const updatedTime = testClock.nowLogical();
     await task2.updatePriority(session, "High", {time: updatedTime});
 
     await server.wait();
@@ -4496,15 +4196,15 @@ test("task updates in query after change and is shown", async () => {
 });
 
 test("task updates in query after change and is shown when task is loaded", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const server = new TestScenarioTaskRealtimeServer(context);
 
     const [task1, task2, task3] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
 
     await task1.updatePriority(session, "High");
@@ -4532,7 +4232,7 @@ test("task updates in query after change and is shown when task is loaded", asyn
         tasks: await runAllPromises([task1.getIndexDoc(), task3.getIndexDoc()]),
     });
 
-    const updatedTime = testScenarioClock.now();
+    const updatedTime = testClock.nowLogical();
     await task2.updatePriority(session, "High", {time: updatedTime});
 
     await server.wait();
@@ -4561,15 +4261,15 @@ test("task updates in query after change and is shown when task is loaded", asyn
 });
 
 test("task updates in query after change and is moved", async () => {
-    const space = await TestScenarioSpace.create(context);
+    const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const server = new TestScenarioTaskRealtimeServer(context);
 
     const [task1, task2, task3] = await runAllPromises([
-        session.createTask(),
-        session.createTask(),
-        session.createTask(),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
     ]);
 
     await task1.updatePriority(session, "High");
@@ -4590,7 +4290,7 @@ test("task updates in query after change and is moved", async () => {
         ]),
     });
 
-    const updatedTime = testScenarioClock.now();
+    const updatedTime = testClock.nowLogical();
     await task2.updatePriority(session, "Low", {time: updatedTime});
 
     await server.wait();

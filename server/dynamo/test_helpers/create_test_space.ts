@@ -4,7 +4,7 @@ import {getSpacesTableForTest} from "~/server/spaces/spaces_table.js";
 import {generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
-export type TestSpace = {
+export type TestSpaceItem = {
     readonly id: SpaceId;
 };
 
@@ -14,7 +14,9 @@ export type TestSpace = {
  * The ID is generated synchronously but the space is actually created in a
  * `beforeAll()` hook.
  */
-export function createTestSpace(context: TestContext): TestSpace {
+// NOTE(calebmer, 2023-08-20): We recommend using `TestSpace` instead of this
+// function. Not deprecating yet since the new test API hasn't stabilized yet.
+export function createTestSpace(context: TestContext): TestSpaceItem {
     const SpacesTable = getSpacesTableForTest();
     const spaceId = generateId<SpaceId>();
 

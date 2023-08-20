@@ -1,6 +1,9 @@
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {TestSession, createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
+import {
+    TestSessionItem,
+    createTestSession,
+} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
 import {
@@ -186,7 +189,7 @@ export type TestMessagingImplementation<RoomKey extends string> = {
     createRoom: (
         context: ServerSessionActionContext,
         spaceId: SpaceId,
-        sessions: Array<TestSession>,
+        sessions: Array<TestSessionItem>,
     ) => Promise<RoomInterface<RoomKey>>;
 
     /**
@@ -198,8 +201,8 @@ export type TestMessagingImplementation<RoomKey extends string> = {
         | ((
               context: ServerSessionActionContext,
               spaceId: SpaceId,
-              insideSessions: Array<TestSession>,
-              outsideSession: TestSession,
+              insideSessions: Array<TestSessionItem>,
+              outsideSession: TestSessionItem,
           ) => Promise<RoomInterface<RoomKey>>)
         | "Unimplemented";
 
