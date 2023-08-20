@@ -4,8 +4,8 @@ import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/creat
 import {getSpacesTableForTest} from "~/server/spaces/spaces_table.js";
 import {evaluateTaskQueryNormalizedFiltersForIndexDoc} from "~/server/tasks/data/evaluate_task_query_normalized_filters_for_index_doc.js";
 import {getTaskQueryNormalizedFiltersOpensearchQueryClause} from "~/server/tasks/data/internal/get_task_query_normalized_filters_opensearch_query_clause.js";
-import {TaskIndexDoc, TaskIndexDocType} from "~/server/tasks/data/task_index_doc.js";
 import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js";
+import {TaskIndexDoc, TaskIndexDocType} from "~/server/tasks/data/task_index_doc.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/task_table.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {InternalError} from "~/shared/error/error.js";

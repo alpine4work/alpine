@@ -7,11 +7,14 @@ import {
 } from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {getSpacesTableForTest} from "~/server/spaces/spaces_table.js";
+import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {
     commitTaskActionTransaction,
     commitTaskActionTransactionBeforeExecuteTestCheckpoint,
 } from "~/server/tasks/data/task_table.js";
+import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {
     FailedPreconditionError,
     InvalidArgumentError,
@@ -37,7 +40,10 @@ import {generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js"
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {wordTaskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_test_scenarios.js";
 
-const baseContext = createTestContext();
+const context = createTestContext();
+
+// Old style tests shadow the `context` variable and add some modules.
+const baseContext = context;
 
 describe("old style", () => {
     const context = {
@@ -9911,7 +9917,7 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: clock.now(),
-                    taskId: generateId(),
+                    taskId,
                     taskAction: {
                         type: "UpdateCollectionPosition",
                         collectionId,
@@ -9942,7 +9948,7 @@ describe("old style", () => {
                 {
                     type: "UpdateTask",
                     time: clock.now(),
-                    taskId: generateId(),
+                    taskId,
                     taskAction: {
                         type: "UpdateCollectionPosition",
                         collectionId,
@@ -10037,7 +10043,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't add task to notepad page that hasn't been created", async () => {
+    test("can add task to notepad page that hasn't been created", async () => {
         const {space} = await createSeparateSpace();
         const taskId = generateId<TaskId>();
         const notepadPageId = generateTaskNotepadPageId();
@@ -10055,21 +10061,19 @@ describe("old style", () => {
             },
         ]);
 
-        await expect(
-            commitTaskActionTransaction(context.action(session1), space.id, [
-                {
-                    type: "UpdateTask",
-                    time: clock.now(),
-                    taskId,
-                    taskAction: {
-                        type: "UpdateNotepadPagePosition",
-                        accountId: session1.accountId,
-                        notepadPageId,
-                        position: {orderTime: clock.now(), orderKey: initialOrderKey},
-                    },
+        await commitTaskActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateNotepadPagePosition",
+                    accountId: session1.accountId,
+                    notepadPageId,
+                    position: {orderTime: clock.now(), orderKey: initialOrderKey},
                 },
-            ]),
-        ).rejects.toThrow(new NotFoundError("Notepad page not found"));
+            },
+        ]);
     });
 
     test("can't create a notepad page for someone else", async () => {
@@ -10169,7 +10173,7 @@ describe("old style", () => {
         ).rejects.toThrow(new FailedPreconditionError("Notepad page already exists"));
     });
 
-    test("can't remove task from notepad page that hasn't been created", async () => {
+    test("can remove task from notepad page that hasn't been created", async () => {
         const {space} = await createSeparateSpace();
         const taskId = generateId<TaskId>();
         const notepadPageId = generateTaskNotepadPageId();
@@ -10187,21 +10191,19 @@ describe("old style", () => {
             },
         ]);
 
-        await expect(
-            commitTaskActionTransaction(context.action(session1), space.id, [
-                {
-                    type: "UpdateTask",
-                    time: clock.now(),
-                    taskId,
-                    taskAction: {
-                        type: "UpdateNotepadPagePosition",
-                        accountId: session1.accountId,
-                        notepadPageId,
-                        position: null,
-                    },
+        await commitTaskActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateNotepadPagePosition",
+                    accountId: session1.accountId,
+                    notepadPageId,
+                    position: null,
                 },
-            ]),
-        ).rejects.toThrow(new NotFoundError("Notepad page not found"));
+            },
+        ]);
     });
 
     test("can't add task to notepad page with an unreasonable update time", async () => {
@@ -10379,7 +10381,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can add task you have view access to to notepad page", async () => {
+    test("can't add task you have view access to to notepad page", async () => {
         const {space} = await createSeparateSpace();
         const notepadPageId = generateTaskNotepadPageId();
 
@@ -10397,19 +10399,60 @@ describe("old style", () => {
 
         const {taskId} = await createPublicTask(session2, space.id, "View");
 
+        await expect(
+            commitTaskActionTransaction(context.action(session1), space.id, [
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId,
+                    taskAction: {
+                        type: "UpdateNotepadPagePosition",
+                        accountId: session1.accountId,
+                        notepadPageId,
+                        position: {orderTime: clock.now(), orderKey: initialOrderKey},
+                    },
+                },
+            ]),
+        ).rejects.toThrow(
+            new PermissionDeniedError('Actor does not have "Edit" access level to task'),
+        );
+    });
+
+    test("can't add tasks you didn't create to notepad page", async () => {
+        const {space} = await createSeparateSpace();
+        const notepadPageId = generateTaskNotepadPageId();
+
         await commitTaskActionTransaction(context.action(session1), space.id, [
             {
-                type: "UpdateTask",
+                type: "UpdateNotepadPage",
                 time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "UpdateNotepadPagePosition",
-                    accountId: session1.accountId,
-                    notepadPageId,
-                    position: {orderTime: clock.now(), orderKey: initialOrderKey},
+                accountId: session1.accountId,
+                notepadPageId,
+                notepadPageAction: {
+                    type: "Create",
                 },
             },
         ]);
+
+        const {taskId} = await createPublicTask(session2, space.id);
+
+        await expect(
+            commitTaskActionTransaction(context.action(session1), space.id, [
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId,
+                    taskAction: {
+                        type: "UpdateNotepadPagePosition",
+                        accountId: session1.accountId,
+                        notepadPageId,
+                        position: {orderTime: clock.now(), orderKey: initialOrderKey},
+                    },
+                },
+            ]),
+        ).rejects.toThrow(
+            new PermissionDeniedError("Can only add tasks you created to your account's notepad"),
+        );
     });
 
     test("can remove task from notepad page", async () => {
@@ -12079,4 +12122,112 @@ describe("old style", () => {
             ),
         );
     });
+});
+
+test("can't update task in a deleted public collection", async () => {
+    const space = await TestSpace.create(context);
+
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const collection = await TestTaskCollection.createPublic(session1);
+    const task = await TestTask.create(session1);
+
+    await expect(task.updatePriority(session2, "High")).rejects.toThrow(PermissionDeniedError);
+
+    await task.addCollection(session1, collection);
+
+    await task.updatePriority(session2, "High");
+
+    await collection.delete(session1);
+
+    await expect(task.updatePriority(session2, "Medium")).rejects.toThrow(PermissionDeniedError);
+
+    await collection.undelete(session1);
+
+    await task.updatePriority(session2, "Medium");
+});
+
+test("can't add task to a deleted public collection", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const collection = await TestTaskCollection.createPublic(session);
+    const [task1, task2, task3] = await runAllPromises([
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+    ]);
+
+    await task1.addCollection(session, collection);
+
+    await collection.delete(session);
+
+    await expect(task2.addCollection(session, collection)).rejects.toThrow(PermissionDeniedError);
+
+    await collection.undelete(session);
+
+    await task3.addCollection(session, collection);
+});
+
+test("can't remove task from a deleted public collection", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const collection = await TestTaskCollection.createPublic(session);
+    const task = await TestTask.create(session);
+
+    await task.addCollection(session, collection);
+
+    await collection.delete(session);
+
+    await expect(task.removeCollection(session, collection)).rejects.toThrow(PermissionDeniedError);
+
+    await collection.undelete(session);
+
+    await task.removeCollection(session, collection);
+});
+
+test("can't update collection name in a deleted public collection", async () => {
+    const space = await TestSpace.create(context);
+
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const collection = await TestTaskCollection.createPublic(session1);
+
+    await collection.updateName(session2, "Test 1");
+
+    await collection.delete(session1);
+
+    await expect(collection.updateName(session2, "Test 2")).rejects.toThrow(
+        FailedPreconditionError,
+    );
+
+    await collection.undelete(session1);
+
+    await collection.updateName(session2, "Test 2");
+});
+
+test("task assignee can update the task", async () => {
+    const space = await TestSpace.create(context);
+
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const task = await TestTask.create(session1);
+
+    await expect(task.updatePriority(session2, "High")).rejects.toThrow(PermissionDeniedError);
+
+    await task.updateAssignee(session1, session2);
+
+    await task.updatePriority(session2, "High");
+
+    await task.updateAssignee(session1, null);
+
+    await expect(task.updatePriority(session2, "Medium")).rejects.toThrow(PermissionDeniedError);
 });

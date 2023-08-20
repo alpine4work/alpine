@@ -347,6 +347,16 @@ function getTaskQueryNormalizedFiltersOpensearchFilterQueryClauses(
     }
 
     if (filters.notepadPageFilter) {
+        // A notepad page can only contain tasks your account created for permissions
+        // reasons. We can't let you add tasks to a notepad page that you later lose
+        // access to. Since we authorize task queries at execution time which means all
+        // tasks within the query should be visible.
+        filterQueryClauses.push({
+            term: {
+                "creator.accountId": filters.notepadPageFilter.accountId,
+            },
+        });
+
         filterQueryClauses.push({
             term: {
                 "notepadPages.ids": `${filters.notepadPageFilter.accountId}-${filters.notepadPageFilter.notepadPageId}`,

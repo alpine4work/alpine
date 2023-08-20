@@ -56,6 +56,7 @@ import {
 import {TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_task_action.js";
 import {
     TaskCollectionAccessLevel,
+    TaskCollectionAccessPolicy,
     TaskCollectionAccessPolicyRegister,
     hasTaskCollectionAccessLevel,
 } from "~/shared/tasks/task_collection_access_policy.js";
@@ -120,6 +121,8 @@ const TaskActionTable = DynamoTableSchema.new({
 const TaskStatusTypeRegister = createCrdtRegister(
     Schema.enum<TaskStatus["type"]>(["Open", "Closed"]),
 );
+
+const TaskAssigneeAccountIdRegister = createCrdtRegister(Schema.id<AccountId>().nullable());
 
 /**
  * Data related to tasks. Contains some views of task actions (e.g. the
@@ -253,6 +256,11 @@ const TaskTable = DynamoTableSchema.new({
                          * level from its collections.
                          */
                         collections: TaskCollectionSet.schema,
+
+                        /**
+                         * The account which was assigned this task.
+                         */
+                        assigneeId: TaskAssigneeAccountIdRegister.schema,
                     }),
                 },
             ],
@@ -819,13 +827,14 @@ class TaskActionTransactionCommitState {
         this._actorNotepadItemTransactionEntry = notepadItem;
     }
 
-    public evaluateTaskCollectionItemAccessPolicy(
-        collectionItem: TaskCollectionEssentialAttributesItem,
+    public evaluateTaskCollectionAccessPolicy(
+        accessPolicy: TaskCollectionAccessPolicy,
         expectedAccessLevel: TaskCollectionAccessLevel,
     ) {
-        return evaluateTaskCollectionItemAccessPolicy(
+        return evaluateTaskCollectionAccessPolicy(
             this._context,
-            collectionItem,
+            this._spaceId,
+            accessPolicy,
             this._context.actor.getAccountId(),
             expectedAccessLevel,
         );
@@ -844,9 +853,18 @@ async function actuallyCommitTaskActionTransaction(
         taskItem: TaskEssentialAttributesItem,
         expectedAccessLevel: TaskCollectionAccessLevel,
     ): Promise<void> => {
-        // The task creator has an edit access level on their own task.
+        // The task creator has edit access level on their own task.
         if (
             state.getActorAccountId() === taskItem.creatorId &&
+            hasTaskCollectionAccessLevel("Edit", expectedAccessLevel)
+        ) {
+            return;
+        }
+
+        // The task assignee has edit access level on their own task.
+        if (
+            taskItem.assigneeId.value &&
+            state.getActorAccountId() === taskItem.assigneeId.value &&
             hasTaskCollectionAccessLevel("Edit", expectedAccessLevel)
         ) {
             return;
@@ -858,8 +876,11 @@ async function actuallyCommitTaskActionTransaction(
             taskItem.collections.getArray().map(async ({collectionId}) => {
                 const collectionItem = await state.getCollectionItem(collectionId);
 
-                const hasAccess = await state.evaluateTaskCollectionItemAccessPolicy(
-                    collectionItem,
+                // Deleted collections don't grant any access.
+                if (collectionItem.deletedTime) return null;
+
+                const hasAccess = await state.evaluateTaskCollectionAccessPolicy(
+                    collectionItem.accessPolicy.value,
                     expectedAccessLevel,
                 );
 
@@ -893,8 +914,14 @@ async function actuallyCommitTaskActionTransaction(
     ): Promise<void> => {
         const collectionItem = await state.getCollectionItem(collectionId);
 
-        const hasAccess = await state.evaluateTaskCollectionItemAccessPolicy(
-            collectionItem,
+        if (collectionItem.deletedTime) {
+            throw new PermissionDeniedError(
+                quote`Actor does not have ${expectedAccessLevel} access level to task collection`,
+            );
+        }
+
+        const hasAccess = await state.evaluateTaskCollectionAccessPolicy(
+            collectionItem.accessPolicy.value,
             expectedAccessLevel,
         );
 
@@ -940,6 +967,7 @@ async function actuallyCommitTaskActionTransaction(
                             addedClosedChildTaskCount: 0,
                             removedClosedChildTaskCount: 0,
                             collections: TaskCollectionSet.empty,
+                            assigneeId: new TaskAssigneeAccountIdRegister(null, action.time),
                         });
                         break;
                     }
@@ -1290,6 +1318,10 @@ async function actuallyCommitTaskActionTransaction(
                                     );
                                 }
 
+                                if (!taskItem.collections.has(taskAction.collectionId)) {
+                                    throw new FailedPreconditionError("Task is not in collection");
+                                }
+
                                 // If you have collection edit access then you implicitly also have task edit
                                 // access.
                                 await authorizeCollectionAccess(taskAction.collectionId, "Edit");
@@ -1305,7 +1337,17 @@ async function actuallyCommitTaskActionTransaction(
                                     );
                                 }
 
-                                await authorizeTaskItemAccess(taskItem, "View");
+                                if (taskAction.accountId !== state.getActorAccountId()) {
+                                    throw new PermissionDeniedError(
+                                        "Can only access your account's notepad",
+                                    );
+                                }
+
+                                if (taskItem.creatorId !== state.getActorAccountId()) {
+                                    throw new PermissionDeniedError(
+                                        "Can only add tasks you created to your account's notepad",
+                                    );
+                                }
                                 break;
                             }
                             case "UpdateStatus": {
@@ -1422,6 +1464,14 @@ async function actuallyCommitTaskActionTransaction(
                                         "Can't assign a task to an account outside of the current space",
                                     );
                                 }
+
+                                state.updateTaskItem({
+                                    ...taskItem,
+                                    assigneeId: taskItem.assigneeId.apply({
+                                        value: taskAction.assignee?.assignee.accountId ?? null,
+                                        version: action.time,
+                                    }),
+                                });
                                 break;
                             }
                             case "UpdateAssigneeStatus": {
@@ -1494,8 +1544,8 @@ async function actuallyCommitTaskActionTransaction(
                         };
 
                         if (
-                            !(await state.evaluateTaskCollectionItemAccessPolicy(
-                                newCollectionItem,
+                            !(await state.evaluateTaskCollectionAccessPolicy(
+                                newCollectionItem.accessPolicy.value,
                                 "Manage",
                             ))
                         ) {
@@ -1513,7 +1563,16 @@ async function actuallyCommitTaskActionTransaction(
                         if (!collectionItem.deletedTime)
                             throw new FailedPreconditionError("Expected task to be deleted");
 
-                        await authorizeCollectionAccess(collectionId, "Manage");
+                        const hasAccess = await state.evaluateTaskCollectionAccessPolicy(
+                            collectionItem.accessPolicy.value,
+                            "Manage",
+                        );
+
+                        if (!hasAccess) {
+                            throw new PermissionDeniedError(
+                                quote`Actor does not have "Manage" access level to task collection`,
+                            );
+                        }
 
                         if (
                             compareHybridLogicalTimes(action.time, collectionItem.deletedTime) <= 0
@@ -1631,31 +1690,27 @@ async function actuallyCommitTaskActionTransaction(
  *
  * Returns true if the account has access.
  */
-// NOCOMMIT: Handle deleted collections!
-// NOCOMMIT: Handle assignee!
-async function evaluateTaskCollectionItemAccessPolicy(
+async function evaluateTaskCollectionAccessPolicy(
     context: ServerActionContext,
-    collectionItem: TaskCollectionEssentialAttributesItem,
+    spaceId: SpaceId,
+    accessPolicy: TaskCollectionAccessPolicy,
     accountId: AccountId,
     expectedAccessLevel: TaskCollectionAccessLevel,
 ): Promise<boolean> {
-    if (collectionItem.accessPolicy.value.defaultGrant) {
+    if (accessPolicy.defaultGrant) {
         // If we ever add other default grant types then TypeScript will error here
         // forcing us to update this code.
-        cast<"Space">(collectionItem.accessPolicy.value.defaultGrant.type);
+        cast<"Space">(accessPolicy.defaultGrant.type);
 
         if (
-            (await isAccountMemberOfSpace(context, collectionItem.spaceId, accountId)) &&
-            hasTaskCollectionAccessLevel(
-                collectionItem.accessPolicy.value.defaultGrant.level,
-                expectedAccessLevel,
-            )
+            (await isAccountMemberOfSpace(context, spaceId, accountId)) &&
+            hasTaskCollectionAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)
         ) {
             return true;
         }
     }
 
-    const accountGrant = collectionItem.accessPolicy.value.accountGrantById.get(accountId);
+    const accountGrant = accessPolicy.accountGrantById.get(accountId);
     if (accountGrant && hasTaskCollectionAccessLevel(accountGrant.level, expectedAccessLevel)) {
         return true;
     }

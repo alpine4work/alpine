@@ -56,6 +56,7 @@ assert(process.env.NODE_ENV === "test");
 export type TestContext = ServerProcessContext & {
     getDynamoLocalPort(): number;
     getOpensearchLocalPort(): number;
+    isOpensearchEnabled: boolean;
 
     /**
      * An action where we don't know whether we're authenticated or not.
@@ -206,6 +207,7 @@ export function createTestContext({
     const context = Object.assign(processContext, {
         getDynamoLocalPort,
         getOpensearchLocalPort,
+        isOpensearchEnabled: shouldStartOpensearch,
         unauthenticatedAction: createUnauthenticatedSessionContext,
         action: createSessionContext,
         systemAction: createSystemContext,

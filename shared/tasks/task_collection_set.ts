@@ -2,6 +2,7 @@ import {CrdtMap, CrdtMapAction, createCrdtMap} from "~/shared/crdt/crdt_map.js";
 import {
     HybridLogicalClock,
     HybridLogicalTime,
+    compareHybridLogicalTimes,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
@@ -71,6 +72,7 @@ export class TaskCollectionSet {
             array.sort(
                 (entry1, entry2) =>
                     defaultCompareStrings(entry1.orderKey, entry2.orderKey) ||
+                    compareHybridLogicalTimes(entry1.version, entry2.version) ||
                     defaultCompareStrings(entry1.collectionId, entry2.collectionId),
             );
 

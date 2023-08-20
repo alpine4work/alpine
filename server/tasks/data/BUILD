@@ -6,6 +6,8 @@ ts_project(
         "//:node_modules/@types/json-bigint",
         "//:node_modules/json-bigint",
         "//server/dynamo/test_helpers",
+        "//server/spaces/test_helpers",
+        "//server/tasks/test_helpers",
         "//shared/tasks/test_helpers",
     ],
     tests = {

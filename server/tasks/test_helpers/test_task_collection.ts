@@ -1,0 +1,108 @@
+import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
+import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {commitTaskActionTransaction} from "~/server/tasks/data/task_table.js";
+import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {generateId} from "~/shared/id/id.js";
+import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+
+export class TestTaskCollection {
+    public readonly context: TestContext;
+    public readonly space: TestSpace;
+    public readonly id: TaskCollectionId;
+
+    private constructor(context: TestContext, space: TestSpace, id: TaskCollectionId) {
+        this.context = context;
+        this.space = space;
+        this.id = id;
+    }
+
+    public static async createPrivate(session: TestSpaceSession) {
+        const id = generateId<TaskCollectionId>();
+
+        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+            {
+                type: "UpdateCollection",
+                time: testClock.nowLogical(),
+                collectionId: id,
+                collectionAction: {
+                    type: "Create",
+                    accessPolicy: {
+                        accountGrantById: new Map([[session.account.id, {level: "Manage"}]]),
+                        defaultGrant: null,
+                    },
+                },
+            },
+        ]);
+
+        return new TestTaskCollection(session.context, session.space, id);
+    }
+
+    public static async createPublic(session: TestSpaceSession) {
+        const id = generateId<TaskCollectionId>();
+
+        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+            {
+                type: "UpdateCollection",
+                time: testClock.nowLogical(),
+                collectionId: id,
+                collectionAction: {
+                    type: "Create",
+                    accessPolicy: {
+                        accountGrantById: new Map([[session.account.id, {level: "Manage"}]]),
+                        defaultGrant: {type: "Space", level: "Manage"},
+                    },
+                },
+            },
+        ]);
+
+        return new TestTaskCollection(session.context, session.space, id);
+    }
+
+    public async delete(session: TestSpaceSession) {
+        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+            {
+                type: "UpdateCollection",
+                time: testClock.nowLogical(),
+                collectionId: this.id,
+                collectionAction: {
+                    type: "Delete",
+                },
+            },
+        ]);
+
+        return this;
+    }
+
+    public async undelete(session: TestSpaceSession) {
+        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+            {
+                type: "UpdateCollection",
+                time: testClock.nowLogical(),
+                collectionId: this.id,
+                collectionAction: {
+                    type: "Undelete",
+                },
+            },
+        ]);
+
+        return this;
+    }
+
+    public async updateName(session: TestSpaceSession, name: string) {
+        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+            {
+                type: "UpdateCollection",
+                time: testClock.nowLogical(),
+                collectionId: this.id,
+                collectionAction: {
+                    type: "UpdateName",
+                    name,
+                },
+            },
+        ]);
+
+        return this;
+    }
+}

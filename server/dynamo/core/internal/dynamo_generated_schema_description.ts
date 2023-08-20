@@ -4878,6 +4878,29 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "assigneeId": {
+                                        "valueSchema": {
+                                            "type": "Object",
+                                            "propertySchemaByKey": {
+                                                "value": {
+                                                    "valueSchema": {
+                                                        "type": "Nullable",
+                                                        "schema": {
+                                                            "type": "Id"
+                                                        }
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "version": {
+                                                    "valueSchema": {
+                                                        "type": "Uint64"
+                                                    },
+                                                    "optional": false
+                                                }
+                                            }
+                                        },
+                                        "optional": false
+                                    },
                                     "updateLockVersion": {
                                         "valueSchema": {
                                             "type": "Integer"

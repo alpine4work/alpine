@@ -1,4 +1,5 @@
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
@@ -6,10 +7,12 @@ import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js"
 import {getTaskIndexDocIfExistsForTest} from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc, TaskIndexDocWithVersion} from "~/server/tasks/data/task_index_doc.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/task_table.js";
+import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
@@ -31,7 +34,7 @@ export class TestTask {
     public static async create(session: TestSpaceSession) {
         const id = generateId<TaskId>();
 
-        await commitTaskActionTransaction(TestTask._action(session), session.space.id, [
+        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
             {
                 type: "UpdateTask",
                 time: testClock.nowLogical(),
@@ -47,10 +50,14 @@ export class TestTask {
         return new TestTask(session.context, session.space, id);
     }
 
-    private static _action(session: TestSpaceSession) {
+    /**
+     * Creates an action context for functions like `commitTaskActionTransaction()`
+     * which need the task context module.
+     */
+    public static action(session: TestSpaceSession) {
         return session.action().clone({
             tasks: new TestTaskContextModule({
-                shouldSkipIndexing: false,
+                shouldSkipIndexing: !session.context.isOpensearchEnabled,
                 dangerouslyEscalateToSystemContext: session.context.escalateToSystemContext,
             }),
         });
@@ -82,7 +89,7 @@ export class TestTask {
                       closedTime: TaskFilterableTime.test(time),
                   };
 
-        await commitTaskActionTransaction(TestTask._action(session), session.space.id, [
+        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
             {
                 type: "UpdateTask",
                 time,
@@ -93,6 +100,37 @@ export class TestTask {
                 },
             },
         ]);
+
+        return this;
+    }
+
+    public async updateAssignee(
+        session: TestSpaceSession,
+        assignee: TestAccount | TestSpaceSession | null,
+    ) {
+        const time = testClock.nowLogical();
+
+        if (assignee instanceof TestSpaceSession) assignee = assignee.account;
+
+        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+            {
+                type: "UpdateTask",
+                time,
+                taskId: this.id,
+                taskAction: {
+                    type: "UpdateAssignee",
+                    assignee: assignee
+                        ? {
+                              assignee: TaskSortableAccount.test(assignee),
+                              assigner: TaskSortableAccount.test(session.account),
+                              assignedTime: TaskFilterableTime.test(time),
+                          }
+                        : null,
+                },
+            },
+        ]);
+
+        return this;
     }
 
     public async updatePriority(
@@ -100,7 +138,7 @@ export class TestTask {
         priority: TaskPriority | null,
         {time = testClock.nowLogical()}: {time?: HybridLogicalTime} = {},
     ) {
-        await commitTaskActionTransaction(TestTask._action(session), session.space.id, [
+        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
             {
                 type: "UpdateTask",
                 time,
@@ -111,5 +149,44 @@ export class TestTask {
                 },
             },
         ]);
+
+        return this;
+    }
+
+    public async addCollection(session: TestSpaceSession, collection: TestTaskCollection) {
+        const time = testClock.nowLogical();
+
+        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+            {
+                type: "UpdateTask",
+                time,
+                taskId: this.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection.id,
+                    orderKey: initialOrderKey,
+                },
+            },
+        ]);
+
+        return this;
+    }
+
+    public async removeCollection(session: TestSpaceSession, collection: TestTaskCollection) {
+        const time = testClock.nowLogical();
+
+        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+            {
+                type: "UpdateTask",
+                time,
+                taskId: this.id,
+                taskAction: {
+                    type: "RemoveCollection",
+                    collectionId: collection.id,
+                },
+            },
+        ]);
+
+        return this;
     }
 }

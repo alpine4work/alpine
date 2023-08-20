@@ -26,6 +26,9 @@ let testSpaceCount = 1;
  *
  * - Provide low-level convenience helpers off dot methods like
  *   `space.createSession()` and `task.updatePriority()`.
+ *
+ * - For update methods provide a chaining API that returns `this`. For example
+ *   we want to call `task.updatePriority().addCollection()`.
  */
 export class TestSpace {
     public readonly context: TestContext;
