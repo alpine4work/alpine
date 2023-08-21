@@ -145,6 +145,56 @@ runService({
         // NOCOMMIT: Real discovery promise!
         start(Promise.resolve());
 
+        // Sometimes we want to upgrade a session actor to a system actor. This gives
+        // the action escalated the system permission level which is dangerous! The
+        // system permission level has broad access to a space. We should tightly
+        // control what code is allowed to call this function, only allowed context
+        // modules get access and those context modules are expected to treat this as a
+        // private variable.
+        //
+        // It's important we use new caches + batchers here. We don't want to load some
+        // data at a higher permission level then let the session context see it. So we
+        // derive our new context from the process context to help avoid reusing any
+        // request-level caches.
+        //
+        // NOTE(calebmer, 2023-08-07): May be worthwhile turning uses of this function
+        // into RPC calls on another machine someday for security? Not sure if that
+        // helps.
+        const dangerouslyEscalateToSystemContext = <Value>(
+            context: Context<{
+                tracer: TracerContextModule;
+                actor: DynamoActorContextModule;
+            }>,
+            spaceId: SpaceId,
+            action: (context: ServerSystemActionContext) => Promise<Value>,
+        ): Promise<Value> => {
+            return processContext.with<
+                Omit<
+                    ServerSystemActionContextModules,
+                    Exclude<keyof ServerProcessContextModules, "tracer">
+                >,
+                Value
+            >(
+                {
+                    tracer: new TracerContextModule(context.tracer.getTracer()),
+                    cache: new CacheContextModule(),
+                    dynamoBatchContext: new DynamoBatchContextModule(),
+                    notifications: notificationsContextModule,
+                    actor: DynamoSystemActorContextModule.dangerouslyNew(
+                        context.actor.serviceName,
+                        spaceId,
+                    ),
+                },
+                action,
+            );
+        };
+
+        const notificationsContextModule = new NotificationsContextModule({
+            dangerouslyEscalateToSystemContext,
+            edgeServiceUrl,
+            tokenAgent,
+        });
+
         const webSocketServerBySpaceId = new DefaultMap(
             (spaceId: SpaceId) =>
                 new WebSocketServer<
@@ -152,12 +202,11 @@ runService({
                     TaskRealtimeSessionActionContextModules,
                     typeof TaskRealtimeProtocol,
                     TaskRealtimeConnection
-                >(processContext, TaskRealtimeProtocol, async ({connectActionContext}) => {
-                    await authorizeSpaceAccess(connectActionContext, spaceId);
-
+                >(processContext, TaskRealtimeProtocol, () => {
                     return new TaskRealtimeConnection({
                         server,
                         spaceId,
+                        dangerouslyEscalateToSystemContext,
                     });
                 }),
         );
@@ -191,56 +240,6 @@ runService({
                             "Only session actors can connect via WebSocket",
                         );
                     }
-
-                    // Sometimes we want to upgrade a session actor to a system actor. This gives
-                    // the action escalated the system permission level which is dangerous! The
-                    // system permission level has broad access to a space. We should tightly
-                    // control what code is allowed to call this function, only allowed context
-                    // modules get access and those context modules are expected to treat this as a
-                    // private variable.
-                    //
-                    // It's important we use new caches + batchers here. We don't want to load some
-                    // data at a higher permission level then let the session context see it. So we
-                    // derive our new context from the process context to help avoid reusing any
-                    // request-level caches.
-                    //
-                    // NOTE(calebmer, 2023-08-07): May be worthwhile turning uses of this function
-                    // into RPC calls on another machine someday for security? Not sure if that
-                    // helps.
-                    const dangerouslyEscalateToSystemContext = (
-                        context: Context<{
-                            tracer: TracerContextModule;
-                            actor: DynamoActorContextModule;
-                        }>,
-                        spaceId: SpaceId,
-                        action: (context: ServerSystemActionContext) => Promise<void>,
-                    ): Promise<void> => {
-                        return processContext.with<
-                            Omit<
-                                ServerSystemActionContextModules,
-                                Exclude<keyof ServerProcessContextModules, "tracer">
-                            >,
-                            void
-                        >(
-                            {
-                                tracer: new TracerContextModule(context.tracer.getTracer()),
-                                cache: new CacheContextModule(),
-                                dynamoBatchContext: new DynamoBatchContextModule(),
-                                notifications: notificationsContextModule,
-                                actor: DynamoSystemActorContextModule.dangerouslyNew(
-                                    context.actor.serviceName,
-                                    spaceId,
-                                ),
-                            },
-                            action,
-                        );
-                    };
-
-                    const notificationsContextModule = new NotificationsContextModule({
-                        dangerouslyEscalateToSystemContext,
-                        edgeServiceUrl,
-                        tokenAgent,
-                    });
 
                     return baseContext.with(
                         {

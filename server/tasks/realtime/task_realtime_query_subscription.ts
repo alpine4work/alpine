@@ -9,7 +9,6 @@ import {
 import {TaskRealtimeQuery} from "~/server/tasks/realtime/task_realtime_query.js";
 import {
     TaskRealtimeQueryStoreCollectionEntry,
-    TaskRealtimeQueryStoreInternal,
     TaskRealtimeQueryStoreTaskEntry,
 } from "~/server/tasks/realtime/task_realtime_query_store.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
@@ -19,8 +18,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
-import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
-import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {
     TaskQuerySortCursor,
     compareTaskQuerySortCursors,
@@ -32,17 +29,65 @@ import {
 // get right but critical to the operation of this class.
 const previousVisibleTaskIdBySubscriptionForTest =
     process.env.NODE_ENV !== "production"
-        ? new WeakMap<TaskRealtimeQuerySubscription, Map<TaskId, TaskIndexDoc>>()
+        ? new WeakMap<TaskRealtimeQuerySubscriptionInternal, Map<TaskId, TaskIndexDoc>>()
         : null;
 
 const previousLoadedTaskIdBySubscriptionForTest =
     process.env.NODE_ENV !== "production"
-        ? new WeakMap<TaskRealtimeQuerySubscription, Map<TaskId, TaskIndexDoc>>()
+        ? new WeakMap<TaskRealtimeQuerySubscriptionInternal, Map<TaskId, TaskIndexDoc>>()
         : null;
 
 export class TaskRealtimeQuerySubscription {
-    private readonly _query: TaskRealtimeQuery;
-    private readonly _onAction: (actions: TaskRealtimeActionTransactionSliceBase) => void;
+    private readonly _internal: TaskRealtimeQuerySubscriptionInternal;
+
+    constructor(
+        query: TaskRealtimeQuery,
+        onAction: (action: TaskRealtimeActionTransactionSliceBase) => void,
+    ) {
+        this._internal = new TaskRealtimeQuerySubscriptionInternal(query, onAction);
+    }
+
+    public unsubscribe() {
+        this._internal.unsubscribe();
+    }
+
+    public getFilters() {
+        return this._internal.query.filters;
+    }
+
+    public getSorts() {
+        return this._internal.query.sorts;
+    }
+
+    /**
+     * Load more tasks into our subscription.
+     *
+     * Our subscription maintains a different loaded task count than the underlying
+     * query. If another subscription has already fully loaded the query then this
+     * call will not make a network request and instead only update our
+     * subscription's state.
+     */
+    public async loadMoreTasks(
+        context: TaskRealtimeSystemActionContext,
+        limit: number,
+    ): Promise<{
+        hasMoreTasks: boolean;
+        tasks: Array<TaskIndexDoc>;
+        otherReferencedTasks: Array<TaskIndexDoc>;
+        otherReferencedCollections: Array<TaskCollectionIndexDoc>;
+    }> {
+        return this._internal.loadMoreTasks(context, limit);
+    }
+}
+
+// Our subscription implementation has some public methods that
+// `TaskRealtimeQuery` is allowed to call but external users of
+// `TaskRealtimeQueryStore` should not (e.g. `onQueryTasksLoad`). These methods
+// are public on this internal class and we have a wrapper
+// `TaskRealtimeQuerySubscription` class with a public interface.
+export class TaskRealtimeQuerySubscriptionInternal {
+    public readonly query: TaskRealtimeQuery;
+    private readonly _onAction: (action: TaskRealtimeActionTransactionSliceBase) => void;
     private _loadedBeforeCursor: TaskQuerySortCursor | "FullyLoaded" | "Unloaded" = "Unloaded";
     private _loadedCount = 0;
 
@@ -63,26 +108,21 @@ export class TaskRealtimeQuerySubscription {
     >();
 
     constructor(
-        store: TaskRealtimeQueryStoreInternal,
-        {
-            filters,
-            sorts,
-            onAction,
-        }: {
-            filters: TaskQueryNormalizedFilters;
-            sorts: ReadonlyArray<TaskQueryNormalizedSort>;
-            onAction: (actions: TaskRealtimeActionTransactionSliceBase) => void;
-        },
+        query: TaskRealtimeQuery,
+        onAction: (action: TaskRealtimeActionTransactionSliceBase) => void,
     ) {
-        // If a query with the same filters/sorts exists then we want to reuse it.
-        this._query = store.getQuery({filters, sorts});
+        this.query = query;
         this._onAction = onAction;
 
-        this._query.addSubscription(this);
+        this.query.addSubscription(this);
     }
 
     public unsubscribe() {
-        this._query.removeSubscription(this);
+        // NOCOMMIT: Do `removeQuerySubscriptionDependent()` calls. Maybe flip a "dead"
+        // flag and throw if we try to use after?
+        //
+        // NOCOMMIT: `assertCorrectForTest()`
+        this.query.removeSubscription(this);
     }
 
     /**
@@ -102,9 +142,9 @@ export class TaskRealtimeQuerySubscription {
         otherReferencedTasks: Array<TaskIndexDoc>;
         otherReferencedCollections: Array<TaskCollectionIndexDoc>;
     }> {
-        await this._query.loadMoreTasks(
+        await this.query.loadMoreTasks(
             context,
-            this._loadedCount + limit - this._query.getLoadedTaskCount(),
+            this._loadedCount + limit - this.query.getLoadedTaskCount(),
         );
 
         const {hasMoreTasks, tasks} = this._loadMoreTasksSync(context, limit);
@@ -162,7 +202,7 @@ export class TaskRealtimeQuerySubscription {
     } {
         if (this._loadedBeforeCursor === "FullyLoaded") return {hasMoreTasks: false, tasks: []};
 
-        const {hasMoreTasks, tasks} = this._query.getLoadedTasks({
+        const {hasMoreTasks, tasks} = this.query.getLoadedTasks({
             limit,
             afterCursor: this._loadedBeforeCursor !== "Unloaded" ? this._loadedBeforeCursor : null,
         });
@@ -171,7 +211,7 @@ export class TaskRealtimeQuerySubscription {
             this._loadedBeforeCursor = "FullyLoaded";
         } else if (tasks.length > 0) {
             this._loadedBeforeCursor = getTaskQueryNormalizedSortCursorFromIndexDoc(
-                this._query.sorts,
+                this.query.sorts,
                 tasks[tasks.length - 1]!,
             );
         }
@@ -217,9 +257,9 @@ export class TaskRealtimeQuerySubscription {
                     this._loadedBeforeCursor === "Unloaded" ||
                         (this._loadedBeforeCursor !== "FullyLoaded" &&
                             compareTaskQuerySortCursors(
-                                this._query.sorts,
+                                this.query.sorts,
                                 getTaskQueryNormalizedSortCursorFromIndexDoc(
-                                    this._query.sorts,
+                                    this.query.sorts,
                                     newTask,
                                 ),
                                 this._loadedBeforeCursor,
@@ -230,8 +270,8 @@ export class TaskRealtimeQuerySubscription {
             this._loadedBeforeCursor !== "Unloaded" &&
             (this._loadedBeforeCursor === "FullyLoaded" ||
                 compareTaskQuerySortCursors(
-                    this._query.sorts,
-                    getTaskQueryNormalizedSortCursorFromIndexDoc(this._query.sorts, newTask),
+                    this.query.sorts,
+                    getTaskQueryNormalizedSortCursorFromIndexDoc(this.query.sorts, newTask),
                     this._loadedBeforeCursor,
                 ) <= 0)
         ) {
@@ -267,21 +307,21 @@ export class TaskRealtimeQuerySubscription {
             this._onLoadedTaskUpdate(context, taskId, oldTask, newTask, actions);
         } else if (this._loadedBeforeCursor !== "Unloaded") {
             const oldCursor = getTaskQueryNormalizedSortCursorFromIndexDoc(
-                this._query.sorts,
+                this.query.sorts,
                 oldTask,
             );
             const newCursor = getTaskQueryNormalizedSortCursorFromIndexDoc(
-                this._query.sorts,
+                this.query.sorts,
                 newTask,
             );
 
             const oldCursorComparison = compareTaskQuerySortCursors(
-                this._query.sorts,
+                this.query.sorts,
                 oldCursor,
                 this._loadedBeforeCursor,
             );
             const newCursorComparison = compareTaskQuerySortCursors(
-                this._query.sorts,
+                this.query.sorts,
                 newCursor,
                 this._loadedBeforeCursor,
             );
@@ -322,8 +362,8 @@ export class TaskRealtimeQuerySubscription {
             this._loadedBeforeCursor !== "Unloaded" &&
             (this._loadedBeforeCursor === "FullyLoaded" ||
                 compareTaskQuerySortCursors(
-                    this._query.sorts,
-                    getTaskQueryNormalizedSortCursorFromIndexDoc(this._query.sorts, oldTask),
+                    this.query.sorts,
+                    getTaskQueryNormalizedSortCursorFromIndexDoc(this.query.sorts, oldTask),
                     this._loadedBeforeCursor,
                 ) <= 0)
         ) {
@@ -364,7 +404,7 @@ export class TaskRealtimeQuerySubscription {
                 newParentTaskId,
                 () => ({
                     referenceCount: 0,
-                    taskEntry: this._query.store
+                    taskEntry: this.query.store
                         // NOCOMMIT: Retries
                         .loadTaskEntryIfExists(context, newParentTaskId)
                         .then(taskEntry => {
@@ -388,7 +428,7 @@ export class TaskRealtimeQuerySubscription {
                 newCollectionId,
                 () => ({
                     referenceCount: 0,
-                    collectionEntry: this._query.store
+                    collectionEntry: this.query.store
                         .loadCollectionEntryIfExists(context, newCollectionId)
                         .then(collectionEntry => {
                             if (!collectionEntry)
@@ -469,7 +509,7 @@ export class TaskRealtimeQuerySubscription {
                     newParentTaskId,
                     () => ({
                         referenceCount: 0,
-                        taskEntry: this._query.store
+                        taskEntry: this.query.store
                             .loadTaskEntryIfExists(context, newParentTaskId)
                             .then(taskEntry => {
                                 if (!taskEntry) throw new InternalError("Task not found");
@@ -520,7 +560,7 @@ export class TaskRealtimeQuerySubscription {
                     addedCollectionId,
                     () => ({
                         referenceCount: 0,
-                        collectionEntry: this._query.store
+                        collectionEntry: this.query.store
                             .loadCollectionEntryIfExists(context, addedCollectionId)
                             .then(collectionEntry => {
                                 if (!collectionEntry)

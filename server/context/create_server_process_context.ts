@@ -166,6 +166,8 @@ export function createServerProcessContext({
 
     return Context.new<ServerProcessContextModules>({
         process: new ProcessContextModule({
+            // NOCOMMIT: `waitUntil()` should stop the server from shutting down until
+            // everything has finished.
             waitUntil: promise => {
                 promise.catch(error => {
                     tracer.logUncaughtException("Uncaught exception from `waitUntil()`", error);

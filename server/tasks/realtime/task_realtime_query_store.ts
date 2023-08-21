@@ -11,9 +11,13 @@ import {ReadonlyTaskRealtimeActionHistory} from "~/server/tasks/realtime/task_re
 import {
     TaskRealtimeActionTransaction,
     TaskRealtimeActionTransactionActionsSlice,
+    TaskRealtimeActionTransactionSliceBase,
 } from "~/server/tasks/realtime/task_realtime_action_transaction.js";
 import {TaskRealtimeQuery} from "~/server/tasks/realtime/task_realtime_query.js";
-import {TaskRealtimeQuerySubscription} from "~/server/tasks/realtime/task_realtime_query_subscription.js";
+import {
+    TaskRealtimeQuerySubscription,
+    TaskRealtimeQuerySubscriptionInternal,
+} from "~/server/tasks/realtime/task_realtime_query_subscription.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
 import {InternalError} from "~/shared/error/error.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
@@ -81,6 +85,14 @@ export class TaskRealtimeQueryStore {
         }
 
         return promise;
+    }
+
+    public subscribeToQuery(options: {
+        filters: TaskQueryNormalizedFilters;
+        sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+        onAction: (action: TaskRealtimeActionTransactionSliceBase) => void;
+    }) {
+        return this._internal.subscribeToQuery(options);
     }
 
     public applyActionTransaction(
@@ -278,7 +290,7 @@ export class TaskRealtimeQueryStoreInternal {
      * identical filters and sorts. If a subscription is not promptly added then
      * the query will be evicted on the next eviction cycle.
      */
-    public getQuery({
+    private _getQuery({
         filters,
         sorts,
     }: {
@@ -305,7 +317,6 @@ export class TaskRealtimeQueryStoreInternal {
      * check how many tasks were loaded and decide whether they need to load
      * more tasks.
      */
-    // NOCOMMIT: I don't think this should be the final API
     public async loadQuery(
         context: TaskRealtimeSystemActionContext,
         {
@@ -321,9 +332,9 @@ export class TaskRealtimeQueryStoreInternal {
         tasks: Array<TaskIndexDoc>;
         hasMoreTasks: boolean;
     }> {
-        assert(Number.isInteger(limit) && limit >= 0);
+        assert(Number.isInteger(limit));
 
-        const query = this.getQuery({filters, sorts});
+        const query = this._getQuery({filters, sorts});
 
         // Load enough tasks to satisfy our `limit`.
         await query.loadMoreTasks(context, limit - query.getLoadedTaskCount());
@@ -332,6 +343,24 @@ export class TaskRealtimeQueryStoreInternal {
             limit,
             afterCursor: null,
         });
+    }
+
+    /**
+     * Subscribes to a query in our store. You need to call `loadMoreTasks()` on
+     * the subscription and then you'll start receiving realtime events via
+     * `onAction` for the loaded tasks.
+     */
+    public subscribeToQuery({
+        filters,
+        sorts,
+        onAction,
+    }: {
+        filters: TaskQueryNormalizedFilters;
+        sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+        onAction: (action: TaskRealtimeActionTransactionSliceBase) => void;
+    }) {
+        const query = this._getQuery({filters, sorts});
+        return new TaskRealtimeQuerySubscription(query, onAction);
     }
 
     /**
@@ -899,11 +928,13 @@ export class TaskRealtimeQueryStoreTaskEntry {
         this._queryDependents.delete(query);
     }
 
-    public addQuerySubscriptionDependent(querySubscription: TaskRealtimeQuerySubscription) {
+    public addQuerySubscriptionDependent(querySubscription: TaskRealtimeQuerySubscriptionInternal) {
         // NOCOMMIT: Revive from eviction...
     }
 
-    public removeQuerySubscriptionDependent(querySubscription: TaskRealtimeQuerySubscription) {
+    public removeQuerySubscriptionDependent(
+        querySubscription: TaskRealtimeQuerySubscriptionInternal,
+    ) {
         // NOCOMMIT: Mark for eviction...
     }
 }
@@ -929,11 +960,13 @@ export class TaskRealtimeQueryStoreCollectionEntry {
         }
     }
 
-    public addQuerySubscriptionDependent(querySubscription: TaskRealtimeQuerySubscription) {
+    public addQuerySubscriptionDependent(querySubscription: TaskRealtimeQuerySubscriptionInternal) {
         // NOCOMMIT: Revive from eviction...
     }
 
-    public removeQuerySubscriptionDependent(querySubscription: TaskRealtimeQuerySubscription) {
+    public removeQuerySubscriptionDependent(
+        querySubscription: TaskRealtimeQuerySubscriptionInternal,
+    ) {
         // NOCOMMIT: Mark for eviction...
     }
 }

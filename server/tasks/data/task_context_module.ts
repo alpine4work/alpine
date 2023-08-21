@@ -71,6 +71,9 @@ export class TaskContextModule extends ContextModuleBase<{
                     });
 
                     try {
+                        // NOCOMMIT: Add an "applied time" property to action transactions in DynamoDB
+                        // for debugging. Or an "unapplied" item that's easier to query. Or compromise
+                        // with an index?
                         await indexTaskActionTransactionAssumingItsCommitted(
                             context,
                             spaceId,

@@ -58,7 +58,7 @@ type _WebSocketConnectionProcedures<
     SessionActionContextModules extends {},
     Procedures extends {[name: string]: {input: {}; output: {}}},
 > = {
-    [Name in keyof Procedures]: (
+    readonly [Name in keyof Procedures]: (
         context: Context<SessionActionContextModules>,
         input: Procedures[Name]["input"],
         span: TracerSpan,

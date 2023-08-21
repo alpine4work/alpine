@@ -1,16 +1,23 @@
 import {RBTree} from "bintrees";
+import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/data/apply_task_action_to_task_index_doc.js";
 import {evaluateTaskQueryNormalizedFiltersForIndexDoc} from "~/server/tasks/data/evaluate_task_query_normalized_filters_for_index_doc.js";
 import {getTaskQueryNormalizedSortCursorFromIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_from_index_doc.js";
 import {queryTaskIndex} from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {mightTaskActionAddTaskToQueryLoadedRange} from "~/server/tasks/realtime/might_task_action_add_task_to_query_loaded_range.js";
-import {TaskRealtimeActionTransactionActionsSlice} from "~/server/tasks/realtime/task_realtime_action_transaction.js";
+import {
+    TaskRealtimeActionTransactionActionsSlice,
+    TaskRealtimeActionTransactionSliceBase,
+} from "~/server/tasks/realtime/task_realtime_action_transaction.js";
 import {
     TaskRealtimeQueryStoreInternal,
     TaskRealtimeQueryStoreTaskEntry,
 } from "~/server/tasks/realtime/task_realtime_query_store.js";
-import {TaskRealtimeQuerySubscription} from "~/server/tasks/realtime/task_realtime_query_subscription.js";
+import {
+    TaskRealtimeQuerySubscription,
+    TaskRealtimeQuerySubscriptionInternal,
+} from "~/server/tasks/realtime/task_realtime_query_subscription.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
 import {InternalError} from "~/shared/error/error.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
@@ -129,7 +136,7 @@ export class TaskRealtimeQuery {
     } | null = null;
 
     // NOCOMMIT: Document
-    private readonly _subscriptions = new Set<TaskRealtimeQuerySubscription>();
+    private readonly _subscriptions = new Set<TaskRealtimeQuerySubscriptionInternal>();
 
     constructor(
         store: TaskRealtimeQueryStoreInternal,
@@ -196,12 +203,12 @@ export class TaskRealtimeQuery {
         return {visibleTaskIds};
     }
 
-    public addSubscription(subscription: TaskRealtimeQuerySubscription) {
+    public addSubscription(subscription: TaskRealtimeQuerySubscriptionInternal) {
         // NOCOMMIT: Revive from eviction
         this._subscriptions.add(subscription);
     }
 
-    public removeSubscription(subscription: TaskRealtimeQuerySubscription) {
+    public removeSubscription(subscription: TaskRealtimeQuerySubscriptionInternal) {
         // NOCOMMIT: Schedule for eviction
         this._subscriptions.delete(subscription);
     }

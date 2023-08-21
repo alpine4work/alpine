@@ -2,7 +2,9 @@ import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {backfillTaskActionTransactionHistory} from "~/server/tasks/data/task_table.js";
 import {TaskRealtimeActionHistory} from "~/server/tasks/realtime/task_realtime_action_history.js";
+import {TaskRealtimeActionTransactionSliceBase} from "~/server/tasks/realtime/task_realtime_action_transaction.js";
 import {TaskRealtimeQueryStore} from "~/server/tasks/realtime/task_realtime_query_store.js";
+import {TaskRealtimeQuerySubscription} from "~/server/tasks/realtime/task_realtime_query_subscription.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -206,6 +208,37 @@ export class TaskRealtimeServer {
         );
 
         return store.loadQuery(context, options);
+    }
+
+    public async subscribeToQuery(
+        context: TaskRealtimeSystemActionContext,
+        options: {
+            spaceId: SpaceId;
+            filters: TaskQueryNormalizedFilters;
+            sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+            onAction: (action: TaskRealtimeActionTransactionSliceBase) => void;
+        },
+    ): Promise<TaskRealtimeQuerySubscription> {
+        // Must be a system actor because we do no filtering to check whether you are
+        // allowed to see the queried tasks. Permissions filtering is done at a
+        // different level.
+        context.actor.authorizeSystem();
+
+        await authorizeSpaceAccess(context, options.spaceId);
+
+        const store = getOrSetDefaultMapValue(
+            this._storeBySpaceId,
+            options.spaceId,
+            () =>
+                new TaskRealtimeQueryStore({
+                    spaceId: options.spaceId,
+                    actionHistory: this._actionHistory,
+                    ensureFullActionHistory: context =>
+                        this._ensureFullActionHistory(context, options.spaceId),
+                }),
+        );
+
+        return store.subscribeToQuery(options);
     }
 
     public async applyActionTransaction(

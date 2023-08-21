@@ -1,3 +1,4 @@
+import {TaskRealtimeQuerySubscriptionId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TaskQueryNormalizedFiltersSchema} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSortSchema} from "~/shared/tasks/task_query_normalized_sort.js";
@@ -10,10 +11,25 @@ export type TaskRealtimeEvent = WebSocketProtocolEventType<typeof TaskRealtimePr
 
 export const TaskRealtimeProtocol = defineWebSocketProtocol({
     procedures: {
-        loadQuery: {
+        subscribeToQuery: {
             input: {
                 filters: TaskQueryNormalizedFiltersSchema,
                 sorts: Schema.array(TaskQueryNormalizedSortSchema),
+                limit: Schema.integer,
+            },
+            output: {
+                querySubscriptionId: Schema.id<TaskRealtimeQuerySubscriptionId>(),
+            },
+        },
+        unsubscribeFromQuery: {
+            input: {
+                querySubscriptionId: Schema.id<TaskRealtimeQuerySubscriptionId>(),
+            },
+            output: {},
+        },
+        loadMoreQueryTasks: {
+            input: {
+                querySubscriptionId: Schema.id<TaskRealtimeQuerySubscriptionId>(),
                 limit: Schema.integer,
             },
             output: {},
