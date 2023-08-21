@@ -30,7 +30,9 @@ const modulesTypeSymbol = Symbol("modulesType");
  * the cloned context module, not the original context module that is shared
  * across clones.
  */
-export class ContextModuleBase<Modules extends {[key: string]: ContextModuleBase} = {}> {
+export class ContextModuleBase<
+    Modules extends {[key: string]: ContextModuleBase | undefined} = {},
+> {
     // This symbol doesn't exist at runtime. It only exists in the type system.
     // It's also private to this module. By including this, it makes it easier for
     // TypeScript to infer the type of `Modules` when performing inference of the

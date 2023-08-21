@@ -38,6 +38,7 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {DurableObjectServiceName, TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {WebSocketProtocolBase} from "~/shared/web_socket/web_socket_protocol.js";
+import {WebSocketClosingWithErrorMessageSchema} from "~/shared/web_socket/web_socket_schema.js";
 
 /**
  * Environment object provided to a Durable Object.
@@ -260,6 +261,12 @@ export function createDurableObject<
                                             }),
                                     ),
                                 };
+
+                                // If we fail to initialize then kill the durable object. Next request should
+                                // attempt to initialize it again.
+                                this._object.promise.catch(() => {
+                                    this._object = null;
+                                });
                             }
 
                             if (idName !== this._object.idName)
@@ -275,9 +282,42 @@ export function createDurableObject<
                     return response;
                 } catch (error) {
                     span.addException(error);
-                    const status = isSystemError(error) ? 500 : 400;
-                    const response = new Response(null, {status});
-                    return response;
+
+                    // If there was an error and the client was trying to connect to a WebSocket
+                    // then temporarily connect so we can send an error message over the WebSocket
+                    // protocol then immediately close.
+                    //
+                    // e.g. If there was an authorization error during durable object
+                    // initialization.
+                    if (request.headers.get("upgrade") !== "websocket") {
+                        const status = isSystemError(error) ? 500 : 400;
+                        const response = new Response(null, {status});
+                        return response;
+                    } else {
+                        const socketPair = new WebSocketPair();
+                        const clientSocket = socketPair[0];
+                        const serverSocket = socketPair[1];
+
+                        const response = new Response(null, {
+                            status: 101,
+                            webSocket: clientSocket,
+                        });
+
+                        (serverSocket as any).accept();
+
+                        serverSocket.send(
+                            JSON.stringify(
+                                WebSocketClosingWithErrorMessageSchema.serialize({
+                                    type: "ClosingWithError",
+                                    error,
+                                }),
+                            ),
+                        );
+
+                        serverSocket.close();
+
+                        return response;
+                    }
                 }
             });
         }

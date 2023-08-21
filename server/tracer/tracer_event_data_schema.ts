@@ -128,13 +128,14 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
     context: {
         accountId: Schema.id(),
         spaceId: Schema.id(),
+        webSocketConnectionId: Schema.id(),
         peekId: Schema.id(),
+        taskId: Schema.id(),
+        taskCollectionId: Schema.id(),
         documentId: Schema.id(),
         channelId: Schema.id(),
         postId: Schema.id(),
         chatId: Schema.id(),
-        taskId: Schema.id(),
-        taskCollectionId: Schema.id(),
         peek: {
             aboveDocumentId: Schema.id(),
             aboveChannelId: Schema.id(),

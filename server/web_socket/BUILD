@@ -2,6 +2,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "web_socket",
+    test_deps = ["//server/node"],
     visibility = ["//server:__subpackages__"],
     deps = [
         "//:node_modules/@types/ws",

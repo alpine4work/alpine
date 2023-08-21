@@ -10,6 +10,7 @@ ts_project(
         "//admin/dynamo:__pkg__",
         "//app:__pkg__",
         "//server/rpc:__pkg__",
+        "//server/tasks/realtime:__pkg__",
     ],
     deps = [
         "//:node_modules/date-fns",

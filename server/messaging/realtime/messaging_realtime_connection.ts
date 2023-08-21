@@ -105,7 +105,7 @@ export class MessagingRealtimeConnection<
 > {
     private readonly _connectionId: WebSocketConnectionId;
     private readonly _spaceId: SpaceId;
-    private readonly _roomKey: RoomKey;
+    public readonly roomKey: RoomKey;
     private readonly _sendEvent: (
         context: WorkerProcessContext,
         event: MessagingRealtimeEvent<Message>,
@@ -183,7 +183,7 @@ export class MessagingRealtimeConnection<
     }) {
         this._connectionId = connectionId;
         this._spaceId = spaceId;
-        this._roomKey = roomKey;
+        this.roomKey = roomKey;
         this._sendEvent = sendEvent;
         this._sendEventToOthers = sendEventToOthers;
         this._iterateOtherConnections = iterateOtherConnections;
@@ -350,7 +350,7 @@ export class MessagingRealtimeConnection<
                 newOtherReferencedMessages,
                 messageChangesResult,
             } = await this._backfillMessages(context, {
-                roomKey: this._roomKey,
+                roomKey: this.roomKey,
                 clientMessageCount,
                 clientLastMessageChangeTime,
                 newMessageLimit,
@@ -417,7 +417,7 @@ export class MessagingRealtimeConnection<
         // event before we confirmed the message was saved in the database? This would
         // improve user perceived messaging latency.
         const newMessage = await this._createMessage(context, {
-            roomKey: this._roomKey,
+            roomKey: this.roomKey,
             parentMessageIndex,
             content,
         });
@@ -461,7 +461,7 @@ export class MessagingRealtimeConnection<
         },
     ): Promise<{}> {
         const {contentUpdatedTime, contentReferences} = await this._updateMessageContent(context, {
-            roomKey: this._roomKey,
+            roomKey: this.roomKey,
             messageIndex,
             content,
         });
@@ -489,7 +489,7 @@ export class MessagingRealtimeConnection<
         {messageIndex}: {messageIndex: number},
     ): Promise<{}> {
         const {deletedTime} = await this._deleteMessage(context, {
-            roomKey: this._roomKey,
+            roomKey: this.roomKey,
             messageIndex,
         });
 

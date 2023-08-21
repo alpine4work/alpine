@@ -1,3 +1,4 @@
+import {authorizeChatAccessForDurableObject} from "~/server/chat/realtime/authorize_chat_access_for_durable_object.js";
 import {ChatRealtimeConnection} from "~/server/chat/realtime/chat_realtime_connection.js";
 import {
     WorkerActionContext,
@@ -11,10 +12,8 @@ import {
 import {createDurableObject} from "~/server/cloudflare/create_durable_object.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
-import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
-import {authorizeChatAccess as actuallyAuthorizeChatAccess} from "~/shared/rpc/chat_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 class ChatRealtimeDurableObject {
@@ -41,7 +40,11 @@ class ChatRealtimeDurableObject {
         idName: string;
     }): Promise<ChatRealtimeDurableObject> {
         const chatId = Schema.id<ChatId>().deserialize(idName);
-        const {spaceId} = await authorizeChatAccess(initializeActionContext, chatId);
+
+        const {spaceId} = await authorizeChatAccessForDurableObject(
+            initializeActionContext,
+            chatId,
+        );
 
         return new ChatRealtimeDurableObject({
             processContext,
@@ -74,15 +77,7 @@ class ChatRealtimeDurableObject {
         >(
             this._processContext,
             ChatRealtimeProtocol,
-            async ({
-                connectActionContext,
-                connectionId,
-                sendEvent,
-                sendEventToOthers,
-                iterateOtherConnections,
-            }) => {
-                await authorizeChatAccess(connectActionContext, chatId);
-
+            ({connectionId, sendEvent, sendEventToOthers, iterateOtherConnections}) => {
                 return new ChatRealtimeConnection({
                     connectionId,
                     spaceId,
@@ -113,12 +108,3 @@ class ChatRealtimeDurableObject {
 
 const ChatRealtimeDurableObjectWrapper = createDurableObject(ChatRealtimeDurableObject);
 export {ChatRealtimeDurableObjectWrapper as ChatRealtimeDurableObject};
-
-const ChatAccessCache = new ContextCache<ChatId, {spaceId: SpaceId}>();
-
-function authorizeChatAccess(context: WorkerActionContext, chatId: ChatId) {
-    // Authorize chat access once per action then cache the result.
-    return ChatAccessCache.get(context, chatId, () =>
-        actuallyAuthorizeChatAccess(context, {chatId}),
-    );
-}

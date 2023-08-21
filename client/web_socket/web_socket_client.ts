@@ -2,6 +2,7 @@ import {AppContext} from "~/client/context/app_context.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {WebSocketClientConnection} from "~/client/web_socket/web_socket_client_connection.js";
 import {InternalError} from "~/shared/error/error.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -16,6 +17,7 @@ import {
 const reconnectTimeoutBaseMs = 1200;
 const maxReconnectTimeoutMs = 2500;
 const reconnectAttemptsBeforeError = 20;
+const openHealthyDurationMs = 10000;
 
 type WebSocketClientDisconnectTransition = "Disconnected" | "DocumentNotVisible";
 
@@ -228,9 +230,12 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
             );
 
             let wasDisconnected = false;
+            let openHealthyTimeout: Timeout | null;
 
             const disconnect = (transition: WebSocketClientDisconnectTransition) => {
                 wasDisconnected = true;
+                openHealthyTimeout?.clear();
+                openHealthyTimeout = null;
                 void connection.close();
                 actuallyDisconnect(transition);
             };
@@ -245,7 +250,13 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
                 () => {
                     if (wasDisconnected) return;
 
-                    reconnectAttempts = 0;
+                    // Once the WebSocket connection has been open for some duration we consider it
+                    // healthy and reset reconnection attempts. If the WebSocket continually closes
+                    // before we consider it healthy then we treat that as an error. Otherwise we
+                    // get into infinite loops of opening and closing WebSockets.
+                    openHealthyTimeout = createTimeout(() => {
+                        reconnectAttempts = 0;
+                    }, openHealthyDurationMs);
 
                     this._state.set({
                         type: "Connected",
@@ -272,6 +283,9 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
                 () => {
                     if (wasDisconnected) return;
 
+                    openHealthyTimeout?.clear();
+                    openHealthyTimeout = null;
+
                     // We should only call `close()` after setting `isCancelled` in our
                     // `disconnect` function.
                     reconnect(
@@ -282,6 +296,10 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
                 },
                 error => {
                     if (wasDisconnected) return;
+
+                    openHealthyTimeout?.clear();
+                    openHealthyTimeout = null;
+
                     reconnect(error);
                 },
             );
@@ -290,7 +308,7 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
         const reconnect = (error: unknown) => {
             reconnectAttempts++;
 
-            if (reconnectAttempts > reconnectAttemptsBeforeError) {
+            if (!isSystemError(error) || reconnectAttempts > reconnectAttemptsBeforeError) {
                 this._state.set({
                     type: "Error",
                     error,

@@ -13,6 +13,8 @@ declare global {
     }
 }
 
+let ActualResponse = globalThis.Response;
+
 // If we are in a Node.js environment then replace the `Response` global with
 // one that supports `webSocket` in its `RequestInit`.
 if (process.versions.node) {
@@ -54,5 +56,8 @@ if (process.versions.node) {
         }
     }
 
-    globalThis.Response = Response;
+    Object.defineProperty(globalThis, "Response", {value: Response});
+    ActualResponse = Response;
 }
+
+export {ActualResponse as Response};

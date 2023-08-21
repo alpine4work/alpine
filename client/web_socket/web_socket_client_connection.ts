@@ -103,6 +103,7 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
 
         let pingTimeout: Timeout | undefined;
         let pongPromiseResolver: PromiseResolver<void> | undefined;
+        let closeErrorResult: {error: unknown} | undefined;
 
         const sendPing = () => {
             if (this._state.type !== "Open") return;
@@ -154,6 +155,10 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
             this._openPromiseResolver.resolve();
         });
 
+        // From reading the spec, it looks like the `error` event is only fired before
+        // a `close` event. But the `close` event has more interesting information
+        // about the error. So we don't have a listener for `error`, just `close`.
+        // https://websockets.spec.whatwg.org/#dom-websocket-onerror
         this._socket.addEventListener("close", event => {
             // If the user called `close()` then we consider the close to be expected and we
             // won't fire an error.
@@ -184,24 +189,24 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
             }
             this._procedureResponsePromiseResolverByRequestId.clear();
 
-            // From reading the spec, it looks like the `error` event is only fired before
-            // a `close` event. But the `close` event has more interesting information
-            // about the error. So we don't have a listener for `error`, just `close`.
-            // https://websockets.spec.whatwg.org/#dom-websocket-onerror
-            const error = !wasCloseExpected
-                ? new UnavailableError(
-                      `WebSocket closed unexpectedly with code ${event.code}${
-                          event.reason ? quote`and reason ${event.reason}` : ""
-                      }${!event.wasClean ? " (did not close cleanly)" : ""}`,
-                      {
-                          displayMessage: wasConnecting
-                              ? errorDisplayMessage`Could not connect to the internet. Make sure you are online and try again.`
-                              : wasOpen
-                              ? errorDisplayMessage`Your connection to our servers was ended unexpectedly. Please try again.`
-                              : undefined,
-                      },
-                  )
-                : null;
+            // If the WebSocket gave us an error object, use that when closing instead of
+            // an `UnavailableError`.
+            const error =
+                closeErrorResult?.error ??
+                (!wasCloseExpected
+                    ? new UnavailableError(
+                          `WebSocket closed unexpectedly with code ${event.code}${
+                              event.reason ? quote`and reason ${event.reason}` : ""
+                          }${!event.wasClean ? " (did not close cleanly)" : ""}`,
+                          {
+                              displayMessage: wasConnecting
+                                  ? errorDisplayMessage`Could not connect to the internet. Make sure you are online and try again.`
+                                  : wasOpen
+                                  ? errorDisplayMessage`Your connection to our servers was ended unexpectedly. Please try again.`
+                                  : undefined,
+                          },
+                      )
+                    : null);
 
             if (error) {
                 this._closePromiseResolver.reject(error);
@@ -272,6 +277,10 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
 
                     pongPromiseResolver?.resolve();
                     pongPromiseResolver = undefined;
+                    break;
+                }
+                case "ClosingWithError": {
+                    closeErrorResult = {error: message.error};
                     break;
                 }
                 default:

@@ -1,4 +1,3 @@
-import {differenceInMinutes} from "date-fns";
 import {
     WorkerActionContext,
     WorkerSessionActionContext,
@@ -10,13 +9,12 @@ import {
 } from "~/server/cloudflare/context/worker_process_context.js";
 import {createDurableObject} from "~/server/cloudflare/create_durable_object.js";
 import {MyAccountConnection} from "~/server/notifications/my_account/my_account_connection.js";
+import {MyAccountDurableObjectAuthorizer} from "~/server/notifications/my_account/my_account_durable_object_authorizer.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {NotFoundError} from "~/shared/error/error.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
 import {MyAccountSendInboxRealtimeEventTransactionSchema} from "~/shared/notifications/my_account_inbox_realtime_event_transaction_schema.js";
 import {MyAccountProtocol} from "~/shared/notifications/my_account_protocol.js";
-import {getAccount} from "~/shared/rpc/accounts_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 class MyAccountDurableObject {
@@ -75,9 +73,11 @@ class MyAccountDurableObject {
             WorkerSessionActionContextModules,
             typeof MyAccountProtocol,
             MyAccountConnection
-        >(this._processContext, MyAccountProtocol, async ({connectActionContext}) => {
-            await this._authorizer.authorizeMyAccountAccess(connectActionContext, this._accountId);
-            return new MyAccountConnection();
+        >(this._processContext, MyAccountProtocol, () => {
+            return new MyAccountConnection({
+                accountId: this._accountId,
+                authorizer: this._authorizer,
+            });
         });
     }
 
@@ -125,55 +125,3 @@ class MyAccountDurableObject {
 
 const MyAccountDurableObjectWrapper = createDurableObject(MyAccountDurableObject);
 export {MyAccountDurableObjectWrapper as MyAccountDurableObject};
-
-class MyAccountDurableObjectAuthorizer {
-    private readonly _systemActorCache = new Map<
-        `${SpaceId}:${AccountId}`,
-        {cacheTime: Date; promise: Promise<void>}
-    >();
-
-    async authorizeMyAccountAccess(context: WorkerActionContext, accountId: AccountId) {
-        switch (context.actor.type) {
-            case "Session": {
-                if (context.actor.getAccountId() !== accountId) {
-                    throw new PermissionDeniedError(
-                        "Can only access the durable object for your own account",
-                    );
-                }
-                break;
-            }
-            case "System": {
-                const currentTime = new Date();
-                const spaceId = context.actor.getSpaceId();
-                const cacheKey = `${spaceId}:${accountId}` as const;
-                let cacheValue = this._systemActorCache.get(cacheKey);
-
-                // Only call the `getAccount()` RPC every 30min. If we find the account exists
-                // in the space once, it is likely to continue to exist in the space for a long
-                // time. (If not forever.)
-                if (cacheValue && differenceInMinutes(currentTime, cacheValue.cacheTime) < 30) {
-                    await cacheValue.promise;
-                } else {
-                    cacheValue = {
-                        cacheTime: currentTime,
-                        promise: (async () => {
-                            try {
-                                await getAccount(context, {spaceId, accountId});
-                            } catch (error) {
-                                if (error instanceof NotFoundError) {
-                                    throw PermissionDeniedError.from(error);
-                                }
-                                throw error;
-                            }
-                        })(),
-                    };
-                    this._systemActorCache.set(cacheKey, cacheValue);
-                    await cacheValue.promise;
-                }
-                break;
-            }
-            default:
-                throw exhaustive(context.actor);
-        }
-    }
-}

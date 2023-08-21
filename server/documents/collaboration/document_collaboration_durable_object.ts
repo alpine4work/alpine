@@ -15,7 +15,7 @@ import {DocumentCollaborationProtocol} from "~/shared/documents/document_collabo
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
-import {authorizeDocumentAccess, getDocument} from "~/shared/rpc/documents_rpc_definitions.js";
+import {getDocument} from "~/shared/rpc/documents_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 class DocumentCollaborationDurableObject {
@@ -101,15 +101,7 @@ class DocumentCollaborationDurableObject {
         >(
             this._processContext,
             DocumentCollaborationProtocol,
-            async ({
-                connectActionContext,
-                connectionId,
-                sendEvent,
-                sendEventToOthers,
-                iterateOtherConnections,
-            }) => {
-                await authorizeDocumentAccess(connectActionContext, {documentId: id});
-
+            ({connectionId, sendEvent, sendEventToOthers, iterateOtherConnections}) => {
                 return new DocumentCollaborationConnection({
                     connectionId,
                     contentManager: this._contentManager,

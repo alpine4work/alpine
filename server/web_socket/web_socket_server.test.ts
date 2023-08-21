@@ -1,0 +1,789 @@
+import {SessionActorContextModule} from "~/server/helpers/actor_context_module.js";
+import {ForkActionContextModule} from "~/server/helpers/fork_action_context_module.js";
+import {TestSessionActorContextModule} from "~/server/helpers/test/test_actor_context_module.js";
+import {Response} from "~/server/node/install_response_with_web_socket_support.js";
+import {testTracer} from "~/server/tracer/test_tracer.js";
+import {
+    WebSocketConnectionProcedures,
+    WebSocketServer,
+} from "~/server/web_socket/web_socket_server.js";
+import {Context} from "~/shared/context/context.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {InternalError, PermissionDeniedError} from "~/shared/error/error.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {wait} from "~/shared/helpers/async/wait.js";
+import {waitMacrotask} from "~/shared/helpers/async/wait_macrotask.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {DefaultMap} from "~/shared/helpers/map/default_map.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {generateId} from "~/shared/id/id.js";
+import {AccountId, SessionId, WebSocketProcedureRequestId} from "~/shared/id/types/id_types.js";
+import {Schema} from "~/shared/schema/schema.js";
+import {defineWebSocketProtocol} from "~/shared/web_socket/web_socket_protocol.js";
+import {
+    WebSocketClosingWithErrorMessageSchema,
+    createWebSocketMessageFromClientSchema,
+    createWebSocketMessageFromServerSchema,
+} from "~/shared/web_socket/web_socket_schema.js";
+
+let afterNextCallbacks: Array<() => MaybePromise<void>> = [];
+
+afterEach(async () => {
+    const callbacks = assertExists(afterNextCallbacks);
+    afterNextCallbacks = [];
+
+    await runAllPromises(callbacks.map(callback => callback()));
+});
+
+beforeEach(() => {
+    import.meta.jest.useFakeTimers();
+});
+
+afterEach(() => {
+    const hadNoTimers = import.meta.jest.getTimerCount() === 0;
+    import.meta.jest.clearAllTimers();
+    import.meta.jest.useRealTimers();
+    assert(hadNoTimers, "Expected all timers to be cleaned up by the end of each test");
+});
+
+type TestProcessContextModules = {
+    tracer: TracerContextModule;
+    process: ProcessContextModule;
+};
+
+type TestSessionActionContextModules = TestProcessContextModules & {
+    actor: SessionActorContextModule;
+    fork: ForkActionContextModule<TestSessionActionContextModules>;
+};
+
+const processContext = Context.new({
+    tracer: new TracerContextModule(testTracer),
+    process: ProcessContextModule.test({afterEach}),
+});
+
+const account1Id = generateId<AccountId>();
+
+const sessionIdByAccountId = new DefaultMap<AccountId, SessionId>(generateId);
+
+function action(accountId: AccountId): Context<TestSessionActionContextModules> {
+    const actorContextModule = new TestSessionActorContextModule(
+        sessionIdByAccountId.getOrSetDefault(accountId),
+        accountId,
+    );
+
+    const forkContextModule: ForkActionContextModule<TestSessionActionContextModules> =
+        new ForkActionContextModule((span, action) =>
+            processContext.with(
+                {
+                    tracer: new TracerContextModule(span),
+                    actor: actorContextModule,
+                    fork: forkContextModule,
+                },
+                action,
+            ),
+        );
+
+    return processContext.clone({
+        actor: actorContextModule,
+        fork: forkContextModule,
+    });
+}
+
+test("authorizes on connection", async () => {
+    const TestProtocol = defineWebSocketProtocol({
+        procedures: {},
+        events: {Test: Schema.object({type: Schema.value("Test")})},
+    });
+
+    let authorizationCount = 0;
+
+    class TestConnection {
+        public readonly procedures = {};
+
+        public async authorize() {
+            authorizationCount++;
+        }
+    }
+
+    const server = new WebSocketServer<
+        TestProcessContextModules,
+        TestSessionActionContextModules,
+        typeof TestProtocol,
+        TestConnection
+    >(processContext, TestProtocol, () => new TestConnection());
+
+    afterNextCallbacks.push(() => server.closeAll(processContext));
+
+    expect(authorizationCount).toEqual(0);
+
+    const response = await server.upgrade(
+        action(account1Id),
+        new Request("http://localhost/", {headers: {upgrade: "websocket"}}),
+        {responseClassForTest: Response},
+    );
+
+    expect(authorizationCount).toEqual(1);
+
+    assert(response.webSocket);
+});
+
+test("if authorization fails then connection closes", async () => {
+    const TestProtocol = defineWebSocketProtocol({
+        procedures: {},
+        events: {Test: Schema.object({type: Schema.value("Test")})},
+    });
+
+    const authorizationError = new PermissionDeniedError("Test authorization error");
+
+    class TestConnection {
+        public readonly procedures = {};
+
+        public async authorize() {
+            throw authorizationError;
+        }
+    }
+
+    const server = new WebSocketServer<
+        TestProcessContextModules,
+        TestSessionActionContextModules,
+        typeof TestProtocol,
+        TestConnection
+    >(processContext, TestProtocol, () => new TestConnection());
+
+    afterNextCallbacks.push(() => server.closeAll(processContext));
+
+    const response = await server.upgrade(
+        action(account1Id),
+        new Request("http://localhost/", {headers: {upgrade: "websocket"}}),
+        {responseClassForTest: Response},
+    );
+
+    assert(response.webSocket);
+
+    const messages: Array<unknown> = [];
+    const closePromiseResolver = createPromiseResolver();
+
+    response.webSocket.addEventListener("message", event => {
+        messages.push(JSON.parse(event.data));
+    });
+
+    response.webSocket.addEventListener("close", () => {
+        closePromiseResolver.resolve();
+    });
+
+    (response.webSocket as any).accept();
+
+    await closePromiseResolver.promise;
+
+    expect(messages).toEqual([
+        WebSocketClosingWithErrorMessageSchema.serialize({
+            type: "ClosingWithError",
+            error: authorizationError,
+        }),
+    ]);
+});
+
+test("authorization is renewed every three minutes when procedure is called", async () => {
+    const TestProtocol = defineWebSocketProtocol({
+        procedures: {
+            echo: {
+                input: {string: Schema.string},
+                output: {string: Schema.string},
+            },
+        },
+        events: {Test: Schema.object({type: Schema.value("Test")})},
+    });
+
+    const TestMessageFromClientSchema = createWebSocketMessageFromClientSchema(TestProtocol);
+    const TestMessageFromServerSchema = createWebSocketMessageFromServerSchema(TestProtocol);
+
+    let authorizationStartCount = 0;
+    let authorizationFinishCount = 0;
+
+    class TestConnection {
+        public readonly procedures: WebSocketConnectionProcedures<
+            TestSessionActionContextModules,
+            typeof TestProtocol
+        > = {
+            echo: async (context, {string}) => ({string}),
+        };
+
+        public async authorize() {
+            authorizationStartCount++;
+            await wait(100);
+            authorizationFinishCount++;
+        }
+    }
+
+    const server = new WebSocketServer<
+        TestProcessContextModules,
+        TestSessionActionContextModules,
+        typeof TestProtocol,
+        TestConnection
+    >(processContext, TestProtocol, () => new TestConnection());
+
+    afterNextCallbacks.push(() => server.closeAll(processContext));
+
+    expect(authorizationStartCount).toEqual(0);
+    expect(authorizationFinishCount).toEqual(0);
+
+    const response = await server.upgrade(
+        action(account1Id),
+        new Request("http://localhost/", {headers: {upgrade: "websocket"}}),
+        {responseClassForTest: Response},
+    );
+
+    expect(authorizationStartCount).toEqual(1);
+    expect(authorizationFinishCount).toEqual(0);
+
+    import.meta.jest.advanceTimersByTime(100);
+    await waitMacrotask();
+
+    expect(authorizationStartCount).toEqual(1);
+    expect(authorizationFinishCount).toEqual(1);
+
+    const webSocket = assertExists(response.webSocket);
+
+    const request1Id = generateId<WebSocketProcedureRequestId>();
+    const request1PromiseResolver = createPromiseResolver();
+
+    const request2Id = generateId<WebSocketProcedureRequestId>();
+    const request2PromiseResolver = createPromiseResolver();
+
+    const request3Id = generateId<WebSocketProcedureRequestId>();
+    const request3PromiseResolver = createPromiseResolver();
+
+    webSocket.addEventListener("message", event => {
+        const message = TestMessageFromServerSchema.deserialize(JSON.parse(event.data));
+
+        // Ignore pongs...
+        if (message.type === "Pong") return;
+
+        if (!request1PromiseResolver.isSettled()) {
+            if (message.type === "ProcedureResponse" && message.requestId === request1Id) {
+                request1PromiseResolver.resolve();
+            } else {
+                request1PromiseResolver.reject(new InternalError("Unexpected message"));
+            }
+        } else if (!request2PromiseResolver.isSettled()) {
+            if (message.type === "ProcedureResponse" && message.requestId === request2Id) {
+                request2PromiseResolver.resolve();
+            } else {
+                request2PromiseResolver.reject(new InternalError("Unexpected message"));
+            }
+        } else if (!request3PromiseResolver.isSettled()) {
+            if (message.type === "ProcedureResponse" && message.requestId === request3Id) {
+                request3PromiseResolver.resolve();
+            } else {
+                request3PromiseResolver.reject(new InternalError("Unexpected message"));
+            }
+        }
+    });
+
+    (webSocket as any).accept();
+
+    expect(authorizationStartCount).toEqual(1);
+    expect(authorizationFinishCount).toEqual(1);
+
+    webSocket.send(
+        JSON.stringify(
+            TestMessageFromClientSchema.serialize({
+                type: "ProcedureRequest",
+                requestId: request1Id,
+                input: {
+                    type: "echo",
+                    string: "test 1",
+                },
+                tracerContext: null,
+            }),
+        ),
+    );
+
+    await waitMacrotask();
+    expect(request1PromiseResolver.isSettled()).toEqual(true);
+
+    expect(authorizationStartCount).toEqual(1);
+    expect(authorizationFinishCount).toEqual(1);
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+
+    webSocket.send(
+        JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
+    );
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+
+    webSocket.send(
+        JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
+    );
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+
+    expect(authorizationStartCount).toEqual(1);
+    expect(authorizationFinishCount).toEqual(1);
+
+    webSocket.send(
+        JSON.stringify(
+            TestMessageFromClientSchema.serialize({
+                type: "ProcedureRequest",
+                requestId: request2Id,
+                input: {
+                    type: "echo",
+                    string: "test 2",
+                },
+                tracerContext: null,
+            }),
+        ),
+    );
+
+    // Test that response is returned before authorization finishes
+    await waitMacrotask();
+    expect(request2PromiseResolver.isSettled()).toEqual(true);
+
+    expect(authorizationStartCount).toEqual(2);
+    expect(authorizationFinishCount).toEqual(1);
+
+    import.meta.jest.advanceTimersByTime(100);
+    await waitMacrotask();
+
+    expect(authorizationStartCount).toEqual(2);
+    expect(authorizationFinishCount).toEqual(2);
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+
+    webSocket.send(
+        JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
+    );
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+
+    webSocket.send(
+        JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
+    );
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+
+    webSocket.send(
+        JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
+    );
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+
+    expect(authorizationStartCount).toEqual(2);
+    expect(authorizationFinishCount).toEqual(2);
+
+    webSocket.send(
+        JSON.stringify(
+            TestMessageFromClientSchema.serialize({
+                type: "ProcedureRequest",
+                requestId: request3Id,
+                input: {
+                    type: "echo",
+                    string: "test 3",
+                },
+                tracerContext: null,
+            }),
+        ),
+    );
+
+    // Test that response is NOT returned before authorization finishes
+    await waitMacrotask();
+    expect(request3PromiseResolver.isSettled()).toEqual(false);
+
+    expect(authorizationStartCount).toEqual(3);
+    expect(authorizationFinishCount).toEqual(2);
+
+    import.meta.jest.advanceTimersByTime(100);
+    await waitMacrotask();
+
+    expect(authorizationStartCount).toEqual(3);
+    expect(authorizationFinishCount).toEqual(3);
+    expect(request3PromiseResolver.isSettled()).toEqual(true);
+});
+
+test("authorization is renewed every three minutes when event is sent", async () => {
+    const TestProtocol = defineWebSocketProtocol({
+        procedures: {
+            echo: {
+                input: {string: Schema.string},
+                output: {string: Schema.string},
+            },
+        },
+        events: {Test: Schema.object({type: Schema.value("Test")})},
+    });
+
+    const TestMessageFromClientSchema = createWebSocketMessageFromClientSchema(TestProtocol);
+    const TestMessageFromServerSchema = createWebSocketMessageFromServerSchema(TestProtocol);
+
+    let authorizationStartCount = 0;
+    let authorizationFinishCount = 0;
+
+    class TestConnection {
+        public readonly procedures: WebSocketConnectionProcedures<
+            TestSessionActionContextModules,
+            typeof TestProtocol
+        > = {
+            echo: async (context, {string}) => ({string}),
+        };
+
+        public async authorize() {
+            authorizationStartCount++;
+            await wait(100);
+            authorizationFinishCount++;
+        }
+    }
+
+    const server = new WebSocketServer<
+        TestProcessContextModules,
+        TestSessionActionContextModules,
+        typeof TestProtocol,
+        TestConnection
+    >(processContext, TestProtocol, () => new TestConnection());
+
+    afterNextCallbacks.push(() => server.closeAll(processContext));
+
+    expect(authorizationStartCount).toEqual(0);
+    expect(authorizationFinishCount).toEqual(0);
+
+    const response = await server.upgrade(
+        action(account1Id),
+        new Request("http://localhost/", {headers: {upgrade: "websocket"}}),
+        {responseClassForTest: Response},
+    );
+
+    expect(authorizationStartCount).toEqual(1);
+    expect(authorizationFinishCount).toEqual(0);
+
+    import.meta.jest.advanceTimersByTime(100);
+    await waitMacrotask();
+
+    expect(authorizationStartCount).toEqual(1);
+    expect(authorizationFinishCount).toEqual(1);
+
+    const webSocket = assertExists(response.webSocket);
+
+    const messages: Array<unknown> = [];
+
+    webSocket.addEventListener("message", event => {
+        const message = TestMessageFromServerSchema.deserialize(JSON.parse(event.data));
+
+        // Ignore pongs...
+        if (message.type === "Pong") return;
+
+        messages.push(message);
+    });
+
+    (webSocket as any).accept();
+
+    expect(authorizationStartCount).toEqual(1);
+    expect(authorizationFinishCount).toEqual(1);
+
+    server.sendEventToAll(processContext, {type: "Test"});
+
+    await waitMacrotask();
+    expect(messages).toEqual([{type: "Event", event: {type: "Test"}}]);
+
+    expect(authorizationStartCount).toEqual(1);
+    expect(authorizationFinishCount).toEqual(1);
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+
+    webSocket.send(
+        JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
+    );
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+
+    webSocket.send(
+        JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
+    );
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+
+    expect(authorizationStartCount).toEqual(1);
+    expect(authorizationFinishCount).toEqual(1);
+
+    server.sendEventToAll(processContext, {type: "Test"});
+
+    // Test that event is sent before authorization finishes
+    await waitMacrotask();
+    expect(messages).toEqual([
+        {type: "Event", event: {type: "Test"}},
+        {type: "Event", event: {type: "Test"}},
+    ]);
+
+    expect(authorizationStartCount).toEqual(2);
+    expect(authorizationFinishCount).toEqual(1);
+
+    import.meta.jest.advanceTimersByTime(100);
+    await waitMacrotask();
+
+    expect(authorizationStartCount).toEqual(2);
+    expect(authorizationFinishCount).toEqual(2);
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+
+    webSocket.send(
+        JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
+    );
+
+    expect(authorizationStartCount).toEqual(2);
+    expect(authorizationFinishCount).toEqual(2);
+
+    server.sendEventToAll(processContext, {type: "Test"});
+
+    // Test that authorization is reused
+    await waitMacrotask();
+    expect(messages).toEqual([
+        {type: "Event", event: {type: "Test"}},
+        {type: "Event", event: {type: "Test"}},
+        {type: "Event", event: {type: "Test"}},
+    ]);
+
+    expect(authorizationStartCount).toEqual(2);
+    expect(authorizationFinishCount).toEqual(2);
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+
+    webSocket.send(
+        JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
+    );
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+
+    webSocket.send(
+        JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
+    );
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+
+    expect(authorizationStartCount).toEqual(2);
+    expect(authorizationFinishCount).toEqual(2);
+
+    server.sendEventToAll(processContext, {type: "Test"});
+
+    // Test that event is NOT sent before authorization finishes
+    await waitMacrotask();
+    expect(messages).toEqual([
+        {type: "Event", event: {type: "Test"}},
+        {type: "Event", event: {type: "Test"}},
+        {type: "Event", event: {type: "Test"}},
+    ]);
+
+    expect(authorizationStartCount).toEqual(3);
+    expect(authorizationFinishCount).toEqual(2);
+
+    import.meta.jest.advanceTimersByTime(100);
+    await waitMacrotask();
+
+    expect(authorizationStartCount).toEqual(3);
+    expect(authorizationFinishCount).toEqual(3);
+    expect(messages).toEqual([
+        {type: "Event", event: {type: "Test"}},
+        {type: "Event", event: {type: "Test"}},
+        {type: "Event", event: {type: "Test"}},
+        {type: "Event", event: {type: "Test"}},
+    ]);
+});
+
+test("authorization error will close the connection", async () => {
+    const TestProtocol = defineWebSocketProtocol({
+        procedures: {
+            echo: {
+                input: {string: Schema.string},
+                output: {string: Schema.string},
+            },
+        },
+        events: {Test: Schema.object({type: Schema.value("Test")})},
+    });
+
+    const TestMessageFromClientSchema = createWebSocketMessageFromClientSchema(TestProtocol);
+    const TestMessageFromServerSchema = createWebSocketMessageFromServerSchema(TestProtocol);
+
+    let authorizationStartCount = 0;
+    let authorizationFinishCount = 0;
+
+    const authorizationError = new PermissionDeniedError("Test authorization error");
+
+    class TestConnection {
+        public readonly procedures: WebSocketConnectionProcedures<
+            TestSessionActionContextModules,
+            typeof TestProtocol
+        > = {
+            echo: async (context, {string}) => ({string}),
+        };
+
+        public async authorize() {
+            authorizationStartCount++;
+            await wait(100);
+            authorizationFinishCount++;
+
+            if (authorizationStartCount >= 2) {
+                throw authorizationError;
+            }
+        }
+    }
+
+    const server = new WebSocketServer<
+        TestProcessContextModules,
+        TestSessionActionContextModules,
+        typeof TestProtocol,
+        TestConnection
+    >(processContext, TestProtocol, () => new TestConnection());
+
+    afterNextCallbacks.push(() => server.closeAll(processContext));
+
+    expect(authorizationStartCount).toEqual(0);
+    expect(authorizationFinishCount).toEqual(0);
+
+    const response = await server.upgrade(
+        action(account1Id),
+        new Request("http://localhost/", {headers: {upgrade: "websocket"}}),
+        {responseClassForTest: Response},
+    );
+
+    expect(authorizationStartCount).toEqual(1);
+    expect(authorizationFinishCount).toEqual(0);
+
+    import.meta.jest.advanceTimersByTime(100);
+    await waitMacrotask();
+
+    expect(authorizationStartCount).toEqual(1);
+    expect(authorizationFinishCount).toEqual(1);
+
+    const webSocket = assertExists(response.webSocket);
+
+    const messages: Array<unknown> = [];
+    const closePromiseResolver = createPromiseResolver();
+
+    webSocket.addEventListener("message", event => {
+        const message = TestMessageFromServerSchema.deserialize(JSON.parse(event.data));
+
+        // Ignore pongs...
+        if (message.type === "Pong") return;
+
+        messages.push(message);
+    });
+
+    webSocket.addEventListener("close", () => {
+        closePromiseResolver.resolve();
+    });
+
+    (webSocket as any).accept();
+
+    expect(authorizationStartCount).toEqual(1);
+    expect(authorizationFinishCount).toEqual(1);
+
+    server.sendEventToAll(processContext, {type: "Test"});
+
+    await waitMacrotask();
+    expect(messages).toEqual([{type: "Event", event: {type: "Test"}}]);
+
+    expect(authorizationStartCount).toEqual(1);
+    expect(authorizationFinishCount).toEqual(1);
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+
+    webSocket.send(
+        JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
+    );
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+
+    webSocket.send(
+        JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
+    );
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+
+    expect(authorizationStartCount).toEqual(1);
+    expect(authorizationFinishCount).toEqual(1);
+
+    server.sendEventToAll(processContext, {type: "Test"});
+
+    await waitMacrotask();
+    expect(messages).toEqual([
+        {type: "Event", event: {type: "Test"}},
+        {type: "Event", event: {type: "Test"}},
+    ]);
+
+    expect(authorizationStartCount).toEqual(2);
+    expect(authorizationFinishCount).toEqual(1);
+
+    import.meta.jest.advanceTimersByTime(100);
+    await expect(ProcessContextModule.waitForTestTasks()).rejects.toThrow(authorizationError);
+    await waitMacrotask();
+
+    expect(authorizationStartCount).toEqual(2);
+    expect(authorizationFinishCount).toEqual(2);
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+
+    webSocket.send(
+        JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
+    );
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+
+    webSocket.send(
+        JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
+    );
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+
+    expect(authorizationStartCount).toEqual(2);
+    expect(authorizationFinishCount).toEqual(2);
+
+    await waitMacrotask();
+    expect(messages).toEqual([
+        {type: "Event", event: {type: "Test"}},
+        {type: "Event", event: {type: "Test"}},
+    ]);
+
+    server.sendEventToAll(processContext, {type: "Test"});
+
+    await waitMacrotask();
+    expect(messages).toEqual([
+        {type: "Event", event: {type: "Test"}},
+        {type: "Event", event: {type: "Test"}},
+        {type: "ClosingWithError", error: authorizationError},
+    ]);
+
+    expect(authorizationStartCount).toEqual(2);
+    expect(authorizationFinishCount).toEqual(2);
+
+    import.meta.jest.advanceTimersByTime(100);
+    await expect(ProcessContextModule.waitForTestTasks()).rejects.toThrow(authorizationError);
+    await waitMacrotask();
+
+    expect(authorizationStartCount).toEqual(2);
+    expect(authorizationFinishCount).toEqual(2);
+
+    expect(messages).toEqual([
+        {type: "Event", event: {type: "Test"}},
+        {type: "Event", event: {type: "Test"}},
+        {type: "ClosingWithError", error: authorizationError},
+    ]);
+
+    server.sendEventToAll(processContext, {type: "Test"});
+
+    expect(authorizationStartCount).toEqual(2);
+    expect(authorizationFinishCount).toEqual(2);
+
+    import.meta.jest.advanceTimersByTime(100);
+    await waitMacrotask();
+
+    expect(authorizationStartCount).toEqual(2);
+    expect(authorizationFinishCount).toEqual(2);
+
+    expect(messages).toEqual([
+        {type: "Event", event: {type: "Test"}},
+        {type: "Event", event: {type: "Test"}},
+        {type: "ClosingWithError", error: authorizationError},
+    ]);
+
+    await closePromiseResolver.promise;
+});

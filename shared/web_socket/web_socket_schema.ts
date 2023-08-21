@@ -20,11 +20,11 @@ export type WebSocketMessageFromClient<Protocol extends WebSocketProtocolBase> =
           readonly type: "ProcedureRequest";
           readonly requestId: WebSocketProcedureRequestId;
           readonly input: WebSocketProcedureRequestInput<WebSocketProtocolProceduresType<Protocol>>;
-          readonly tracerContext: TracerSpanPropagationContext;
+          readonly tracerContext: TracerSpanPropagationContext | null;
       }
     | {
           readonly type: "Ping";
-          readonly tracerContext: TracerSpanPropagationContext;
+          readonly tracerContext: TracerSpanPropagationContext | null;
       }
     | {
           readonly type: "SoftCloseWhileWaitingForProcedureResponses";
@@ -50,11 +50,11 @@ export function createWebSocketMessageFromClientSchema<Protocol extends WebSocke
                     }).merge(procedureSchema.inputSchema),
                 ),
             ) as Schema<any>,
-            tracerContext: TracerPropagationContextSchema,
+            tracerContext: TracerPropagationContextSchema.nullable(),
         }),
         Ping: Schema.object({
             type: Schema.value("Ping"),
-            tracerContext: TracerPropagationContextSchema,
+            tracerContext: TracerPropagationContextSchema.nullable(),
         }),
         SoftCloseWhileWaitingForProcedureResponses: Schema.object({
             type: Schema.value("SoftCloseWhileWaitingForProcedureResponses"),
@@ -91,7 +91,16 @@ export type WebSocketMessageFromServer<Protocol extends WebSocketProtocolBase> =
       }
     | {
           readonly type: "Pong";
+      }
+    | {
+          readonly type: "ClosingWithError";
+          readonly error: unknown;
       };
+
+export const WebSocketClosingWithErrorMessageSchema = Schema.object({
+    type: Schema.value("ClosingWithError"),
+    error: ErrorSchema,
+});
 
 type WebSocketProcedureResponseOutput<
     Procedures extends {[name: string]: {input: {}; output: {}}},
@@ -133,5 +142,6 @@ export function createWebSocketMessageFromServerSchema<Protocol extends WebSocke
         Pong: Schema.object({
             type: Schema.value("Pong"),
         }),
+        ClosingWithError: WebSocketClosingWithErrorMessageSchema,
     });
 }

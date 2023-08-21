@@ -1,5 +1,6 @@
 import {
     WorkerActionContext,
+    WorkerSessionActionContext,
     WorkerSessionActionContextModules,
 } from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
@@ -35,6 +36,7 @@ import {
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
 import {
+    authorizeDocumentAccess,
     backfillDocumentComments,
     createDocumentComment,
     deleteDocumentComment,
@@ -95,6 +97,10 @@ export class DocumentCollaborationConnection {
         this._sendEventToOthers = sendEventToOthers;
         this._iterateOtherConnections = iterateOtherConnections;
         this._killProcess = killProcess;
+    }
+
+    public async authorize(context: WorkerSessionActionContext) {
+        await authorizeDocumentAccess(context, {documentId: this._contentManager.id});
     }
 
     public getPersistedVersion() {

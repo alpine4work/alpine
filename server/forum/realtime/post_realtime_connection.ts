@@ -1,5 +1,9 @@
-import {WorkerSessionActionContextModules} from "~/server/cloudflare/context/worker_action_context.js";
+import {
+    WorkerSessionActionContext,
+    WorkerSessionActionContextModules,
+} from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
+import {authorizePostAccessForDurableObject} from "~/server/forum/realtime/authorize_post_access_for_durable_object.js";
 import {
     BackfillMessagesFunction,
     CreateMessageFunction,
@@ -53,6 +57,10 @@ export class PostRealtimeConnection {
             deleteMessage,
             backfillMessages,
         });
+    }
+
+    public async authorize(context: WorkerSessionActionContext) {
+        await authorizePostAccessForDurableObject(context, this._connection.roomKey);
     }
 
     public readonly procedures: WebSocketConnectionProcedures<

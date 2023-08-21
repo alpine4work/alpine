@@ -304,11 +304,20 @@ export type TracerEventData = {
         /** Information about the space the event was fired while looking at. */
         readonly spaceId?: SpaceId;
 
+        /** The WebSocket connection our event is on behalf of. */
+        readonly webSocketConnectionId?: WebSocketConnectionId;
+
         /**
          * The ID of the peek this event is coming from. May be accompanied by some
          * `peek` properties.
          */
         readonly peekId?: PeekId;
+
+        /** Information about the task the event was fired while looking at. */
+        readonly taskId?: TaskId;
+
+        /** Information about the task collection the event was fired while looking at. */
+        readonly taskCollectionId?: TaskCollectionId;
 
         // The below IDs can be rendered in a peek so they should also be included in
         // `peek.context` to disambiguate between whether they are the primary content
@@ -325,12 +334,6 @@ export type TracerEventData = {
 
         /** Information about the chat the event was fired while looking at. */
         readonly chatId?: ChatId;
-
-        /** Information about the task the event was fired while looking at. */
-        readonly taskId?: TaskId;
-
-        /** Information about the task collection the event was fired while looking at. */
-        readonly taskCollectionId?: TaskCollectionId;
 
         /**
          * If this event is coming from a peek then this object will be populated with
@@ -569,7 +572,21 @@ export type TracerEventData = {
     };
 
     readonly webSocket?: {
-        /** The ID of the connection our event is about. */
+        /**
+         * The ID of the connection our event is about.
+         *
+         * There's also a `context.webSocketConnectionId` property so how do you tell
+         * which one to use? When there are two WebSockets involved in an operation the
+         * distinction is useful. For example, if one WebSocket is sending another an
+         * event then `context.webSocketConnectionId` will be the sender (the WebSocket
+         * taking the action) and `webSocket.connectionId` will be the receiver (the
+         * WebSocket receiving the event).
+         *
+         * We recommend adding `webSocket.connectionId` to any direct WebSocket
+         * operation even when it's redundant with `context.webSocketConnectionId` for
+         * consistency. That way you can filter on `webSocket.connectionId` to see all
+         * of a WebSocket's activity.
+         */
         readonly connectionId?: WebSocketConnectionId;
 
         /**

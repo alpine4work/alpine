@@ -14,6 +14,7 @@ ts_project(
         "//:node_modules/bintrees",
         "//:node_modules/fs-extra",
         "//server/node",
+        "//server/notifications/data",
         "//server/opensearch",
         "//server/tasks/data",
         "//server/tokens",

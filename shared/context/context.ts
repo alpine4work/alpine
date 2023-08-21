@@ -27,7 +27,7 @@ import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection.
  * Once the execution of that code is over, the context may be destroyed so
  * that it's resources are not misused later.
  */
-export type Context<Modules extends {[key: string]: ContextModuleBase}> = {
+export type Context<Modules extends {[key: string]: ContextModuleBase | undefined}> = {
     // We intersect the module type with a `ContextModuleBase` type that has the
     // full modules object. That way we can write clone functions in context
     // modules of the form `clone<Modules>(this: ContextModuleBase<Modules>)` that

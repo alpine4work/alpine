@@ -1,4 +1,8 @@
-import {WorkerSessionActionContextModules} from "~/server/cloudflare/context/worker_action_context.js";
+import {authorizeChatAccessForDurableObject} from "~/server/chat/realtime/authorize_chat_access_for_durable_object.js";
+import {
+    WorkerSessionActionContext,
+    WorkerSessionActionContextModules,
+} from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {
     BackfillMessagesFunction,
@@ -52,6 +56,10 @@ export class ChatRealtimeConnection {
             deleteMessage,
             backfillMessages,
         });
+    }
+
+    public async authorize(context: WorkerSessionActionContext) {
+        await authorizeChatAccessForDurableObject(context, this._connection.roomKey);
     }
 
     public readonly procedures: WebSocketConnectionProcedures<

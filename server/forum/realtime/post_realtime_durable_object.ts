@@ -8,13 +8,12 @@ import {
     WorkerProcessContextModules,
 } from "~/server/cloudflare/context/worker_process_context.js";
 import {createDurableObject} from "~/server/cloudflare/create_durable_object.js";
+import {authorizePostAccessForDurableObject} from "~/server/forum/realtime/authorize_post_access_for_durable_object.js";
 import {PostRealtimeConnection} from "~/server/forum/realtime/post_realtime_connection.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
-import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {PostRealtimeProtocol} from "~/shared/forum/post_realtime_protocol.js";
 import {PostId, SpaceId} from "~/shared/id/types/id_types.js";
-import {authorizePostAccess as actuallyAuthorizePostAccess} from "~/shared/rpc/forum_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 class PostRealtimeDurableObject {
@@ -41,7 +40,11 @@ class PostRealtimeDurableObject {
         idName: string;
     }): Promise<PostRealtimeDurableObject> {
         const postId = Schema.id<PostId>().deserialize(idName);
-        const {spaceId} = await authorizePostAccess(initializeActionContext, postId);
+
+        const {spaceId} = await authorizePostAccessForDurableObject(
+            initializeActionContext,
+            postId,
+        );
 
         return new PostRealtimeDurableObject({
             processContext,
@@ -74,15 +77,7 @@ class PostRealtimeDurableObject {
         >(
             this._processContext,
             PostRealtimeProtocol,
-            async ({
-                connectActionContext,
-                connectionId,
-                sendEvent,
-                sendEventToOthers,
-                iterateOtherConnections,
-            }) => {
-                await authorizePostAccess(connectActionContext, postId);
-
+            ({connectionId, sendEvent, sendEventToOthers, iterateOtherConnections}) => {
                 return new PostRealtimeConnection({
                     connectionId,
                     spaceId,
@@ -113,12 +108,3 @@ class PostRealtimeDurableObject {
 
 const PostRealtimeDurableObjectWrapper = createDurableObject(PostRealtimeDurableObject);
 export {PostRealtimeDurableObjectWrapper as PostRealtimeDurableObject};
-
-const PostAccessCache = new ContextCache<PostId, {spaceId: SpaceId}>();
-
-function authorizePostAccess(context: WorkerActionContext, postId: PostId) {
-    // Authorize chat access once per action then cache the result.
-    return PostAccessCache.get(context, postId, () =>
-        actuallyAuthorizePostAccess(context, {postId}),
-    );
-}

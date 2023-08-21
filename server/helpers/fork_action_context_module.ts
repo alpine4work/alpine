@@ -1,9 +1,8 @@
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {TraceId, TraceSpanId} from "~/shared/id/types/id_types.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {TracerSpan, TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.js";
 
 /**
  * The fork context module can be used for forking a completely fresh context
@@ -60,12 +59,10 @@ export class ForkActionContextModule<
      */
     public getDetachedForker() {
         const tracer = this._context.tracer.getTracer();
-        const parentSpanLink =
-            tracer instanceof TracerSpan ? {traceId: tracer.traceId, spanId: tracer.spanId} : null;
 
         return new ForkActionContextModuleDetachedForker(
             tracer.getRoot(),
-            parentSpanLink,
+            tracer instanceof TracerSpan ? tracer.getPropagationContext() : null,
             this._withFork,
         );
     }
@@ -79,7 +76,7 @@ export class ForkActionContextModuleDetachedForker<
     ForkContextModules extends {tracer: TracerContextModule; [key: string]: ContextModuleBase},
 > {
     private readonly _tracer: TracerRoot;
-    private readonly _parentSpanLink: {traceId: TraceId; spanId: TraceSpanId} | null;
+    private readonly _propagationContext: TracerSpanPropagationContext | null;
     private readonly _withFork: <Value>(
         span: TracerSpan,
         action: (context: Context<ForkContextModules>) => Promise<Value>,
@@ -87,30 +84,40 @@ export class ForkActionContextModuleDetachedForker<
 
     constructor(
         tracer: TracerRoot,
-        parentSpanLink: {traceId: TraceId; spanId: TraceSpanId} | null,
+        propagationContext: TracerSpanPropagationContext | null,
         withFork: <Value>(
             span: TracerSpan,
             action: (context: Context<ForkContextModules>) => Promise<Value>,
         ) => Promise<Value>,
     ) {
         this._tracer = tracer;
-        this._parentSpanLink = parentSpanLink;
+        this._propagationContext = propagationContext;
         this._withFork = withFork;
     }
 
     /**
      * Fork a new action off our original action's context.
      */
-    public withFork<Value>(
+    public async withFork<Value>(
         spanName: string,
         action: (context: Context<ForkContextModules>, span: TracerSpan) => Promise<Value>,
     ): Promise<Value> {
-        return this._tracer.withSpan(spanName, span => {
-            // Link to the parent span which may have been created long ago...
-            if (this._parentSpanLink) span.link(this._parentSpanLink);
+        const {span, finishSpan} = this._propagationContext
+            ? this._tracer.startSpanFromPropagationContextAsLinked(
+                  spanName,
+                  this._propagationContext,
+              )
+            : this._tracer.startSpan(spanName);
 
-            return this._withFork(span, context => action(context, span));
-        });
+        try {
+            const value = await this._withFork(span, context => action(context, span));
+            finishSpan();
+            return value;
+        } catch (error) {
+            span.addException(error);
+            finishSpan();
+            throw error;
+        }
     }
 
     /**
@@ -122,7 +129,16 @@ export class ForkActionContextModuleDetachedForker<
     ): Promise<Value> {
         try {
             // Link to the parent span which may have been created long ago...
-            if (this._parentSpanLink) span.link(this._parentSpanLink);
+            if (this._propagationContext) {
+                // Merge in our propagation context's data. If the `span` already the same data
+                // as what we pass in then the data in `span` will win.
+                span._addDefaultPropagatedFlatData(this._propagationContext.data);
+
+                span.link({
+                    traceId: this._propagationContext.traceId,
+                    spanId: this._propagationContext.parentId,
+                });
+            }
 
             const value = await this._withFork(span, context => action(context, span));
             finishSpan();

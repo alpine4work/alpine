@@ -1,3 +1,4 @@
+import {InternalError} from "~/shared/error/error.js";
 import {MonotonicClock} from "~/shared/helpers/clock/monotonic_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {LinkedList, NonEmptyLinkedList} from "~/shared/helpers/immutable/linked_list.js";
@@ -81,19 +82,27 @@ export class TracerSpan extends TracerBase {
      * a different programming language runtime so the data is in our network event
      * format instead of our nested object format.
      */
-    private readonly _propagatedEventFlatData: TracerEventFlatData | null;
+    private _propagatedEventFlatData: TracerEventFlatData | null;
 
     private constructor(
         tracer: TracerRoot,
         clock: MonotonicClock,
         name: string,
         parentSpan: {
-            traceId: TraceId;
-            parentId: TraceSpanId;
+            traceId?: TraceId;
+            parentId?: TraceSpanId;
             propagatedEventData?: LinkedList<TracerEventData>;
             propagatedEventFlatData?: TracerEventFlatData | null;
         } | null,
     ) {
+        if (
+            parentSpan !== null &&
+            !(parentSpan.traceId === undefined && parentSpan.parentId === undefined) &&
+            !(parentSpan.traceId !== undefined && parentSpan.parentId !== undefined)
+        ) {
+            throw new InternalError("Both `traceId` and `parentId` must be set if available");
+        }
+
         super();
 
         this._tracer = tracer;
@@ -129,8 +138,8 @@ export class TracerSpan extends TracerBase {
         clock: MonotonicClock,
         name: string,
         parentSpan: {
-            traceId: TraceId;
-            parentId: TraceSpanId;
+            traceId?: TraceId;
+            parentId?: TraceSpanId;
             propagatedEventData?: LinkedList<TracerEventData>;
             propagatedEventFlatData?: TracerEventFlatData | null;
         } | null,
@@ -245,6 +254,25 @@ export class TracerSpan extends TracerBase {
                 this._propagatedEventData,
                 this._propagatedEventFlatData,
             ),
+        };
+    }
+
+    /**
+     * Adds propagated flat data underneath all other data in the span. So any
+     * existing propagated data will override this flat data. Which is why this
+     * is "default" flat data.
+     *
+     * Public but with an underscore since this shouldn't be a commonly used
+     * method. It's only useful in niche situations like when you want to start
+     * a span with two propagated span sources.
+     *
+     * Maybe a better method would take `TracerSpanPropagationContext` and create
+     * a `link()` + update propagation context?
+     */
+    public _addDefaultPropagatedFlatData(data: TracerEventFlatData) {
+        this._propagatedEventFlatData = {
+            ...data,
+            ...this._propagatedEventFlatData,
         };
     }
 

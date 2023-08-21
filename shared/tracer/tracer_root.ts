@@ -157,6 +157,26 @@ export class TracerRoot extends TracerBase {
     }
 
     /**
+     * Start a span from the propagation context object returned by `TracerSpan`.
+     * But instead of setting the span as a parent, instead link the span.
+     */
+    public startSpanFromPropagationContextAsLinked(
+        name: string,
+        propagationContext: TracerSpanPropagationContext,
+    ) {
+        const {span, finishSpan} = TracerSpan._start(this, new MonotonicClock(this._clock), name, {
+            propagatedEventFlatData: propagationContext.data,
+        });
+
+        span.link({
+            traceId: propagationContext.traceId,
+            spanId: propagationContext.parentId,
+        });
+
+        return {span, finishSpan};
+    }
+
+    /**
      * Clone this tracer with some new propagated data. Propagated data will be
      * added to all root child spans created by the returned tracer. Propagated
      * data will not be added to previously created spans.

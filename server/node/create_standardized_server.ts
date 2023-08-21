@@ -1,4 +1,4 @@
-import "~/server/node/internal/install_response_with_web_socket_support.js";
+import "~/server/node/install_response_with_web_socket_support.js";
 
 import {IncomingHttpHeaders, IncomingMessage, ServerResponse, createServer} from "http";
 import {Socket} from "net";
