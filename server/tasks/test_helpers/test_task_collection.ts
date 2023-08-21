@@ -71,8 +71,6 @@ export class TestTaskCollection {
                 },
             },
         ]);
-
-        return this;
     }
 
     public async undelete(session: TestSpaceSession) {
@@ -86,8 +84,6 @@ export class TestTaskCollection {
                 },
             },
         ]);
-
-        return this;
     }
 
     public async updateName(session: TestSpaceSession, name: string) {
@@ -102,7 +98,5 @@ export class TestTaskCollection {
                 },
             },
         ]);
-
-        return this;
     }
 }

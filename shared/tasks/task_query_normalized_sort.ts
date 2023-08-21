@@ -98,13 +98,13 @@ const TaskQueryBasicNormalizedSortSchemas: {
 export type TaskQueryParentPositionNormalizedSort = {
     readonly type: "ParentPosition";
     readonly direction: "Ascending" | "Descending";
-    readonly missing: "Last";
+    readonly missing: "Last" | "First";
 };
 
 const TaskQueryParentPositionNormalizedSortSchema = Schema.object({
     type: Schema.value("ParentPosition"),
     direction: Schema.enum(["Ascending", "Descending"]),
-    missing: Schema.value("Last"),
+    missing: Schema.enum(["First", "Last"]),
 });
 
 export type TaskQueryCollectionPositionNormalizedSort = {
@@ -140,13 +140,13 @@ const TaskQueryNotepadPagePositionNormalizedSortSchema = Schema.object({
 export type TaskQueryAssigneeStatusActivePositionNormalizedSort = {
     readonly type: "AssigneeStatusActivePosition";
     readonly direction: "Ascending" | "Descending";
-    readonly missing: "Last";
+    readonly missing: "Last" | "First";
 };
 
 const TaskQueryAssigneeStatusActivePositionNormalizedSortSchema = Schema.object({
     type: Schema.value("AssigneeStatusActivePosition"),
     direction: Schema.enum(["Ascending", "Descending"]),
-    missing: Schema.value("Last"),
+    missing: Schema.enum(["Last", "First"]),
 });
 
 export const TaskQueryNormalizedSortSchema: Schema<TaskQueryNormalizedSort> = Schema.union({

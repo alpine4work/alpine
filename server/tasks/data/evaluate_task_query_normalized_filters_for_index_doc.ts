@@ -195,9 +195,10 @@ export function evaluateTaskQueryNormalizedFiltersForIndexDoc(
 
     if (
         filters.notepadPageFilter !== undefined &&
-        !task.notepadPages.raw.positionById.has(
-            `${filters.notepadPageFilter.accountId}-${filters.notepadPageFilter.notepadPageId}`,
-        )
+        (task.creator.accountId !== filters.notepadPageFilter.accountId ||
+            !task.notepadPages.raw.positionById.has(
+                `${filters.notepadPageFilter.accountId}-${filters.notepadPageFilter.notepadPageId}`,
+            ))
     ) {
         return false;
     }

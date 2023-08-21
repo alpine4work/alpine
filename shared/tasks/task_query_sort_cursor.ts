@@ -86,7 +86,7 @@ export function compareTaskQuerySortCursors(
 
                 let comparison = value1.length - value2.length;
                 if (comparison !== 0) {
-                    if (direction !== "Ascending") comparison = -comparison;
+                    if (missing === "Last") comparison = -comparison;
                     return comparison;
                 }
                 break;

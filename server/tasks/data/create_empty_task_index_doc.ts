@@ -33,7 +33,7 @@ export function createEmptyTaskIndexDoc(
         rawUndeletedTime: null,
         parent: {
             taskId: new TaskParentTaskIdRegister(null, actionTime),
-            position: new TaskPositionRegister(
+            rawPosition: new TaskPositionRegister(
                 {orderTime: actionTime, orderKey: initialOrderKey},
                 actionTime,
             ),

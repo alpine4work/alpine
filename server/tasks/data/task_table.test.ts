@@ -1,5 +1,6 @@
-import {CalendarDate} from "@internationalized/date";
+import {CalendarDate, parseAbsolute, toCalendarDate} from "@internationalized/date";
 import {addHours} from "date-fns";
+import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
     TestSessionItem,
@@ -7,9 +8,11 @@ import {
 } from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {getSpacesTableForTest} from "~/server/spaces/spaces_table.js";
+import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {
+    authorizeTaskQueryAccess,
     commitTaskActionTransaction,
     commitTaskActionTransactionBeforeExecuteTestCheckpoint,
 } from "~/server/tasks/data/task_table.js";
@@ -21,6 +24,7 @@ import {
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {
     HybridLogicalClock,
@@ -37,6 +41,19 @@ import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
+import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
+import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
+import {
+    TaskQueryNormalizedFilters,
+    assertNonEmptyReadonlyMap,
+    defaultTaskQueryNormalizedFilters,
+    normalizeTaskQueryFilters,
+} from "~/shared/tasks/task_query_normalized_filters.js";
+import {
+    TaskQueryNormalizedSort,
+    normalizeTaskQuerySorts,
+} from "~/shared/tasks/task_query_normalized_sort.js";
+import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {wordTaskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_test_scenarios.js";
 
@@ -44,6 +61,36 @@ const context = createTestContext();
 
 // Old style tests shadow the `context` variable and add some modules.
 const baseContext = context;
+
+function testAuthorizeTaskQueryAccess(
+    context: ServerSessionActionContext,
+    options?: {
+        filters?: ReadonlyArray<TaskQueryFilter> | TaskQueryNormalizedFilters;
+        sorts?: ReadonlyArray<TaskQuerySort> | ReadonlyArray<TaskQueryNormalizedSort>;
+    },
+) {
+    const evaluationContext: TaskQueryEvaluationContext = {
+        currentAccountId: context.actor.getAccountId(),
+        currentDate: toCalendarDate(
+            parseAbsolute(testClock.nowDate().toISOString(), defaultTimeZone),
+        ),
+    };
+
+    const filters = options?.filters
+        ? isReadonlyArray(options.filters)
+            ? normalizeTaskQueryFilters(options.filters, evaluationContext)
+            : ({type: "Possible", normalizedFilters: options.filters} as const)
+        : normalizeTaskQueryFilters([], evaluationContext);
+
+    if (filters.type === "Impossible") {
+        throw new InvalidArgumentError("Impossible filters");
+    }
+
+    return authorizeTaskQueryAccess(context, {
+        filters: filters.normalizedFilters,
+        sorts: normalizeTaskQuerySorts(options?.sorts ?? []),
+    });
+}
 
 describe("old style", () => {
     const context = {
@@ -12230,4 +12277,1226 @@ test("task assignee can update the task", async () => {
     await task.updateAssignee(session1, null);
 
     await expect(task.updatePriority(session2, "Medium")).rejects.toThrow(PermissionDeniedError);
+});
+
+test("can't authorize query with no filters", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    await expect(testAuthorizeTaskQueryAccess(session.action())).rejects.toThrow(
+        new PermissionDeniedError(
+            "Query may reveal tasks the session account is not allowed to see",
+        ),
+    );
+});
+
+test("authorizes a query with creator filter", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    await testAuthorizeTaskQueryAccess(session.action(), {
+        filters: [
+            {type: "Creator", operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]}},
+        ],
+    });
+
+    await testAuthorizeTaskQueryAccess(session.action(), {
+        filters: [
+            {
+                type: "Creator",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "Account", accountId: session.account.id}],
+                },
+            },
+        ],
+    });
+});
+
+test("doesn't authorize a query that only excludes creator in filter", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session.action(), {
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {type: "NoneOf", accounts: [{type: "CurrentAccount"}]},
+                },
+            ],
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "Query may reveal tasks the session account is not allowed to see",
+        ),
+    );
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session.action(), {
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {
+                        type: "NoneOf",
+                        accounts: [{type: "Account", accountId: session.account.id}],
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "Query may reveal tasks the session account is not allowed to see",
+        ),
+    );
+});
+
+test("can't authorize a query with other accounts in creator filter", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const otherSession = await space.createSession();
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session.action(), {
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [
+                            {type: "CurrentAccount"},
+                            {type: "Account", accountId: otherSession.account.id},
+                        ],
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "Query may reveal tasks the session account is not allowed to see",
+        ),
+    );
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session.action(), {
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [
+                            {type: "Account", accountId: session.account.id},
+                            {type: "Account", accountId: otherSession.account.id},
+                        ],
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "Query may reveal tasks the session account is not allowed to see",
+        ),
+    );
+});
+
+test("can't authorize a query with missing creator filter", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session.action(), {
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "MissingAccount"}],
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "Query may reveal tasks the session account is not allowed to see",
+        ),
+    );
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session.action(), {
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "CurrentAccount"}, {type: "MissingAccount"}],
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "Query may reveal tasks the session account is not allowed to see",
+        ),
+    );
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session.action(), {
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [
+                            {type: "Account", accountId: session.account.id},
+                            {type: "MissingAccount"},
+                        ],
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "Query may reveal tasks the session account is not allowed to see",
+        ),
+    );
+});
+
+test("authorizes a query with assignee filter", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    await testAuthorizeTaskQueryAccess(session.action(), {
+        filters: [
+            {type: "Assignee", operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]}},
+        ],
+    });
+
+    await testAuthorizeTaskQueryAccess(session.action(), {
+        filters: [
+            {
+                type: "Assignee",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "Account", accountId: session.account.id}],
+                },
+            },
+        ],
+    });
+});
+
+test("doesn't authorize a query that only excludes assignee in filter", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session.action(), {
+            filters: [
+                {
+                    type: "Assignee",
+                    operation: {type: "NoneOf", accounts: [{type: "CurrentAccount"}]},
+                },
+            ],
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "Query may reveal tasks the session account is not allowed to see",
+        ),
+    );
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session.action(), {
+            filters: [
+                {
+                    type: "Assignee",
+                    operation: {
+                        type: "NoneOf",
+                        accounts: [{type: "Account", accountId: session.account.id}],
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "Query may reveal tasks the session account is not allowed to see",
+        ),
+    );
+});
+
+test("can't authorize a query with other accounts in assignee filter", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const otherSession = await space.createSession();
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session.action(), {
+            filters: [
+                {
+                    type: "Assignee",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [
+                            {type: "CurrentAccount"},
+                            {type: "Account", accountId: otherSession.account.id},
+                        ],
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "Query may reveal tasks the session account is not allowed to see",
+        ),
+    );
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session.action(), {
+            filters: [
+                {
+                    type: "Assignee",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [
+                            {type: "Account", accountId: session.account.id},
+                            {type: "Account", accountId: otherSession.account.id},
+                        ],
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "Query may reveal tasks the session account is not allowed to see",
+        ),
+    );
+});
+
+test("can't authorize a query with missing assignee filter", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session.action(), {
+            filters: [
+                {
+                    type: "Assignee",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "MissingAccount"}],
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "Query may reveal tasks the session account is not allowed to see",
+        ),
+    );
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session.action(), {
+            filters: [
+                {
+                    type: "Assignee",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "CurrentAccount"}, {type: "MissingAccount"}],
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "Query may reveal tasks the session account is not allowed to see",
+        ),
+    );
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session.action(), {
+            filters: [
+                {
+                    type: "Assignee",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [
+                            {type: "Account", accountId: session.account.id},
+                            {type: "MissingAccount"},
+                        ],
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "Query may reveal tasks the session account is not allowed to see",
+        ),
+    );
+});
+
+test("can authorize a query with notepad page filter", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    await testAuthorizeTaskQueryAccess(session.action(), {
+        filters: {
+            ...defaultTaskQueryNormalizedFilters,
+            notepadPageFilter: {
+                accountId: session.account.id,
+                notepadPageId: generateTaskNotepadPageId(),
+            },
+        },
+    });
+});
+
+test("can't authorize a query with other account's notepad page filter", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session1.action(), {
+            filters: {
+                ...defaultTaskQueryNormalizedFilters,
+                notepadPageFilter: {
+                    accountId: session2.account.id,
+                    notepadPageId: generateTaskNotepadPageId(),
+                },
+            },
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "Query may reveal tasks the session account is not allowed to see",
+        ),
+    );
+});
+
+test("can authorize a query with a collection you have access to", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const collection = await TestTaskCollection.createPublic(session1);
+
+    await testAuthorizeTaskQueryAccess(session2.action(), {
+        filters: [
+            {
+                type: "Collections",
+                operation: {
+                    type: "IncludesOneOf",
+                    collectionIds: new Set([collection.id]),
+                },
+            },
+        ],
+    });
+});
+
+test("can't authorize a query with a collection you don't have access to", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const collection = await TestTaskCollection.createPrivate(session1);
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2.action(), {
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError('Actor does not have "View" access level to task collection'),
+    );
+});
+
+test("can't authorize an excludes all of query with a collection you have access to", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const collection = await TestTaskCollection.createPublic(session1);
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2.action(), {
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "ExcludesAllOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "Query may reveal tasks the session account is not allowed to see",
+        ),
+    );
+});
+
+test("can't authorize an is empty collection query", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session.action(), {
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IsEmpty",
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "Query may reveal tasks the session account is not allowed to see",
+        ),
+    );
+});
+
+test("can authorize a query with one of three collections you have access to", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const collection1 = await TestTaskCollection.createPublic(session1);
+    const collection2 = await TestTaskCollection.createPublic(session1);
+    const collection3 = await TestTaskCollection.createPublic(session1);
+
+    await testAuthorizeTaskQueryAccess(session2.action(), {
+        filters: [
+            {
+                type: "Collections",
+                operation: {
+                    type: "IncludesOneOf",
+                    collectionIds: new Set([collection1.id, collection2.id, collection3.id]),
+                },
+            },
+        ],
+    });
+});
+
+test("can't authorize a query with one of two collections you have access to and one you don't", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const collection1 = await TestTaskCollection.createPublic(session1);
+    const collection2 = await TestTaskCollection.createPrivate(session1);
+    const collection3 = await TestTaskCollection.createPublic(session1);
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2.action(), {
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection1.id, collection2.id, collection3.id]),
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError('Actor does not have "View" access level to task collection'),
+    );
+});
+
+test("can authorize a query with all of three collections you have access to", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const collection1 = await TestTaskCollection.createPublic(session1);
+    const collection2 = await TestTaskCollection.createPublic(session1);
+    const collection3 = await TestTaskCollection.createPublic(session1);
+
+    await testAuthorizeTaskQueryAccess(session2.action(), {
+        filters: [
+            {
+                type: "Collections",
+                operation: {
+                    type: "IncludesAllOf",
+                    collectionIds: new Set([collection1.id, collection2.id, collection3.id]),
+                },
+            },
+        ],
+    });
+});
+
+test("can't authorize a query with all of two collections you have access to and one you don't", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const collection1 = await TestTaskCollection.createPublic(session1);
+    const collection2 = await TestTaskCollection.createPrivate(session1);
+    const collection3 = await TestTaskCollection.createPublic(session1);
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2.action(), {
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesAllOf",
+                        collectionIds: new Set([collection1.id, collection2.id, collection3.id]),
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError('Actor does not have "View" access level to task collection'),
+    );
+});
+
+test("can't authorize a query with excludes all of three collections you have access to", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const collection1 = await TestTaskCollection.createPublic(session1);
+    const collection2 = await TestTaskCollection.createPublic(session1);
+    const collection3 = await TestTaskCollection.createPublic(session1);
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2.action(), {
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "ExcludesAllOf",
+                        collectionIds: new Set([collection1.id, collection2.id, collection3.id]),
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "Query may reveal tasks the session account is not allowed to see",
+        ),
+    );
+});
+
+test("can't authorize a query with excludes all of two collections you have access to and one you don't", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const collection1 = await TestTaskCollection.createPublic(session1);
+    const collection2 = await TestTaskCollection.createPrivate(session1);
+    const collection3 = await TestTaskCollection.createPublic(session1);
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2.action(), {
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "ExcludesAllOf",
+                        collectionIds: new Set([collection1.id, collection2.id, collection3.id]),
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError('Actor does not have "View" access level to task collection'),
+    );
+});
+
+test("can authorize a query when filtering by a collection you don't have access to that's ignored by boolean logic", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const collection1 = await TestTaskCollection.createPublic(session1);
+    const collection2 = await TestTaskCollection.createPrivate(session1);
+    const collection3 = await TestTaskCollection.createPublic(session1);
+
+    await testAuthorizeTaskQueryAccess(session2.action(), {
+        filters: [
+            {
+                type: "Collections",
+                operation: {
+                    type: "IncludesOneOf",
+                    collectionIds: new Set([collection1.id, collection2.id, collection3.id]),
+                },
+            },
+            {
+                type: "Collections",
+                operation: {
+                    type: "IncludesOneOf",
+                    collectionIds: new Set([collection1.id, collection3.id]),
+                },
+            },
+        ],
+    });
+
+    await testAuthorizeTaskQueryAccess(session2.action(), {
+        filters: [
+            {
+                type: "Collections",
+                operation: {
+                    type: "IncludesOneOf",
+                    collectionIds: new Set([collection1.id, collection2.id, collection3.id]),
+                },
+            },
+            {
+                type: "Collections",
+                operation: {
+                    type: "IncludesAllOf",
+                    collectionIds: new Set([collection1.id, collection3.id]),
+                },
+            },
+        ],
+    });
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2.action(), {
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesAllOf",
+                        collectionIds: new Set([collection1.id, collection2.id]),
+                    },
+                },
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesAllOf",
+                        collectionIds: new Set([collection1.id, collection3.id]),
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError('Actor does not have "View" access level to task collection'),
+    );
+});
+
+test("can't authorize is empty collection filter with an accessible collection filter", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const collection = await TestTaskCollection.createPublic(session1);
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2.action(), {
+            filters: {
+                ...defaultTaskQueryNormalizedFilters,
+                collectionsFilter: [
+                    assertNonEmptyReadonlyMap(
+                        new Map<TaskCollectionId | "IsEmpty", boolean>([
+                            ["IsEmpty", false],
+                            [collection.id, false],
+                        ]),
+                    ),
+                ],
+            },
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "Query may reveal tasks the session account is not allowed to see",
+        ),
+    );
+
+    // This is an impossible filter which will return no results.
+    await testAuthorizeTaskQueryAccess(session2.action(), {
+        filters: {
+            ...defaultTaskQueryNormalizedFilters,
+            collectionsFilter: [
+                assertNonEmptyReadonlyMap(
+                    new Map<TaskCollectionId | "IsEmpty", boolean>([["IsEmpty", false]]),
+                ),
+                assertNonEmptyReadonlyMap(
+                    new Map<TaskCollectionId | "IsEmpty", boolean>([[collection.id, false]]),
+                ),
+            ],
+        },
+    });
+});
+
+test("can authorize a query when filtering by a collection filter merged by boolean logic", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const collection1 = await TestTaskCollection.createPublic(session1);
+    const collection2 = await TestTaskCollection.createPublic(session1);
+    const collection3 = await TestTaskCollection.createPublic(session1);
+
+    await testAuthorizeTaskQueryAccess(session2.action(), {
+        filters: [
+            {
+                type: "Collections",
+                operation: {
+                    type: "IncludesAllOf",
+                    collectionIds: new Set([collection1.id, collection2.id]),
+                },
+            },
+            {
+                type: "Collections",
+                operation: {
+                    type: "IncludesAllOf",
+                    collectionIds: new Set([collection1.id, collection3.id]),
+                },
+            },
+        ],
+    });
+});
+
+test("can authorize an excludes collections query when with a passing filter", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const collection1 = await TestTaskCollection.createPublic(session1);
+    const collection2 = await TestTaskCollection.createPublic(session1);
+
+    await testAuthorizeTaskQueryAccess(session2.action(), {
+        filters: [
+            {
+                type: "Collections",
+                operation: {
+                    type: "IncludesAllOf",
+                    collectionIds: new Set([collection1.id]),
+                },
+            },
+            {
+                type: "Collections",
+                operation: {
+                    type: "ExcludesAllOf",
+                    collectionIds: new Set([collection2.id]),
+                },
+            },
+        ],
+    });
+
+    await testAuthorizeTaskQueryAccess(session2.action(), {
+        filters: [
+            {
+                type: "Creator",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "CurrentAccount"}],
+                },
+            },
+            {
+                type: "Collections",
+                operation: {
+                    type: "ExcludesAllOf",
+                    collectionIds: new Set([collection2.id]),
+                },
+            },
+        ],
+    });
+});
+
+test("can authorize a query with a parent filter for a task you have access to", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const collection = await TestTaskCollection.createPublic(session1);
+    const task = await TestTask.create(session1);
+
+    await task.addCollection(session1, collection);
+
+    await testAuthorizeTaskQueryAccess(session2.action(), {
+        filters: {
+            ...defaultTaskQueryNormalizedFilters,
+            parentFilter: {
+                parentTaskId: task.id,
+            },
+        },
+    });
+});
+
+test("can't authorize a query with a parent filter for a task you don't have access to", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const collection = await TestTaskCollection.createPrivate(session1);
+    const task = await TestTask.create(session1);
+
+    await task.addCollection(session1, collection);
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2.action(), {
+            filters: {
+                ...defaultTaskQueryNormalizedFilters,
+                parentFilter: {
+                    parentTaskId: task.id,
+                },
+            },
+        }),
+    ).rejects.toThrow(new PermissionDeniedError('Actor does not have "View" access level to task'));
+});
+
+test("can authorize a query with a parent filter for a task you have access to transitively", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const collection = await TestTaskCollection.createPublic(session1);
+    const task1 = await TestTask.create(session1);
+    const task2 = await TestTask.create(session1);
+
+    await task1.addCollection(session1, collection);
+    await task2.updateParentTask(session1, task1);
+
+    await testAuthorizeTaskQueryAccess(session2.action(), {
+        filters: {
+            ...defaultTaskQueryNormalizedFilters,
+            parentFilter: {
+                parentTaskId: task2.id,
+            },
+        },
+    });
+});
+
+test("can't authorize a query with a parent filter for a task you don't have access to transitively", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const collection = await TestTaskCollection.createPrivate(session1);
+    const task1 = await TestTask.create(session1);
+    const task2 = await TestTask.create(session1);
+
+    await task1.addCollection(session1, collection);
+    await task2.updateParentTask(session1, task1);
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2.action(), {
+            filters: {
+                ...defaultTaskQueryNormalizedFilters,
+                parentFilter: {
+                    parentTaskId: task2.id,
+                },
+            },
+        }),
+    ).rejects.toThrow(new PermissionDeniedError('Actor does not have "View" access level to task'));
+});
+
+test("can't authorize a query with a parent filter for a deleted task", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const collection = await TestTaskCollection.createPublic(session1);
+    const task = await TestTask.create(session1);
+
+    await task.addCollection(session1, collection);
+
+    await testAuthorizeTaskQueryAccess(session2.action(), {
+        filters: {
+            ...defaultTaskQueryNormalizedFilters,
+            parentFilter: {
+                parentTaskId: task.id,
+            },
+        },
+    });
+
+    await task.delete(session1);
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2.action(), {
+            filters: {
+                ...defaultTaskQueryNormalizedFilters,
+                parentFilter: {
+                    parentTaskId: task.id,
+                },
+            },
+        }),
+    ).rejects.toThrow(new PermissionDeniedError('Actor does not have "View" access level to task'));
+
+    await task.undelete(session1);
+
+    await testAuthorizeTaskQueryAccess(session2.action(), {
+        filters: {
+            ...defaultTaskQueryNormalizedFilters,
+            parentFilter: {
+                parentTaskId: task.id,
+            },
+        },
+    });
+});
+
+test("must have a parent filter to sort by parent position", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const task = await TestTask.create(session);
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session.action(), {
+            sorts: [{type: "ParentPosition", direction: "Ascending", missing: "Last"}],
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError("Must filter by a parent task to sort by parent position"),
+    );
+
+    await testAuthorizeTaskQueryAccess(session.action(), {
+        filters: {
+            ...defaultTaskQueryNormalizedFilters,
+            parentFilter: {
+                parentTaskId: task.id,
+            },
+        },
+        sorts: [{type: "ParentPosition", direction: "Ascending", missing: "Last"}],
+    });
+});
+
+test("must be allowed to access collection to sort by collection position", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const collection1 = await TestTaskCollection.createPublic(session1);
+    const collection2 = await TestTaskCollection.createPrivate(session1);
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2.action(), {
+            sorts: [
+                {
+                    type: "CollectionPosition",
+                    collectionId: collection1.id,
+                    direction: "Ascending",
+                    missing: "Last",
+                },
+            ],
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "Query may reveal tasks the session account is not allowed to see",
+        ),
+    );
+
+    await testAuthorizeTaskQueryAccess(session2.action(), {
+        filters: [
+            {
+                type: "Creator",
+                operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
+            },
+        ],
+        sorts: [
+            {
+                type: "CollectionPosition",
+                collectionId: collection1.id,
+                direction: "Ascending",
+                missing: "Last",
+            },
+        ],
+    });
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2.action(), {
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
+                },
+            ],
+            sorts: [
+                {
+                    type: "CollectionPosition",
+                    collectionId: collection2.id,
+                    direction: "Ascending",
+                    missing: "Last",
+                },
+            ],
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError('Actor does not have "View" access level to task collection'),
+    );
+});
+
+test("must be allowed to access collection to sort by collection position with collection filter", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const collection1 = await TestTaskCollection.createPublic(session1);
+    const collection2 = await TestTaskCollection.createPrivate(session1);
+
+    await testAuthorizeTaskQueryAccess(session2.action(), {
+        filters: [
+            {
+                type: "Collections",
+                operation: {
+                    type: "IncludesOneOf",
+                    collectionIds: new Set([collection1.id]),
+                },
+            },
+        ],
+        sorts: [
+            {
+                type: "CollectionPosition",
+                collectionId: collection1.id,
+                direction: "Ascending",
+                missing: "Last",
+            },
+        ],
+    });
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2.action(), {
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection1.id]),
+                    },
+                },
+            ],
+            sorts: [
+                {
+                    type: "CollectionPosition",
+                    collectionId: collection2.id,
+                    direction: "Ascending",
+                    missing: "Last",
+                },
+            ],
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError('Actor does not have "View" access level to task collection'),
+    );
+});
+
+test("can only sort by your notepad page positions", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session1.action(), {
+            sorts: [
+                {
+                    type: "NotepadPagePosition",
+                    accountId: session1.account.id,
+                    notepadPageId: generateTaskNotepadPageId(),
+                    direction: "Ascending",
+                    missing: "Last",
+                },
+            ],
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "Query may reveal tasks the session account is not allowed to see",
+        ),
+    );
+
+    await testAuthorizeTaskQueryAccess(session1.action(), {
+        filters: [
+            {
+                type: "Creator",
+                operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
+            },
+        ],
+        sorts: [
+            {
+                type: "NotepadPagePosition",
+                accountId: session1.account.id,
+                notepadPageId: generateTaskNotepadPageId(),
+                direction: "Ascending",
+                missing: "Last",
+            },
+        ],
+    });
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2.action(), {
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
+                },
+            ],
+            sorts: [
+                {
+                    type: "NotepadPagePosition",
+                    accountId: session1.account.id,
+                    notepadPageId: generateTaskNotepadPageId(),
+                    direction: "Ascending",
+                    missing: "Last",
+                },
+            ],
+        }),
+    ).rejects.toThrow(new PermissionDeniedError("Can't sort by notepad page that's not yours"));
+});
+
+test("must filter by assignee to sort by active position", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session.action(), {
+            sorts: [
+                {
+                    type: "AssigneeStatusActivePosition",
+                    direction: "Ascending",
+                    missing: "Last",
+                },
+            ],
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "Must filter assignee to session account to sort by active position",
+        ),
+    );
+
+    await testAuthorizeTaskQueryAccess(session.action(), {
+        filters: [
+            {
+                type: "Assignee",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "CurrentAccount"}],
+                },
+            },
+        ],
+        sorts: [
+            {
+                type: "AssigneeStatusActivePosition",
+                direction: "Ascending",
+                missing: "Last",
+            },
+        ],
+    });
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session.action(), {
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
+                },
+            ],
+            sorts: [
+                {
+                    type: "AssigneeStatusActivePosition",
+                    direction: "Ascending",
+                    missing: "Last",
+                },
+            ],
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "Must filter assignee to session account to sort by active position",
+        ),
+    );
+
+    await testAuthorizeTaskQueryAccess(session.action(), {
+        filters: [
+            {
+                type: "Creator",
+                operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
+            },
+            {
+                type: "Assignee",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "CurrentAccount"}],
+                },
+            },
+        ],
+        sorts: [
+            {
+                type: "AssigneeStatusActivePosition",
+                direction: "Ascending",
+                missing: "Last",
+            },
+        ],
+    });
 });

@@ -130,9 +130,30 @@ const TaskIndexParentType = OpensearchIndexObjectType.new({
     fields: {
         taskId: createCrdtRegisterOpensearchType(
             TaskParentTaskIdRegister,
-            new OpensearchIndexKeywordType({isFilterable: true}).validate<TaskId>(isId).nullable(),
+            new OpensearchIndexKeywordType({isFilterable: true, isSortable: true})
+                .validate<TaskId>(isId)
+                .nullable(),
         ),
-        position: createCrdtRegisterOpensearchType(TaskPositionRegister, TaskIndexPositionType),
+        rawPosition: new OpensearchIndexIgnoredObjectType(
+            Schema.object({
+                value: TaskPositionSchema,
+                version: HybridLogicalTimeSchema,
+            }),
+        ).transform<TaskPositionRegister>({
+            serialize: register => ({value: register.value, version: register.version}),
+            deserialize: register => new TaskPositionRegister(register.value, register.version),
+        }),
+    },
+    computed: {
+        fields: {
+            position: createCrdtRegisterOpensearchType(
+                TaskPositionRegister,
+                TaskIndexPositionType,
+            ).nullable(),
+        },
+        compute: ({taskId, rawPosition}) => ({
+            position: taskId.value ? rawPosition : null,
+        }),
     },
 });
 
@@ -299,7 +320,18 @@ const TaskIndexAssigneeType = createCrdtRegisterOpensearchType(
     TaskAssigneeRegister,
     OpensearchIndexObjectType.new({
         fields: {
-            assignee: TaskIndexSortableAccountType,
+            assignee: OpensearchIndexObjectType.new({
+                fields: {
+                    accountId: new OpensearchIndexKeywordType({
+                        isFilterable: true,
+                        isSortable: true,
+                    }).validate<AccountId>(isId),
+                    workingAccountName: new OpensearchIndexKeywordType({isSortable: true}),
+                },
+            }).transform<TaskSortableAccount>({
+                serialize: account => account,
+                deserialize: account => new TaskSortableAccount(account),
+            }),
             assigner: TaskIndexSortableAccountType,
             assignedTime: TaskIndexFilterableTimeType,
         },

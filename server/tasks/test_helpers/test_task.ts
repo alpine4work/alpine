@@ -77,6 +77,36 @@ export class TestTask {
         return task;
     }
 
+    public async delete(session: TestSpaceSession) {
+        const time = testClock.nowLogical();
+
+        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+            {
+                type: "UpdateTask",
+                time,
+                taskId: this.id,
+                taskAction: {
+                    type: "Delete",
+                },
+            },
+        ]);
+    }
+
+    public async undelete(session: TestSpaceSession) {
+        const time = testClock.nowLogical();
+
+        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+            {
+                type: "UpdateTask",
+                time,
+                taskId: this.id,
+                taskAction: {
+                    type: "Undelete",
+                },
+            },
+        ]);
+    }
+
     public async updateStatus(session: TestSpaceSession, statusType: TaskStatus["type"]) {
         const time = testClock.nowLogical();
 
@@ -100,8 +130,6 @@ export class TestTask {
                 },
             },
         ]);
-
-        return this;
     }
 
     public async updateAssignee(
@@ -129,8 +157,6 @@ export class TestTask {
                 },
             },
         ]);
-
-        return this;
     }
 
     public async updatePriority(
@@ -149,8 +175,6 @@ export class TestTask {
                 },
             },
         ]);
-
-        return this;
     }
 
     public async addCollection(session: TestSpaceSession, collection: TestTaskCollection) {
@@ -168,8 +192,6 @@ export class TestTask {
                 },
             },
         ]);
-
-        return this;
     }
 
     public async removeCollection(session: TestSpaceSession, collection: TestTaskCollection) {
@@ -186,7 +208,21 @@ export class TestTask {
                 },
             },
         ]);
+    }
 
-        return this;
+    public async updateParentTask(session: TestSpaceSession, task: TestTask) {
+        const time = testClock.nowLogical();
+
+        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+            {
+                type: "UpdateTask",
+                time,
+                taskId: this.id,
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId: task.id,
+                },
+            },
+        ]);
     }
 }

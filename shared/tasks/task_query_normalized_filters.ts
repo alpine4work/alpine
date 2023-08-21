@@ -46,7 +46,7 @@ function isNonEmptyReadonlyMap<K, V>(map: ReadonlyMap<K, V>): map is NonEmptyRea
     return map.size > 0;
 }
 
-function assertNonEmptyReadonlyMap<K, V>(map: ReadonlyMap<K, V>): NonEmptyReadonlyMap<K, V> {
+export function assertNonEmptyReadonlyMap<K, V>(map: ReadonlyMap<K, V>): NonEmptyReadonlyMap<K, V> {
     assert(isNonEmptyReadonlyMap(map));
     return map;
 }

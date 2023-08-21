@@ -1,4 +1,4 @@
-import {createCrdtRegister} from "~/shared/crdt/crdt_register.js";
+import {CrdtRegister, createCrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
@@ -29,3 +29,4 @@ export const TaskPositionSchema = Schema.object({
 });
 
 export const TaskPositionRegister = createCrdtRegister(TaskPositionSchema);
+export type TaskPositionRegister = CrdtRegister<TaskPosition>;

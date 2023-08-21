@@ -1,5 +1,4 @@
 import {
-    ServerActionContext,
     ServerSessionActionContext,
     ServerSessionActionContextModules,
 } from "~/server/context/server_action_context.js";
@@ -62,6 +61,8 @@ import {
 } from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskNotepadPageIdCompressedSetSchema} from "~/shared/tasks/task_notepad_page_id.js";
+import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
+import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskStatus} from "~/shared/tasks/task_status.js";
 
 /**
@@ -827,7 +828,7 @@ class TaskActionTransactionCommitState {
         this._actorNotepadItemTransactionEntry = notepadItem;
     }
 
-    public evaluateTaskCollectionAccessPolicy(
+    public evaluateCollectionAccessPolicy(
         accessPolicy: TaskCollectionAccessPolicy,
         expectedAccessLevel: TaskCollectionAccessLevel,
     ) {
@@ -835,8 +836,52 @@ class TaskActionTransactionCommitState {
             this._context,
             this._spaceId,
             accessPolicy,
-            this._context.actor.getAccountId(),
             expectedAccessLevel,
+        );
+    }
+
+    public async authorizeCollectionAccess(
+        collectionId: TaskCollectionId,
+        expectedAccessLevel: TaskCollectionAccessLevel,
+    ) {
+        const collectionItem = await this.getCollectionItem(collectionId);
+
+        return authorizeTaskCollectionItemAccess(
+            this._context,
+            collectionItem,
+            expectedAccessLevel,
+        );
+    }
+
+    public async authorizeCollectionAccessAllowingDeletedCollections(
+        collectionId: TaskCollectionId,
+        expectedAccessLevel: TaskCollectionAccessLevel,
+    ) {
+        const collectionItem = await this.getCollectionItem(collectionId);
+
+        return authorizeTaskCollectionItemAccessAllowingDeletedCollections(
+            this._context,
+            collectionItem,
+            expectedAccessLevel,
+        );
+    }
+
+    public async authorizeTaskItemAccess(
+        taskItem: TaskEssentialAttributesItem,
+        expectedAccessLevel: TaskCollectionAccessLevel,
+    ) {
+        return authorizeTaskItemAccess(this._context, taskItem, expectedAccessLevel, this);
+    }
+
+    public async authorizeTaskItemAccessAllowingDeletedTasks(
+        taskItem: TaskEssentialAttributesItem,
+        expectedAccessLevel: TaskCollectionAccessLevel,
+    ) {
+        return authorizeTaskItemAccessAllowingDeletedTasks(
+            this._context,
+            taskItem,
+            expectedAccessLevel,
+            this,
         );
     }
 }
@@ -849,89 +894,6 @@ async function actuallyCommitTaskActionTransaction(
     spaceId: SpaceId,
     actionTransaction: ReadonlyArray<TaskAction>,
 ) {
-    const authorizeTaskItemAccess = async (
-        taskItem: TaskEssentialAttributesItem,
-        expectedAccessLevel: TaskCollectionAccessLevel,
-    ): Promise<void> => {
-        // The task creator has edit access level on their own task.
-        if (
-            state.getActorAccountId() === taskItem.creatorId &&
-            hasTaskCollectionAccessLevel("Edit", expectedAccessLevel)
-        ) {
-            return;
-        }
-
-        // The task assignee has edit access level on their own task.
-        if (
-            taskItem.assigneeId.value &&
-            state.getActorAccountId() === taskItem.assigneeId.value &&
-            hasTaskCollectionAccessLevel("Edit", expectedAccessLevel)
-        ) {
-            return;
-        }
-
-        // An array of `TaskCollectionId`s that authorize access to the task or `null`
-        // if no `TaskCollectionId`s authorize access to the task.
-        const authorizingCollectionItems = await runAllPromises(
-            taskItem.collections.getArray().map(async ({collectionId}) => {
-                const collectionItem = await state.getCollectionItem(collectionId);
-
-                // Deleted collections don't grant any access.
-                if (collectionItem.deletedTime) return null;
-
-                const hasAccess = await state.evaluateTaskCollectionAccessPolicy(
-                    collectionItem.accessPolicy.value,
-                    expectedAccessLevel,
-                );
-
-                return hasAccess ? collectionItem : null;
-            }),
-        );
-
-        // We evaluate the access policies for all collections on a task but we only
-        // need one passing access policy.
-        if (authorizingCollectionItems.some(isNonNullable)) return;
-
-        if (taskItem.parentTaskId.value) {
-            const parentTaskItem = await state.getTaskItem(taskItem.parentTaskId.value);
-
-            // Parent tasks implicitly grant access to all of their child tasks. If we have
-            // a parent task that is not deleted then check it before throwing a permission
-            // denied error.
-            if (!parentTaskItem.deletedTime) {
-                return authorizeTaskItemAccess(parentTaskItem, expectedAccessLevel);
-            }
-        }
-
-        throw new PermissionDeniedError(
-            quote`Actor does not have ${expectedAccessLevel} access level to task`,
-        );
-    };
-
-    const authorizeCollectionAccess = async (
-        collectionId: TaskCollectionId,
-        expectedAccessLevel: TaskCollectionAccessLevel,
-    ): Promise<void> => {
-        const collectionItem = await state.getCollectionItem(collectionId);
-
-        if (collectionItem.deletedTime) {
-            throw new PermissionDeniedError(
-                quote`Actor does not have ${expectedAccessLevel} access level to task collection`,
-            );
-        }
-
-        const hasAccess = await state.evaluateTaskCollectionAccessPolicy(
-            collectionItem.accessPolicy.value,
-            expectedAccessLevel,
-        );
-
-        if (!hasAccess) {
-            throw new PermissionDeniedError(
-                quote`Actor does not have ${expectedAccessLevel} access level to task collection`,
-            );
-        }
-    };
-
     for (const action of actionTransaction) {
         // Make sure our action time isn't too far in the future. That would mean
         // future updates all need to use the `ticks` property of `HybridLogicalTime`
@@ -977,7 +939,7 @@ async function actuallyCommitTaskActionTransaction(
                         if (!taskItem.deletedTime)
                             throw new FailedPreconditionError("Expected task to be deleted");
 
-                        await authorizeTaskItemAccess(taskItem, "Edit");
+                        await state.authorizeTaskItemAccessAllowingDeletedTasks(taskItem, "Edit");
 
                         if (compareHybridLogicalTimes(action.time, taskItem.deletedTime) <= 0) {
                             throw new FailedPreconditionError(
@@ -1032,7 +994,7 @@ async function actuallyCommitTaskActionTransaction(
                         if (taskItem.deletedTime)
                             throw new FailedPreconditionError("Task was deleted");
 
-                        await authorizeTaskItemAccess(taskItem, "Edit");
+                        await state.authorizeTaskItemAccess(taskItem, "Edit");
 
                         switch (taskAction.type) {
                             case "Delete": {
@@ -1083,7 +1045,10 @@ async function actuallyCommitTaskActionTransaction(
 
                                         // Make sure we have edit access to the parent task in order to make this task
                                         // a child of it.
-                                        await authorizeTaskItemAccess(newParentTaskItem, "Edit");
+                                        await state.authorizeTaskItemAccess(
+                                            newParentTaskItem,
+                                            "Edit",
+                                        );
 
                                         const seenTaskIds = new Set([
                                             taskId,
@@ -1268,7 +1233,7 @@ async function actuallyCommitTaskActionTransaction(
 
                                 // Make sure we have edit access to the parent task. The order key is more-so a
                                 // property of the parent task than it is a property of our task.
-                                await authorizeTaskItemAccess(parentTaskItem, "Edit");
+                                await state.authorizeTaskItemAccess(parentTaskItem, "Edit");
                                 break;
                             }
                             case "UpdateChildrenCounts": {
@@ -1283,7 +1248,10 @@ async function actuallyCommitTaskActionTransaction(
                             case "AddCollection": {
                                 // If you have collection edit access then you implicitly also have task edit
                                 // access.
-                                await authorizeCollectionAccess(taskAction.collectionId, "Edit");
+                                await state.authorizeCollectionAccess(
+                                    taskAction.collectionId,
+                                    "Edit",
+                                );
 
                                 state.updateTaskItem({
                                     ...taskItem,
@@ -1299,7 +1267,10 @@ async function actuallyCommitTaskActionTransaction(
                             case "RemoveCollection": {
                                 // If you have collection edit access then you implicitly also have task edit
                                 // access.
-                                await authorizeCollectionAccess(taskAction.collectionId, "Edit");
+                                await state.authorizeCollectionAccess(
+                                    taskAction.collectionId,
+                                    "Edit",
+                                );
 
                                 state.updateTaskItem({
                                     ...taskItem,
@@ -1324,7 +1295,10 @@ async function actuallyCommitTaskActionTransaction(
 
                                 // If you have collection edit access then you implicitly also have task edit
                                 // access.
-                                await authorizeCollectionAccess(taskAction.collectionId, "Edit");
+                                await state.authorizeCollectionAccess(
+                                    taskAction.collectionId,
+                                    "Edit",
+                                );
                                 break;
                             }
                             case "UpdateNotepadPagePosition": {
@@ -1544,7 +1518,7 @@ async function actuallyCommitTaskActionTransaction(
                         };
 
                         if (
-                            !(await state.evaluateTaskCollectionAccessPolicy(
+                            !(await state.evaluateCollectionAccessPolicy(
                                 newCollectionItem.accessPolicy.value,
                                 "Manage",
                             ))
@@ -1563,16 +1537,10 @@ async function actuallyCommitTaskActionTransaction(
                         if (!collectionItem.deletedTime)
                             throw new FailedPreconditionError("Expected task to be deleted");
 
-                        const hasAccess = await state.evaluateTaskCollectionAccessPolicy(
-                            collectionItem.accessPolicy.value,
+                        await state.authorizeCollectionAccessAllowingDeletedCollections(
+                            collectionId,
                             "Manage",
                         );
-
-                        if (!hasAccess) {
-                            throw new PermissionDeniedError(
-                                quote`Actor does not have "Manage" access level to task collection`,
-                            );
-                        }
 
                         if (
                             compareHybridLogicalTimes(action.time, collectionItem.deletedTime) <= 0
@@ -1607,7 +1575,7 @@ async function actuallyCommitTaskActionTransaction(
                                     );
                                 }
 
-                                await authorizeCollectionAccess(collectionId, "Manage");
+                                await state.authorizeCollectionAccess(collectionId, "Manage");
 
                                 state.updateCollectionItem({
                                     ...collectionItem,
@@ -1616,7 +1584,7 @@ async function actuallyCommitTaskActionTransaction(
                                 break;
                             }
                             case "UpdateName": {
-                                await authorizeCollectionAccess(collectionId, "Manage");
+                                await state.authorizeCollectionAccess(collectionId, "Manage");
                                 break;
                             }
                             case "UpdateAccessPolicy": {
@@ -1637,7 +1605,7 @@ async function actuallyCommitTaskActionTransaction(
                                     );
                                 }
 
-                                await authorizeCollectionAccess(collectionId, "Manage");
+                                await state.authorizeCollectionAccess(collectionId, "Manage");
 
                                 state.updateCollectionItem({
                                     ...collectionItem,
@@ -1682,40 +1650,6 @@ async function actuallyCommitTaskActionTransaction(
                 throw exhaustive(action);
         }
     }
-}
-
-/**
- * Evaluates whether the `AccountId` has access to the task collection item at
- * the provided access level.
- *
- * Returns true if the account has access.
- */
-async function evaluateTaskCollectionAccessPolicy(
-    context: ServerActionContext,
-    spaceId: SpaceId,
-    accessPolicy: TaskCollectionAccessPolicy,
-    accountId: AccountId,
-    expectedAccessLevel: TaskCollectionAccessLevel,
-): Promise<boolean> {
-    if (accessPolicy.defaultGrant) {
-        // If we ever add other default grant types then TypeScript will error here
-        // forcing us to update this code.
-        cast<"Space">(accessPolicy.defaultGrant.type);
-
-        if (
-            (await isAccountMemberOfSpace(context, spaceId, accountId)) &&
-            hasTaskCollectionAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)
-        ) {
-            return true;
-        }
-    }
-
-    const accountGrant = accessPolicy.accountGrantById.get(accountId);
-    if (accountGrant && hasTaskCollectionAccessLevel(accountGrant.level, expectedAccessLevel)) {
-        return true;
-    }
-
-    return false;
 }
 
 export const backfillTaskActionTransactionHistoryTestCounter = new TestCounter<SpaceId>();
@@ -1776,4 +1710,356 @@ export async function backfillTaskActionTransactionHistory(
     }
 
     return actionTransactions;
+}
+
+/**
+ * Evaluates whether the `AccountId` has access to the task collection item at
+ * the provided access level.
+ *
+ * Returns true if the account has access.
+ */
+async function evaluateTaskCollectionAccessPolicy(
+    context: ServerSessionActionContext,
+    spaceId: SpaceId,
+    accessPolicy: TaskCollectionAccessPolicy,
+    expectedAccessLevel: TaskCollectionAccessLevel,
+): Promise<boolean> {
+    if (accessPolicy.defaultGrant) {
+        // If we ever add other default grant types then TypeScript will error here
+        // forcing us to update this code.
+        cast<"Space">(accessPolicy.defaultGrant.type);
+
+        if (
+            (await isAccountMemberOfSpace(context, spaceId, context.actor.getAccountId())) &&
+            hasTaskCollectionAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)
+        ) {
+            return true;
+        }
+    }
+
+    const accountGrant = accessPolicy.accountGrantById.get(context.actor.getAccountId());
+    if (accountGrant && hasTaskCollectionAccessLevel(accountGrant.level, expectedAccessLevel)) {
+        return true;
+    }
+
+    return false;
+}
+
+async function authorizeTaskCollectionItemAccess(
+    context: ServerSessionActionContext,
+    collectionItem: TaskCollectionEssentialAttributesItem,
+    expectedAccessLevel: TaskCollectionAccessLevel,
+) {
+    if (collectionItem.deletedTime) {
+        throw new PermissionDeniedError(
+            quote`Actor does not have ${expectedAccessLevel} access level to task collection`,
+        );
+    }
+
+    await authorizeTaskCollectionItemAccessAllowingDeletedCollections(
+        context,
+        collectionItem,
+        expectedAccessLevel,
+    );
+}
+
+async function authorizeTaskCollectionItemAccessAllowingDeletedCollections(
+    context: ServerSessionActionContext,
+    collectionItem: TaskCollectionEssentialAttributesItem,
+    expectedAccessLevel: TaskCollectionAccessLevel,
+) {
+    const hasAccess = await evaluateTaskCollectionAccessPolicy(
+        context,
+        collectionItem.spaceId,
+        collectionItem.accessPolicy.value,
+        expectedAccessLevel,
+    );
+
+    if (!hasAccess) {
+        throw new PermissionDeniedError(
+            quote`Actor does not have ${expectedAccessLevel} access level to task collection`,
+        );
+    }
+}
+
+async function authorizeTaskCollectionAccess(
+    context: ServerSessionActionContext,
+    collectionId: TaskCollectionId,
+    expectedAccessLevel: TaskCollectionAccessLevel,
+) {
+    const collectionItem = await TaskTable.getItem(context, {
+        partitionType: "TaskCollection",
+        sortRangeType: "EssentialAttributes",
+        collectionId,
+    });
+
+    await authorizeTaskCollectionItemAccess(context, collectionItem, expectedAccessLevel);
+}
+
+async function authorizeTaskItemAccess(
+    context: ServerSessionActionContext,
+    taskItem: TaskEssentialAttributesItem,
+    expectedAccessLevel: TaskCollectionAccessLevel,
+    loaders: {
+        getTaskItem: (taskId: TaskId) => Promise<TaskEssentialAttributesItem>;
+        getCollectionItem: (
+            taskId: TaskCollectionId,
+        ) => Promise<TaskCollectionEssentialAttributesItem>;
+    },
+) {
+    if (taskItem.deletedTime) {
+        throw new FailedPreconditionError(
+            quote`Actor does not have ${expectedAccessLevel} access level to task`,
+        );
+    }
+
+    await authorizeTaskItemAccessAllowingDeletedTasks(
+        context,
+        taskItem,
+        expectedAccessLevel,
+        loaders,
+    );
+}
+
+async function authorizeTaskItemAccessAllowingDeletedTasks(
+    context: ServerSessionActionContext,
+    taskItem: TaskEssentialAttributesItem,
+    expectedAccessLevel: TaskCollectionAccessLevel,
+    loaders: {
+        getTaskItem: (taskId: TaskId) => Promise<TaskEssentialAttributesItem>;
+        getCollectionItem: (
+            taskId: TaskCollectionId,
+        ) => Promise<TaskCollectionEssentialAttributesItem>;
+    },
+) {
+    // The task creator has edit access level on their own task.
+    if (
+        context.actor.getAccountId() === taskItem.creatorId &&
+        hasTaskCollectionAccessLevel("Edit", expectedAccessLevel)
+    ) {
+        return;
+    }
+
+    // The task assignee has edit access level on their own task.
+    if (
+        taskItem.assigneeId.value &&
+        context.actor.getAccountId() === taskItem.assigneeId.value &&
+        hasTaskCollectionAccessLevel("Edit", expectedAccessLevel)
+    ) {
+        return;
+    }
+
+    // An array of `TaskCollectionId`s that authorize access to the task or `null`
+    // if no `TaskCollectionId`s authorize access to the task.
+    const authorizingCollectionItems = await runAllPromises(
+        taskItem.collections.getArray().map(async ({collectionId}) => {
+            const collectionItem = await loaders.getCollectionItem(collectionId);
+
+            // Deleted collections don't grant any access.
+            if (collectionItem.deletedTime) return null;
+
+            const hasAccess = await evaluateTaskCollectionAccessPolicy(
+                context,
+                collectionItem.spaceId,
+                collectionItem.accessPolicy.value,
+                expectedAccessLevel,
+            );
+
+            return hasAccess ? collectionItem : null;
+        }),
+    );
+
+    // We evaluate the access policies for all collections on a task but we only
+    // need one passing access policy.
+    if (authorizingCollectionItems.some(isNonNullable)) return;
+
+    if (taskItem.parentTaskId.value) {
+        const parentTaskItem = await loaders.getTaskItem(taskItem.parentTaskId.value);
+
+        // Parent tasks implicitly grant access to all of their child tasks. If we have
+        // a parent task that is not deleted then check it before throwing a permission
+        // denied error.
+        if (!parentTaskItem.deletedTime) {
+            return authorizeTaskItemAccess(context, parentTaskItem, expectedAccessLevel, loaders);
+        }
+    }
+
+    throw new PermissionDeniedError(
+        quote`Actor does not have ${expectedAccessLevel} access level to task`,
+    );
+}
+
+async function authorizeTaskAccess(
+    context: ServerSessionActionContext,
+    taskId: TaskId,
+    expectedAccessLevel: TaskCollectionAccessLevel,
+) {
+    const taskItem = await TaskTable.getItem(context, {
+        partitionType: "Task",
+        sortRangeType: "EssentialAttributes",
+        taskId,
+    });
+
+    await authorizeTaskItemAccess(context, taskItem, expectedAccessLevel, {
+        getTaskItem: taskId =>
+            TaskTable.getItem(context, {
+                partitionType: "Task",
+                sortRangeType: "EssentialAttributes",
+                taskId,
+            }),
+        getCollectionItem: collectionId =>
+            TaskTable.getItem(context, {
+                partitionType: "TaskCollection",
+                sortRangeType: "EssentialAttributes",
+                collectionId,
+            }),
+    });
+}
+
+/**
+ * Tests if we are allowed to execute a query with the provided filters and
+ * sorts. Throws an error if unauthorized. If authorized then that means all
+ * tasks in the query are also authorized and we don't need to check each task
+ * individually.
+ *
+ * Consults DynamoDB which is guaranteed to have consistent information
+ * regarding item access. OpenSearch has eventually consistent information.
+ */
+export async function authorizeTaskQueryAccess(
+    context: ServerSessionActionContext,
+    {
+        filters,
+        sorts,
+    }: {
+        filters: TaskQueryNormalizedFilters;
+        sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+    },
+) {
+    let hasAccess = false;
+
+    // Account has edit access to all tasks they created. So authorize if we have
+    // an exclusive creator filter for our session account.
+    if (
+        filters.creatorFilter?.accountIds.size === 1 &&
+        filters.creatorFilter.type === "OneOf" &&
+        filters.creatorFilter.accountIds.has(context.actor.getAccountId())
+    ) {
+        hasAccess = true;
+    }
+
+    // Account has edit access to tasks it is assigned to. So authorize if we have
+    // an exclusive assignee filter for our session account.
+    if (
+        filters.assigneeFilter?.accountIds.size === 1 &&
+        filters.assigneeFilter.type === "OneOf" &&
+        filters.assigneeFilter.accountIds.has(context.actor.getAccountId())
+    ) {
+        hasAccess = true;
+    }
+
+    // You can only add tasks you created to your notepad. So a notepad filter for
+    // an account implies a task creator filter.
+    if (filters.notepadPageFilter?.accountId === context.actor.getAccountId()) {
+        hasAccess = true;
+    }
+
+    await runAllPromiseThunks(
+        async () => {
+            if (!filters.collectionsFilter) return;
+
+            await runAllPromises(
+                filters.collectionsFilter.map(async clause => {
+                    // Make sure we're authorized to view every referenced collection...
+                    await runAllPromises(
+                        Array.from(clause.keys(), async term => {
+                            if (term === "IsEmpty") return;
+                            await authorizeTaskCollectionAccess(context, term, "View");
+                        }),
+                    );
+
+                    // For this filter to grant access, we need to guarantee the query only returns
+                    // tasks that have at least one collection we can view.
+                    //
+                    // A normalized collections filter is in [conjunctive normal form][1]. That
+                    // means if one of the "AND"ed clauses narrows down to only viewable collections
+                    // this filter can grant access. That's what we check here.
+                    //
+                    // [1]: https://en.wikipedia.org/wiki/Conjunctive_normal_form
+                    if (iterableEvery(clause, ([term, not]) => term !== "IsEmpty" && !not)) {
+                        hasAccess = true;
+                    }
+                }),
+            );
+        },
+        async () => {
+            if (!filters.parentFilter) return;
+
+            // View access on the parent task is inherited to child tasks.
+            await authorizeTaskAccess(context, filters.parentFilter.parentTaskId, "View");
+
+            hasAccess = true;
+        },
+        async () => {
+            await runAllPromises(
+                sorts.map(async sort => {
+                    switch (sort.type) {
+                        case "ParentPosition": {
+                            // You are not allowed to sort by parent position unless you are also filtering
+                            // by the parent task. This is because sorting by parent position reveals
+                            // information about the parent task which might not be visible to you.
+                            if (filters.parentFilter) break;
+
+                            throw new PermissionDeniedError(
+                                "Must filter by a parent task to sort by parent position",
+                            );
+                        }
+                        case "CollectionPosition": {
+                            // Optimization: If our filter contains the collection then we will authorize
+                            // view access above.
+                            if (
+                                filters.collectionsFilter?.some(clause =>
+                                    clause.has(sort.collectionId),
+                                )
+                            ) {
+                                break;
+                            }
+
+                            await authorizeTaskCollectionAccess(context, sort.collectionId, "View");
+                            break;
+                        }
+                        case "NotepadPagePosition": {
+                            if (sort.accountId === context.actor.getAccountId()) break;
+
+                            throw new PermissionDeniedError(
+                                "Can't sort by notepad page that's not yours",
+                            );
+                        }
+                        case "AssigneeStatusActivePosition": {
+                            // A task's active position is private to the account whom the task is
+                            // assigned. Only allow sorting by active position when also filtering for
+                            // tasks assigned to you.
+                            if (
+                                filters.assigneeFilter?.accountIds.size === 1 &&
+                                filters.assigneeFilter.accountIds.has(context.actor.getAccountId())
+                            ) {
+                                break;
+                            }
+
+                            throw new PermissionDeniedError(
+                                "Must filter assignee to session account to sort by active position",
+                            );
+                        }
+                        default:
+                            break;
+                    }
+                }),
+            );
+        },
+    );
+
+    if (!hasAccess) {
+        throw new PermissionDeniedError(
+            "Query may reveal tasks the session account is not allowed to see",
+        );
+    }
 }

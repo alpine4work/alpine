@@ -59,14 +59,14 @@ export function applyTaskActionToTaskIndexDoc(
                 version: actionTime,
             });
 
-            const newParentPosition = task.parent.position.apply({
+            const newParentRawPosition = task.parent.rawPosition.apply({
                 value: {orderTime: actionTime, orderKey: initialOrderKey},
                 version: actionTime,
             });
 
             if (
                 newParentTaskId === task.parent.taskId &&
-                newParentPosition === task.parent.position
+                newParentRawPosition === task.parent.rawPosition
             ) {
                 return task;
             }
@@ -75,23 +75,23 @@ export function applyTaskActionToTaskIndexDoc(
                 ...task,
                 parent: {
                     taskId: newParentTaskId,
-                    position: newParentPosition,
+                    rawPosition: newParentRawPosition,
                 },
             };
         }
         case "UpdateParentPosition": {
-            const newParentPosition = task.parent.position.apply({
+            const newParentRawPosition = task.parent.rawPosition.apply({
                 value: action.parentPosition,
                 version: actionTime,
             });
 
-            if (newParentPosition === task.parent.position) return task;
+            if (newParentRawPosition === task.parent.rawPosition) return task;
 
             return {
                 ...task,
                 parent: {
                     taskId: task.parent.taskId,
-                    position: newParentPosition,
+                    rawPosition: newParentRawPosition,
                 },
             };
         }

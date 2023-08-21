@@ -58,7 +58,7 @@ testTaskActionPermutations({
             createdTime: task.createdTime,
             isDeleted: getTaskIndexDocIsDeleted(task),
             parent: task.parent.taskId.value
-                ? {taskId: task.parent.taskId.value, position: task.parent.position.value}
+                ? {taskId: task.parent.taskId.value, position: task.parent.rawPosition.value}
                 : null,
             addedChildTaskCount: task.addedChildTaskCount,
             removedChildTaskCount: task.removedChildTaskCount,

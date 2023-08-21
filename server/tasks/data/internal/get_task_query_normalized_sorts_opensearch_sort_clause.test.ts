@@ -8,8 +8,8 @@ import {
     convertTaskQuerySortCursorToOpensearchCursor,
     getTaskQueryNormalizedSortsOpensearchSortClause,
 } from "~/server/tasks/data/internal/get_task_query_normalized_sorts_opensearch_sort_clause.js";
-import {TaskIndexDoc, TaskIndexDocType} from "~/server/tasks/data/task_index_doc.js";
 import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js";
+import {TaskIndexDoc, TaskIndexDocType} from "~/server/tasks/data/task_index_doc.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/task_table.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -272,12 +272,12 @@ async function testQueryWithNormalizedSorts(
 
                 // Make sure `convertTaskQuerySortCursorToOpensearchCursor()` produces the same
                 // cursors as OpenSearch itself.
-                expect(
+                expect(hit.sort).toEqual(
                     convertTaskQuerySortCursorToOpensearchCursor(
                         sorts,
                         getTaskQueryNormalizedSortCursorFromIndexDoc(sorts, task),
                     ),
-                ).toEqual(hit.sort);
+                );
 
                 return task;
             });
@@ -299,7 +299,17 @@ async function testQueryWithNormalizedSorts(
 
     // Make sure our JavaScript filter implementation matches the OpenSearch filter
     // implementation.
-    expect(sortedTasks).toEqual(expectedSortedTasks);
+    expect(
+        sortedTasks.map(task => ({
+            id: task.id,
+            cursor: getTaskQueryNormalizedSortCursorFromIndexDoc(sorts, task),
+        })),
+    ).toEqual(
+        expectedSortedTasks.map(task => ({
+            id: task.id,
+            cursor: getTaskQueryNormalizedSortCursorFromIndexDoc(sorts, task),
+        })),
+    );
 
     return sortedTasks.map(({id}) => id);
 }
@@ -1543,6 +1553,50 @@ test("sorts by closed time", async () => {
         task1Id,
         task5Id,
     ]);
+
+    expect(
+        await testQueryWithNormalizedSorts(space, [
+            {
+                type: "ParentPosition",
+                direction: "Descending",
+                missing: "Last",
+            },
+            {type: "CreatedTime", direction: "Ascending", missing: "First"},
+        ]),
+    ).toEqual([task1Id, task2Id, task3Id, task4Id, task5Id]);
+
+    expect(
+        await testQueryWithNormalizedSorts(space, [
+            {
+                type: "ParentPosition",
+                direction: "Descending",
+                missing: "Last",
+            },
+            {type: "CreatedTime", direction: "Descending", missing: "First"},
+        ]),
+    ).toEqual([task5Id, task4Id, task3Id, task2Id, task1Id]);
+
+    expect(
+        await testQueryWithNormalizedSorts(space, [
+            {
+                type: "ParentPosition",
+                direction: "Ascending",
+                missing: "First",
+            },
+            {type: "CreatedTime", direction: "Ascending", missing: "First"},
+        ]),
+    ).toEqual([task1Id, task2Id, task3Id, task4Id, task5Id]);
+
+    expect(
+        await testQueryWithNormalizedSorts(space, [
+            {
+                type: "ParentPosition",
+                direction: "Descending",
+                missing: "First",
+            },
+            {type: "CreatedTime", direction: "Ascending", missing: "First"},
+        ]),
+    ).toEqual([task1Id, task2Id, task3Id, task4Id, task5Id]);
 });
 
 test("sorts by activated time", async () => {
@@ -2075,8 +2129,13 @@ test("sorts by parent position", async () => {
     const task7Id = generateId<TaskId>();
     const task8Id = generateId<TaskId>();
 
-    const parentTask1Id = generateId<TaskId>();
-    const parentTask2Id = generateId<TaskId>();
+    let parentTask1Id = generateId<TaskId>();
+    let parentTask2Id = generateId<TaskId>();
+
+    // Make sure `parentTask1Id` is always less than `parentTask2Id`.
+    if (parentTask2Id < parentTask1Id) {
+        [parentTask1Id, parentTask2Id] = [parentTask2Id, parentTask1Id];
+    }
 
     await commitTaskActionTransaction(context.action(session1), space.id, [
         {
@@ -2378,16 +2437,16 @@ test("sorts by parent position", async () => {
             {type: "CreatedTime", direction: "Ascending", missing: "Last"},
         ]),
     ).toEqual([
-        parentTask1Id,
-        parentTask2Id,
         task6Id,
         task3Id,
         task2Id,
         task1Id,
         task4Id,
         task5Id,
-        task7Id,
         task8Id,
+        task7Id,
+        parentTask1Id,
+        parentTask2Id,
     ]);
 
     expect(
@@ -2399,20 +2458,18 @@ test("sorts by parent position", async () => {
             },
             {type: "CreatedTime", direction: "Ascending", missing: "Last"},
         ]),
-    ).toEqual(
-        [
-            parentTask1Id,
-            parentTask2Id,
-            task6Id,
-            task3Id,
-            task2Id,
-            task1Id,
-            task4Id,
-            task5Id,
-            task7Id,
-            task8Id,
-        ].reverse(),
-    );
+    ).toEqual([
+        task7Id,
+        task8Id,
+        task5Id,
+        task4Id,
+        task1Id,
+        task2Id,
+        task3Id,
+        task6Id,
+        parentTask1Id,
+        parentTask2Id,
+    ]);
 
     await commitTaskActionTransaction(context.action(session1), space.id, [
         {
@@ -2436,15 +2493,15 @@ test("sorts by parent position", async () => {
             {type: "CreatedTime", direction: "Ascending", missing: "Last"},
         ]),
     ).toEqual([
-        parentTask1Id,
-        parentTask2Id,
         task6Id,
         task3Id,
         task1Id,
         task4Id,
         task5Id,
-        task7Id,
         task8Id,
+        task7Id,
+        parentTask1Id,
+        parentTask2Id,
         task2Id,
     ]);
 
@@ -2457,20 +2514,18 @@ test("sorts by parent position", async () => {
             },
             {type: "CreatedTime", direction: "Ascending", missing: "Last"},
         ]),
-    ).toEqual(
-        [
-            parentTask1Id,
-            parentTask2Id,
-            task6Id,
-            task3Id,
-            task1Id,
-            task4Id,
-            task5Id,
-            task7Id,
-            task8Id,
-            task2Id,
-        ].reverse(),
-    );
+    ).toEqual([
+        task7Id,
+        task8Id,
+        task5Id,
+        task4Id,
+        task1Id,
+        task3Id,
+        task6Id,
+        parentTask1Id,
+        parentTask2Id,
+        task2Id,
+    ]);
 });
 
 test("sorts by notepad page position", async () => {
@@ -2794,7 +2849,18 @@ test("sorts by notepad page position", async () => {
 });
 
 test("sorts by assignee status active position", async () => {
-    const {space, session1, session2} = await createScenario();
+    const scenario = await createScenario();
+    const {space} = scenario;
+
+    let session1;
+    let session2;
+    if (scenario.session1.accountId < scenario.session2.accountId) {
+        session1 = scenario.session1;
+        session2 = scenario.session2;
+    } else {
+        session1 = scenario.session2;
+        session2 = scenario.session1;
+    }
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -3166,7 +3232,7 @@ test("sorts by assignee status active position", async () => {
             },
             {type: "CreatedTime", direction: "Ascending", missing: "Last"},
         ]),
-    ).toEqual([task3Id, task2Id, task1Id, task4Id, task5Id, task7Id, task8Id, task6Id]);
+    ).toEqual([task3Id, task2Id, task1Id, task4Id, task5Id, task8Id, task7Id, task6Id]);
 
     expect(
         await testQueryWithNormalizedSorts(space, [
@@ -3177,7 +3243,7 @@ test("sorts by assignee status active position", async () => {
             },
             {type: "CreatedTime", direction: "Ascending", missing: "Last"},
         ]),
-    ).toEqual([task8Id, task7Id, task5Id, task4Id, task1Id, task2Id, task3Id, task6Id]);
+    ).toEqual([task7Id, task8Id, task5Id, task4Id, task1Id, task2Id, task3Id, task6Id]);
 
     await commitTaskActionTransaction(context.action(session1), space.id, [
         {
@@ -3202,7 +3268,7 @@ test("sorts by assignee status active position", async () => {
             },
             {type: "CreatedTime", direction: "Ascending", missing: "Last"},
         ]),
-    ).toEqual([task3Id, task2Id, task1Id, task4Id, task5Id, task7Id, task6Id, task8Id]);
+    ).toEqual([task3Id, task2Id, task1Id, task4Id, task5Id, task8Id, task7Id, task6Id]);
 
     expect(
         await testQueryWithNormalizedSorts(space, [
@@ -3213,5 +3279,27 @@ test("sorts by assignee status active position", async () => {
             },
             {type: "CreatedTime", direction: "Ascending", missing: "Last"},
         ]),
-    ).toEqual([task7Id, task5Id, task4Id, task1Id, task2Id, task3Id, task6Id, task8Id]);
+    ).toEqual([task7Id, task5Id, task4Id, task1Id, task2Id, task3Id, task8Id, task6Id]);
+
+    expect(
+        await testQueryWithNormalizedSorts(space, [
+            {
+                type: "AssigneeStatusActivePosition",
+                direction: "Ascending",
+                missing: "First",
+            },
+            {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+        ]),
+    ).toEqual([task6Id, task8Id, task3Id, task2Id, task1Id, task4Id, task5Id, task7Id]);
+
+    expect(
+        await testQueryWithNormalizedSorts(space, [
+            {
+                type: "AssigneeStatusActivePosition",
+                direction: "Descending",
+                missing: "First",
+            },
+            {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+        ]),
+    ).toEqual([task6Id, task7Id, task8Id, task5Id, task4Id, task1Id, task2Id, task3Id]);
 });
