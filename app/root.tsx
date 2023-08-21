@@ -141,6 +141,24 @@ export default function Root() {
     // or not.
     useEffect(() => {
         const handleError = (event: ErrorEvent) => {
+            // If some other error event handler called `event.preventDefault()` then the
+            // error will be silenced in the browser and we want to silence it here too.
+            if (event.defaultPrevented) return;
+
+            // For debugging purposes, errors caught by React are re-thrown as unhandled
+            // exceptions so you can use the browser "Pause on uncaught exception" feature.
+            //
+            // We report these errors through React error boundaries so ignore them here.
+            //
+            // https://github.com/facebook/react/issues/10474
+            if (
+                process.env.NODE_ENV !== "production" &&
+                // eslint-disable-next-line no-global-error
+                new Error().stack?.includes("invokeGuardedCallbackDev")
+            ) {
+                return;
+            }
+
             context.tracer.getRoot().logUncaughtException(
                 "Uncaught exception",
                 event.error,

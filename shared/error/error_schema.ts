@@ -64,8 +64,11 @@ export const ErrorSchema = Schema.object({
         // stack trace) then assign it to the error.
         if (serializedError.stack) {
             const errorStackPrefix = `${serializedError.name ?? error.name}: ${error.message}\n`;
+            const serverErrorStackPrefix = `${errorStackPrefix}\nServer stack trace:\n`;
 
-            const errorStackWithoutPrefix = serializedError.stack.startsWith(errorStackPrefix)
+            const errorStackWithoutPrefix = serializedError.stack.startsWith(serverErrorStackPrefix)
+                ? serializedError.stack.slice(serverErrorStackPrefix.length)
+                : serializedError.stack.startsWith(errorStackPrefix)
                 ? serializedError.stack.slice(errorStackPrefix.length)
                 : serializedError.stack;
 
