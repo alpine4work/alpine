@@ -46,7 +46,7 @@ abstract class NotificationsContextModuleBase
     }>
     implements NotificationsContextModuleBaseInterface
 {
-    private readonly _dangerouslyEscalateToSystemContext: (
+    protected readonly _dangerouslyEscalateToSystemContext: (
         context: Context<{tracer: TracerContextModule; actor: DynamoActorContextModule}>,
         spaceId: SpaceId,
         action: (context: ServerSystemActionContext) => Promise<void>,
@@ -129,6 +129,8 @@ abstract class NotificationsContextModuleBase
         readTime: Date,
         eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
     ): Promise<void>;
+
+    public abstract fork(): NotificationsContextModuleBase;
 }
 
 export class NotificationsContextModule extends NotificationsContextModuleBase {
@@ -231,6 +233,14 @@ export class NotificationsContextModule extends NotificationsContextModuleBase {
             ),
         );
     }
+
+    public fork() {
+        return new NotificationsContextModule({
+            dangerouslyEscalateToSystemContext: this._dangerouslyEscalateToSystemContext,
+            edgeServiceUrl: this._edgeServiceUrl,
+            tokenAgent: this._tokenAgent,
+        });
+    }
 }
 
 export class TestNotificationsContextModule extends NotificationsContextModuleBase {
@@ -251,5 +261,11 @@ export class TestNotificationsContextModule extends NotificationsContextModuleBa
 
     public override async sendInboxRealtimeEventTransaction() {
         // Ignore realtime events in tests...
+    }
+
+    public fork() {
+        return new TestNotificationsContextModule({
+            dangerouslyEscalateToSystemContext: this._dangerouslyEscalateToSystemContext,
+        });
     }
 }

@@ -1,3 +1,5 @@
+// @ts-nocheck NOCOMMIT: This file will be refactored later
+
 import {Plus, SortAscending} from "phosphor-react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";

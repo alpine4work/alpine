@@ -1,7 +1,9 @@
 import {generateKeyPair} from "crypto";
 import {AppServiceTokenAgent, EdgeServiceFamilyTokenAgent} from "~/server/tokens/token_agent.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SessionId} from "~/shared/id/types/id_types.js";
 
@@ -10,54 +12,52 @@ let edgeServiceTokenAgent: EdgeServiceFamilyTokenAgent;
 let documentCollaborationServiceTokenAgent: EdgeServiceFamilyTokenAgent;
 
 beforeAll(async () => {
-    const [appServiceKeyPair, edgeServiceFamilyKeyPair] = await runAllPromises([
-        new Promise<{publicKey: string; privateKey: string}>((resolve, reject) =>
-            generateKeyPair(
-                "rsa",
-                {
-                    modulusLength: 2048,
-                    publicKeyEncoding: {type: "spki", format: "pem"},
-                    privateKeyEncoding: {type: "pkcs8", format: "pem"},
-                },
-                (error, publicKey, privateKey) => {
-                    if (error) reject(error);
-                    else resolve({publicKey, privateKey});
-                },
+    const [appServiceKeyPair, edgeServiceFamilyKeyPair, taskRealtimeServiceKeyPair] =
+        await runAllPromises(
+            createArrayWithLength(
+                3,
+                () =>
+                    new Promise<{publicKey: string; privateKey: string}>((resolve, reject) =>
+                        generateKeyPair(
+                            "rsa",
+                            {
+                                modulusLength: 2048,
+                                publicKeyEncoding: {type: "spki", format: "pem"},
+                                privateKeyEncoding: {type: "pkcs8", format: "pem"},
+                            },
+                            (error, publicKey, privateKey) => {
+                                if (error) reject(error);
+                                else resolve({publicKey, privateKey});
+                            },
+                        ),
+                    ),
             ),
-        ),
-        new Promise<{publicKey: string; privateKey: string}>((resolve, reject) =>
-            generateKeyPair(
-                "rsa",
-                {
-                    modulusLength: 2048,
-                    publicKeyEncoding: {type: "spki", format: "pem"},
-                    privateKeyEncoding: {type: "pkcs8", format: "pem"},
-                },
-                (error, publicKey, privateKey) => {
-                    if (error) reject(error);
-                    else resolve({publicKey, privateKey});
-                },
-            ),
-        ),
-    ]);
+        );
+
+    assert(appServiceKeyPair);
+    assert(edgeServiceFamilyKeyPair);
+    assert(taskRealtimeServiceKeyPair);
 
     [appServiceTokenAgent, edgeServiceTokenAgent, documentCollaborationServiceTokenAgent] =
         await runAllPromises([
             AppServiceTokenAgent.new({
                 appServicePublicKey: appServiceKeyPair.publicKey,
                 edgeServiceFamilyPublicKey: edgeServiceFamilyKeyPair.publicKey,
+                taskRealtimeServicePublicKey: taskRealtimeServiceKeyPair.publicKey,
                 appServicePrivateKey: appServiceKeyPair.privateKey,
             }),
             EdgeServiceFamilyTokenAgent.new({
                 serviceName: "EdgeService",
                 appServicePublicKey: appServiceKeyPair.publicKey,
                 edgeServiceFamilyPublicKey: edgeServiceFamilyKeyPair.publicKey,
+                taskRealtimeServicePublicKey: taskRealtimeServiceKeyPair.publicKey,
                 edgeServiceFamilyPrivateKey: edgeServiceFamilyKeyPair.privateKey,
             }),
             EdgeServiceFamilyTokenAgent.new({
                 serviceName: "DocumentCollaborationService",
                 appServicePublicKey: appServiceKeyPair.publicKey,
                 edgeServiceFamilyPublicKey: edgeServiceFamilyKeyPair.publicKey,
+                taskRealtimeServicePublicKey: taskRealtimeServiceKeyPair.publicKey,
                 edgeServiceFamilyPrivateKey: edgeServiceFamilyKeyPair.privateKey,
             }),
         ]);

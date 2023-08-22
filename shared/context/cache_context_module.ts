@@ -1,5 +1,6 @@
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
+import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 
@@ -7,7 +8,7 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
  * A context module used for caching values for the lifetime of a context. Used
  * in conjunction with `ContextCache`.
  */
-export class CacheContextModule extends ContextModuleBase {
+export class CacheContextModule extends ContextModuleBase implements ForkableContextModuleBase {
     private readonly _caches = new DefaultMap<ContextCache<any, any>, Map<any, Promise<any>>>(
         () => new Map(),
     );
@@ -18,6 +19,12 @@ export class CacheContextModule extends ContextModuleBase {
      */
     public _getCacheMap<Key, Value>(cache: ContextCache<Key, Value>): Map<Key, Promise<Value>> {
         return this._caches.getOrSetDefault(cache);
+    }
+
+    public fork() {
+        // Cache is not reused when we fork! Fork may be long after the original action
+        // so we want a cache with a new lifetime.
+        return new CacheContextModule();
     }
 }
 

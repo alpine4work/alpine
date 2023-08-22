@@ -3,6 +3,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "realtime",
     test_deps = [
+        "//server/cloudflare/test_helpers",
         "//server/dynamo/test_helpers",
         "//server/forum/data:data_testonly",
         "//server/messaging/realtime/test_helpers",

@@ -78,6 +78,10 @@ export class TestSessionActorContextModule
     ): Context<Replace<Modules, {actor: TestSystemActorContextModule}>> {
         throw new PermissionDeniedError("Session actor is not a system actor");
     }
+
+    public fork() {
+        return new TestSessionActorContextModule(this._sessionId, this._accountId);
+    }
 }
 
 /**
@@ -119,5 +123,9 @@ export class TestSystemActorContextModule
         this: ContextModuleBase<Modules> & ActorContextModuleBase,
     ): Context<Replace<Modules, {actor: TestSystemActorContextModule}>> {
         return (this as any)._context;
+    }
+
+    public fork() {
+        return new TestSystemActorContextModule(this._spaceId);
     }
 }

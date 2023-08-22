@@ -1,15 +1,14 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep, Step} from "prosemirror-transform";
+import {createTestWorkerContext} from "~/server/cloudflare/test_helpers/create_test_worker_context.js";
 import {DocumentCollaborationStepCache} from "~/server/documents/collaboration/document_collaboration_step_cache.js";
 import {
     createDocument,
     getDocumentContentStepsTestCounter,
     updateDocumentContent,
 } from "~/server/documents/data/documents_table.js";
-import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
-import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {
     emptyDocumentContent,
     DocumentContentProsemirrorSchema as schema,
@@ -17,17 +16,7 @@ import {
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {generateId} from "~/shared/id/id.js";
 
-const baseContext = createTestContext();
-
-const context = {
-    ...baseContext,
-    action: session => {
-        return baseContext.action(session).clone({
-            rpc: new LocalRpcContextModule(),
-        });
-    },
-} satisfies TestContext;
-
+const context = createTestWorkerContext();
 const space = createTestSpace(context);
 const session = createTestSession(context, space);
 

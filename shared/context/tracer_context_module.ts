@@ -1,5 +1,6 @@
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
+import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
@@ -12,7 +13,7 @@ import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
  *
  * `withSpan()` will create a new context object
  */
-export class TracerContextModule extends ContextModuleBase {
+export class TracerContextModule extends ContextModuleBase implements ForkableContextModuleBase {
     private readonly _tracer: TracerBase;
 
     constructor(tracer: TracerBase) {
@@ -128,5 +129,9 @@ export class TracerContextModule extends ContextModuleBase {
      */
     public log(name: string, data?: TracerEventData) {
         this._tracer.log(name, data);
+    }
+
+    public fork() {
+        return new TracerContextModule(this._tracer);
     }
 }

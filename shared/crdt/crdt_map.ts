@@ -59,6 +59,14 @@ export interface CrdtMap<Key extends string | number, Value extends {}> {
     entriesWithVersion(): IterableIterator<[Key, {value: Value; version: HybridLogicalTime}]>;
 
     /**
+     * Returns a new iterator of all the entires in the map including deleted
+     * entries and the version for each entry. As the name suggests these are
+     * the "actual" entries of the underlying map. If you wanted to clone the
+     * map exactly you'd use this and apply appropriate actions.
+     */
+    actualEntries(): IterableIterator<[Key, {value: Value | null; version: HybridLogicalTime}]>;
+
+    /**
      * Returns a new iterator of all the entries in the map.
      *
      * Iterates in key order, not insertion order.
@@ -206,6 +214,12 @@ export function createCrdtMap<Key extends string | number, Value extends {}>(
                     yield [key, {value, version}];
                 }
             }
+        }
+
+        public actualEntries(): IterableIterator<
+            [Key, {value: Value | null; version: HybridLogicalTime}]
+        > {
+            return this._map.entries();
         }
 
         public [Symbol.iterator](): IterableIterator<[Key, Value]> {

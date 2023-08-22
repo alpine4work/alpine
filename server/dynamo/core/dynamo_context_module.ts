@@ -6,6 +6,7 @@ import {
 } from "~/server/dynamo/core/internal/dynamo_client.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
+import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -16,7 +17,10 @@ import {TracerBase} from "~/shared/tracer/tracer_base.js";
  * Context module for DynamoDB. Holds a DynamoDB client which is accessible to
  * our `internal` folder with the `getDynamoClient()` function.
  */
-export class DynamoContextModule<Modules extends {} = {}> extends ContextModuleBase<Modules> {
+export class DynamoContextModule<Modules extends {} = {}>
+    extends ContextModuleBase<Modules>
+    implements ForkableContextModuleBase
+{
     private readonly _client!: DynamoClient;
 
     /**
@@ -163,6 +167,16 @@ export class DynamoContextModule<Modules extends {} = {}> extends ContextModuleB
             );
         });
     }
+
+    public fork() {
+        return new DynamoContextModule(this._client, {
+            // Reset read consistency in fork.
+            defaultReadConsistency: "Eventual",
+            // Reset retry transaction in fork. Forked actions need their own `retryTransaction()`
+            // call. The retry call from the action we forked from may have finished long ago.
+            retryTransaction: null,
+        });
+    }
 }
 
 /**
@@ -172,6 +186,15 @@ export class DynamoContextModule<Modules extends {} = {}> extends ContextModuleB
  *
  * We batch at the action level so that unrelated requests do not share IO.
  */
-export class DynamoBatchContextModule extends ContextModuleBase {
+export class DynamoBatchContextModule
+    extends ContextModuleBase
+    implements ForkableContextModuleBase
+{
     public readonly batchContext = new DynamoClientBatchContext();
+
+    public fork() {
+        // Create a new batch context for our fork. Do not share IO with the
+        // parent action.
+        return new DynamoBatchContextModule();
+    }
 }

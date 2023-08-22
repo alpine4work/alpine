@@ -1,6 +1,6 @@
 import {createChatForTest} from "~/server/chat/data/chat_table.js";
 import {ChatRealtimeConnection} from "~/server/chat/realtime/chat_realtime_connection.js";
-import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {createTestWorkerContext} from "~/server/cloudflare/test_helpers/create_test_worker_context.js";
 import {
     TestMessagingRealtimeConnectionProcedures,
     testMessagingRealtimeImplementation,
@@ -15,7 +15,7 @@ import {
     updateChatMessageContent,
 } from "~/shared/rpc/chat_rpc_definitions.js";
 
-const context = createTestContext();
+const context = createTestWorkerContext();
 
 type TestChatRealtimeConnection = {
     readonly actualConnection: ChatRealtimeConnection;

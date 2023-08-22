@@ -2,6 +2,7 @@ import {EmailAddress} from "~/server/emails/email_address.js";
 import {FromEmailAddress} from "~/server/emails/from_email_address.js";
 import {EmailTemplates, RenderedEmail} from "~/server/emails/internal/email_templates.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
+import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 
 /**
@@ -13,8 +14,11 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
  * [1]: https://aws.amazon.com/ses/
  */
 export abstract class EmailContextModuleBase<
-    Modules extends {tracer: TracerContextModule} = {tracer: TracerContextModule},
-> extends ContextModuleBase<Modules> {
+        Modules extends {tracer: TracerContextModule} = {tracer: TracerContextModule},
+    >
+    extends ContextModuleBase<Modules>
+    implements ForkableContextModuleBase
+{
     /**
      * Sends an email. In production uses the AWS SES [`SendEmail`][1] command.
      *
@@ -57,4 +61,6 @@ export abstract class EmailContextModuleBase<
         toEmailAddress: EmailAddress,
         email: RenderedEmail,
     ): Promise<void>;
+
+    public abstract fork(): EmailContextModuleBase;
 }

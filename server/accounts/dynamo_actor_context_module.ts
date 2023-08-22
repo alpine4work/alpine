@@ -207,6 +207,10 @@ export class DynamoSessionActorContextModule
     public getAccount(): Promise<AccountModel> {
         return this._session.getAccount(this._context);
     }
+
+    public fork() {
+        return new DynamoSessionActorContextModule(this.serviceName, this._session);
+    }
 }
 
 /**
@@ -278,5 +282,9 @@ export class DynamoSystemActorContextModule
 
     public getSpaceId(): SpaceId {
         return this._spaceId;
+    }
+
+    public fork() {
+        return new DynamoSystemActorContextModule(this.serviceName, this._spaceId);
     }
 }

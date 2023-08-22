@@ -1,7 +1,7 @@
 import {WorkerSessionActionContext} from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
+import {TestWorkerContext} from "~/server/cloudflare/test_helpers/create_test_worker_context.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
-import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
     TestSessionItem,
     createTestSession,
@@ -15,7 +15,6 @@ import {
     messagingRealtimeCreateMessageBeforeSendTestCheckpoint,
 } from "~/server/messaging/realtime/messaging_realtime_connection.js";
 import {RoomInterface} from "~/server/messaging/test_helpers/test_messaging_implementation.js";
-import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {UnimplementedError} from "~/shared/error/error.js";
@@ -59,7 +58,7 @@ export function testMessagingRealtimeImplementation<
         procedures: TestMessagingRealtimeConnectionProcedures<MessageModel<RoomKey>>;
     },
 >(
-    baseContext: TestContext,
+    context: TestWorkerContext,
     {
         createRoom: _createRoom,
         createRealtimeConnection,
@@ -98,15 +97,6 @@ export function testMessagingRealtimeImplementation<
         deleteMessage: DeleteMessageFunction<RoomKey>;
     },
 ) {
-    const context = {
-        ...baseContext,
-        action: session => {
-            return baseContext.action(session).clone({
-                rpc: new LocalRpcContextModule(),
-            });
-        },
-    } satisfies TestContext;
-
     const space = createTestSpace(context);
     const session1 = createTestSession(context, space);
     const session2 = createTestSession(context, space);

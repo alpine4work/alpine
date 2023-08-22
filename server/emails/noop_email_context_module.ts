@@ -12,4 +12,8 @@ export class NoopEmailContextModule extends EmailContextModuleBase {
                 "Can not use `NoopEmailContextModule` in production since user's won't get their emails",
             );
     }
+
+    public fork() {
+        return new NoopEmailContextModule();
+    }
 }

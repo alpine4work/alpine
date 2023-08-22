@@ -68,6 +68,10 @@ export class SesEmailContextModule extends EmailContextModuleBase {
             });
         });
     }
+
+    public fork() {
+        return new SesEmailContextModule(this._getAwsHttpClient);
+    }
 }
 
 async function executeSesSendEmailCommand(

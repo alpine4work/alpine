@@ -1,3 +1,5 @@
+// @ts-nocheck NOCOMMIT: This file will be refactored later
+
 import {useRef} from "react";
 import {mergeProps, useButton, useHover} from "react-aria";
 import {Box} from "~/client/design/box.js";

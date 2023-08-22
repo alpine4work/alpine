@@ -4,16 +4,13 @@ import {
     WorkerSessionActionContext,
     WorkerSessionActionContextModules,
 } from "~/server/cloudflare/context/worker_action_context.js";
-import {
-    WorkerActorContextModule,
-    createWorkerActorContextModule,
-} from "~/server/cloudflare/context/worker_actor_context_module.js";
+import {createWorkerActorContextModule} from "~/server/cloudflare/context/worker_actor_context_module.js";
 import {
     WorkerProcessContext,
     WorkerProcessContextModules,
 } from "~/server/cloudflare/context/worker_process_context.js";
 import {WorkerRpcContextModule} from "~/server/cloudflare/context/worker_rpc_context_module.js";
-import {ForkActionContextModule} from "~/server/helpers/fork_action_context_module.js";
+import {ForkActionContextModule} from "~/shared/context/fork_action_context_module.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {EdgeServiceFamilyTokenAgent} from "~/server/tokens/token_agent.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
@@ -220,12 +217,6 @@ export function createDurableObject<
                         authorizationHeaderToken,
                     );
 
-                    const rpcContextModule = new WorkerRpcContextModule({
-                        protocol: url.protocol,
-                        host: url.host,
-                        tokenAgent,
-                    });
-
                     const response = await this._processContext.with<
                         Omit<
                             WorkerActionContextModules,
@@ -239,12 +230,12 @@ export function createDurableObject<
                             tracer: new TracerContextModule(span),
                             cache: new CacheContextModule(),
                             actor: actorContextModule,
-                            rpc: rpcContextModule,
-                            fork: createForkActionContextModule(
-                                this._processContext,
-                                actorContextModule,
-                                rpcContextModule,
-                            ),
+                            rpc: new WorkerRpcContextModule({
+                                protocol: url.protocol,
+                                host: url.host,
+                                tokenAgent,
+                            }),
+                            fork: new ForkActionContextModule(),
                         },
                         async actionContext => {
                             if (this._object === null) {
@@ -392,26 +383,4 @@ export function createDurableObject<
             };
         }
     };
-}
-
-function createForkActionContextModule(
-    processContext: WorkerProcessContext,
-    actorContextModule: WorkerActorContextModule,
-    rpcContextModule: WorkerRpcContextModule,
-) {
-    const forkContextModule: ForkActionContextModule<WorkerActionContextModules> =
-        new ForkActionContextModule<WorkerActionContextModules>((span, action) => {
-            return processContext.with(
-                {
-                    tracer: new TracerContextModule(span),
-                    cache: new CacheContextModule(),
-                    actor: actorContextModule,
-                    rpc: rpcContextModule,
-                    fork: forkContextModule,
-                },
-                action,
-            );
-        });
-
-    return forkContextModule;
 }

@@ -14,13 +14,9 @@ import {
     ServerSystemActionContext,
     ServerSystemActionContextModules,
 } from "~/server/context/server_action_context.js";
-import {
-    ServerProcessContext,
-    ServerProcessContextModules,
-} from "~/server/context/server_process_context.js";
+import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
-import {ForkActionContextModule} from "~/server/helpers/fork_action_context_module.js";
 import {createStandardizedServerWithWebSockets} from "~/server/node/create_standardized_server.js";
 import {runService} from "~/server/node/run_service.js";
 import {NotificationsContextModule} from "~/server/notifications/data/notifications_context_module.js";
@@ -32,6 +28,7 @@ import {TaskRealtimeServiceTokenAgent} from "~/server/tokens/token_agent.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
+import {ForkActionContextModule} from "~/shared/context/fork_action_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {
     InternalError,
@@ -54,7 +51,7 @@ import {TaskActionSchema} from "~/shared/tasks/actions/task_action.js";
 import {TaskRealtimeProtocol} from "~/shared/tasks/task_realtime_protocol.js";
 
 type TaskRealtimeSessionActionContextModules = ServerSessionActionContextModules & {
-    fork: ForkActionContextModule<TaskRealtimeSessionActionContextModules>;
+    fork: ForkActionContextModule;
 };
 
 const TaskRealtimeSendActionTransactionSchema = Schema.object({
@@ -245,11 +242,7 @@ runService({
                         {
                             actor: actorContextModule,
                             notifications: notificationsContextModule,
-                            fork: createForkActionContextModule(
-                                processContext,
-                                actorContextModule,
-                                notificationsContextModule,
-                            ),
+                            fork: new ForkActionContextModule(),
                         },
                         async context => {
                             const authorizedContext = context.actor.authorizeSession();
@@ -395,27 +388,4 @@ async function createActorContextModule(
         default:
             throw exhaustive(authorizationHeaderPayload);
     }
-}
-
-function createForkActionContextModule(
-    processContext: ServerProcessContext,
-    actorContextModule: DynamoSessionActorContextModule,
-    notificationsContextModule: NotificationsContextModule,
-) {
-    const forkContextModule: ForkActionContextModule<TaskRealtimeSessionActionContextModules> =
-        new ForkActionContextModule<TaskRealtimeSessionActionContextModules>((span, action) => {
-            return processContext.with(
-                {
-                    tracer: new TracerContextModule(span),
-                    cache: new CacheContextModule(),
-                    dynamoBatchContext: new DynamoBatchContextModule(),
-                    actor: actorContextModule,
-                    notifications: notificationsContextModule,
-                    fork: forkContextModule,
-                },
-                action,
-            );
-        });
-
-    return forkContextModule;
 }

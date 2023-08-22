@@ -36,7 +36,7 @@ export class LocalRpcContextModule extends RpcContextModuleBase<ServerUnknownAct
         return output as Output;
     }
 
-    public clone(): LocalRpcContextModule {
+    public fork() {
         return new LocalRpcContextModule();
     }
 }

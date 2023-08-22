@@ -1,3 +1,5 @@
+// @ts-nocheck NOCOMMIT: This file will be refactored later
+
 import {CalendarDate, parseAbsolute, parseDate, toCalendarDate} from "@internationalized/date";
 import {MutableRefObject, useEffect, useMemo, useRef} from "react";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";

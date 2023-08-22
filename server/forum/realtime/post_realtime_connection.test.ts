@@ -1,4 +1,4 @@
-import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {createTestWorkerContext} from "~/server/cloudflare/test_helpers/create_test_worker_context.js";
 import {createChannel, createPost} from "~/server/forum/data/forum_table.js";
 import {PostRealtimeConnection} from "~/server/forum/realtime/post_realtime_connection.js";
 import {
@@ -17,7 +17,7 @@ import {
     updatePostCommentContent,
 } from "~/shared/rpc/forum_rpc_definitions.js";
 
-const context = createTestContext();
+const context = createTestWorkerContext();
 
 type TestPostRealtimeConnection = {
     readonly actualConnection: PostRealtimeConnection;

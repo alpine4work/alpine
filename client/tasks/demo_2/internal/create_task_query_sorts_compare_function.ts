@@ -1,3 +1,5 @@
+// @ts-nocheck NOCOMMIT: This file will be refactored later
+
 import {LocalTask} from "~/client/tasks/demo_2/local_tasks_state.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";

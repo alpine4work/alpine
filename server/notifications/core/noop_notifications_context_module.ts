@@ -12,4 +12,8 @@ export class NoopNotificationsContextModule
     public async sendInboxRealtimeEventTransaction() {
         // Ignore realtime events in tests...
     }
+
+    public fork() {
+        return new NoopNotificationsContextModule();
+    }
 }

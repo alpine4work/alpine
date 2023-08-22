@@ -4,7 +4,11 @@ import {
     ServerSessionActionContextModules,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
-import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
+import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
+import {
+    TaskIndexDoc,
+    TaskPositionByAccountIdAndNotepadPageId,
+} from "~/server/tasks/data/task_index_doc.js";
 import {authorizeTaskQueryAccess} from "~/server/tasks/data/task_table.js";
 import {TaskRealtimeQuerySubscription} from "~/server/tasks/realtime/task_realtime_query_subscription.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
@@ -14,8 +18,11 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
+import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {generateId} from "~/shared/id/id.js";
 import {SpaceId, TaskRealtimeQuerySubscriptionId} from "~/shared/id/types/id_types.js";
+import {TaskSortableAccountModel} from "~/shared/tasks/model/task_sortable_account_model.js";
 import {TaskRealtimeProtocol} from "~/shared/tasks/task_realtime_protocol.js";
 
 export class TaskRealtimeConnection {
@@ -68,15 +75,10 @@ export class TaskRealtimeConnection {
         ]);
     }
 
-    // Uses the arrow function syntax so we can pass the function around without
-    // needing to call `bind()` like this `action.accept(this._send)`. Otherwise if
-    // this were a standard class method we'd need to call `bind()` like this
-    // `action.accept(this._send.bind(this))`.
-    //
-    // When calling `action.accept(send)` specifically it's important that we pass
-    // in a function that maintains the same reference. Those classes will only
-    // call each `send` function reference once. So to keep transactions intact for
-    // a transaction we need to keep the `send` function reference the same.
+    // Uses the arrow function syntax to avoid calling `this._send.bind(this)` when
+    // calling `action.accept(this._send)`. It's important that we pass a function
+    // to `action.accept()` that maintains the same reference to keep transaction
+    // realtime events intact.
     private readonly _send = () => {};
 
     public readonly procedures: WebSocketConnectionProcedures<
@@ -87,7 +89,13 @@ export class TaskRealtimeConnection {
             await authorizeTaskQueryAccess(context, input);
 
             // It's safe to escalate because we authorize the query is valid above.
-            return this._dangerouslyEscalateToSystemContext(
+            const {
+                querySubscriptionId,
+                hasMoreTasks,
+                tasks,
+                otherReferencedTasks,
+                otherReferencedCollections,
+            } = await this._dangerouslyEscalateToSystemContext(
                 context,
                 this._spaceId,
                 async context => {
@@ -103,13 +111,22 @@ export class TaskRealtimeConnection {
                     assert(!this._querySubscriptionById.has(querySubscriptionId));
                     this._querySubscriptionById.set(querySubscriptionId, querySubscription);
 
-                    await querySubscription.loadMoreTasks(context, input.limit);
+                    const {hasMoreTasks, tasks, otherReferencedTasks, otherReferencedCollections} =
+                        await querySubscription.loadMoreTasks(context, input.limit);
 
                     return {
                         querySubscriptionId,
+                        hasMoreTasks,
+                        tasks,
+                        otherReferencedTasks,
+                        otherReferencedCollections,
                     };
                 },
             );
+
+            return {
+                querySubscriptionId,
+            };
         },
         unsubscribeFromQuery: async (context, {querySubscriptionId}) => {
             const querySubscription = this._querySubscriptionById.get(querySubscriptionId);
@@ -143,4 +160,59 @@ export class TaskRealtimeConnection {
             querySubscription.unsubscribe();
         }
     }
+}
+
+async function createTaskModelFromIndexDoc(
+    context: ServerSessionActionContext,
+    task: TaskIndexDoc,
+) {
+    const [creatorAccount] = await runAllPromises([
+        getAccount(context, task.spaceId, task.creator.accountId),
+    ]);
+
+    return {
+        id: task.id,
+        spaceId: task.spaceId,
+
+        creator: new TaskSortableAccountModel({
+            account: creatorAccount,
+            workingAccountName: task.creator.workingAccountName,
+        }),
+        createdTime: task.createdTime,
+        deletedTime: task.rawDeletedTime,
+        undeletedTime: task.rawUndeletedTime,
+
+        // NOCOMMIT: Show/hide this data based on whether the parent task is visible.
+        // Just a `hasPrivateParent` field or something.
+        // parent: {
+        //     taskId: task.parent.taskId,
+        //     position: task.parent.rawPosition,
+        // },
+        addedChildTaskCount: task.addedChildTaskCount,
+        removedChildTaskCount: task.removedChildTaskCount,
+        addedClosedChildTaskCount: task.addedClosedChildTaskCount,
+        removedClosedChildTaskCount: task.removedClosedChildTaskCount,
+
+        // NOCOMMIT: Filter out collections and positions that are not visible to the
+        // current user.
+        // collections: {
+        //     collections: task.collections.raw.positionById,
+        //     positionById: task.collections.raw.positionById,
+        // },
+
+        notepadPages: {
+            positionById: reduceIterable(
+                filterIterable(task.notepadPages.raw.positionById.actualEntries(), ([key]) =>
+                    key.startsWith(context.actor.getAccountId()),
+                ),
+                (positionById, [key, {value, version}]) =>
+                    value !== null
+                        ? positionById.apply({type: "Set", key, value, version})
+                        : // It's important that we also add deleted values to the map so if an event is
+                          // a position update is received out-of-order the delete wins.
+                          positionById.apply({type: "Delete", key, version}),
+                TaskPositionByAccountIdAndNotepadPageId.empty,
+            ),
+        },
+    };
 }

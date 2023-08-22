@@ -1,12 +1,15 @@
 import {NotificationEvent} from "~/server/notifications/core/notification_event.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
+import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 
 /**
  * Context module available on contexts that can add to our notification
  * event queue.
  */
-export interface NotificationsContextModuleBase extends ContextModuleBase {
+export interface NotificationsContextModuleBase
+    extends ContextModuleBase,
+        ForkableContextModuleBase {
     /**
      * Send a notification event to be processed asynchronously by our notification
      * queue. Our notification queue guarantees at-least-once delivery and does

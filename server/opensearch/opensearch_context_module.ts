@@ -1,9 +1,13 @@
 import {OpensearchClientInterface} from "~/server/opensearch/opensearch_client.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
+import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {InternalError, UnavailableError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
-export class OpensearchContextModule extends ContextModuleBase {
+export class OpensearchContextModule
+    extends ContextModuleBase
+    implements ForkableContextModuleBase
+{
     /**
      * The OpenSearch client. Even though this client is public, you can't do
      * anything with it without an `OpensearchIndex` object which is private to
@@ -65,6 +69,10 @@ export class OpensearchContextModule extends ContextModuleBase {
                 });
             },
         });
+    }
+
+    public fork() {
+        return new OpensearchContextModule(this.client);
     }
 }
 

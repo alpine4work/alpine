@@ -1,5 +1,5 @@
 import {SessionActorContextModule} from "~/server/helpers/actor_context_module.js";
-import {ForkActionContextModule} from "~/server/helpers/fork_action_context_module.js";
+import {ForkActionContextModule} from "~/shared/context/fork_action_context_module.js";
 import {TestSessionActorContextModule} from "~/server/helpers/test/test_actor_context_module.js";
 import {Response} from "~/server/node/install_response_with_web_socket_support.js";
 import {testTracer} from "~/server/tracer/test_tracer.js";
@@ -56,7 +56,7 @@ type TestProcessContextModules = {
 
 type TestSessionActionContextModules = TestProcessContextModules & {
     actor: SessionActorContextModule;
-    fork: ForkActionContextModule<TestSessionActionContextModules>;
+    fork: ForkActionContextModule;
 };
 
 const processContext = Context.new({
@@ -69,26 +69,12 @@ const account1Id = generateId<AccountId>();
 const sessionIdByAccountId = new DefaultMap<AccountId, SessionId>(generateId);
 
 function action(accountId: AccountId): Context<TestSessionActionContextModules> {
-    const actorContextModule = new TestSessionActorContextModule(
-        sessionIdByAccountId.getOrSetDefault(accountId),
-        accountId,
-    );
-
-    const forkContextModule: ForkActionContextModule<TestSessionActionContextModules> =
-        new ForkActionContextModule((span, action) =>
-            processContext.with(
-                {
-                    tracer: new TracerContextModule(span),
-                    actor: actorContextModule,
-                    fork: forkContextModule,
-                },
-                action,
-            ),
-        );
-
     return processContext.clone({
-        actor: actorContextModule,
-        fork: forkContextModule,
+        actor: new TestSessionActorContextModule(
+            sessionIdByAccountId.getOrSetDefault(accountId),
+            accountId,
+        ),
+        fork: new ForkActionContextModule(),
     });
 }
 

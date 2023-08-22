@@ -66,7 +66,7 @@ export class ClientRpcContextModule extends RpcContextModuleBase<{tracer: Tracer
         );
     }
 
-    public clone(): ClientRpcContextModule {
+    public fork() {
         return new ClientRpcContextModule();
     }
 }

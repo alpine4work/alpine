@@ -10,14 +10,15 @@ import {
     devAppServicePublicKeyPath,
     devEdgeServiceFamilyPrivateKeyPath,
     devEdgeServiceFamilyPublicKeyPath,
+    devTaskRealtimeServicePublicKeyPath,
     ensureDevServiceKeys,
 } from "~/admin/helpers/dev_service_keys.js";
 import {runfilesPath} from "~/admin/helpers/runfiles_path.js";
-import {waitForHttpServer} from "~/server/helpers/wait_for_http_server.js";
 import {waitForProcessExit} from "~/admin/helpers/wait_for_process_exit.js";
 import {waitForProcessSpawn} from "~/admin/helpers/wait_for_process_spawn.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSessionItem} from "~/server/dynamo/test_helpers/create_test_session.js";
+import {waitForHttpServer} from "~/server/helpers/wait_for_http_server.js";
 import {getSessionCookieSetCookieHeaderForTest} from "~/server/tokens/session_cookie.js";
 import {AppServiceTokenAgent} from "~/server/tokens/token_agent.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -65,16 +66,22 @@ export function createTestServices(context: TestContext): TestServer {
     let edgeSubprocess: ChildProcessByStdio<null, Readable, Readable> | undefined;
 
     const appServiceTokenAgentPromise = (async () => {
-        const [appServicePublicKey, edgeServiceFamilyPublicKey, appServicePrivateKey] =
-            await runAllPromises([
-                fs.readFile(devAppServicePublicKeyPath, "utf8"),
-                fs.readFile(devEdgeServiceFamilyPublicKeyPath, "utf8"),
-                fs.readFile(devAppServicePrivateKeyPath, "utf8"),
-            ]);
+        const [
+            appServicePublicKey,
+            edgeServiceFamilyPublicKey,
+            taskRealtimeServicePublicKey,
+            appServicePrivateKey,
+        ] = await runAllPromises([
+            fs.readFile(devAppServicePublicKeyPath, "utf8"),
+            fs.readFile(devEdgeServiceFamilyPublicKeyPath, "utf8"),
+            fs.readFile(devTaskRealtimeServicePublicKeyPath, "utf8"),
+            fs.readFile(devAppServicePrivateKeyPath, "utf8"),
+        ]);
 
         return AppServiceTokenAgent.new({
             appServicePublicKey,
             edgeServiceFamilyPublicKey,
+            taskRealtimeServicePublicKey,
             appServicePrivateKey,
         });
     })();
@@ -177,7 +184,7 @@ export function createTestServices(context: TestContext): TestServer {
 
         const sessionCookieHeader = await getSessionCookieSetCookieHeaderForTest(tokenAgent, {
             type: "Session",
-            sessionId: session.id,
+            sessionId: session.sessionId,
             accountId: session.accountId,
         });
 

@@ -1,4 +1,5 @@
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
+import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -8,12 +9,31 @@ import {assert} from "~/shared/helpers/control/assert.js";
  * serverless-like environments with the `waitUntil()` function
  * (e.g. Cloudflare Workers and Cloudflare Durable Objects).
  */
-export class ProcessContextModule extends ContextModuleBase {
+export class ProcessContextModule extends ContextModuleBase implements ForkableContextModuleBase {
     private readonly _waitUntil: (promise: Promise<void>) => void;
 
     constructor({waitUntil}: {waitUntil: (promise: Promise<void>) => void}) {
         super();
         this._waitUntil = waitUntil;
+    }
+
+    /**
+     * Don't let the process exit until this promise has completed.
+     *
+     * Errors will be handled and attached to the execution trace.
+     *
+     * See the [Cloudflare documentation][1] for this method.
+     *
+     * [1]: https://developers.cloudflare.com/workers/runtime-apis/fetch-event/#waituntil
+     */
+    public waitUntil(action: Promise<void> | (() => Promise<void>)): void {
+        // TODO(calebmer): Error handling! Unhandled exceptions should not crash
+        // the process.
+        this._waitUntil(typeof action === "function" ? action() : action);
+    }
+
+    public fork() {
+        return new ProcessContextModule({waitUntil: this._waitUntil});
     }
 
     /**
@@ -35,21 +55,6 @@ export class ProcessContextModule extends ContextModuleBase {
                 afterEachPromisesForTest.push(promise);
             },
         });
-    }
-
-    /**
-     * Don't let the process exit until this promise has completed.
-     *
-     * Errors will be handled and attached to the execution trace.
-     *
-     * See the [Cloudflare documentation][1] for this method.
-     *
-     * [1]: https://developers.cloudflare.com/workers/runtime-apis/fetch-event/#waituntil
-     */
-    public waitUntil(action: Promise<void> | (() => Promise<void>)): void {
-        // TODO(calebmer): Error handling! Unhandled exceptions should not crash
-        // the process.
-        this._waitUntil(typeof action === "function" ? action() : action);
     }
 
     private static _waitForTestTasksPromise?: Promise<void>;

@@ -1,5 +1,6 @@
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
+import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 
@@ -12,7 +13,7 @@ import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
  */
 export type ActorContextModule = SessionActorContextModule | SystemActorContextModule;
 
-export interface ActorContextModuleBase extends ContextModuleBase {
+export interface ActorContextModuleBase extends ContextModuleBase, ForkableContextModuleBase {
     /**
      * Throws a `PermissionDeniedError` error if we are not a session actor.
      * Otherwise returns a context with the correct type for the `actor` module.

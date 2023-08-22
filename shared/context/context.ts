@@ -5,6 +5,9 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection.js";
 
+// Never actually used at runtime. Only used by the type system.
+declare const modulesTypeSymbol: unique symbol;
+
 /**
  * The context abstraction is designed for passing shared environment
  * capabilities deep throughout server side code.
@@ -28,6 +31,12 @@ import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection.
  * that it's resources are not misused later.
  */
 export type Context<Modules extends {[key: string]: ContextModuleBase | undefined}> = {
+    // This symbol doesn't exist at runtime. It only exists in the type system.
+    // It's also private to this module. By including this property, it makes
+    // TypeScript error messages more readable since when TypeScript checks module
+    // type compatibility it starts with this property.
+    readonly [modulesTypeSymbol]: Modules;
+} & {
     // We intersect the module type with a `ContextModuleBase` type that has the
     // full modules object. That way we can write clone functions in context
     // modules of the form `clone<Modules>(this: ContextModuleBase<Modules>)` that
@@ -103,7 +112,7 @@ export type ContextWithDestroy<Modules extends {[key: string]: ContextModuleBase
  * dependencies from each module. We can use this type to make sure we've
  * satisfied all our module requirements.
  */
-type ContextModulesDependencies<Modules extends {[key: string]: ContextModuleBase}> =
+export type ContextModulesDependencies<Modules extends {[key: string]: ContextModuleBase}> =
     UnionToIntersection<
         {[Key in keyof Modules]: ContextModuleModulesType<Modules[Key]>}[keyof Modules]
     >;

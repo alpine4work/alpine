@@ -123,7 +123,7 @@ export class WorkerRpcContextModule extends RpcContextModuleBase<{
         );
     }
 
-    public clone(): WorkerRpcContextModule {
+    public fork(): WorkerRpcContextModule {
         return new WorkerRpcContextModule({
             protocol: this._protocol,
             host: this._host,

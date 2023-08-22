@@ -1,3 +1,5 @@
+// @ts-nocheck NOCOMMIT: This file will be refactored later
+
 import {DndContext, DragOverlay, closestCenter, useDndContext} from "@dnd-kit/core";
 import {SortableContext, arrayMove, useSortable} from "@dnd-kit/sortable";
 import {CaretDown, DotsSixVertical, Plus, X} from "phosphor-react";

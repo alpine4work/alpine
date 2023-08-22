@@ -3,7 +3,7 @@ import type {Context} from "~/shared/context/context.js";
 import {InternalError} from "~/shared/error/error.js";
 
 // Never actually used at runtime. Only used by the type system.
-const modulesTypeSymbol = Symbol("modulesType");
+declare const modulesTypeSymbol: unique symbol;
 
 /**
  * A `Context` is made up of a couple modules. All modules inherit from this

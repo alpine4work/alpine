@@ -4,7 +4,7 @@ import {
     SessionActorContextModule,
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
-import {ForkActionContextModule} from "~/server/helpers/fork_action_context_module.js";
+import {ForkActionContextModule} from "~/shared/context/fork_action_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
@@ -26,6 +26,13 @@ type WorkerActionContextModulesBase = WorkerProcessContextModules & {
      * that tests may use `LocalRpcContextModule`.
      */
     rpc: RpcContextModuleBase;
+
+    /**
+     * Allows us to fork out new actions with the same credentials but everything
+     * else is reset. Particularly useful for WebSocket servers where we fork a new
+     * action context for each incoming message we need to process.
+     */
+    fork: ForkActionContextModule;
 };
 
 /**
@@ -43,13 +50,6 @@ export type WorkerActionContextModules = MergeObjectIntersection<
          * an `AppActorContextModule` which is type compatible.
          */
         actor: ActorContextModule;
-
-        /**
-         * Allows us to fork out new actions with the same credentials but everything
-         * else is reset. Particularly useful for WebSocket servers where we fork a new
-         * action context for each incoming message we need to process.
-         */
-        fork: ForkActionContextModule<WorkerActionContextModules>;
     }
 >;
 
@@ -62,7 +62,6 @@ export type WorkerSessionActionContext = Context<WorkerSessionActionContextModul
 export type WorkerSessionActionContextModules = MergeObjectIntersection<
     WorkerActionContextModulesBase & {
         actor: SessionActorContextModule;
-        fork: ForkActionContextModule<WorkerSessionActionContextModules>;
     }
 >;
 
@@ -75,6 +74,5 @@ export type WorkerSystemActionContext = Context<WorkerSystemActionContextModules
 export type WorkerSystemActionContextModules = MergeObjectIntersection<
     WorkerActionContextModulesBase & {
         actor: SystemActorContextModule;
-        fork: ForkActionContextModule<WorkerSystemActionContextModules>;
     }
 >;

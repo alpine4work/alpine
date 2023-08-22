@@ -1,6 +1,8 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {AddMarkStep, RemoveMarkStep, ReplaceStep} from "prosemirror-transform";
-import {WebSocketServerTestConnection} from "~/server/web_socket/web_socket_server.js";
+import {WorkerSessionActionContextModules} from "~/server/cloudflare/context/worker_action_context.js";
+import {WorkerProcessContextModules} from "~/server/cloudflare/context/worker_process_context.js";
+import {createTestWorkerContext} from "~/server/cloudflare/test_helpers/create_test_worker_context.js";
 import {DocumentCollaborationConnection} from "~/server/documents/collaboration/document_collaboration_connection.js";
 import {
     documentCollaborationContentManagerBeforePersistTestCheckpoint,
@@ -14,10 +16,9 @@ import {
     getDocumentComment,
     updateDocumentContent,
 } from "~/server/documents/data/documents_table.js";
-import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
-import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
+import {WebSocketServerTestConnection} from "~/server/web_socket/web_socket_server.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";
 import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references.js";
@@ -37,17 +38,7 @@ import {generateId} from "~/shared/id/id.js";
 import {ContentEditorClientId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 
-const baseContext = createTestContext();
-
-const context = {
-    ...baseContext,
-    action: session => {
-        return baseContext.action(session).clone({
-            rpc: new LocalRpcContextModule(),
-        });
-    },
-} satisfies TestContext;
-
+const context = createTestWorkerContext();
 const {connectForTest} = DocumentCollaborationDurableObject.test(context);
 const space = createTestSpace(context);
 const session1 = createTestSession(context, space);
@@ -70,6 +61,8 @@ function textSlice(text: string) {
 
 function waitForPersistance(
     connection: WebSocketServerTestConnection<
+        WorkerProcessContextModules,
+        WorkerSessionActionContextModules,
         typeof DocumentCollaborationProtocol,
         DocumentCollaborationConnection
     >,
