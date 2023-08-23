@@ -8,7 +8,10 @@ import {
     OpensearchIndexTypeType,
 } from "~/server/opensearch/opensearch_index_type.js";
 import {createCrdtRegisterOpensearchType} from "~/server/tasks/data/internal/create_crdt_register_opensearch_type.js";
-import {HybridLogicalTimeType} from "~/server/tasks/data/internal/hybrid_logical_time_type.js";
+import {
+    HybridLogicalTimeType,
+    SortableHybridLogicalTimeType,
+} from "~/server/tasks/data/internal/hybrid_logical_time_type.js";
 import {compareHybridLogicalTimes} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
@@ -54,7 +57,7 @@ export const TaskCollectionIndexDocType = OpensearchIndexObjectType.new({
             isFilterable: true,
             isSortable: true,
         }).validate<SpaceId>(isId),
-        createdTime: HybridLogicalTimeType,
+        createdTime: SortableHybridLogicalTimeType,
 
         // The `isDeleted` computed property definitively tells us whether a task is
         // deleted or not.

@@ -6,7 +6,10 @@ import {
     omitOpensearchStaticIndexConfig,
     pickOpensearchStaticIndexConfig,
 } from "~/server/opensearch/opensearch_index.js";
-import {OpensearchQueryClause} from "~/server/opensearch/opensearch_query_clause.js";
+import {
+    OpensearchQueryClause,
+    getOpensearchQueryClauseDescription,
+} from "~/server/opensearch/opensearch_query_clause.js";
 import {OpensearchSortClause} from "~/server/opensearch/opensearch_sort_clause.js";
 import {FailedPreconditionError, InternalError, UnknownError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -16,7 +19,7 @@ import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
 import {partitionArray} from "~/shared/helpers/iterable/partition_array.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
+import {fetchWithTracer, fetchWithTracerAndReturnSpan} from "~/shared/tracer/fetch_with_tracer.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 const JsonBigInt = createJsonBigInt({useNativeBigInt: true});
@@ -666,7 +669,6 @@ export class OpensearchClient implements OpensearchClientInterface {
      *
      * [1]: https://opensearch.org/docs/latest/api-reference/search/
      */
-    // NOCOMMIT: Include a query template without any values in span
     public async search<
         Routing extends string,
         DocId extends string,
@@ -713,7 +715,7 @@ export class OpensearchClient implements OpensearchClientInterface {
         searchUrl.searchParams.set("timeout", "30s");
         searchUrl.searchParams.set("cancel_after_time_interval", "30s");
 
-        const response = await fetchWithTracer(tracer, searchUrl, {
+        const {span, responsePromise} = fetchWithTracerAndReturnSpan(tracer, searchUrl, {
             spanRoute: `/${index.name}/_search`,
             method: "POST",
             headers: {"content-type": "application/json"},
@@ -722,6 +724,15 @@ export class OpensearchClient implements OpensearchClientInterface {
             // `json-bigint`.
             body: JsonBigInt.stringify({query, sort, search_after: searchAfter}),
         });
+
+        span.addData({
+            opensearch: {
+                query: getOpensearchQueryClauseDescription(query),
+                sort: JSON.stringify(sort),
+            },
+        });
+
+        const response = await responsePromise;
 
         // NOTE(#opensearch-important-json-disclaimer): We only use `_source` which is
         // deserialized with our index object type. `_source`s correctly serialize big

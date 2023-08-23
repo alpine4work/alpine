@@ -1,4 +1,29 @@
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
 import {JsonValue} from "~/shared/helpers/types/json_value.js";
+
+/**
+ * All dynamic values in an OpenSearch query must be wrapped in this class.
+ * When `JSON.stringify()`ed the value will be converted to its underlying
+ * value.
+ *
+ * The reason we require wrapping dynamic values is so we can throw them away
+ * when generating a query description that's attached to the OpenSearch search
+ * span. So when debugging OpenSearch searches you can see the entire request
+ * minus any sensitive private values.
+ */
+export class OpensearchQueryValue<Value extends JsonValue> {
+    private readonly _value: Value;
+
+    constructor(value: Value) {
+        this._value = value;
+    }
+
+    public toJSON() {
+        return this._value;
+    }
+}
 
 /**
  * A clause in the OpenSearch query DSL.
@@ -23,7 +48,7 @@ type OpensearchQueryClauseField<FlattenedKeys extends string, Value> = {
  * https://opensearch.org/docs/latest/query-dsl/term/#term
  */
 export type OpensearchTermQueryClause<FlattenedKeys extends string> = {
-    terms: OpensearchQueryClauseField<FlattenedKeys, Array<JsonValue>>;
+    terms: OpensearchQueryClauseField<FlattenedKeys, OpensearchQueryValue<Array<JsonValue>>>;
 };
 
 /**
@@ -32,7 +57,7 @@ export type OpensearchTermQueryClause<FlattenedKeys extends string> = {
  * https://opensearch.org/docs/latest/query-dsl/term/#term
  */
 export type OpensearchTermsQueryClause<FlattenedKeys extends string> = {
-    term: OpensearchQueryClauseField<FlattenedKeys, JsonValue>;
+    term: OpensearchQueryClauseField<FlattenedKeys, OpensearchQueryValue<JsonValue>>;
 };
 
 /**
@@ -52,7 +77,12 @@ export type OpensearchExistsQueryClause<FlattenedKeys extends string> = {
 export type OpensearchRangeQueryClause<FlattenedKeys extends string> = {
     range: OpensearchQueryClauseField<
         FlattenedKeys,
-        {gte?: JsonValue; gt?: JsonValue; lte?: JsonValue; lt?: JsonValue}
+        {
+            gte?: OpensearchQueryValue<JsonValue>;
+            gt?: OpensearchQueryValue<JsonValue>;
+            lte?: OpensearchQueryValue<JsonValue>;
+            lt?: OpensearchQueryValue<JsonValue>;
+        }
     >;
 };
 
@@ -62,7 +92,10 @@ export type OpensearchRangeQueryClause<FlattenedKeys extends string> = {
  * https://opensearch.org/docs/latest/query-dsl/full-text/#match-phrase
  */
 export type OpensearchMatchPhraseQueryClause<FlattenedKeys extends string> = {
-    match_phrase: OpensearchQueryClauseField<FlattenedKeys, {query: string; analyzer?: string}>;
+    match_phrase: OpensearchQueryClauseField<
+        FlattenedKeys,
+        {query: OpensearchQueryValue<string>; analyzer?: string}
+    >;
 };
 
 /**
@@ -119,3 +152,41 @@ export type OpensearchShouldBooleanQueryClause<FlattenedKeys extends string> = {
 export type OpensearchFilterBooleanQueryClause<FlattenedKeys extends string> = {
     filter: OpensearchQueryClause<FlattenedKeys> | Array<OpensearchQueryClause<FlattenedKeys>>;
 };
+
+/**
+ * Get a string description of the OpenSearch query clause. It is JSON except
+ * all `OpensearchQueryValue`s will be replaced with `_` so sensitive user data
+ * isn't in our telemetry.
+ *
+ * Using the `_` character since that's a common symbol in functional
+ * programming languages (like Haskell and Rust) to represent a value hole.
+ */
+export function getOpensearchQueryClauseDescription(
+    queryClause: OpensearchQueryClause<string>,
+): string {
+    const loop = (value: JsonValue): string => {
+        if (value === null) return "null";
+
+        switch (typeof value) {
+            case "boolean":
+            case "number":
+            case "string":
+                return JSON.stringify(value);
+            case "object": {
+                if (isReadonlyArray(value)) {
+                    return `[${value.map(item => loop(item)).join(",")}]`;
+                } else if (value instanceof OpensearchQueryValue) {
+                    return "_";
+                } else {
+                    return `{${filterMapArray(Object.entries(value), ([key, keyValue]) =>
+                        keyValue !== undefined ? `${JSON.stringify(key)}:${loop(keyValue)}` : null,
+                    ).join(",")}}`;
+                }
+            }
+            default:
+                throw exhaustive(value);
+        }
+    };
+
+    return loop(queryClause as JsonValue);
+}

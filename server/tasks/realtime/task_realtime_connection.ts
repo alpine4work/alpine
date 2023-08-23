@@ -480,8 +480,6 @@ export class TaskRealtimeConnection {
 
                                 if (oldIsAccessAuthorized !== newIsAccessAuthorized) {
                                     if (!newIsAccessAuthorized) {
-                                        // NOCOMMIT: Clients are going to depend on event order here with unauthorized
-                                        // tasks. Test some race conditions?
                                         eventBuilder.addUnauthorizedTaskBackfill(
                                             this._sender,
                                             task.id,
@@ -523,8 +521,6 @@ export class TaskRealtimeConnection {
 
                                 if (oldIsAccessAuthorized !== newIsAccessAuthorized) {
                                     if (!newIsAccessAuthorized) {
-                                        // NOCOMMIT: Clients are going to depend on event order here with unauthorized
-                                        // tasks. Test some race conditions?
                                         eventBuilder.addUnauthorizedCollectionBackfill(
                                             this._sender,
                                             collection.id,

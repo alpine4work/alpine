@@ -1,5 +1,8 @@
 import {OpensearchIndexFlattenedKeysType} from "~/server/opensearch/opensearch_index_type.js";
-import {OpensearchQueryClause} from "~/server/opensearch/opensearch_query_clause.js";
+import {
+    OpensearchQueryClause,
+    OpensearchQueryValue,
+} from "~/server/opensearch/opensearch_query_clause.js";
 import {
     TaskDisplayStatusIntegerMapping,
     TaskIndexDocType,
@@ -60,9 +63,9 @@ export function getTaskQueryNormalizedFiltersOpensearchQueryClause(
             // https://opensearch.org/docs/latest/query-dsl/query-filter-context/#filter-context
             filter: [
                 // Only return tasks in a single space.
-                {term: {spaceId}},
+                {term: {spaceId: new OpensearchQueryValue(spaceId)}},
                 // Never return deleted tasks.
-                {term: {isDeleted: false}},
+                {term: {isDeleted: new OpensearchQueryValue(false)}},
 
                 ...getTaskQueryNormalizedFiltersOpensearchFilterQueryClauses(filters),
             ],
@@ -91,7 +94,11 @@ function getTaskQueryNormalizedFiltersOpensearchFilterQueryClauses(
         !filters.displayStatusFilter.ifClosed
     ) {
         filterQueryClauses.push({
-            term: {"status.value.type": TaskStatusTypeIntegerMapping.into("Open")},
+            term: {
+                "status.value.type": new OpensearchQueryValue(
+                    TaskStatusTypeIntegerMapping.into("Open"),
+                ),
+            },
         });
     } else if (
         filters.displayStatusFilter.ifClosed &&
@@ -99,7 +106,11 @@ function getTaskQueryNormalizedFiltersOpensearchFilterQueryClauses(
         !filters.displayStatusFilter.ifOpenInactive
     ) {
         filterQueryClauses.push({
-            term: {"status.value.type": TaskStatusTypeIntegerMapping.into("Closed")},
+            term: {
+                "status.value.type": new OpensearchQueryValue(
+                    TaskStatusTypeIntegerMapping.into("Closed"),
+                ),
+            },
         });
     } else if (
         filters.displayStatusFilter.ifClosed &&
@@ -116,11 +127,19 @@ function getTaskQueryNormalizedFiltersOpensearchFilterQueryClauses(
 
         if (terms.length === 1) {
             filterQueryClauses.push({
-                term: {displayStatus: TaskDisplayStatusIntegerMapping.into(terms[0]!)},
+                term: {
+                    displayStatus: new OpensearchQueryValue(
+                        TaskDisplayStatusIntegerMapping.into(terms[0]!),
+                    ),
+                },
             });
         } else if (terms.length > 0) {
             filterQueryClauses.push({
-                terms: {displayStatus: terms.map(TaskDisplayStatusIntegerMapping.into)},
+                terms: {
+                    displayStatus: new OpensearchQueryValue(
+                        terms.map(TaskDisplayStatusIntegerMapping.into),
+                    ),
+                },
             });
         }
     }
@@ -141,13 +160,15 @@ function getTaskQueryNormalizedFiltersOpensearchFilterQueryClauses(
                 if (clause.size === 1) {
                     filterQueryClauses.push({
                         term: {
-                            "collections.ids": assertExists(iterableFirst(clause.keys())),
+                            "collections.ids": new OpensearchQueryValue(
+                                assertExists(iterableFirst(clause.keys())),
+                            ),
                         },
                     });
                 } else {
                     filterQueryClauses.push({
                         terms: {
-                            "collections.ids": Array.from(clause.keys()),
+                            "collections.ids": new OpensearchQueryValue(Array.from(clause.keys())),
                         },
                     });
                 }
@@ -173,9 +194,15 @@ function getTaskQueryNormalizedFiltersOpensearchFilterQueryClauses(
                         // collections:
                         // `collections.has(collectionId1) || collections.has(collectionId2)`.
                         if (!not) {
-                            return {bool: {must_not: {term: {"collections.ids": term}}}};
+                            return {
+                                bool: {
+                                    must_not: {
+                                        term: {"collections.ids": new OpensearchQueryValue(term)},
+                                    },
+                                },
+                            };
                         } else {
-                            return {term: {"collections.ids": term}};
+                            return {term: {"collections.ids": new OpensearchQueryValue(term)}};
                         }
                     }
                 },
@@ -195,11 +222,25 @@ function getTaskQueryNormalizedFiltersOpensearchFilterQueryClauses(
 
         if (excludesAllCollectionIds.length === 1) {
             filterQueryClauses.push({
-                bool: {must_not: {term: {"collections.ids": excludesAllCollectionIds[0]!}}},
+                bool: {
+                    must_not: {
+                        term: {
+                            "collections.ids": new OpensearchQueryValue(
+                                excludesAllCollectionIds[0]!,
+                            ),
+                        },
+                    },
+                },
             });
         } else if (excludesAllCollectionIds.length > 0) {
             filterQueryClauses.push({
-                bool: {must_not: {terms: {"collections.ids": excludesAllCollectionIds}}},
+                bool: {
+                    must_not: {
+                        terms: {
+                            "collections.ids": new OpensearchQueryValue(excludesAllCollectionIds),
+                        },
+                    },
+                },
             });
         }
     }
@@ -214,7 +255,11 @@ function getTaskQueryNormalizedFiltersOpensearchFilterQueryClauses(
 
         if (!filters.priorityFilter.ifNull) {
             filterQueryClauses.push({
-                terms: {"priority.value": terms.map(TaskPriorityIntegerMapping.into)},
+                terms: {
+                    "priority.value": new OpensearchQueryValue(
+                        terms.map(TaskPriorityIntegerMapping.into),
+                    ),
+                },
             });
         } else if (terms.length === 0) {
             filterQueryClauses.push({bool: {must_not: {exists: {field: "priority.value"}}}});
@@ -223,7 +268,13 @@ function getTaskQueryNormalizedFiltersOpensearchFilterQueryClauses(
                 bool: {
                     minimum_should_match: 1,
                     should: [
-                        {terms: {"priority.value": terms.map(TaskPriorityIntegerMapping.into)}},
+                        {
+                            terms: {
+                                "priority.value": new OpensearchQueryValue(
+                                    terms.map(TaskPriorityIntegerMapping.into),
+                                ),
+                            },
+                        },
                         {bool: {must_not: {exists: {field: "priority.value"}}}},
                     ],
                 },
@@ -238,7 +289,7 @@ function getTaskQueryNormalizedFiltersOpensearchFilterQueryClauses(
                     filterQueryClauses.push({
                         match_phrase: {
                             "title.text": {
-                                query: titleFilter.titleQuery,
+                                query: new OpensearchQueryValue(titleFilter.titleQuery),
                                 analyzer: "standard",
                             },
                         },
@@ -251,7 +302,7 @@ function getTaskQueryNormalizedFiltersOpensearchFilterQueryClauses(
                             must_not: {
                                 match_phrase: {
                                     "title.text": {
-                                        query: titleFilter.titleQuery,
+                                        query: new OpensearchQueryValue(titleFilter.titleQuery),
                                         analyzer: "standard",
                                     },
                                 },
@@ -341,7 +392,7 @@ function getTaskQueryNormalizedFiltersOpensearchFilterQueryClauses(
     if (filters.parentFilter) {
         filterQueryClauses.push({
             term: {
-                "parent.taskId.value": filters.parentFilter.parentTaskId,
+                "parent.taskId.value": new OpensearchQueryValue(filters.parentFilter.parentTaskId),
             },
         });
     }
@@ -356,13 +407,15 @@ function getTaskQueryNormalizedFiltersOpensearchFilterQueryClauses(
         // `authorizeTaskQueryAccess()`.
         filterQueryClauses.push({
             term: {
-                "creator.accountId": filters.notepadPageFilter.accountId,
+                "creator.accountId": new OpensearchQueryValue(filters.notepadPageFilter.accountId),
             },
         });
 
         filterQueryClauses.push({
             term: {
-                "notepadPages.ids": `${filters.notepadPageFilter.accountId}-${filters.notepadPageFilter.notepadPageId}`,
+                "notepadPages.ids": new OpensearchQueryValue(
+                    `${filters.notepadPageFilter.accountId}-${filters.notepadPageFilter.notepadPageId}`,
+                ),
             },
         });
     }
@@ -391,16 +444,16 @@ function getTaskQueryAccountNormalizedFilterOpensearchQueryClause(
                 return {bool: {must_not: {exists: {field: fieldName}}}};
             } else if (!hasMissingAccount) {
                 return accountIds.length === 1
-                    ? {term: {[fieldName]: accountIds[0]!}}
-                    : {terms: {[fieldName]: accountIds}};
+                    ? {term: {[fieldName]: new OpensearchQueryValue(accountIds[0]!)}}
+                    : {terms: {[fieldName]: new OpensearchQueryValue(accountIds)}};
             } else {
                 return {
                     bool: {
                         minimum_should_match: 1,
                         should: [
                             accountIds.length === 1
-                                ? {term: {[fieldName]: accountIds[0]!}}
-                                : {terms: {[fieldName]: accountIds}},
+                                ? {term: {[fieldName]: new OpensearchQueryValue(accountIds[0]!)}}
+                                : {terms: {[fieldName]: new OpensearchQueryValue(accountIds)}},
                             {bool: {must_not: {exists: {field: fieldName}}}},
                         ],
                     },
@@ -423,15 +476,45 @@ function getTaskQueryAccountNormalizedFilterOpensearchQueryClause(
                 return {exists: {field: fieldName}};
             } else if (!hasMissingAccount) {
                 return accountIds.length === 1
-                    ? {bool: {must_not: {term: {[fieldName]: accountIds[0]!}}}}
-                    : {bool: {must_not: {terms: {[fieldName]: accountIds}}}};
+                    ? {
+                          bool: {
+                              must_not: {
+                                  term: {[fieldName]: new OpensearchQueryValue(accountIds[0]!)},
+                              },
+                          },
+                      }
+                    : {
+                          bool: {
+                              must_not: {
+                                  terms: {[fieldName]: new OpensearchQueryValue(accountIds)},
+                              },
+                          },
+                      };
             } else {
                 return {
                     bool: {
                         must: [
                             accountIds.length === 1
-                                ? {bool: {must_not: {term: {[fieldName]: accountIds[0]!}}}}
-                                : {bool: {must_not: {terms: {[fieldName]: accountIds}}}},
+                                ? {
+                                      bool: {
+                                          must_not: {
+                                              term: {
+                                                  [fieldName]: new OpensearchQueryValue(
+                                                      accountIds[0]!,
+                                                  ),
+                                              },
+                                          },
+                                      },
+                                  }
+                                : {
+                                      bool: {
+                                          must_not: {
+                                              terms: {
+                                                  [fieldName]: new OpensearchQueryValue(accountIds),
+                                              },
+                                          },
+                                      },
+                                  },
                             {exists: {field: fieldName}},
                         ],
                     },
@@ -455,8 +538,16 @@ function getTaskQueryDateNormalizedFilterOpensearchQueryClause(
             return {
                 range: {
                     [fieldName]: {
-                        gt: filter.exclusiveLowerBoundDate?.toDate("UTC").toISOString(),
-                        lt: filter.exclusiveUpperBoundDate?.toDate("UTC").toISOString(),
+                        gt: filter.exclusiveLowerBoundDate
+                            ? new OpensearchQueryValue(
+                                  filter.exclusiveLowerBoundDate.toDate("UTC").toISOString(),
+                              )
+                            : undefined,
+                        lt: filter.exclusiveUpperBoundDate
+                            ? new OpensearchQueryValue(
+                                  filter.exclusiveUpperBoundDate.toDate("UTC").toISOString(),
+                              )
+                            : undefined,
                     },
                 },
             };

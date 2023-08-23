@@ -504,7 +504,7 @@ async function actuallyIndexTaskAction(
                     id: action.collectionId,
                     version: null,
                     spaceId: state.spaceId,
-                    createdTime: new Date(action.time[0]),
+                    createdTime: action.time,
                     rawDeletedTime: null,
                     rawUndeletedTime: null,
                     name: new LabelStringRegister("", action.time),

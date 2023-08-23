@@ -303,8 +303,6 @@ export class TaskRealtimeQuerySubscriptionInternal {
     } {
         if (this._loadedBeforeCursor === "FullyLoaded") return {hasMoreTasks: false, tasks: []};
 
-        // NOCOMMIT: I don't need `tasks` anymore. Can I make this more efficient? By
-        // just getting the `loadedBeforeCursor`?
         const {hasMoreTasks, tasks} = this.query.getLoadedTasks({
             limit,
             afterCursor: this._loadedBeforeCursor !== "Unloaded" ? this._loadedBeforeCursor : null,

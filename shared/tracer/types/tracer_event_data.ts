@@ -640,6 +640,18 @@ export type TracerEventData = {
         /** The number of action history segments we are iterating over. */
         readonly actionHistorySegmentCount?: number;
     };
+
+    /** Data related to requests to OpenSearch. */
+    readonly opensearch?: {
+        /**
+         * A JSON string representation of a search's query. User data in the query is
+         * replaced with `_`.
+         */
+        readonly query?: string;
+
+        /** A JSON string representation of a search's sorts. */
+        readonly sort?: string;
+    };
 };
 
 /**
