@@ -1,10 +1,11 @@
-import cluster from "cluster";
+import cluster, {Worker} from "cluster";
 import * as os from "os";
 import process from "process";
 import {ParseArgsConfig, ParsedResults, parseArgs} from "util";
+import {registerShutdownListener} from "~/server/node/shutdown_manager.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {InternalError} from "~/shared/error/error.js";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.js";
@@ -39,6 +40,12 @@ export function runService<Options extends ParseArgsConfig["options"]>({
         tracer: TracerRoot,
     ) => Promise<void>;
 }) {
+    // Make our service easy to find in process managers. We include
+    // "cyberworlds" and "node" so you can grep by those strings.
+    process.title = `${serviceName} ${
+        cluster.isPrimary ? "primary" : "worker"
+    } (cyberworlds, node)`;
+
     // In production, run our service across all available CPUs so we get full
     // CPU utilization.
     if (cluster.isPrimary) {
@@ -48,9 +55,14 @@ export function runService<Options extends ParseArgsConfig["options"]>({
             cluster.fork();
         }
 
+        let isShuttingDown = false;
+
         // If any worker in the cluster dies, kill all other workers and exit the
         // process with an error.
         cluster.on("exit", worker => {
+            // If we are shutting down the cluster then exits are expected.
+            if (isShuttingDown) return;
+
             // eslint-disable-next-line no-console
             console.error(
                 new InternalError(quote`Worker (id: ${worker.id}) exited, killing cluster`),
@@ -58,6 +70,32 @@ export function runService<Options extends ParseArgsConfig["options"]>({
             process.exit(1);
         });
 
+        // If we are the primary node of a cluster then on shutdown, kill all cluster
+        // nodes and wait for them to exit before letting shutdown finish.
+        registerShutdownListener(async signal => {
+            isShuttingDown = true;
+
+            const workers = Object.values(cluster.workers!) as Array<Worker>;
+
+            if (workers.every(worker => worker.isDead())) {
+                return;
+            }
+
+            const exitPromise = new Promise<void>(resolve => {
+                cluster.on("exit", () => {
+                    if (workers.every(worker => worker.isDead())) {
+                        resolve();
+                    }
+                });
+            });
+
+            for (const worker of workers) {
+                if (worker.isDead()) continue;
+                worker.kill(signal);
+            }
+
+            await exitPromise;
+        });
         return;
     }
 
@@ -76,14 +114,38 @@ export function runService<Options extends ParseArgsConfig["options"]>({
     if (!honeycombApiKey && process.env.NODE_ENV === "production")
         throw new InternalError("Must provide `honeycombApiKey` arg in production");
 
+    let waitUntilPromises = new Set<Promise<unknown>>();
+
+    // Don't let the process shutdown until all promises passed into `waitUntil()`
+    // have resolved.
+    registerShutdownListener(async () => {
+        while (waitUntilPromises.size > 0) {
+            const promises = waitUntilPromises;
+            waitUntilPromises = new Set();
+            await runAllPromises(promises);
+        }
+    });
+
     const tracer = createServerTracer({
         serviceName,
         jsHost: "Node",
         honeycombApiKey,
-        waitUntil: promise => {
-            // We don't need to extend the lifetime of our Node.js process with a promise.
-            // If the tracer throws an error, well, there's nowhere else to send the error.
-            promise.catch(scheduleUncaughtError);
+        waitUntil: _promise => {
+            const promise = _promise.then(
+                () => {
+                    waitUntilPromises.delete(promise);
+                },
+                error => {
+                    waitUntilPromises.delete(promise);
+
+                    // eslint-disable-next-line no-console
+                    console.error("Exception from server tracer:");
+                    // eslint-disable-next-line no-console
+                    console.error(error);
+                },
+            );
+
+            waitUntilPromises.add(promise);
         },
     });
 

@@ -2,6 +2,11 @@
 
 import {InternalError} from "~/shared/error/error.js";
 
+// Make our adhoc process easy to find in process managers so we can hunt down
+// runaway scripts. We include "cyberworlds" and "node" so you can grep by
+// those strings.
+process.title = "adhoc (cyberworlds, node)";
+
 async function main() {
     try {
         await import("./adhoc_local.js");

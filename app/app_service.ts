@@ -17,7 +17,7 @@ import {
 import {
     createServerProcessContext,
     serverProcessContextParseOptions,
-} from "~/server/context/create_server_process_context.js";
+} from "~/server/node/create_server_process_context.js";
 import {
     ServerSystemActionContext,
     ServerSystemActionContextModules,

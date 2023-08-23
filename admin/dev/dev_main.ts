@@ -45,8 +45,9 @@ import {Id} from "~/shared/id/id.js";
 
 assert(process.env.NODE_ENV === "development");
 
-// Make our dev server easy to find in process managers.
-process.title = "dev";
+// Make our dev server easy to find in process managers. We include
+// "cyberworlds" and "node" so you can grep by those strings.
+process.title = "dev (cyberworlds, node)";
 
 const env = parseDotenv();
 

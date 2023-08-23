@@ -4,6 +4,7 @@ import {IncomingHttpHeaders, IncomingMessage, ServerResponse, createServer} from
 import {Socket} from "net";
 import {Readable} from "stream";
 import {WebSocketServer} from "ws";
+import {registerShutdownListener} from "~/server/node/shutdown_manager.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
 import {coupleWebSocket} from "~/server/web_socket/couple_web_socket.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -167,6 +168,17 @@ export function createStandardizedServer(
 
     server.on("error", error => {
         tracer.logUncaughtException("Uncaught exception from HTTP server", error);
+    });
+
+    // Gracefully close the server when a shutdown is requested so any ongoing
+    // requests aren't just...dropped.
+    registerShutdownListener(async () => {
+        await new Promise<void>((resolve, reject) =>
+            server.close(error => {
+                if (error) reject(error);
+                else resolve();
+            }),
+        );
     });
 
     return server;

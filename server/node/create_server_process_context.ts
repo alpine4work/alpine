@@ -8,12 +8,14 @@ import {
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
 import {SesEmailContextModule} from "~/server/emails/ses_email_context_module.js";
+import {registerShutdownListener} from "~/server/node/shutdown_manager.js";
 import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
@@ -164,14 +166,32 @@ export function createServerProcessContext({
         }));
     };
 
+    let waitUntilPromises = new Set<Promise<unknown>>();
+
+    // Don't let the process shutdown until all promises passed into `waitUntil()`
+    // have resolved.
+    registerShutdownListener(async () => {
+        while (waitUntilPromises.size > 0) {
+            const promises = waitUntilPromises;
+            waitUntilPromises = new Set();
+            await runAllPromises(promises);
+        }
+    });
+
     return Context.new<ServerProcessContextModules>({
         process: new ProcessContextModule({
-            // NOCOMMIT: `waitUntil()` should stop the server from shutting down until
-            // everything has finished.
-            waitUntil: promise => {
-                promise.catch(error => {
-                    tracer.logUncaughtException("Uncaught exception from `waitUntil()`", error);
-                });
+            waitUntil: _promise => {
+                const promise = _promise.then(
+                    () => {
+                        waitUntilPromises.delete(promise);
+                    },
+                    error => {
+                        waitUntilPromises.delete(promise);
+                        tracer.logUncaughtException("Uncaught exception from `waitUntil()`", error);
+                    },
+                );
+
+                waitUntilPromises.add(promise);
             },
         }),
         tracer: new TracerContextModule(tracer),
