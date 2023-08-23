@@ -33,7 +33,7 @@ import {waitForProcessSpawn} from "~/admin/helpers/wait_for_process_spawn.js";
 import {workspacePath} from "~/admin/helpers/workspace_path.js";
 import {startOpensearchLocal} from "~/admin/opensearch/local/start_opensearch_local.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
-import {AsyncMutex} from "~/shared/helpers/async/async_mutex.js";
+import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
@@ -72,7 +72,7 @@ type Artifact = {
     readonly privatePort: number;
     readonly env?: {readonly [key: string]: string};
     readonly args?: ReadonlyArray<string>;
-    readonly server: AsyncMutex<ArtifactServer | null>;
+    readonly server: MutexValue<ArtifactServer | null>;
     readonly onServerRestart?: () => Promise<void>;
 };
 
@@ -100,7 +100,7 @@ const artifacts: ReadonlyArray<Artifact> = [
             `--opensearchLocalPort=${opensearchLocalPort}`,
             ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
         ],
-        server: new AsyncMutex<ArtifactServer | null>(null),
+        server: new MutexValue<ArtifactServer | null>(null),
         onServerRestart: async () => {
             const remixDevServer = await remixDevServerPromise;
             remixDevServer.reload();
@@ -119,7 +119,7 @@ const artifacts: ReadonlyArray<Artifact> = [
             `--edgeServiceFamilyPrivateKey=${devEdgeServiceFamilyPrivateKeyPath}`,
             ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
         ],
-        server: new AsyncMutex<ArtifactServer | null>(null),
+        server: new MutexValue<ArtifactServer | null>(null),
     },
     {
         bazelTarget: "//server/tasks/realtime",
@@ -136,7 +136,7 @@ const artifacts: ReadonlyArray<Artifact> = [
             `--opensearchLocalPort=${opensearchLocalPort}`,
             ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
         ],
-        server: new AsyncMutex<ArtifactServer | null>(null),
+        server: new MutexValue<ArtifactServer | null>(null),
     },
 ];
 
@@ -255,12 +255,14 @@ process.on("uncaughtException", error => {
 async function rebuildArtifact(artifact: Artifact) {
     const {buildId} = await buildBazelTarget(artifact.bazelTarget);
 
-    await artifact.server.run(async (artifactServer, setArtifactServer) => {
-        // If the current artifact server corresponds to the current `buildId` then we
-        // don't need to restart it.
-        if (artifactServer?.buildId === buildId) return;
+    await artifact.server.withLock(async artifactServerRef => {
+        if (artifactServerRef.current) {
+            const artifactServer = artifactServerRef.current;
 
-        if (artifactServer) {
+            // If the current artifact server corresponds to the current `buildId` then we
+            // don't need to restart it.
+            if (artifactServer.buildId === buildId) return;
+
             const exitPromise = waitForProcessExit(artifactServer.subprocess).catch(() => {
                 // Ignore errors. As long as the last process exits we can start the
                 // new process.
@@ -268,7 +270,7 @@ async function rebuildArtifact(artifact: Artifact) {
 
             artifactServer.subprocess.kill("SIGINT");
             await exitPromise;
-            setArtifactServer(null);
+            artifactServerRef.current = null;
         }
 
         // Make sure our setup promise has resolved before spawning our server.
@@ -284,7 +286,7 @@ async function rebuildArtifact(artifact: Artifact) {
         );
 
         await runAllPromises([waitForProcessSpawn(subprocess), artifact.onServerRestart?.()]);
-        setArtifactServer({buildId, subprocess});
+        artifactServerRef.current = {buildId, subprocess};
     });
 }
 

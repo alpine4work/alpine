@@ -27,7 +27,7 @@ import {
     InvalidArgumentError,
 } from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
-import {AsyncMutex} from "~/shared/helpers/async/async_mutex.js";
+import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -83,7 +83,7 @@ export class DocumentCollaborationContentManager {
     ) => void;
     private readonly _killProcess: (context: WorkerProcessContext) => void;
 
-    private _state: AsyncMutex<{
+    private _state: MutexValue<{
         readonly version: number;
         readonly content: DocumentContent;
     }>;
@@ -146,7 +146,7 @@ export class DocumentCollaborationContentManager {
     }) {
         this.spaceId = spaceId;
         this.id = id;
-        this._state = new AsyncMutex({
+        this._state = new MutexValue({
             version: initialVersion,
             content: initialContent,
         });
@@ -166,7 +166,7 @@ export class DocumentCollaborationContentManager {
      * provided in the `update()` method.
      */
     public getCurrentVersion() {
-        return this._state.get().version;
+        return this._state.getWithoutLock().version;
     }
 
     /**
@@ -189,7 +189,7 @@ export class DocumentCollaborationContentManager {
      * provided in the `update()` method.
      */
     public getCurrentContent() {
-        return this._state.get().content;
+        return this._state.getWithoutLock().content;
     }
 
     /**
@@ -199,7 +199,7 @@ export class DocumentCollaborationContentManager {
         context: WorkerActionContext,
         version: number,
     ): Promise<DocumentContent> {
-        const state = this._state.get();
+        const state = this._state.getWithoutLock();
 
         if (version > state.version)
             throw new FailedPreconditionError("Can not get document content at a future version");
@@ -248,237 +248,227 @@ export class DocumentCollaborationContentManager {
         presenceState: DocumentCollaborationPresenceState | null;
         hasSentPresenceState: boolean;
     }> {
-        const {oldVersion, steps, presenceState} = await this._state.run(
-            async (state, setState) => {
-                await documentCollaborationContentManagerBeforeUpdateTestCheckpoint.waitForTest(
-                    this.id,
+        const {oldVersion, steps, presenceState} = await this._state.withLock(async stateRef => {
+            await documentCollaborationContentManagerBeforeUpdateTestCheckpoint.waitForTest(
+                this.id,
+            );
+
+            if (
+                update.updateOurPresenceState.state &&
+                update.updateOurPresenceState.state.version !== update.version
+            ) {
+                throw new InvalidArgumentError(
+                    "Document version in new presence state should match the document version we are updating",
                 );
+            }
 
-                if (
-                    update.updateOurPresenceState.state &&
-                    update.updateOurPresenceState.state.version !== update.version
-                ) {
-                    throw new InvalidArgumentError(
-                        "Document version in new presence state should match the document version we are updating",
+            // Make sure comment thread IDs are unique...
+            for (const createCommentThread of update.createCommentThreads) {
+                if (this._optimisticCommentThreadById.has(createCommentThread.commentThreadId))
+                    throw new FailedPreconditionError(
+                        "Document comment thread ID has already been used",
                     );
-                }
+            }
 
-                // Make sure comment thread IDs are unique...
-                for (const createCommentThread of update.createCommentThreads) {
-                    if (this._optimisticCommentThreadById.has(createCommentThread.commentThreadId))
-                        throw new FailedPreconditionError(
-                            "Document comment thread ID has already been used",
-                        );
-                }
+            const oldVersion = stateRef.current.version;
 
-                const oldVersion = state.version;
-
-                const {newContent, steps, invertedSteps, clientContent, mapping} =
-                    await getUpdateDocumentContentResult({
-                        currentVersion: state.version,
-                        currentContent: state.content,
-                        clientVersion: update.version,
-                        clientSteps: update.steps,
-                        getSteps: (startVersion, endVersion) =>
-                            this.stepCache.getSteps(context, startVersion, endVersion),
-                    });
-
-                // Validate the presence state selection based on the document as the client
-                // sees it, then map the selection to the correct position.
-                const clientPresenceStateSelection =
-                    update.updateOurPresenceState.state?.selection.getAndMaybeDeserialize(
-                        clientContent,
-                    );
-                const newPresenceStateSelection = clientPresenceStateSelection?.map(
-                    newContent,
-                    mapping,
-                );
-                const presenceState: DocumentCollaborationPresenceState | null =
-                    newPresenceStateSelection
-                        ? {
-                              version: oldVersion + steps.length,
-                              selection: ProsemirrorSelectionWrapper.new(newPresenceStateSelection),
-                          }
-                        : null;
-
-                setState({
-                    version: state.version + steps.length,
-                    content: newContent,
+            const {newContent, steps, invertedSteps, clientContent, mapping} =
+                await getUpdateDocumentContentResult({
+                    currentVersion: stateRef.current.version,
+                    currentContent: stateRef.current.content,
+                    clientVersion: update.version,
+                    clientSteps: update.steps,
+                    getSteps: (startVersion, endVersion) =>
+                        this.stepCache.getSteps(context, startVersion, endVersion),
                 });
 
-                // Populate our step cache with the new steps before telling other clients
-                // about the new steps.
-                for (let i = 0; i < steps.length; i++) {
-                    const step = steps[i]!;
-                    const invertedStep = invertedSteps[i];
-                    assert(invertedStep);
-                    this.stepCache.dangerouslyAddStepToEnd({
-                        step,
-                        invertedStep,
-                        clientId: update.clientId,
-                    });
+            // Validate the presence state selection based on the document as the client
+            // sees it, then map the selection to the correct position.
+            const clientPresenceStateSelection =
+                update.updateOurPresenceState.state?.selection.getAndMaybeDeserialize(
+                    clientContent,
+                );
+            const newPresenceStateSelection = clientPresenceStateSelection?.map(
+                newContent,
+                mapping,
+            );
+            const presenceState: DocumentCollaborationPresenceState | null =
+                newPresenceStateSelection
+                    ? {
+                          version: oldVersion + steps.length,
+                          selection: ProsemirrorSelectionWrapper.new(newPresenceStateSelection),
+                      }
+                    : null;
+
+            stateRef.current = {
+                version: stateRef.current.version + steps.length,
+                content: newContent,
+            };
+
+            // Populate our step cache with the new steps before telling other clients
+            // about the new steps.
+            for (let i = 0; i < steps.length; i++) {
+                const step = steps[i]!;
+                const invertedStep = invertedSteps[i];
+                assert(invertedStep);
+                this.stepCache.dangerouslyAddStepToEnd({
+                    step,
+                    invertedStep,
+                    clientId: update.clientId,
+                });
+            }
+
+            const commentThreadCreatedTime = new Date();
+
+            // Remember the comment threads we're in the process of creating so if a client
+            // asks for them we don't error because the database hasn't received them yet.
+            for (const createCommentThread of update.createCommentThreads) {
+                const persistedPromiseResolver = createPromiseResolver();
+
+                // Don't consider errors to be unhandled rejections in case no one awaits.
+                persistedPromiseResolver.promise.catch(() => {});
+
+                this._optimisticCommentThreadById.set(createCommentThread.commentThreadId, {
+                    persistedAfterVersion: oldVersion + steps.length,
+                    persistedPromiseResolver,
+                    createdTime: commentThreadCreatedTime,
+                    initialComment: {
+                        authorId: context.actor.getAccountId(),
+                        content: createCommentThread.initialCommentContent,
+                    },
+                });
+            }
+
+            // Persist our content by sending our steps to DynamoDB. We need to save our
+            // steps in the same sequence we received them.
+            //
+            // We batch together steps from the same client id while we're waiting on a
+            // persistence request to finish.
+            if (this._persistenceState?.next?.clientId === update.clientId) {
+                for (const step of steps) {
+                    this._persistenceState.next.steps.push(step);
                 }
-
-                const commentThreadCreatedTime = new Date();
-
-                // Remember the comment threads we're in the process of creating so if a client
-                // asks for them we don't error because the database hasn't received them yet.
                 for (const createCommentThread of update.createCommentThreads) {
-                    const persistedPromiseResolver = createPromiseResolver();
-
-                    // Don't consider errors to be unhandled rejections in case no one awaits.
-                    persistedPromiseResolver.promise.catch(() => {});
-
-                    this._optimisticCommentThreadById.set(createCommentThread.commentThreadId, {
-                        persistedAfterVersion: state.version + steps.length,
-                        persistedPromiseResolver,
+                    this._persistenceState.next.createCommentThreads.push({
+                        ...createCommentThread,
                         createdTime: commentThreadCreatedTime,
-                        initialComment: {
-                            authorId: context.actor.getAccountId(),
-                            content: createCommentThread.initialCommentContent,
-                        },
                     });
                 }
+            } else {
+                const lastPersistenceStatePromise = this._persistenceState?.promise;
+                const nextSteps = Array.from(steps);
+                const nextCreateCommentThreads = Array.from(
+                    update.createCommentThreads,
+                    createCommentThread => ({
+                        ...createCommentThread,
+                        createdTime: commentThreadCreatedTime,
+                    }),
+                );
 
-                // Persist our content by sending our steps to DynamoDB. We need to save our
-                // steps in the same sequence we received them.
-                //
-                // We batch together steps from the same client id while we're waiting on a
-                // persistence request to finish.
-                if (this._persistenceState?.next?.clientId === update.clientId) {
-                    for (const step of steps) {
-                        this._persistenceState.next.steps.push(step);
-                    }
-                    for (const createCommentThread of update.createCommentThreads) {
-                        this._persistenceState.next.createCommentThreads.push({
-                            ...createCommentThread,
-                            createdTime: commentThreadCreatedTime,
-                        });
-                    }
-                } else {
-                    const lastPersistenceStatePromise = this._persistenceState?.promise;
-                    const nextSteps = Array.from(steps);
-                    const nextCreateCommentThreads = Array.from(
-                        update.createCommentThreads,
-                        createCommentThread => ({
-                            ...createCommentThread,
-                            createdTime: commentThreadCreatedTime,
-                        }),
-                    );
+                this._persistenceState = {
+                    next: {
+                        clientId: update.clientId,
+                        steps: nextSteps,
+                        createCommentThreads: nextCreateCommentThreads,
+                    },
+                    // NOTE(calebmer): We're careful to spawn the promise which updates content from
+                    // this `update()` method so the DynamoDB network calls count against the
+                    // request limit for the WebSocket message that triggered the `update()`.
+                    promise: (async () => {
+                        // While we wait, steps may be added to `nextSteps` if it's from the same
+                        // client so we can save in a single batch.
+                        await lastPersistenceStatePromise;
 
-                    this._persistenceState = {
-                        next: {
-                            clientId: update.clientId,
-                            steps: nextSteps,
-                            createCommentThreads: nextCreateCommentThreads,
-                        },
-                        // NOTE(calebmer): We're careful to spawn the promise which updates content from
-                        // this `update()` method so the DynamoDB network calls count against the
-                        // request limit for the WebSocket message that triggered the `update()`.
-                        promise: (async () => {
-                            // While we wait, steps may be added to `nextSteps` if it's from the same
-                            // client so we can save in a single batch.
-                            await lastPersistenceStatePromise;
+                        // Do not allow the worker to batch more steps for this request! Instead the
+                        // worker needs to schedule a new update promise.
+                        if (this._persistenceState?.next?.steps === nextSteps)
+                            this._persistenceState.next = null;
 
-                            // Do not allow the worker to batch more steps for this request! Instead the
-                            // worker needs to schedule a new update promise.
-                            if (this._persistenceState?.next?.steps === nextSteps)
-                                this._persistenceState.next = null;
+                        await context.tracer.withSpan(
+                            "Persist document content",
+                            async (context, span) => {
+                                try {
+                                    await documentCollaborationContentManagerBeforePersistTestCheckpoint.waitForTest(
+                                        this.id,
+                                    );
 
-                            await context.tracer.withSpan(
-                                "Persist document content",
-                                async (context, span) => {
-                                    try {
-                                        await documentCollaborationContentManagerBeforePersistTestCheckpoint.waitForTest(
-                                            this.id,
+                                    const {conflictingSteps} = await updateDocumentContent(
+                                        context,
+                                        {
+                                            documentId: this.id,
+                                            version: oldVersion,
+                                            steps: nextSteps,
+                                            clientId: update.clientId,
+                                            createCommentThreads: nextCreateCommentThreads,
+                                        },
+                                    );
+
+                                    // The document collaboration durable object should be the only process writing
+                                    // to a document! If some other process is writing to a document, weird
+                                    // things may start breaking in the durable object and on the client.
+                                    //
+                                    // We save steps anyway to preserve as much user data as we can.
+                                    if (conflictingSteps.length > 0) {
+                                        throw new InternalError(
+                                            "Some process updated document content other than the document's durable object. This may cause many downstream issues as a core assumption about the document collaboration implementation has been violated",
                                         );
-
-                                        const {conflictingSteps} = await updateDocumentContent(
-                                            context,
-                                            {
-                                                documentId: this.id,
-                                                version: oldVersion,
-                                                steps: nextSteps,
-                                                clientId: update.clientId,
-                                                createCommentThreads: nextCreateCommentThreads,
-                                            },
-                                        );
-
-                                        // The document collaboration durable object should be the only process writing
-                                        // to a document! If some other process is writing to a document, weird
-                                        // things may start breaking in the durable object and on the client.
-                                        //
-                                        // We save steps anyway to preserve as much user data as we can.
-                                        if (conflictingSteps.length > 0) {
-                                            throw new InternalError(
-                                                "Some process updated document content other than the document's durable object. This may cause many downstream issues as a core assumption about the document collaboration implementation has been violated",
-                                            );
-                                        }
-
-                                        this._persistedVersion = oldVersion + nextSteps.length;
-
-                                        // Cleanup comment threads that have been persisted. We will be able to fetch
-                                        // the latest value from the database from here on out.
-                                        for (const [
-                                            commentThreadId,
-                                            optimisticCommentThread,
-                                        ] of this._optimisticCommentThreadById) {
-                                            if (
-                                                optimisticCommentThread.persistedAfterVersion >
-                                                this._persistedVersion
-                                            ) {
-                                                continue;
-                                            }
-                                            this._optimisticCommentThreadById.delete(
-                                                commentThreadId,
-                                            );
-                                            optimisticCommentThread.persistedPromiseResolver.resolve();
-                                        }
-
-                                        this._sendEventToAll(context, {
-                                            type: "PersistedContent",
-                                            newVersion: oldVersion + nextSteps.length,
-                                        });
-                                    } catch (unknownError) {
-                                        // Upgrade the severity of non-internal errors to internal since the client has
-                                        // already seen the update.
-                                        const error = !isSystemError(unknownError)
-                                            ? InternalError.from(unknownError)
-                                            : unknownError;
-
-                                        span.addException(error);
-
-                                        // Persistence failed, clear out our optimistic comment threads.
-                                        for (const [
-                                            commentThreadId,
-                                            optimisticCommentThread,
-                                        ] of this._optimisticCommentThreadById) {
-                                            this._optimisticCommentThreadById.delete(
-                                                commentThreadId,
-                                            );
-                                            optimisticCommentThread.persistedPromiseResolver.reject(
-                                                error,
-                                            );
-                                        }
-
-                                        this._sendEventToAll(context, {
-                                            type: "Error",
-                                            error,
-                                        });
-                                        this._killProcess(context);
                                     }
-                                },
-                            );
-                        })(),
-                    };
 
-                    // Make sure the durable object stays alive until we've finished persisting.
-                    context.process.waitUntil(this._persistenceState.promise);
-                }
+                                    this._persistedVersion = oldVersion + nextSteps.length;
 
-                return {oldVersion, steps, presenceState};
-            },
-        );
+                                    // Cleanup comment threads that have been persisted. We will be able to fetch
+                                    // the latest value from the database from here on out.
+                                    for (const [commentThreadId, optimisticCommentThread] of this
+                                        ._optimisticCommentThreadById) {
+                                        if (
+                                            optimisticCommentThread.persistedAfterVersion >
+                                            this._persistedVersion
+                                        ) {
+                                            continue;
+                                        }
+                                        this._optimisticCommentThreadById.delete(commentThreadId);
+                                        optimisticCommentThread.persistedPromiseResolver.resolve();
+                                    }
+
+                                    this._sendEventToAll(context, {
+                                        type: "PersistedContent",
+                                        newVersion: oldVersion + nextSteps.length,
+                                    });
+                                } catch (unknownError) {
+                                    // Upgrade the severity of non-internal errors to internal since the client has
+                                    // already seen the update.
+                                    const error = !isSystemError(unknownError)
+                                        ? InternalError.from(unknownError)
+                                        : unknownError;
+
+                                    span.addException(error);
+
+                                    // Persistence failed, clear out our optimistic comment threads.
+                                    for (const [commentThreadId, optimisticCommentThread] of this
+                                        ._optimisticCommentThreadById) {
+                                        this._optimisticCommentThreadById.delete(commentThreadId);
+                                        optimisticCommentThread.persistedPromiseResolver.reject(
+                                            error,
+                                        );
+                                    }
+
+                                    this._sendEventToAll(context, {
+                                        type: "Error",
+                                        error,
+                                    });
+                                    this._killProcess(context);
+                                }
+                            },
+                        );
+                    })(),
+                };
+
+                // Make sure the durable object stays alive until we've finished persisting.
+                context.process.waitUntil(this._persistenceState.promise);
+            }
+
+            return {oldVersion, steps, presenceState};
+        });
 
         if (steps.length === 0) return {presenceState, hasSentPresenceState: false};
 

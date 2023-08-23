@@ -25,7 +25,7 @@ import {
     encodeDocumentCommentRoomKey,
 } from "~/shared/documents/document_model.js";
 import {FailedPreconditionError, InternalError, NotFoundError} from "~/shared/error/error.js";
-import {AsyncMutex} from "~/shared/helpers/async/async_mutex.js";
+import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -67,7 +67,7 @@ export class DocumentCollaborationConnection {
     private readonly _iterateOtherConnections: () => Iterable<DocumentCollaborationConnection>;
     private readonly _killProcess: (context: WorkerProcessContext) => void;
 
-    private _state = new AsyncMutex<{
+    private _state = new MutexValue<{
         presenceState: DocumentCollaborationPresenceState | null;
     }>({
         presenceState: null,
@@ -108,7 +108,7 @@ export class DocumentCollaborationConnection {
     }
 
     public getPresenceState() {
-        return this._state.get().presenceState;
+        return this._state.getWithoutLock().presenceState;
     }
 
     public readonly procedures: WebSocketConnectionProcedures<
@@ -124,7 +124,7 @@ export class DocumentCollaborationConnection {
             // `updateContent` then a `updateOurPresenceState` is perhaps a better example.
             //
             // The client mostly sends messages in sequence anyway.
-            this._state.run(async () => {
+            this._state.withLock(async () => {
                 const version = this._contentManager.getCurrentVersion();
 
                 let smallestPresenceStateVersion: number | null = null;
@@ -229,7 +229,7 @@ export class DocumentCollaborationConnection {
             // `updateContent` then a `updateOurPresenceState` is perhaps a better example.
             //
             // The client mostly sends messages in sequence anyway.
-            this._state.run(async (state, setState) => {
+            this._state.withLock(async stateRef => {
                 const {presenceState, hasSentPresenceState} = await this._contentManager.update(
                     context,
                     this.connectionId,
@@ -244,7 +244,7 @@ export class DocumentCollaborationConnection {
                     });
                 }
 
-                setState({...state, presenceState});
+                stateRef.current.presenceState = presenceState;
                 return {};
             }),
 
@@ -257,7 +257,7 @@ export class DocumentCollaborationConnection {
             // `updateContent` then a `updateOurPresenceState` is perhaps a better example.
             //
             // The client mostly sends messages in sequence anyway.
-            this._state.run(async (state, setState) => {
+            this._state.withLock(async stateRef => {
                 // Make sure the new presence state is valid before we broadcast it to our
                 // other clients.
                 let presenceState: DocumentCollaborationPresenceState | null;
@@ -291,7 +291,7 @@ export class DocumentCollaborationConnection {
                     state: presenceState,
                 });
 
-                setState({...state, presenceState});
+                stateRef.current.presenceState = presenceState;
                 return {};
             }),
 
@@ -367,9 +367,8 @@ export class DocumentCollaborationConnection {
             // is ready.
             //
             // However, we do not want to block other document content messages with our
-            // comments processing! Which is why we the body of our `run()` function is
-            // a noop.
-            await this._state.run(async () => {});
+            // comments processing! Which is why we don't use `withLock()`.
+            await this._state.waitForUnlock();
 
             const optimisticCommentThread = this._contentManager.getOptimisticCommentThreadIfExists(
                 input.commentThreadId,
@@ -409,9 +408,8 @@ export class DocumentCollaborationConnection {
             // is ready.
             //
             // However, we do not want to block other document content messages with our
-            // comments processing! Which is why we the body of our `run()` function is
-            // a noop.
-            await this._state.run(async () => {});
+            // comments processing! Which is why we don't use `withLock()`.
+            await this._state.waitForUnlock();
 
             const optimisticCommentThread = this._contentManager.getOptimisticCommentThreadIfExists(
                 input.commentThreadId,
@@ -450,9 +448,8 @@ export class DocumentCollaborationConnection {
             // is ready.
             //
             // However, we do not want to block other document content messages with our
-            // comments processing! Which is why we the body of our `run()` function is
-            // a noop.
-            await this._state.run(async () => {});
+            // comments processing! Which is why we don't use `withLock()`.
+            await this._state.waitForUnlock();
 
             const optimisticCommentThread = this._contentManager.getOptimisticCommentThreadIfExists(
                 input.commentThreadId,
@@ -490,10 +487,10 @@ export class DocumentCollaborationConnection {
             // Make sure we run in the queue in case we're wrapping up message handling. We
             // want to send our null presence state after we send any other
             // presence states.
-            this._state.run(async state => {
+            this._state.withLock(async stateRef => {
                 // When the connection closes, clear the presence state in our other
                 // connections.
-                if (state.presenceState !== null) {
+                if (stateRef.current.presenceState !== null) {
                     this._sendEventToOthers(context, {
                         type: "UpdateOtherPresenceState",
                         connectionId: this.connectionId,
@@ -537,9 +534,9 @@ export class DocumentCollaborationConnection {
         // is ready.
         //
         // However, we do not want to block other document content messages with our
-        // comments processing! Which is why we don't put the `handleMessage()` call in
-        // the body of our `run()` function.
-        await this._state.run(async () => {});
+        // comments processing! Which is why we don't wrap the `handleMessage()` call
+        // with `withLock()`.
+        await this._state.waitForUnlock();
 
         return this._commentThreadConnectionById.getOrSetDefault(commentThreadId);
     }

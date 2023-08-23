@@ -5,7 +5,8 @@ import {
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
-import {AsyncMutex} from "~/shared/helpers/async/async_mutex.js";
+import {Mutex} from "~/shared/helpers/async/mutex.js";
+import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {AccountId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
@@ -153,7 +154,7 @@ export class MessagingRealtimeConnection<
      * If we should show a typing indicator for this realtime connection then there
      * will be some typing state object in here.
      */
-    private _typingState = new AsyncMutex<MessagingTypingState | null>(null);
+    private _typingState = new MutexValue<MessagingTypingState | null>(null);
 
     constructor({
         connectionId,
@@ -219,7 +220,7 @@ export class MessagingRealtimeConnection<
                 // update happens later we don't want to clobber the update from this function.
                 if (
                     fromConnection._connectionId !== toConnection._connectionId &&
-                    fromConnection._typingState.get() !== null
+                    fromConnection._typingState.getWithoutLock() !== null
                 ) {
                     toConnection._sendEvent(context, {
                         type: "UpdateOtherTypingState",
@@ -238,7 +239,7 @@ export class MessagingRealtimeConnection<
             message,
             updateOtherTypingState:
                 fromConnection._connectionId !== toConnection._connectionId &&
-                fromConnection._typingState.get() !== null
+                fromConnection._typingState.getWithoutLock() !== null
                     ? {
                           connectionId: fromConnection._connectionId,
                           typingState: null,
@@ -307,7 +308,7 @@ export class MessagingRealtimeConnection<
         });
     }
 
-    private readonly _backfillMutex = new AsyncMutex(undefined);
+    private readonly _backfillMutex = new Mutex();
 
     public backfillMessages(
         context: WorkerSessionActionContext,
@@ -337,7 +338,7 @@ export class MessagingRealtimeConnection<
     }> {
         // Execute our backfills sequentially so that our internal state is left in a
         // good state.
-        return this._backfillMutex.run(async () => {
+        return this._backfillMutex.withLock(async () => {
             this._isBackfilling = true;
             this._nextMessageIndexToSend = null;
             this._queuedNewMessages = [];
@@ -400,7 +401,7 @@ export class MessagingRealtimeConnection<
                 // typing state backfill, you may have added a race condition bug.
                 typingStateByConnectionId: new Map(
                     filterMapIterable(this._iterateOtherConnections(), connection => {
-                        const typingState = connection._typingState.get();
+                        const typingState = connection._typingState.getWithoutLock();
                         if (typingState === null) return null;
                         return [connection._connectionId, typingState];
                     }),
@@ -426,9 +427,9 @@ export class MessagingRealtimeConnection<
             context.actor.getAccountId(),
         );
 
-        await this._typingState.run(async (typingState, setTypingState) => {
+        await this._typingState.withLock(async typingStateRef => {
             // We clear the connection's typing state after they send a message.
-            setTypingState(null);
+            typingStateRef.current = null;
 
             MessagingRealtimeConnection._sendNewMessageAndClearTypingState(
                 context,
@@ -511,8 +512,8 @@ export class MessagingRealtimeConnection<
         context: WorkerSessionActionContext,
         input: {},
     ): Promise<{}> {
-        await this._typingState.run(async (oldTypingState, setTypingState) => {
-            if (oldTypingState !== null) return;
+        await this._typingState.withLock(async typingStateRef => {
+            if (typingStateRef.current !== null) return;
 
             const {account} = await getAccount(context, {
                 spaceId: this._spaceId,
@@ -525,7 +526,7 @@ export class MessagingRealtimeConnection<
                 account,
             };
 
-            setTypingState(typingState);
+            typingStateRef.current = typingState;
 
             this._sendEventToOthers(context, {
                 type: "UpdateOtherTypingState",
@@ -541,10 +542,10 @@ export class MessagingRealtimeConnection<
     // when the connection is closing. This means it may not have authorization
     // information.
     public async stopTypingInMessageInput(context: WorkerProcessContext, input: {}): Promise<{}> {
-        await this._typingState.run(async (oldTypingState, setTypingState) => {
-            if (oldTypingState === null) return;
+        await this._typingState.withLock(async typingState => {
+            if (typingState.current === null) return;
 
-            setTypingState(null);
+            typingState.current = null;
 
             this._sendEventToOthers(context, {
                 type: "UpdateOtherTypingState",
