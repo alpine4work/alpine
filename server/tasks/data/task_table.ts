@@ -11,8 +11,10 @@ import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {authorizeSpaceAccess, isAccountMemberOfSpace} from "~/server/spaces/spaces_table.js";
+import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
-import {CacheContextModule} from "~/shared/context/cache_context_module.js";
+import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
+import {CacheContextModule, ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {createCrdtRegister} from "~/shared/crdt/crdt_register.js";
@@ -160,7 +162,7 @@ const TaskTable = DynamoTableSchema.new({
                     sortKeyAttributes: {},
                     attributes: Schema.object({
                         spaceId: Schema.id<SpaceId>(),
-                        createdTime: Schema.date,
+                        createdTime: HybridLogicalTimeSchema,
                         deletedTime: HybridLogicalTimeSchema.nullable(),
                         accessPolicy: TaskCollectionAccessPolicyRegister.schema,
                     }),
@@ -188,7 +190,7 @@ const TaskTable = DynamoTableSchema.new({
                         /**
                          * The time this task was created.
                          */
-                        createdTime: Schema.date,
+                        createdTime: HybridLogicalTimeSchema,
 
                         /**
                          * The time this task was deleted. We keep a record of deleted tasks so they
@@ -834,6 +836,7 @@ class TaskActionTransactionCommitState {
     ) {
         return evaluateTaskCollectionAccessPolicy(
             this._context,
+            this._context.actor.getAccountId(),
             this._spaceId,
             accessPolicy,
             expectedAccessLevel,
@@ -870,19 +873,38 @@ class TaskActionTransactionCommitState {
         taskItem: TaskEssentialAttributesItem,
         expectedAccessLevel: TaskCollectionAccessLevel,
     ) {
-        return authorizeTaskItemAccess(this._context, taskItem, expectedAccessLevel, this);
+        const hasAccess = await isTaskItemAccessAuthorized(
+            this._context,
+            this._context.actor.getAccountId(),
+            taskItem,
+            expectedAccessLevel,
+            this,
+        );
+
+        if (!hasAccess) {
+            throw new PermissionDeniedError(
+                quote`Actor does not have ${expectedAccessLevel} access level to task`,
+            );
+        }
     }
 
     public async authorizeTaskItemAccessAllowingDeletedTasks(
         taskItem: TaskEssentialAttributesItem,
         expectedAccessLevel: TaskCollectionAccessLevel,
     ) {
-        return authorizeTaskItemAccessAllowingDeletedTasks(
+        const hasAccess = await isTaskItemAccessAuthorizedAllowingDeletedTasks(
             this._context,
+            this._context.actor.getAccountId(),
             taskItem,
             expectedAccessLevel,
             this,
         );
+
+        if (!hasAccess) {
+            throw new PermissionDeniedError(
+                quote`Actor does not have ${expectedAccessLevel} access level to task`,
+            );
+        }
     }
 }
 
@@ -920,7 +942,7 @@ async function actuallyCommitTaskActionTransaction(
                             taskId,
                             spaceId,
                             creatorId: taskAction.creator.accountId,
-                            createdTime: new Date(action.time[0]),
+                            createdTime: action.time,
                             deletedTime: null,
                             statusType: new TaskStatusTypeRegister("Open", action.time),
                             parentTaskId: new TaskParentTaskIdRegister(null, action.time),
@@ -999,10 +1021,8 @@ async function actuallyCommitTaskActionTransaction(
                         switch (taskAction.type) {
                             case "Delete": {
                                 if (
-                                    compareHybridLogicalTimes(action.time, [
-                                        taskItem.createdTime.getTime(),
-                                        0,
-                                    ]) <= 0
+                                    compareHybridLogicalTimes(action.time, taskItem.createdTime) <=
+                                    0
                                 ) {
                                     throw new FailedPreconditionError(
                                         "Delete action time is less than create action time",
@@ -1509,7 +1529,7 @@ async function actuallyCommitTaskActionTransaction(
                             sortRangeType: "EssentialAttributes",
                             collectionId,
                             spaceId,
-                            createdTime: new Date(action.time[0]),
+                            createdTime: action.time,
                             deletedTime: null,
                             accessPolicy: new TaskCollectionAccessPolicyRegister(
                                 collectionAction.accessPolicy,
@@ -1565,10 +1585,10 @@ async function actuallyCommitTaskActionTransaction(
                         switch (collectionAction.type) {
                             case "Delete": {
                                 if (
-                                    compareHybridLogicalTimes(action.time, [
-                                        collectionItem.createdTime.getTime(),
-                                        0,
-                                    ]) <= 0
+                                    compareHybridLogicalTimes(
+                                        action.time,
+                                        collectionItem.createdTime,
+                                    ) <= 0
                                 ) {
                                     throw new FailedPreconditionError(
                                         "Delete action time is less than create action time",
@@ -1719,7 +1739,12 @@ export async function backfillTaskActionTransactionHistory(
  * Returns true if the account has access.
  */
 async function evaluateTaskCollectionAccessPolicy(
-    context: ServerSessionActionContext,
+    context: Context<{
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        dynamo: DynamoContextModule;
+    }>,
+    accountId: AccountId,
     spaceId: SpaceId,
     accessPolicy: TaskCollectionAccessPolicy,
     expectedAccessLevel: TaskCollectionAccessLevel,
@@ -1730,14 +1755,14 @@ async function evaluateTaskCollectionAccessPolicy(
         cast<"Space">(accessPolicy.defaultGrant.type);
 
         if (
-            (await isAccountMemberOfSpace(context, spaceId, context.actor.getAccountId())) &&
+            (await isAccountMemberOfSpace(context, spaceId, accountId)) &&
             hasTaskCollectionAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)
         ) {
             return true;
         }
     }
 
-    const accountGrant = accessPolicy.accountGrantById.get(context.actor.getAccountId());
+    const accountGrant = accessPolicy.accountGrantById.get(accountId);
     if (accountGrant && hasTaskCollectionAccessLevel(accountGrant.level, expectedAccessLevel)) {
         return true;
     }
@@ -1770,6 +1795,7 @@ async function authorizeTaskCollectionItemAccessAllowingDeletedCollections(
 ) {
     const hasAccess = await evaluateTaskCollectionAccessPolicy(
         context,
+        context.actor.getAccountId(),
         collectionItem.spaceId,
         collectionItem.accessPolicy.value,
         expectedAccessLevel,
@@ -1787,17 +1813,27 @@ async function authorizeTaskCollectionAccess(
     collectionId: TaskCollectionId,
     expectedAccessLevel: TaskCollectionAccessLevel,
 ) {
-    const collectionItem = await TaskTable.getItem(context, {
-        partitionType: "TaskCollection",
-        sortRangeType: "EssentialAttributes",
+    const collectionItem = await TaskCollectionItemAuthorizationCache.get(
+        context,
         collectionId,
-    });
+        () =>
+            TaskTable.getItem(context, {
+                partitionType: "TaskCollection",
+                sortRangeType: "EssentialAttributes",
+                collectionId,
+            }),
+    );
 
     await authorizeTaskCollectionItemAccess(context, collectionItem, expectedAccessLevel);
 }
 
-async function authorizeTaskItemAccess(
-    context: ServerSessionActionContext,
+async function isTaskItemAccessAuthorized(
+    context: Context<{
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        dynamo: DynamoContextModule;
+    }>,
+    accountId: AccountId,
     taskItem: TaskEssentialAttributesItem,
     expectedAccessLevel: TaskCollectionAccessLevel,
     loaders: {
@@ -1807,22 +1843,24 @@ async function authorizeTaskItemAccess(
         ) => Promise<TaskCollectionEssentialAttributesItem>;
     },
 ) {
-    if (taskItem.deletedTime) {
-        throw new FailedPreconditionError(
-            quote`Actor does not have ${expectedAccessLevel} access level to task`,
-        );
-    }
+    if (taskItem.deletedTime) return false;
 
-    await authorizeTaskItemAccessAllowingDeletedTasks(
+    return isTaskItemAccessAuthorizedAllowingDeletedTasks(
         context,
+        accountId,
         taskItem,
         expectedAccessLevel,
         loaders,
     );
 }
 
-async function authorizeTaskItemAccessAllowingDeletedTasks(
-    context: ServerSessionActionContext,
+async function isTaskItemAccessAuthorizedAllowingDeletedTasks(
+    context: Context<{
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        dynamo: DynamoContextModule;
+    }>,
+    accountId: AccountId,
     taskItem: TaskEssentialAttributesItem,
     expectedAccessLevel: TaskCollectionAccessLevel,
     loaders: {
@@ -1831,22 +1869,22 @@ async function authorizeTaskItemAccessAllowingDeletedTasks(
             taskId: TaskCollectionId,
         ) => Promise<TaskCollectionEssentialAttributesItem>;
     },
-) {
+): Promise<boolean> {
     // The task creator has edit access level on their own task.
     if (
-        context.actor.getAccountId() === taskItem.creatorId &&
+        accountId === taskItem.creatorId &&
         hasTaskCollectionAccessLevel("Edit", expectedAccessLevel)
     ) {
-        return;
+        return true;
     }
 
     // The task assignee has edit access level on their own task.
     if (
         taskItem.assigneeId.value &&
-        context.actor.getAccountId() === taskItem.assigneeId.value &&
+        accountId === taskItem.assigneeId.value &&
         hasTaskCollectionAccessLevel("Edit", expectedAccessLevel)
     ) {
-        return;
+        return true;
     }
 
     // An array of `TaskCollectionId`s that authorize access to the task or `null`
@@ -1860,6 +1898,7 @@ async function authorizeTaskItemAccessAllowingDeletedTasks(
 
             const hasAccess = await evaluateTaskCollectionAccessPolicy(
                 context,
+                accountId,
                 collectionItem.spaceId,
                 collectionItem.accessPolicy.value,
                 expectedAccessLevel,
@@ -1871,7 +1910,7 @@ async function authorizeTaskItemAccessAllowingDeletedTasks(
 
     // We evaluate the access policies for all collections on a task but we only
     // need one passing access policy.
-    if (authorizingCollectionItems.some(isNonNullable)) return;
+    if (authorizingCollectionItems.some(isNonNullable)) return true;
 
     if (taskItem.parentTaskId.value) {
         const parentTaskItem = await loaders.getTaskItem(taskItem.parentTaskId.value);
@@ -1880,40 +1919,219 @@ async function authorizeTaskItemAccessAllowingDeletedTasks(
         // a parent task that is not deleted then check it before throwing a permission
         // denied error.
         if (!parentTaskItem.deletedTime) {
-            return authorizeTaskItemAccess(context, parentTaskItem, expectedAccessLevel, loaders);
+            return isTaskItemAccessAuthorized(
+                context,
+                accountId,
+                parentTaskItem,
+                expectedAccessLevel,
+                loaders,
+            );
         }
     }
 
-    throw new PermissionDeniedError(
-        quote`Actor does not have ${expectedAccessLevel} access level to task`,
+    return false;
+}
+
+/**
+ * Can the provided account access the provided task index doc? Returns false
+ * if not.
+ *
+ * Be careful when using this function! You are expected to provide index docs
+ * from an up-to-date source. You should not directly load from OpenSearch
+ * since OpenSearch is at least 30 seconds behind at all times. This function
+ * is only really safely useful in `TaskRealtimeService` which maintains
+ * `TaskIndexDoc`s up-to-date in-memory.
+ *
+ * If you use this function you are taking on your own authorization
+ * responsibilities. Like properly stopping data from being sent to the client
+ * when this function returns false.
+ */
+// TODO(calebmer, 2023-08-22, #security): For our authorization logic to
+// produce the correct results, it's essential that: 1) every committed action
+// is indexed in a timely fashion, 2) every committed action is seen by
+// realtime servers in a timely fashion. When you remove someone's access in
+// Cyberworlds it may take a little bit for them to actually lose access
+// (3-5min). However we guarantee they do eventually lose access.
+//
+// If we fail to index in OpenSearch an `UpdateAccessPolicy` action or don't
+// send it to one of our realtime servers that's a big problem! Realtime
+// servers will continue returning data in the collection without considering
+// that access may have been removed.
+//
+// We need to set up systems that guarantee every action is indexed. This is
+// probably some CRON job that reapplies actions which haven't been marked as
+// applied. Since actions are CRDTs reapplying is safe.
+export function isTaskIndexDocAccessAuthorized(
+    context: Context<{
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        dynamo: DynamoContextModule;
+    }>,
+    accountId: AccountId,
+    taskIndexDoc: TaskIndexDoc,
+    expectedAccessLevel: TaskCollectionAccessLevel,
+    loaders: {
+        getTaskIndexDoc: (taskId: TaskId) => Promise<TaskIndexDoc>;
+        getCollectionIndexDoc: (taskId: TaskCollectionId) => Promise<TaskCollectionIndexDoc>;
+    },
+): Promise<boolean> {
+    return isTaskItemAccessAuthorized(
+        context,
+        accountId,
+        convertTaskIndexDocToItem(taskIndexDoc),
+        expectedAccessLevel,
+        {
+            getTaskItem: async taskId => {
+                const taskIndexDoc = await loaders.getTaskIndexDoc(taskId);
+                return convertTaskIndexDocToItem(taskIndexDoc);
+            },
+            getCollectionItem: async collectionId => {
+                const collectionIndexDoc = await loaders.getCollectionIndexDoc(collectionId);
+                return convertTaskCollectionIndexDocToItem(collectionIndexDoc);
+            },
+        },
     );
 }
 
+const TaskItemAuthorizationCache = new ContextCache<TaskId, TaskEssentialAttributesItem>();
+
+/**
+ * Gets a task to be used in authorization. If used in `TaskRealtimeService`
+ * then you may provide a loader function to use an in-memory task
+ * representation.
+ *
+ * 1. Attempts to get an in-memory task representation when used in
+ *    `TaskRealtimeService` with `getTaskIndexDocIfExists`.
+ *
+ * 2. Otherwise loads the task from the database (cached within the action
+ *    context).
+ *
+ * We force `getTaskIndexDocIfExists` to be synchronous. If you don't have the
+ * task in memory then we should load from DynamoDB, not OpenSearch.
+ */
+async function getTaskItemForAuthorization(
+    context: ServerSessionActionContext,
+    taskId: TaskId,
+    loaders: {getTaskIndexDocIfExists: (taskId: TaskId) => TaskIndexDoc | undefined} | undefined,
+): Promise<TaskEssentialAttributesItem> {
+    const taskIndexDoc = loaders?.getTaskIndexDocIfExists(taskId);
+    if (taskIndexDoc) return convertTaskIndexDocToItem(taskIndexDoc);
+
+    return TaskItemAuthorizationCache.get(context, taskId, () =>
+        TaskTable.getItem(context, {
+            partitionType: "Task",
+            sortRangeType: "EssentialAttributes",
+            taskId,
+        }),
+    );
+}
+
+const TaskCollectionItemAuthorizationCache = new ContextCache<
+    TaskCollectionId,
+    TaskCollectionEssentialAttributesItem
+>();
+
+/**
+ * Gets a collection to be used in authorization. If used in
+ * `TaskRealtimeService` then you may provide a loader function to use an
+ * in-memory collection representation.
+ *
+ * 1. Attempts to get an in-memory collection representation when used in
+ *    `TaskRealtimeService` with `getCollectionIndexDocIfExists`.
+ *
+ * 2. Otherwise loads the collection from the database (cached within the
+ *    action context).
+ *
+ * We force `getCollectionIndexDocIfExists` to be synchronous. If you don't
+ * have the collection in memory then we should load from DynamoDB, not
+ * OpenSearch.
+ */
+async function getTaskCollectionItemForAuthorization(
+    context: ServerSessionActionContext,
+    collectionId: TaskCollectionId,
+    loaders:
+        | {
+              getCollectionIndexDocIfExists: (
+                  taskId: TaskCollectionId,
+              ) => TaskCollectionIndexDoc | undefined;
+          }
+        | undefined,
+): Promise<TaskCollectionEssentialAttributesItem> {
+    const collectionIndexDoc = loaders?.getCollectionIndexDocIfExists(collectionId);
+    if (collectionIndexDoc) return convertTaskCollectionIndexDocToItem(collectionIndexDoc);
+
+    return TaskCollectionItemAuthorizationCache.get(context, collectionId, () =>
+        TaskTable.getItem(context, {
+            partitionType: "TaskCollection",
+            sortRangeType: "EssentialAttributes",
+            collectionId,
+        }),
+    );
+}
+
+/**
+ * Tests if the context's actor is allowed to access the provided task with the
+ * provided access level. Returns true or false depending on whether task
+ * access is authorized.
+ *
+ * Loads data from DynamoDB but if you are in `TaskRealtimeService` and have
+ * up-to-date in-memory you may pass in a `loaders` object to use your
+ * in-memory task instead. See the disclaimers on `authorizeTaskQueryAccess()`
+ * before using the `loaders` object.
+ */
+async function isTaskAccessAuthorized(
+    context: ServerSessionActionContext,
+    taskId: TaskId,
+    expectedAccessLevel: TaskCollectionAccessLevel,
+    loaders?: {
+        getTaskIndexDocIfExists: (taskId: TaskId) => TaskIndexDoc | undefined;
+        getCollectionIndexDocIfExists: (
+            collectionId: TaskCollectionId,
+        ) => TaskCollectionIndexDoc | undefined;
+    },
+): Promise<boolean> {
+    const taskItem = await getTaskItemForAuthorization(context, taskId, loaders);
+
+    return isTaskItemAccessAuthorized(
+        context,
+        context.actor.getAccountId(),
+        taskItem,
+        expectedAccessLevel,
+        {
+            getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, loaders),
+            getCollectionItem: collectionId =>
+                getTaskCollectionItemForAuthorization(context, collectionId, loaders),
+        },
+    );
+}
+
+/**
+ * Tests if the context's actor is allowed to access the provided task with the
+ * provided access level. Throws an error if access is unauthorized.
+ *
+ * Loads data from DynamoDB but if you are in `TaskRealtimeService` and have
+ * up-to-date in-memory you may pass in a `loaders` object to use your
+ * in-memory task instead. See the disclaimers on `authorizeTaskQueryAccess()`
+ * before using the `loaders` object.
+ */
 async function authorizeTaskAccess(
     context: ServerSessionActionContext,
     taskId: TaskId,
     expectedAccessLevel: TaskCollectionAccessLevel,
+    loaders?: {
+        getTaskIndexDocIfExists: (taskId: TaskId) => TaskIndexDoc | undefined;
+        getCollectionIndexDocIfExists: (
+            collectionId: TaskCollectionId,
+        ) => TaskCollectionIndexDoc | undefined;
+    },
 ) {
-    const taskItem = await TaskTable.getItem(context, {
-        partitionType: "Task",
-        sortRangeType: "EssentialAttributes",
-        taskId,
-    });
+    const hasAccess = await isTaskAccessAuthorized(context, taskId, expectedAccessLevel, loaders);
 
-    await authorizeTaskItemAccess(context, taskItem, expectedAccessLevel, {
-        getTaskItem: taskId =>
-            TaskTable.getItem(context, {
-                partitionType: "Task",
-                sortRangeType: "EssentialAttributes",
-                taskId,
-            }),
-        getCollectionItem: collectionId =>
-            TaskTable.getItem(context, {
-                partitionType: "TaskCollection",
-                sortRangeType: "EssentialAttributes",
-                collectionId,
-            }),
-    });
+    if (!hasAccess) {
+        throw new PermissionDeniedError(
+            quote`Actor does not have ${expectedAccessLevel} access level to task`,
+        );
+    }
 }
 
 /**
@@ -1922,9 +2140,33 @@ async function authorizeTaskAccess(
  * tasks in the query are also authorized and we don't need to check each task
  * individually.
  *
- * Consults DynamoDB which is guaranteed to have consistent information
- * regarding item access. OpenSearch has eventually consistent information.
+ * Consults DynamoDB by default but if you're in `TaskRealtimeService` and have
+ * an up-to-date in-memory representation of tasks then you may provide the
+ * `getTaskIndexDocIfExists` function and `getCollectionIndexDocIfExists`
+ * function to skip making network requests for tasks/collections that exist in
+ * memory.
+ *
+ * Be careful using `getTaskIndexDocIfExists` and
+ * `getCollectionIndexDocIfExists`! Data loaded from the OpenSearch task index
+ * is at least 30sec behind since that's the refresh interval. Only use those
+ * options if you're in `TaskRealtimeService` and have an up-to-date in-memory
+ * representation of tasks.
  */
+// TODO(calebmer, 2023-08-22, #security): For our authorization logic to
+// produce the correct results, it's essential that: 1) every committed action
+// is indexed in a timely fashion, 2) every committed action is seen by
+// realtime servers in a timely fashion. When you remove someone's access in
+// Cyberworlds it may take a little bit for them to actually lose access
+// (3-5min). However we guarantee they do eventually lose access.
+//
+// If we fail to index in OpenSearch an `UpdateAccessPolicy` action or don't
+// send it to one of our realtime servers that's a big problem! Realtime
+// servers will continue returning data in the collection without considering
+// that access may have been removed.
+//
+// We need to set up systems that guarantee every action is indexed. This is
+// probably some CRON job that reapplies actions which haven't been marked as
+// applied. Since actions are CRDTs reapplying is safe.
 export async function authorizeTaskQueryAccess(
     context: ServerSessionActionContext,
     {
@@ -1933,6 +2175,12 @@ export async function authorizeTaskQueryAccess(
     }: {
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+    },
+    loaders?: {
+        getTaskIndexDocIfExists: (taskId: TaskId) => TaskIndexDoc | undefined;
+        getCollectionIndexDocIfExists: (
+            collectionId: TaskCollectionId,
+        ) => TaskCollectionIndexDoc | undefined;
     },
 ) {
     let hasAccess = false;
@@ -1995,7 +2243,7 @@ export async function authorizeTaskQueryAccess(
             if (!filters.parentFilter) return;
 
             // View access on the parent task is inherited to child tasks.
-            await authorizeTaskAccess(context, filters.parentFilter.parentTaskId, "View");
+            await authorizeTaskAccess(context, filters.parentFilter.parentTaskId, "View", loaders);
 
             hasAccess = true;
         },
@@ -2062,4 +2310,60 @@ export async function authorizeTaskQueryAccess(
             "Query may reveal tasks the session account is not allowed to see",
         );
     }
+}
+
+/**
+ * If you have a `TaskIndexDoc` then you have all the data that's in a
+ * `TaskEssentialAttributesItem`. This function converts between the two
+ * formats.
+ *
+ * Be careful when using this function! Loading a `TaskIndexDoc` from
+ * OpenSearch is at least 30sec behind a `TaskEssentialAttributesItem` loaded
+ * from DynamoDB since 30sec is our OpenSearch refresh rate. If you're in
+ * `TaskRealtimeService` then you have up-to-date `TaskIndexDoc`s in
+ * `TaskRealtimeQueryStore` so those are ok to use with this function.
+ */
+function convertTaskIndexDocToItem(task: TaskIndexDoc): TaskEssentialAttributesItem {
+    return {
+        partitionType: "Task",
+        sortRangeType: "EssentialAttributes",
+        taskId: task.id,
+        spaceId: task.spaceId,
+        creatorId: task.creator.accountId,
+        createdTime: task.createdTime.absoluteTime,
+        deletedTime: task.rawDeletedTime ?? null,
+        statusType: new TaskStatusTypeRegister(task.status.value.type, task.status.version),
+        parentTaskId: task.parent.taskId,
+        addedChildTaskCount: task.addedChildTaskCount,
+        removedChildTaskCount: task.removedChildTaskCount,
+        addedClosedChildTaskCount: task.addedClosedChildTaskCount,
+        removedClosedChildTaskCount: task.removedClosedChildTaskCount,
+        collections: task.collections.raw.collections,
+        assigneeId: new TaskAssigneeAccountIdRegister(
+            task.assignee.value?.assignee.accountId ?? null,
+            task.assignee.version,
+        ),
+    };
+}
+
+/**
+ * If you have a `TaskCollectionIndexDoc` then you have all the data that's in
+ * a `TaskCollectionEssentialAttributesItem`. This function converts between
+ * the two formats.
+ *
+ * Be careful when using this function! See the disclaimer on
+ * `convertTaskIndexDocToItem()`.
+ */
+function convertTaskCollectionIndexDocToItem(
+    collection: TaskCollectionIndexDoc,
+): TaskCollectionEssentialAttributesItem {
+    return {
+        partitionType: "TaskCollection",
+        sortRangeType: "EssentialAttributes",
+        collectionId: collection.id,
+        spaceId: collection.spaceId,
+        createdTime: collection.createdTime,
+        deletedTime: collection.rawDeletedTime,
+        accessPolicy: collection.accessPolicy,
+    };
 }

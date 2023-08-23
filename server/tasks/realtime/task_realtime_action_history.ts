@@ -74,7 +74,7 @@ export interface ReadonlyTaskRealtimeActionHistory {
 }
 
 /**
- * Holds all actions within the last 5 minutes (by default) so we can replay
+ * Holds all actions within the last 10 minutes (by default) so we can replay
  * the recent action history after loading some data from OpenSearch to make
  * sure what we send to the user is fully caught up and can be maintained in
  * realtime.
@@ -82,20 +82,20 @@ export interface ReadonlyTaskRealtimeActionHistory {
 export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHistory {
     /**
      * Determines the history visibility window. We keep track of actions committed
-     * this long before the present. By default the visibility window is 5
-     * minutes. That means the last 5 minutes of actions are tracked by this
+     * this long before the present. By default the visibility window is 10
+     * minutes. That means the last 10 minutes of actions are tracked by this
      * class by default.
      *
      * Our visibility window needs to be generous enough for us to catch up a query
      * made against our OpenSearch task index. Our task index refreshes every 30
      * seconds. Then add to that the latency between committing an action
-     * transaction and indexing it. 5 minutes feels like we'll comfortably have
+     * transaction and indexing it. 10 minutes feels like we'll comfortably have
      * enough visibility to catch up an OpenSearch query.
      *
      * We may temporarily hold slightly more actions than this duration in history.
      * `_segmentDuration` influences how often we cleanup old actions.
      */
-    private readonly _visibleDuration = 1000 * 60 * 5;
+    private readonly _visibleDuration = 1000 * 60 * 10;
 
     /**
      * Determines the duration of time a single history segment covers. Our history

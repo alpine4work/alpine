@@ -1,8 +1,4 @@
-import {
-    TaskIndexDoc,
-    TaskPositionByAccountIdAndNotepadPageId,
-    TaskPositionByCollectionIdMap,
-} from "~/server/tasks/data/task_index_doc.js";
+import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {
@@ -15,6 +11,8 @@ import {TaskAssigneeStatusRegister} from "~/shared/tasks/task_assignee_status.js
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskPositionRegister} from "~/shared/tasks/task_position.js";
+import {TaskPositionByAccountIdAndNotepadPageIdMap} from "~/shared/tasks/task_position_by_account_id_and_notepad_page_id.js";
+import {TaskPositionByCollectionIdMap} from "~/shared/tasks/task_position_by_collection_id_map.js";
 import {TaskPriorityRegister} from "~/shared/tasks/task_priority.js";
 import {TaskStatusRegister} from "~/shared/tasks/task_status.js";
 import {emptyTaskTitle} from "~/shared/tasks/task_title.js";
@@ -50,7 +48,7 @@ export function createEmptyTaskIndexDoc(
         },
         notepadPages: {
             raw: {
-                positionById: TaskPositionByAccountIdAndNotepadPageId.empty,
+                positionById: TaskPositionByAccountIdAndNotepadPageIdMap.empty,
             },
         },
         status: new TaskStatusRegister({type: "Open"}, actionTime),

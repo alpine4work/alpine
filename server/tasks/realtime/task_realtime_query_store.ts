@@ -8,18 +8,16 @@ import {
 } from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {ReadonlyTaskRealtimeActionHistory} from "~/server/tasks/realtime/task_realtime_action_history.js";
-import {
-    TaskRealtimeActionTransaction,
-    TaskRealtimeActionTransactionActionsSlice,
-    TaskRealtimeActionTransactionSliceBase,
-} from "~/server/tasks/realtime/task_realtime_action_transaction.js";
+import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_event.js";
 import {TaskRealtimeQuery} from "~/server/tasks/realtime/task_realtime_query.js";
 import {
     TaskRealtimeQuerySubscription,
+    TaskRealtimeQuerySubscriptionCallbacks,
     TaskRealtimeQuerySubscriptionInternal,
 } from "~/server/tasks/realtime/task_realtime_query_subscription.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
 import {InternalError} from "~/shared/error/error.js";
+import {isNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -90,7 +88,7 @@ export class TaskRealtimeQueryStore {
     public subscribeToQuery(options: {
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
-        onAction: (action: TaskRealtimeActionTransactionSliceBase) => void;
+        callbacks: TaskRealtimeQuerySubscriptionCallbacks;
     }) {
         return this._internal.subscribeToQuery(options);
     }
@@ -109,6 +107,30 @@ export class TaskRealtimeQueryStore {
         }
 
         return promise;
+    }
+
+    public async getTask(
+        context: TaskRealtimeSystemActionContext,
+        taskId: TaskId,
+    ): Promise<TaskIndexDoc> {
+        const taskEntry = await this._internal.loadTaskEntry(context, taskId);
+        return taskEntry.task;
+    }
+
+    public async getCollection(
+        context: TaskRealtimeSystemActionContext,
+        collectionId: TaskCollectionId,
+    ): Promise<TaskCollectionIndexDoc> {
+        const collectionEntry = await this._internal.loadCollectionEntry(context, collectionId);
+        return collectionEntry.collection;
+    }
+
+    public getTaskIfLoaded(taskId: TaskId) {
+        return this._internal.getTaskIfLoaded(taskId);
+    }
+
+    public getCollectionIfLoaded(collectionId: TaskCollectionId) {
+        return this._internal.getCollectionIfLoaded(collectionId);
     }
 }
 
@@ -239,6 +261,30 @@ export class TaskRealtimeQueryStoreInternal {
     }
 
     /**
+     * If a task is loaded in our store then this function will return it. The
+     * task is up-to-date in realtime.
+     */
+    public getTaskIfLoaded(taskId: TaskId) {
+        return this._taskEntryById.get(taskId)?.task;
+    }
+
+    /**
+     * If a collection is loaded in our store then this function will return it.
+     * The collection is up-to-date in realtime.
+     */
+    public getCollectionIfLoaded(collectionId: TaskCollectionId) {
+        return this._collectionEntryById.get(collectionId)?.collection;
+    }
+
+    /**
+     * Get the task entry for the provided `TaskId` if the task exists and is
+     * loaded in our store.
+     */
+    public getTaskEntryIfExists(taskId: TaskId): TaskRealtimeQueryStoreTaskEntry | undefined {
+        return this._taskEntryById.get(taskId);
+    }
+
+    /**
      * Is the provided `TaskId` visible some query?
      */
     public isTaskVisibleInQuery(query: TaskRealtimeQuery, taskId: TaskId): boolean {
@@ -257,13 +303,6 @@ export class TaskRealtimeQueryStoreInternal {
         }
 
         return taskEntry.task;
-    }
-
-    /**
-     * Get the task entry for the provided `TaskId` if it exists.
-     */
-    public getTaskEntryIfExists(taskId: TaskId): TaskRealtimeQueryStoreTaskEntry | undefined {
-        return this._taskEntryById.get(taskId);
     }
 
     /**
@@ -353,14 +392,14 @@ export class TaskRealtimeQueryStoreInternal {
     public subscribeToQuery({
         filters,
         sorts,
-        onAction,
+        callbacks,
     }: {
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
-        onAction: (action: TaskRealtimeActionTransactionSliceBase) => void;
+        callbacks: TaskRealtimeQuerySubscriptionCallbacks;
     }) {
         const query = this._getQuery({filters, sorts});
-        return new TaskRealtimeQuerySubscription(query, onAction);
+        return new TaskRealtimeQuerySubscription(query, callbacks);
     }
 
     /**
@@ -380,18 +419,18 @@ export class TaskRealtimeQueryStoreInternal {
         context: TaskRealtimeSystemActionContext,
         actions: ReadonlyArray<TaskAction>,
     ): Promise<void> {
-        const actionTransaction = new TaskRealtimeActionTransaction();
+        const eventBuilder = new TaskRealtimeUpdateEventBuilder();
 
         const queriesByMaybeAddVisibleTaskIdToLoad = this._applyActionTransactionSync(
             context,
             actions,
-            actionTransaction,
+            eventBuilder,
         );
 
         return this._applyActionTransactionAsync(
             context,
             queriesByMaybeAddVisibleTaskIdToLoad,
-            actionTransaction,
+            eventBuilder,
         );
     }
 
@@ -401,7 +440,7 @@ export class TaskRealtimeQueryStoreInternal {
     private _applyActionTransactionSync(
         context: TaskRealtimeSystemActionContext,
         actions: ReadonlyArray<TaskAction>,
-        actionTransaction: TaskRealtimeActionTransaction,
+        eventBuilder: TaskRealtimeUpdateEventBuilder,
     ) {
         const updatedTaskEntriesById = new Map<
             TaskId,
@@ -412,10 +451,7 @@ export class TaskRealtimeQueryStoreInternal {
             }
         >();
 
-        const queriesByMaybeAddVisibleTaskIdToLoad = new Map<
-            TaskId,
-            Map<TaskRealtimeQuery, Array<TaskAction>>
-        >();
+        const queriesByMaybeAddVisibleTaskIdToLoad = new Map<TaskId, Set<TaskRealtimeQuery>>();
 
         for (const action of actions) {
             switch (action.type) {
@@ -457,14 +493,10 @@ export class TaskRealtimeQueryStoreInternal {
                                 )
                             ) {
                                 getOrSetDefaultMapValue(
-                                    getOrSetDefaultMapValue(
-                                        queriesByMaybeAddVisibleTaskIdToLoad,
-                                        action.taskId,
-                                        () => new Map(),
-                                    ),
-                                    query,
-                                    () => [],
-                                ).push(action);
+                                    queriesByMaybeAddVisibleTaskIdToLoad,
+                                    action.taskId,
+                                    () => new Set(),
+                                ).add(query);
                             }
                         }
                     }
@@ -497,10 +529,7 @@ export class TaskRealtimeQueryStoreInternal {
         }
 
         for (const [taskId, {taskEntry, oldTask, actions}] of updatedTaskEntriesById) {
-            const actionTransactionSlice = new TaskRealtimeActionTransactionActionsSlice(
-                actionTransaction,
-                actions,
-            );
+            assert(isNonEmptyReadonlyArray(actions));
 
             const addedQueryDependencies = new Set();
 
@@ -510,9 +539,8 @@ export class TaskRealtimeQueryStoreInternal {
 
                 const {isVisible} = query.maybeAddVisibleTask(
                     context,
-                    taskId,
+                    eventBuilder,
                     taskEntry.task,
-                    actionTransactionSlice,
                 );
                 if (isVisible) {
                     addedQueryDependencies.add(query);
@@ -527,14 +555,26 @@ export class TaskRealtimeQueryStoreInternal {
 
                 const {isStillVisible} = query.onVisibleTaskUpdate(
                     context,
+                    eventBuilder,
                     taskId,
                     oldTask,
                     taskEntry.task,
-                    actionTransactionSlice,
+                    actions,
                 );
                 if (!isStillVisible) {
                     taskEntry.removeQueryDependent(query);
                 }
+            }
+
+            for (const querySubscription of taskEntry.iterateQuerySubscriptionDependents()) {
+                querySubscription.onReferencedTaskUpdate(
+                    context,
+                    eventBuilder,
+                    taskId,
+                    oldTask,
+                    taskEntry.task,
+                    actions,
+                );
             }
         }
 
@@ -543,64 +583,64 @@ export class TaskRealtimeQueryStoreInternal {
 
     private async _applyActionTransactionAsync(
         context: TaskRealtimeSystemActionContext,
-        queriesByMaybeAddVisibleTaskIdToLoad: Map<
-            TaskId,
-            Map<TaskRealtimeQuery, Array<TaskAction>>
-        >,
-        actionTransaction: TaskRealtimeActionTransaction,
+        queriesByMaybeAddVisibleTaskIdToLoad: Map<TaskId, Set<TaskRealtimeQuery>>,
+        eventBuilder: TaskRealtimeUpdateEventBuilder,
     ) {
         await runAllPromises(
-            Array.from(queriesByMaybeAddVisibleTaskIdToLoad, ([taskId, queries]) =>
-                retryWithExponentialBackoff(async retry => {
-                    const taskEntry = await this.loadTaskEntryIfExists(context, taskId);
+            Array.from(queriesByMaybeAddVisibleTaskIdToLoad, async ([taskId, queries]) => {
+                const taskEntry = await this.loadTaskEntry(context, taskId);
 
-                    if (!taskEntry) {
-                        throw retry(
-                            new InternalError(
-                                "Task not found in index, we saw an update action which means the task should eventually exist",
-                            ),
+                for (const query of queries) {
+                    // If the task is still not visible in this query (some concurrent process may
+                    // have made it visible) then attempt to add the task to the query given the
+                    // task passes the query's filters.
+                    if (!taskEntry.hasQueryDependent(query)) {
+                        const {isVisible} = query.maybeAddVisibleTask(
+                            context,
+                            eventBuilder,
+                            taskEntry.task,
                         );
-                    }
-
-                    for (const [query, actions] of queries) {
-                        const actionTransactionSlice =
-                            new TaskRealtimeActionTransactionActionsSlice(
-                                actionTransaction,
-                                actions,
-                            );
-
-                        // If the task is still not visible in this query (some concurrent process may
-                        // have made it visible) then attempt to add the task to the query given the
-                        // task passes the query's filters.
-                        if (!taskEntry.hasQueryDependent(query)) {
-                            const {isVisible} = query.maybeAddVisibleTask(
-                                context,
-                                taskId,
-                                taskEntry.task,
-                                actionTransactionSlice,
-                            );
-                            if (isVisible) {
-                                taskEntry.addQueryDependent(query);
-                            }
+                        if (isVisible) {
+                            taskEntry.addQueryDependent(query);
                         }
                     }
-                }),
-            ),
+                }
+            }),
         );
 
-        // Once we are done applying our action transaction, send the action
-        // transaction to connected clients! In the process of updating we will have
-        // found out which actions need to go to which clients while still preserving
-        // the atomicity of a transaction.
-        actionTransaction.send();
+        // Once we are done applying our action transaction, send the built events to
+        // connected clients! In the process of updating we will have found out which
+        // actions need to go to which clients while still preserving the atomicity of
+        // a transaction.
+        await eventBuilder.send(context);
     }
 
     /**
      * Load an entry for a task from OpenSearch and put it in `taskEntryById`.
      *
      * Batches and dedupes load requests behind the scenes.
+     *
+     * If we can't find a task then we'll retry for a bit and eventually throw an
+     * error. It's expected when you call this method that the underlying task
+     * exists. If it doesn't that must mean our index is stale so we retry for
+     * a bit.
      */
-    public loadTaskEntryIfExists(
+    public loadTaskEntry(
+        context: TaskRealtimeSystemActionContext,
+        taskId: TaskId,
+    ): Promise<TaskRealtimeQueryStoreTaskEntry> {
+        return retryWithExponentialBackoff(async retry => {
+            const taskEntry = await this._loadTaskEntryIfExists(context, taskId);
+
+            if (!taskEntry) {
+                throw retry(new InternalError("Task not found"));
+            }
+
+            return taskEntry;
+        });
+    }
+
+    private _loadTaskEntryIfExists(
         context: TaskRealtimeSystemActionContext,
         taskId: TaskId,
     ): Promise<TaskRealtimeQueryStoreTaskEntry | null> {
@@ -735,7 +775,22 @@ export class TaskRealtimeQueryStoreInternal {
      *
      * Batches and dedupes load requests behind the scenes.
      */
-    public loadCollectionEntryIfExists(
+    public loadCollectionEntry(
+        context: TaskRealtimeSystemActionContext,
+        collectionId: TaskCollectionId,
+    ): Promise<TaskRealtimeQueryStoreCollectionEntry> {
+        return retryWithExponentialBackoff(async retry => {
+            const collectionEntry = await this._loadCollectionEntryIfExists(context, collectionId);
+
+            if (!collectionEntry) {
+                throw retry(new InternalError("Task not found"));
+            }
+
+            return collectionEntry;
+        });
+    }
+
+    private _loadCollectionEntryIfExists(
         context: TaskRealtimeSystemActionContext,
         collectionId: TaskCollectionId,
     ): Promise<TaskRealtimeQueryStoreCollectionEntry | null> {
@@ -888,6 +943,14 @@ export class TaskRealtimeQueryStoreTaskEntry {
     // NOCOMMIT: Mark for eviction if no dependencies...
     private readonly _queryDependents = new Set<TaskRealtimeQuery>();
 
+    /**
+     * Query subscriptions that depend on this task. Query subscriptions reference
+     * all parents, recursively, of loaded tasks.
+     */
+    // NOCOMMIT: Mark for eviction if no dependencies...
+    private readonly _querySubscriptionDependents =
+        new Set<TaskRealtimeQuerySubscriptionInternal>();
+
     constructor(store: TaskRealtimeQueryStoreInternal, initialTask: TaskIndexDoc) {
         this._store = store;
         this.task = initialTask;
@@ -906,7 +969,7 @@ export class TaskRealtimeQueryStoreTaskEntry {
         }
     }
 
-    public iterateQueryDependents(): IterableIterator<TaskRealtimeQuery> {
+    public iterateQueryDependents() {
         return this._queryDependents.values();
     }
 
@@ -928,14 +991,20 @@ export class TaskRealtimeQueryStoreTaskEntry {
         this._queryDependents.delete(query);
     }
 
+    public iterateQuerySubscriptionDependents() {
+        return this._querySubscriptionDependents.values();
+    }
+
     public addQuerySubscriptionDependent(querySubscription: TaskRealtimeQuerySubscriptionInternal) {
         // NOCOMMIT: Revive from eviction...
+        this._querySubscriptionDependents.add(querySubscription);
     }
 
     public removeQuerySubscriptionDependent(
         querySubscription: TaskRealtimeQuerySubscriptionInternal,
     ) {
         // NOCOMMIT: Mark for eviction...
+        this._querySubscriptionDependents.delete(querySubscription);
     }
 }
 

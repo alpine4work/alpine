@@ -1,4 +1,4 @@
-import {createCrdtRegister} from "~/shared/crdt/crdt_register.js";
+import {CrdtRegister, createCrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
@@ -17,3 +17,4 @@ export const TaskAssigneeSchema = Schema.object({
 });
 
 export const TaskAssigneeRegister = createCrdtRegister(TaskAssigneeSchema.nullable());
+export type TaskAssigneeRegister = CrdtRegister<TaskAssignee | null>;

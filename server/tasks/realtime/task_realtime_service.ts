@@ -199,11 +199,13 @@ runService({
                     TaskRealtimeSessionActionContextModules,
                     typeof TaskRealtimeProtocol,
                     TaskRealtimeConnection
-                >(processContext, TaskRealtimeProtocol, () => {
+                >(processContext, TaskRealtimeProtocol, ({accountId, sendEvent}) => {
                     return new TaskRealtimeConnection({
                         server,
                         spaceId,
+                        accountId,
                         dangerouslyEscalateToSystemContext,
+                        sendEvent,
                     });
                 }),
         );

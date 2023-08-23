@@ -1,5 +1,9 @@
 import {CalendarDate, maxDate, minDate} from "@internationalized/date";
 import {compareArrays} from "~/shared/helpers/array/compare_arrays.js";
+import {
+    NonEmptyReadonlyArray,
+    isNonEmptyReadonlyArray,
+} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -22,12 +26,6 @@ import {
     TaskQueryFilterDateOperationDate,
     TaskQueryPriorityFilter,
 } from "~/shared/tasks/task_query_filter.js";
-
-type NonEmptyReadonlyArray<T> = readonly [T, ...ReadonlyArray<T>];
-
-function isNonEmptyReadonlyArray<T>(array: ReadonlyArray<T>): array is NonEmptyReadonlyArray<T> {
-    return array.length > 0;
-}
 
 function assertNonEmptyReadonlyArray<T>(array: ReadonlyArray<T>): NonEmptyReadonlyArray<T> {
     assert(isNonEmptyReadonlyArray(array));

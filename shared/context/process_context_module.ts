@@ -10,9 +10,9 @@ import {assert} from "~/shared/helpers/control/assert.js";
  * (e.g. Cloudflare Workers and Cloudflare Durable Objects).
  */
 export class ProcessContextModule extends ContextModuleBase implements ForkableContextModuleBase {
-    private readonly _waitUntil: (promise: Promise<void>) => void;
+    private readonly _waitUntil: (promise: Promise<unknown>) => void;
 
-    constructor({waitUntil}: {waitUntil: (promise: Promise<void>) => void}) {
+    constructor({waitUntil}: {waitUntil: (promise: Promise<unknown>) => void}) {
         super();
         this._waitUntil = waitUntil;
     }
@@ -26,7 +26,7 @@ export class ProcessContextModule extends ContextModuleBase implements ForkableC
      *
      * [1]: https://developers.cloudflare.com/workers/runtime-apis/fetch-event/#waituntil
      */
-    public waitUntil(action: Promise<void> | (() => Promise<void>)): void {
+    public waitUntil(action: Promise<unknown> | (() => Promise<unknown>)): void {
         // TODO(calebmer): Error handling! Unhandled exceptions should not crash
         // the process.
         this._waitUntil(typeof action === "function" ? action() : action);

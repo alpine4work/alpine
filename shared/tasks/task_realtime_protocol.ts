@@ -1,5 +1,8 @@
-import {TaskRealtimeQuerySubscriptionId} from "~/shared/id/types/id_types.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {TaskId, TaskRealtimeQuerySubscriptionId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {TaskActionSchema} from "~/shared/tasks/actions/task_action.js";
+import {TaskModel} from "~/shared/tasks/task_model.js";
 import {TaskQueryNormalizedFiltersSchema} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSortSchema} from "~/shared/tasks/task_query_normalized_sort.js";
 import {
@@ -36,9 +39,12 @@ export const TaskRealtimeProtocol = defineWebSocketProtocol({
         },
     },
     events: {
-        Echo: Schema.object({
-            type: Schema.value("Echo"),
-            string: Schema.string,
+        Update: Schema.object({
+            type: Schema.value("Update"),
+            actions: Schema.array(TaskActionSchema),
+            backfillAuthorizedTasks: Schema.array(TaskModel.schema),
+            backfillUnauthorizedTaskIds: Schema.array(Schema.id<TaskId>()),
+            referencedAccounts: Schema.array(AccountModel.schema()),
         }),
     },
 });

@@ -1,26 +1,18 @@
 import {RBTree} from "bintrees";
-import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/data/apply_task_action_to_task_index_doc.js";
 import {evaluateTaskQueryNormalizedFiltersForIndexDoc} from "~/server/tasks/data/evaluate_task_query_normalized_filters_for_index_doc.js";
 import {getTaskQueryNormalizedSortCursorFromIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_from_index_doc.js";
 import {queryTaskIndex} from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {mightTaskActionAddTaskToQueryLoadedRange} from "~/server/tasks/realtime/might_task_action_add_task_to_query_loaded_range.js";
-import {
-    TaskRealtimeActionTransactionActionsSlice,
-    TaskRealtimeActionTransactionSliceBase,
-} from "~/server/tasks/realtime/task_realtime_action_transaction.js";
+import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_event.js";
 import {
     TaskRealtimeQueryStoreInternal,
     TaskRealtimeQueryStoreTaskEntry,
 } from "~/server/tasks/realtime/task_realtime_query_store.js";
-import {
-    TaskRealtimeQuerySubscription,
-    TaskRealtimeQuerySubscriptionInternal,
-} from "~/server/tasks/realtime/task_realtime_query_subscription.js";
+import {TaskRealtimeQuerySubscriptionInternal} from "~/server/tasks/realtime/task_realtime_query_subscription.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
-import {InternalError} from "~/shared/error/error.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
+import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -30,6 +22,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
+import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskTaskAction} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
@@ -42,7 +35,7 @@ import {
 // we've missed any updates. We run this validation in `development` and
 // `test` since maintaining task update state correctly is a little tricky to
 // get right but critical to the operation of this class.
-const previousTaskIdByQueryForTest =
+const previousTaskByIdByQueryForTest =
     process.env.NODE_ENV !== "production"
         ? new WeakMap<TaskRealtimeQuery, Map<TaskId, TaskIndexDoc>>()
         : null;
@@ -466,14 +459,22 @@ export class TaskRealtimeQuery {
                 this._loadedCount++;
             }
 
-            for (const subscription of this._subscriptions) {
-                subscription.onVisibleTaskAdd(context, taskEntry.task, "FromQueryLoadTasks");
+            // Given the task may only be in our query's new loaded range established this
+            // function (not in its old loaded range) the task will definitely not be
+            // loaded in our query subscription.
+            //
+            // Currently we only do some validation on visible but not loaded tasks for our
+            // query subscription which we can skip in production.
+            if (process.env.NODE_ENV !== "production") {
+                for (const subscription of this._subscriptions) {
+                    subscription.onVisibleButNotLoadedTaskAddForTest(context, taskEntry.task);
+                }
             }
 
             // When testing, track that the task has been added to the query.
             if (process.env.NODE_ENV !== "production") {
                 getOrSetDefaultMapValue(
-                    assertExists(previousTaskIdByQueryForTest),
+                    assertExists(previousTaskByIdByQueryForTest),
                     this,
                     () => new Map(),
                 ).set(taskEntry.task.id, taskEntry.task);
@@ -668,33 +669,21 @@ export class TaskRealtimeQuery {
         }
 
         return runAllPromises(
-            maybeAddVisibleTaskIdsToLoad.map(taskId =>
-                retryWithExponentialBackoff(async retry => {
-                    const taskEntry = await this.store.loadTaskEntryIfExists(context, taskId);
+            maybeAddVisibleTaskIdsToLoad.map(async taskId => {
+                const taskEntry = await this.store.loadTaskEntry(context, taskId);
 
-                    if (!taskEntry) {
-                        throw retry(
-                            new InternalError(
-                                "Task not found in index, we saw an update action which means the task should eventually exist",
-                            ),
-                        );
-                    }
+                // If some concurrent process added the task to our query we don't need to add
+                // it again.
+                if (taskEntry.hasQueryDependent(this)) return;
 
-                    // If some concurrent process added the task to our query we don't need to add
-                    // it again.
-                    if (taskEntry.hasQueryDependent(this)) return;
+                // Make sure the task actually passes our query's filters. We only guessed that
+                // it might pass before.
+                if (!evaluateTaskQueryNormalizedFiltersForIndexDoc(this.filters, taskEntry.task)) {
+                    return;
+                }
 
-                    // Make sure the task actually passes our query's filters. We only guessed that
-                    // it might pass before.
-                    if (
-                        !evaluateTaskQueryNormalizedFiltersForIndexDoc(this.filters, taskEntry.task)
-                    ) {
-                        return;
-                    }
-
-                    addVisibleTask(taskEntry);
-                }),
-            ),
+                addVisibleTask(taskEntry);
+            }),
         );
     }
 
@@ -718,18 +707,19 @@ export class TaskRealtimeQuery {
      */
     public onVisibleTaskUpdate(
         context: TaskRealtimeSystemActionContext,
+        eventBuilder: TaskRealtimeUpdateEventBuilder,
         taskId: TaskId,
         oldTask: TaskIndexDoc,
         newTask: TaskIndexDoc,
-        actions: TaskRealtimeActionTransactionActionsSlice,
+        actions: NonEmptyReadonlyArray<TaskAction>,
     ): {isStillVisible: boolean} {
         // When testing, track that the query class observes every update to a task and
         // that no updates are skipped.
         if (process.env.NODE_ENV !== "production") {
-            assert(previousTaskIdByQueryForTest);
+            assert(previousTaskByIdByQueryForTest);
 
             const previousTaskById = getOrSetDefaultMapValue(
-                previousTaskIdByQueryForTest,
+                previousTaskByIdByQueryForTest,
                 this,
                 () => new Map(),
             );
@@ -766,12 +756,12 @@ export class TaskRealtimeQuery {
             }
 
             for (const subscription of this._subscriptions) {
-                subscription.onVisibleTaskRemove(context, oldTask, actions);
+                subscription.onVisibleTaskRemove(context, eventBuilder, oldTask, actions);
             }
 
             // When testing, track that the task has been removed from the query.
             if (process.env.NODE_ENV !== "production") {
-                assertExists(previousTaskIdByQueryForTest).get(this)?.delete(taskId);
+                assertExists(previousTaskByIdByQueryForTest).get(this)?.delete(taskId);
             }
 
             return {isStillVisible: false};
@@ -816,7 +806,14 @@ export class TaskRealtimeQuery {
         }
 
         for (const subscription of this._subscriptions) {
-            subscription.onVisibleTaskUpdate(context, taskId, oldTask, newTask, actions);
+            subscription.onVisibleTaskUpdate(
+                context,
+                eventBuilder,
+                taskId,
+                oldTask,
+                newTask,
+                actions,
+            );
         }
 
         return {isStillVisible: true};
@@ -846,15 +843,14 @@ export class TaskRealtimeQuery {
      */
     public maybeAddVisibleTask(
         context: TaskRealtimeSystemActionContext,
-        taskId: TaskId,
+        eventBuilder: TaskRealtimeUpdateEventBuilder,
         task: TaskIndexDoc,
-        actions: TaskRealtimeActionTransactionActionsSlice,
     ): {isVisible: boolean} {
         // When testing, track that the query class observes every update to a task and
         // that no updates are skipped.
         if (process.env.NODE_ENV !== "production") {
             assert(
-                !assertExists(previousTaskIdByQueryForTest).get(this)?.get(taskId),
+                !assertExists(previousTaskByIdByQueryForTest).get(this)?.get(task.id),
                 "Query can't add task that's already visible again with `maybeAddVisibleTask()`",
             );
         }
@@ -875,20 +871,20 @@ export class TaskRealtimeQuery {
         }
 
         for (const subscription of this._subscriptions) {
-            subscription.onVisibleTaskAdd(context, task, actions);
+            subscription.onVisibleTaskAdd(context, eventBuilder, task);
         }
 
         // When testing, track that the task has been added to the query.
         if (process.env.NODE_ENV !== "production") {
-            assert(previousTaskIdByQueryForTest);
+            assert(previousTaskByIdByQueryForTest);
 
             const previousTaskById = getOrSetDefaultMapValue(
-                previousTaskIdByQueryForTest,
+                previousTaskByIdByQueryForTest,
                 this,
                 () => new Map(),
             );
 
-            previousTaskById.set(taskId, task);
+            previousTaskById.set(task.id, task);
         }
 
         return {isVisible: true};

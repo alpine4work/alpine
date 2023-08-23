@@ -1,7 +1,6 @@
 import {OpensearchClientDocWithVersion} from "~/server/opensearch/opensearch_client.js";
 import {
     OpensearchIndexBooleanType,
-    OpensearchIndexDateType,
     OpensearchIndexIgnoredObjectType,
     OpensearchIndexKeywordType,
     OpensearchIndexObjectType,
@@ -55,7 +54,7 @@ export const TaskCollectionIndexDocType = OpensearchIndexObjectType.new({
             isFilterable: true,
             isSortable: true,
         }).validate<SpaceId>(isId),
-        createdTime: new OpensearchIndexDateType({isSortable: true}),
+        createdTime: HybridLogicalTimeType,
 
         // The `isDeleted` computed property definitively tells us whether a task is
         // deleted or not.

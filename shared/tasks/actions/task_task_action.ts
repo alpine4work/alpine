@@ -1,5 +1,5 @@
-import {CalendarDate, parseDate} from "@internationalized/date";
-import {createCrdtRegister} from "~/shared/crdt/crdt_register.js";
+import {CalendarDate} from "@internationalized/date";
+import {CrdtRegister, createCrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
@@ -361,6 +361,7 @@ const TaskUpdateTitleActionSchema = Schema.object({
 });
 
 export const TaskDueDateRegister = createCrdtRegister(CalendarDateSchema.nullable());
+export type TaskDueDateRegister = CrdtRegister<CalendarDate | null>;
 
 /**
  * Updates the due date of the task.

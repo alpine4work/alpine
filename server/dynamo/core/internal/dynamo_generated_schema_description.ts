@@ -4691,7 +4691,7 @@ export const dynamoGeneratedSchemaDescription: {
                                     },
                                     "createdTime": {
                                         "valueSchema": {
-                                            "type": "Date"
+                                            "type": "Uint64"
                                         },
                                         "optional": false
                                     },
@@ -4765,7 +4765,7 @@ export const dynamoGeneratedSchemaDescription: {
                                     },
                                     "createdTime": {
                                         "valueSchema": {
-                                            "type": "Date"
+                                            "type": "Uint64"
                                         },
                                         "optional": false
                                     },

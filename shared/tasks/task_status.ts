@@ -1,4 +1,4 @@
-import {createCrdtRegister} from "~/shared/crdt/crdt_register.js";
+import {CrdtRegister, createCrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
@@ -22,3 +22,4 @@ export const TaskStatusSchema = Schema.union({
 });
 
 export const TaskStatusRegister = createCrdtRegister(TaskStatusSchema);
+export type TaskStatusRegister = CrdtRegister<TaskStatus>;

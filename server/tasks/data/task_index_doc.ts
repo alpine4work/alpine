@@ -20,7 +20,6 @@ import {
     HybridLogicalTimeType,
     SortableHybridLogicalTimeType,
 } from "~/server/tasks/data/internal/hybrid_logical_time_type.js";
-import {createCrdtMap} from "~/shared/crdt/crdt_map.js";
 import {CrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {
     HybridLogicalTime,
@@ -52,6 +51,8 @@ import {
 } from "~/shared/tasks/task_filterable_time.js";
 import {TaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 import {TaskPositionRegister, TaskPositionSchema} from "~/shared/tasks/task_position.js";
+import {TaskPositionByAccountIdAndNotepadPageIdMap} from "~/shared/tasks/task_position_by_account_id_and_notepad_page_id.js";
+import {TaskPositionByCollectionIdMap} from "~/shared/tasks/task_position_by_collection_id_map.js";
 import {TaskPriority, TaskPriorityRegister} from "~/shared/tasks/task_priority.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {TaskStatus, TaskStatusRegister} from "~/shared/tasks/task_status.js";
@@ -157,11 +158,6 @@ const TaskIndexParentType = OpensearchIndexObjectType.new({
     },
 });
 
-export const TaskPositionByCollectionIdMap = createCrdtMap(
-    Schema.id<TaskCollectionId>(),
-    TaskPositionSchema,
-);
-
 /**
  * Indexes the collections a task is in and the position of the task in its
  * collections.
@@ -225,24 +221,23 @@ const TaskIndexCollectionsType = OpensearchIndexObjectType.new({
     },
 });
 
-const TaskAccountIdAndNotepadPageId =
-    Schema.string as Schema<any> as Schema<`${AccountId}-${TaskNotepadPageId}`>;
-
-export const TaskPositionByAccountIdAndNotepadPageId = createCrdtMap(
-    TaskAccountIdAndNotepadPageId,
-    TaskPositionSchema,
-);
-
 /**
  * Indexes the notepad pages a task is in and the position of the task in those
  * notepad pages. Uses roughly the same layout as `TaskIndexCollectionsType` so
  * see the documentation on that type.
  */
+// NOTE(calebmer, 2023-08-22): When I started writing this code any account
+// could add a task to their notepad. Hence why this map is keyed by
+// `${AccountId}-${TaskNotepadPageId}`. However, later I constrained notepad
+// pages to only include tasks created by the page's owner. With this
+// restriction I could drop `AccountId` from the key but I'll keep it for now
+// to avoid a refactor and allow, hopefully, any task to be added to an
+// account's notepad in the future.
 const TaskIndexNotepadPagesType = OpensearchIndexObjectType.new({
     fields: {
         raw: new OpensearchIndexIgnoredObjectType(
             Schema.object({
-                positionById: TaskPositionByAccountIdAndNotepadPageId.schema,
+                positionById: TaskPositionByAccountIdAndNotepadPageIdMap.schema,
             }),
         ),
     },

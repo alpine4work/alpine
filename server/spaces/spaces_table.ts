@@ -1,4 +1,5 @@
 import {dangerouslyGetAccountIfExistsWithoutCaching} from "~/server/accounts/accounts_table.js";
+import {DynamoActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
@@ -232,7 +233,12 @@ const AccountContextCache = new ContextCache<
 // This lives in `server/spaces` because it needs access to both the account
 // table and the space table.
 export function getAccountIfExists(
-    context: ServerActionContext,
+    context: Context<{
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        dynamo: DynamoContextModule;
+        actor: DynamoActorContextModule;
+    }>,
     spaceId: SpaceId,
     // You may call this function `ContentMentionAccountId` since it does not throw
     // when the account does not exist in the space.
@@ -272,7 +278,12 @@ export function getAccountIfExists(
 // This lives in `server/spaces` because it needs access to both the account
 // table and the space table.
 export async function getAccount(
-    context: ServerActionContext,
+    context: Context<{
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        dynamo: DynamoContextModule;
+        actor: DynamoActorContextModule;
+    }>,
     spaceId: SpaceId,
     accountId: AccountId,
 ): Promise<AccountModel> {

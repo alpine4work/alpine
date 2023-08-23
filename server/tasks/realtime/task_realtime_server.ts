@@ -1,14 +1,22 @@
+import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
+import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
-import {backfillTaskActionTransactionHistory} from "~/server/tasks/data/task_table.js";
+import {
+    authorizeTaskQueryAccess,
+    backfillTaskActionTransactionHistory,
+} from "~/server/tasks/data/task_table.js";
 import {TaskRealtimeActionHistory} from "~/server/tasks/realtime/task_realtime_action_history.js";
-import {TaskRealtimeActionTransactionSliceBase} from "~/server/tasks/realtime/task_realtime_action_transaction.js";
 import {TaskRealtimeQueryStore} from "~/server/tasks/realtime/task_realtime_query_store.js";
-import {TaskRealtimeQuerySubscription} from "~/server/tasks/realtime/task_realtime_query_subscription.js";
+import {
+    TaskRealtimeQuerySubscription,
+    TaskRealtimeQuerySubscriptionCallbacks,
+} from "~/server/tasks/realtime/task_realtime_query_subscription.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
@@ -45,7 +53,14 @@ export class TaskRealtimeServer {
     private readonly _backfillActionHistoryPromiseBySpaceId = new Map<SpaceId, Promise<void>>();
     private _disableActionHistoryBackfillForTest?: boolean;
 
-    private readonly _storeBySpaceId = new Map<SpaceId, TaskRealtimeQueryStore>();
+    private readonly _storeBySpaceId = new DefaultMap<SpaceId, TaskRealtimeQueryStore>(
+        spaceId =>
+            new TaskRealtimeQueryStore({
+                spaceId,
+                actionHistory: this._actionHistory,
+                ensureFullActionHistory: context => this._ensureFullActionHistory(context, spaceId),
+            }),
+    );
 
     private constructor() {
         const [actionHistory, {start: startActionHistory, stop: stopActionHistory}] =
@@ -195,18 +210,7 @@ export class TaskRealtimeServer {
 
         await authorizeSpaceAccess(context, options.spaceId);
 
-        const store = getOrSetDefaultMapValue(
-            this._storeBySpaceId,
-            options.spaceId,
-            () =>
-                new TaskRealtimeQueryStore({
-                    spaceId: options.spaceId,
-                    actionHistory: this._actionHistory,
-                    ensureFullActionHistory: context =>
-                        this._ensureFullActionHistory(context, options.spaceId),
-                }),
-        );
-
+        const store = this._storeBySpaceId.getOrSetDefault(options.spaceId);
         return store.loadQuery(context, options);
     }
 
@@ -216,7 +220,7 @@ export class TaskRealtimeServer {
             spaceId: SpaceId;
             filters: TaskQueryNormalizedFilters;
             sorts: ReadonlyArray<TaskQueryNormalizedSort>;
-            onAction: (action: TaskRealtimeActionTransactionSliceBase) => void;
+            callbacks: TaskRealtimeQuerySubscriptionCallbacks;
         },
     ): Promise<TaskRealtimeQuerySubscription> {
         // Must be a system actor because we do no filtering to check whether you are
@@ -226,18 +230,7 @@ export class TaskRealtimeServer {
 
         await authorizeSpaceAccess(context, options.spaceId);
 
-        const store = getOrSetDefaultMapValue(
-            this._storeBySpaceId,
-            options.spaceId,
-            () =>
-                new TaskRealtimeQueryStore({
-                    spaceId: options.spaceId,
-                    actionHistory: this._actionHistory,
-                    ensureFullActionHistory: context =>
-                        this._ensureFullActionHistory(context, options.spaceId),
-                }),
-        );
-
+        const store = this._storeBySpaceId.getOrSetDefault(options.spaceId);
         return store.subscribeToQuery(options);
     }
 
@@ -259,5 +252,89 @@ export class TaskRealtimeServer {
 
         const store = this._storeBySpaceId.get(actionTransaction.spaceId);
         await store?.applyActionTransaction(context, actionTransaction.actions);
+    }
+
+    /**
+     * Get the provided task from our realtime store. If the task is in our store
+     * we will return immediately. Otherwise we will load the task from OpenSearch
+     * and catch it up so it's up-to-date in realtime.
+     *
+     * If the task does not exist we will throw an error. It may take a while to
+     * throw a not found error since the task might not exist *yet*. You may know
+     * about a task before it's indexed in OpenSearch. In that case we retry until
+     * a timeout is reached.
+     */
+    public async getTask(
+        context: TaskRealtimeSystemActionContext,
+        spaceId: SpaceId,
+        taskId: TaskId,
+    ): Promise<TaskIndexDoc> {
+        // Must be a system actor because we do no filtering to check whether you are
+        // allowed to see the task.
+        context.actor.authorizeSystem();
+
+        await authorizeSpaceAccess(context, spaceId);
+
+        const store = this._storeBySpaceId.getOrSetDefault(spaceId);
+        return store.getTask(context, taskId);
+    }
+
+    /**
+     * Get the provided collection from our realtime store. If the collection is in
+     * our store we will return immediately. Otherwise we will load the collection
+     * from OpenSearch and catch it up so it's up-to-date in realtime.
+     *
+     * If the collection does not exist we will throw an error. It may take a while
+     * to throw a not found error since the collection might not exist *yet*. You
+     * may know about a collection before it's indexed in OpenSearch. In that case
+     * we retry until a timeout is reached.
+     */
+    public async getCollection(
+        context: TaskRealtimeSystemActionContext,
+        spaceId: SpaceId,
+        collectionId: TaskCollectionId,
+    ): Promise<TaskCollectionIndexDoc> {
+        // Must be a system actor because we do no filtering to check whether you are
+        // allowed to see the task.
+        context.actor.authorizeSystem();
+
+        await authorizeSpaceAccess(context, spaceId);
+
+        const store = this._storeBySpaceId.getOrSetDefault(spaceId);
+        return store.getCollection(context, collectionId);
+    }
+
+    /**
+     * Authorizes that an account actor has access to a query. Throws an error if
+     * we're unauthorized.
+     *
+     * Will use in-memory tasks/collections when available and otherwise will load
+     * from DynamoDB.
+     */
+    public authorizeQueryAccess(
+        context: ServerSessionActionContext,
+        {
+            spaceId,
+            filters,
+            sorts,
+        }: {
+            spaceId: SpaceId;
+            filters: TaskQueryNormalizedFilters;
+            sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+        },
+    ) {
+        return authorizeTaskQueryAccess(
+            context,
+            {
+                filters,
+                sorts,
+            },
+            {
+                getTaskIndexDocIfExists: taskId =>
+                    this._storeBySpaceId.get(spaceId)?.getTaskIfLoaded(taskId),
+                getCollectionIndexDocIfExists: collectionId =>
+                    this._storeBySpaceId.get(spaceId)?.getCollectionIfLoaded(collectionId),
+            },
+        );
     }
 }

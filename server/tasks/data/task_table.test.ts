@@ -89,6 +89,8 @@ function testAuthorizeTaskQueryAccess(
     return authorizeTaskQueryAccess(context, {
         filters: filters.normalizedFilters,
         sorts: normalizeTaskQuerySorts(options?.sorts ?? []),
+        getTaskIndexDocIfExists: () => null,
+        getCollectionIndexDocIfExists: () => null,
     });
 }
 

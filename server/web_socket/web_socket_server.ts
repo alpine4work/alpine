@@ -20,7 +20,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {generateId} from "~/shared/id/id.js";
-import {WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {AccountId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 import {webSocketExpirationTimeoutMs} from "~/shared/web_socket/web_socket_expiration_timeout_ms.js";
@@ -127,14 +127,15 @@ export class WebSocketServer<
     private readonly _messageFromClientSchema: Schema<WebSocketMessageFromClient<Protocol>>;
     private readonly _messageFromServerSchema: Schema<WebSocketMessageFromServer<Protocol>>;
     private readonly _createConnection: (connection: {
+        accountId: AccountId;
         connectionId: WebSocketConnectionId;
         sendEvent: (
             context: Context<ProcessContextModules>,
-            message: WebSocketProtocolEventType<Protocol>,
+            event: WebSocketProtocolEventType<Protocol>,
         ) => void;
         sendEventToOthers: (
             context: Context<ProcessContextModules>,
-            message: WebSocketProtocolEventType<Protocol>,
+            event: WebSocketProtocolEventType<Protocol>,
         ) => void;
         iterateOtherConnections: () => Iterable<Connection>;
     }) => Connection;
@@ -157,14 +158,15 @@ export class WebSocketServer<
         processContext: Context<ProcessContextModules>,
         protocol: Protocol,
         createConnection: (connection: {
+            accountId: AccountId;
             connectionId: WebSocketConnectionId;
             sendEvent: (
                 context: Context<ProcessContextModules>,
-                message: WebSocketProtocolEventType<Protocol>,
+                event: WebSocketProtocolEventType<Protocol>,
             ) => void;
             sendEventToOthers: (
                 context: Context<ProcessContextModules>,
-                message: WebSocketProtocolEventType<Protocol>,
+                event: WebSocketProtocolEventType<Protocol>,
             ) => void;
             iterateOtherConnections: () => Iterable<Connection>;
         }) => Connection,
@@ -281,23 +283,25 @@ export class WebSocketServer<
             );
         };
 
+        const accountId = _connectActionContext.actor.getAccountId();
         const connectionId = generateId<WebSocketConnectionId>();
 
         const connectionProcessContext = this._processContext.tracer.withPropagatedData({
             context: {
-                accountId: _connectActionContext.actor.getAccountId(),
+                accountId,
                 webSocketConnectionId: connectionId,
             },
         }) as Context<ProcessContextModules>;
 
         const connectActionContext = _connectActionContext.tracer.withPropagatedData({
             context: {
-                accountId: _connectActionContext.actor.getAccountId(),
+                accountId,
                 webSocketConnectionId: connectionId,
             },
         }) as Context<SessionActionContextModules>;
 
         const actualConnection = this._createConnection({
+            accountId,
             connectionId,
             sendEvent,
             sendEventToOthers,
@@ -514,23 +518,25 @@ export class WebSocketServer<
             );
         };
 
+        const accountId = _connectActionContext.actor.getAccountId();
         const connectionId = generateId<WebSocketConnectionId>();
 
         const connectionProcessContext = this._processContext.tracer.withPropagatedData({
             context: {
-                accountId: _connectActionContext.actor.getAccountId(),
+                accountId,
                 webSocketConnectionId: connectionId,
             },
         }) as Context<ProcessContextModules>;
 
         const connectActionContext = _connectActionContext.tracer.withPropagatedData({
             context: {
-                accountId: _connectActionContext.actor.getAccountId(),
+                accountId,
                 webSocketConnectionId: connectionId,
             },
         }) as Context<SessionActionContextModules>;
 
         const actualConnection = this._createConnection({
+            accountId,
             connectionId,
             sendEvent,
             sendEventToOthers,
