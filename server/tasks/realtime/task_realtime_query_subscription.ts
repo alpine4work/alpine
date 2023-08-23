@@ -1,12 +1,13 @@
 import {getTaskQueryNormalizedSortCursorFromIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_from_index_doc.js";
+import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
-import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_event.js";
 import {TaskRealtimeQuery} from "~/server/tasks/realtime/task_realtime_query.js";
 import {
     TaskRealtimeQueryStoreCollectionEntry,
     TaskRealtimeQueryStoreTaskEntry,
 } from "~/server/tasks/realtime/task_realtime_query_store.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
+import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_update_event.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -35,6 +36,14 @@ const previousLoadedTaskByIdBySubscriptionForTest =
 const previousReferencedTaskByIdBySubscriptionForTest =
     process.env.NODE_ENV !== "production"
         ? new WeakMap<TaskRealtimeQuerySubscriptionInternal, Map<TaskId, TaskIndexDoc>>()
+        : null;
+
+const previousReferencedCollectionByIdBySubscriptionForTest =
+    process.env.NODE_ENV !== "production"
+        ? new WeakMap<
+              TaskRealtimeQuerySubscriptionInternal,
+              Map<TaskCollectionId, TaskCollectionIndexDoc>
+          >()
         : null;
 
 export type TaskRealtimeQuerySubscriptionCallbacks = {
@@ -126,13 +135,58 @@ export type TaskRealtimeQuerySubscriptionCallbacks = {
      * longer referenced.
      *
      * We don't need to apply any new `TaskAction`s to this task since it should
-     * disappear on the client. If the task is referenced again then you will get
+     * disappear in the UI. If the task is referenced again then you will get
      * an add event.
      */
     onReferencedTaskRemove(
         context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilder,
         oldTask: TaskIndexDoc,
+    ): void;
+
+    /**
+     * A new collection is referenced by a loaded task in the query directly or
+     * indirectly. May be referenced indirectly by any parent task of a loaded
+     * task.
+     *
+     * You are expected to send a backfill message to clients with the referenced
+     * collection. The client may not have seen relevant actions leading up to
+     * this event.
+     */
+    onReferencedCollectionAdd(
+        context: TaskRealtimeSystemActionContext,
+        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        newTask: TaskCollectionIndexDoc,
+    ): void;
+
+    /**
+     * A collection referenced directly or indirectly by a loaded collection was
+     * updated.
+     *
+     * There will always be some associated `TaskAction`s with this change. Clients
+     * should apply these actions.
+     */
+    onReferencedCollectionUpdate(
+        context: TaskRealtimeSystemActionContext,
+        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        collectionId: TaskCollectionId,
+        oldTask: TaskCollectionIndexDoc,
+        newTask: TaskCollectionIndexDoc,
+        actions: NonEmptyReadonlyArray<TaskAction>,
+    ): void;
+
+    /**
+     * A collection that was referenced directly or indirectly by a loaded task is
+     * no longer referenced.
+     *
+     * We don't need to apply any new `TaskAction`s to this collection since it
+     * should disappear in the UI. If the task is referenced again then you will
+     * get an add event.
+     */
+    onReferencedCollectionRemove(
+        context: TaskRealtimeSystemActionContext,
+        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        oldCollection: TaskCollectionIndexDoc,
     ): void;
 };
 
@@ -280,18 +334,18 @@ export class TaskRealtimeQuerySubscriptionInternal {
 
         // When testing, keep track of the tasks we've seen so we can guarantee we've
         // seen every relevant update for a task.
-        const previousTaskIdBySubscription = getOrSetDefaultMapValue(
+        const previousTaskById = getOrSetDefaultMapValue(
             assertExists(previousVisibleTaskByIdBySubscriptionForTest),
             this,
             () => new Map(),
         );
 
         assert(
-            !previousTaskIdBySubscription.has(newTask.id),
+            !previousTaskById.has(newTask.id),
             "Subscription can't add task that's already visible with `onVisibleTaskAdd()`",
         );
 
-        previousTaskIdBySubscription.set(newTask.id, newTask);
+        previousTaskById.set(newTask.id, newTask);
 
         assert(
             this._loadedBeforeCursor === "Unloaded" ||
@@ -312,18 +366,18 @@ export class TaskRealtimeQuerySubscriptionInternal {
         // When testing, keep track of the tasks we've seen so we can guarantee we've
         // seen every relevant update for a task.
         if (process.env.NODE_ENV !== "production") {
-            const previousTaskIdBySubscription = getOrSetDefaultMapValue(
+            const previousTaskById = getOrSetDefaultMapValue(
                 assertExists(previousVisibleTaskByIdBySubscriptionForTest),
                 this,
                 () => new Map(),
             );
 
             assert(
-                !previousTaskIdBySubscription.has(newTask.id),
+                !previousTaskById.has(newTask.id),
                 "Subscription can't add task that's already visible with `onVisibleTaskAdd()`",
             );
 
-            previousTaskIdBySubscription.set(newTask.id, newTask);
+            previousTaskById.set(newTask.id, newTask);
         }
 
         if (
@@ -350,18 +404,18 @@ export class TaskRealtimeQuerySubscriptionInternal {
         // When testing, keep track of the tasks we've seen so we can guarantee we've
         // seen every relevant update for a task.
         if (process.env.NODE_ENV !== "production") {
-            const previousTaskIdBySubscription = getOrSetDefaultMapValue(
+            const previousTaskById = getOrSetDefaultMapValue(
                 assertExists(previousVisibleTaskByIdBySubscriptionForTest),
                 this,
                 () => new Map(),
             );
 
             assert(
-                previousTaskIdBySubscription.get(taskId) === oldTask,
+                previousTaskById.get(taskId) === oldTask,
                 "Subscription must observe all updates to a visible task through `onVisibleTaskUpdate()`",
             );
 
-            previousTaskIdBySubscription.set(taskId, newTask);
+            previousTaskById.set(taskId, newTask);
         }
 
         if (this._loadedBeforeCursor === "FullyLoaded") {
@@ -406,18 +460,18 @@ export class TaskRealtimeQuerySubscriptionInternal {
         // When testing, keep track of the tasks we've seen so we can guarantee we've
         // seen every relevant update for a task.
         if (process.env.NODE_ENV !== "production") {
-            const previousTaskIdBySubscription = getOrSetDefaultMapValue(
+            const previousTaskById = getOrSetDefaultMapValue(
                 assertExists(previousVisibleTaskByIdBySubscriptionForTest),
                 this,
                 () => new Map(),
             );
 
             assert(
-                previousTaskIdBySubscription.get(oldTask.id) === oldTask,
+                previousTaskById.get(oldTask.id) === oldTask,
                 "Subscription can't remove task that is not visible with `onVisibleTaskRemove()`",
             );
 
-            previousTaskIdBySubscription.delete(oldTask.id);
+            previousTaskById.delete(oldTask.id);
         }
 
         if (
@@ -441,25 +495,25 @@ export class TaskRealtimeQuerySubscriptionInternal {
         // When testing, keep track of the tasks we've seen so we can guarantee we've
         // seen every relevant update for a task.
         if (process.env.NODE_ENV !== "production") {
-            const previousTaskIdBySubscription = getOrSetDefaultMapValue(
+            const previousTaskById = getOrSetDefaultMapValue(
                 assertExists(previousLoadedTaskByIdBySubscriptionForTest),
                 this,
                 () => new Map(),
             );
 
             assert(
-                !previousTaskIdBySubscription.has(newTask.id),
+                !previousTaskById.has(newTask.id),
                 "Subscription can't add task that's already loaded with `_onLoadedTaskAdd()`",
             );
 
-            previousTaskIdBySubscription.set(newTask.id, newTask);
+            previousTaskById.set(newTask.id, newTask);
         }
 
         this._loadedCount++;
 
         this._trackTaskDependenciesFromAdd(context, eventBuilder, newTask);
 
-        this._callbacks.onLoadedTaskAdd(eventBuilder, newTask);
+        this._callbacks.onLoadedTaskAdd(context, eventBuilder, newTask);
     }
 
     private _onLoadedTaskUpdate(
@@ -473,23 +527,30 @@ export class TaskRealtimeQuerySubscriptionInternal {
         // When testing, keep track of the tasks we've seen so we can guarantee we've
         // seen every relevant update for a task.
         if (process.env.NODE_ENV !== "production") {
-            const previousTaskIdBySubscription = getOrSetDefaultMapValue(
+            const previousTaskById = getOrSetDefaultMapValue(
                 assertExists(previousLoadedTaskByIdBySubscriptionForTest),
                 this,
                 () => new Map(),
             );
 
             assert(
-                previousTaskIdBySubscription.get(taskId) === oldTask,
+                previousTaskById.get(taskId) === oldTask,
                 "Subscription must observe all updates to a loaded task through `_onLoadedTaskUpdate()`",
             );
 
-            previousTaskIdBySubscription.set(taskId, newTask);
+            previousTaskById.set(taskId, newTask);
         }
 
         this._trackTaskDependenciesFromUpdate(context, eventBuilder, taskId, oldTask, newTask);
 
-        this._callbacks.onLoadedTaskUpdate(eventBuilder, taskId, oldTask, newTask, actions);
+        this._callbacks.onLoadedTaskUpdate(
+            context,
+            eventBuilder,
+            taskId,
+            oldTask,
+            newTask,
+            actions,
+        );
     }
 
     private _onLoadedTaskRemove(
@@ -501,25 +562,25 @@ export class TaskRealtimeQuerySubscriptionInternal {
         // When testing, keep track of the tasks we've seen so we can guarantee we've
         // seen every relevant update for a task.
         if (process.env.NODE_ENV !== "production") {
-            const previousTaskIdBySubscription = getOrSetDefaultMapValue(
+            const previousTaskById = getOrSetDefaultMapValue(
                 assertExists(previousLoadedTaskByIdBySubscriptionForTest),
                 this,
                 () => new Map(),
             );
 
             assert(
-                previousTaskIdBySubscription.get(oldTask.id) === oldTask,
+                previousTaskById.get(oldTask.id) === oldTask,
                 "Subscription can't remove task that is not loaded with `_onLoadedTaskRemove()`",
             );
 
-            previousTaskIdBySubscription.delete(oldTask.id);
+            previousTaskById.delete(oldTask.id);
         }
 
         this._loadedCount--;
 
         this._trackTaskDependenciesFromRemove(context, eventBuilder, oldTask);
 
-        this._callbacks.onLoadedTaskRemove(eventBuilder, oldTask, actions);
+        this._callbacks.onLoadedTaskRemove(context, eventBuilder, oldTask, actions);
     }
 
     private _onReferencedTaskAdd(
@@ -530,23 +591,23 @@ export class TaskRealtimeQuerySubscriptionInternal {
         // When testing, keep track of the tasks we've seen so we can guarantee we've
         // seen every relevant update for a task.
         if (process.env.NODE_ENV !== "production") {
-            const previousTaskIdBySubscription = getOrSetDefaultMapValue(
+            const previousTaskById = getOrSetDefaultMapValue(
                 assertExists(previousReferencedTaskByIdBySubscriptionForTest),
                 this,
                 () => new Map(),
             );
 
             assert(
-                !previousTaskIdBySubscription.has(newTask.id),
+                !previousTaskById.has(newTask.id),
                 "Subscription can't add task that's already referenced with `_onReferencedTaskAdd()`",
             );
 
-            previousTaskIdBySubscription.set(newTask.id, newTask);
+            previousTaskById.set(newTask.id, newTask);
         }
 
         this._trackTaskDependenciesFromAdd(context, eventBuilder, newTask);
 
-        this._callbacks.onReferencedTaskAdd(eventBuilder, newTask);
+        this._callbacks.onReferencedTaskAdd(context, eventBuilder, newTask);
     }
 
     public onReferencedTaskUpdate(
@@ -560,23 +621,30 @@ export class TaskRealtimeQuerySubscriptionInternal {
         // When testing, keep track of the tasks we've seen so we can guarantee we've
         // seen every relevant update for a task.
         if (process.env.NODE_ENV !== "production") {
-            const previousTaskIdBySubscription = getOrSetDefaultMapValue(
+            const previousTaskById = getOrSetDefaultMapValue(
                 assertExists(previousReferencedTaskByIdBySubscriptionForTest),
                 this,
                 () => new Map(),
             );
 
             assert(
-                previousTaskIdBySubscription.get(taskId) === oldTask,
+                previousTaskById.get(taskId) === oldTask,
                 "Subscription must observe all updates to a referenced task through `onReferencedTaskUpdate()`",
             );
 
-            previousTaskIdBySubscription.set(taskId, newTask);
+            previousTaskById.set(taskId, newTask);
         }
 
         this._trackTaskDependenciesFromUpdate(context, eventBuilder, taskId, oldTask, newTask);
 
-        this._callbacks.onReferencedTaskUpdate(eventBuilder, taskId, oldTask, newTask, actions);
+        this._callbacks.onReferencedTaskUpdate(
+            context,
+            eventBuilder,
+            taskId,
+            oldTask,
+            newTask,
+            actions,
+        );
     }
 
     private _onReferencedTaskRemove(
@@ -587,23 +655,23 @@ export class TaskRealtimeQuerySubscriptionInternal {
         // When testing, keep track of the tasks we've seen so we can guarantee we've
         // seen every relevant update for a task.
         if (process.env.NODE_ENV !== "production") {
-            const previousTaskIdBySubscription = getOrSetDefaultMapValue(
+            const previousTaskById = getOrSetDefaultMapValue(
                 assertExists(previousReferencedTaskByIdBySubscriptionForTest),
                 this,
                 () => new Map(),
             );
 
             assert(
-                previousTaskIdBySubscription.get(oldTask.id) === oldTask,
+                previousTaskById.get(oldTask.id) === oldTask,
                 "Subscription can't remove task that is not referenced with `_onReferencedTaskRemove()`",
             );
 
-            previousTaskIdBySubscription.delete(oldTask.id);
+            previousTaskById.delete(oldTask.id);
         }
 
         this._trackTaskDependenciesFromRemove(context, eventBuilder, oldTask);
 
-        this._callbacks.onReferencedTaskRemove(eventBuilder, oldTask);
+        this._callbacks.onReferencedTaskRemove(context, eventBuilder, oldTask);
     }
 
     private _trackTaskDependenciesFromAdd(
@@ -646,15 +714,26 @@ export class TaskRealtimeQuerySubscriptionInternal {
             const referencedCollectionEntry = getOrSetDefaultMapValue(
                 this._referencedCollectionEntryById,
                 newCollectionId,
-                () => ({
-                    referenceCount: 0,
-                    collectionEntry: this.query.store
+                () => {
+                    const collectionEntryPromise = this.query.store
                         .loadCollectionEntry(context, newCollectionId)
                         .then(collectionEntry => {
                             collectionEntry.addQuerySubscriptionDependent(this);
+                            this._onReferencedCollectionAdd(
+                                context,
+                                eventBuilder,
+                                collectionEntry.collection,
+                            );
                             return collectionEntry;
-                        }),
-                }),
+                        });
+
+                    eventBuilder.waitUntil(collectionEntryPromise);
+
+                    return {
+                        referenceCount: 0,
+                        collectionEntry: collectionEntryPromise,
+                    };
+                },
             );
 
             referencedCollectionEntry.referenceCount++;
@@ -741,9 +820,16 @@ export class TaskRealtimeQuerySubscriptionInternal {
                 referencedCollectionEntry.referenceCount--;
 
                 if (referencedCollectionEntry.referenceCount === 0) {
-                    void referencedCollectionEntry.collectionEntry.then(collectionEntry => {
-                        collectionEntry.removeQuerySubscriptionDependent(this);
-                    });
+                    eventBuilder.waitUntil(
+                        referencedCollectionEntry.collectionEntry.then(collectionEntry => {
+                            collectionEntry.removeQuerySubscriptionDependent(this);
+                            this._onReferencedCollectionRemove(
+                                context,
+                                eventBuilder,
+                                collectionEntry.collection,
+                            );
+                        }),
+                    );
                     this._referencedCollectionEntryById.delete(removedCollectionId);
                 }
             }
@@ -752,15 +838,26 @@ export class TaskRealtimeQuerySubscriptionInternal {
                 const referencedCollectionEntry = getOrSetDefaultMapValue(
                     this._referencedCollectionEntryById,
                     addedCollectionId,
-                    () => ({
-                        referenceCount: 0,
-                        collectionEntry: this.query.store
+                    () => {
+                        const collectionEntryPromise = this.query.store
                             .loadCollectionEntry(context, addedCollectionId)
                             .then(collectionEntry => {
                                 collectionEntry.addQuerySubscriptionDependent(this);
+                                this._onReferencedCollectionAdd(
+                                    context,
+                                    eventBuilder,
+                                    collectionEntry.collection,
+                                );
                                 return collectionEntry;
-                            }),
-                    }),
+                            });
+
+                        eventBuilder.waitUntil(collectionEntryPromise);
+
+                        return {
+                            referenceCount: 0,
+                            collectionEntry: collectionEntryPromise,
+                        };
+                    },
                 );
 
                 referencedCollectionEntry.referenceCount++;
@@ -805,12 +902,104 @@ export class TaskRealtimeQuerySubscriptionInternal {
             referencedCollectionEntry.referenceCount--;
 
             if (referencedCollectionEntry.referenceCount === 0) {
-                void referencedCollectionEntry.collectionEntry.then(collectionEntry => {
-                    collectionEntry.removeQuerySubscriptionDependent(this);
-                });
+                eventBuilder.waitUntil(
+                    referencedCollectionEntry.collectionEntry.then(collectionEntry => {
+                        collectionEntry.removeQuerySubscriptionDependent(this);
+                        this._onReferencedCollectionRemove(
+                            context,
+                            eventBuilder,
+                            collectionEntry.collection,
+                        );
+                    }),
+                );
                 this._referencedCollectionEntryById.delete(oldCollectionId);
             }
         }
+    }
+
+    private _onReferencedCollectionAdd(
+        context: TaskRealtimeSystemActionContext,
+        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        newCollection: TaskCollectionIndexDoc,
+    ) {
+        // When testing, keep track of the tasks we've seen so we can guarantee we've
+        // seen every relevant update for a task.
+        if (process.env.NODE_ENV !== "production") {
+            const previousCollectionById = getOrSetDefaultMapValue(
+                assertExists(previousReferencedCollectionByIdBySubscriptionForTest),
+                this,
+                () => new Map(),
+            );
+
+            assert(
+                !previousCollectionById.has(newCollection.id),
+                "Subscription can't add task that's already referenced with `_onReferencedCollectionAdd()`",
+            );
+
+            previousCollectionById.set(newCollection.id, newCollection);
+        }
+
+        this._callbacks.onReferencedCollectionAdd(context, eventBuilder, newCollection);
+    }
+
+    public onReferencedCollectionUpdate(
+        context: TaskRealtimeSystemActionContext,
+        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        collectionId: TaskCollectionId,
+        oldCollection: TaskCollectionIndexDoc,
+        newCollection: TaskCollectionIndexDoc,
+        actions: NonEmptyReadonlyArray<TaskAction>,
+    ) {
+        // When testing, keep track of the tasks we've seen so we can guarantee we've
+        // seen every relevant update for a task.
+        if (process.env.NODE_ENV !== "production") {
+            const previousCollectionById = getOrSetDefaultMapValue(
+                assertExists(previousReferencedCollectionByIdBySubscriptionForTest),
+                this,
+                () => new Map(),
+            );
+
+            assert(
+                previousCollectionById.get(collectionId) === oldCollection,
+                "Subscription must observe all updates to a referenced task through `onReferencedCollectionUpdate()`",
+            );
+
+            previousCollectionById.set(collectionId, newCollection);
+        }
+
+        this._callbacks.onReferencedCollectionUpdate(
+            context,
+            eventBuilder,
+            collectionId,
+            oldCollection,
+            newCollection,
+            actions,
+        );
+    }
+
+    private _onReferencedCollectionRemove(
+        context: TaskRealtimeSystemActionContext,
+        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        oldCollection: TaskCollectionIndexDoc,
+    ) {
+        // When testing, keep track of the tasks we've seen so we can guarantee we've
+        // seen every relevant update for a task.
+        if (process.env.NODE_ENV !== "production") {
+            const previousCollectionById = getOrSetDefaultMapValue(
+                assertExists(previousReferencedCollectionByIdBySubscriptionForTest),
+                this,
+                () => new Map(),
+            );
+
+            assert(
+                previousCollectionById.get(oldCollection.id) === oldCollection,
+                "Subscription can't remove task that is not referenced with `_onReferencedCollectionRemove()`",
+            );
+
+            previousCollectionById.delete(oldCollection.id);
+        }
+
+        this._callbacks.onReferencedCollectionRemove(context, eventBuilder, oldCollection);
     }
 }
 

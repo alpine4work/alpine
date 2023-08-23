@@ -8,7 +8,6 @@ import {
 } from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {ReadonlyTaskRealtimeActionHistory} from "~/server/tasks/realtime/task_realtime_action_history.js";
-import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_event.js";
 import {TaskRealtimeQuery} from "~/server/tasks/realtime/task_realtime_query.js";
 import {
     TaskRealtimeQuerySubscription,
@@ -16,6 +15,7 @@ import {
     TaskRealtimeQuerySubscriptionInternal,
 } from "~/server/tasks/realtime/task_realtime_query_subscription.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
+import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_update_event.js";
 import {InternalError} from "~/shared/error/error.js";
 import {isNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
@@ -451,6 +451,15 @@ export class TaskRealtimeQueryStoreInternal {
             }
         >();
 
+        const updatedCollectionEntriesById = new Map<
+            TaskCollectionId,
+            {
+                collectionEntry: TaskRealtimeQueryStoreCollectionEntry;
+                oldCollection: TaskCollectionIndexDoc;
+                actions: Array<TaskAction>;
+            }
+        >();
+
         const queriesByMaybeAddVisibleTaskIdToLoad = new Map<TaskId, Set<TaskRealtimeQuery>>();
 
         for (const action of actions) {
@@ -513,9 +522,17 @@ export class TaskRealtimeQueryStoreInternal {
                             action.collectionAction,
                         );
                         collectionEntry.collection = newCollection;
-                    }
 
-                    // NOCOMMIT: Accept action transaction code path here???
+                        getOrSetDefaultMapValue(
+                            updatedCollectionEntriesById,
+                            action.collectionId,
+                            () => ({
+                                collectionEntry,
+                                oldCollection,
+                                actions: [],
+                            }),
+                        ).actions.push(action);
+                    }
                     break;
                 }
                 case "UpdateNotepadPage": {
@@ -573,6 +590,24 @@ export class TaskRealtimeQueryStoreInternal {
                     taskId,
                     oldTask,
                     taskEntry.task,
+                    actions,
+                );
+            }
+        }
+
+        for (const [
+            collectionId,
+            {collectionEntry, oldCollection, actions},
+        ] of updatedCollectionEntriesById) {
+            assert(isNonEmptyReadonlyArray(actions));
+
+            for (const querySubscription of collectionEntry.iterateQuerySubscriptionDependents()) {
+                querySubscription.onReferencedCollectionUpdate(
+                    context,
+                    eventBuilder,
+                    collectionId,
+                    oldCollection,
+                    collectionEntry.collection,
                     actions,
                 );
             }
@@ -1011,6 +1046,14 @@ export class TaskRealtimeQueryStoreTaskEntry {
 export class TaskRealtimeQueryStoreCollectionEntry {
     public collection: TaskCollectionIndexDoc;
 
+    /**
+     * Query subscriptions that depend on this task. Query subscriptions reference
+     * all parents, recursively, of loaded tasks.
+     */
+    // NOCOMMIT: Mark for eviction if no dependencies...
+    private readonly _querySubscriptionDependents =
+        new Set<TaskRealtimeQuerySubscriptionInternal>();
+
     constructor(initialCollection: TaskCollectionIndexDoc) {
         this.collection = initialCollection;
 
@@ -1029,13 +1072,19 @@ export class TaskRealtimeQueryStoreCollectionEntry {
         }
     }
 
+    public iterateQuerySubscriptionDependents() {
+        return this._querySubscriptionDependents.values();
+    }
+
     public addQuerySubscriptionDependent(querySubscription: TaskRealtimeQuerySubscriptionInternal) {
         // NOCOMMIT: Revive from eviction...
+        this._querySubscriptionDependents.add(querySubscription);
     }
 
     public removeQuerySubscriptionDependent(
         querySubscription: TaskRealtimeQuerySubscriptionInternal,
     ) {
         // NOCOMMIT: Mark for eviction...
+        this._querySubscriptionDependents.delete(querySubscription);
     }
 }

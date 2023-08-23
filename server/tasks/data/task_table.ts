@@ -849,11 +849,18 @@ class TaskActionTransactionCommitState {
     ) {
         const collectionItem = await this.getCollectionItem(collectionId);
 
-        return authorizeTaskCollectionItemAccess(
+        const hasAccess = await isTaskCollectionItemAccessAuthorized(
             this._context,
+            this._context.actor.getAccountId(),
             collectionItem,
             expectedAccessLevel,
         );
+
+        if (!hasAccess) {
+            throw new PermissionDeniedError(
+                quote`Actor does not have ${expectedAccessLevel} access level to task collection`,
+            );
+        }
     }
 
     public async authorizeCollectionAccessAllowingDeletedCollections(
@@ -862,11 +869,18 @@ class TaskActionTransactionCommitState {
     ) {
         const collectionItem = await this.getCollectionItem(collectionId);
 
-        return authorizeTaskCollectionItemAccessAllowingDeletedCollections(
+        const hasAccess = await isTaskCollectionItemAccessAuthorizedAllowingDeletedTasks(
             this._context,
+            this._context.actor.getAccountId(),
             collectionItem,
             expectedAccessLevel,
         );
+
+        if (!hasAccess) {
+            throw new PermissionDeniedError(
+                quote`Actor does not have ${expectedAccessLevel} access level to task collection`,
+            );
+        }
     }
 
     public async authorizeTaskItemAccess(
@@ -1732,6 +1746,82 @@ export async function backfillTaskActionTransactionHistory(
     return actionTransactions;
 }
 
+const TaskItemAuthorizationCache = new ContextCache<TaskId, TaskEssentialAttributesItem>();
+
+/**
+ * Gets a task to be used in authorization. If used in `TaskRealtimeService`
+ * then you may provide a loader function to use an in-memory task
+ * representation.
+ *
+ * 1. Attempts to get an in-memory task representation when used in
+ *    `TaskRealtimeService` with `getTaskIndexDocIfExists`.
+ *
+ * 2. Otherwise loads the task from the database (cached within the action
+ *    context).
+ *
+ * We force `getTaskIndexDocIfExists` to be synchronous. If you don't have the
+ * task in memory then we should load from DynamoDB, not OpenSearch.
+ */
+async function getTaskItemForAuthorization(
+    context: ServerSessionActionContext,
+    taskId: TaskId,
+    loaders: {getTaskIndexDocIfExists: (taskId: TaskId) => TaskIndexDoc | undefined} | undefined,
+): Promise<TaskEssentialAttributesItem> {
+    const taskIndexDoc = loaders?.getTaskIndexDocIfExists(taskId);
+    if (taskIndexDoc) return convertTaskIndexDocToItem(taskIndexDoc);
+
+    return TaskItemAuthorizationCache.get(context, taskId, () =>
+        TaskTable.getItem(context, {
+            partitionType: "Task",
+            sortRangeType: "EssentialAttributes",
+            taskId,
+        }),
+    );
+}
+
+const TaskCollectionItemAuthorizationCache = new ContextCache<
+    TaskCollectionId,
+    TaskCollectionEssentialAttributesItem
+>();
+
+/**
+ * Gets a collection to be used in authorization. If used in
+ * `TaskRealtimeService` then you may provide a loader function to use an
+ * in-memory collection representation.
+ *
+ * 1. Attempts to get an in-memory collection representation when used in
+ *    `TaskRealtimeService` with `getCollectionIndexDocIfExists`.
+ *
+ * 2. Otherwise loads the collection from the database (cached within the
+ *    action context).
+ *
+ * We force `getCollectionIndexDocIfExists` to be synchronous. If you don't
+ * have the collection in memory then we should load from DynamoDB, not
+ * OpenSearch.
+ */
+async function getTaskCollectionItemForAuthorization(
+    context: ServerSessionActionContext,
+    collectionId: TaskCollectionId,
+    loaders:
+        | {
+              getCollectionIndexDocIfExists: (
+                  taskId: TaskCollectionId,
+              ) => TaskCollectionIndexDoc | undefined;
+          }
+        | undefined,
+): Promise<TaskCollectionEssentialAttributesItem> {
+    const collectionIndexDoc = loaders?.getCollectionIndexDocIfExists(collectionId);
+    if (collectionIndexDoc) return convertTaskCollectionIndexDocToItem(collectionIndexDoc);
+
+    return TaskCollectionItemAuthorizationCache.get(context, collectionId, () =>
+        TaskTable.getItem(context, {
+            partitionType: "TaskCollection",
+            sortRangeType: "EssentialAttributes",
+            collectionId,
+        }),
+    );
+}
+
 /**
  * Evaluates whether the `AccountId` has access to the task collection item at
  * the provided access level.
@@ -1770,34 +1860,69 @@ async function evaluateTaskCollectionAccessPolicy(
     return false;
 }
 
-async function authorizeTaskCollectionItemAccess(
-    context: ServerSessionActionContext,
+async function isTaskCollectionItemAccessAuthorized(
+    context: Context<{
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        dynamo: DynamoContextModule;
+    }>,
+    accountId: AccountId,
     collectionItem: TaskCollectionEssentialAttributesItem,
     expectedAccessLevel: TaskCollectionAccessLevel,
 ) {
     if (collectionItem.deletedTime) {
-        throw new PermissionDeniedError(
-            quote`Actor does not have ${expectedAccessLevel} access level to task collection`,
-        );
+        return false;
     }
 
-    await authorizeTaskCollectionItemAccessAllowingDeletedCollections(
+    return isTaskCollectionItemAccessAuthorizedAllowingDeletedTasks(
         context,
+        accountId,
         collectionItem,
         expectedAccessLevel,
     );
 }
 
-async function authorizeTaskCollectionItemAccessAllowingDeletedCollections(
-    context: ServerSessionActionContext,
+async function isTaskCollectionItemAccessAuthorizedAllowingDeletedTasks(
+    context: Context<{
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        dynamo: DynamoContextModule;
+    }>,
+    accountId: AccountId,
     collectionItem: TaskCollectionEssentialAttributesItem,
     expectedAccessLevel: TaskCollectionAccessLevel,
 ) {
-    const hasAccess = await evaluateTaskCollectionAccessPolicy(
+    return evaluateTaskCollectionAccessPolicy(
         context,
-        context.actor.getAccountId(),
+        accountId,
         collectionItem.spaceId,
         collectionItem.accessPolicy.value,
+        expectedAccessLevel,
+    );
+}
+
+async function authorizeTaskCollectionAccess(
+    context: ServerSessionActionContext,
+    collectionId: TaskCollectionId,
+    expectedAccessLevel: TaskCollectionAccessLevel,
+    loaders:
+        | {
+              getCollectionIndexDocIfExists: (
+                  taskId: TaskCollectionId,
+              ) => TaskCollectionIndexDoc | undefined;
+          }
+        | undefined,
+) {
+    const collectionItem = await getTaskCollectionItemForAuthorization(
+        context,
+        collectionId,
+        loaders,
+    );
+
+    const hasAccess = await isTaskCollectionItemAccessAuthorized(
+        context,
+        context.actor.getAccountId(),
+        collectionItem,
         expectedAccessLevel,
     );
 
@@ -1808,23 +1933,51 @@ async function authorizeTaskCollectionItemAccessAllowingDeletedCollections(
     }
 }
 
-async function authorizeTaskCollectionAccess(
-    context: ServerSessionActionContext,
-    collectionId: TaskCollectionId,
+/**
+ * Can the provided account access the provided collection index doc? Returns
+ * false if not.
+ *
+ * Be careful when using this function! You are expected to provide index docs
+ * from an up-to-date source. You should not directly load from OpenSearch
+ * since OpenSearch is at least 30 seconds behind at all times. This function
+ * is only really safely useful in `TaskRealtimeService` which maintains
+ * `TaskCollectionIndexDoc`s up-to-date in-memory.
+ *
+ * If you use this function you are taking on your own authorization
+ * responsibilities. Like properly stopping data from being sent to the client
+ * when this function returns false.
+ */
+// TODO(calebmer, 2023-08-22, #security): For our authorization logic to
+// produce the correct results, it's essential that: 1) every committed action
+// is indexed in a timely fashion, 2) every committed action is seen by
+// realtime servers in a timely fashion. When you remove someone's access in
+// Cyberworlds it may take a little bit for them to actually lose access
+// (3-5min). However we guarantee they do eventually lose access.
+//
+// If we fail to index in OpenSearch an `UpdateAccessPolicy` action or don't
+// send it to one of our realtime servers that's a big problem! Realtime
+// servers will continue returning data in the collection without considering
+// that access may have been removed.
+//
+// We need to set up systems that guarantee every action is indexed. This is
+// probably some CRON job that reapplies actions which haven't been marked as
+// applied. Since actions are CRDTs reapplying is safe.
+export function isTaskCollectionIndexDocAccessAuthorized(
+    context: Context<{
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        dynamo: DynamoContextModule;
+    }>,
+    accountId: AccountId,
+    collectionIndexDoc: TaskCollectionIndexDoc,
     expectedAccessLevel: TaskCollectionAccessLevel,
-) {
-    const collectionItem = await TaskCollectionItemAuthorizationCache.get(
+): Promise<boolean> {
+    return isTaskCollectionItemAccessAuthorized(
         context,
-        collectionId,
-        () =>
-            TaskTable.getItem(context, {
-                partitionType: "TaskCollection",
-                sortRangeType: "EssentialAttributes",
-                collectionId,
-            }),
+        accountId,
+        convertTaskCollectionIndexDocToItem(collectionIndexDoc),
+        expectedAccessLevel,
     );
-
-    await authorizeTaskCollectionItemAccess(context, collectionItem, expectedAccessLevel);
 }
 
 async function isTaskItemAccessAuthorized(
@@ -1933,6 +2086,75 @@ async function isTaskItemAccessAuthorizedAllowingDeletedTasks(
 }
 
 /**
+ * Tests if the context's actor is allowed to access the provided task with the
+ * provided access level. Returns true or false depending on whether task
+ * access is authorized.
+ *
+ * Loads data from DynamoDB but if you are in `TaskRealtimeService` and have
+ * up-to-date in-memory you may pass in a `loaders` object to use your
+ * in-memory task instead. See the disclaimers on `authorizeTaskQueryAccess()`
+ * before using the `loaders` object.
+ */
+async function isTaskAccessAuthorized(
+    context: ServerSessionActionContext,
+    taskId: TaskId,
+    expectedAccessLevel: TaskCollectionAccessLevel,
+    loaders:
+        | {
+              getTaskIndexDocIfExists: (taskId: TaskId) => TaskIndexDoc | undefined;
+              getCollectionIndexDocIfExists: (
+                  collectionId: TaskCollectionId,
+              ) => TaskCollectionIndexDoc | undefined;
+          }
+        | undefined,
+): Promise<boolean> {
+    const taskItem = await getTaskItemForAuthorization(context, taskId, loaders);
+
+    return isTaskItemAccessAuthorized(
+        context,
+        context.actor.getAccountId(),
+        taskItem,
+        expectedAccessLevel,
+        {
+            getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, loaders),
+            getCollectionItem: collectionId =>
+                getTaskCollectionItemForAuthorization(context, collectionId, loaders),
+        },
+    );
+}
+
+/**
+ * Tests if the context's actor is allowed to access the provided task with the
+ * provided access level. Throws an error if access is unauthorized.
+ *
+ * Loads data from DynamoDB but if you are in `TaskRealtimeService` and have
+ * up-to-date in-memory you may pass in a `loaders` object to use your
+ * in-memory task instead. See the disclaimers on `authorizeTaskQueryAccess()`
+ * before using the `loaders` object.
+ */
+async function authorizeTaskAccess(
+    context: ServerSessionActionContext,
+    taskId: TaskId,
+    expectedAccessLevel: TaskCollectionAccessLevel,
+    loaders:
+        | {
+              getTaskIndexDocIfExists: (taskId: TaskId) => TaskIndexDoc | undefined;
+              getCollectionIndexDocIfExists: (
+                  collectionId: TaskCollectionId,
+              ) => TaskCollectionIndexDoc | undefined;
+          }
+        | undefined,
+) {
+    const hasAccess = await isTaskAccessAuthorized(context, taskId, expectedAccessLevel, loaders);
+
+    if (!hasAccess) {
+        throw new PermissionDeniedError(
+            quote`Actor does not have ${expectedAccessLevel} access level to task`,
+        );
+    }
+}
+
+/**
  * Can the provided account access the provided task index doc? Returns false
  * if not.
  *
@@ -1991,147 +2213,6 @@ export function isTaskIndexDocAccessAuthorized(
             },
         },
     );
-}
-
-const TaskItemAuthorizationCache = new ContextCache<TaskId, TaskEssentialAttributesItem>();
-
-/**
- * Gets a task to be used in authorization. If used in `TaskRealtimeService`
- * then you may provide a loader function to use an in-memory task
- * representation.
- *
- * 1. Attempts to get an in-memory task representation when used in
- *    `TaskRealtimeService` with `getTaskIndexDocIfExists`.
- *
- * 2. Otherwise loads the task from the database (cached within the action
- *    context).
- *
- * We force `getTaskIndexDocIfExists` to be synchronous. If you don't have the
- * task in memory then we should load from DynamoDB, not OpenSearch.
- */
-async function getTaskItemForAuthorization(
-    context: ServerSessionActionContext,
-    taskId: TaskId,
-    loaders: {getTaskIndexDocIfExists: (taskId: TaskId) => TaskIndexDoc | undefined} | undefined,
-): Promise<TaskEssentialAttributesItem> {
-    const taskIndexDoc = loaders?.getTaskIndexDocIfExists(taskId);
-    if (taskIndexDoc) return convertTaskIndexDocToItem(taskIndexDoc);
-
-    return TaskItemAuthorizationCache.get(context, taskId, () =>
-        TaskTable.getItem(context, {
-            partitionType: "Task",
-            sortRangeType: "EssentialAttributes",
-            taskId,
-        }),
-    );
-}
-
-const TaskCollectionItemAuthorizationCache = new ContextCache<
-    TaskCollectionId,
-    TaskCollectionEssentialAttributesItem
->();
-
-/**
- * Gets a collection to be used in authorization. If used in
- * `TaskRealtimeService` then you may provide a loader function to use an
- * in-memory collection representation.
- *
- * 1. Attempts to get an in-memory collection representation when used in
- *    `TaskRealtimeService` with `getCollectionIndexDocIfExists`.
- *
- * 2. Otherwise loads the collection from the database (cached within the
- *    action context).
- *
- * We force `getCollectionIndexDocIfExists` to be synchronous. If you don't
- * have the collection in memory then we should load from DynamoDB, not
- * OpenSearch.
- */
-async function getTaskCollectionItemForAuthorization(
-    context: ServerSessionActionContext,
-    collectionId: TaskCollectionId,
-    loaders:
-        | {
-              getCollectionIndexDocIfExists: (
-                  taskId: TaskCollectionId,
-              ) => TaskCollectionIndexDoc | undefined;
-          }
-        | undefined,
-): Promise<TaskCollectionEssentialAttributesItem> {
-    const collectionIndexDoc = loaders?.getCollectionIndexDocIfExists(collectionId);
-    if (collectionIndexDoc) return convertTaskCollectionIndexDocToItem(collectionIndexDoc);
-
-    return TaskCollectionItemAuthorizationCache.get(context, collectionId, () =>
-        TaskTable.getItem(context, {
-            partitionType: "TaskCollection",
-            sortRangeType: "EssentialAttributes",
-            collectionId,
-        }),
-    );
-}
-
-/**
- * Tests if the context's actor is allowed to access the provided task with the
- * provided access level. Returns true or false depending on whether task
- * access is authorized.
- *
- * Loads data from DynamoDB but if you are in `TaskRealtimeService` and have
- * up-to-date in-memory you may pass in a `loaders` object to use your
- * in-memory task instead. See the disclaimers on `authorizeTaskQueryAccess()`
- * before using the `loaders` object.
- */
-async function isTaskAccessAuthorized(
-    context: ServerSessionActionContext,
-    taskId: TaskId,
-    expectedAccessLevel: TaskCollectionAccessLevel,
-    loaders?: {
-        getTaskIndexDocIfExists: (taskId: TaskId) => TaskIndexDoc | undefined;
-        getCollectionIndexDocIfExists: (
-            collectionId: TaskCollectionId,
-        ) => TaskCollectionIndexDoc | undefined;
-    },
-): Promise<boolean> {
-    const taskItem = await getTaskItemForAuthorization(context, taskId, loaders);
-
-    return isTaskItemAccessAuthorized(
-        context,
-        context.actor.getAccountId(),
-        taskItem,
-        expectedAccessLevel,
-        {
-            getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, loaders),
-            getCollectionItem: collectionId =>
-                getTaskCollectionItemForAuthorization(context, collectionId, loaders),
-        },
-    );
-}
-
-/**
- * Tests if the context's actor is allowed to access the provided task with the
- * provided access level. Throws an error if access is unauthorized.
- *
- * Loads data from DynamoDB but if you are in `TaskRealtimeService` and have
- * up-to-date in-memory you may pass in a `loaders` object to use your
- * in-memory task instead. See the disclaimers on `authorizeTaskQueryAccess()`
- * before using the `loaders` object.
- */
-async function authorizeTaskAccess(
-    context: ServerSessionActionContext,
-    taskId: TaskId,
-    expectedAccessLevel: TaskCollectionAccessLevel,
-    loaders?: {
-        getTaskIndexDocIfExists: (taskId: TaskId) => TaskIndexDoc | undefined;
-        getCollectionIndexDocIfExists: (
-            collectionId: TaskCollectionId,
-        ) => TaskCollectionIndexDoc | undefined;
-    },
-) {
-    const hasAccess = await isTaskAccessAuthorized(context, taskId, expectedAccessLevel, loaders);
-
-    if (!hasAccess) {
-        throw new PermissionDeniedError(
-            quote`Actor does not have ${expectedAccessLevel} access level to task`,
-        );
-    }
 }
 
 /**
@@ -2221,7 +2302,7 @@ export async function authorizeTaskQueryAccess(
                     await runAllPromises(
                         Array.from(clause.keys(), async term => {
                             if (term === "IsEmpty") return;
-                            await authorizeTaskCollectionAccess(context, term, "View");
+                            await authorizeTaskCollectionAccess(context, term, "View", loaders);
                         }),
                     );
 
@@ -2272,7 +2353,12 @@ export async function authorizeTaskQueryAccess(
                                 break;
                             }
 
-                            await authorizeTaskCollectionAccess(context, sort.collectionId, "View");
+                            await authorizeTaskCollectionAccess(
+                                context,
+                                sort.collectionId,
+                                "View",
+                                loaders,
+                            );
                             break;
                         }
                         case "NotepadPagePosition": {

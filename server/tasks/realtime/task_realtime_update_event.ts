@@ -1,18 +1,21 @@
 import {DynamoActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
+import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 
 export type TaskRealtimeUpdateEvent = {
     readonly actions: ReadonlyArray<TaskAction>;
     readonly backfillAuthorizedTasks: ReadonlyArray<TaskIndexDoc>;
     readonly backfillUnauthorizedTaskIds: ReadonlyArray<TaskId>;
+    readonly backfillAuthorizedCollections: ReadonlyArray<TaskCollectionIndexDoc>;
+    readonly backfillUnauthorizedCollectionIds: ReadonlyArray<TaskCollectionId>;
 };
 
 export interface TaskRealtimeUpdateEventSender {
@@ -31,6 +34,8 @@ type TaskRealtimeWorkingUpdateEvent = {
     actions: Set<TaskAction>;
     backfillAuthorizedTasks: Set<TaskIndexDoc>;
     backfillUnauthorizedTaskIds: Set<TaskId>;
+    backfillAuthorizedCollections: Set<TaskCollectionIndexDoc>;
+    backfillUnauthorizedCollectionIds: Set<TaskCollectionId>;
 };
 
 /**
@@ -67,6 +72,8 @@ export class TaskRealtimeUpdateEventBuilder {
         actions: new Set(),
         backfillAuthorizedTasks: new Set(),
         backfillUnauthorizedTaskIds: new Set(),
+        backfillAuthorizedCollections: new Set(),
+        backfillUnauthorizedCollectionIds: new Set(),
     }));
 
     /**
@@ -104,16 +111,26 @@ export class TaskRealtimeUpdateEventBuilder {
         await runAllPromises(
             Array.from(this._eventBySender, async ([sender, event]) => {
                 const backfillAuthorizedTasks: Array<TaskIndexDoc> = [];
+                const backfillAuthorizedCollections: Array<TaskCollectionIndexDoc> = [];
 
                 for (const task of event.backfillAuthorizedTasks) {
                     if (event.backfillUnauthorizedTaskIds.has(task.id)) continue;
                     backfillAuthorizedTasks.push(task);
                 }
 
+                for (const collection of event.backfillAuthorizedCollections) {
+                    if (event.backfillUnauthorizedCollectionIds.has(collection.id)) continue;
+                    backfillAuthorizedCollections.push(collection);
+                }
+
                 await sender.send(context, {
                     actions: Array.from(event.actions),
                     backfillAuthorizedTasks,
                     backfillUnauthorizedTaskIds: Array.from(event.backfillUnauthorizedTaskIds),
+                    backfillAuthorizedCollections,
+                    backfillUnauthorizedCollectionIds: Array.from(
+                        event.backfillUnauthorizedCollectionIds,
+                    ),
                 });
             }),
         );
@@ -162,13 +179,6 @@ export class TaskRealtimeUpdateEventBuilder {
     /**
      * Mark a task as unauthorized on the client. Clients should not expect any
      * realtime updates on this task.
-     *
-     * Toggling between authorized/unauthorized state is not done in a CRDT way
-     * with a "last write wins" version comparison. Instead
-     * `TaskRealtimeConnection` guarantees sending actions that toggle the
-     * authorization state in order. So when you receive an unauthorized task
-     * backfill the task is now...unauthorized. When you receive an authorized task
-     * backfill the task is available.
      */
     public addUnauthorizedTaskBackfill(sender: TaskRealtimeUpdateEventSender, taskId: TaskId) {
         assert(this._isBuilding);
@@ -178,5 +188,42 @@ export class TaskRealtimeUpdateEventBuilder {
         // Logically, this should remove a backfilled authorized task. However we don't
         // have a way to address authorized tasks by `TaskId` during the event building
         // phase. So we remove conflicting tasks in the event finalization phase.
+    }
+
+    /**
+     * Add a full collection we'll send to the client. Do this if you haven't been
+     * sending the client actions for a collection but the collection now needs to
+     * be displayed (maybe the collection was hidden by filters but now is
+     * visible).
+     */
+    public addAuthorizedCollectionBackfill(
+        sender: TaskRealtimeUpdateEventSender,
+        collection: TaskCollectionIndexDoc,
+    ) {
+        assert(this._isBuilding);
+
+        const event = this._eventBySender.getOrSetDefault(sender);
+        event.backfillAuthorizedCollections.add(collection);
+        event.backfillUnauthorizedCollectionIds.delete(collection.id);
+    }
+
+    /**
+     * Mark a collection as unauthorized on the client. Clients should not expect
+     * any realtime updates on this collection.
+     */
+    public addUnauthorizedCollectionBackfill(
+        sender: TaskRealtimeUpdateEventSender,
+        collectionId: TaskCollectionId,
+    ) {
+        assert(this._isBuilding);
+
+        this._eventBySender
+            .getOrSetDefault(sender)
+            .backfillUnauthorizedCollectionIds.add(collectionId);
+
+        // Logically, this should remove a backfilled authorized collection. However we
+        // don't have a way to address authorized collections by `TaskCollectionId`
+        // during the event building phase. So we remove conflicting tasks in the event
+        // finalization phase.
     }
 }

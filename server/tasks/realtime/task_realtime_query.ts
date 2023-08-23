@@ -5,13 +5,13 @@ import {getTaskQueryNormalizedSortCursorFromIndexDoc} from "~/server/tasks/data/
 import {queryTaskIndex} from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {mightTaskActionAddTaskToQueryLoadedRange} from "~/server/tasks/realtime/might_task_action_add_task_to_query_loaded_range.js";
-import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_event.js";
 import {
     TaskRealtimeQueryStoreInternal,
     TaskRealtimeQueryStoreTaskEntry,
 } from "~/server/tasks/realtime/task_realtime_query_store.js";
 import {TaskRealtimeQuerySubscriptionInternal} from "~/server/tasks/realtime/task_realtime_query_subscription.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
+import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_update_event.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
@@ -128,7 +128,12 @@ export class TaskRealtimeQuery {
         readonly promise: Promise<void>;
     } | null = null;
 
-    // NOCOMMIT: Document
+    /**
+     * Subscriptions to a query are managed in another class. Each subscription has
+     * its own loaded range since it maps to a client's loaded range. Each
+     * subscription also loads referenced parent tasks and collections then keeps
+     * track of updates to them.
+     */
     private readonly _subscriptions = new Set<TaskRealtimeQuerySubscriptionInternal>();
 
     constructor(

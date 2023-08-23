@@ -6,18 +6,22 @@ import {
 } from "~/server/context/server_action_context.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
+import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
-import {isTaskIndexDocAccessAuthorized} from "~/server/tasks/data/task_table.js";
 import {
-    TaskRealtimeUpdateEventBuilder,
-    TaskRealtimeUpdateEventSender,
-} from "~/server/tasks/realtime/task_realtime_event.js";
+    isTaskCollectionIndexDocAccessAuthorized,
+    isTaskIndexDocAccessAuthorized,
+} from "~/server/tasks/data/task_table.js";
 import {
     TaskRealtimeQuerySubscription,
     TaskRealtimeQuerySubscriptionCallbacks,
 } from "~/server/tasks/realtime/task_realtime_query_subscription.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
+import {
+    TaskRealtimeUpdateEventBuilder,
+    TaskRealtimeUpdateEventSender,
+} from "~/server/tasks/realtime/task_realtime_update_event.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -26,19 +30,23 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {
     AccountId,
     SpaceId,
+    TaskCollectionId,
     TaskId,
     TaskRealtimeQuerySubscriptionId,
 } from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskAssigneeStatusRegister} from "~/shared/tasks/task_assignee_status.js";
+import {TaskCollectionModel} from "~/shared/tasks/task_collection_model.js";
 import {TaskModel, TaskModelData} from "~/shared/tasks/task_model.js";
 import {TaskPositionByAccountIdAndNotepadPageIdMap} from "~/shared/tasks/task_position_by_account_id_and_notepad_page_id.js";
 import {TaskRealtimeEvent, TaskRealtimeProtocol} from "~/shared/tasks/task_realtime_protocol.js";
@@ -226,10 +234,16 @@ export class TaskRealtimeConnection {
             const actions = filterMapArray(event.actions, action =>
                 prepareTaskActionForClient(this._accountId, action),
             );
+
             const backfillAuthorizedTasks = event.backfillAuthorizedTasks.map(task =>
                 prepareTaskForClient(this._accountId, task),
             );
             const backfillUnauthorizedTaskIds = event.backfillUnauthorizedTaskIds;
+
+            const backfillAuthorizedCollections = event.backfillAuthorizedCollections.map(
+                collection => prepareTaskCollectionForClient(collection),
+            );
+            const backfillUnauthorizedCollectionIds = event.backfillUnauthorizedCollectionIds;
 
             const accountIds = new Set<AccountId>();
 
@@ -250,6 +264,8 @@ export class TaskRealtimeConnection {
                 actions,
                 backfillAuthorizedTasks,
                 backfillUnauthorizedTaskIds,
+                backfillAuthorizedCollections,
+                backfillUnauthorizedCollectionIds,
                 referencedAccounts,
             });
         },
@@ -283,6 +299,11 @@ export class TaskRealtimeConnection {
             {task: TaskIndexDoc; isAccessAuthorizedPromise: Promise<boolean>}
         >();
 
+        const referencedCollectionById = new Map<
+            TaskCollectionId,
+            {collection: TaskCollectionIndexDoc; isAccessAuthorizedPromise: Promise<boolean>}
+        >();
+
         return {
             onLoadedTaskAdd: (context, eventBuilder, newTask) => {
                 // Clients don't have the latest task so backfill the entire task object.
@@ -302,8 +323,8 @@ export class TaskRealtimeConnection {
                 eventBuilder.addActions(this._sender, actions);
             },
             onReferencedTaskAdd: (context, eventBuilder, newTask) => {
-                const previousReferencedTask = referencedTaskById.get(newTask.id);
-                assert(!previousReferencedTask);
+                const referencedTask = referencedTaskById.get(newTask.id);
+                assert(!referencedTask);
 
                 const isAccessAuthorizedPromise = isTaskIndexDocAccessAuthorized(
                     context,
@@ -334,74 +355,190 @@ export class TaskRealtimeConnection {
                 );
             },
             onReferencedTaskUpdate: (context, eventBuilder, taskId, oldTask, newTask, actions) => {
-                const previousReferencedTask = referencedTaskById.get(taskId);
-                assert(previousReferencedTask?.task === oldTask);
-                previousReferencedTask.task = newTask;
+                const referencedTask = referencedTaskById.get(taskId);
+                assert(referencedTask?.task === oldTask);
+                referencedTask.task = newTask;
 
                 // Only add update actions for this referenced task if the referenced task
                 // is authorized.
                 eventBuilder.waitUntil(
-                    previousReferencedTask.isAccessAuthorizedPromise.then(isAccessAuthorized => {
+                    referencedTask.isAccessAuthorizedPromise.then(isAccessAuthorized => {
                         if (!isAccessAuthorized) return;
                         eventBuilder.addActions(this._sender, actions);
                     }),
                 );
             },
             onReferencedTaskRemove: (context, eventBuilder, oldTask) => {
-                const previousReferencedTask = referencedTaskById.get(oldTask.id);
-                assert(previousReferencedTask?.task === oldTask);
+                const referencedTask = referencedTaskById.get(oldTask.id);
+                assert(referencedTask?.task === oldTask);
                 referencedTaskById.delete(oldTask.id);
+            },
+            onReferencedCollectionAdd: (context, eventBuilder, newCollection) => {
+                const referencedCollection = referencedCollectionById.get(newCollection.id);
+                assert(!referencedCollection);
+
+                const isAccessAuthorizedPromise = isTaskCollectionIndexDocAccessAuthorized(
+                    context,
+                    this._accountId,
+                    newCollection,
+                    "View",
+                );
+
+                referencedCollectionById.set(newCollection.id, {
+                    collection: newCollection,
+                    isAccessAuthorizedPromise,
+                });
+
+                eventBuilder.waitUntil(
+                    isAccessAuthorizedPromise.then(isAccessAuthorized => {
+                        if (!isAccessAuthorized) {
+                            eventBuilder.addUnauthorizedCollectionBackfill(
+                                this._sender,
+                                newCollection.id,
+                            );
+                        } else {
+                            eventBuilder.addAuthorizedCollectionBackfill(
+                                this._sender,
+                                newCollection,
+                            );
+                        }
+                    }),
+                );
+            },
+            onReferencedCollectionUpdate: (
+                context,
+                eventBuilder,
+                collectionId,
+                oldCollection,
+                newCollection,
+                actions,
+            ) => {
+                const referencedCollection = referencedCollectionById.get(collectionId);
+                assert(referencedCollection?.collection === oldCollection);
+                referencedCollection.collection = newCollection;
+
+                // Only add update actions for this referenced task if the referenced task
+                // is authorized.
+                eventBuilder.waitUntil(
+                    referencedCollection.isAccessAuthorizedPromise.then(isAccessAuthorized => {
+                        if (!isAccessAuthorized) return;
+                        eventBuilder.addActions(this._sender, actions);
+                    }),
+                );
+            },
+            onReferencedCollectionRemove: (context, eventBuilder, oldCollection) => {
+                const referencedCollection = referencedCollectionById.get(oldCollection.id);
+                assert(referencedCollection?.collection === oldCollection);
+                referencedCollectionById.delete(oldCollection.id);
             },
             onAuthorize: async (context, eventBuilder) => {
                 // Create a clone of `referencedTaskById` while we're reauthorizing. Tasks may
                 // become unreferenced/referenced while we're authorizing and we don't want
                 // that to affect us.
                 const reauthorizingReferencedTaskById = new Map(referencedTaskById);
+                const reauthorizingReferencedCollectionById = new Map(referencedCollectionById);
 
                 const authorizationPromise = runAllPromises(
-                    Array.from(reauthorizingReferencedTaskById.values(), async referencedTask => {
-                        // It is important we capture a synchronous reference to `task` here at
-                        // the start since `task` may update concurrently.
-                        const {task} = referencedTask;
+                    concatIterables(
+                        mapIterable(
+                            reauthorizingReferencedTaskById.values(),
+                            async referencedTask => {
+                                // It is important we capture a synchronous reference to `task` here at
+                                // the start since `task` may update concurrently.
+                                const {task} = referencedTask;
 
-                        const newIsAccessAuthorizedPromise = isTaskIndexDocAccessAuthorized(
-                            context,
-                            this._accountId,
-                            task,
-                            "View",
-                            {
-                                getTaskIndexDoc: taskId =>
-                                    this._server.getTask(context, this._spaceId, taskId),
-                                getCollectionIndexDoc: collectionId =>
-                                    this._server.getCollection(
-                                        context,
-                                        this._spaceId,
-                                        collectionId,
-                                    ),
+                                const newIsAccessAuthorizedPromise = isTaskIndexDocAccessAuthorized(
+                                    context,
+                                    this._accountId,
+                                    task,
+                                    "View",
+                                    {
+                                        getTaskIndexDoc: taskId =>
+                                            this._server.getTask(context, this._spaceId, taskId),
+                                        getCollectionIndexDoc: collectionId =>
+                                            this._server.getCollection(
+                                                context,
+                                                this._spaceId,
+                                                collectionId,
+                                            ),
+                                    },
+                                );
+
+                                const oldIsAccessAuthorizedPromise =
+                                    referencedTask.isAccessAuthorizedPromise;
+                                referencedTask.isAccessAuthorizedPromise =
+                                    newIsAccessAuthorizedPromise;
+
+                                // NOCOMMIT: I don't believe anymore event order will be strongly maintained.
+                                // Even though we wait for the old access promise there may be a slow load
+                                // blocking the update its included in. I think we need some kind of version?
+                                const [oldIsAccessAuthorized, newIsAccessAuthorized] =
+                                    await runAllPromises([
+                                        oldIsAccessAuthorizedPromise,
+                                        newIsAccessAuthorizedPromise,
+                                    ]);
+
+                                if (oldIsAccessAuthorized !== newIsAccessAuthorized) {
+                                    if (!newIsAccessAuthorized) {
+                                        // NOCOMMIT: Clients are going to depend on event order here with unauthorized
+                                        // tasks. Test some race conditions?
+                                        eventBuilder.addUnauthorizedTaskBackfill(
+                                            this._sender,
+                                            task.id,
+                                        );
+                                    } else {
+                                        eventBuilder.addAuthorizedTaskBackfill(this._sender, task);
+                                    }
+                                }
                             },
-                        );
+                        ),
+                        mapIterable(
+                            reauthorizingReferencedCollectionById.values(),
+                            async referencedCollection => {
+                                // It is important we capture a synchronous reference to `collection` here at
+                                // the start since `collection` may update concurrently.
+                                const {collection} = referencedCollection;
 
-                        const oldIsAccessAuthorizedPromise =
-                            referencedTask.isAccessAuthorizedPromise;
-                        referencedTask.isAccessAuthorizedPromise = newIsAccessAuthorizedPromise;
+                                const newIsAccessAuthorizedPromise =
+                                    isTaskCollectionIndexDocAccessAuthorized(
+                                        context,
+                                        this._accountId,
+                                        collection,
+                                        "View",
+                                    );
 
-                        // NOCOMMIT: I don't believe anymore event order will be strongly maintained.
-                        // Even though we wait for the old access promise there may be a slow load
-                        // blocking the update its included in. I think we need some kind of version?
-                        const [oldIsAccessAuthorized, newIsAccessAuthorized] = await runAllPromises(
-                            [oldIsAccessAuthorizedPromise, newIsAccessAuthorizedPromise],
-                        );
+                                const oldIsAccessAuthorizedPromise =
+                                    referencedCollection.isAccessAuthorizedPromise;
+                                referencedCollection.isAccessAuthorizedPromise =
+                                    newIsAccessAuthorizedPromise;
 
-                        if (oldIsAccessAuthorized !== newIsAccessAuthorized) {
-                            if (!newIsAccessAuthorized) {
-                                // NOCOMMIT: Clients are going to depend on event order here with unauthorized
-                                // tasks. Test some race conditions?
-                                eventBuilder.addUnauthorizedTaskBackfill(this._sender, task.id);
-                            } else {
-                                eventBuilder.addAuthorizedTaskBackfill(this._sender, task);
-                            }
-                        }
-                    }),
+                                // NOCOMMIT: I don't believe anymore event order will be strongly maintained.
+                                // Even though we wait for the old access promise there may be a slow load
+                                // blocking the update its included in. I think we need some kind of version?
+                                const [oldIsAccessAuthorized, newIsAccessAuthorized] =
+                                    await runAllPromises([
+                                        oldIsAccessAuthorizedPromise,
+                                        newIsAccessAuthorizedPromise,
+                                    ]);
+
+                                if (oldIsAccessAuthorized !== newIsAccessAuthorized) {
+                                    if (!newIsAccessAuthorized) {
+                                        // NOCOMMIT: Clients are going to depend on event order here with unauthorized
+                                        // tasks. Test some race conditions?
+                                        eventBuilder.addUnauthorizedCollectionBackfill(
+                                            this._sender,
+                                            collection.id,
+                                        );
+                                    } else {
+                                        eventBuilder.addAuthorizedCollectionBackfill(
+                                            this._sender,
+                                            collection,
+                                        );
+                                    }
+                                }
+                            },
+                        ),
+                    ),
                 );
 
                 eventBuilder.waitUntil(authorizationPromise);
@@ -511,6 +648,18 @@ function prepareTaskForClient(accountId: AccountId, task: TaskIndexDoc): TaskMod
         title: task.title.raw,
         dueDate: task.dueDate,
         priority: task.priority,
+    });
+}
+
+function prepareTaskCollectionForClient(collection: TaskCollectionIndexDoc): TaskCollectionModel {
+    return new TaskCollectionModel({
+        id: collection.id,
+        spaceId: collection.spaceId,
+        createdTime: collection.createdTime,
+        deletedTime: collection.rawDeletedTime,
+        undeletedTime: collection.rawUndeletedTime,
+        name: collection.name,
+        accessPolicy: collection.accessPolicy,
     });
 }
 
