@@ -382,15 +382,15 @@ export class TaskRealtimeQuery {
         const afterCursor =
             this._loadedBeforeCursor !== "Unloaded" ? this._loadedBeforeCursor : null;
 
-        const [tasks] = await runAllPromises([
+        const [{trackedTotalHits, tasks}] = await runAllPromises([
             queryTaskIndex(context, {
                 spaceId: this.store.spaceId,
                 filters: this.filters,
                 sorts: this.sorts,
-                // Load one extra task (which we'll throw away) to know if there are more tasks
-                // in the query.
-                limit: limit + 1,
+                limit,
                 afterCursor,
+                // Track hits for one over limit to know if there's another page of tasks.
+                trackTotalHits: limit + 1,
             }),
             // We need to make sure we have a full action history store before calling
             // `_loadMoreTasksSync()` which needs the action history to catch up our
@@ -402,6 +402,7 @@ export class TaskRealtimeQuery {
             context,
             limit,
             afterCursor,
+            trackedTotalHits,
             tasks,
         );
 
@@ -430,6 +431,7 @@ export class TaskRealtimeQuery {
         context: TaskRealtimeSystemActionContext,
         limit: number,
         afterCursor: TaskQuerySortCursor | null,
+        trackedTotalHits: number,
         loadedTasks: Array<TaskIndexDoc>,
     ): Promise<unknown> {
         const addVisibleTask = (taskEntry: TaskRealtimeQueryStoreTaskEntry) => {
@@ -491,27 +493,31 @@ export class TaskRealtimeQuery {
             {taskEntry: TaskRealtimeQueryStoreTaskEntry; oldTask: TaskIndexDoc}
         >();
 
-        const hasMoreLoadedTasks = loadedTasks.length > limit;
-
-        // Throw away any extra tasks we loaded to check if there are more tasks in
-        // the query.
-        while (loadedTasks.length > limit) {
-            loadedTasks.pop();
-        }
+        // NOTE(calebmer): We've observed in tests OpenSearch sometimes returning fewer
+        // than `limit` tasks when `afterCursor` is non-null even when it has them!
+        // Even if the returned task list is shorter than expected, we've found
+        // `trackedTotalHits` to be correct. So use `trackedTotalHits` since it's
+        // essential we correctly determine what the next page is. It's ok if we're
+        // missing a task.
+        //
+        // Specifically the `task_realtime_server.test.ts` "after loading tasks we will
+        // replay actions that move tasks" was flaky until we started using
+        // `trackedTotalHits > limit` instead of `tasks.length > limit`.
+        console.log({trackedTotalHits, limit, tasksLength: loadedTasks.length});
+        const hasMoreTasks = trackedTotalHits > limit;
 
         const lastLoadedTask = loadedTasks.length > 0 ? loadedTasks[loadedTasks.length - 1]! : null;
 
         // Extend our query's loaded range...
         if (lastLoadedTask === null) {
-            this._loadedBeforeCursor = hasMoreLoadedTasks
-                ? this._loadedBeforeCursor
-                : "FullyLoaded";
+            this._loadedBeforeCursor = hasMoreTasks ? this._loadedBeforeCursor : "FullyLoaded";
         } else {
             const lastCursor = getTaskQueryNormalizedSortCursorFromIndexDoc(
                 this.sorts,
                 lastLoadedTask,
             );
-            this._loadedBeforeCursor = hasMoreLoadedTasks ? lastCursor : "FullyLoaded";
+
+            this._loadedBeforeCursor = hasMoreTasks ? lastCursor : "FullyLoaded";
         }
 
         // Count up all the visible tasks in our query that are now loaded...

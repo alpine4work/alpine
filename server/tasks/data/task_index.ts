@@ -23,7 +23,11 @@ import {
     TaskCollectionIndexDocType,
     TaskCollectionIndexDocWithVersion,
 } from "~/server/tasks/data/task_collection_index_doc.js";
-import {TaskIndexDocType, TaskIndexDocWithVersion} from "~/server/tasks/data/task_index_doc.js";
+import {
+    TaskIndexDoc,
+    TaskIndexDocType,
+    TaskIndexDocWithVersion,
+} from "~/server/tasks/data/task_index_doc.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -601,14 +605,19 @@ export async function queryTaskIndex(
         sorts,
         limit,
         afterCursor,
+        trackTotalHits,
     }: {
         spaceId: SpaceId;
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
         limit: number;
         afterCursor: TaskQuerySortCursor | null;
+        trackTotalHits?: number;
     },
-) {
+): Promise<{
+    trackedTotalHits: number;
+    tasks: Array<TaskIndexDoc>;
+}> {
     // Must be a system actor because we do no filtering to check whether you are
     // allowed to see the queried tasks. Permissions filtering must be done at a
     // different level.
@@ -618,7 +627,7 @@ export async function queryTaskIndex(
 
     queryTaskIndexTestCounter.incrementForTest(spaceId);
 
-    const tasks = await context.opensearch.client.search(
+    const {trackedTotalHits, docs: tasks} = await context.opensearch.client.search(
         context.tracer.getTracer(),
         TaskIndex,
         spaceId,
@@ -629,8 +638,9 @@ export async function queryTaskIndex(
             searchAfter: afterCursor
                 ? convertTaskQuerySortCursorToOpensearchCursor(sorts, afterCursor)
                 : undefined,
+            trackTotalHits,
         },
     );
 
-    return tasks;
+    return {trackedTotalHits, tasks};
 }

@@ -138,8 +138,12 @@ export interface OpensearchClientInterface {
             sort: OpensearchSortClause<FlattenedKeys>;
             size: number;
             searchAfter?: ReadonlyArray<JsonScalarValue | bigint>;
+            trackTotalHits?: number;
         },
-    ): Promise<Array<Doc & {readonly id: DocId}>>;
+    ): Promise<{
+        trackedTotalHits: number;
+        docs: Array<Doc & {readonly id: DocId}>;
+    }>;
 
     /**
      * Manually refresh an OpenSearch index using the [refresh API][1].
@@ -667,6 +671,14 @@ export class OpensearchClient implements OpensearchClientInterface {
      * API. It may be expensive to fetch the version because search is operating on
      * potentially stale data until the next refresh.
      *
+     * WARNING: In tests we've observed OpenSearch sometimes flakily return fewer
+     * documents than `size` even when it has them! However we observe
+     * `trackedTotalHits` returning the right value. If you are trying to determine
+     * whether you are at the end of a paginated collection then don't rely on
+     * `docs.length`, instead rely on `trackedTotalHits`. You can query with
+     * `trackedTotalHits: size + 1` to find out if there's another page of
+     * documents.
+     *
      * [1]: https://opensearch.org/docs/latest/api-reference/search/
      */
     public async search<
@@ -683,13 +695,18 @@ export class OpensearchClient implements OpensearchClientInterface {
             sort,
             size,
             searchAfter,
+            trackTotalHits = size,
         }: {
             query: OpensearchQueryClause<FlattenedKeys>;
             sort: OpensearchSortClause<FlattenedKeys>;
             size: number;
             searchAfter?: ReadonlyArray<JsonScalarValue | bigint>;
+            trackTotalHits?: number;
         },
-    ): Promise<Array<OpensearchClientDocWithId<DocId, Doc>>> {
+    ): Promise<{
+        trackedTotalHits: number;
+        docs: Array<OpensearchClientDocWithId<DocId, Doc>>;
+    }> {
         if (process.env.NODE_ENV !== "production") {
             await this._ensureLocalIndex(tracer, index);
         }
@@ -702,8 +719,10 @@ export class OpensearchClient implements OpensearchClientInterface {
         // limit then we can immediately end the query and return instead of scanning
         // the entire index. [Works well with index sorting][1].
         //
+        // By default we set this to `size` but the user can increase the value.
+        //
         // [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/index-modules-index-sorting.html#early-terminate
-        searchUrl.searchParams.set("track_total_hits", "false");
+        searchUrl.searchParams.set("track_total_hits", String(trackTotalHits));
 
         // Don't return partial results in case of error or timeout.
         searchUrl.searchParams.set("allow_partial_search_results", "false");
@@ -727,8 +746,13 @@ export class OpensearchClient implements OpensearchClientInterface {
 
         span.addData({
             opensearch: {
-                query: getOpensearchQueryClauseDescription(query),
-                sort: JSON.stringify(sort),
+                search: {
+                    query: getOpensearchQueryClauseDescription(query),
+                    sort: JSON.stringify(sort),
+                    size,
+                    trackTotalHits,
+                    hasSearchAfter: !!searchAfter,
+                },
             },
         });
 
@@ -746,13 +770,30 @@ export class OpensearchClient implements OpensearchClientInterface {
         // If we ignore `sort` values we'll be fine. Keep in mind that you can't use
         // `sort` values unless you parse with `json-bigint`.
         const body:
-            | {hits: {hits: Array<{_id: string; _source: JsonValue}>}; error?: undefined}
+            | {
+                  hits: {total: {value: number}; hits: Array<{_id: string; _source: JsonValue}>};
+                  error?: undefined;
+              }
             | {error: OpensearchError; hits?: undefined} = await response.json();
 
         if (body.error) {
             const errorType = body.error.root_cause?.[0]?.type ?? body.error.type;
-            throw new UnknownError(`OpenSearch search failed: ${errorType}`);
+            const error = new UnknownError(`OpenSearch search failed: ${errorType}`);
+            span.addException(error);
+            throw error;
         }
+
+        const hitsLength = body.hits.hits.length;
+        const trackedTotalHits = body.hits.total.value;
+
+        span.addData({
+            opensearch: {
+                search: {
+                    hitsLength,
+                    trackedTotalHits,
+                },
+            },
+        });
 
         const docs = body.hits.hits.map(hit =>
             Object.assign(index.type.deserialize(hit._source), {
@@ -760,7 +801,10 @@ export class OpensearchClient implements OpensearchClientInterface {
             }),
         );
 
-        return docs;
+        return {
+            trackedTotalHits: body.hits.total.value,
+            docs,
+        };
     }
 
     /**
