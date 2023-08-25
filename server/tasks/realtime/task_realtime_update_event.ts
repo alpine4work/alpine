@@ -63,7 +63,7 @@ type TaskRealtimeWorkingUpdateEvent = {
 export class TaskRealtimeUpdateEventBuilder {
     private _isBuilding = true;
     private _isSending = false;
-    private _promises: Array<Promise<unknown>> = [];
+    private _promises: Array<PromiseLike<unknown>> = [];
 
     private readonly _eventBySender = new DefaultMap<
         TaskRealtimeUpdateEventSender,
@@ -145,7 +145,7 @@ export class TaskRealtimeUpdateEventBuilder {
      * We will wait until all promises passed into this function resolve before
      * sending out events to clients.
      */
-    public waitUntil(promise: Promise<unknown>) {
+    public waitUntil(promise: PromiseLike<unknown>) {
         assert(this._isBuilding);
         this._promises.push(promise);
     }

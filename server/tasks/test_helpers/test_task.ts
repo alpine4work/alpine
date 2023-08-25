@@ -210,7 +210,7 @@ export class TestTask {
         ]);
     }
 
-    public async updateParentTask(session: TestSpaceSession, task: TestTask) {
+    public async updateParentTask(session: TestSpaceSession, task: TestTask | null) {
         const time = testClock.nowLogical();
 
         await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
@@ -220,7 +220,7 @@ export class TestTask {
                 taskId: this.id,
                 taskAction: {
                     type: "UpdateParentTaskId",
-                    parentTaskId: task.id,
+                    parentTaskId: task?.id ?? null,
                 },
             },
         ]);

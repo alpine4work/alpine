@@ -1,5 +1,6 @@
 import {getAccountsTableForTest} from "~/server/accounts/accounts_table.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {getAccount} from "~/server/spaces/spaces_table.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
@@ -56,5 +57,12 @@ export class TestSpaceSession {
 
     public action() {
         return this.context.action(this);
+    }
+
+    /**
+     * Get the `AccountModel` for this session's account.
+     */
+    public get() {
+        return getAccount(this.action(), this.space.id, this.account.id);
     }
 }

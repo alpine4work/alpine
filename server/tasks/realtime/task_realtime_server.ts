@@ -13,6 +13,7 @@ import {
     TaskRealtimeQuerySubscriptionCallbacks,
 } from "~/server/tasks/realtime/task_realtime_query_subscription.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -323,18 +324,23 @@ export class TaskRealtimeServer {
             sorts: ReadonlyArray<TaskQueryNormalizedSort>;
         },
     ) {
-        return authorizeTaskQueryAccess(
-            context,
-            {
-                filters,
-                sorts,
-            },
-            {
-                getTaskIndexDocIfExists: taskId =>
-                    this._storeBySpaceId.get(spaceId)?.getTaskIfLoaded(taskId),
-                getCollectionIndexDocIfExists: collectionId =>
-                    this._storeBySpaceId.get(spaceId)?.getCollectionIfLoaded(collectionId),
-            },
-        );
+        return runAllPromises([
+            // Authorize space access in parallel...
+            authorizeSpaceAccess(context, spaceId),
+
+            authorizeTaskQueryAccess(
+                context,
+                {
+                    filters,
+                    sorts,
+                },
+                {
+                    getTaskIndexDocIfExists: taskId =>
+                        this._storeBySpaceId.get(spaceId)?.getTaskIfLoaded(taskId),
+                    getCollectionIndexDocIfExists: collectionId =>
+                        this._storeBySpaceId.get(spaceId)?.getCollectionIfLoaded(collectionId),
+                },
+            ),
+        ]);
     }
 }

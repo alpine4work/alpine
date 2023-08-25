@@ -68,9 +68,11 @@ export class TaskModel {
         deserialize: rawData => new TaskModel(rawData),
     });
 
+    public readonly id: TaskId;
     public readonly rawData: TaskModelData;
 
     constructor(rawData: TaskModelData) {
+        this.id = rawData.id;
         this.rawData = rawData;
     }
 }

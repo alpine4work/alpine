@@ -27,9 +27,11 @@ export class TaskCollectionModel {
         deserialize: rawData => new TaskCollectionModel(rawData),
     });
 
+    public readonly id: TaskCollectionId;
     public readonly rawData: TaskCollectionModelData;
 
     constructor(rawData: TaskCollectionModelData) {
+        this.id = rawData.id;
         this.rawData = rawData;
     }
 }

@@ -6,9 +6,11 @@ ts_project(
     test_deps = [
         "//server/dynamo/test_helpers",
         "//server/spaces/test_helpers",
+        "//server/tasks/realtime/test_helpers",
         "//server/tasks/test_helpers",
         "//shared/tasks/test_helpers",
     ],
+    visibility = ["//server/tasks/realtime/test_helpers:__pkg__"],
     deps = [
         "//:node_modules/@types/bintrees",
         "//:node_modules/bintrees",

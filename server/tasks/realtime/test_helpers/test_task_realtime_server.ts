@@ -1,0 +1,188 @@
+import {parseAbsolute, toCalendarDate} from "@internationalized/date";
+import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
+import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {refreshTaskIndexForTest} from "~/server/tasks/data/task_index.js";
+import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
+import {afterCommitTaskActionTransactionEventEmitterForTest} from "~/server/tasks/data/task_table.js";
+import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
+import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
+import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
+import {
+    TaskQueryNormalizedFilters,
+    normalizeTaskQueryFilters,
+} from "~/shared/tasks/task_query_normalized_filters.js";
+import {
+    TaskQueryNormalizedSort,
+    normalizeTaskQuerySorts,
+} from "~/shared/tasks/task_query_normalized_sort.js";
+import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
+
+let afterEachCleanupCallbacks: Array<() => MaybePromise<void>> = [];
+
+afterEach(async () => {
+    const callbacks = afterEachCleanupCallbacks;
+    afterEachCleanupCallbacks = [];
+
+    await runAllPromises(callbacks.map(callback => callback()));
+});
+
+/**
+ * Wait for OpenSearch to have indexed all our action transactions.
+ */
+export async function waitForIndexActionTransactionsWithoutClearingActionHistory(
+    context: TestContext,
+) {
+    await ProcessContextModule.waitForTestTasks();
+    await refreshTaskIndexForTest(context);
+}
+
+export class TestTaskRealtimeServer {
+    public readonly context: TestContext;
+    public readonly server: TaskRealtimeServer;
+    private _applyActionTransactionPromises: Array<Promise<void>> = [];
+
+    private _applyActionTransactionsPauseState:
+        | {
+              type: "Paused";
+              actionTransactions: Array<{
+                  spaceId: SpaceId;
+                  committedTime: Date;
+                  actions: ReadonlyArray<TaskAction>;
+              }>;
+          }
+        | {
+              type: "Unpaused";
+          } = {
+        type: "Unpaused",
+    };
+
+    constructor(context: TestContext) {
+        const [server, {start, stop}] = TaskRealtimeServer.new();
+
+        start(Promise.resolve());
+        afterEachCleanupCallbacks.push(stop);
+
+        const unsubscribe = assertExists(
+            afterCommitTaskActionTransactionEventEmitterForTest,
+        ).subscribe(({spaceId, committedTime, actions}) => {
+            if (this._applyActionTransactionsPauseState.type === "Paused") {
+                this._applyActionTransactionsPauseState.actionTransactions.push({
+                    spaceId,
+                    committedTime,
+                    actions,
+                });
+            } else {
+                this._applyActionTransactionPromises.push(
+                    this.server.applyActionTransaction(context.systemAction(spaceId), {
+                        spaceId,
+                        committedTime,
+                        actions,
+                    }),
+                );
+            }
+        });
+        afterEachCleanupCallbacks.push(() => this.waitForApplyActionTransactions());
+        afterEachCleanupCallbacks.push(unsubscribe);
+
+        this.context = context;
+        this.server = server;
+    }
+
+    public pauseApplyActionTransactions() {
+        assert(this._applyActionTransactionsPauseState.type === "Unpaused");
+
+        this._applyActionTransactionsPauseState = {type: "Paused", actionTransactions: []};
+    }
+
+    public unpauseApplyActionTransactions() {
+        assert(this._applyActionTransactionsPauseState.type === "Paused");
+
+        for (const {spaceId, committedTime, actions} of this._applyActionTransactionsPauseState
+            .actionTransactions) {
+            this._applyActionTransactionPromises.push(
+                this.server.applyActionTransaction(this.context.systemAction(spaceId), {
+                    spaceId,
+                    committedTime,
+                    actions,
+                }),
+            );
+        }
+
+        this._applyActionTransactionsPauseState = {type: "Unpaused"};
+    }
+
+    /**
+     * Wait for all `applyActionTransaction()` calls made against our server.
+     */
+    public async waitForApplyActionTransactions() {
+        const promises = this._applyActionTransactionPromises;
+        this._applyActionTransactionPromises = [];
+
+        await runAllPromises(promises);
+    }
+
+    /**
+     * Wait for all `indexTaskActionTransaction()` calls to resolve and for the
+     * task index to refresh. Then we also clear action history to act as if we're
+     * at a time far away from when the actions were commit.
+     */
+    public async waitForIndexActionTransactions() {
+        await waitForIndexActionTransactionsWithoutClearingActionHistory(this.context);
+        this.server.clearActionHistoryForTest();
+    }
+
+    /**
+     * Wait until all parallel processing tasks have settled to make sure
+     * `loadQuery()` doesn't see stale data.
+     */
+    public async wait() {
+        await runAllPromises([
+            this.waitForIndexActionTransactions(),
+            this.waitForApplyActionTransactions(),
+        ]);
+    }
+
+    public async loadQuery(
+        session: TestSpaceSession,
+        options?: {
+            filters?: ReadonlyArray<TaskQueryFilter> | TaskQueryNormalizedFilters;
+            sorts?: ReadonlyArray<TaskQuerySort> | ReadonlyArray<TaskQueryNormalizedSort>;
+            limit?: number;
+        },
+    ): Promise<{
+        tasks: Array<TaskIndexDoc>;
+        hasMoreTasks: boolean;
+    }> {
+        const evaluationContext: TaskQueryEvaluationContext = {
+            currentAccountId: session.account.id,
+            currentDate: toCalendarDate(
+                parseAbsolute(testClock.nowDate().toISOString(), defaultTimeZone),
+            ),
+        };
+
+        const filters = options?.filters
+            ? isReadonlyArray(options.filters)
+                ? normalizeTaskQueryFilters(options.filters, evaluationContext)
+                : ({type: "Possible", normalizedFilters: options.filters} as const)
+            : normalizeTaskQueryFilters([], evaluationContext);
+
+        if (filters.type === "Impossible") return {tasks: [], hasMoreTasks: false};
+
+        return this.server.loadQuery(session.space.systemAction(), {
+            spaceId: session.space.id,
+            filters: filters.normalizedFilters,
+            sorts: normalizeTaskQuerySorts(options?.sorts ?? []),
+            limit: options?.limit ?? 100,
+        });
+    }
+}

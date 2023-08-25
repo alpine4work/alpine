@@ -1,208 +1,36 @@
-import {parseAbsolute, toCalendarDate} from "@internationalized/date";
-import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {getTaskQueryNormalizedSortCursorFromIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_from_index_doc.js";
 import {
     getTaskIndexDocIfExistsForTest,
     indexTaskActionTransactionTestCheckpoint,
     queryTaskIndex,
     queryTaskIndexTestCounter,
-    refreshTaskIndexForTest,
 } from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
-import {
-    afterCommitTaskActionTransactionEventEmitterForTest,
-    backfillTaskActionTransactionHistoryTestCounter,
-} from "~/server/tasks/data/task_table.js";
+import {backfillTaskActionTransactionHistoryTestCounter} from "~/server/tasks/data/task_table.js";
 import {taskRealtimeQueryStoreLoadTaskTestCheckpoint} from "~/server/tasks/realtime/task_realtime_query_store.js";
-import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
+import {
+    TestTaskRealtimeServer,
+    waitForIndexActionTransactionsWithoutClearingActionHistory,
+} from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
-import {TaskAction} from "~/shared/tasks/actions/task_action.js";
-import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
-import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {
     TaskQueryNormalizedFilters,
     defaultTaskQueryNormalizedFilters,
-    normalizeTaskQueryFilters,
 } from "~/shared/tasks/task_query_normalized_filters.js";
 import {
     TaskQueryNormalizedSort,
     defaultTaskQueryNormalizedSorts,
     normalizeTaskQuerySorts,
 } from "~/shared/tasks/task_query_normalized_sort.js";
-import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
 const context = createTestContext({shouldStartOpensearch: true});
-
-let afterEachCleanupCallbacks: Array<() => MaybePromise<void>> = [];
-
-afterEach(async () => {
-    const callbacks = afterEachCleanupCallbacks;
-    afterEachCleanupCallbacks = [];
-
-    await runAllPromises(callbacks.map(callback => callback()));
-});
-
-/**
- * Wait for OpenSearch to have indexed all our action transactions.
- */
-async function waitForIndexActionTransactionsWithoutClearingActionHistory(context: TestContext) {
-    await ProcessContextModule.waitForTestTasks();
-    await refreshTaskIndexForTest(context);
-}
-
-class TestScenarioTaskRealtimeServer {
-    public readonly context: TestContext;
-    public readonly server: TaskRealtimeServer;
-    private _applyActionTransactionPromises: Array<Promise<void>> = [];
-
-    private _applyActionTransactionsPauseState:
-        | {
-              type: "Paused";
-              actionTransactions: Array<{
-                  spaceId: SpaceId;
-                  committedTime: Date;
-                  actions: ReadonlyArray<TaskAction>;
-              }>;
-          }
-        | {
-              type: "Unpaused";
-          } = {
-        type: "Unpaused",
-    };
-
-    constructor(context: TestContext) {
-        const [server, {start, stop}] = TaskRealtimeServer.new();
-
-        start(Promise.resolve());
-        afterEachCleanupCallbacks.push(stop);
-
-        const unsubscribe = assertExists(
-            afterCommitTaskActionTransactionEventEmitterForTest,
-        ).subscribe(({spaceId, committedTime, actions}) => {
-            if (this._applyActionTransactionsPauseState.type === "Paused") {
-                this._applyActionTransactionsPauseState.actionTransactions.push({
-                    spaceId,
-                    committedTime,
-                    actions,
-                });
-            } else {
-                this._applyActionTransactionPromises.push(
-                    this.server.applyActionTransaction(context.systemAction(spaceId), {
-                        spaceId,
-                        committedTime,
-                        actions,
-                    }),
-                );
-            }
-        });
-        afterEachCleanupCallbacks.push(() => this.waitForApplyActionTransactions());
-        afterEachCleanupCallbacks.push(unsubscribe);
-
-        this.context = context;
-        this.server = server;
-    }
-
-    public pauseApplyActionTransactions() {
-        assert(this._applyActionTransactionsPauseState.type === "Unpaused");
-
-        this._applyActionTransactionsPauseState = {type: "Paused", actionTransactions: []};
-    }
-
-    public unpauseApplyActionTransactions() {
-        assert(this._applyActionTransactionsPauseState.type === "Paused");
-
-        for (const {spaceId, committedTime, actions} of this._applyActionTransactionsPauseState
-            .actionTransactions) {
-            this._applyActionTransactionPromises.push(
-                this.server.applyActionTransaction(context.systemAction(spaceId), {
-                    spaceId,
-                    committedTime,
-                    actions,
-                }),
-            );
-        }
-
-        this._applyActionTransactionsPauseState = {type: "Unpaused"};
-    }
-
-    /**
-     * Wait for all `applyActionTransaction()` calls made against our server.
-     */
-    public async waitForApplyActionTransactions() {
-        const promises = this._applyActionTransactionPromises;
-        this._applyActionTransactionPromises = [];
-
-        await runAllPromises(promises);
-    }
-
-    /**
-     * Wait for all `indexTaskActionTransaction()` calls to resolve and for the
-     * task index to refresh. Then we also clear action history to act as if we're
-     * at a time far away from when the actions were commit.
-     */
-    public async waitForIndexActionTransactions() {
-        await waitForIndexActionTransactionsWithoutClearingActionHistory(this.context);
-        this.server.clearActionHistoryForTest();
-    }
-
-    /**
-     * Wait until all parallel processing tasks have settled to make sure
-     * `loadQuery()` doesn't see stale data.
-     */
-    public async wait() {
-        await runAllPromises([
-            this.waitForIndexActionTransactions(),
-            this.waitForApplyActionTransactions(),
-        ]);
-    }
-
-    public async loadQuery(
-        session: TestSpaceSession,
-        options?: {
-            filters?: ReadonlyArray<TaskQueryFilter> | TaskQueryNormalizedFilters;
-            sorts?: ReadonlyArray<TaskQuerySort> | ReadonlyArray<TaskQueryNormalizedSort>;
-            limit?: number;
-        },
-    ): Promise<{
-        tasks: Array<TaskIndexDoc>;
-        hasMoreTasks: boolean;
-    }> {
-        const evaluationContext: TaskQueryEvaluationContext = {
-            currentAccountId: session.account.id,
-            currentDate: toCalendarDate(
-                parseAbsolute(testClock.nowDate().toISOString(), defaultTimeZone),
-            ),
-        };
-
-        const filters = options?.filters
-            ? isReadonlyArray(options.filters)
-                ? normalizeTaskQueryFilters(options.filters, evaluationContext)
-                : ({type: "Possible", normalizedFilters: options.filters} as const)
-            : normalizeTaskQueryFilters([], evaluationContext);
-
-        if (filters.type === "Impossible") return {tasks: [], hasMoreTasks: false};
-
-        return this.server.loadQuery(session.space.systemAction(), {
-            spaceId: session.space.id,
-            filters: filters.normalizedFilters,
-            sorts: normalizeTaskQuerySorts(options?.sorts ?? []),
-            limit: options?.limit ?? 100,
-        });
-    }
-}
 
 function testQueryTaskIndex(
     space: TestSpace,
@@ -217,7 +45,7 @@ function testQueryTaskIndex(
         limit?: number;
         afterCursor?: TaskIndexDoc | null;
     } = {},
-) {
+): Promise<Array<TaskIndexDoc>> {
     return queryTaskIndex(space.systemAction(), {
         spaceId: space.id,
         filters,
@@ -232,7 +60,7 @@ function testQueryTaskIndex(
 test("loads an empty query when no tasks are in the space", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     await server.wait();
 
@@ -246,7 +74,7 @@ test("loads a query with one task", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const task = await TestTask.create(session);
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     await server.wait();
 
@@ -264,7 +92,7 @@ test("loads a query with three tasks", async () => {
         TestTask.create(session),
         TestTask.create(session),
     ]);
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     await server.wait();
 
@@ -287,7 +115,7 @@ test("can't load a query as the wrong space", async () => {
         TestTask.create(session),
         TestTask.create(session),
     ]);
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     await server.wait();
 
@@ -323,7 +151,7 @@ test("can't apply an action transaction as the wrong space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session = await space.createSession();
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     await server.wait();
 
@@ -352,7 +180,7 @@ test("reuses a loaded query with three tasks", async () => {
         TestTask.create(session),
         TestTask.create(session),
     ]);
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     await server.wait();
 
@@ -436,7 +264,7 @@ test("can query multiple spaces", async () => {
         TestTask.create(session2),
     ]);
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     await server.wait();
 
@@ -501,7 +329,7 @@ test("reuses a loaded query with slightly different but equivalent filters", asy
         TestTask.create(session2),
         TestTask.create(session1),
     ]);
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     await server.wait();
 
@@ -574,7 +402,7 @@ test("loads up to the limit even when reusing a query", async () => {
         TestTask.create(session),
         TestTask.create(session),
     ]);
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     await server.wait();
 
@@ -628,7 +456,7 @@ test("has more tasks is true when loading a subset of a reused query", async () 
         TestTask.create(session),
         TestTask.create(session),
     ]);
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     await server.wait();
 
@@ -673,7 +501,7 @@ test("will load with a limit of zero", async () => {
         TestTask.create(session),
         TestTask.create(session),
     ]);
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     await server.wait();
 
@@ -709,7 +537,7 @@ test("will load with a limit of zero when there are no tasks", async () => {
     const space = await TestSpace.create(context);
     const {getCount} = queryTaskIndexTestCounter.recordForTest(space.id);
     const session = await space.createSession();
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     await server.wait();
 
@@ -747,7 +575,7 @@ test("will load with a limit of zero to discover there are no more tasks", async
         TestTask.create(session),
         TestTask.create(session),
     ]);
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     await server.wait();
 
@@ -851,7 +679,7 @@ test("will load with a limit of zero to discover there are no more tasks", async
     expect(getCount()).toEqual(3);
 });
 
-test("won't load with a negative limit", async () => {
+test("will load with a negative limit", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     await runAllPromises([
@@ -859,11 +687,14 @@ test("won't load with a negative limit", async () => {
         TestTask.create(session),
         TestTask.create(session),
     ]);
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     await server.wait();
 
-    await expect(server.loadQuery(session, {limit: -1})).rejects.toThrow();
+    expect(await server.loadQuery(session, {limit: -1})).toEqual({
+        hasMoreTasks: true,
+        tasks: [],
+    });
 });
 
 test("won't load with a non-integer limit", async () => {
@@ -874,7 +705,7 @@ test("won't load with a non-integer limit", async () => {
         TestTask.create(session),
         TestTask.create(session),
     ]);
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     await server.wait();
 
@@ -893,7 +724,7 @@ test("will dedupe parallel loads (scenario 1)", async () => {
         TestTask.create(session),
         TestTask.create(session),
     ]);
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     await server.wait();
 
@@ -958,7 +789,7 @@ test("will dedupe parallel loads (scenario 2)", async () => {
         TestTask.create(session),
         TestTask.create(session),
     ]);
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     await server.wait();
 
@@ -1021,7 +852,7 @@ test("will backfill action history to load a query", async () => {
         TestTask.create(session),
     ]);
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     const [task3, task4] = await runAllPromises([
         TestTask.create(session),
@@ -1073,7 +904,7 @@ test("will backfill action history to load a query and catch up a query with par
         TestTask.create(session),
     ]);
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     const [task5, task6] = await runAllPromises([
         TestTask.create(session),
@@ -1127,7 +958,7 @@ test("can load an empty task array when there are still more visible tasks in th
         TestTask.create(session),
     ]);
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
     await server.wait();
 
     expect(getCount()).toEqual(0);
@@ -1191,7 +1022,7 @@ test("may not return enough tasks to meet the limit when index is behind", async
         TestTask.create(session),
     ]);
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
     await server.wait();
 
     expect(getCount()).toEqual(0);
@@ -1258,7 +1089,7 @@ test("pagination cursor is maintained even if the underlying item moves", async 
     await task7.updatePriority(session, "Urgent");
     await task8.updatePriority(session, "Urgent");
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
     await server.wait();
 
     expect(getCount()).toEqual(0);
@@ -1356,7 +1187,7 @@ test("pagination cursor is maintained even if the underlying item moves and inde
     await task7.updatePriority(session, "Urgent");
     await task8.updatePriority(session, "Urgent");
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
     await server.wait();
 
     expect(getCount()).toEqual(0);
@@ -1433,7 +1264,7 @@ test("can load while server receiving action transactions is delayed (scenario 1
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
     server.pauseApplyActionTransactions();
 
     // Ensure action history without caching our test query...
@@ -1492,7 +1323,7 @@ test("can load while server receiving action transactions is delayed (scenario 2
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
     server.pauseApplyActionTransactions();
 
     expect(await server.loadQuery(session)).toEqual({
@@ -1541,7 +1372,7 @@ test("load can't introduce new task data which moves task outside of loaded rang
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     const [task1, task2, task3, task4, task5] = await runAllPromises([
         TestTask.create(session),
@@ -1662,7 +1493,7 @@ test("load can't introduce new task data which keeps task inside loaded range", 
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     const [task1, task2, task3, task4, task5] = await runAllPromises([
         TestTask.create(session),
@@ -1787,7 +1618,7 @@ test("load can't introduce new task data which removes task from query", async (
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     const [task1, task2, task3, task4, task5] = await runAllPromises([
         TestTask.create(session),
@@ -1915,7 +1746,7 @@ test("load can't introduce new task data which adds updated task to query", asyn
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     const [task1, task2, task3, task4, task5] = await runAllPromises([
         TestTask.create(session),
@@ -2062,7 +1893,7 @@ test("load can't introduce new task data which adds fresh task to query", async 
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     const [task1, task2, task3, task4, task5] = await runAllPromises([
         TestTask.create(session),
@@ -2186,7 +2017,7 @@ test("load gets task that's ahead of actions when it's fresh", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     const [task1, task2, task3, task4, task5, task6, task7, task8] = await runAllPromises([
         TestTask.create(session),
@@ -2310,7 +2141,7 @@ test("load gets old task at old position that's ahead of actions when already lo
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     const [task1, task2, task3, task4, task5, task6, task7, task8] = await runAllPromises([
         TestTask.create(session),
@@ -2453,7 +2284,7 @@ test("load gets old task at old position that's ahead of actions when already lo
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     const [task1, task2, task3, task4, task5, task6, task7, task8] = await runAllPromises([
         TestTask.create(session),
@@ -2610,7 +2441,7 @@ test("load doesn't put loaded task in already loaded range", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     const [task1, task2, task3, task4, task5, task6, task7, task8] = await runAllPromises([
         TestTask.create(session),
@@ -2718,7 +2549,7 @@ test("if loaded task is older than store task then query will return store task 
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     const [task1, task2, task3] = await runAllPromises([
         TestTask.create(session),
@@ -2793,7 +2624,7 @@ test("if loaded task is older than store task then query will return store task 
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     const [task1, task2, task3] = await runAllPromises([
         TestTask.create(session),
@@ -2877,7 +2708,7 @@ test("if loaded task is older than store task then query will return store task 
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     const [task1, task2, task3, task4, task5] = await runAllPromises([
         TestTask.create(session),
@@ -3004,7 +2835,7 @@ test("if loaded task is older than store task then query will return store task 
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     const [task1, task2, task3, task4, task5] = await runAllPromises([
         TestTask.create(session),
@@ -3130,7 +2961,7 @@ test("after loading tasks we will replay actions to catch stale data up", async 
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     const [task1, task2, task3] = await runAllPromises([
         TestTask.create(session),
@@ -3185,7 +3016,7 @@ test("after loading tasks we will replay actions that hide tasks", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     const [task1, task2, task3, task4, task5] = await runAllPromises([
         TestTask.create(session),
@@ -3273,11 +3104,13 @@ test("after loading tasks we will replay actions that hide tasks", async () => {
     });
 });
 
+// This test is flaky due to a bug in OpenSearch:
+// https://github.com/opensearch-project/OpenSearch/issues/9537
 test("after loading tasks we will replay actions that move tasks", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     const [task1, task2, task3, task4, task5] = await runAllPromises([
         TestTask.create(session),
@@ -3389,7 +3222,7 @@ test("after loading tasks we will replay actions to add missing tasks", async ()
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     const [task1, task2, task3] = await runAllPromises([
         TestTask.create(session),
@@ -3478,7 +3311,7 @@ test("after loading tasks we will replay actions to add missing tasks that have 
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     const [task1, task2, task3] = await runAllPromises([
         TestTask.create(session),
@@ -3576,7 +3409,7 @@ test("after loading tasks we will replay actions but won't add false positive mi
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     const [task1, task2, task3, task4, task5] = await runAllPromises([
         TestTask.create(session),
@@ -3677,7 +3510,7 @@ test("after loading tasks we will replay actions but won't add false positive mi
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     const [task1, task2, task3, task4, task5] = await runAllPromises([
         TestTask.create(session),
@@ -3801,7 +3634,7 @@ test("after loading tasks we will replay actions to add missing tasks and works 
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     const [task1, task2, task3] = await runAllPromises([
         TestTask.create(session),
@@ -3911,7 +3744,7 @@ test("after loading tasks we will replay actions to add missing tasks if the tas
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     const [task1, task2, task3] = await runAllPromises([
         TestTask.create(session),
@@ -4043,7 +3876,7 @@ test("task updates in query after change", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     const [task1, task2, task3] = await runAllPromises([
         TestTask.create(session),
@@ -4089,7 +3922,7 @@ test("task updates in query after change and is hidden", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     const [task1, task2, task3] = await runAllPromises([
         TestTask.create(session),
@@ -4143,7 +3976,7 @@ test("task updates in query after change and is shown", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     const [task1, task2, task3] = await runAllPromises([
         TestTask.create(session),
@@ -4199,7 +4032,7 @@ test("task updates in query after change and is shown when task is loaded", asyn
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     const [task1, task2, task3] = await runAllPromises([
         TestTask.create(session),
@@ -4264,7 +4097,7 @@ test("task updates in query after change and is moved", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const server = new TestScenarioTaskRealtimeServer(context);
+    const server = new TestTaskRealtimeServer(context);
 
     const [task1, task2, task3] = await runAllPromises([
         TestTask.create(session),

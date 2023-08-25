@@ -174,10 +174,14 @@ export class TaskRealtimeConnection {
                     try {
                         const eventBuilder = new TaskRealtimeUpdateEventBuilder();
 
-                        await querySubscription.loadMoreTasks(context, eventBuilder, input.limit);
+                        const loadedState = await querySubscription.loadMoreTasks(
+                            context,
+                            eventBuilder,
+                            input.limit,
+                        );
 
                         await eventBuilder.send(context);
-                        return {querySubscriptionId};
+                        return {querySubscriptionId, loadedState};
                     } catch (error) {
                         // If there's an error, unsubscribe so we don't have a dangling subscription.
                         this._querySubscriptionById.delete(querySubscriptionId);
@@ -210,14 +214,14 @@ export class TaskRealtimeConnection {
                 async context => {
                     const eventBuilder = new TaskRealtimeUpdateEventBuilder();
 
-                    await querySubscription.querySubscription.loadMoreTasks(
+                    const loadedState = await querySubscription.querySubscription.loadMoreTasks(
                         context,
                         eventBuilder,
                         limit,
                     );
 
                     await eventBuilder.send(context);
-                    return {};
+                    return {loadedState};
                 },
             );
         },

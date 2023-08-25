@@ -1892,6 +1892,11 @@ async function isTaskCollectionItemAccessAuthorizedAllowingDeletedTasks(
     collectionItem: TaskCollectionEssentialAttributesItem,
     expectedAccessLevel: TaskCollectionAccessLevel,
 ) {
+    // Check that the account has access to the space the collection is in.
+    if (!(await isAccountMemberOfSpace(context, collectionItem.spaceId, accountId))) {
+        return false;
+    }
+
     return evaluateTaskCollectionAccessPolicy(
         context,
         accountId,
@@ -2023,6 +2028,11 @@ async function isTaskItemAccessAuthorizedAllowingDeletedTasks(
         ) => Promise<TaskCollectionEssentialAttributesItem>;
     },
 ): Promise<boolean> {
+    // Check that the account has access to the space the task is in.
+    if (!(await isAccountMemberOfSpace(context, taskItem.spaceId, accountId))) {
+        return false;
+    }
+
     // The task creator has edit access level on their own task.
     if (
         accountId === taskItem.creatorId &&

@@ -18,7 +18,11 @@ import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_real
 import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_update_event.js";
 import {InternalError} from "~/shared/error/error.js";
 import {isNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
+import {
+    PromiseImmediateResolver,
+    createPromiseImmediateResolver,
+} from "~/shared/helpers/async/promise_immediate_resolver.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
@@ -191,12 +195,12 @@ export class TaskRealtimeQueryStoreInternal {
      */
     private readonly _loadingTaskPromiseById = new Map<
         TaskId,
-        Promise<TaskRealtimeQueryStoreTaskEntry | null>
+        PromiseImmediate<TaskRealtimeQueryStoreTaskEntry | null>
     >();
 
     private _scheduledTaskLoadBatch: Array<{
         readonly taskId: TaskId;
-        readonly promiseResolver: PromiseResolver<TaskRealtimeQueryStoreTaskEntry | null>;
+        readonly promiseResolver: PromiseImmediateResolver<TaskRealtimeQueryStoreTaskEntry | null>;
     }> | null = null;
 
     /**
@@ -215,12 +219,12 @@ export class TaskRealtimeQueryStoreInternal {
      */
     private readonly _loadingCollectionPromiseById = new Map<
         TaskCollectionId,
-        Promise<TaskRealtimeQueryStoreCollectionEntry | null>
+        PromiseImmediate<TaskRealtimeQueryStoreCollectionEntry | null>
     >();
 
     private _scheduledCollectionLoadBatch: Array<{
         readonly collectionId: TaskCollectionId;
-        readonly promiseResolver: PromiseResolver<TaskRealtimeQueryStoreCollectionEntry | null>;
+        readonly promiseResolver: PromiseImmediateResolver<TaskRealtimeQueryStoreCollectionEntry | null>;
     }> | null = null;
 
     constructor({
@@ -448,6 +452,13 @@ export class TaskRealtimeQueryStoreInternal {
                 taskEntry: TaskRealtimeQueryStoreTaskEntry;
                 oldTask: TaskIndexDoc;
                 actions: Array<TaskAction>;
+                // We capture query subscriptions when we create an entry in this map since the
+                // query subscription set may change when we call into our event handlers like
+                // `query.onVisibleTaskUpdate()`.
+                //
+                // We only want to update subscriptions that were subscribed at the start of
+                // this function call.
+                querySubscriptions: Array<TaskRealtimeQuerySubscriptionInternal>;
             }
         >();
 
@@ -457,6 +468,7 @@ export class TaskRealtimeQueryStoreInternal {
                 collectionEntry: TaskRealtimeQueryStoreCollectionEntry;
                 oldCollection: TaskCollectionIndexDoc;
                 actions: Array<TaskAction>;
+                querySubscriptions: Array<TaskRealtimeQuerySubscriptionInternal>;
             }
         >();
 
@@ -488,6 +500,9 @@ export class TaskRealtimeQueryStoreInternal {
                             taskEntry,
                             oldTask,
                             actions: [],
+                            querySubscriptions: Array.from(
+                                taskEntry.iterateQuerySubscriptionDependents(),
+                            ),
                         })).actions.push(action);
                     }
                     // If we do not have an entry for this task, then check with all our queries to
@@ -530,6 +545,9 @@ export class TaskRealtimeQueryStoreInternal {
                                 collectionEntry,
                                 oldCollection,
                                 actions: [],
+                                querySubscriptions: Array.from(
+                                    collectionEntry.iterateQuerySubscriptionDependents(),
+                                ),
                             }),
                         ).actions.push(action);
                     }
@@ -545,7 +563,83 @@ export class TaskRealtimeQueryStoreInternal {
             }
         }
 
-        for (const [taskId, {taskEntry, oldTask, actions}] of updatedTaskEntriesById) {
+        for (const {
+            collectionEntry,
+            oldCollection,
+            actions,
+            querySubscriptions,
+        } of updatedCollectionEntriesById.values()) {
+            assert(isNonEmptyReadonlyArray(actions));
+
+            for (const querySubscription of querySubscriptions) {
+                querySubscription.onReferencedCollectionUpdate(
+                    context,
+                    eventBuilder,
+                    collectionEntry.collection.id,
+                    oldCollection,
+                    collectionEntry.collection,
+                    actions,
+                );
+            }
+        }
+
+        // NOCOMMIT: Test when there's temporarily a cycle because updates are applied
+        // out of order
+
+        // HACK: Consider the following transaction. Let's say before the transaction
+        // `task1`'s parent is `task2`.
+        //
+        // ```
+        // [
+        //     {
+        //         type: "UpdateTask",
+        //         taskId: task1,
+        //         taskAction: {type: "UpdateParentTask", parentTaskId: null},
+        //     },
+        //     {
+        //         type: "UpdateTask",
+        //         taskId: task2,
+        //         taskAction: {type: "UpdateChildrenCounts"},
+        //     },
+        // ]
+        // ```
+        //
+        // This is a fairly common transaction in our system. e.g. When
+        // indenting/dedenting tasks. The first action may call
+        // `querySubscription._onReferencedTaskRemove()` because `task2` is no longer
+        // referenced. The second action will call
+        // `querySubscription.onReferencedTaskUpdate()` for `task2`. We need to call
+        // `querySubscription.onReferencedTaskUpdate()` before
+        // `querySubscription._onReferencedTaskRemove()` since query subscriptions need
+        // to observe every update to a task (we have assertions for this in test + dev
+        // environments).
+        //
+        // So this a hacky fix. If a task has an `UpdateParentTask` action we apply
+        // updates for that task last. This could still break if we have two
+        // `UpdateParentTask`s in the same action since we don't try to determine a
+        // proper order between them. A more correct fix would be: when
+        // `_onReferencedTaskRemove()` is called check if there's a pending
+        // `onReferencedTaskUpdate()` call for the task and run it first. But this
+        // hacky fix works in all practical cases (we don't have any double
+        // `UpdateParentTask` actions) so it's fine for now.
+        const updatedTaskEntries = Array.from(updatedTaskEntriesById.values()).sort(
+            ({actions: actions1}, {actions: actions2}) => {
+                const getActionPriority = (action: TaskAction) => {
+                    if (action.type !== "UpdateTask") return 0;
+                    if (action.taskAction.type === "AddCollection") return 1;
+                    if (action.taskAction.type === "RemoveCollection") return 1;
+                    if (action.taskAction.type === "UpdateParentTaskId") return 2;
+                    return 0;
+                };
+
+                const priority1 = Math.max(...actions1.map(getActionPriority));
+                const priority2 = Math.max(...actions2.map(getActionPriority));
+
+                return priority1 - priority2;
+            },
+        );
+
+        for (const {taskEntry, oldTask, actions, querySubscriptions} of updatedTaskEntries) {
             assert(isNonEmptyReadonlyArray(actions));
 
             const addedQueryDependencies = new Set();
@@ -573,7 +667,7 @@ export class TaskRealtimeQueryStoreInternal {
                 const {isStillVisible} = query.onVisibleTaskUpdate(
                     context,
                     eventBuilder,
-                    taskId,
+                    taskEntry.task.id,
                     oldTask,
                     taskEntry.task,
                     actions,
@@ -583,31 +677,13 @@ export class TaskRealtimeQueryStoreInternal {
                 }
             }
 
-            for (const querySubscription of taskEntry.iterateQuerySubscriptionDependents()) {
+            for (const querySubscription of querySubscriptions) {
                 querySubscription.onReferencedTaskUpdate(
                     context,
                     eventBuilder,
-                    taskId,
+                    taskEntry.task.id,
                     oldTask,
                     taskEntry.task,
-                    actions,
-                );
-            }
-        }
-
-        for (const [
-            collectionId,
-            {collectionEntry, oldCollection, actions},
-        ] of updatedCollectionEntriesById) {
-            assert(isNonEmptyReadonlyArray(actions));
-
-            for (const querySubscription of collectionEntry.iterateQuerySubscriptionDependents()) {
-                querySubscription.onReferencedCollectionUpdate(
-                    context,
-                    eventBuilder,
-                    collectionId,
-                    oldCollection,
-                    collectionEntry.collection,
                     actions,
                 );
             }
@@ -659,13 +735,30 @@ export class TaskRealtimeQueryStoreInternal {
      * error. It's expected when you call this method that the underlying task
      * exists. If it doesn't that must mean our index is stale so we retry for
      * a bit.
+     *
+     * May return a `PromiseImmediate` that resolves synchronously if the task is
+     * already available in the store.
      */
     public loadTaskEntry(
         context: TaskRealtimeSystemActionContext,
         taskId: TaskId,
-    ): Promise<TaskRealtimeQueryStoreTaskEntry> {
+    ): PromiseLike<TaskRealtimeQueryStoreTaskEntry> {
+        const initialPromise = this._loadTaskEntryIfExists(context, taskId);
+        const initialPromiseState = initialPromise.getStateWithoutListening();
+
+        if (initialPromiseState.status === "fulfilled" && initialPromiseState.value) {
+            return initialPromise as PromiseImmediate<TaskRealtimeQueryStoreTaskEntry>;
+        }
+
+        let hasAlreadyAttempted = false;
+
         return retryWithExponentialBackoff(async retry => {
-            const taskEntry = await this._loadTaskEntryIfExists(context, taskId);
+            const isInitialAttempt = !hasAlreadyAttempted;
+            hasAlreadyAttempted = true;
+
+            const taskEntry = await (isInitialAttempt
+                ? initialPromise
+                : this._loadTaskEntryIfExists(context, taskId));
 
             if (!taskEntry) {
                 throw retry(new InternalError("Task not found"));
@@ -678,11 +771,11 @@ export class TaskRealtimeQueryStoreInternal {
     private _loadTaskEntryIfExists(
         context: TaskRealtimeSystemActionContext,
         taskId: TaskId,
-    ): Promise<TaskRealtimeQueryStoreTaskEntry | null> {
+    ): PromiseImmediate<TaskRealtimeQueryStoreTaskEntry | null> {
         // If we've already loaded the task, great! No need to load it now.
         {
             const taskEntry = this._taskEntryById.get(taskId);
-            if (taskEntry !== undefined) return Promise.resolve(taskEntry);
+            if (taskEntry !== undefined) return PromiseImmediate.resolve(taskEntry);
         }
 
         return getOrSetDefaultMapValue(this._loadingTaskPromiseById, taskId, () => {
@@ -702,7 +795,8 @@ export class TaskRealtimeQueryStoreInternal {
                 });
             }
 
-            const promiseResolver = createPromiseResolver<TaskRealtimeQueryStoreTaskEntry | null>();
+            const promiseResolver =
+                createPromiseImmediateResolver<TaskRealtimeQueryStoreTaskEntry | null>();
             this._scheduledTaskLoadBatch.push({taskId, promiseResolver});
 
             // Once the promise has settled, delete it from `loadingTaskPromiseById`. You
@@ -722,7 +816,7 @@ export class TaskRealtimeQueryStoreInternal {
         context: TaskRealtimeSystemActionContext,
         taskLoadBatch: Array<{
             taskId: TaskId;
-            promiseResolver: PromiseResolver<TaskRealtimeQueryStoreTaskEntry | null>;
+            promiseResolver: PromiseImmediateResolver<TaskRealtimeQueryStoreTaskEntry | null>;
         }>,
     ): Promise<void> {
         await taskRealtimeQueryStoreLoadTaskTestCheckpoint.waitForTest(this.spaceId);
@@ -753,7 +847,7 @@ export class TaskRealtimeQueryStoreInternal {
         context: TaskRealtimeSystemActionContext,
         taskLoadBatch: Array<{
             taskId: TaskId;
-            promiseResolver: PromiseResolver<TaskRealtimeQueryStoreTaskEntry | null>;
+            promiseResolver: PromiseImmediateResolver<TaskRealtimeQueryStoreTaskEntry | null>;
         }>,
         tasks: Array<TaskIndexDoc | null>,
     ): void {
@@ -761,7 +855,7 @@ export class TaskRealtimeQueryStoreInternal {
             TaskId,
             {
                 freshTask: TaskIndexDoc;
-                promiseResolver: PromiseResolver<TaskRealtimeQueryStoreTaskEntry | null>;
+                promiseResolver: PromiseImmediateResolver<TaskRealtimeQueryStoreTaskEntry | null>;
             }
         >();
 
@@ -813,9 +907,23 @@ export class TaskRealtimeQueryStoreInternal {
     public loadCollectionEntry(
         context: TaskRealtimeSystemActionContext,
         collectionId: TaskCollectionId,
-    ): Promise<TaskRealtimeQueryStoreCollectionEntry> {
+    ): PromiseLike<TaskRealtimeQueryStoreCollectionEntry> {
+        const initialPromise = this._loadCollectionEntryIfExists(context, collectionId);
+        const initialPromiseState = initialPromise.getStateWithoutListening();
+
+        if (initialPromiseState.status === "fulfilled" && initialPromiseState.value) {
+            return initialPromise as PromiseImmediate<TaskRealtimeQueryStoreCollectionEntry>;
+        }
+
+        let hasAlreadyAttempted = false;
+
         return retryWithExponentialBackoff(async retry => {
-            const collectionEntry = await this._loadCollectionEntryIfExists(context, collectionId);
+            const isInitialAttempt = !hasAlreadyAttempted;
+            hasAlreadyAttempted = true;
+
+            const collectionEntry = await (isInitialAttempt
+                ? initialPromise
+                : this._loadCollectionEntryIfExists(context, collectionId));
 
             if (!collectionEntry) {
                 throw retry(new InternalError("Task not found"));
@@ -828,11 +936,11 @@ export class TaskRealtimeQueryStoreInternal {
     private _loadCollectionEntryIfExists(
         context: TaskRealtimeSystemActionContext,
         collectionId: TaskCollectionId,
-    ): Promise<TaskRealtimeQueryStoreCollectionEntry | null> {
+    ): PromiseImmediate<TaskRealtimeQueryStoreCollectionEntry | null> {
         // If we've already loaded the collection, great! No need to load it now.
         {
             const collectionEntry = this._collectionEntryById.get(collectionId);
-            if (collectionEntry !== undefined) return Promise.resolve(collectionEntry);
+            if (collectionEntry !== undefined) return PromiseImmediate.resolve(collectionEntry);
         }
 
         return getOrSetDefaultMapValue(this._loadingCollectionPromiseById, collectionId, () => {
@@ -853,7 +961,7 @@ export class TaskRealtimeQueryStoreInternal {
             }
 
             const promiseResolver =
-                createPromiseResolver<TaskRealtimeQueryStoreCollectionEntry | null>();
+                createPromiseImmediateResolver<TaskRealtimeQueryStoreCollectionEntry | null>();
             this._scheduledCollectionLoadBatch.push({collectionId, promiseResolver});
 
             // Once the promise has settled, delete it from `loadingCollectionPromiseById`.
@@ -873,7 +981,7 @@ export class TaskRealtimeQueryStoreInternal {
         context: TaskRealtimeSystemActionContext,
         collectionLoadBatch: Array<{
             collectionId: TaskCollectionId;
-            promiseResolver: PromiseResolver<TaskRealtimeQueryStoreCollectionEntry | null>;
+            promiseResolver: PromiseImmediateResolver<TaskRealtimeQueryStoreCollectionEntry | null>;
         }>,
     ): Promise<void> {
         const collections = await getTaskCollectionIndexDocsIfExist(
@@ -902,7 +1010,7 @@ export class TaskRealtimeQueryStoreInternal {
         context: TaskRealtimeSystemActionContext,
         collectionLoadBatch: Array<{
             collectionId: TaskCollectionId;
-            promiseResolver: PromiseResolver<TaskRealtimeQueryStoreCollectionEntry | null>;
+            promiseResolver: PromiseImmediateResolver<TaskRealtimeQueryStoreCollectionEntry | null>;
         }>,
         collections: Array<TaskCollectionIndexDoc | null>,
     ): void {
@@ -910,7 +1018,7 @@ export class TaskRealtimeQueryStoreInternal {
             TaskCollectionId,
             {
                 freshCollection: TaskCollectionIndexDoc;
-                promiseResolver: PromiseResolver<TaskRealtimeQueryStoreCollectionEntry | null>;
+                promiseResolver: PromiseImmediateResolver<TaskRealtimeQueryStoreCollectionEntry | null>;
             }
         >();
 

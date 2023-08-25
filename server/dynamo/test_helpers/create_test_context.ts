@@ -15,7 +15,7 @@ import {
     DynamoUnknownActorContextModule,
 } from "~/server/accounts/dynamo_actor_context_module.js";
 import {
-    ServerSessionActionContext,
+    ServerSessionActionContextModules,
     ServerSystemActionContext,
     ServerSystemActionContextModules,
     ServerUnknownActionContext,
@@ -40,6 +40,7 @@ import {
 import {testTracer} from "~/server/tracer/test_tracer.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
+import {ForkActionContextModule} from "~/shared/context/fork_action_context_module.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -70,7 +71,7 @@ export type TestContext = ServerProcessContext & {
         session:
             | {id: SessionId; account: {id: AccountId}; createdTime: Date}
             | {sessionId: SessionId; accountId: AccountId; createdTime: Date},
-    ): ServerSessionActionContext;
+    ): Context<ServerSessionActionContextModules & {fork: ForkActionContextModule}>;
 
     /**
      * An authenticated system action.
@@ -80,14 +81,14 @@ export type TestContext = ServerProcessContext & {
     /**
      * Escalate one of our existing test contexts to a system context.
      */
-    readonly escalateToSystemContext: (
+    readonly escalateToSystemContext: <Value>(
         context: Context<{
             tracer: TracerContextModule;
             actor: DynamoActorContextModule;
         }>,
         spaceId: SpaceId,
-        action: (context: ServerSystemActionContext) => Promise<void>,
-    ) => Promise<void>;
+        action: (context: ServerSystemActionContext) => Promise<Value>,
+    ) => Promise<Value>;
 };
 
 /**
@@ -133,20 +134,20 @@ export function createTestContext({
         return opensearchLocal.port;
     };
 
-    const escalateToSystemContext = (
+    const escalateToSystemContext = <Value>(
         context: Context<{
             tracer: TracerContextModule;
             actor: DynamoActorContextModule;
         }>,
         spaceId: SpaceId,
-        action: (context: ServerSystemActionContext) => Promise<void>,
-    ): Promise<void> => {
+        action: (context: ServerSystemActionContext) => Promise<Value>,
+    ): Promise<Value> => {
         return processContext.with<
             Omit<
                 ServerSystemActionContextModules,
                 Exclude<keyof ServerProcessContextModules, "tracer">
             >,
-            void
+            Value
         >(
             {
                 tracer: new TracerContextModule(context.tracer.getTracer()),
@@ -175,12 +176,13 @@ export function createTestContext({
         session:
             | {id: SessionId; account: {id: AccountId}; createdTime: Date}
             | {sessionId: SessionId; accountId: AccountId; createdTime: Date},
-    ): ServerSessionActionContext => {
+    ): Context<ServerSessionActionContextModules & {fork: ForkActionContextModule}> => {
         return processContext.clone({
             dynamoBatchContext: new DynamoBatchContextModule(),
             cache: new CacheContextModule(),
             actor: DynamoSessionActorContextModule.dangerouslyNew("Test", Session.test(session)),
             notifications: createNotificationsContextModule(),
+            fork: new ForkActionContextModule(),
         });
     };
 
