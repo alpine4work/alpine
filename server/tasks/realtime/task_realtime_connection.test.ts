@@ -2100,7 +2100,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
     ]);
 });
 
-test.only("visible task added out of loaded range ignored", async () => {
+test("visible task added out of loaded range ignored", async () => {
     const space = await TestSpace.create(context);
     const server = createWebSocketServer(space);
     const session = await space.createSession();
@@ -2243,7 +2243,7 @@ test.only("visible task added out of loaded range ignored", async () => {
     ]);
 });
 
-test.only("visible task updated out of loaded range ignored", async () => {
+test("visible task updated out of loaded range ignored", async () => {
     const space = await TestSpace.create(context);
     const server = createWebSocketServer(space);
     const session = await space.createSession();
@@ -2398,7 +2398,7 @@ test.only("visible task updated out of loaded range ignored", async () => {
     ]);
 });
 
-test.only("visible task removed out of loaded range ignored", async () => {
+test("visible task removed out of loaded range ignored", async () => {
     const space = await TestSpace.create(context);
     const server = createWebSocketServer(space);
     const session = await space.createSession();
@@ -2553,7 +2553,7 @@ test.only("visible task removed out of loaded range ignored", async () => {
     ]);
 });
 
-test.only("visible task moved into loaded range", async () => {
+test("visible task moved into loaded range", async () => {
     const space = await TestSpace.create(context);
     const server = createWebSocketServer(space);
     const session = await space.createSession();
@@ -2728,7 +2728,7 @@ test.only("visible task moved into loaded range", async () => {
     ]);
 });
 
-test.only("visible task moved out of loaded range", async () => {
+test("visible task moved out of loaded range", async () => {
     const space = await TestSpace.create(context);
     const server = createWebSocketServer(space);
     const session = await space.createSession();
