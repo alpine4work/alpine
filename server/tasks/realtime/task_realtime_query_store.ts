@@ -19,10 +19,7 @@ import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realt
 import {InternalError} from "~/shared/error/error.js";
 import {isNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
-import {
-    PromiseImmediateResolver,
-    createPromiseImmediateResolver,
-} from "~/shared/helpers/async/promise_immediate_resolver.js";
+import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
@@ -50,19 +47,30 @@ import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort
  * add it to the realtime action history and apply it to the relevant store.
  */
 // NOCOMMIT: Figure out error handling...
+//
+// TODO(calebmer, #tracer): I'd like to add some task realtime query store
+// metrics using whatever metrics system we setup. Metrics like query count,
+// task count, collection count, and query subscription count would be useful.
 export class TaskRealtimeQueryStore {
+    public readonly spaceId: SpaceId;
     private readonly _internal: TaskRealtimeQueryStoreInternal;
 
     constructor(options: {
         spaceId: SpaceId;
         actionHistory: ReadonlyTaskRealtimeActionHistory;
         ensureFullActionHistory: (context: TaskRealtimeSystemActionContext) => Promise<void>;
+        scheduleEviction: () => void;
     }) {
+        this.spaceId = options.spaceId;
         this._internal = new TaskRealtimeQueryStoreInternal(options);
 
         if (process.env.NODE_ENV !== "production") {
             this._internal.assertCorrectForTest();
         }
+    }
+
+    public assertEmptyForTest() {
+        this._internal.assertEmptyForTest();
     }
 
     public async loadQuery(
@@ -136,6 +144,10 @@ export class TaskRealtimeQueryStore {
     public getCollectionIfLoaded(collectionId: TaskCollectionId) {
         return this._internal.getCollectionIfLoaded(collectionId);
     }
+
+    public evict() {
+        return this._internal.evict();
+    }
 }
 
 export const taskRealtimeQueryStoreBeforeLoadTaskTestCheckpoint = new TestCheckpoint<SpaceId>();
@@ -160,12 +172,26 @@ export class TaskRealtimeQueryStoreInternal {
     ) => Promise<void>;
 
     /**
+     * Tell our realtime server that we should schedule an eviction for this store.
+     * The server has an eviction timer and will call the evict procedure on any
+     * stores which need an eviction.
+     *
+     * If this function is called multiple times before our eviction procedure is
+     * called it will only register our store once.
+     *
+     * Calling this function is an optimization to avoid needing to call the
+     * eviction procedure on every store whenever the server eviction timer fires.
+     * So it's ok to occasionally run an eviction procedure on our store when the
+     * store has no evictable items.
+     */
+    private readonly _scheduleEviction: () => void;
+
+    /**
      * All the queries maintained by our query store. The queries are keyed by
      * `{filters, sorts}` stringified by `stringifyForDeepEqualCheck()`. This
      * allows us to efficiently reuse a query that shares normalized filters
      * and sorts.
      */
-    // NOCOMMIT: Query eviction if there are no subscribers
     private readonly _queries = new Map<string, TaskRealtimeQuery>();
 
     /**
@@ -197,12 +223,12 @@ export class TaskRealtimeQueryStoreInternal {
      */
     private readonly _loadingTaskPromiseById = new Map<
         TaskId,
-        PromiseImmediate<TaskRealtimeQueryStoreTaskEntry | null>
+        PromiseImmediate<TaskRealtimeQueryStoreTaskEntry>
     >();
 
     private _scheduledTaskLoadBatch: Array<{
         readonly taskId: TaskId;
-        readonly promiseResolver: PromiseImmediateResolver<TaskRealtimeQueryStoreTaskEntry | null>;
+        readonly promiseResolver: PromiseResolver<TaskRealtimeQueryStoreTaskEntry | null>;
     }> | null = null;
 
     /**
@@ -221,26 +247,58 @@ export class TaskRealtimeQueryStoreInternal {
      */
     private readonly _loadingCollectionPromiseById = new Map<
         TaskCollectionId,
-        PromiseImmediate<TaskRealtimeQueryStoreCollectionEntry | null>
+        PromiseImmediate<TaskRealtimeQueryStoreCollectionEntry>
     >();
 
     private _scheduledCollectionLoadBatch: Array<{
         readonly collectionId: TaskCollectionId;
-        readonly promiseResolver: PromiseImmediateResolver<TaskRealtimeQueryStoreCollectionEntry | null>;
+        readonly promiseResolver: PromiseResolver<TaskRealtimeQueryStoreCollectionEntry | null>;
     }> | null = null;
+
+    // The set of items to evict from our query store the next time our server's
+    // eviction timeout is called. It's essential we evict items from the store in
+    // a timely manner when they're no longer referenced or else we'll have a
+    // memory leak and eventually our server will fail with an out-of-memory
+    // exception.
+    //
+    // Each item type has two sets. The "open" set and the "next" set.
+    //
+    // - The open set is where we add newly evictable items. When the last
+    //   reference to, say, a task is removed then we add it to the `TaskId` open
+    //   evictable set and schedule an eviction.
+    //
+    // - The next set is the set of items we'll actually evict when the eviction
+    //   timer runs. When the eviction timer runs we evict everything in the next
+    //   set and move the open set to the next set.
+    //
+    // We use this two-set setup so that once an item is made evictable it has a
+    // guaranteed minimum duration it will stay alive in case some other client
+    // wants to rescue it from eviction. When an item is made evictable it will
+    // stay alive for at least one eviction timeout duration (configured at the
+    // server level).
+    private _isEvicting = false;
+    private _openEvictableQueries = new Set<TaskRealtimeQuery>();
+    private _nextEvictableQueries = new Set<TaskRealtimeQuery>();
+    private _openEvictableTaskIds = new Set<TaskId>();
+    private _nextEvictableTaskIds = new Set<TaskId>();
+    private _openEvictableCollectionIds = new Set<TaskCollectionId>();
+    private _nextEvictableCollectionIds = new Set<TaskCollectionId>();
 
     constructor({
         spaceId,
         actionHistory,
         ensureFullActionHistory,
+        scheduleEviction,
     }: {
         spaceId: SpaceId;
         actionHistory: ReadonlyTaskRealtimeActionHistory;
         ensureFullActionHistory: (context: TaskRealtimeSystemActionContext) => Promise<void>;
+        scheduleEviction: () => void;
     }) {
         this.spaceId = spaceId;
         this.actionHistory = actionHistory;
         this.ensureFullActionHistory = ensureFullActionHistory;
+        this._scheduleEviction = scheduleEviction;
     }
 
     public assertCorrectForTest() {
@@ -264,6 +322,25 @@ export class TaskRealtimeQueryStoreInternal {
                 );
             }
         }
+    }
+
+    public assertEmptyForTest() {
+        assert(process.env.NODE_ENV === "test");
+
+        assert(
+            this._queries.size === 0,
+            `Expected store to have 0 queries but instead it has ${this._queries.size}`,
+        );
+
+        assert(
+            this._taskEntryById.size === 0,
+            `Expected store to have 0 tasks but instead it has ${this._taskEntryById.size}`,
+        );
+
+        assert(
+            this._collectionEntryById.size === 0,
+            `Expected store to have 0 collections but instead it has ${this._taskEntryById.size}`,
+        );
     }
 
     /**
@@ -342,7 +419,6 @@ export class TaskRealtimeQueryStoreInternal {
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
     }) {
-        // NOCOMMIT: Evict if there are no subscribers?
         return getOrSetDefaultMapValue(
             this._queries,
             stringifyForDeepEqualCheck({filters, sorts}),
@@ -738,87 +814,72 @@ export class TaskRealtimeQueryStoreInternal {
      * exists. If it doesn't that must mean our index is stale so we retry for
      * a bit.
      *
-     * May return a `PromiseImmediate` that resolves synchronously if the task is
+     * Returns a `PromiseImmediate` that resolves synchronously if the task is
      * already available in the store.
      */
     public loadTaskEntry(
         context: TaskRealtimeSystemActionContext,
         taskId: TaskId,
-    ): PromiseLike<TaskRealtimeQueryStoreTaskEntry> {
-        const initialPromise = this._loadTaskEntryIfExists(context, taskId);
-        const initialPromiseState = initialPromise.getStateWithoutListening();
+    ): PromiseImmediate<TaskRealtimeQueryStoreTaskEntry> {
+        // If we've already loaded the task, great! No need to load it now.
+        const taskEntry = this._taskEntryById.get(taskId);
+        if (taskEntry !== undefined) return PromiseImmediate.resolve(taskEntry);
 
-        if (initialPromiseState.status === "fulfilled" && initialPromiseState.value) {
-            return initialPromise as PromiseImmediate<TaskRealtimeQueryStoreTaskEntry>;
-        }
+        return getOrSetDefaultMapValue(this._loadingTaskPromiseById, taskId, () => {
+            return PromiseImmediate.resolve(
+                retryWithExponentialBackoff(async retry => {
+                    const taskEntry = await this._loadTaskEntryIfExists(context, taskId);
 
-        let hasAlreadyAttempted = false;
+                    if (!taskEntry) {
+                        throw retry(new InternalError("Task not found"));
+                    }
 
-        return retryWithExponentialBackoff(async retry => {
-            const isInitialAttempt = !hasAlreadyAttempted;
-            hasAlreadyAttempted = true;
-
-            const taskEntry = await (isInitialAttempt
-                ? initialPromise
-                : this._loadTaskEntryIfExists(context, taskId));
-
-            if (!taskEntry) {
-                throw retry(new InternalError("Task not found"));
-            }
-
-            return taskEntry;
+                    return taskEntry;
+                }),
+            );
         });
     }
 
     private _loadTaskEntryIfExists(
         context: TaskRealtimeSystemActionContext,
         taskId: TaskId,
-    ): PromiseImmediate<TaskRealtimeQueryStoreTaskEntry | null> {
-        // If we've already loaded the task, great! No need to load it now.
-        {
-            const taskEntry = this._taskEntryById.get(taskId);
-            if (taskEntry !== undefined) return PromiseImmediate.resolve(taskEntry);
+    ): Promise<TaskRealtimeQueryStoreTaskEntry | null> {
+        if (!this._scheduledTaskLoadBatch) {
+            this._scheduledTaskLoadBatch = [];
+
+            scheduleMicrotask(() => {
+                assert(this._scheduledTaskLoadBatch);
+                const taskLoadBatch = this._scheduledTaskLoadBatch;
+                this._scheduledTaskLoadBatch = null;
+
+                this._executeLoadTaskBatch(context, taskLoadBatch).catch(error => {
+                    for (const {promiseResolver} of taskLoadBatch) {
+                        promiseResolver.reject(error);
+                    }
+                });
+            });
         }
 
-        return getOrSetDefaultMapValue(this._loadingTaskPromiseById, taskId, () => {
-            if (!this._scheduledTaskLoadBatch) {
-                this._scheduledTaskLoadBatch = [];
+        const promiseResolver = createPromiseResolver<TaskRealtimeQueryStoreTaskEntry | null>();
+        this._scheduledTaskLoadBatch.push({taskId, promiseResolver});
 
-                scheduleMicrotask(() => {
-                    assert(this._scheduledTaskLoadBatch);
-                    const taskLoadBatch = this._scheduledTaskLoadBatch;
-                    this._scheduledTaskLoadBatch = null;
+        // Once the promise has settled, delete it from `loadingTaskPromiseById`. You
+        // can now get the task from `taskEntryById`.
+        //
+        // If the task entry is evicted then we should create a new loading promise.
+        promiseResolver.promise.then(
+            () => this._loadingTaskPromiseById.delete(taskId),
+            () => this._loadingTaskPromiseById.delete(taskId),
+        );
 
-                    this._executeLoadTaskBatch(context, taskLoadBatch).catch(error => {
-                        for (const {promiseResolver} of taskLoadBatch) {
-                            promiseResolver.reject(error);
-                        }
-                    });
-                });
-            }
-
-            const promiseResolver =
-                createPromiseImmediateResolver<TaskRealtimeQueryStoreTaskEntry | null>();
-            this._scheduledTaskLoadBatch.push({taskId, promiseResolver});
-
-            // Once the promise has settled, delete it from `loadingTaskPromiseById`. You
-            // can now get the task from `taskEntryById`.
-            //
-            // If the task entry is evicted then we should create a new loading promise.
-            promiseResolver.promise.then(
-                () => this._loadingTaskPromiseById.delete(taskId),
-                () => this._loadingTaskPromiseById.delete(taskId),
-            );
-
-            return promiseResolver.promise;
-        });
+        return promiseResolver.promise;
     }
 
     private async _executeLoadTaskBatch(
         context: TaskRealtimeSystemActionContext,
         taskLoadBatch: Array<{
             taskId: TaskId;
-            promiseResolver: PromiseImmediateResolver<TaskRealtimeQueryStoreTaskEntry | null>;
+            promiseResolver: PromiseResolver<TaskRealtimeQueryStoreTaskEntry | null>;
         }>,
     ): Promise<void> {
         await taskRealtimeQueryStoreBeforeLoadTaskTestCheckpoint.waitForTest(this.spaceId);
@@ -849,7 +910,7 @@ export class TaskRealtimeQueryStoreInternal {
         context: TaskRealtimeSystemActionContext,
         taskLoadBatch: Array<{
             taskId: TaskId;
-            promiseResolver: PromiseImmediateResolver<TaskRealtimeQueryStoreTaskEntry | null>;
+            promiseResolver: PromiseResolver<TaskRealtimeQueryStoreTaskEntry | null>;
         }>,
         tasks: Array<TaskIndexDoc | null>,
     ): void {
@@ -857,7 +918,7 @@ export class TaskRealtimeQueryStoreInternal {
             TaskId,
             {
                 freshTask: TaskIndexDoc;
-                promiseResolver: PromiseImmediateResolver<TaskRealtimeQueryStoreTaskEntry | null>;
+                promiseResolver: PromiseResolver<TaskRealtimeQueryStoreTaskEntry | null>;
             }
         >();
 
@@ -909,81 +970,70 @@ export class TaskRealtimeQueryStoreInternal {
     public loadCollectionEntry(
         context: TaskRealtimeSystemActionContext,
         collectionId: TaskCollectionId,
-    ): PromiseLike<TaskRealtimeQueryStoreCollectionEntry> {
-        const initialPromise = this._loadCollectionEntryIfExists(context, collectionId);
-        const initialPromiseState = initialPromise.getStateWithoutListening();
+    ): PromiseImmediate<TaskRealtimeQueryStoreCollectionEntry> {
+        // If we've already loaded the collection, great! No need to load it now.
+        const collectionEntry = this._collectionEntryById.get(collectionId);
+        if (collectionEntry !== undefined) return PromiseImmediate.resolve(collectionEntry);
 
-        if (initialPromiseState.status === "fulfilled" && initialPromiseState.value) {
-            return initialPromise as PromiseImmediate<TaskRealtimeQueryStoreCollectionEntry>;
-        }
+        return getOrSetDefaultMapValue(this._loadingCollectionPromiseById, collectionId, () => {
+            return PromiseImmediate.resolve(
+                retryWithExponentialBackoff(async retry => {
+                    const taskEntry = await this._loadCollectionEntryIfExists(
+                        context,
+                        collectionId,
+                    );
 
-        let hasAlreadyAttempted = false;
+                    if (!taskEntry) {
+                        throw retry(new InternalError("Task not found"));
+                    }
 
-        return retryWithExponentialBackoff(async retry => {
-            const isInitialAttempt = !hasAlreadyAttempted;
-            hasAlreadyAttempted = true;
-
-            const collectionEntry = await (isInitialAttempt
-                ? initialPromise
-                : this._loadCollectionEntryIfExists(context, collectionId));
-
-            if (!collectionEntry) {
-                throw retry(new InternalError("Task not found"));
-            }
-
-            return collectionEntry;
+                    return taskEntry;
+                }),
+            );
         });
     }
 
     private _loadCollectionEntryIfExists(
         context: TaskRealtimeSystemActionContext,
         collectionId: TaskCollectionId,
-    ): PromiseImmediate<TaskRealtimeQueryStoreCollectionEntry | null> {
-        // If we've already loaded the collection, great! No need to load it now.
-        {
-            const collectionEntry = this._collectionEntryById.get(collectionId);
-            if (collectionEntry !== undefined) return PromiseImmediate.resolve(collectionEntry);
+    ): Promise<TaskRealtimeQueryStoreCollectionEntry | null> {
+        if (!this._scheduledCollectionLoadBatch) {
+            this._scheduledCollectionLoadBatch = [];
+
+            scheduleMicrotask(() => {
+                assert(this._scheduledCollectionLoadBatch);
+                const collectionLoadBatch = this._scheduledCollectionLoadBatch;
+                this._scheduledCollectionLoadBatch = null;
+
+                this._executeLoadCollectionBatch(context, collectionLoadBatch).catch(error => {
+                    for (const {promiseResolver} of collectionLoadBatch) {
+                        promiseResolver.reject(error);
+                    }
+                });
+            });
         }
 
-        return getOrSetDefaultMapValue(this._loadingCollectionPromiseById, collectionId, () => {
-            if (!this._scheduledCollectionLoadBatch) {
-                this._scheduledCollectionLoadBatch = [];
+        const promiseResolver =
+            createPromiseResolver<TaskRealtimeQueryStoreCollectionEntry | null>();
+        this._scheduledCollectionLoadBatch.push({collectionId, promiseResolver});
 
-                scheduleMicrotask(() => {
-                    assert(this._scheduledCollectionLoadBatch);
-                    const collectionLoadBatch = this._scheduledCollectionLoadBatch;
-                    this._scheduledCollectionLoadBatch = null;
+        // Once the promise has settled, delete it from `loadingCollectionPromiseById`.
+        // You can now get the task from `collectionEntryById`.
+        //
+        // If the task entry is evicted then we should create a new loading promise.
+        promiseResolver.promise.then(
+            () => this._loadingCollectionPromiseById.delete(collectionId),
+            () => this._loadingCollectionPromiseById.delete(collectionId),
+        );
 
-                    this._executeLoadCollectionBatch(context, collectionLoadBatch).catch(error => {
-                        for (const {promiseResolver} of collectionLoadBatch) {
-                            promiseResolver.reject(error);
-                        }
-                    });
-                });
-            }
-
-            const promiseResolver =
-                createPromiseImmediateResolver<TaskRealtimeQueryStoreCollectionEntry | null>();
-            this._scheduledCollectionLoadBatch.push({collectionId, promiseResolver});
-
-            // Once the promise has settled, delete it from `loadingCollectionPromiseById`.
-            // You can now get the task from `collectionEntryById`.
-            //
-            // If the task entry is evicted then we should create a new loading promise.
-            promiseResolver.promise.then(
-                () => this._loadingCollectionPromiseById.delete(collectionId),
-                () => this._loadingCollectionPromiseById.delete(collectionId),
-            );
-
-            return promiseResolver.promise;
-        });
+        return promiseResolver.promise;
     }
 
     private async _executeLoadCollectionBatch(
         context: TaskRealtimeSystemActionContext,
         collectionLoadBatch: Array<{
             collectionId: TaskCollectionId;
-            promiseResolver: PromiseImmediateResolver<TaskRealtimeQueryStoreCollectionEntry | null>;
+            promiseResolver: PromiseResolver<TaskRealtimeQueryStoreCollectionEntry | null>;
         }>,
     ): Promise<void> {
         await taskRealtimeQueryStoreBeforeLoadCollectionTestCheckpoint.waitForTest(this.spaceId);
@@ -1014,7 +1064,7 @@ export class TaskRealtimeQueryStoreInternal {
         context: TaskRealtimeSystemActionContext,
         collectionLoadBatch: Array<{
             collectionId: TaskCollectionId;
-            promiseResolver: PromiseImmediateResolver<TaskRealtimeQueryStoreCollectionEntry | null>;
+            promiseResolver: PromiseResolver<TaskRealtimeQueryStoreCollectionEntry | null>;
         }>,
         collections: Array<TaskCollectionIndexDoc | null>,
     ): void {
@@ -1022,7 +1072,7 @@ export class TaskRealtimeQueryStoreInternal {
             TaskCollectionId,
             {
                 freshCollection: TaskCollectionIndexDoc;
-                promiseResolver: PromiseImmediateResolver<TaskRealtimeQueryStoreCollectionEntry | null>;
+                promiseResolver: PromiseResolver<TaskRealtimeQueryStoreCollectionEntry | null>;
             }
         >();
 
@@ -1065,11 +1115,155 @@ export class TaskRealtimeQueryStoreInternal {
                 },
             );
 
-            const collectionEntry = new TaskRealtimeQueryStoreCollectionEntry(collection);
+            const collectionEntry = new TaskRealtimeQueryStoreCollectionEntry(this, collection);
 
             this._collectionEntryById.set(collectionId, collectionEntry);
 
             promiseResolver.resolve(collectionEntry);
+        }
+    }
+
+    private _getEvictableCount() {
+        return (
+            this._openEvictableQueries.size +
+            this._nextEvictableQueries.size +
+            this._openEvictableTaskIds.size +
+            this._nextEvictableTaskIds.size +
+            this._openEvictableCollectionIds.size +
+            this._nextEvictableCollectionIds.size
+        );
+    }
+
+    public addEvictableQuery(query: TaskRealtimeQuery) {
+        if (!this._nextEvictableQueries.has(query)) {
+            this._openEvictableQueries.add(query);
+
+            // If this is the first evictable item in the store, register ourselves for the
+            // next eviction.
+            if (!this._isEvicting && this._getEvictableCount() === 1) this._scheduleEviction();
+        }
+    }
+
+    public removeEvictableQuery(query: TaskRealtimeQuery) {
+        if (!this._openEvictableQueries.delete(query)) {
+            this._nextEvictableQueries.delete(query);
+        }
+    }
+
+    public addEvictableTaskId(taskId: TaskId) {
+        if (!this._nextEvictableTaskIds.has(taskId)) {
+            this._openEvictableTaskIds.add(taskId);
+
+            // If this is the first evictable item in the store, register ourselves for the
+            // next eviction.
+            if (!this._isEvicting && this._getEvictableCount() === 1) this._scheduleEviction();
+        }
+    }
+
+    public removeEvictableTaskId(taskId: TaskId) {
+        if (!this._openEvictableTaskIds.delete(taskId)) {
+            this._nextEvictableTaskIds.delete(taskId);
+        }
+    }
+
+    public addEvictableCollectionId(collectionId: TaskCollectionId) {
+        if (!this._openEvictableCollectionIds.has(collectionId)) {
+            this._nextEvictableCollectionIds.add(collectionId);
+
+            // If this is the first evictable item in the store, register ourselves for the
+            // next eviction.
+            if (!this._isEvicting && this._getEvictableCount() === 1) this._scheduleEviction();
+        }
+    }
+
+    public removeEvictableCollectionId(collectionId: TaskCollectionId) {
+        if (!this._openEvictableCollectionIds.delete(collectionId)) {
+            this._nextEvictableCollectionIds.delete(collectionId);
+        }
+    }
+
+    public evict() {
+        this._isEvicting = true;
+        try {
+            let evictQueries: Set<TaskRealtimeQuery> | null = this._nextEvictableQueries;
+            this._nextEvictableQueries = this._openEvictableQueries;
+            this._openEvictableQueries = new Set();
+
+            let evictTaskIds: Set<TaskId> | null = this._nextEvictableTaskIds;
+            this._nextEvictableTaskIds = this._openEvictableTaskIds;
+            this._openEvictableTaskIds = new Set();
+
+            let evictCollectionIds: Set<TaskCollectionId> | null = this._nextEvictableCollectionIds;
+            this._nextEvictableCollectionIds = this._openEvictableCollectionIds;
+            this._openEvictableCollectionIds = new Set();
+
+            // If in the process of evicting one of our items, another item becomes
+            // evictable then we want to evict that item too. Since it means the previous
+            // item we evicted was its one reference and that one reference was dead.
+            //
+            // This happens when we destroy queries. If a query has 10 loaded tasks which
+            // have no other references when the query is destroyed then we also want to
+            // evict those tasks.
+            while (
+                (evictQueries && evictQueries.size > 0) ||
+                (evictTaskIds && evictTaskIds.size > 0) ||
+                (evictCollectionIds && evictCollectionIds.size > 0)
+            ) {
+                if (evictQueries) {
+                    for (const query of evictQueries) {
+                        assert(
+                            this._queries.delete(
+                                stringifyForDeepEqualCheck({
+                                    filters: query.filters,
+                                    sorts: query.sorts,
+                                }),
+                            ),
+                        );
+
+                        query.destroy();
+                    }
+                }
+
+                if (evictTaskIds) {
+                    for (const taskId of evictTaskIds) {
+                        assert(this._taskEntryById.delete(taskId));
+                    }
+                }
+
+                if (evictCollectionIds) {
+                    for (const collectionId of evictCollectionIds) {
+                        assert(this._collectionEntryById.delete(collectionId));
+                    }
+                }
+
+                if (this._openEvictableQueries.size > 0) {
+                    evictQueries = this._openEvictableQueries;
+                    this._openEvictableQueries = new Set();
+                } else {
+                    evictQueries = null;
+                }
+
+                if (this._openEvictableTaskIds.size > 0) {
+                    evictTaskIds = this._openEvictableTaskIds;
+                    this._openEvictableTaskIds = new Set();
+                } else {
+                    evictTaskIds = null;
+                }
+
+                if (this._openEvictableCollectionIds.size > 0) {
+                    evictCollectionIds = this._openEvictableCollectionIds;
+                    this._openEvictableCollectionIds = new Set();
+                } else {
+                    evictCollectionIds = null;
+                }
+            }
+
+            // If we have more to evict in our `next*` evictable sets then schedule an
+            // eviction for the next timer run. Our `open*` evictable sets should be
+            // exhausted.
+            if (this._getEvictableCount() > 0) this._scheduleEviction();
+        } finally {
+            this._isEvicting = false;
         }
     }
 }
@@ -1087,20 +1281,20 @@ export class TaskRealtimeQueryStoreTaskEntry {
      * Queries that depend on this task. If a query is in this set then our task
      * must be visible in the query.
      */
-    // NOCOMMIT: Mark for eviction if no dependencies...
     private readonly _queryDependents = new Set<TaskRealtimeQuery>();
 
     /**
      * Query subscriptions that depend on this task. Query subscriptions reference
      * all parents, recursively, of loaded tasks.
      */
-    // NOCOMMIT: Mark for eviction if no dependencies...
     private readonly _querySubscriptionDependents =
         new Set<TaskRealtimeQuerySubscriptionInternal>();
 
     constructor(store: TaskRealtimeQueryStoreInternal, initialTask: TaskIndexDoc) {
         this._store = store;
         this.task = initialTask;
+
+        this._store.addEvictableTaskId(this.task.id);
 
         // In test and development environments make sure `this.task = newTask` never
         // changes the `TaskId`. In production this is a simple property getter/setter.
@@ -1116,6 +1310,10 @@ export class TaskRealtimeQueryStoreTaskEntry {
         }
     }
 
+    private _getDependentCount() {
+        return this._queryDependents.size + this._querySubscriptionDependents.size;
+    }
+
     public iterateQueryDependents() {
         return this._queryDependents.values();
     }
@@ -1125,8 +1323,9 @@ export class TaskRealtimeQueryStoreTaskEntry {
     }
 
     public addQueryDependent(query: TaskRealtimeQuery) {
-        // NOCOMMIT: Remove from if no dependencies...
+        const wasEvictable = this._getDependentCount() === 0;
         this._queryDependents.add(query);
+        if (wasEvictable) this._store.removeEvictableTaskId(this.task.id);
     }
 
     public removeQueryDependent(query: TaskRealtimeQuery) {
@@ -1134,8 +1333,9 @@ export class TaskRealtimeQueryStoreTaskEntry {
             assert(this._queryDependents.has(query), "Query was not added as a dependent to task");
         }
 
-        // NOCOMMIT: Mark for eviction if no dependencies...
         this._queryDependents.delete(query);
+        const isEvictable = this._getDependentCount() === 0;
+        if (isEvictable) this._store.addEvictableTaskId(this.task.id);
     }
 
     public iterateQuerySubscriptionDependents() {
@@ -1143,31 +1343,36 @@ export class TaskRealtimeQueryStoreTaskEntry {
     }
 
     public addQuerySubscriptionDependent(querySubscription: TaskRealtimeQuerySubscriptionInternal) {
-        // NOCOMMIT: Revive from eviction...
+        const wasEvictable = this._getDependentCount() === 0;
         this._querySubscriptionDependents.add(querySubscription);
+        if (wasEvictable) this._store.removeEvictableTaskId(this.task.id);
     }
 
     public removeQuerySubscriptionDependent(
         querySubscription: TaskRealtimeQuerySubscriptionInternal,
     ) {
-        // NOCOMMIT: Mark for eviction...
         this._querySubscriptionDependents.delete(querySubscription);
+        const isEvictable = this._getDependentCount() === 0;
+        if (isEvictable) this._store.addEvictableTaskId(this.task.id);
     }
 }
 
 export class TaskRealtimeQueryStoreCollectionEntry {
+    private readonly _store: TaskRealtimeQueryStoreInternal;
     public collection: TaskCollectionIndexDoc;
 
     /**
      * Query subscriptions that depend on this task. Query subscriptions reference
      * all parents, recursively, of loaded tasks.
      */
-    // NOCOMMIT: Mark for eviction if no dependencies...
     private readonly _querySubscriptionDependents =
         new Set<TaskRealtimeQuerySubscriptionInternal>();
 
-    constructor(initialCollection: TaskCollectionIndexDoc) {
+    constructor(store: TaskRealtimeQueryStoreInternal, initialCollection: TaskCollectionIndexDoc) {
+        this._store = store;
         this.collection = initialCollection;
+
+        this._store.addEvictableCollectionId(this.collection.id);
 
         // In test and development environments make sure
         // `this.collection = newCollection` never changes the `TaskCollectionId`. In
@@ -1184,19 +1389,25 @@ export class TaskRealtimeQueryStoreCollectionEntry {
         }
     }
 
+    private _getDependentCount() {
+        return this._querySubscriptionDependents.size;
+    }
+
     public iterateQuerySubscriptionDependents() {
         return this._querySubscriptionDependents.values();
     }
 
     public addQuerySubscriptionDependent(querySubscription: TaskRealtimeQuerySubscriptionInternal) {
-        // NOCOMMIT: Revive from eviction...
+        const wasEvictable = this._getDependentCount() === 0;
         this._querySubscriptionDependents.add(querySubscription);
+        if (wasEvictable) this._store.removeEvictableCollectionId(this.collection.id);
     }
 
     public removeQuerySubscriptionDependent(
         querySubscription: TaskRealtimeQuerySubscriptionInternal,
     ) {
-        // NOCOMMIT: Mark for eviction...
         this._querySubscriptionDependents.delete(querySubscription);
+        const isEvictable = this._getDependentCount() === 0;
+        if (isEvictable) this._store.addEvictableCollectionId(this.collection.id);
     }
 }

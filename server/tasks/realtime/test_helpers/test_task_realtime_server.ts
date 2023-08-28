@@ -1,4 +1,5 @@
 import {parseAbsolute, toCalendarDate} from "@internationalized/date";
+import {afterTestEnds} from "~/server/dynamo/test_helpers/after_test_ends.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
@@ -6,13 +7,13 @@ import {refreshTaskIndexForTest} from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {afterCommitTaskActionTransactionEventEmitterForTest} from "~/server/tasks/data/task_table.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
+import {testTracer} from "~/server/tracer/test_tracer.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
@@ -26,15 +27,6 @@ import {
     normalizeTaskQuerySorts,
 } from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
-
-let afterEachCleanupCallbacks: Array<() => MaybePromise<void>> = [];
-
-afterEach(async () => {
-    const callbacks = afterEachCleanupCallbacks;
-    afterEachCleanupCallbacks = [];
-
-    await runAllPromises(callbacks.map(callback => callback()));
-});
 
 /**
  * Wait for OpenSearch to have indexed all our action transactions.
@@ -67,10 +59,10 @@ export class TestTaskRealtimeServer {
     };
 
     constructor(context: TestContext) {
-        const [server, {start, stop}] = TaskRealtimeServer.new();
+        const [server, {start, stop}] = TaskRealtimeServer.new(testTracer);
 
         start(Promise.resolve());
-        afterEachCleanupCallbacks.push(stop);
+        afterTestEnds(stop);
 
         const unsubscribe = assertExists(
             afterCommitTaskActionTransactionEventEmitterForTest,
@@ -91,8 +83,16 @@ export class TestTaskRealtimeServer {
                 );
             }
         });
-        afterEachCleanupCallbacks.push(() => this.waitForApplyActionTransactions());
-        afterEachCleanupCallbacks.push(unsubscribe);
+        afterTestEnds(() => this.waitForApplyActionTransactions());
+        afterTestEnds(unsubscribe);
+
+        // When our test is finished, evict everything and make sure the server was
+        // truly emptied out.
+        afterTestEnds(async () => {
+            await ProcessContextModule.waitForTestTasks();
+            this.server.evictAllForTest();
+            this.server.assertEmptyForTest();
+        });
 
         this.context = context;
         this.server = server;
@@ -184,5 +184,9 @@ export class TestTaskRealtimeServer {
             sorts: normalizeTaskQuerySorts(options?.sorts ?? []),
             limit: options?.limit ?? 100,
         });
+    }
+
+    public evictAll() {
+        this.server.evictAllForTest();
     }
 }

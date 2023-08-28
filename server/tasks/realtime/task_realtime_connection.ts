@@ -92,10 +92,14 @@ export class TaskRealtimeConnection {
         this._sendEvent = sendEvent;
     }
 
-    public handleClose() {
+    public async handleClose() {
+        const eventBuilder = new TaskRealtimeUpdateEventBuilder();
+
         for (const querySubscription of this._querySubscriptionById.values()) {
-            querySubscription.unsubscribe();
+            querySubscription.unsubscribe(eventBuilder);
         }
+
+        await eventBuilder.waitWithoutSending();
     }
 
     public async authorize(context: ServerSessionActionContext) {
@@ -149,9 +153,8 @@ export class TaskRealtimeConnection {
                     assert(!this._querySubscriptionById.has(querySubscriptionId));
                     this._querySubscriptionById.set(querySubscriptionId, querySubscription);
 
+                    const eventBuilder = new TaskRealtimeUpdateEventBuilder();
                     try {
-                        const eventBuilder = new TaskRealtimeUpdateEventBuilder();
-
                         const loadedState = await querySubscription.loadMoreTasks(
                             context,
                             eventBuilder,
@@ -163,7 +166,9 @@ export class TaskRealtimeConnection {
                     } catch (error) {
                         // If there's an error, unsubscribe so we don't have a dangling subscription.
                         this._querySubscriptionById.delete(querySubscriptionId);
-                        querySubscription.unsubscribe();
+
+                        querySubscription.unsubscribe(eventBuilder);
+                        await eventBuilder.send(context, this._spaceId);
 
                         throw error;
                     }
@@ -175,7 +180,10 @@ export class TaskRealtimeConnection {
             if (!querySubscription) throw new NotFoundError("Query subscription not found");
 
             this._querySubscriptionById.delete(querySubscriptionId);
-            querySubscription.unsubscribe();
+
+            const eventBuilder = new TaskRealtimeUpdateEventBuilder();
+            querySubscription.unsubscribe(eventBuilder);
+            await eventBuilder.send(context, this._spaceId);
 
             return {};
         },
@@ -456,7 +464,7 @@ export class TaskRealtimeConnection {
                     }),
                 );
             },
-            onReferencedTaskRemove: (context, eventBuilder, oldTask) => {
+            onReferencedTaskRemove: (eventBuilder, oldTask) => {
                 const referencedTaskState = this._referencedTaskStateById.get(oldTask.id);
                 assert(referencedTaskState !== undefined);
 
@@ -570,7 +578,7 @@ export class TaskRealtimeConnection {
                     }),
                 );
             },
-            onReferencedCollectionRemove: (context, eventBuilder, oldCollection) => {
+            onReferencedCollectionRemove: (eventBuilder, oldCollection) => {
                 const referencedCollectionState = this._referencedCollectionStateById.get(
                     oldCollection.id,
                 );

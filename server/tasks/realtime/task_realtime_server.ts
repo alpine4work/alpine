@@ -14,6 +14,7 @@ import {
 } from "~/server/tasks/realtime/task_realtime_query_subscription.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -21,6 +22,13 @@ import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.js";
+
+// Run the query store eviction procedure every minute. When an item in the
+// query store is made evictable it is guaranteed to survive at least one
+// eviction call. This means items will be evicted from the query store at most
+// within two minutes of becoming evictable.
+const taskRealtimeServerEvictionInterval = 1000 * 60;
 
 /**
  * The horizontally scalable task realtime server. We don't actually run the
@@ -46,37 +54,46 @@ export class TaskRealtimeServer {
          * resolves we don't have that guarantee.
          */
         readonly discoveredPromise: Promise<{readonly discoveredTime: number}>;
+
+        /**
+         * The timeout for our server's eviction procedure.
+         */
+        readonly evictTimeout: Timeout;
     } | null = null;
 
+    private readonly _tracer: TracerRoot;
     private readonly _actionHistory: TaskRealtimeActionHistory;
     private readonly _startActionHistory: () => void;
     private readonly _stopActionHistory: () => void;
     private readonly _backfillActionHistoryPromiseBySpaceId = new Map<SpaceId, Promise<void>>();
+    private _scheduledStoresForEviction = new Set<TaskRealtimeQueryStore>();
     private _disableActionHistoryBackfillForTest?: boolean;
 
-    private readonly _storeBySpaceId = new DefaultMap<SpaceId, TaskRealtimeQueryStore>(
-        spaceId =>
-            new TaskRealtimeQueryStore({
-                spaceId,
-                actionHistory: this._actionHistory,
-                ensureFullActionHistory: context => this._ensureFullActionHistory(context, spaceId),
-            }),
-    );
+    private readonly _storeBySpaceId = new DefaultMap<SpaceId, TaskRealtimeQueryStore>(spaceId => {
+        const store: TaskRealtimeQueryStore = new TaskRealtimeQueryStore({
+            spaceId,
+            actionHistory: this._actionHistory,
+            ensureFullActionHistory: context => this._ensureFullActionHistory(context, spaceId),
+            scheduleEviction: () => this._scheduledStoresForEviction.add(store),
+        });
 
-    private constructor() {
+        return store;
+    });
+
+    private constructor(tracer: TracerRoot) {
         const [actionHistory, {start: startActionHistory, stop: stopActionHistory}] =
             TaskRealtimeActionHistory.new();
 
+        this._tracer = tracer;
         this._actionHistory = actionHistory;
         this._startActionHistory = startActionHistory;
         this._stopActionHistory = stopActionHistory;
     }
 
-    public static new(): [
-        TaskRealtimeServer,
-        {start: (discoveredPromise: Promise<void>) => void; stop: () => void},
-    ] {
-        const server = new TaskRealtimeServer();
+    public static new(
+        tracer: TracerRoot,
+    ): [TaskRealtimeServer, {start: (discoveredPromise: Promise<void>) => void; stop: () => void}] {
+        const server = new TaskRealtimeServer(tracer);
         return [
             server,
             {
@@ -84,6 +101,14 @@ export class TaskRealtimeServer {
                 stop: () => server._stop(),
             },
         ];
+    }
+
+    public assertEmptyForTest() {
+        assert(process.env.NODE_ENV === "test");
+
+        for (const store of this._storeBySpaceId.values()) {
+            store.assertEmptyForTest();
+        }
     }
 
     /**
@@ -101,13 +126,28 @@ export class TaskRealtimeServer {
     private _start(discoveredPromise: Promise<void>) {
         assert(this._state === null);
 
-        this._state = {
+        this._startActionHistory();
+
+        const evict = () => {
+            const startTime = Date.now();
+
+            this._evict();
+
+            const endTime = Date.now();
+            state.evictTimeout = createTimeout(
+                evict,
+                taskRealtimeServerEvictionInterval - (endTime - startTime),
+            );
+        };
+
+        const state = {
             discoveredPromise: discoveredPromise.then(() => ({
                 discoveredTime: Date.now(),
             })),
+            evictTimeout: createTimeout(evict, taskRealtimeServerEvictionInterval),
         };
 
-        this._startActionHistory();
+        this._state = state;
     }
 
     /**
@@ -115,6 +155,7 @@ export class TaskRealtimeServer {
      */
     private _stop() {
         assert(this._state !== null);
+        this._state.evictTimeout.clear();
         this._state = null;
         this._stopActionHistory();
 
@@ -123,6 +164,49 @@ export class TaskRealtimeServer {
         if (this._disableActionHistoryBackfillForTest === true) {
             this._disableActionHistoryBackfillForTest = false;
         }
+    }
+
+    private _evict() {
+        if (this._scheduledStoresForEviction.size === 0) return;
+
+        this._tracer.withSpanSync("Evicting dead items from task realtime server", span => {
+            const stores = this._scheduledStoresForEviction;
+            this._scheduledStoresForEviction = new Set();
+
+            for (const store of stores) {
+                span.withSpanSync("Evicting dead items from task realtime query store", span => {
+                    span.addData({context: {spaceId: store.spaceId}});
+
+                    try {
+                        store.evict();
+                    } catch (error) {
+                        span.addException(span);
+
+                        // Don't rethrow the error. If an eviction call fails we report it in our span
+                        // and continue.
+                    }
+                });
+            }
+        });
+    }
+
+    /**
+     * Immediately evict all dead items from our server. You may only run this in
+     * test environments.
+     */
+    public evictAllForTest() {
+        assert(process.env.NODE_ENV === "test");
+
+        this._evict();
+        this._evict();
+
+        // Dead items stay around for at least one eviction. So we need to evict twice
+        // to evict everything. Assert that once we evict twice there are no more
+        // scheduled evictions.
+        assert(
+            this._scheduledStoresForEviction.size === 0,
+            "Expected two evictions to be enough to evict everything",
+        );
     }
 
     /**

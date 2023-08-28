@@ -68,6 +68,8 @@ export class TaskRealtimeQuery {
     public readonly filters: TaskQueryNormalizedFilters;
     public readonly sorts: ReadonlyArray<TaskQueryNormalizedSort>;
 
+    private _isDestroyed = false;
+
     /**
      * Tasks in a query are represented with a red-black tree. We use a red-black
      * tree to get O(log(n)) insertion/removal of tasks at any point in the list.
@@ -149,6 +151,8 @@ export class TaskRealtimeQuery {
         this.store = store;
         this.filters = filters;
         this.sorts = sorts;
+
+        this.store.addEvictableQuery(this);
     }
 
     public assertCorrectForTest() {
@@ -205,14 +209,31 @@ export class TaskRealtimeQuery {
         return {visibleTaskIds};
     }
 
+    public destroy() {
+        assert(!this._isDestroyed);
+        this._isDestroyed = true;
+
+        const iterator = this._tree.iterator();
+        let cursor: TaskQuerySortCursor | null;
+        while ((cursor = iterator.next()) !== null) {
+            const taskId = cursor[cursor.length - 1] as TaskId;
+            const taskEntry = assertExists(this.store.getTaskEntryIfExists(taskId));
+            taskEntry.removeQueryDependent(this);
+        }
+    }
+
     public addSubscription(subscription: TaskRealtimeQuerySubscriptionInternal) {
-        // NOCOMMIT: Revive from eviction
+        assert(!this._isDestroyed);
+        const wasEvictable = this._subscriptions.size === 0;
         this._subscriptions.add(subscription);
+        if (wasEvictable) this.store.removeEvictableQuery(this);
     }
 
     public removeSubscription(subscription: TaskRealtimeQuerySubscriptionInternal) {
-        // NOCOMMIT: Schedule for eviction
+        assert(!this._isDestroyed);
         this._subscriptions.delete(subscription);
+        const isEvictable = this._subscriptions.size === 0;
+        if (isEvictable) this.store.addEvictableQuery(this);
     }
 
     /**
@@ -235,6 +256,8 @@ export class TaskRealtimeQuery {
         hasMoreTasks: boolean;
         tasks: Array<TaskIndexDoc>;
     } {
+        assert(!this._isDestroyed);
+
         const tasks: Array<TaskIndexDoc> = [];
 
         // An iterator that starts at the item after `afterCursor`. If there is no
@@ -312,6 +335,7 @@ export class TaskRealtimeQuery {
         context: TaskRealtimeSystemActionContext,
         limit: number,
     ): Promise<void> {
+        assert(!this._isDestroyed);
         assert(Number.isInteger(limit));
         if (limit < 0) return;
 
@@ -710,6 +734,8 @@ export class TaskRealtimeQuery {
         newTask: TaskIndexDoc,
         actions: NonEmptyReadonlyArray<TaskAction>,
     ): {isStillVisible: boolean} {
+        assert(!this._isDestroyed);
+
         // When testing, track that the query class observes every update to a task and
         // that no updates are skipped.
         if (process.env.NODE_ENV !== "production") {
@@ -843,6 +869,8 @@ export class TaskRealtimeQuery {
         eventBuilder: TaskRealtimeUpdateEventBuilder,
         task: TaskIndexDoc,
     ): {isVisible: boolean} {
+        assert(!this._isDestroyed);
+
         // When testing, track that the query class observes every update to a task and
         // that no updates are skipped.
         if (process.env.NODE_ENV !== "production") {

@@ -9,6 +9,7 @@ import {
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
 import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_update_event.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
+import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -135,7 +136,6 @@ export type TaskRealtimeQuerySubscriptionCallbacks = {
      * an add event.
      */
     onReferencedTaskRemove(
-        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilder,
         oldTask: TaskIndexDoc,
     ): void;
@@ -180,7 +180,6 @@ export type TaskRealtimeQuerySubscriptionCallbacks = {
      * get an add event.
      */
     onReferencedCollectionRemove(
-        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilder,
         oldCollection: TaskCollectionIndexDoc,
     ): void;
@@ -194,8 +193,8 @@ export class TaskRealtimeQuerySubscription {
         this._internal = new TaskRealtimeQuerySubscriptionInternal(query, callbacks);
     }
 
-    public unsubscribe() {
-        this._internal.unsubscribe();
+    public unsubscribe(eventBuilder: TaskRealtimeUpdateEventBuilder) {
+        this._internal.unsubscribe(eventBuilder);
     }
 
     public getFilters() {
@@ -233,6 +232,7 @@ export class TaskRealtimeQuerySubscription {
 export class TaskRealtimeQuerySubscriptionInternal {
     public readonly query: TaskRealtimeQuery;
     private readonly _callbacks: TaskRealtimeQuerySubscriptionCallbacks;
+    private _isSubscribed = true;
     private _loadedBeforeCursor: TaskQuerySortCursor | "FullyLoaded" | "Unloaded" = "Unloaded";
     private _loadedCount = 0;
 
@@ -240,7 +240,7 @@ export class TaskRealtimeQuerySubscriptionInternal {
         TaskId,
         {
             referenceCount: number;
-            taskEntry: PromiseLike<TaskRealtimeQueryStoreTaskEntry>;
+            taskEntry: PromiseImmediate<TaskRealtimeQueryStoreTaskEntry>;
         }
     >();
 
@@ -248,7 +248,7 @@ export class TaskRealtimeQuerySubscriptionInternal {
         TaskCollectionId,
         {
             referenceCount: number;
-            collectionEntry: PromiseLike<TaskRealtimeQueryStoreCollectionEntry>;
+            collectionEntry: PromiseImmediate<TaskRealtimeQueryStoreCollectionEntry>;
         }
     >();
 
@@ -299,10 +299,29 @@ export class TaskRealtimeQuerySubscriptionInternal {
         }
     }
 
-    public unsubscribe() {
-        // NOCOMMIT: Do `removeQuerySubscriptionDependent()` calls. Maybe flip a "dead"
-        // flag and throw if we try to use after?
+    public unsubscribe(eventBuilder: TaskRealtimeUpdateEventBuilder) {
+        assert(this._isSubscribed);
+        this._isSubscribed = false;
+
         this.query.removeSubscription(this);
+
+        for (const {taskEntry} of this._referencedTaskEntryById.values()) {
+            eventBuilder.waitUntil(
+                taskEntry.then(taskEntry => {
+                    taskEntry.removeQuerySubscriptionDependent(this);
+                    this._onReferencedTaskRemove(eventBuilder, taskEntry.task);
+                }),
+            );
+        }
+
+        for (const {collectionEntry} of this._referencedCollectionEntryById.values()) {
+            eventBuilder.waitUntil(
+                collectionEntry.then(collectionEntry => {
+                    collectionEntry.removeQuerySubscriptionDependent(this);
+                    this._onReferencedCollectionRemove(eventBuilder, collectionEntry.collection);
+                }),
+            );
+        }
     }
 
     /**
@@ -318,6 +337,8 @@ export class TaskRealtimeQuerySubscriptionInternal {
         eventBuilder: TaskRealtimeUpdateEventBuilder,
         limit: number,
     ): Promise<TaskRealtimeQueryLoadedState> {
+        assert(this._isSubscribed);
+
         await this.query.loadMoreTasks(
             context,
             this._loadedCount + limit - this.query.getLoadedTaskCount(),
@@ -368,6 +389,8 @@ export class TaskRealtimeQuerySubscriptionInternal {
         eventBuilder: TaskRealtimeUpdateEventBuilder,
         newTask: TaskIndexDoc,
     ) {
+        assert(this._isSubscribed);
+
         if (
             this._loadedBeforeCursor !== "Unloaded" &&
             (this._loadedBeforeCursor === "FullyLoaded" ||
@@ -389,6 +412,8 @@ export class TaskRealtimeQuerySubscriptionInternal {
         newTask: TaskIndexDoc,
         actions: NonEmptyReadonlyArray<TaskAction>,
     ) {
+        assert(this._isSubscribed);
+
         if (this._loadedBeforeCursor === "FullyLoaded") {
             this._onLoadedTaskUpdate(context, eventBuilder, taskId, oldTask, newTask, actions);
         } else if (this._loadedBeforeCursor !== "Unloaded") {
@@ -428,6 +453,8 @@ export class TaskRealtimeQuerySubscriptionInternal {
         oldTask: TaskIndexDoc,
         actions: NonEmptyReadonlyArray<TaskAction>,
     ) {
+        assert(this._isSubscribed);
+
         if (
             this._loadedBeforeCursor !== "Unloaded" &&
             (this._loadedBeforeCursor === "FullyLoaded" ||
@@ -532,7 +559,7 @@ export class TaskRealtimeQuerySubscriptionInternal {
 
         this._loadedCount--;
 
-        this._trackTaskDependenciesFromRemove(context, eventBuilder, oldTask);
+        this._trackTaskDependenciesFromRemove(eventBuilder, oldTask);
 
         this._callbacks.onLoadedTaskRemove(context, eventBuilder, oldTask, actions);
     }
@@ -572,6 +599,8 @@ export class TaskRealtimeQuerySubscriptionInternal {
         newTask: TaskIndexDoc,
         actions: NonEmptyReadonlyArray<TaskAction>,
     ) {
+        assert(this._isSubscribed);
+
         // When testing, keep track of the tasks we've seen so we can guarantee we've
         // seen every relevant update for a task.
         if (process.env.NODE_ENV !== "production") {
@@ -602,7 +631,6 @@ export class TaskRealtimeQuerySubscriptionInternal {
     }
 
     private _onReferencedTaskRemove(
-        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilder,
         oldTask: TaskIndexDoc,
     ) {
@@ -623,9 +651,9 @@ export class TaskRealtimeQuerySubscriptionInternal {
             previousTaskById.delete(oldTask.id);
         }
 
-        this._trackTaskDependenciesFromRemove(context, eventBuilder, oldTask);
+        this._trackTaskDependenciesFromRemove(eventBuilder, oldTask);
 
-        this._callbacks.onReferencedTaskRemove(context, eventBuilder, oldTask);
+        this._callbacks.onReferencedTaskRemove(eventBuilder, oldTask);
     }
 
     private _trackTaskDependenciesFromAdd(
@@ -745,7 +773,7 @@ export class TaskRealtimeQuerySubscriptionInternal {
                     eventBuilder.waitUntil(
                         referencedTaskEntry.taskEntry.then(taskEntry => {
                             taskEntry.removeQuerySubscriptionDependent(this);
-                            this._onReferencedTaskRemove(context, eventBuilder, taskEntry.task);
+                            this._onReferencedTaskRemove(eventBuilder, taskEntry.task);
                         }),
                     );
                     this._referencedTaskEntryById.delete(oldParentTaskId);
@@ -810,7 +838,6 @@ export class TaskRealtimeQuerySubscriptionInternal {
                         referencedCollectionEntry.collectionEntry.then(collectionEntry => {
                             collectionEntry.removeQuerySubscriptionDependent(this);
                             this._onReferencedCollectionRemove(
-                                context,
                                 eventBuilder,
                                 collectionEntry.collection,
                             );
@@ -823,7 +850,6 @@ export class TaskRealtimeQuerySubscriptionInternal {
     }
 
     private _trackTaskDependenciesFromRemove(
-        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilder,
         oldTask: TaskIndexDoc,
     ) {
@@ -840,7 +866,7 @@ export class TaskRealtimeQuerySubscriptionInternal {
                 eventBuilder.waitUntil(
                     referencedTaskEntry.taskEntry.then(taskEntry => {
                         taskEntry.removeQuerySubscriptionDependent(this);
-                        this._onReferencedTaskRemove(context, eventBuilder, taskEntry.task);
+                        this._onReferencedTaskRemove(eventBuilder, taskEntry.task);
                     }),
                 );
                 this._referencedTaskEntryById.delete(oldParentTaskId);
@@ -863,7 +889,6 @@ export class TaskRealtimeQuerySubscriptionInternal {
                     referencedCollectionEntry.collectionEntry.then(collectionEntry => {
                         collectionEntry.removeQuerySubscriptionDependent(this);
                         this._onReferencedCollectionRemove(
-                            context,
                             eventBuilder,
                             collectionEntry.collection,
                         );
@@ -907,6 +932,8 @@ export class TaskRealtimeQuerySubscriptionInternal {
         newCollection: TaskCollectionIndexDoc,
         actions: NonEmptyReadonlyArray<TaskAction>,
     ) {
+        assert(this._isSubscribed);
+
         // When testing, keep track of the tasks we've seen so we can guarantee we've
         // seen every relevant update for a task.
         if (process.env.NODE_ENV !== "production") {
@@ -935,7 +962,6 @@ export class TaskRealtimeQuerySubscriptionInternal {
     }
 
     private _onReferencedCollectionRemove(
-        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilder,
         oldCollection: TaskCollectionIndexDoc,
     ) {
@@ -956,7 +982,7 @@ export class TaskRealtimeQuerySubscriptionInternal {
             previousCollectionById.delete(oldCollection.id);
         }
 
-        this._callbacks.onReferencedCollectionRemove(context, eventBuilder, oldCollection);
+        this._callbacks.onReferencedCollectionRemove(eventBuilder, oldCollection);
     }
 }
 

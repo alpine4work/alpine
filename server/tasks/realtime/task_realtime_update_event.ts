@@ -148,6 +148,29 @@ export class TaskRealtimeUpdateEventBuilder {
     }
 
     /**
+     * Wait for promises passed into `waitUntil()` to resolve but don't actually
+     * send the event. This consumes the event builder so you won't be able to call
+     * `send()` after.
+     */
+    public async waitWithoutSending() {
+        assert(this._isBuilding);
+
+        assert(!this._isSending);
+        this._isSending = true;
+
+        // Wait for all our `waitUntil()` promises to resolve before building the
+        // final event.
+        while (this._promises.length > 0) {
+            const promises = this._promises;
+            this._promises = [];
+            await runAllPromises(promises);
+        }
+
+        assert(this._isBuilding);
+        this._isBuilding = false;
+    }
+
+    /**
      * Once the event builder has finalized you can't call any of its methods (like
      * `addAuthorizedTaskBackfill`) without getting an error. This function delays
      * event builder finalization until the promise resolves allowing you to load

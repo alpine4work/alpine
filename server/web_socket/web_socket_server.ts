@@ -19,6 +19,7 @@ import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -95,7 +96,7 @@ export interface WebSocketServerConnectionBase<
      */
     handleClose?(
         context: Context<ProcessContextModules> | Context<SessionActionContextModules>,
-    ): void;
+    ): MaybePromise<void>;
 }
 
 /**
@@ -363,19 +364,23 @@ export class WebSocketServer<
         if (existingConnection && existingConnection === connection) {
             this._connections.delete(connection.id);
 
-            const {span, finishSpan} = context.tracer.startSpan("Close WebSocket connection");
-            span.addData({
-                webSocket: {
-                    connectionId: connection.id,
-                },
+            context.process.waitUntil(async () => {
+                const {span, finishSpan} = context.tracer.startSpan("Close WebSocket connection");
+                span.addData({
+                    webSocket: {
+                        connectionId: connection.id,
+                    },
+                });
+                try {
+                    await connection.connection.handleClose?.(context);
+                    finishSpan();
+                } catch (error) {
+                    // Don't re-throw error. Adding it to the span is enough. We don't need it to
+                    // also be logged as an uncaught exception.
+                    span.addException(error);
+                    finishSpan();
+                }
             });
-            try {
-                connection.connection.handleClose?.(context);
-                finishSpan();
-            } catch (error) {
-                span.addException(error);
-                finishSpan();
-            }
         }
 
         // When we are out of connections, clear our interval.
