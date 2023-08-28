@@ -99,4 +99,38 @@ export class TestTaskCollection {
             },
         ]);
     }
+
+    public async setPrivateAccessPolicy(session: TestSpaceSession) {
+        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+            {
+                type: "UpdateCollection",
+                time: testClock.nowLogical(),
+                collectionId: this.id,
+                collectionAction: {
+                    type: "UpdateAccessPolicy",
+                    accessPolicy: {
+                        accountGrantById: new Map([[session.account.id, {level: "Manage"}]]),
+                        defaultGrant: null,
+                    },
+                },
+            },
+        ]);
+    }
+
+    public async setPublicAccessPolicy(session: TestSpaceSession) {
+        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+            {
+                type: "UpdateCollection",
+                time: testClock.nowLogical(),
+                collectionId: this.id,
+                collectionAction: {
+                    type: "UpdateAccessPolicy",
+                    accessPolicy: {
+                        accountGrantById: new Map([[session.account.id, {level: "Manage"}]]),
+                        defaultGrant: {type: "Space", level: "Manage"},
+                    },
+                },
+            },
+        ]);
+    }
 }

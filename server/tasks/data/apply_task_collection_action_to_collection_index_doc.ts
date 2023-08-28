@@ -2,6 +2,7 @@ import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {
     HybridLogicalTime,
+    compareHybridLogicalTimes,
     maxHybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -20,7 +21,7 @@ export function applyTaskCollectionActionToCollectionIndexDoc(
 ): TaskCollectionIndexDoc {
     switch (action.type) {
         case "Create": {
-            if (collection.createdTime.getTime() !== actionTime[0]) {
+            if (compareHybridLogicalTimes(collection.createdTime, actionTime)) {
                 throw new FailedPreconditionError("Incompatible create action");
             }
             return collection;

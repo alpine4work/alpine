@@ -581,6 +581,7 @@ export class WebSocketServer<
             ) as any,
             takeEvents: () => connection.takeEvents(),
             subscribeToEvents: listener => connection.subscribeToEvents(listener),
+            authorize: () => connection.authorize(),
             close: () => connection.close(),
         };
     }
@@ -1249,6 +1250,12 @@ export interface WebSocketServerTestConnection<
     ): () => void;
 
     /**
+     * Run the connection's authorization procedure to reauthorize. If
+     * authorization fails then the connection will be closed.
+     */
+    authorize(): Promise<void>;
+
+    /**
      * Close the connection. Does nothing if the connection is already closed.
      */
     close(): void;
@@ -1347,6 +1354,17 @@ class WebSocketServerTestConnectionWrapper<
 
     public subscribeToEvents(listener: (event: WebSocketProtocolEventType<Protocol>) => void) {
         return this._events.subscribe(listener);
+    }
+
+    public authorize() {
+        return this._actionContext.fork
+            .withFork(webSocketConnectionAuthorizationSpanName, context =>
+                this.connection.authorize(context),
+            )
+            .catch(error => {
+                this.close();
+                throw error;
+            });
     }
 
     public isClosed() {

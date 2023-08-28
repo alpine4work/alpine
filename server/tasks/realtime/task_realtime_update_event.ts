@@ -11,7 +11,10 @@ import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 
+let number = 1;
+
 export type TaskRealtimeUpdateEvent = {
+    readonly number: number;
     readonly actions: ReadonlyArray<TaskAction>;
     readonly backfillAuthorizedTasks: ReadonlyArray<TaskIndexDoc>;
     readonly backfillUnauthorizedTaskIds: ReadonlyArray<TaskId>;
@@ -64,6 +67,7 @@ export const taskRealtimeQueryStoreBeforeSendEventTestCheckpoint = new TestCheck
  * to the client.
  */
 export class TaskRealtimeUpdateEventBuilder {
+    private readonly _number = number++;
     private _isBuilding = true;
     private _isSending = false;
     private _promises: Array<PromiseLike<unknown>> = [];
@@ -130,6 +134,7 @@ export class TaskRealtimeUpdateEventBuilder {
                 }
 
                 await sender.send(context, {
+                    number: this._number,
                     actions: Array.from(event.actions),
                     backfillAuthorizedTasks,
                     backfillUnauthorizedTaskIds: Array.from(event.backfillUnauthorizedTaskIds),

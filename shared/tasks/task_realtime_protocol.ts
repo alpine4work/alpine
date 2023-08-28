@@ -75,6 +75,7 @@ export const TaskRealtimeProtocol = defineWebSocketProtocol({
     events: {
         Update: Schema.object({
             type: Schema.value("Update"),
+            number: Schema.integer,
             actions: Schema.array(TaskActionSchema),
             backfillAuthorizedTasks: Schema.array(TaskModel.schema),
             backfillUnauthorizedTaskIds: Schema.array(Schema.id<TaskId>()),
