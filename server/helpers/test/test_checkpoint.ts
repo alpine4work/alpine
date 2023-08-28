@@ -75,8 +75,16 @@ export class TestCheckpoint<
      * provided request.
      *
      * Will throw if called outside of a test environment.
+     *
+     * `unpause` will resume any code paused at this checkpoint. Future code that
+     * reaches this checkpoint will not be paused. `stopPausing` will not resume
+     * any code paused at this checkpoint but it will stop future code from being
+     * paused at this checkpoint.
      */
-    public async pauseForTest(key: Key): Promise<{unpause: () => void}> {
+    public async pauseForTest(key: Key): Promise<{
+        unpause: () => void;
+        stopPausing: () => void;
+    }> {
         const keyString = jsonStableStringify(key);
 
         assert(import.meta.jest);
@@ -87,11 +95,23 @@ export class TestCheckpoint<
 
         const promiseResolver2 = await promiseResolver1.promise;
 
+        let hasStoppedPausing = false;
+
         return {
             unpause: () => {
-                assert(this._promiseResolverByKey.get(keyString) === promiseResolver1);
-                this._promiseResolverByKey.delete(keyString);
+                if (!hasStoppedPausing) {
+                    assert(this._promiseResolverByKey.get(keyString) === promiseResolver1);
+                    this._promiseResolverByKey.delete(keyString);
+                    hasStoppedPausing = true;
+                }
                 promiseResolver2.resolve();
+            },
+            stopPausing: () => {
+                if (!hasStoppedPausing) {
+                    assert(this._promiseResolverByKey.get(keyString) === promiseResolver1);
+                    this._promiseResolverByKey.delete(keyString);
+                    hasStoppedPausing = true;
+                }
             },
         };
     }

@@ -135,7 +135,7 @@ export class TaskRealtimeConnection {
 
         // 4. If authorization changed for any referenced tasks we'll have a realtime
         // event to send.
-        await eventBuilder.send(context);
+        await eventBuilder.send(context, this._spaceId);
     }
 
     public readonly procedures: WebSocketConnectionProcedures<
@@ -180,7 +180,7 @@ export class TaskRealtimeConnection {
                             input.limit,
                         );
 
-                        await eventBuilder.send(context);
+                        await eventBuilder.send(context, this._spaceId);
                         return {querySubscriptionId, loadedState};
                     } catch (error) {
                         // If there's an error, unsubscribe so we don't have a dangling subscription.
@@ -220,7 +220,7 @@ export class TaskRealtimeConnection {
                         limit,
                     );
 
-                    await eventBuilder.send(context);
+                    await eventBuilder.send(context, this._spaceId);
                     return {loadedState};
                 },
             );

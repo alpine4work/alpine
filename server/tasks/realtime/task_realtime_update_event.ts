@@ -1,5 +1,6 @@
 import {DynamoActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
+import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -7,7 +8,7 @@ import {Context} from "~/shared/context/context.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
-import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 
 export type TaskRealtimeUpdateEvent = {
@@ -37,6 +38,8 @@ type TaskRealtimeWorkingUpdateEvent = {
     backfillAuthorizedCollections: Set<TaskCollectionIndexDoc>;
     backfillUnauthorizedCollectionIds: Set<TaskCollectionId>;
 };
+
+export const taskRealtimeQueryStoreBeforeSendEventTestCheckpoint = new TestCheckpoint<SpaceId>();
 
 /**
  * Builds an update event for the client.
@@ -91,11 +94,14 @@ export class TaskRealtimeUpdateEventBuilder {
                 actor: DynamoActorContextModule;
             }
         >,
+        spaceId: SpaceId,
     ) {
         assert(this._isBuilding);
 
         assert(!this._isSending);
         this._isSending = true;
+
+        await taskRealtimeQueryStoreBeforeSendEventTestCheckpoint.waitForTest(spaceId);
 
         // Wait for all our `waitUntil()` promises to resolve before building the
         // final event.

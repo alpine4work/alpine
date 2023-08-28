@@ -10,7 +10,7 @@ import {
 } from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {backfillTaskActionTransactionHistoryTestCounter} from "~/server/tasks/data/task_table.js";
-import {taskRealtimeQueryStoreLoadTaskTestCheckpoint} from "~/server/tasks/realtime/task_realtime_query_store.js";
+import {taskRealtimeQueryStoreBeforeLoadTaskTestCheckpoint} from "~/server/tasks/realtime/task_realtime_query_store.js";
 import {
     TestTaskRealtimeServer,
     waitForIndexActionTransactionsWithoutClearingActionHistory,
@@ -2481,7 +2481,7 @@ test("load doesn't put loaded task in already loaded range", async () => {
         ]),
     });
 
-    const pausePromise = taskRealtimeQueryStoreLoadTaskTestCheckpoint.pauseForTest(space.id);
+    const pausePromise = taskRealtimeQueryStoreBeforeLoadTaskTestCheckpoint.pauseForTest(space.id);
 
     await task8.updatePriority(session, "Low");
     const applyActionTransactionPromise = server.waitForApplyActionTransactions();
@@ -3666,7 +3666,7 @@ test("after loading tasks we will replay actions to add missing tasks and works 
         }),
     ).toEqual(await runAllPromises([task1.getIndexDoc()]));
 
-    const pausePromise = taskRealtimeQueryStoreLoadTaskTestCheckpoint.pauseForTest(space.id);
+    const pausePromise = taskRealtimeQueryStoreBeforeLoadTaskTestCheckpoint.pauseForTest(space.id);
 
     const loadPromise = server.loadQuery(session, {
         limit: 3,

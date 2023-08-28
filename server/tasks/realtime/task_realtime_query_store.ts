@@ -138,7 +138,9 @@ export class TaskRealtimeQueryStore {
     }
 }
 
-export const taskRealtimeQueryStoreLoadTaskTestCheckpoint = new TestCheckpoint<SpaceId>();
+export const taskRealtimeQueryStoreBeforeLoadTaskTestCheckpoint = new TestCheckpoint<SpaceId>();
+export const taskRealtimeQueryStoreBeforeLoadCollectionTestCheckpoint =
+    new TestCheckpoint<SpaceId>();
 
 // Our store implementation has some public methods that `TaskRealtimeQuery` is
 // allowed to call but external users of `TaskRealtimeQueryStore` should not
@@ -723,7 +725,7 @@ export class TaskRealtimeQueryStoreInternal {
         // connected clients! In the process of updating we will have found out which
         // actions need to go to which clients while still preserving the atomicity of
         // a transaction.
-        await eventBuilder.send(context);
+        await eventBuilder.send(context, this.spaceId);
     }
 
     /**
@@ -819,7 +821,7 @@ export class TaskRealtimeQueryStoreInternal {
             promiseResolver: PromiseImmediateResolver<TaskRealtimeQueryStoreTaskEntry | null>;
         }>,
     ): Promise<void> {
-        await taskRealtimeQueryStoreLoadTaskTestCheckpoint.waitForTest(this.spaceId);
+        await taskRealtimeQueryStoreBeforeLoadTaskTestCheckpoint.waitForTest(this.spaceId);
 
         const tasks = await getTaskIndexDocsIfExist(
             context,
@@ -984,6 +986,8 @@ export class TaskRealtimeQueryStoreInternal {
             promiseResolver: PromiseImmediateResolver<TaskRealtimeQueryStoreCollectionEntry | null>;
         }>,
     ): Promise<void> {
+        await taskRealtimeQueryStoreBeforeLoadCollectionTestCheckpoint.waitForTest(this.spaceId);
+
         const collections = await getTaskCollectionIndexDocsIfExist(
             context,
             this.spaceId,
