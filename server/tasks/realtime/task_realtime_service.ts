@@ -137,7 +137,7 @@ runService({
 
         const processContext = createServerProcessContext({tracer, options});
 
-        const [server, {start}] = TaskRealtimeServer.new();
+        const [server, {start}] = TaskRealtimeServer.new(processContext);
 
         // NOCOMMIT: Real discovery promise!
         start(Promise.resolve());

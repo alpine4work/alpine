@@ -1,4 +1,5 @@
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
+import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
@@ -22,7 +23,6 @@ import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
-import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
 // Run the query store eviction procedure every minute. When an item in the
 // query store is made evictable it is guaranteed to survive at least one
@@ -61,7 +61,7 @@ export class TaskRealtimeServer {
         readonly evictTimeout: Timeout;
     } | null = null;
 
-    private readonly _tracer: TracerRoot;
+    private readonly _processContext: ServerProcessContext;
     private readonly _actionHistory: TaskRealtimeActionHistory;
     private readonly _startActionHistory: () => void;
     private readonly _stopActionHistory: () => void;
@@ -75,25 +75,30 @@ export class TaskRealtimeServer {
             actionHistory: this._actionHistory,
             ensureFullActionHistory: context => this._ensureFullActionHistory(context, spaceId),
             scheduleEviction: () => this._scheduledStoresForEviction.add(store),
+            // When there's an internal error handling something in the store, we destroy
+            // the store and let the next request create a fresh store. The store should
+            // also be responsible for closing any WebSocket connections that were
+            // subscribed to the store.
+            onFatalError: () => this._storeBySpaceId.delete(spaceId),
         });
 
         return store;
     });
 
-    private constructor(tracer: TracerRoot) {
+    private constructor(context: ServerProcessContext) {
         const [actionHistory, {start: startActionHistory, stop: stopActionHistory}] =
             TaskRealtimeActionHistory.new();
 
-        this._tracer = tracer;
+        this._processContext = context;
         this._actionHistory = actionHistory;
         this._startActionHistory = startActionHistory;
         this._stopActionHistory = stopActionHistory;
     }
 
     public static new(
-        tracer: TracerRoot,
+        context: ServerProcessContext,
     ): [TaskRealtimeServer, {start: (discoveredPromise: Promise<void>) => void; stop: () => void}] {
-        const server = new TaskRealtimeServer(tracer);
+        const server = new TaskRealtimeServer(context);
         return [
             server,
             {
@@ -169,25 +174,31 @@ export class TaskRealtimeServer {
     private _evict() {
         if (this._scheduledStoresForEviction.size === 0) return;
 
-        this._tracer.withSpanSync("Evicting dead items from task realtime server", span => {
-            const stores = this._scheduledStoresForEviction;
-            this._scheduledStoresForEviction = new Set();
+        this._processContext.tracer.withSpanSync(
+            "Evicting dead items from task realtime server",
+            context => {
+                const stores = this._scheduledStoresForEviction;
+                this._scheduledStoresForEviction = new Set();
 
-            for (const store of stores) {
-                span.withSpanSync("Evicting dead items from task realtime query store", span => {
-                    span.addData({context: {spaceId: store.spaceId}});
+                for (const store of stores) {
+                    context.tracer.withSpanSync(
+                        "Evicting dead items from task realtime query store",
+                        (context, span) => {
+                            span.addData({context: {spaceId: store.spaceId}});
 
-                    try {
-                        store.evict();
-                    } catch (error) {
-                        span.addException(span);
+                            try {
+                                store.evict(context);
+                            } catch (error) {
+                                span.addException(span);
 
-                        // Don't rethrow the error. If an eviction call fails we report it in our span
-                        // and continue.
-                    }
-                });
-            }
-        });
+                                // Don't rethrow the error. If an eviction call fails we report it in our span
+                                // and continue.
+                            }
+                        },
+                    );
+                }
+            },
+        );
     }
 
     /**

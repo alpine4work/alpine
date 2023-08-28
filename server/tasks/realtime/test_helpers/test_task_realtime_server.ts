@@ -7,7 +7,6 @@ import {refreshTaskIndexForTest} from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {afterCommitTaskActionTransactionEventEmitterForTest} from "~/server/tasks/data/task_table.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
-import {testTracer} from "~/server/tracer/test_tracer.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -59,7 +58,7 @@ export class TestTaskRealtimeServer {
     };
 
     constructor(context: TestContext) {
-        const [server, {start, stop}] = TaskRealtimeServer.new(testTracer);
+        const [server, {start, stop}] = TaskRealtimeServer.new(context);
 
         start(Promise.resolve());
         afterTestEnds(stop);

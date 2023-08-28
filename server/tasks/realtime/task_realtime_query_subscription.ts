@@ -1,3 +1,4 @@
+import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {getTaskQueryNormalizedSortCursorFromIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_from_index_doc.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
@@ -8,8 +9,10 @@ import {
 } from "~/server/tasks/realtime/task_realtime_query_store.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
 import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_update_event.js";
+import {InternalError} from "~/shared/error/error.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -44,6 +47,14 @@ const previousReferencedCollectionByIdBySubscriptionForTest =
         : null;
 
 export type TaskRealtimeQuerySubscriptionCallbacks = {
+    /**
+     * An unexpected internal server error has occurred which has caused the
+     * subscription to disconnect. The subscription will receive no more events
+     * after this. Subscribers should present an error to users or attempt to
+     * reconnect.
+     */
+    onFatalError(context: ServerProcessContext, error: InternalError): void;
+
     /**
      * A task is added to the query subscription's loaded range. May happen when:
      *
@@ -185,12 +196,23 @@ export type TaskRealtimeQuerySubscriptionCallbacks = {
     ): void;
 };
 
-// NOCOMMIT: Error handling needs to live in this public class too.
 export class TaskRealtimeQuerySubscription {
     private readonly _internal: TaskRealtimeQuerySubscriptionInternal;
+    private readonly _withFatalErrorHandling: <Value>(
+        context: TaskRealtimeSystemActionContext,
+        action: () => Promise<Value>,
+    ) => Promise<Value>;
 
-    constructor(query: TaskRealtimeQuery, callbacks: TaskRealtimeQuerySubscriptionCallbacks) {
+    constructor(
+        query: TaskRealtimeQuery,
+        callbacks: TaskRealtimeQuerySubscriptionCallbacks,
+        withFatalErrorHandling: <Value>(
+            context: TaskRealtimeSystemActionContext,
+            action: () => Promise<Value>,
+        ) => Promise<Value>,
+    ) {
         this._internal = new TaskRealtimeQuerySubscriptionInternal(query, callbacks);
+        this._withFatalErrorHandling = withFatalErrorHandling;
     }
 
     public unsubscribe(eventBuilder: TaskRealtimeUpdateEventBuilder) {
@@ -215,12 +237,14 @@ export class TaskRealtimeQuerySubscription {
      *
      * Returns the current loaded state of our subscription.
      */
-    public async loadMoreTasks(
+    public loadMoreTasks(
         context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilder,
         limit: number,
     ): Promise<TaskRealtimeQueryLoadedState> {
-        return this._internal.loadMoreTasks(context, eventBuilder, limit);
+        return this._withFatalErrorHandling(context, () =>
+            this._internal.loadMoreTasks(context, eventBuilder, limit),
+        );
     }
 }
 
@@ -983,6 +1007,15 @@ export class TaskRealtimeQuerySubscriptionInternal {
         }
 
         this._callbacks.onReferencedCollectionRemove(eventBuilder, oldCollection);
+    }
+
+    public onFatalError(context: ServerProcessContext, error: InternalError) {
+        try {
+            this._callbacks.onFatalError(context, error);
+        } catch (error) {
+            // Treat errors from our error callback as uncaught exceptions.
+            scheduleUncaughtError(error);
+        }
     }
 }
 

@@ -1,4 +1,5 @@
 import {RBTree} from "bintrees";
+import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/data/apply_task_action_to_task_index_doc.js";
 import {evaluateTaskQueryNormalizedFiltersForIndexDoc} from "~/server/tasks/data/evaluate_task_query_normalized_filters_for_index_doc.js";
 import {getTaskQueryNormalizedSortCursorFromIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_from_index_doc.js";
@@ -12,6 +13,7 @@ import {
 import {TaskRealtimeQuerySubscriptionInternal} from "~/server/tasks/realtime/task_realtime_query_subscription.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
 import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_update_event.js";
+import {InternalError} from "~/shared/error/error.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
@@ -915,6 +917,12 @@ export class TaskRealtimeQuery {
         return {isVisible: true};
     }
 
+    public onFatalError(context: ServerProcessContext, error: InternalError) {
+        for (const subscription of this._subscriptions) {
+            subscription.onFatalError(context, error);
+        }
+    }
+
     public *iterateVisibleTasksForTest(): IterableIterator<TaskIndexDoc> {
         // We run this validation in `development` and `test` since maintaining state
         // correctly across the store and query class is a little tricky to get right
@@ -942,13 +950,13 @@ export class TaskRealtimeQuery {
             );
         } else if (this._loadedBeforeCursor !== "FullyLoaded") {
             assert(
-                loadedBeforeCursor !== "Unloaded" &&
-                    loadedBeforeCursor !== "FullyLoaded" &&
-                    compareTaskQuerySortCursors(
-                        this.sorts,
-                        loadedBeforeCursor,
-                        this._loadedBeforeCursor,
-                    ) <= 0,
+                loadedBeforeCursor === "Unloaded" ||
+                    (loadedBeforeCursor !== "FullyLoaded" &&
+                        compareTaskQuerySortCursors(
+                            this.sorts,
+                            loadedBeforeCursor,
+                            this._loadedBeforeCursor,
+                        ) <= 0),
                 "When query is not fully loaded, subscription should have loaded either the same amount or less than query",
             );
         }

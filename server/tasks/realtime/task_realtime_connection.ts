@@ -62,6 +62,7 @@ export class TaskRealtimeConnection {
         action: (context: ServerSystemActionContext) => Promise<Value>,
     ) => Promise<Value>;
     private readonly _sendEvent: (context: ServerProcessContext, event: TaskRealtimeEvent) => void;
+    private readonly _closeWithError: (context: ServerProcessContext, error: unknown) => void;
 
     private readonly _querySubscriptionById = new Map<
         TaskRealtimeQuerySubscriptionId,
@@ -74,6 +75,7 @@ export class TaskRealtimeConnection {
         accountId,
         dangerouslyEscalateToSystemContext,
         sendEvent,
+        closeWithError,
     }: {
         server: TaskRealtimeServer;
         spaceId: SpaceId;
@@ -84,12 +86,14 @@ export class TaskRealtimeConnection {
             action: (context: ServerSystemActionContext) => Promise<Value>,
         ) => Promise<Value>;
         sendEvent: (context: ServerProcessContext, event: TaskRealtimeEvent) => void;
+        closeWithError: (context: ServerProcessContext, error: unknown) => void;
     }) {
         this._server = server;
         this._spaceId = spaceId;
         this._accountId = accountId;
         this._dangerouslyEscalateToSystemContext = dangerouslyEscalateToSystemContext;
         this._sendEvent = sendEvent;
+        this._closeWithError = closeWithError;
     }
 
     public async handleClose() {
@@ -301,6 +305,11 @@ export class TaskRealtimeConnection {
 
     private _createQuerySubscriptionCallbacks(): TaskRealtimeQuerySubscriptionCallbacks {
         return {
+            // If there was an error with our subscription, close the connection. The
+            // client can reconnect if necessary.
+            onFatalError: (context, error) => {
+                this._closeWithError(context, error);
+            },
             onLoadedTaskAdd: (context, eventBuilder, newTask) => {
                 const loadedTaskReferenceCount = this._loadedTaskReferenceCountById.get(newTask.id);
                 const referencedTaskState = this._referencedTaskStateById.get(newTask.id);

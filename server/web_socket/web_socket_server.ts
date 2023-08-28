@@ -139,6 +139,7 @@ export class WebSocketServer<
             event: WebSocketProtocolEventType<Protocol>,
         ) => void;
         iterateOtherConnections: () => Iterable<Connection>;
+        closeWithError: (context: Context<ProcessContextModules>, error: unknown) => void;
     }) => Connection;
 
     private readonly _connections = new Map<
@@ -170,6 +171,7 @@ export class WebSocketServer<
                 event: WebSocketProtocolEventType<Protocol>,
             ) => void;
             iterateOtherConnections: () => Iterable<Connection>;
+            closeWithError: (context: Context<ProcessContextModules>, error: unknown) => void;
         }) => Connection,
     ) {
         this._processContext = processContext;
@@ -301,12 +303,22 @@ export class WebSocketServer<
             },
         }) as Context<SessionActionContextModules>;
 
+        const closeWithError = (context: Context<ProcessContextModules>, error: unknown) => {
+            connection.sendMessage(context, {
+                type: "ClosingWithError",
+                error,
+            });
+
+            connection.close(context, isSystemError(error) ? 1011 : 1008);
+        };
+
         const actualConnection = this._createConnection({
             accountId,
             connectionId,
             sendEvent,
             sendEventToOthers,
             iterateOtherConnections,
+            closeWithError,
         });
 
         const connection = new WebSocketServerConnectionWrapper<
@@ -540,12 +552,28 @@ export class WebSocketServer<
             },
         }) as Context<SessionActionContextModules>;
 
+        const closeWithError = (context: Context<ProcessContextModules>, error: unknown) => {
+            connection.dangerouslySendRawMessageEvenWhenSoftClosed(
+                context,
+                "ClosingWithError",
+                JSON.stringify(
+                    this._messageFromServerSchema.serialize({
+                        type: "ClosingWithError",
+                        error,
+                    }),
+                ),
+            );
+
+            connection.close();
+        };
+
         const actualConnection = this._createConnection({
             accountId,
             connectionId,
             sendEvent,
             sendEventToOthers,
             iterateOtherConnections,
+            closeWithError,
         });
 
         // In tests, block establishing the connection on authorization.

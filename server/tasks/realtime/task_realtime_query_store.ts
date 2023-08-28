@@ -1,3 +1,4 @@
+import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/data/apply_task_action_to_task_index_doc.js";
 import {applyTaskCollectionActionToCollectionIndexDoc} from "~/server/tasks/data/apply_task_collection_action_to_collection_index_doc.js";
@@ -46,32 +47,94 @@ import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort
  * Whenever the task realtime server receives a new action transaction, it must
  * add it to the realtime action history and apply it to the relevant store.
  */
-// NOCOMMIT: Figure out error handling...
-//
 // TODO(calebmer, #tracer): I'd like to add some task realtime query store
 // metrics using whatever metrics system we setup. Metrics like query count,
 // task count, collection count, and query subscription count would be useful.
 export class TaskRealtimeQueryStore {
     public readonly spaceId: SpaceId;
     private readonly _internal: TaskRealtimeQueryStoreInternal;
+    private readonly _onFatalError: () => void;
+
+    private _isDestroyed = false;
 
     constructor(options: {
         spaceId: SpaceId;
         actionHistory: ReadonlyTaskRealtimeActionHistory;
         ensureFullActionHistory: (context: TaskRealtimeSystemActionContext) => Promise<void>;
         scheduleEviction: () => void;
+        onFatalError: () => void;
     }) {
         this.spaceId = options.spaceId;
         this._internal = new TaskRealtimeQueryStoreInternal(options);
+        this._onFatalError = options.onFatalError;
 
         if (process.env.NODE_ENV !== "production") {
             this._internal.assertCorrectForTest();
         }
     }
 
-    public assertEmptyForTest() {
+    public assertEmptyForTest(): void {
         this._internal.assertEmptyForTest();
     }
+
+    private _handleFatalError(context: ServerProcessContext, error: unknown) {
+        if (this._isDestroyed) return;
+
+        context.tracer.withSpanSync("Destroying task realtime query store", context => {
+            this._isDestroyed = true;
+
+            // Calling this should have the server delete its reference to this store. That
+            // way the next request will create a fresh store.
+            this._onFatalError();
+
+            this._internal.onFatalError(
+                context,
+                InternalError.from(
+                    error,
+                    "Destroying task realtime query store after unexpected error",
+                ),
+            );
+        });
+    }
+
+    /**
+     * Any error from our task realtime query store destroys the store and prevents
+     * anyone from interacting with the store. Connections which were subscribed to
+     * the store are closed with an `InternalError` so may try to reconnect.
+     *
+     * It's an arrow function so we can pass it around as a value without calling
+     * `this._withErrorHandling.bind(this)`.
+     */
+    private readonly _withFatalErrorHandling = <Value>(
+        context: TaskRealtimeSystemActionContext,
+        action: () => Promise<Value>,
+    ): Promise<Value> => {
+        assert(!this._isDestroyed);
+
+        return action().then(
+            value => {
+                // If our query store was destroyed while the action was running then we don't
+                // want to return a result which may have corrupt results. Instead throw an
+                // error.
+                if (this._isDestroyed) {
+                    throw new InternalError(
+                        "Can't return result because task realtime query store was destroyed",
+                    );
+                }
+
+                // Make sure our store's state is correct after any action on our store...
+                if (process.env.NODE_ENV !== "production") {
+                    this._internal.assertCorrectForTest();
+                }
+
+                return value;
+            },
+            error => {
+                this._handleFatalError(context, error);
+                throw error;
+            },
+        );
+    };
 
     public async loadQuery(
         context: TaskRealtimeSystemActionContext,
@@ -84,47 +147,43 @@ export class TaskRealtimeQueryStore {
         tasks: Array<TaskIndexDoc>;
         hasMoreTasks: boolean;
     }> {
-        let promise = this._internal.loadQuery(context, options);
-
-        // Make sure our store's state is correct after loading a query...
-        if (process.env.NODE_ENV !== "production") {
-            promise = promise.then(result => {
-                this._internal.assertCorrectForTest();
-                return result;
-            });
-        }
-
-        return promise;
+        return this._withFatalErrorHandling(context, () =>
+            this._internal.loadQuery(context, options),
+        );
     }
 
-    public subscribeToQuery(options: {
+    public subscribeToQuery({
+        filters,
+        sorts,
+        callbacks,
+    }: {
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
         callbacks: TaskRealtimeQuerySubscriptionCallbacks;
-    }) {
-        return this._internal.subscribeToQuery(options);
+    }): TaskRealtimeQuerySubscription {
+        assert(!this._isDestroyed);
+        const query = this._internal.getQuery({filters, sorts});
+        return new TaskRealtimeQuerySubscription(query, callbacks, this._withFatalErrorHandling);
     }
 
     public applyActionTransaction(
         context: TaskRealtimeSystemActionContext,
         actions: ReadonlyArray<TaskAction>,
     ): Promise<void> {
-        let promise = this._internal.applyActionTransaction(context, actions);
-
-        // Make sure our store's state is correct after an action transaction...
-        if (process.env.NODE_ENV !== "production") {
-            promise = promise.then(() => {
-                this._internal.assertCorrectForTest();
-            });
-        }
-
-        return promise;
+        return this._withFatalErrorHandling(context, () =>
+            this._internal.applyActionTransaction(context, actions),
+        );
     }
 
     public async getTask(
         context: TaskRealtimeSystemActionContext,
         taskId: TaskId,
     ): Promise<TaskIndexDoc> {
+        assert(!this._isDestroyed);
+
+        // No error handling since this method is relatively self contained and should
+        // handle errors gracefully on its own without putting the store class in
+        // partially failed state.
         const taskEntry = await this._internal.loadTaskEntry(context, taskId);
         return taskEntry.task;
     }
@@ -133,20 +192,36 @@ export class TaskRealtimeQueryStore {
         context: TaskRealtimeSystemActionContext,
         collectionId: TaskCollectionId,
     ): Promise<TaskCollectionIndexDoc> {
+        assert(!this._isDestroyed);
+
+        // No error handling since this method is relatively self contained and should
+        // handle errors gracefully on its own without putting the store class in
+        // partially failed state.
         const collectionEntry = await this._internal.loadCollectionEntry(context, collectionId);
         return collectionEntry.collection;
     }
 
-    public getTaskIfLoaded(taskId: TaskId) {
+    public getTaskIfLoaded(taskId: TaskId): TaskIndexDoc | undefined {
+        assert(!this._isDestroyed);
         return this._internal.getTaskIfLoaded(taskId);
     }
 
-    public getCollectionIfLoaded(collectionId: TaskCollectionId) {
+    public getCollectionIfLoaded(
+        collectionId: TaskCollectionId,
+    ): TaskCollectionIndexDoc | undefined {
+        assert(!this._isDestroyed);
         return this._internal.getCollectionIfLoaded(collectionId);
     }
 
-    public evict() {
-        return this._internal.evict();
+    public evict(context: ServerProcessContext): void {
+        assert(!this._isDestroyed);
+
+        try {
+            this._internal.evict();
+        } catch (error) {
+            this._handleFatalError(context, error);
+            throw error;
+        }
     }
 }
 
@@ -412,7 +487,7 @@ export class TaskRealtimeQueryStoreInternal {
      * identical filters and sorts. If a subscription is not promptly added then
      * the query will be evicted on the next eviction cycle.
      */
-    private _getQuery({
+    public getQuery({
         filters,
         sorts,
     }: {
@@ -455,7 +530,7 @@ export class TaskRealtimeQueryStoreInternal {
     }> {
         assert(Number.isInteger(limit));
 
-        const query = this._getQuery({filters, sorts});
+        const query = this.getQuery({filters, sorts});
 
         // Load enough tasks to satisfy our `limit`.
         await query.loadMoreTasks(context, limit - query.getLoadedTaskCount());
@@ -464,24 +539,6 @@ export class TaskRealtimeQueryStoreInternal {
             limit,
             afterCursor: null,
         });
-    }
-
-    /**
-     * Subscribes to a query in our store. You need to call `loadMoreTasks()` on
-     * the subscription and then you'll start receiving realtime events via
-     * `onAction` for the loaded tasks.
-     */
-    public subscribeToQuery({
-        filters,
-        sorts,
-        callbacks,
-    }: {
-        filters: TaskQueryNormalizedFilters;
-        sorts: ReadonlyArray<TaskQueryNormalizedSort>;
-        callbacks: TaskRealtimeQuerySubscriptionCallbacks;
-    }) {
-        const query = this._getQuery({filters, sorts});
-        return new TaskRealtimeQuerySubscription(query, callbacks);
     }
 
     /**
@@ -1264,6 +1321,12 @@ export class TaskRealtimeQueryStoreInternal {
             if (this._getEvictableCount() > 0) this._scheduleEviction();
         } finally {
             this._isEvicting = false;
+        }
+    }
+
+    public onFatalError(context: ServerProcessContext, error: InternalError) {
+        for (const query of this._queries.values()) {
+            query.onFatalError(context, error);
         }
     }
 }

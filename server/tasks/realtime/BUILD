@@ -10,6 +10,10 @@ ts_project(
         "//server/tasks/test_helpers",
         "//shared/tasks/test_helpers",
     ],
+    tests = {
+        "task_realtime_connection_test": {"size": "medium"},
+        "task_realtime_server_test": {"size": "medium"},
+    },
     visibility = ["//server/tasks/realtime/test_helpers:__pkg__"],
     deps = [
         "//:node_modules/@types/bintrees",
