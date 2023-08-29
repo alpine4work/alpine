@@ -27,6 +27,7 @@ import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {maxHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -35,7 +36,6 @@ import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
-import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {
     AccountId,
@@ -45,7 +45,7 @@ import {
     TaskRealtimeQuerySubscriptionId,
 } from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
-import {TaskAssigneeStatusRegister} from "~/shared/tasks/task_assignee_status.js";
+import {TaskAssigneeActivePositionRegister} from "~/shared/tasks/task_assignee_active_position.js";
 import {TaskCollectionModel} from "~/shared/tasks/task_collection_model.js";
 import {TaskModel, TaskModelData} from "~/shared/tasks/task_model.js";
 import {TaskPositionByAccountIdAndNotepadPageIdMap} from "~/shared/tasks/task_position_by_account_id_and_notepad_page_id.js";
@@ -785,25 +785,23 @@ function prepareTaskForClient(accountId: AccountId, task: TaskIndexDoc): TaskMod
 
         status: task.status,
         assignee: task.assignee,
-        assigneeStatus: new TaskAssigneeStatusRegister(
-            task.rawAssigneeStatus.value.type === "Active"
-                ? {
-                      type: "Active",
-                      activatedTime: task.rawAssigneeStatus.value.activatedTime,
-                      // You are not allowed to see the active task position for other accounts. So
-                      // replace with a dummy position that never changes to satisfy the types.
-                      position:
-                          !task.assignee.value ||
-                          task.assignee.value.assignee.accountId !== accountId
-                              ? {
-                                    orderTime: task.rawAssigneeStatus.version,
-                                    orderKey: initialOrderKey,
-                                }
-                              : task.rawAssigneeStatus.value.position,
-                  }
-                : {type: "Inactive"},
-            task.rawAssigneeStatus.version,
-        ),
+        assigneeStatus: task.rawAssigneeStatus,
+        // You are not allowed to see the active task position for other accounts. So
+        // replace with a register you'd get on position reset from status, assignee,
+        // or assignee status change. This effectively un-applies any actions you
+        // aren't allowed to see.
+        assigneeActivePosition:
+            task.rawAssigneeActivePosition.value &&
+            task.rawAssigneeActivePosition.value.accountId !== accountId
+                ? new TaskAssigneeActivePositionRegister(
+                      null,
+                      maxHybridLogicalTime(
+                          task.status.version,
+                          task.assignee.version,
+                          task.rawAssigneeStatus.version,
+                      ),
+                  )
+                : task.rawAssigneeActivePosition,
 
         title: task.title.raw,
         dueDate: task.dueDate,
@@ -851,29 +849,14 @@ function prepareTaskActionForClient(accountId: AccountId, action: TaskAction): T
                 case "UpdateTitle":
                 case "UpdateDueDate":
                 case "UpdatePriority":
+                case "UpdateAssigneeStatus":
                     return action;
                 case "UpdateNotepadPagePosition": {
                     if (action.taskAction.accountId !== accountId) return null;
                     return action;
                 }
-                case "UpdateAssigneeStatus": {
-                    // NOTE(calebmer, #security): The order of an account's active tasks is private
-                    // to them. We wipe the active task position in `prepareTaskForClient()`
-                    // however we can't easily do the same here since we don't know the task
-                    // assignee. An attacker would need meaningful technical sophistication to
-                    // exploit this.
-                    //
-                    // Example exploit: An attacker connects a browser to a team collection and
-                    // records all `UpdateAssigneeStatus` actions in a database. They do this for a
-                    // couple weeks and now they have the active task order for recent tasks of
-                    // their coworkers.
-                    //
-                    // The exploits you can perform with this information aren't that bad and it
-                    // would be a real pain to hide this information. One way we could hide this is
-                    // change the `UpdateAssigneeStatus` action to be more like the
-                    // `UpdateNotepadPagePosition` action. Where we store a different position for
-                    // each account. Then we would include `accountId` in this action so we could
-                    // filter it out.
+                case "UpdateAssigneeActivePosition": {
+                    if (action.taskAction.accountId !== accountId) return null;
                     return action;
                 }
                 default:
@@ -957,6 +940,7 @@ function collectReferencedAccountIdsFromTaskAction(accountIds: Set<AccountId>, a
                 case "RemoveCollection":
                 case "UpdateCollectionPosition":
                 case "UpdateAssigneeStatus":
+                case "UpdateAssigneeActivePosition":
                 case "UpdateTitle":
                 case "UpdateDueDate":
                 case "UpdatePriority": {

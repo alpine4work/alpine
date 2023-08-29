@@ -224,6 +224,10 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         actionTransactionCount: Schema.integer,
         actionHistorySegmentCount: Schema.integer,
     },
+    opensearch: {
+        query: Schema.string,
+        sort: Schema.string,
+    },
 };
 
 /**

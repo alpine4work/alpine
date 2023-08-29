@@ -649,7 +649,6 @@ test("sorts by display status", async () => {
                 type: "UpdateAssigneeStatus",
                 assigneeStatus: {
                     type: "Active",
-                    position: {orderTime: clock.now(), orderKey: initialOrderKey},
                     activatedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -675,7 +674,6 @@ test("sorts by display status", async () => {
                 type: "UpdateAssigneeStatus",
                 assigneeStatus: {
                     type: "Active",
-                    position: {orderTime: clock.now(), orderKey: initialOrderKey},
                     activatedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -1691,7 +1689,6 @@ test("sorts by activated time", async () => {
                 type: "UpdateAssigneeStatus",
                 assigneeStatus: {
                     type: "Active",
-                    position: {orderTime: clock.now(), orderKey: initialOrderKey},
                     activatedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -1717,7 +1714,6 @@ test("sorts by activated time", async () => {
                 type: "UpdateAssigneeStatus",
                 assigneeStatus: {
                     type: "Active",
-                    position: {orderTime: clock.now(), orderKey: initialOrderKey},
                     activatedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -1730,7 +1726,6 @@ test("sorts by activated time", async () => {
                 type: "UpdateAssigneeStatus",
                 assigneeStatus: {
                     type: "Active",
-                    position: {orderTime: clock.now(), orderKey: initialOrderKey},
                     activatedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -1756,7 +1751,6 @@ test("sorts by activated time", async () => {
                 type: "UpdateAssigneeStatus",
                 assigneeStatus: {
                     type: "Active",
-                    position: {orderTime: clock.now(), orderKey: initialOrderKey},
                     activatedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -1782,7 +1776,6 @@ test("sorts by activated time", async () => {
                 type: "UpdateAssigneeStatus",
                 assigneeStatus: {
                     type: "Active",
-                    position: {orderTime: clock.now(), orderKey: initialOrderKey},
                     activatedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -2848,7 +2841,7 @@ test("sorts by notepad page position", async () => {
     ).toEqual([task5Id, task4Id, task1Id, task2Id, task3Id, task6Id, task7Id, task8Id]);
 });
 
-test("sorts by assignee status active position", async () => {
+test("sorts by assignee active position", async () => {
     const scenario = await createScenario();
     const {space} = scenario;
 
@@ -3068,8 +3061,17 @@ test("sorts by assignee status active position", async () => {
                 assigneeStatus: {
                     type: "Active",
                     activatedTime: TaskFilterableTime.test(time1),
-                    position: {orderTime: time1, orderKey: initialOrderKey},
                 },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time1,
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdateAssigneeActivePosition",
+                accountId: session1.accountId,
+                position: {orderTime: time1, orderKey: initialOrderKey},
             },
         },
         {
@@ -3081,8 +3083,17 @@ test("sorts by assignee status active position", async () => {
                 assigneeStatus: {
                     type: "Active",
                     activatedTime: TaskFilterableTime.test(time2),
-                    position: {orderTime: time2, orderKey: initialOrderKey},
                 },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time2,
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdateAssigneeActivePosition",
+                accountId: session1.accountId,
+                position: {orderTime: time2, orderKey: initialOrderKey},
             },
         },
         {
@@ -3094,8 +3105,17 @@ test("sorts by assignee status active position", async () => {
                 assigneeStatus: {
                     type: "Active",
                     activatedTime: TaskFilterableTime.test(time3),
-                    position: {orderTime: time3, orderKey: initialOrderKey},
                 },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time3,
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdateAssigneeActivePosition",
+                accountId: session1.accountId,
+                position: {orderTime: time3, orderKey: initialOrderKey},
             },
         },
         {
@@ -3107,8 +3127,17 @@ test("sorts by assignee status active position", async () => {
                 assigneeStatus: {
                     type: "Active",
                     activatedTime: TaskFilterableTime.test(time4),
-                    position: {orderTime: time4, orderKey: initialOrderKey},
                 },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time4,
+            taskId: task4Id,
+            taskAction: {
+                type: "UpdateAssigneeActivePosition",
+                accountId: session1.accountId,
+                position: {orderTime: time4, orderKey: initialOrderKey},
             },
         },
         {
@@ -3120,8 +3149,17 @@ test("sorts by assignee status active position", async () => {
                 assigneeStatus: {
                     type: "Active",
                     activatedTime: TaskFilterableTime.test(time5),
-                    position: {orderTime: time5, orderKey: initialOrderKey},
                 },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time5,
+            taskId: task5Id,
+            taskAction: {
+                type: "UpdateAssigneeActivePosition",
+                accountId: session1.accountId,
+                position: {orderTime: time5, orderKey: initialOrderKey},
             },
         },
         {
@@ -3133,8 +3171,17 @@ test("sorts by assignee status active position", async () => {
                 assigneeStatus: {
                     type: "Active",
                     activatedTime: TaskFilterableTime.test(time6),
-                    position: {orderTime: time2, orderKey: assertOrderKey("Zz")},
                 },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time6,
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdateAssigneeActivePosition",
+                accountId: session1.accountId,
+                position: {orderTime: time2, orderKey: assertOrderKey("Zz")},
             },
         },
         {
@@ -3146,8 +3193,17 @@ test("sorts by assignee status active position", async () => {
                 assigneeStatus: {
                     type: "Active",
                     activatedTime: TaskFilterableTime.test(time7),
-                    position: {orderTime: time7, orderKey: initialOrderKey},
                 },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time7,
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdateAssigneeActivePosition",
+                accountId: session1.accountId,
+                position: {orderTime: time7, orderKey: initialOrderKey},
             },
         },
         {
@@ -3159,8 +3215,17 @@ test("sorts by assignee status active position", async () => {
                 assigneeStatus: {
                     type: "Active",
                     activatedTime: TaskFilterableTime.test(time8),
-                    position: {orderTime: time8, orderKey: assertOrderKey("a1")},
                 },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time8,
+            taskId: task4Id,
+            taskAction: {
+                type: "UpdateAssigneeActivePosition",
+                accountId: session1.accountId,
+                position: {orderTime: time8, orderKey: assertOrderKey("a1")},
             },
         },
         {
@@ -3172,8 +3237,17 @@ test("sorts by assignee status active position", async () => {
                 assigneeStatus: {
                     type: "Active",
                     activatedTime: TaskFilterableTime.test(time9),
-                    position: {orderTime: time8, orderKey: assertOrderKey("a2")},
                 },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time9,
+            taskId: task5Id,
+            taskAction: {
+                type: "UpdateAssigneeActivePosition",
+                accountId: session1.accountId,
+                position: {orderTime: time8, orderKey: assertOrderKey("a2")},
             },
         },
     ]);
@@ -3188,8 +3262,17 @@ test("sorts by assignee status active position", async () => {
                 assigneeStatus: {
                     type: "Active",
                     activatedTime: TaskFilterableTime.test(clock.now()),
-                    position: {orderTime: clock.now(), orderKey: initialOrderKey},
                 },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task7Id,
+            taskAction: {
+                type: "UpdateAssigneeActivePosition",
+                accountId: session2.accountId,
+                position: {orderTime: clock.now(), orderKey: initialOrderKey},
             },
         },
     ]);
@@ -3204,7 +3287,6 @@ test("sorts by assignee status active position", async () => {
                 assigneeStatus: {
                     type: "Active",
                     activatedTime: TaskFilterableTime.test(clock.now()),
-                    position: {orderTime: clock.now(), orderKey: initialOrderKey},
                 },
             },
         },
@@ -3217,8 +3299,17 @@ test("sorts by assignee status active position", async () => {
                 assigneeStatus: {
                     type: "Active",
                     activatedTime: TaskFilterableTime.test(clock.now()),
-                    position: {orderTime: clock.now(), orderKey: assertOrderKey("a2")},
                 },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task8Id,
+            taskAction: {
+                type: "UpdateAssigneeActivePosition",
+                accountId: session1.accountId,
+                position: {orderTime: clock.now(), orderKey: assertOrderKey("a2")},
             },
         },
     ]);
@@ -3226,7 +3317,7 @@ test("sorts by assignee status active position", async () => {
     expect(
         await testQueryWithNormalizedSorts(space, [
             {
-                type: "AssigneeStatusActivePosition",
+                type: "AssigneeActivePosition",
                 direction: "Ascending",
                 missing: "Last",
             },
@@ -3237,7 +3328,7 @@ test("sorts by assignee status active position", async () => {
     expect(
         await testQueryWithNormalizedSorts(space, [
             {
-                type: "AssigneeStatusActivePosition",
+                type: "AssigneeActivePosition",
                 direction: "Descending",
                 missing: "Last",
             },
@@ -3262,7 +3353,7 @@ test("sorts by assignee status active position", async () => {
     expect(
         await testQueryWithNormalizedSorts(space, [
             {
-                type: "AssigneeStatusActivePosition",
+                type: "AssigneeActivePosition",
                 direction: "Ascending",
                 missing: "Last",
             },
@@ -3273,7 +3364,7 @@ test("sorts by assignee status active position", async () => {
     expect(
         await testQueryWithNormalizedSorts(space, [
             {
-                type: "AssigneeStatusActivePosition",
+                type: "AssigneeActivePosition",
                 direction: "Descending",
                 missing: "Last",
             },
@@ -3284,7 +3375,7 @@ test("sorts by assignee status active position", async () => {
     expect(
         await testQueryWithNormalizedSorts(space, [
             {
-                type: "AssigneeStatusActivePosition",
+                type: "AssigneeActivePosition",
                 direction: "Ascending",
                 missing: "First",
             },
@@ -3295,7 +3386,7 @@ test("sorts by assignee status active position", async () => {
     expect(
         await testQueryWithNormalizedSorts(space, [
             {
-                type: "AssigneeStatusActivePosition",
+                type: "AssigneeActivePosition",
                 direction: "Descending",
                 missing: "First",
             },

@@ -203,7 +203,7 @@ test("will expire some actions whenever the timer runs", () => {
 
         history.addActionTransaction({
             spaceId,
-            committedTime: new Date(mockTime - 1000 * 60 * 5.2),
+            committedTime: new Date(Math.floor(mockTime - 1000 * 60 * 10.4)),
             actions: [
                 {
                     type: "UpdateTask",
@@ -226,7 +226,7 @@ test("will expire some actions whenever the timer runs", () => {
 
         history.addActionTransaction({
             spaceId,
-            committedTime: new Date(mockTime - 1000 * 60 * 4.8),
+            committedTime: new Date(Math.floor(mockTime - 1000 * 60 * 9.6)),
             actions: [
                 {
                     type: "UpdateTask",
@@ -249,7 +249,7 @@ test("will expire some actions whenever the timer runs", () => {
 
         history.addActionTransaction({
             spaceId,
-            committedTime: new Date(mockTime - 1000 * 60 * 2.8),
+            committedTime: new Date(Math.floor(mockTime - 1000 * 60 * 5.6)),
             actions: [
                 {
                     type: "UpdateTask",
@@ -272,7 +272,7 @@ test("will expire some actions whenever the timer runs", () => {
 
         history.addActionTransaction({
             spaceId,
-            committedTime: new Date(mockTime - 1000 * 60 * 2.6),
+            committedTime: new Date(Math.floor(mockTime - 1000 * 60 * 3.2)),
             actions: [
                 {
                     type: "UpdateTask",
@@ -316,43 +316,43 @@ test("will expire some actions whenever the timer runs", () => {
         history.assertCorrectForTest();
         expect(getActions(history, spaceId).length).toEqual(4);
 
-        mockTime += 1000 * 60;
-        import.meta.jest.advanceTimersByTime(1000 * 60);
+        mockTime += 1000 * 60 * 2;
+        import.meta.jest.advanceTimersByTime(1000 * 60 * 2);
 
         history.assertCorrectForTest();
         expect(getActions(history, spaceId).length).toEqual(3);
 
-        mockTime += 1000 * 60;
-        import.meta.jest.advanceTimersByTime(1000 * 60);
+        mockTime += 1000 * 60 * 2;
+        import.meta.jest.advanceTimersByTime(1000 * 60 * 2);
 
         history.assertCorrectForTest();
         expect(getActions(history, spaceId).length).toEqual(3);
+
+        mockTime += 1000 * 20;
+        import.meta.jest.advanceTimersByTime(1000 * 20);
 
         mockTime += 1000 * 10;
         import.meta.jest.advanceTimersByTime(1000 * 10);
-
-        mockTime += 1000 * 5;
-        import.meta.jest.advanceTimersByTime(1000 * 5);
 
         history.assertCorrectForTest();
         expect(getActions(history, spaceId).length).toEqual(3);
 
         // Intentionally desync time...
-        mockTime += 1000 * 5 + 100;
-        import.meta.jest.advanceTimersByTime(1000 * 5);
+        mockTime += 1000 * 10 + 100;
+        import.meta.jest.advanceTimersByTime(1000 * 10);
 
         history.assertCorrectForTest();
         expect(getActions(history, spaceId).length).toEqual(2);
 
-        mockTime += 1000 * 20 - 100;
-        import.meta.jest.advanceTimersByTime(1000 * 20 - 100);
+        mockTime += 1000 * 180 - 100;
+        import.meta.jest.advanceTimersByTime(1000 * 180 - 100);
 
         history.assertCorrectForTest();
         expect(getActions(history, spaceId).length).toEqual(1);
 
         // Resync time...
-        mockTime += 1000 * 5 - 100;
-        import.meta.jest.advanceTimersByTime(1000 * 5);
+        mockTime += 1000 * 10 - 100;
+        import.meta.jest.advanceTimersByTime(1000 * 10);
 
         history.assertCorrectForTest();
         expect(getActions(history, spaceId).length).toEqual(1);

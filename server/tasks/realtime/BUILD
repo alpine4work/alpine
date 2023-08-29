@@ -11,8 +11,17 @@ ts_project(
         "//shared/tasks/test_helpers",
     ],
     tests = {
-        "task_realtime_connection_test": {"size": "medium"},
-        "task_realtime_server_test": {"size": "medium"},
+        # These are kind of chunky tests that use OpenSearch. We configure OpenSearch
+        # in tests to use 2 CPUs (see `startOpensearchLocal()`) so reserve those
+        # resources in Bazel and one for the test process.
+        "task_realtime_connection_test": {
+            "size": "medium",
+            "tags": ["cpu:3"],
+        },
+        "task_realtime_server_test": {
+            "size": "medium",
+            "tags": ["cpu:3"],
+        },
     },
     visibility = ["//server/tasks/realtime/test_helpers:__pkg__"],
     deps = [

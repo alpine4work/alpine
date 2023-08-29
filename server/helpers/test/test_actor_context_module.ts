@@ -10,9 +10,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 
-// This file may only be imported in Jest tests.
-assert(import.meta.jest);
-
 export type TestActorContextModule = TestSessionActorContextModule | TestSystemActorContextModule;
 
 interface TestActorContextModuleBase extends ActorContextModuleBase {

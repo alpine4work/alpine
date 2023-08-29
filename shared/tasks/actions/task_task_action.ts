@@ -84,7 +84,7 @@ export const TaskParentTaskIdRegister = createCrdtRegister(Schema.id<TaskId>().n
  * Side effects:
  *
  * - Resets the `parentPosition` register with the action:
- *   `{updatedTime: parentTaskIdAction.updatedTime, value: {orderTime: parentTaskIdAction.updatedTime, orderKey: initialOrderKey}}`.
+ *   `{version: action.time, value: {orderTime: action.time, orderKey: initialOrderKey}}`.
  *   This makes sure the task is placed at the end of our new parent's
  *   subtasks.
  *
@@ -227,10 +227,10 @@ const TaskRemoveCollectionActionSchema = Schema.object({
  *
  * If a task is part of a collection and this action has never been commit, the
  * task's position is considered to be
- * `{orderTime: collectionSetEntry.updatedTime, orderKey: initialOrderKey}`. In
- * other words we reuse the `updatedTime` from the task's `TaskCollectionSet`
+ * `{orderTime: collectionSetEntry.version, orderKey: initialOrderKey}`. In
+ * other words we reuse the `version` from the task's `TaskCollectionSet`
  * for this entry. Once this action has been commit, we never revert to the
- * `updatedTime` in `TaskCollectionSet`.
+ * `version` in `TaskCollectionSet`.
  *
  * If a task is removed from this collection we keep around its position in
  * case the task is added back to the collection.
@@ -277,7 +277,7 @@ const TaskUpdateNotepadPagePositionActionSchema = Schema.object({
  * Side effects:
  *
  * - Resets the `assigneeStatus` register with the action:
- *   `{updatedTime: statusAction.updatedTime, value: {type: "Inactive"}}`.
+ *   `{version: action.time, value: {type: "Inactive"}}`.
  *   `assigneeStatus` is reset whether the new status is open or closed and is
  *   reset whether or not the last status was open or closed.
  *
@@ -290,6 +290,11 @@ const TaskUpdateNotepadPagePositionActionSchema = Schema.object({
  *   Instead at the data layer we reset `assigneeStatus` on state change. The
  *   register itself may be active while the task is closed if we receive events
  *   out-of-order.
+ *
+ * - Resets the `assigneeActivePosition` register with the action:
+ *   `{version: action.time, value: null}`. Whenever the assignee changes or
+ *   display status changes we want to reset the task's active position to the
+ *   front of the assignee's active task list.
  */
 export type TaskUpdateStatusAction = SchemaType<typeof TaskUpdateStatusActionSchema>;
 
@@ -304,7 +309,7 @@ const TaskUpdateStatusActionSchema = Schema.object({
  * Side effects:
  *
  * - Resets the `assigneeStatus` register with the action:
- *   `{updatedTime: assigneeAction.updatedTime, value: {type: "Inactive"}}`.
+ *   `{version: action.time, value: {type: "Inactive"}}`.
  *   `assigneeStatus` is reset whether or not the task assignee changed. Since
  *   actions can be applied out of order we don't know if two consecutive
  *   updates actually have an action in between.
@@ -322,6 +327,11 @@ const TaskUpdateStatusActionSchema = Schema.object({
  *   Instead at the data layer we reset `assigneeStatus` on state change. The
  *   register itself may be active while assignee is null if we receive events
  *   out-of-order.
+ *
+ * - Resets the `assigneeActivePosition` register with the action:
+ *   `{version: action.time, value: null}`. Whenever the assignee changes or
+ *   display status changes we want to reset the task's active position to the
+ *   front of the assignee's active task list.
  */
 export type TaskUpdateAssigneeAction = SchemaType<typeof TaskUpdateAssigneeActionSchema>;
 
@@ -336,6 +346,13 @@ const TaskUpdateAssigneeActionSchema = Schema.object({
  *
  * Other actions may update the assignee status register as a side effect. See
  * `TaskUpdateStatusAction` and `TaskUpdateAssigneeAction`.
+ *
+ * Side effects:
+ *
+ * - Resets the `assigneeActivePosition` register with the action:
+ *   `{version: action.time, value: null}`. Whenever the assignee changes or
+ *   display status changes we want to reset the task's active position to the
+ *   front of the assignee's active task list.
  */
 export type TaskUpdateAssigneeStatusAction = SchemaType<
     typeof TaskUpdateAssigneeStatusActionSchema
@@ -344,6 +361,23 @@ export type TaskUpdateAssigneeStatusAction = SchemaType<
 const TaskUpdateAssigneeStatusActionSchema = Schema.object({
     type: Schema.value("UpdateAssigneeStatus"),
     assigneeStatus: TaskAssigneeStatusSchema,
+});
+
+/**
+ * Updates the position of a task in the assignee's active task list.
+ *
+ * The active position of a task is in a separate register from
+ * `TaskAssigneeStatus` so we have better control over permissions for the
+ * position.
+ */
+export type TaskUpdateAssigneeActivePosition = SchemaType<
+    typeof TaskUpdateAssigneeActivePositionSchema
+>;
+
+const TaskUpdateAssigneeActivePositionSchema = Schema.object({
+    type: Schema.value("UpdateAssigneeActivePosition"),
+    accountId: Schema.id<AccountId>(),
+    position: TaskPositionSchema,
 });
 
 /**
@@ -397,6 +431,7 @@ export const TaskTaskActionSchema = Schema.union({
     UpdateStatus: TaskUpdateStatusActionSchema,
     UpdateAssignee: TaskUpdateAssigneeActionSchema,
     UpdateAssigneeStatus: TaskUpdateAssigneeStatusActionSchema,
+    UpdateAssigneeActivePosition: TaskUpdateAssigneeActivePositionSchema,
     UpdateTitle: TaskUpdateTitleActionSchema,
     UpdateDueDate: TaskUpdateDueDateActionSchema,
     UpdatePriority: TaskUpdatePriorityActionSchema,

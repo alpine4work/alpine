@@ -38,6 +38,7 @@ import {
     TaskParentTaskIdRegister,
 } from "~/shared/tasks/actions/task_task_action.js";
 import {TaskAssignee, TaskAssigneeRegister} from "~/shared/tasks/task_assignee.js";
+import {TaskAssigneeActivePositionRegister} from "~/shared/tasks/task_assignee_active_position.js";
 import {
     TaskAssigneeStatus,
     TaskAssigneeStatusRegister,
@@ -50,7 +51,11 @@ import {
     getTaskFilterableTimeSetterDate,
 } from "~/shared/tasks/task_filterable_time.js";
 import {TaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
-import {TaskPositionRegister, TaskPositionSchema} from "~/shared/tasks/task_position.js";
+import {
+    TaskPosition,
+    TaskPositionRegister,
+    TaskPositionSchema,
+} from "~/shared/tasks/task_position.js";
 import {TaskPositionByAccountIdAndNotepadPageIdMap} from "~/shared/tasks/task_position_by_account_id_and_notepad_page_id.js";
 import {TaskPositionByCollectionIdMap} from "~/shared/tasks/task_position_by_collection_id_map.js";
 import {TaskPriority, TaskPriorityRegister} from "~/shared/tasks/task_priority.js";
@@ -358,7 +363,6 @@ const TaskIndexAssigneeStatusType = createCrdtRegisterOpensearchType(
             Inactive: OpensearchIndexObjectType.new({fields: {}}),
             Active: OpensearchIndexObjectType.new({
                 fields: {
-                    position: TaskIndexPositionType,
                     activatedTime: TaskIndexFilterableTimeType,
                 },
             }),
@@ -516,9 +520,29 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
                 version: HybridLogicalTimeSchema,
             }),
         ).transform<TaskAssigneeStatusRegister>({
-            serialize: register => ({value: register.value, version: register.version}),
+            serialize: register => register,
             deserialize: register =>
                 new TaskAssigneeStatusRegister(register.value, register.version),
+        }),
+        // The actual value of this register on the task is null if the task is closed,
+        // inactive, or there is no assignee. Additionally if the `AccountId` in this
+        // register is different from the assignee then the value is also null.
+        //
+        // However, if the actual value of this register is null and the task is active
+        // then we default the position to be based on the assignee status register's
+        // `version`.
+        rawAssigneeActivePosition: new OpensearchIndexIgnoredObjectType(
+            Schema.object({
+                value: Schema.object({
+                    accountId: Schema.id<AccountId>(),
+                    position: TaskPositionSchema,
+                }).nullable(),
+                version: HybridLogicalTimeSchema,
+            }),
+        ).transform<TaskAssigneeActivePositionRegister>({
+            serialize: register => register,
+            deserialize: register =>
+                new TaskAssigneeActivePositionRegister(register.value, register.version),
         }),
 
         title: TaskIndexTitleType,
@@ -530,15 +554,19 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
             isDeleted: new OpensearchIndexBooleanType({isFilterable: true, isSortable: true}),
             displayStatus: TaskIndexDisplayStatusType,
             assigneeStatus: TaskIndexAssigneeStatusType.nullable(),
+            assigneeActivePosition: TaskIndexPositionType.nullable(),
         },
-        compute: task => ({
-            isDeleted: getTaskIndexDocIsDeleted(task),
-            displayStatus: getTaskIndexDocDisplayStatus(task),
-            assigneeStatus:
-                task.status.value.type === "Open" && task.assignee.value
-                    ? task.rawAssigneeStatus
-                    : null,
-        }),
+        compute: task => {
+            return {
+                isDeleted: getTaskIndexDocIsDeleted(task),
+                displayStatus: getTaskIndexDocDisplayStatus(task),
+                assigneeStatus:
+                    task.status.value.type === "Open" && task.assignee.value
+                        ? task.rawAssigneeStatus
+                        : null,
+                assigneeActivePosition: getTaskIndexDocAssigneeActivePosition(task),
+            };
+        },
     },
 });
 
@@ -571,4 +599,19 @@ export function getTaskIndexDocAssigneeStatus(
     return task.status.value.type === "Open" && task.assignee.value
         ? task.rawAssigneeStatus.value
         : {type: "Inactive"};
+}
+
+export function getTaskIndexDocAssigneeActivePosition(task: {
+    status: TaskStatusRegister;
+    assignee: TaskAssigneeRegister;
+    rawAssigneeStatus: TaskAssigneeStatusRegister;
+    rawAssigneeActivePosition: TaskAssigneeActivePositionRegister;
+}): TaskPosition | null {
+    return task.status.value.type === "Open" &&
+        task.assignee.value &&
+        task.rawAssigneeStatus?.value.type === "Active"
+        ? task.rawAssigneeActivePosition.value?.accountId === task.assignee.value.assignee.accountId
+            ? task.rawAssigneeActivePosition.value.position
+            : {orderTime: task.rawAssigneeStatus.version, orderKey: initialOrderKey}
+        : null;
 }

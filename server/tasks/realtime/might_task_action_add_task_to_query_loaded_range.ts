@@ -51,7 +51,7 @@ assertEqualTypes<
     | "ParentPosition"
     | "CollectionPosition"
     | "NotepadPagePosition"
-    | "AssigneeStatusActivePosition"
+    | "AssigneeActivePosition"
 >();
 
 /**
@@ -249,7 +249,7 @@ export function mightTaskActionAddTaskToQueryLoadedRange(
                         // Updating status may reset assignee status so may change sorting related to
                         // assignee status...
                         sort.type === "ActivatedTime" ||
-                        sort.type === "AssigneeStatusActivePosition",
+                        sort.type === "AssigneeActivePosition",
                 )
             ) {
                 return true;
@@ -300,7 +300,7 @@ export function mightTaskActionAddTaskToQueryLoadedRange(
                         // assignee status...
                         sort.type === "DisplayStatus" ||
                         sort.type === "ActivatedTime" ||
-                        sort.type === "AssigneeStatusActivePosition",
+                        sort.type === "AssigneeActivePosition",
                 )
             ) {
                 return true;
@@ -346,7 +346,7 @@ export function mightTaskActionAddTaskToQueryLoadedRange(
                     sort =>
                         sort.type === "DisplayStatus" ||
                         sort.type === "ActivatedTime" ||
-                        sort.type === "AssigneeStatusActivePosition",
+                        sort.type === "AssigneeActivePosition",
                 )
             ) {
                 return true;
@@ -382,6 +382,9 @@ export function mightTaskActionAddTaskToQueryLoadedRange(
                 default:
                     throw exhaustive(action.assigneeStatus);
             }
+        }
+        case "UpdateAssigneeActivePosition": {
+            return sorts.some(sort => sort.type === "AssigneeActivePosition");
         }
         case "UpdateTitle": {
             // We don't know what the title will be when this action is applied so return

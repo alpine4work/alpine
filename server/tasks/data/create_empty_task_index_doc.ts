@@ -7,6 +7,7 @@ import {
     TaskParentTaskIdRegister,
 } from "~/shared/tasks/actions/task_task_action.js";
 import {TaskAssigneeRegister} from "~/shared/tasks/task_assignee.js";
+import {TaskAssigneeActivePositionRegister} from "~/shared/tasks/task_assignee_active_position.js";
 import {TaskAssigneeStatusRegister} from "~/shared/tasks/task_assignee_status.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
@@ -54,6 +55,7 @@ export function createEmptyTaskIndexDoc(
         status: new TaskStatusRegister({type: "Open"}, actionTime),
         assignee: new TaskAssigneeRegister(null, actionTime),
         rawAssigneeStatus: new TaskAssigneeStatusRegister({type: "Inactive"}, actionTime),
+        rawAssigneeActivePosition: new TaskAssigneeActivePositionRegister(null, actionTime),
         title: {raw: emptyTaskTitle.get()},
         dueDate: new TaskDueDateRegister(null, actionTime),
         priority: new TaskPriorityRegister(null, actionTime),

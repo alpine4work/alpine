@@ -1,7 +1,6 @@
 import {CrdtRegister, createCrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
-import {TaskPositionSchema} from "~/shared/tasks/task_position.js";
 
 /**
  * The task assignee status represents whether an account is actively working
@@ -23,7 +22,6 @@ export const TaskAssigneeStatusSchema = Schema.union({
     }),
     Active: Schema.object({
         type: Schema.value("Active"),
-        position: TaskPositionSchema,
         activatedTime: TaskFilterableTime.schema,
     }),
 });

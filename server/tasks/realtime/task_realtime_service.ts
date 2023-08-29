@@ -6,10 +6,6 @@ import {
     DynamoSystemActorContextModule,
 } from "~/server/accounts/dynamo_actor_context_module.js";
 import {
-    createServerProcessContext,
-    serverProcessContextParseOptions,
-} from "~/server/node/create_server_process_context.js";
-import {
     ServerSessionActionContextModules,
     ServerSystemActionContext,
     ServerSystemActionContextModules,
@@ -17,6 +13,10 @@ import {
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
+import {
+    createServerProcessContext,
+    serverProcessContextParseOptions,
+} from "~/server/node/create_server_process_context.js";
 import {createStandardizedServerWithWebSockets} from "~/server/node/create_standardized_server.js";
 import {runService} from "~/server/node/run_service.js";
 import {NotificationsContextModule} from "~/server/notifications/data/notifications_context_module.js";
@@ -199,15 +199,20 @@ runService({
                     TaskRealtimeSessionActionContextModules,
                     typeof TaskRealtimeProtocol,
                     TaskRealtimeConnection
-                >(processContext, TaskRealtimeProtocol, ({accountId, sendEvent}) => {
-                    return new TaskRealtimeConnection({
-                        server,
-                        spaceId,
-                        accountId,
-                        dangerouslyEscalateToSystemContext,
-                        sendEvent,
-                    });
-                }),
+                >(
+                    processContext,
+                    TaskRealtimeProtocol,
+                    ({accountId, sendEvent, closeWithError}) => {
+                        return new TaskRealtimeConnection({
+                            server,
+                            spaceId,
+                            accountId,
+                            dangerouslyEscalateToSystemContext,
+                            sendEvent,
+                            closeWithError,
+                        });
+                    },
+                ),
         );
 
         const handleRequest = async (request: Request, url: URL): Promise<Response | void> => {

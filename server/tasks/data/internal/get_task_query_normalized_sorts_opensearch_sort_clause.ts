@@ -127,11 +127,11 @@ export function getTaskQueryNormalizedSortsOpensearchSortClause(
                         },
                     ];
                 }
-                case "AssigneeStatusActivePosition": {
+                case "AssigneeActivePosition": {
                     return [
                         {"assignee.value.assignee.accountId": item},
-                        {"assigneeStatus.value.position.orderTime": item},
-                        {"assigneeStatus.value.position.orderKey": item},
+                        {"assigneeActivePosition.orderTime": item},
+                        {"assigneeActivePosition.orderKey": item},
                     ];
                 }
                 default:
@@ -168,7 +168,7 @@ const minInt64 = -(2n ** 63n);
  * - `getTaskQueryNormalizedSortsOpensearchSortClause()` is what creates our
  *   sort definition for OpenSearch. Sometimes it uses odd formats to satisfy
  *   OpenSearch (e.g. for `CollectionPosition`) or uses multiple values for one
- *   sort item (e.g. for `AssigneeStatusActivePosition`).
+ *   sort item (e.g. for `AssigneeActivePosition`).
  *
  * You need to look at both functions when implementing this one to produce the
  * right value.
@@ -334,7 +334,7 @@ export function convertTaskQuerySortCursorToOpensearchCursor(
                 }
                 break;
             }
-            case "AssigneeStatusActivePosition": {
+            case "AssigneeActivePosition": {
                 if (sortValue === null) {
                     newCursor.push(null);
                     // OpenSearch returns the max/min value for a numeric type in the cursor when

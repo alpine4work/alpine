@@ -14,7 +14,7 @@ export type TaskQueryNormalizedSort =
     | TaskQueryParentPositionNormalizedSort
     | TaskQueryCollectionPositionNormalizedSort
     | TaskQueryNotepadPagePositionNormalizedSort
-    | TaskQueryAssigneeStatusActivePositionNormalizedSort;
+    | TaskQueryAssigneeActivePositionNormalizedSort;
 
 export const defaultTaskQueryNormalizedSorts: ReadonlyArray<TaskQueryNormalizedSort> = [
     {type: "CreatedTime", direction: "Ascending", missing: "Last"},
@@ -137,14 +137,14 @@ const TaskQueryNotepadPagePositionNormalizedSortSchema = Schema.object({
     missing: Schema.value("Last"),
 });
 
-export type TaskQueryAssigneeStatusActivePositionNormalizedSort = {
-    readonly type: "AssigneeStatusActivePosition";
+export type TaskQueryAssigneeActivePositionNormalizedSort = {
+    readonly type: "AssigneeActivePosition";
     readonly direction: "Ascending" | "Descending";
     readonly missing: "Last" | "First";
 };
 
-const TaskQueryAssigneeStatusActivePositionNormalizedSortSchema = Schema.object({
-    type: Schema.value("AssigneeStatusActivePosition"),
+const TaskQueryAssigneeActivePositionNormalizedSortSchema = Schema.object({
+    type: Schema.value("AssigneeActivePosition"),
     direction: Schema.enum(["Ascending", "Descending"]),
     missing: Schema.enum(["Last", "First"]),
 });
@@ -154,7 +154,7 @@ export const TaskQueryNormalizedSortSchema: Schema<TaskQueryNormalizedSort> = Sc
     ParentPosition: TaskQueryParentPositionNormalizedSortSchema,
     CollectionPosition: TaskQueryCollectionPositionNormalizedSortSchema,
     NotepadPagePosition: TaskQueryNotepadPagePositionNormalizedSortSchema,
-    AssigneeStatusActivePosition: TaskQueryAssigneeStatusActivePositionNormalizedSortSchema,
+    AssigneeActivePosition: TaskQueryAssigneeActivePositionNormalizedSortSchema,
 });
 
 assertAssignableTypes<

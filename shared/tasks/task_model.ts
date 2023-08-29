@@ -6,6 +6,7 @@ import {
     TaskParentTaskIdRegister,
 } from "~/shared/tasks/actions/task_task_action.js";
 import {TaskAssigneeRegister} from "~/shared/tasks/task_assignee.js";
+import {TaskAssigneeActivePositionRegister} from "~/shared/tasks/task_assignee_active_position.js";
 import {TaskAssigneeStatusRegister} from "~/shared/tasks/task_assignee_status.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
@@ -51,6 +52,7 @@ const TaskModelDataSchema = Schema.object({
     status: TaskStatusRegister.schema,
     assignee: TaskAssigneeRegister.schema,
     assigneeStatus: TaskAssigneeStatusRegister.schema,
+    assigneeActivePosition: TaskAssigneeActivePositionRegister.schema,
 
     title: TaskTitleSchema,
     dueDate: TaskDueDateRegister.schema,

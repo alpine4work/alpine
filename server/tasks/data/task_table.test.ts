@@ -86,12 +86,17 @@ function testAuthorizeTaskQueryAccess(
         throw new InvalidArgumentError("Impossible filters");
     }
 
-    return authorizeTaskQueryAccess(context, {
-        filters: filters.normalizedFilters,
-        sorts: normalizeTaskQuerySorts(options?.sorts ?? []),
-        getTaskIndexDocIfExists: () => null,
-        getCollectionIndexDocIfExists: () => null,
-    });
+    return authorizeTaskQueryAccess(
+        context,
+        {
+            filters: filters.normalizedFilters,
+            sorts: normalizeTaskQuerySorts(options?.sorts ?? []),
+        },
+        {
+            getTaskIndexDocIfExists: () => undefined,
+            getCollectionIndexDocIfExists: () => undefined,
+        },
+    );
 }
 
 describe("old style", () => {
@@ -9353,7 +9358,6 @@ describe("old style", () => {
                     type: "UpdateAssigneeStatus",
                     assigneeStatus: {
                         type: "Active",
-                        position: {orderTime: clock.now(), orderKey: initialOrderKey},
                         activatedTime: getCurrentTaskTime(),
                     },
                 },
@@ -9381,7 +9385,6 @@ describe("old style", () => {
                     type: "UpdateAssigneeStatus",
                     assigneeStatus: {
                         type: "Active",
-                        position: {orderTime: clock.now(), orderKey: initialOrderKey},
                         activatedTime: getCurrentTaskTime(),
                     },
                 },
@@ -9443,7 +9446,6 @@ describe("old style", () => {
                         type: "UpdateAssigneeStatus",
                         assigneeStatus: {
                             type: "Active",
-                            position: {orderTime: clock.now(), orderKey: initialOrderKey},
                             activatedTime: getCurrentTaskTime(),
                         },
                     },
@@ -9494,7 +9496,6 @@ describe("old style", () => {
                         type: "UpdateAssigneeStatus",
                         assigneeStatus: {
                             type: "Active",
-                            position: {orderTime: clock.now(), orderKey: initialOrderKey},
                             activatedTime: getUnreasonableTaskTime(),
                         },
                     },
@@ -9505,7 +9506,214 @@ describe("old style", () => {
         );
     });
 
-    test("can't update task assignee status with unreasonable order time", async () => {
+    test("can update task assignee active position", async () => {
+        const {taskId} = await createPublicTask(session1, space.id);
+
+        await commitTaskActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateAssignee",
+                    assignee: {
+                        assignee: taskAccount1,
+                        assigner: taskAccount1,
+                        assignedTime: getCurrentTaskTime(),
+                    },
+                },
+            },
+        ]);
+
+        await commitTaskActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateAssigneeStatus",
+                    assigneeStatus: {
+                        type: "Active",
+                        activatedTime: getCurrentTaskTime(),
+                    },
+                },
+            },
+        ]);
+
+        await commitTaskActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateAssigneeActivePosition",
+                    accountId: session1.accountId,
+                    position: {orderTime: clock.now(), orderKey: assertOrderKey("a2")},
+                },
+            },
+        ]);
+
+        await commitTaskActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateAssigneeActivePosition",
+                    accountId: session1.accountId,
+                    position: {orderTime: clock.now(), orderKey: assertOrderKey("a3")},
+                },
+            },
+        ]);
+    });
+
+    test("can't update task assignee active position when another account is assigned", async () => {
+        const {taskId} = await createPublicTask(session1, space.id);
+
+        await commitTaskActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateAssignee",
+                    assignee: {
+                        assignee: taskAccount2,
+                        assigner: taskAccount1,
+                        assignedTime: getCurrentTaskTime(),
+                    },
+                },
+            },
+        ]);
+
+        await commitTaskActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateAssigneeStatus",
+                    assigneeStatus: {
+                        type: "Active",
+                        activatedTime: getCurrentTaskTime(),
+                    },
+                },
+            },
+        ]);
+
+        await expect(
+            commitTaskActionTransaction(context.action(session1), space.id, [
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId,
+                    taskAction: {
+                        type: "UpdateAssigneeActivePosition",
+                        accountId: session1.accountId,
+                        position: {orderTime: clock.now(), orderKey: assertOrderKey("a2")},
+                    },
+                },
+            ]),
+        ).rejects.toThrow(
+            new PermissionDeniedError(
+                "Can only update the task's active position if you are the task's assignee",
+            ),
+        );
+    });
+
+    test("can't update task assignee active position when no account is assigned", async () => {
+        const {taskId} = await createPublicTask(session1, space.id);
+
+        await commitTaskActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateAssigneeStatus",
+                    assigneeStatus: {
+                        type: "Active",
+                        activatedTime: getCurrentTaskTime(),
+                    },
+                },
+            },
+        ]);
+
+        await expect(
+            commitTaskActionTransaction(context.action(session1), space.id, [
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId,
+                    taskAction: {
+                        type: "UpdateAssigneeActivePosition",
+                        accountId: session1.accountId,
+                        position: {orderTime: clock.now(), orderKey: assertOrderKey("a2")},
+                    },
+                },
+            ]),
+        ).rejects.toThrow(
+            new PermissionDeniedError(
+                "Can only update the task's active position if you are the task's assignee",
+            ),
+        );
+    });
+
+    test("can't update task assignee active position with an account id other than your own", async () => {
+        const {taskId} = await createPublicTask(session1, space.id);
+
+        await commitTaskActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateAssignee",
+                    assignee: {
+                        assignee: taskAccount1,
+                        assigner: taskAccount1,
+                        assignedTime: getCurrentTaskTime(),
+                    },
+                },
+            },
+        ]);
+
+        await commitTaskActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateAssigneeStatus",
+                    assigneeStatus: {
+                        type: "Active",
+                        activatedTime: getCurrentTaskTime(),
+                    },
+                },
+            },
+        ]);
+
+        await expect(
+            commitTaskActionTransaction(context.action(session1), space.id, [
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId,
+                    taskAction: {
+                        type: "UpdateAssigneeActivePosition",
+                        accountId: session2.accountId,
+                        position: {orderTime: clock.now(), orderKey: assertOrderKey("a2")},
+                    },
+                },
+            ]),
+        ).rejects.toThrow(
+            new PermissionDeniedError(
+                "Must use the actor `AccountId` when updating the task's active position",
+            ),
+        );
+    });
+
+    test("can't update task assignee active position with unreasonable order time", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -9529,7 +9737,7 @@ describe("old style", () => {
                 taskAction: {
                     type: "UpdateAssignee",
                     assignee: {
-                        assignee: taskAccount2,
+                        assignee: taskAccount1,
                         assigner: taskAccount1,
                         assignedTime: getCurrentTaskTime(),
                     },
@@ -9544,11 +9752,11 @@ describe("old style", () => {
                     time: clock.now(),
                     taskId,
                     taskAction: {
-                        type: "UpdateAssigneeStatus",
-                        assigneeStatus: {
-                            type: "Active",
-                            position: {orderTime: getUnreasonableTime(), orderKey: initialOrderKey},
-                            activatedTime: getCurrentTaskTime(),
+                        type: "UpdateAssigneeActivePosition",
+                        accountId: session2.accountId,
+                        position: {
+                            orderTime: getUnreasonableTime(),
+                            orderKey: assertOrderKey("a2"),
                         },
                     },
                 },
@@ -13426,7 +13634,7 @@ test("must filter by assignee to sort by active position", async () => {
         testAuthorizeTaskQueryAccess(session.action(), {
             sorts: [
                 {
-                    type: "AssigneeStatusActivePosition",
+                    type: "AssigneeActivePosition",
                     direction: "Ascending",
                     missing: "Last",
                 },
@@ -13450,7 +13658,7 @@ test("must filter by assignee to sort by active position", async () => {
         ],
         sorts: [
             {
-                type: "AssigneeStatusActivePosition",
+                type: "AssigneeActivePosition",
                 direction: "Ascending",
                 missing: "Last",
             },
@@ -13467,7 +13675,7 @@ test("must filter by assignee to sort by active position", async () => {
             ],
             sorts: [
                 {
-                    type: "AssigneeStatusActivePosition",
+                    type: "AssigneeActivePosition",
                     direction: "Ascending",
                     missing: "Last",
                 },
@@ -13495,7 +13703,7 @@ test("must filter by assignee to sort by active position", async () => {
         ],
         sorts: [
             {
-                type: "AssigneeStatusActivePosition",
+                type: "AssigneeActivePosition",
                 direction: "Ascending",
                 missing: "Last",
             },

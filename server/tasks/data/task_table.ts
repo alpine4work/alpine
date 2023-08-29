@@ -1493,22 +1493,26 @@ async function actuallyCommitTaskActionTransaction(
                                         "Action `activatedTime` is too far in the future",
                                     );
                                 }
-
-                                if (
-                                    taskAction.assigneeStatus.type === "Active" &&
-                                    !state.isTimeReasonable(
-                                        taskAction.assigneeStatus.position.orderTime[0],
-                                    )
-                                ) {
+                                break;
+                            }
+                            case "UpdateAssigneeActivePosition": {
+                                if (!state.isTimeReasonable(taskAction.position.orderTime[0])) {
                                     throw new InvalidArgumentError(
                                         "Action `orderTime` is too far in the future",
                                     );
                                 }
 
-                                // NOCOMMIT: Currently any user can change the `position` of a user's
-                                // active tasks? This seems wrong. The position of a user's active tasks should
-                                // be personal and private. Maybe we set this to null and infer it? Unless the
-                                // account explicitly sets it?
+                                if (taskItem.assigneeId.value !== state.getActorAccountId()) {
+                                    throw new PermissionDeniedError(
+                                        "Can only update the task's active position if you are the task's assignee",
+                                    );
+                                }
+
+                                if (taskAction.accountId !== state.getActorAccountId()) {
+                                    throw new PermissionDeniedError(
+                                        "Must use the actor `AccountId` when updating the task's active position",
+                                    );
+                                }
                                 break;
                             }
                             case "UpdateTitle": {
@@ -2378,7 +2382,7 @@ export async function authorizeTaskQueryAccess(
                                 "Can't sort by notepad page that's not yours",
                             );
                         }
-                        case "AssigneeStatusActivePosition": {
+                        case "AssigneeActivePosition": {
                             // A task's active position is private to the account whom the task is
                             // assigned. Only allow sorting by active position when also filtering for
                             // tasks assigned to you.

@@ -13,11 +13,21 @@ ts_project(
     tests = {
         "task_index_permutations_test": {
             "size": "medium",
-            # Give this test three CPUs. Two for OpenSearch, one for the test process.
-            "tags": ["cpu:4"],
+            # Give this test at least three CPUs. Two for OpenSearch, one for the test
+            # process.
+            "tags": ["cpu:3"],
             # It takes ~10s to start OpenSearch. Better to have a small number of large
             # shards than many small shards.
-            "shard_count": 10,
+            "shard_count": 12,
+        },
+        # These are kind of chunky tests that use OpenSearch. We configure OpenSearch
+        # in tests to use 2 CPUs (see `startOpensearchLocal()`) so reserve those
+        # resources in Bazel and one for the test process.
+        "internal/get_task_query_normalized_filters_opensearch_query_clause_test": {
+            "tags": ["cpu:3"],
+        },
+        "internal/get_task_query_normalized_sorts_opensearch_sort_clause_test": {
+            "tags": ["cpu:3"],
         },
     },
     visibility = [

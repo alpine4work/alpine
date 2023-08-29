@@ -102,7 +102,7 @@ function getTaskQueryNormalizedSortCursorValueFromIndexDoc(
                 return [position.orderTime[0], position.orderTime[1], position.orderKey];
             }
         }
-        case "AssigneeStatusActivePosition": {
+        case "AssigneeActivePosition": {
             if (
                 task.status.value.type !== "Open" ||
                 !task.assignee.value ||
@@ -110,11 +110,19 @@ function getTaskQueryNormalizedSortCursorValueFromIndexDoc(
             ) {
                 return task.assignee.value ? [task.assignee.value.assignee.accountId] : null;
             } else {
+                const assigneeActivePosition = (task.rawAssigneeActivePosition.value?.accountId ===
+                task.assignee.value.assignee.accountId
+                    ? task.rawAssigneeActivePosition.value.position
+                    : null) ?? {
+                    orderTime: task.rawAssigneeStatus.version,
+                    orderKey: initialOrderKey,
+                };
+
                 return [
                     task.assignee.value.assignee.accountId,
-                    task.rawAssigneeStatus.value.position.orderTime[0],
-                    task.rawAssigneeStatus.value.position.orderTime[1],
-                    task.rawAssigneeStatus.value.position.orderKey,
+                    assigneeActivePosition.orderTime[0],
+                    assigneeActivePosition.orderTime[1],
+                    assigneeActivePosition.orderKey,
                 ];
             }
         }

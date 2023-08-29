@@ -56,13 +56,14 @@ export type TaskTestInterface = {
     status: TaskStatus;
     assignee: TaskAssignee | null;
     assigneeStatus: TaskAssigneeStatus;
+    assigneeActivePosition: TaskPosition | null;
     title: TaskTitle;
     dueDate: CalendarDate | null;
     priority: TaskPriority | null;
 };
 
 export type TaskCollectionTestInterface = {
-    createdTime: Date;
+    createdTime: HybridLogicalTime;
     isDeleted: boolean;
     name: string;
     accessPolicy: TaskCollectionAccessPolicy;
@@ -911,10 +912,6 @@ const taskTaskActionTestCases: Array<{
                         time: time3,
                         assigneeStatus: {
                             type: "Active",
-                            position: {
-                                orderTime: time3,
-                                orderKey: initialOrderKey,
-                            },
                             activatedTime: new TaskFilterableTime({
                                 absoluteTime: time3,
                                 setterTimeZone: defaultTimeZone,
@@ -933,14 +930,14 @@ const taskTaskActionTestCases: Array<{
                     },
                     assigneeStatus: {
                         type: "Active",
-                        position: {
-                            orderTime: time3,
-                            orderKey: initialOrderKey,
-                        },
                         activatedTime: new TaskFilterableTime({
                             absoluteTime: time3,
                             setterTimeZone: defaultTimeZone,
                         }),
+                    },
+                    assigneeActivePosition: {
+                        orderTime: time3,
+                        orderKey: initialOrderKey,
                     },
                 },
             };
@@ -979,10 +976,6 @@ const taskTaskActionTestCases: Array<{
                         time: time3,
                         assigneeStatus: {
                             type: "Active",
-                            position: {
-                                orderTime: time3,
-                                orderKey: initialOrderKey,
-                            },
                             activatedTime: new TaskFilterableTime({
                                 absoluteTime: time3,
                                 setterTimeZone: defaultTimeZone,
@@ -1042,10 +1035,6 @@ const taskTaskActionTestCases: Array<{
                         time: time3,
                         assigneeStatus: {
                             type: "Active",
-                            position: {
-                                orderTime: time3,
-                                orderKey: initialOrderKey,
-                            },
                             activatedTime: new TaskFilterableTime({
                                 absoluteTime: time3,
                                 setterTimeZone: defaultTimeZone,
@@ -1120,10 +1109,6 @@ const taskTaskActionTestCases: Array<{
                         time: time3,
                         assigneeStatus: {
                             type: "Active",
-                            position: {
-                                orderTime: time3,
-                                orderKey: initialOrderKey,
-                            },
                             activatedTime: new TaskFilterableTime({
                                 absoluteTime: time3,
                                 setterTimeZone: defaultTimeZone,
@@ -1183,10 +1168,6 @@ const taskTaskActionTestCases: Array<{
                         time: time3,
                         assigneeStatus: {
                             type: "Active",
-                            position: {
-                                orderTime: time3,
-                                orderKey: initialOrderKey,
-                            },
                             activatedTime: new TaskFilterableTime({
                                 absoluteTime: time3,
                                 setterTimeZone: defaultTimeZone,
@@ -1253,10 +1234,6 @@ const taskTaskActionTestCases: Array<{
                         time: time3,
                         assigneeStatus: {
                             type: "Active",
-                            position: {
-                                orderTime: time3,
-                                orderKey: initialOrderKey,
-                            },
                             activatedTime: new TaskFilterableTime({
                                 absoluteTime: time3,
                                 setterTimeZone: defaultTimeZone,
@@ -1286,6 +1263,363 @@ const taskTaskActionTestCases: Array<{
                         }),
                     },
                     assigneeStatus: {type: "Inactive"},
+                },
+            };
+        },
+    },
+    {
+        name: "update assignee active position",
+        create: ({creator, account2, getNextTime}): TaskTaskActionTestArtifacts => {
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+            const time4 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        time: time1,
+                        creator,
+                        creatorTimeZone: defaultTimeZone,
+                    },
+                    {
+                        type: "UpdateAssignee",
+                        time: time2,
+                        assignee: {
+                            assignee: account2,
+                            assigner: creator,
+                            assignedTime: new TaskFilterableTime({
+                                absoluteTime: time2,
+                                setterTimeZone: defaultTimeZone,
+                            }),
+                        },
+                    },
+                    {
+                        type: "UpdateAssigneeStatus",
+                        time: time3,
+                        assigneeStatus: {
+                            type: "Active",
+                            activatedTime: new TaskFilterableTime({
+                                absoluteTime: time3,
+                                setterTimeZone: defaultTimeZone,
+                            }),
+                        },
+                    },
+                    {
+                        type: "UpdateAssigneeActivePosition",
+                        time: time4,
+                        accountId: account2.accountId,
+                        position: {orderTime: time3, orderKey: assertOrderKey("a2")},
+                    },
+                ],
+                task: {
+                    assignee: {
+                        assignee: account2,
+                        assigner: creator,
+                        assignedTime: new TaskFilterableTime({
+                            absoluteTime: time2,
+                            setterTimeZone: defaultTimeZone,
+                        }),
+                    },
+                    assigneeStatus: {
+                        type: "Active",
+                        activatedTime: new TaskFilterableTime({
+                            absoluteTime: time3,
+                            setterTimeZone: defaultTimeZone,
+                        }),
+                    },
+                    assigneeActivePosition: {orderTime: time3, orderKey: assertOrderKey("a2")},
+                },
+            };
+        },
+    },
+    {
+        name: "update assignee active position with the wrong account",
+        create: ({creator, account2, getNextTime}): TaskTaskActionTestArtifacts => {
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+            const time4 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        time: time1,
+                        creator,
+                        creatorTimeZone: defaultTimeZone,
+                    },
+                    {
+                        type: "UpdateAssignee",
+                        time: time2,
+                        assignee: {
+                            assignee: account2,
+                            assigner: creator,
+                            assignedTime: new TaskFilterableTime({
+                                absoluteTime: time2,
+                                setterTimeZone: defaultTimeZone,
+                            }),
+                        },
+                    },
+                    {
+                        type: "UpdateAssigneeStatus",
+                        time: time3,
+                        assigneeStatus: {
+                            type: "Active",
+                            activatedTime: new TaskFilterableTime({
+                                absoluteTime: time3,
+                                setterTimeZone: defaultTimeZone,
+                            }),
+                        },
+                    },
+                    {
+                        type: "UpdateAssigneeActivePosition",
+                        time: time4,
+                        accountId: creator.accountId,
+                        position: {orderTime: time3, orderKey: assertOrderKey("a2")},
+                    },
+                ],
+                task: {
+                    assignee: {
+                        assignee: account2,
+                        assigner: creator,
+                        assignedTime: new TaskFilterableTime({
+                            absoluteTime: time2,
+                            setterTimeZone: defaultTimeZone,
+                        }),
+                    },
+                    assigneeStatus: {
+                        type: "Active",
+                        activatedTime: new TaskFilterableTime({
+                            absoluteTime: time3,
+                            setterTimeZone: defaultTimeZone,
+                        }),
+                    },
+                    assigneeActivePosition: {orderTime: time3, orderKey: initialOrderKey},
+                },
+            };
+        },
+    },
+    {
+        name: "updating status resets assignee active position",
+        create: ({creator, account2, getNextTime}): TaskTaskActionTestArtifacts => {
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+            const time4 = getNextTime();
+            const time5 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        time: time1,
+                        creator,
+                        creatorTimeZone: defaultTimeZone,
+                    },
+                    {
+                        type: "UpdateAssignee",
+                        time: time2,
+                        assignee: {
+                            assignee: account2,
+                            assigner: creator,
+                            assignedTime: new TaskFilterableTime({
+                                absoluteTime: time2,
+                                setterTimeZone: defaultTimeZone,
+                            }),
+                        },
+                    },
+                    {
+                        type: "UpdateAssigneeStatus",
+                        time: time3,
+                        assigneeStatus: {
+                            type: "Active",
+                            activatedTime: new TaskFilterableTime({
+                                absoluteTime: time3,
+                                setterTimeZone: defaultTimeZone,
+                            }),
+                        },
+                    },
+                    {
+                        type: "UpdateAssigneeActivePosition",
+                        time: time4,
+                        accountId: account2.accountId,
+                        position: {orderTime: time3, orderKey: assertOrderKey("a2")},
+                    },
+                    {
+                        type: "UpdateStatus",
+                        time: time5,
+                        status: {
+                            type: "Closed",
+                            closer: creator,
+                            closedTime: new TaskFilterableTime({
+                                absoluteTime: time5,
+                                setterTimeZone: defaultTimeZone,
+                            }),
+                        },
+                    },
+                ],
+                task: {
+                    status: {
+                        type: "Closed",
+                        closedTime: new TaskFilterableTime({
+                            absoluteTime: time5,
+                            setterTimeZone: defaultTimeZone,
+                        }),
+                        closer: creator,
+                    },
+                    assignee: {
+                        assignee: account2,
+                        assigner: creator,
+                        assignedTime: new TaskFilterableTime({
+                            absoluteTime: time2,
+                            setterTimeZone: defaultTimeZone,
+                        }),
+                    },
+                    assigneeStatus: {type: "Inactive"},
+                    assigneeActivePosition: null,
+                },
+            };
+        },
+    },
+    {
+        name: "updating assignee resets assignee active position",
+        create: ({creator, account2, getNextTime}): TaskTaskActionTestArtifacts => {
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+            const time4 = getNextTime();
+            const time5 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        time: time1,
+                        creator,
+                        creatorTimeZone: defaultTimeZone,
+                    },
+                    {
+                        type: "UpdateAssignee",
+                        time: time2,
+                        assignee: {
+                            assignee: account2,
+                            assigner: creator,
+                            assignedTime: new TaskFilterableTime({
+                                absoluteTime: time2,
+                                setterTimeZone: defaultTimeZone,
+                            }),
+                        },
+                    },
+                    {
+                        type: "UpdateAssigneeStatus",
+                        time: time3,
+                        assigneeStatus: {
+                            type: "Active",
+                            activatedTime: new TaskFilterableTime({
+                                absoluteTime: time3,
+                                setterTimeZone: defaultTimeZone,
+                            }),
+                        },
+                    },
+                    {
+                        type: "UpdateAssigneeActivePosition",
+                        time: time4,
+                        accountId: account2.accountId,
+                        position: {orderTime: time3, orderKey: assertOrderKey("a2")},
+                    },
+                    {
+                        type: "UpdateAssignee",
+                        time: time5,
+                        assignee: {
+                            assignee: creator,
+                            assigner: creator,
+                            assignedTime: new TaskFilterableTime({
+                                absoluteTime: time2,
+                                setterTimeZone: defaultTimeZone,
+                            }),
+                        },
+                    },
+                ],
+                task: {
+                    assignee: {
+                        assignee: creator,
+                        assigner: creator,
+                        assignedTime: new TaskFilterableTime({
+                            absoluteTime: time2,
+                            setterTimeZone: defaultTimeZone,
+                        }),
+                    },
+                    assigneeStatus: {type: "Inactive"},
+                    assigneeActivePosition: null,
+                },
+            };
+        },
+    },
+    {
+        name: "updating assignee status resets assignee active position",
+        create: ({creator, account2, getNextTime}): TaskTaskActionTestArtifacts => {
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+            const time4 = getNextTime();
+            const time5 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        time: time1,
+                        creator,
+                        creatorTimeZone: defaultTimeZone,
+                    },
+                    {
+                        type: "UpdateAssignee",
+                        time: time2,
+                        assignee: {
+                            assignee: account2,
+                            assigner: creator,
+                            assignedTime: new TaskFilterableTime({
+                                absoluteTime: time2,
+                                setterTimeZone: defaultTimeZone,
+                            }),
+                        },
+                    },
+                    {
+                        type: "UpdateAssigneeStatus",
+                        time: time3,
+                        assigneeStatus: {
+                            type: "Active",
+                            activatedTime: new TaskFilterableTime({
+                                absoluteTime: time3,
+                                setterTimeZone: defaultTimeZone,
+                            }),
+                        },
+                    },
+                    {
+                        type: "UpdateAssigneeActivePosition",
+                        time: time4,
+                        accountId: account2.accountId,
+                        position: {orderTime: time3, orderKey: assertOrderKey("a2")},
+                    },
+                    {
+                        type: "UpdateAssigneeStatus",
+                        time: time5,
+                        assigneeStatus: {type: "Inactive"},
+                    },
+                ],
+                task: {
+                    assignee: {
+                        assignee: account2,
+                        assigner: creator,
+                        assignedTime: new TaskFilterableTime({
+                            absoluteTime: time2,
+                            setterTimeZone: defaultTimeZone,
+                        }),
+                    },
+                    assigneeStatus: {type: "Inactive"},
+                    assigneeActivePosition: null,
                 },
             };
         },
@@ -3022,6 +3356,7 @@ export function testTaskActionPermutations({
                                         status: {type: "Open"},
                                         assignee: null,
                                         assigneeStatus: {type: "Inactive"},
+                                        assigneeActivePosition: null,
                                         title: emptyTaskTitle.get(),
                                         dueDate: null,
                                         priority: null,
@@ -3086,11 +3421,9 @@ export function testTaskActionPermutations({
                                         ...expectation.collection,
                                         createdTime:
                                             expectation.collection.createdTime ??
-                                            new Date(
-                                                assertExists(
-                                                    createAction?.time,
-                                                    "Expected `Create` task collection action when `createdTime` is not provided",
-                                                )[0],
+                                            assertExists(
+                                                createAction?.time,
+                                                "Expected `Create` task collection action when `createdTime` is not provided",
                                             ),
                                         accessPolicy:
                                             expectation.collection.accessPolicy ??

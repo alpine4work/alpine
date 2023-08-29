@@ -1,7 +1,6 @@
 import {parseAbsolute, toCalendarDate} from "@internationalized/date";
 import {SessionItem, getAccountsTableForTest} from "~/server/accounts/accounts_table.js";
 import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {getOpensearchQueryClauseDescription} from "~/server/opensearch/opensearch_query_clause.js";
 import {getSpacesTableForTest} from "~/server/spaces/spaces_table.js";
 import {evaluateTaskQueryNormalizedFiltersForIndexDoc} from "~/server/tasks/data/evaluate_task_query_normalized_filters_for_index_doc.js";
 import {getTaskQueryNormalizedFiltersOpensearchQueryClause} from "~/server/tasks/data/internal/get_task_query_normalized_filters_opensearch_query_clause.js";
@@ -620,7 +619,6 @@ test("can filter for closed tasks", async () => {
                 type: "UpdateAssigneeStatus",
                 assigneeStatus: {
                     type: "Active",
-                    position: {orderTime: clock.now(), orderKey: initialOrderKey},
                     activatedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -721,7 +719,6 @@ test("can filter for open tasks", async () => {
                 type: "UpdateAssigneeStatus",
                 assigneeStatus: {
                     type: "Active",
-                    position: {orderTime: clock.now(), orderKey: initialOrderKey},
                     activatedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -822,7 +819,6 @@ test("can filter for open inactive tasks", async () => {
                 type: "UpdateAssigneeStatus",
                 assigneeStatus: {
                     type: "Active",
-                    position: {orderTime: clock.now(), orderKey: initialOrderKey},
                     activatedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -920,7 +916,6 @@ test("can filter for open active tasks", async () => {
                 type: "UpdateAssigneeStatus",
                 assigneeStatus: {
                     type: "Active",
-                    position: {orderTime: clock.now(), orderKey: initialOrderKey},
                     activatedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -1018,7 +1013,6 @@ test("can filter for closed and open inactive tasks", async () => {
                 type: "UpdateAssigneeStatus",
                 assigneeStatus: {
                     type: "Active",
-                    position: {orderTime: clock.now(), orderKey: initialOrderKey},
                     activatedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -1116,7 +1110,6 @@ test("can filter for closed and open active tasks", async () => {
                 type: "UpdateAssigneeStatus",
                 assigneeStatus: {
                     type: "Active",
-                    position: {orderTime: clock.now(), orderKey: initialOrderKey},
                     activatedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -1214,7 +1207,6 @@ test("can filter for no statuses", async () => {
                 type: "UpdateAssigneeStatus",
                 assigneeStatus: {
                     type: "Active",
-                    position: {orderTime: clock.now(), orderKey: initialOrderKey},
                     activatedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -1315,7 +1307,6 @@ test("can filter for all statuses", async () => {
                 type: "UpdateAssigneeStatus",
                 assigneeStatus: {
                     type: "Active",
-                    position: {orderTime: clock.now(), orderKey: initialOrderKey},
                     activatedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -1419,7 +1410,6 @@ test("will merge multiple status filters", async () => {
                 type: "UpdateAssigneeStatus",
                 assigneeStatus: {
                     type: "Active",
-                    position: {orderTime: clock.now(), orderKey: initialOrderKey},
                     activatedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -7784,7 +7774,6 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                         type: "UpdateAssigneeStatus",
                         assigneeStatus: {
                             type: "Active",
-                            position: {orderTime: clock.now(), orderKey: initialOrderKey},
                             activatedTime: TaskFilterableTime.test(clock.now()),
                         },
                     },
@@ -7797,7 +7786,6 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                         type: "UpdateAssigneeStatus",
                         assigneeStatus: {
                             type: "Active",
-                            position: {orderTime: clock.now(), orderKey: initialOrderKey},
                             activatedTime: TaskFilterableTime.test(clock2.now()),
                         },
                     },
@@ -7810,7 +7798,6 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                         type: "UpdateAssigneeStatus",
                         assigneeStatus: {
                             type: "Active",
-                            position: {orderTime: clock.now(), orderKey: initialOrderKey},
                             activatedTime: TaskFilterableTime.test(clock2.now()),
                         },
                     },
@@ -7823,7 +7810,6 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                         type: "UpdateAssigneeStatus",
                         assigneeStatus: {
                             type: "Active",
-                            position: {orderTime: clock.now(), orderKey: initialOrderKey},
                             activatedTime: TaskFilterableTime.test(clock3.now()),
                         },
                     },
@@ -7836,7 +7822,6 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                         type: "UpdateAssigneeStatus",
                         assigneeStatus: {
                             type: "Active",
-                            position: {orderTime: clock.now(), orderKey: initialOrderKey},
                             activatedTime: TaskFilterableTime.test(clock3.now()),
                         },
                     },

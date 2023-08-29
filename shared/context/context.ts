@@ -180,7 +180,7 @@ export const Context: ContextStatic = {
             const processContextModule = modules.process;
             assert(processContextModule instanceof ProcessContextModule);
 
-            let taskPromises: Array<Promise<void>> = [];
+            let taskPromises: Array<Promise<unknown>> = [];
 
             const context = Context.new<Modules>({
                 ...modules,
@@ -239,7 +239,7 @@ export const Context: ContextStatic = {
             const processContextModule = modules.process;
             assert(processContextModule instanceof ProcessContextModule);
 
-            let taskPromises: Array<Promise<void>> = [];
+            let taskPromises: Array<Promise<unknown>> = [];
 
             const context = Context.new<Modules>({
                 ...modules,
@@ -403,7 +403,7 @@ const ContextImplementation = class Context {
             const processContextModule = newModules.process ?? this._modules.process;
             assert(processContextModule instanceof ProcessContextModule);
 
-            let taskPromises: Array<Promise<void>> = [];
+            let taskPromises: Array<Promise<unknown>> = [];
 
             const newContext = this.clone({
                 ...newModules,
@@ -462,7 +462,7 @@ const ContextImplementation = class Context {
             const processContextModule = newModules.process ?? this._modules.process;
             assert(processContextModule instanceof ProcessContextModule);
 
-            let taskPromises: Array<Promise<void>> = [];
+            let taskPromises: Array<Promise<unknown>> = [];
 
             const newContext = this.clone({
                 ...newModules,

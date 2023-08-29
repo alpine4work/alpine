@@ -4289,13 +4289,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                         },
                                                                                                         "optional": false
                                                                                                     },
-                                                                                                    "position": {
-                                                                                                        "valueSchema": {
-                                                                                                            "type": "Reference",
-                                                                                                            "reuseReferenceId": "c49ee4e1"
-                                                                                                        },
-                                                                                                        "optional": false
-                                                                                                    },
                                                                                                     "activatedTime": {
                                                                                                         "valueSchema": {
                                                                                                             "type": "Reference",
@@ -4306,6 +4299,31 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                 }
                                                                                             }
                                                                                         }
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "UpdateAssigneeActivePosition": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "UpdateAssigneeActivePosition"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "accountId": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Id"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "position": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Reference",
+                                                                                        "reuseReferenceId": "c49ee4e1"
                                                                                     },
                                                                                     "optional": false
                                                                                 }

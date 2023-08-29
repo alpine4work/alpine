@@ -6,7 +6,10 @@ import {
     getTaskIndexDocIfExistsForTest,
     indexTaskActionTransactionAssumingItsCommitted,
 } from "~/server/tasks/data/task_index.js";
-import {getTaskIndexDocIsDeleted} from "~/server/tasks/data/task_index_doc.js";
+import {
+    getTaskIndexDocAssigneeActivePosition,
+    getTaskIndexDocIsDeleted,
+} from "~/server/tasks/data/task_index_doc.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {
@@ -81,6 +84,7 @@ testTaskActionPermutations({
                 task.status.value.type === "Open" && task.assignee.value
                     ? task.rawAssigneeStatus.value
                     : {type: "Inactive"},
+            assigneeActivePosition: getTaskIndexDocAssigneeActivePosition(task),
             title: task.title.raw,
             dueDate: task.dueDate.value,
             priority: task.priority.value,

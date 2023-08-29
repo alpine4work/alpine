@@ -226,13 +226,24 @@ export function applyTaskActionToTaskIndexDoc(
                 version: actionTime,
             });
 
-            if (newStatus === task.status && newRawAssigneeStatus === task.rawAssigneeStatus)
+            const newRawAssigneeActivePosition = task.rawAssigneeActivePosition.apply({
+                value: null,
+                version: actionTime,
+            });
+
+            if (
+                newStatus === task.status &&
+                newRawAssigneeStatus === task.rawAssigneeStatus &&
+                newRawAssigneeActivePosition === task.rawAssigneeActivePosition
+            ) {
                 return task;
+            }
 
             return {
                 ...task,
                 status: newStatus,
                 rawAssigneeStatus: newRawAssigneeStatus,
+                rawAssigneeActivePosition: newRawAssigneeActivePosition,
             };
         }
         case "UpdateAssignee": {
@@ -246,13 +257,24 @@ export function applyTaskActionToTaskIndexDoc(
                 version: actionTime,
             });
 
-            if (newAssignee === task.assignee && newRawAssigneeStatus === task.rawAssigneeStatus)
+            const newRawAssigneeActivePosition = task.rawAssigneeActivePosition.apply({
+                value: null,
+                version: actionTime,
+            });
+
+            if (
+                newAssignee === task.assignee &&
+                newRawAssigneeStatus === task.rawAssigneeStatus &&
+                newRawAssigneeActivePosition === task.rawAssigneeActivePosition
+            ) {
                 return task;
+            }
 
             return {
                 ...task,
                 assignee: newAssignee,
                 rawAssigneeStatus: newRawAssigneeStatus,
+                rawAssigneeActivePosition: newRawAssigneeActivePosition,
             };
         }
         case "UpdateAssigneeStatus": {
@@ -261,11 +283,40 @@ export function applyTaskActionToTaskIndexDoc(
                 version: actionTime,
             });
 
-            if (newRawAssigneeStatus === task.rawAssigneeStatus) return task;
+            const newRawAssigneeActivePosition = task.rawAssigneeActivePosition.apply({
+                value: null,
+                version: actionTime,
+            });
+
+            if (
+                newRawAssigneeStatus === task.rawAssigneeStatus &&
+                newRawAssigneeActivePosition === task.rawAssigneeActivePosition
+            ) {
+                return task;
+            }
 
             return {
                 ...task,
                 rawAssigneeStatus: newRawAssigneeStatus,
+                rawAssigneeActivePosition: newRawAssigneeActivePosition,
+            };
+        }
+        case "UpdateAssigneeActivePosition": {
+            const newRawAssigneeActivePosition = task.rawAssigneeActivePosition.apply({
+                value: {
+                    accountId: action.accountId,
+                    position: action.position,
+                },
+                version: actionTime,
+            });
+
+            if (newRawAssigneeActivePosition === task.rawAssigneeActivePosition) {
+                return task;
+            }
+
+            return {
+                ...task,
+                rawAssigneeActivePosition: newRawAssigneeActivePosition,
             };
         }
         case "UpdateTitle": {
