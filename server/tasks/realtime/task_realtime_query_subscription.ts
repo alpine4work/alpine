@@ -12,6 +12,7 @@ import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realt
 import {InternalError} from "~/shared/error/error.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
+import {createPromiseImmediateResolver} from "~/shared/helpers/async/promise_immediate_resolver.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -305,6 +306,13 @@ export class TaskRealtimeQuerySubscriptionInternal {
         );
 
         const {tasks} = this.query.getLoadedTasks({limit: this._loadedCount, afterCursor: null});
+
+        assert(
+            tasks.length > 0 ||
+                (this._referencedTaskEntryById.size === 0 &&
+                    this._referencedCollectionEntryById.size === 0),
+            "If query subscription has no loaded tasks then it shouldn't have referenced tasks or referenced collections either",
+        );
 
         for (const task of tasks) {
             if (task.parent.taskId.value) {
@@ -688,28 +696,7 @@ export class TaskRealtimeQuerySubscriptionInternal {
         // Get a reference to the parent tasks of loaded tasks
         const newParentTaskId = newTask.parent.taskId.value;
         if (newParentTaskId) {
-            const referencedTaskEntry = getOrSetDefaultMapValue(
-                this._referencedTaskEntryById,
-                newParentTaskId,
-                () => {
-                    const taskEntryPromise = this.query.store
-                        .loadTaskEntry(context, newParentTaskId)
-                        .then(taskEntry => {
-                            taskEntry.addQuerySubscriptionDependent(this);
-                            this._onReferencedTaskAdd(context, eventBuilder, taskEntry.task);
-                            return taskEntry;
-                        });
-
-                    eventBuilder.waitUntil(taskEntryPromise);
-
-                    return {
-                        referenceCount: 0,
-                        taskEntry: taskEntryPromise,
-                    };
-                },
-            );
-
-            referencedTaskEntry.referenceCount++;
+            this._trackNewParentTaskDependency(context, eventBuilder, newParentTaskId);
         }
 
         // Get a reference to the collections of loaded tasks
@@ -762,46 +749,11 @@ export class TaskRealtimeQuerySubscriptionInternal {
             // references stuff in the new parent we don't remove those references and add
             // them immediately back.
             if (newParentTaskId) {
-                const referencedTaskEntry = getOrSetDefaultMapValue(
-                    this._referencedTaskEntryById,
-                    newParentTaskId,
-                    () => {
-                        const taskEntryPromise = this.query.store
-                            .loadTaskEntry(context, newParentTaskId)
-                            .then(taskEntry => {
-                                taskEntry.addQuerySubscriptionDependent(this);
-                                this._onReferencedTaskAdd(context, eventBuilder, taskEntry.task);
-                                return taskEntry;
-                            });
-
-                        eventBuilder.waitUntil(taskEntryPromise);
-
-                        return {
-                            referenceCount: 0,
-                            taskEntry: taskEntryPromise,
-                        };
-                    },
-                );
-
-                referencedTaskEntry.referenceCount++;
+                this._trackNewParentTaskDependency(context, eventBuilder, newParentTaskId);
             }
 
             if (oldParentTaskId) {
-                const referencedTaskEntry = assertExists(
-                    this._referencedTaskEntryById.get(oldParentTaskId),
-                );
-
-                referencedTaskEntry.referenceCount--;
-
-                if (referencedTaskEntry.referenceCount === 0) {
-                    eventBuilder.waitUntil(
-                        referencedTaskEntry.taskEntry.then(taskEntry => {
-                            taskEntry.removeQuerySubscriptionDependent(this);
-                            this._onReferencedTaskRemove(eventBuilder, taskEntry.task);
-                        }),
-                    );
-                    this._referencedTaskEntryById.delete(oldParentTaskId);
-                }
+                this._trackOldParentTaskDependency(eventBuilder, oldParentTaskId);
             }
         }
 
@@ -880,21 +832,7 @@ export class TaskRealtimeQuerySubscriptionInternal {
         // Remove the reference to the parent task of this loaded task
         const oldParentTaskId = oldTask.parent.taskId.value;
         if (oldParentTaskId) {
-            const referencedTaskEntry = assertExists(
-                this._referencedTaskEntryById.get(oldParentTaskId),
-            );
-
-            referencedTaskEntry.referenceCount--;
-
-            if (referencedTaskEntry.referenceCount === 0) {
-                eventBuilder.waitUntil(
-                    referencedTaskEntry.taskEntry.then(taskEntry => {
-                        taskEntry.removeQuerySubscriptionDependent(this);
-                        this._onReferencedTaskRemove(eventBuilder, taskEntry.task);
-                    }),
-                );
-                this._referencedTaskEntryById.delete(oldParentTaskId);
-            }
+            this._trackOldParentTaskDependency(eventBuilder, oldParentTaskId);
         }
 
         // Remove the references to the collections of this loaded task
@@ -919,6 +857,146 @@ export class TaskRealtimeQuerySubscriptionInternal {
                     }),
                 );
                 this._referencedCollectionEntryById.delete(oldCollectionId);
+            }
+        }
+    }
+
+    private _trackNewParentTaskDependency(
+        context: TaskRealtimeSystemActionContext,
+        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        newParentTaskId: TaskId,
+    ) {
+        const referencedTaskEntry = this._referencedTaskEntryById.get(newParentTaskId);
+
+        if (referencedTaskEntry !== undefined) {
+            referencedTaskEntry.referenceCount++;
+        } else {
+            const taskEntryPromiseResolver =
+                createPromiseImmediateResolver<TaskRealtimeQueryStoreTaskEntry>();
+
+            // Use a promise resolver for `taskEntry` since we want to update
+            // `_referencedTaskEntryById` immediately before calling `_onReferencedTaskAdd`
+            // which may recurse back into this function if there's a cycle.
+            const newReferencedTaskEntry = {
+                referenceCount: 1,
+                taskEntry: taskEntryPromiseResolver.promise,
+            };
+            this._referencedTaskEntryById.set(newParentTaskId, newReferencedTaskEntry);
+
+            eventBuilder.waitUntil(
+                this.query.store
+                    .loadTaskEntry(context, newParentTaskId)
+                    .then(taskEntry => {
+                        // If, due to a race condition, we are adding this task and while the task is
+                        // loading the task is removed but the task was part of a cycle then we need to
+                        // detect we're in that case since we can't call `_onReferencedTaskAdd` twice.
+                        //
+                        // If the task is being removed then we have a remove callback running right
+                        // after us at all times which will finish cleaning the task up.
+                        if (detectCycleWhenAddingRemovedTaskId === taskEntry.task.id) {
+                            return taskEntry;
+                        }
+
+                        if (newReferencedTaskEntry.referenceCount > 0) {
+                            taskEntry.addQuerySubscriptionDependent(this);
+                            this._onReferencedTaskAdd(context, eventBuilder, taskEntry.task);
+                        } else {
+                            const previousDetectCycleWhenAddingRemovedTaskId =
+                                detectCycleWhenAddingRemovedTaskId;
+                            detectCycleWhenAddingRemovedTaskId = taskEntry.task.id;
+                            try {
+                                taskEntry.addQuerySubscriptionDependent(this);
+                                this._onReferencedTaskAdd(context, eventBuilder, taskEntry.task);
+                            } finally {
+                                detectCycleWhenAddingRemovedTaskId =
+                                    previousDetectCycleWhenAddingRemovedTaskId;
+                            }
+                        }
+
+                        return taskEntry;
+                    })
+                    .then(taskEntryPromiseResolver.resolve, taskEntryPromiseResolver.reject),
+            );
+        }
+    }
+
+    private _trackOldParentTaskDependency(
+        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        oldParentTaskId: TaskId,
+    ) {
+        // If we are removing a cycle then we should recursively visit this function
+        // but the task has already been removed so we don't need to remove it again
+        // (we'll get an assertion error if we try).
+        if (removingCycleStartingWithTaskId === oldParentTaskId) return;
+
+        const referencedTaskEntry = assertExists(
+            this._referencedTaskEntryById.get(oldParentTaskId),
+        );
+
+        referencedTaskEntry.referenceCount--;
+
+        if (referencedTaskEntry.referenceCount === 0) {
+            // Make sure to delete before calling `_onReferencedTaskRemove` which may
+            // recursively call this function if there's a cycle.
+            this._referencedTaskEntryById.delete(oldParentTaskId);
+
+            eventBuilder.waitUntil(
+                referencedTaskEntry.taskEntry.then(taskEntry => {
+                    // If we've already synchronously removed this task then stop. We don't need to
+                    // remove it again. This may happen when removing a cycle from an asynchronously
+                    // resolved `taskEntry`.
+                    if (detectCycleWhenRemovingTaskId === taskEntry.task.id) return;
+
+                    const previousDetectCycleWhenRemovingTaskId = detectCycleWhenRemovingTaskId;
+                    detectCycleWhenRemovingTaskId ??= taskEntry.task.id;
+                    try {
+                        taskEntry.removeQuerySubscriptionDependent(this);
+                        this._onReferencedTaskRemove(eventBuilder, taskEntry.task);
+                    } finally {
+                        detectCycleWhenRemovingTaskId = previousDetectCycleWhenRemovingTaskId;
+                    }
+                }),
+            );
+        }
+        // If we have a cycle then a task entry's one remaining reference might be a
+        // reference to itself! Loop through the task's parents to see if we have a
+        // cycle and if we find a cycle remove the entire thing.
+        else if (referencedTaskEntry.referenceCount === 1) {
+            const seenTaskIds = new Set<TaskId>([]);
+            let currentReferencedTaskEntry = referencedTaskEntry;
+            while (true) {
+                // If a parent has more than one reference the cycle isn't dead even if we have
+                // a cycle.
+                if (currentReferencedTaskEntry.referenceCount !== 1) break;
+
+                const currentReferencedTaskEntryPromiseState =
+                    currentReferencedTaskEntry.taskEntry.getStateWithoutListening();
+                if (currentReferencedTaskEntryPromiseState.status !== "fulfilled") break;
+
+                const taskEntry = currentReferencedTaskEntryPromiseState.value;
+                const parentTaskId = taskEntry.task.parent.taskId.value;
+                if (!parentTaskId) break;
+
+                // If we find a parent we've already seen before, this is a cycle! Remove the
+                // entire cycle as dependencies. `_onReferencedTaskRemove` will recursively
+                // visit the other cycle members.
+                if (seenTaskIds.has(taskEntry.task.id)) {
+                    const previousRemovingCycleFromInitialTaskId = removingCycleStartingWithTaskId;
+                    removingCycleStartingWithTaskId = taskEntry.task.id;
+                    try {
+                        this._referencedTaskEntryById.delete(taskEntry.task.id);
+                        taskEntry.removeQuerySubscriptionDependent(this);
+                        this._onReferencedTaskRemove(eventBuilder, taskEntry.task);
+                    } finally {
+                        removingCycleStartingWithTaskId = previousRemovingCycleFromInitialTaskId;
+                    }
+                    break;
+                }
+                seenTaskIds.add(taskEntry.task.id);
+
+                currentReferencedTaskEntry = assertExists(
+                    this._referencedTaskEntryById.get(parentTaskId),
+                );
             }
         }
     }
@@ -1000,7 +1078,7 @@ export class TaskRealtimeQuerySubscriptionInternal {
 
             assert(
                 previousCollectionById.get(oldCollection.id) === oldCollection,
-                "Subscription can't remove task that is not referenced with `_onReferencedCollectionRemove()`",
+                "Subscription can't remove collection that is not referenced with `_onReferencedCollectionRemove()`",
             );
 
             previousCollectionById.delete(oldCollection.id);
@@ -1018,6 +1096,10 @@ export class TaskRealtimeQuerySubscriptionInternal {
         }
     }
 }
+
+let removingCycleStartingWithTaskId: TaskId | null = null;
+let detectCycleWhenAddingRemovedTaskId: TaskId | null = null;
+let detectCycleWhenRemovingTaskId: TaskId | null = null;
 
 function diffSets<T>(set1: ReadonlySet<T>, set2: ReadonlySet<T>): Set<T> {
     const newSet = new Set<T>(set1);

@@ -210,9 +210,11 @@ export class TestTask {
         ]);
     }
 
-    public async updateParentTask(session: TestSpaceSession, task: TestTask | null) {
-        const time = testClock.nowLogical();
-
+    public async updateParentTask(
+        session: TestSpaceSession,
+        task: TestTask | null,
+        {time = testClock.nowLogical()}: {time?: HybridLogicalTime} = {},
+    ) {
         await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
             {
                 type: "UpdateTask",

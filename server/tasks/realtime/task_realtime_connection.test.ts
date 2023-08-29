@@ -18,13 +18,15 @@ import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {ForkActionContextModule} from "~/shared/context/fork_action_context_module.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
+import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
+import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {
@@ -69,7 +71,15 @@ function createWebSocketServer(space: TestSpace) {
     return Object.assign(webSocketServer, {
         wait: () => server.wait(),
         waitForApplyActionTransactions: () => server.waitForApplyActionTransactions(),
+        waitForIndexActionTransactions: () => server.waitForIndexActionTransactions(),
+        pauseApplyActionTransactions: () => server.pauseApplyActionTransactions(),
+        unpauseApplyActionTransactions: () => server.unpauseApplyActionTransactions(),
         evictAll: () => server.evictAll(),
+        applyActionTransaction: (options: {
+            spaceId: SpaceId;
+            committedTime: Date;
+            actions: ReadonlyArray<TaskAction>;
+        }) => server.applyActionTransaction(options),
     });
 }
 
@@ -7486,29 +7496,7 @@ test("race condition: parent task is removed before it's loaded", async () => {
     await waitPromise1;
     await waitPromise2;
 
-    // Events are sent out-of-order but it's ok since the client can use `time` to
-    // figure out `task3` is the correct parent task.
-    expect(connection.takeEvents()).toEqual([
-        {
-            type: "Update",
-            number: expect.any(Number),
-            actions: [
-                {
-                    type: "UpdateTask",
-                    time: expect.any(Array),
-                    taskId: task1.id,
-                    taskAction: {
-                        type: "UpdateAssignee",
-                        assignee: null,
-                    },
-                },
-            ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
-            referencedAccounts: [],
-        },
+    expect(connection.takeEvents().sort((a, b) => a.number - b.number)).toEqual([
         {
             type: "Update",
             number: expect.any(Number),
@@ -7528,6 +7516,26 @@ test("race condition: parent task is removed before it's loaded", async () => {
             backfillAuthorizedCollections: [],
             backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session.get()],
+        },
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: task1.id,
+                    taskAction: {
+                        type: "UpdateAssignee",
+                        assignee: null,
+                    },
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
         },
     ]);
 
@@ -11115,4 +11123,1070 @@ test("unreferenced data can be reused when no eviction", async () => {
             referencedAccounts: [await session1.get()],
         },
     ]);
+});
+
+test("can handle temporary cycle involving loaded tasks when actions are applied out-of-order", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const server = createWebSocketServer(space);
+
+    const [task1, task2, task3] = await runAllPromises([
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+    ]);
+
+    await task3.updatePriority(session, "High");
+    await task1.updateParentTask(session, task2);
+    await task2.updateParentTask(session, task3);
+
+    await server.wait();
+
+    const connection1 = await server.connectForTest(session.action());
+
+    expect(connection1.takeEvents()).toEqual([]);
+
+    // We need to load `task1` and `task3` into the store before they're updated in
+    // OpenSearch. Then we can control the order in which actions are applied in
+    // OpenSearch.
+    expect(
+        await connection1.procedures.subscribeToQuery(
+            query(session, {
+                filters: [
+                    {
+                        type: "Creator",
+                        operation: {
+                            type: "OneOf",
+                            accounts: [{type: "CurrentAccount"}],
+                        },
+                    },
+                ],
+            }),
+        ),
+    ).toEqual({
+        querySubscriptionId: expect.any(String),
+        loadedState: {type: "Full"},
+    });
+
+    expect(connection1.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [],
+            backfillAuthorizedTasks: [
+                expect.objectContaining({id: task1.id}),
+                expect.objectContaining({id: task3.id}),
+                expect.objectContaining({id: task2.id}),
+            ],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [await session.get()],
+        },
+    ]);
+
+    server.pauseApplyActionTransactions();
+
+    const time1 = testClock.nowLogical();
+    const time2 = testClock.nowLogical();
+
+    await expect(task3.updateParentTask(session, task1, {time: time2})).rejects.toThrow(
+        new FailedPreconditionError(
+            "Updating task's `parentTaskId` would create a circular dependency",
+        ),
+    );
+
+    await task2.updateParentTask(session, null, {time: time1});
+    await task3.updateParentTask(session, task1, {time: time2});
+    await server.waitForIndexActionTransactions();
+
+    const actions1: Array<TaskAction> = [
+        {
+            type: "UpdateTask",
+            time: time1,
+            taskId: task2.id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: null,
+            },
+        },
+    ];
+
+    const actions2: Array<TaskAction> = [
+        {
+            type: "UpdateTask",
+            time: time2,
+            taskId: task3.id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: task1.id,
+            },
+        },
+    ];
+
+    // Apply action transaction out of order temporarily creating a cycle...
+    await server.applyActionTransaction({
+        spaceId: space.id,
+        committedTime: testClock.nowDate(),
+        actions: actions2,
+    });
+
+    const connection2 = await server.connectForTest(session.action());
+
+    expect(connection2.takeEvents()).toEqual([]);
+
+    expect(
+        await connection2.procedures.subscribeToQuery(
+            query(session, {
+                filters: [
+                    {
+                        type: "Creator",
+                        operation: {
+                            type: "OneOf",
+                            accounts: [{type: "CurrentAccount"}],
+                        },
+                    },
+                    {
+                        type: "Priority",
+                        operation: {
+                            type: "OneOf",
+                            priorities: new Set(["High"]),
+                        },
+                    },
+                ],
+            }),
+        ),
+    ).toEqual({
+        querySubscriptionId: expect.any(String),
+        loadedState: {type: "Full"},
+    });
+
+    expect(connection2.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [],
+            backfillAuthorizedTasks: [
+                expect.objectContaining({id: task3.id}),
+                expect.objectContaining({id: task2.id}),
+                expect.objectContaining({id: task1.id}),
+            ],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [await session.get()],
+        },
+    ]);
+
+    const time3 = testClock.nowLogical();
+
+    await task3.updatePriority(session, "Low", {time: time3});
+    await server.waitForIndexActionTransactions();
+
+    const actions3: Array<TaskAction> = [
+        {
+            type: "UpdateTask",
+            time: time3,
+            taskId: task3.id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "Low",
+            },
+        },
+    ];
+
+    await server.applyActionTransaction({
+        spaceId: space.id,
+        committedTime: testClock.nowDate(),
+        actions: actions3,
+    });
+
+    expect(connection2.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: time3,
+                    taskId: task3.id,
+                    taskAction: {
+                        type: "UpdatePriority",
+                        priority: "Low",
+                    },
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    const time4 = testClock.nowLogical();
+
+    await task2.updatePriority(session, "High", {time: time4});
+    await server.waitForIndexActionTransactions();
+
+    const actions4: Array<TaskAction> = [
+        {
+            type: "UpdateTask",
+            time: time4,
+            taskId: task2.id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "High",
+            },
+        },
+    ];
+
+    await server.applyActionTransaction({
+        spaceId: space.id,
+        committedTime: testClock.nowDate(),
+        actions: actions4,
+    });
+
+    expect(connection2.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [],
+            backfillAuthorizedTasks: [
+                expect.objectContaining({id: task2.id}),
+                expect.objectContaining({id: task1.id}),
+                expect.objectContaining({id: task3.id}),
+            ],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [await session.get()],
+        },
+    ]);
+
+    await server.applyActionTransaction({
+        spaceId: space.id,
+        committedTime: testClock.nowDate(),
+        actions: actions1,
+    });
+
+    expect(connection2.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: time1,
+                    taskId: task2.id,
+                    taskAction: {
+                        type: "UpdateParentTaskId",
+                        parentTaskId: null,
+                    },
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    server.unpauseApplyActionTransactions();
+    await server.wait();
+
+    connection2.takeEvents();
+
+    await task1.updateAssignee(session, session);
+    await server.wait();
+
+    expect(connection2.takeEvents()).toEqual([]);
+
+    await task2.updateAssignee(session, session);
+    await server.wait();
+
+    expect(connection2.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: task2.id,
+                    taskAction: expect.objectContaining({
+                        type: "UpdateAssignee",
+                    }),
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [await session.get()],
+        },
+    ]);
+
+    await task3.updateAssignee(session, session);
+    await server.wait();
+
+    expect(connection2.takeEvents()).toEqual([]);
+});
+
+test("can handle temporary cycle not involving loaded tasks when actions are applied out-of-order", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const server = createWebSocketServer(space);
+
+    const [task1, task2, task3, task4, task5] = await runAllPromises([
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+    ]);
+
+    await task5.updatePriority(session, "High");
+    await task1.updateParentTask(session, task2);
+    await task2.updateParentTask(session, task3);
+    await task5.updateParentTask(session, task4);
+    await task4.updateParentTask(session, task3);
+
+    await server.wait();
+
+    const connection1 = await server.connectForTest(session.action());
+
+    expect(connection1.takeEvents()).toEqual([]);
+
+    // We need to load `task1` and `task3` into the store before they're updated in
+    // OpenSearch. Then we can control the order in which actions are applied in
+    // OpenSearch.
+    expect(
+        await connection1.procedures.subscribeToQuery(
+            query(session, {
+                filters: [
+                    {
+                        type: "Creator",
+                        operation: {
+                            type: "OneOf",
+                            accounts: [{type: "CurrentAccount"}],
+                        },
+                    },
+                ],
+            }),
+        ),
+    ).toEqual({
+        querySubscriptionId: expect.any(String),
+        loadedState: {type: "Full"},
+    });
+
+    server.pauseApplyActionTransactions();
+
+    const time1 = testClock.nowLogical();
+    const time2 = testClock.nowLogical();
+
+    await expect(task3.updateParentTask(session, task1, {time: time2})).rejects.toThrow(
+        new FailedPreconditionError(
+            "Updating task's `parentTaskId` would create a circular dependency",
+        ),
+    );
+
+    await task1.updateParentTask(session, null, {time: time1});
+    await task3.updateParentTask(session, task1, {time: time2});
+    await server.waitForIndexActionTransactions();
+
+    const actions1: Array<TaskAction> = [
+        {
+            type: "UpdateTask",
+            time: time1,
+            taskId: task1.id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: null,
+            },
+        },
+    ];
+
+    const actions2: Array<TaskAction> = [
+        {
+            type: "UpdateTask",
+            time: time2,
+            taskId: task3.id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: task1.id,
+            },
+        },
+    ];
+
+    // Apply action transaction out of order temporarily creating a cycle...
+    await server.applyActionTransaction({
+        spaceId: space.id,
+        committedTime: testClock.nowDate(),
+        actions: actions2,
+    });
+
+    const connection2 = await server.connectForTest(session.action());
+
+    expect(connection2.takeEvents()).toEqual([]);
+
+    expect(
+        await connection2.procedures.subscribeToQuery(
+            query(session, {
+                filters: [
+                    {
+                        type: "Creator",
+                        operation: {
+                            type: "OneOf",
+                            accounts: [{type: "CurrentAccount"}],
+                        },
+                    },
+                    {
+                        type: "Priority",
+                        operation: {
+                            type: "OneOf",
+                            priorities: new Set(["High"]),
+                        },
+                    },
+                ],
+            }),
+        ),
+    ).toEqual({
+        querySubscriptionId: expect.any(String),
+        loadedState: {type: "Full"},
+    });
+
+    expect(connection2.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [],
+            backfillAuthorizedTasks: [
+                expect.objectContaining({id: task5.id}),
+                expect.objectContaining({id: task2.id}),
+                expect.objectContaining({id: task1.id}),
+                expect.objectContaining({id: task3.id}),
+                expect.objectContaining({id: task4.id}),
+            ],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [await session.get()],
+        },
+    ]);
+
+    const time3 = testClock.nowLogical();
+
+    await task5.updatePriority(session, "Low", {time: time3});
+    await server.waitForIndexActionTransactions();
+
+    const actions3: Array<TaskAction> = [
+        {
+            type: "UpdateTask",
+            time: time3,
+            taskId: task5.id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "Low",
+            },
+        },
+    ];
+
+    await server.applyActionTransaction({
+        spaceId: space.id,
+        committedTime: testClock.nowDate(),
+        actions: actions3,
+    });
+
+    expect(connection2.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: time3,
+                    taskId: task5.id,
+                    taskAction: {
+                        type: "UpdatePriority",
+                        priority: "Low",
+                    },
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    const time4 = testClock.nowLogical();
+
+    await task5.updatePriority(session, "High", {time: time4});
+    await server.waitForIndexActionTransactions();
+
+    const actions4: Array<TaskAction> = [
+        {
+            type: "UpdateTask",
+            time: time4,
+            taskId: task5.id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "High",
+            },
+        },
+    ];
+
+    await server.applyActionTransaction({
+        spaceId: space.id,
+        committedTime: testClock.nowDate(),
+        actions: actions4,
+    });
+
+    expect(connection2.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [],
+            backfillAuthorizedTasks: [
+                expect.objectContaining({id: task5.id}),
+                expect.objectContaining({id: task2.id}),
+                expect.objectContaining({id: task1.id}),
+                expect.objectContaining({id: task3.id}),
+                expect.objectContaining({id: task4.id}),
+            ],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [await session.get()],
+        },
+    ]);
+
+    await server.applyActionTransaction({
+        spaceId: space.id,
+        committedTime: testClock.nowDate(),
+        actions: actions1,
+    });
+
+    expect(connection2.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: time1,
+                    taskId: task1.id,
+                    taskAction: {
+                        type: "UpdateParentTaskId",
+                        parentTaskId: null,
+                    },
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    server.unpauseApplyActionTransactions();
+    await server.wait();
+
+    connection2.takeEvents();
+
+    await task1.updateAssignee(session, session);
+    await server.wait();
+
+    expect(connection2.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: task1.id,
+                    taskAction: expect.objectContaining({
+                        type: "UpdateAssignee",
+                    }),
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [await session.get()],
+        },
+    ]);
+
+    await task2.updateAssignee(session, session);
+    await server.wait();
+
+    expect(connection2.takeEvents()).toEqual([]);
+
+    await task3.updateAssignee(session, session);
+    await server.wait();
+
+    expect(connection2.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: task3.id,
+                    taskAction: expect.objectContaining({
+                        type: "UpdateAssignee",
+                    }),
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [await session.get()],
+        },
+    ]);
+});
+
+test("can handle temporary cycle not involving loaded tasks when actions are applied out-of-order and task loading is delayed (scenario 1)", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const server = createWebSocketServer(space);
+
+    const [task1, task2, task3, task4, task5] = await runAllPromises([
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+    ]);
+
+    await task5.updatePriority(session, "High");
+    await task2.updateParentTask(session, task3);
+    await task5.updateParentTask(session, task4);
+    await task4.updateParentTask(session, task3);
+    await task2.updatePriority(session, "Medium");
+
+    await server.wait();
+
+    const connection1 = await server.connectForTest(session.action());
+
+    expect(connection1.takeEvents()).toEqual([]);
+
+    // We need to load `task1` and `task3` into the store before they're updated in
+    // OpenSearch. Then we can control the order in which actions are applied in
+    // OpenSearch.
+    //
+    // However, we want to exclude `task2`!
+    expect(
+        await connection1.procedures.subscribeToQuery(
+            query(session, {
+                filters: [
+                    {
+                        type: "Creator",
+                        operation: {
+                            type: "OneOf",
+                            accounts: [{type: "CurrentAccount"}],
+                        },
+                    },
+                    {
+                        type: "Priority",
+                        operation: {
+                            type: "NoneOf",
+                            priorities: new Set(["Medium"]),
+                        },
+                    },
+                ],
+            }),
+        ),
+    ).toEqual({
+        querySubscriptionId: expect.any(String),
+        loadedState: {type: "Full"},
+    });
+
+    server.pauseApplyActionTransactions();
+
+    const time1 = testClock.nowLogical();
+    const time2 = testClock.nowLogical();
+    const time3 = testClock.nowLogical();
+
+    await task1.updateParentTask(session, task2, {time: time1});
+
+    await expect(task3.updateParentTask(session, task1, {time: time3})).rejects.toThrow(
+        new FailedPreconditionError(
+            "Updating task's `parentTaskId` would create a circular dependency",
+        ),
+    );
+
+    await task1.updateParentTask(session, null, {time: time2});
+    await task3.updateParentTask(session, task1, {time: time3});
+    await server.waitForIndexActionTransactions();
+
+    const actions1: Array<TaskAction> = [
+        {
+            type: "UpdateTask",
+            time: time1,
+            taskId: task1.id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: task2.id,
+            },
+        },
+    ];
+
+    const actions2: Array<TaskAction> = [
+        {
+            type: "UpdateTask",
+            time: time2,
+            taskId: task1.id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: null,
+            },
+        },
+    ];
+
+    const actions3: Array<TaskAction> = [
+        {
+            type: "UpdateTask",
+            time: time3,
+            taskId: task3.id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: task1.id,
+            },
+        },
+    ];
+
+    const pause1Promise = taskRealtimeQueryStoreBeforeLoadTaskTestCheckpoint.pauseForTest(space.id);
+
+    const applyActions1Promise = server.applyActionTransaction({
+        spaceId: space.id,
+        committedTime: testClock.nowDate(),
+        actions: actions1,
+    });
+
+    const {unpause: unpause1} = await pause1Promise;
+
+    // Apply action transaction out of order temporarily creating a cycle...
+    await server.applyActionTransaction({
+        spaceId: space.id,
+        committedTime: testClock.nowDate(),
+        actions: actions3,
+    });
+
+    const connection2 = await server.connectForTest(session.action());
+
+    expect(connection2.takeEvents()).toEqual([]);
+
+    const pause2Promise = taskRealtimeQueryStoreBeforeSendEventTestCheckpoint.pauseForTest(
+        space.id,
+    );
+
+    const subscribePromise = connection2.procedures.subscribeToQuery(
+        query(session, {
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "CurrentAccount"}],
+                    },
+                },
+                {
+                    type: "Priority",
+                    operation: {
+                        type: "OneOf",
+                        priorities: new Set(["High"]),
+                    },
+                },
+            ],
+        }),
+    );
+
+    const {unpause: unpause2} = await pause2Promise;
+    unpause2();
+
+    expect(connection2.takeEvents()).toEqual([]);
+
+    unpause1();
+    await applyActions1Promise;
+    await subscribePromise;
+
+    expect(connection2.takeEvents().sort((a, b) => a.number - b.number)).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [],
+            backfillAuthorizedTasks: [
+                expect.objectContaining({id: task5.id}),
+                expect.objectContaining({id: task1.id}),
+                expect.objectContaining({id: task3.id}),
+                expect.objectContaining({id: task4.id}),
+                expect.objectContaining({id: task2.id}),
+            ],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [await session.get()],
+        },
+    ]);
+
+    await server.applyActionTransaction({
+        spaceId: space.id,
+        committedTime: testClock.nowDate(),
+        actions: actions2,
+    });
+});
+
+test("can handle temporary cycle not involving loaded tasks when actions are applied out-of-order and task loading is delayed (scenario 2)", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const server = createWebSocketServer(space);
+
+    const [task1, task2, task3, task4, task5] = await runAllPromises([
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+    ]);
+
+    await task5.updatePriority(session, "High");
+    await task2.updateParentTask(session, task3);
+    await task5.updateParentTask(session, task4);
+    await task4.updateParentTask(session, task3);
+    await task2.updatePriority(session, "Medium");
+
+    await server.wait();
+
+    const connection1 = await server.connectForTest(session.action());
+
+    expect(connection1.takeEvents()).toEqual([]);
+
+    // We need to load `task1` and `task3` into the store before they're updated in
+    // OpenSearch. Then we can control the order in which actions are applied in
+    // OpenSearch.
+    //
+    // However, we want to exclude `task2`!
+    expect(
+        await connection1.procedures.subscribeToQuery(
+            query(session, {
+                filters: [
+                    {
+                        type: "Creator",
+                        operation: {
+                            type: "OneOf",
+                            accounts: [{type: "CurrentAccount"}],
+                        },
+                    },
+                    {
+                        type: "Priority",
+                        operation: {
+                            type: "NoneOf",
+                            priorities: new Set(["Medium"]),
+                        },
+                    },
+                ],
+            }),
+        ),
+    ).toEqual({
+        querySubscriptionId: expect.any(String),
+        loadedState: {type: "Full"},
+    });
+
+    server.pauseApplyActionTransactions();
+
+    const time1 = testClock.nowLogical();
+    const time2 = testClock.nowLogical();
+    const time3 = testClock.nowLogical();
+
+    await task1.updateParentTask(session, task2, {time: time1});
+
+    await expect(task3.updateParentTask(session, task1, {time: time3})).rejects.toThrow(
+        new FailedPreconditionError(
+            "Updating task's `parentTaskId` would create a circular dependency",
+        ),
+    );
+
+    await task1.updateParentTask(session, null, {time: time2});
+    await task3.updateParentTask(session, task1, {time: time3});
+    await server.waitForIndexActionTransactions();
+
+    const actions1: Array<TaskAction> = [
+        {
+            type: "UpdateTask",
+            time: time1,
+            taskId: task1.id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: task2.id,
+            },
+        },
+    ];
+
+    const actions2: Array<TaskAction> = [
+        {
+            type: "UpdateTask",
+            time: time2,
+            taskId: task1.id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: null,
+            },
+        },
+    ];
+
+    const actions3: Array<TaskAction> = [
+        {
+            type: "UpdateTask",
+            time: time3,
+            taskId: task3.id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: task1.id,
+            },
+        },
+    ];
+
+    const pause1Promise = taskRealtimeQueryStoreBeforeLoadTaskTestCheckpoint.pauseForTest(space.id);
+
+    const applyActions1Promise = server.applyActionTransaction({
+        spaceId: space.id,
+        committedTime: testClock.nowDate(),
+        actions: actions1,
+    });
+
+    const {unpause: unpause1} = await pause1Promise;
+
+    // Apply action transaction out of order temporarily creating a cycle...
+    await server.applyActionTransaction({
+        spaceId: space.id,
+        committedTime: testClock.nowDate(),
+        actions: actions3,
+    });
+
+    const connection2 = await server.connectForTest(session.action());
+
+    expect(connection2.takeEvents()).toEqual([]);
+
+    const pause2Promise = taskRealtimeQueryStoreBeforeSendEventTestCheckpoint.pauseForTest(
+        space.id,
+    );
+
+    const subscribePromise = connection2.procedures.subscribeToQuery(
+        query(session, {
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "CurrentAccount"}],
+                    },
+                },
+                {
+                    type: "Priority",
+                    operation: {
+                        type: "OneOf",
+                        priorities: new Set(["High"]),
+                    },
+                },
+            ],
+        }),
+    );
+
+    const {unpause: unpause2} = await pause2Promise;
+    unpause2();
+
+    const time4 = testClock.nowLogical();
+
+    await task5.updatePriority(session, "Low", {time: time4});
+    await server.waitForIndexActionTransactions();
+
+    const actions4: Array<TaskAction> = [
+        {
+            type: "UpdateTask",
+            time: time4,
+            taskId: task5.id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "Low",
+            },
+        },
+    ];
+
+    const pause3Promise = taskRealtimeQueryStoreBeforeSendEventTestCheckpoint.pauseForTest(
+        space.id,
+    );
+
+    const applyActions4Promise = server.applyActionTransaction({
+        spaceId: space.id,
+        committedTime: testClock.nowDate(),
+        actions: actions4,
+    });
+
+    const {unpause: unpause3} = await pause3Promise;
+    unpause3();
+
+    expect(connection2.takeEvents()).toEqual([]);
+
+    unpause1();
+    await applyActions1Promise;
+    await subscribePromise;
+    await applyActions4Promise;
+
+    expect(connection2.takeEvents().sort((a, b) => a.number - b.number)).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [],
+            backfillAuthorizedTasks: [
+                expect.objectContaining({id: task5.id}),
+                expect.objectContaining({id: task1.id}),
+                expect.objectContaining({id: task3.id}),
+                expect.objectContaining({id: task4.id}),
+                expect.objectContaining({id: task2.id}),
+            ],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [await session.get()],
+        },
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: time4,
+                    taskId: task5.id,
+                    taskAction: {
+                        type: "UpdatePriority",
+                        priority: "Low",
+                    },
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    await server.applyActionTransaction({
+        spaceId: space.id,
+        committedTime: testClock.nowDate(),
+        actions: actions2,
+    });
 });

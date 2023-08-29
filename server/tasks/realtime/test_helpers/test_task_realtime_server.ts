@@ -131,6 +131,25 @@ export class TestTaskRealtimeServer {
     }
 
     /**
+     * Call the `applyActionTransaction()` function on our server.
+     */
+    public applyActionTransaction({
+        spaceId,
+        committedTime,
+        actions,
+    }: {
+        spaceId: SpaceId;
+        committedTime: Date;
+        actions: ReadonlyArray<TaskAction>;
+    }) {
+        return this.server.applyActionTransaction(this.context.systemAction(spaceId), {
+            spaceId,
+            committedTime,
+            actions,
+        });
+    }
+
+    /**
      * Wait for all `indexTaskActionTransaction()` calls to resolve and for the
      * task index to refresh. Then we also clear action history to act as if we're
      * at a time far away from when the actions were commit.

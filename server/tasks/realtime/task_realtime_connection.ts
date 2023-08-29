@@ -157,8 +157,9 @@ export class TaskRealtimeConnection {
                     assert(!this._querySubscriptionById.has(querySubscriptionId));
                     this._querySubscriptionById.set(querySubscriptionId, querySubscription);
 
-                    const eventBuilder = new TaskRealtimeUpdateEventBuilder();
                     try {
+                        const eventBuilder = new TaskRealtimeUpdateEventBuilder();
+
                         const loadedState = await querySubscription.loadMoreTasks(
                             context,
                             eventBuilder,
@@ -171,8 +172,13 @@ export class TaskRealtimeConnection {
                         // If there's an error, unsubscribe so we don't have a dangling subscription.
                         this._querySubscriptionById.delete(querySubscriptionId);
 
+                        const eventBuilder = new TaskRealtimeUpdateEventBuilder();
+
                         querySubscription.unsubscribe(eventBuilder);
-                        await eventBuilder.send(context, this._spaceId);
+
+                        // Don't send the unsubscribe event since the client didn't receive data for
+                        // this subscription in the first place.
+                        await eventBuilder.waitWithoutSending();
 
                         throw error;
                     }
@@ -442,7 +448,7 @@ export class TaskRealtimeConnection {
                 const referencedTaskState = this._referencedTaskStateById.get(newTask.id);
                 assert(referencedTaskState !== undefined);
 
-                if (referencedTaskState.task === newTask) {
+                if (referencedTaskState.task === newTask && oldTask !== newTask) {
                     // If we've already seen this update then our previous task should be `oldTask`.
                     if (process.env.NODE_ENV !== "production") {
                         assert(

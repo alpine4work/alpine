@@ -27,9 +27,8 @@ export class ProcessContextModule extends ContextModuleBase implements ForkableC
      * [1]: https://developers.cloudflare.com/workers/runtime-apis/fetch-event/#waituntil
      */
     public waitUntil(action: Promise<unknown> | (() => Promise<unknown>)): void {
-        // TODO(calebmer): Error handling! Unhandled exceptions should not crash
-        // the process.
-        this._waitUntil(typeof action === "function" ? action() : action);
+        const promise = typeof action === "function" ? action() : action;
+        this._waitUntil(promise);
     }
 
     public fork() {

@@ -718,9 +718,6 @@ export class TaskRealtimeQueryStoreInternal {
             }
         }
 
-        // NOCOMMIT: Test when there's temporarily a cycle because updates are applied
-        // out of order
-
         // HACK: Consider the following transaction. Let's say before the transaction
         // `task1`'s parent is `task2`.
         //
@@ -794,6 +791,19 @@ export class TaskRealtimeQueryStoreInternal {
                 }
             }
 
+            // If this task is referenced as a parent task in any query subscriptions then
+            // send updates to those subscriptions.
+            for (const querySubscription of querySubscriptions) {
+                querySubscription.onReferencedTaskUpdate(
+                    context,
+                    eventBuilder,
+                    taskEntry.task.id,
+                    oldTask,
+                    taskEntry.task,
+                    actions,
+                );
+            }
+
             // For queries this task is currently visible in, update the query and see if
             // the task is now hidden from the query.
             for (const query of taskEntry.iterateQueryDependents()) {
@@ -810,17 +820,6 @@ export class TaskRealtimeQueryStoreInternal {
                 if (!isStillVisible) {
                     taskEntry.removeQueryDependent(query);
                 }
-            }
-
-            for (const querySubscription of querySubscriptions) {
-                querySubscription.onReferencedTaskUpdate(
-                    context,
-                    eventBuilder,
-                    taskEntry.task.id,
-                    oldTask,
-                    taskEntry.task,
-                    actions,
-                );
             }
         }
 
