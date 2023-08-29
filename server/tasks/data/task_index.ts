@@ -60,9 +60,6 @@ const TaskIndex = new OpensearchIndex<
     // Our searches are basically always within a specific space and basically
     // always exclude deleted tasks. After that tasks exclude closed tasks most
     // of the time and the default sort order for views is creation time.
-    //
-    // NOCOMMIT: Test that index sorting is working with the profile API?
-    // https://www.elastic.co/guide/en/elasticsearch/reference/8.9/search-profile.html
     sort: [
         {field: "spaceId"},
         {field: "isDeleted"},
@@ -98,9 +95,6 @@ const TaskCollectionIndex = new OpensearchIndex<
     // is personal or not to efficiently filter them out.
     //
     // Finally sort by `createdTime` since that's generally useful.
-    //
-    // NOCOMMIT: Test that index sorting is working with the profile API?
-    // https://www.elastic.co/guide/en/elasticsearch/reference/8.9/search-profile.html
     sort: [
         {field: "spaceId"},
         {field: "isDeleted"},
