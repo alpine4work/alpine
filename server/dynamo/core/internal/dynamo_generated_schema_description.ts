@@ -4634,6 +4634,12 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "wasProcessed": {
+                                        "valueSchema": {
+                                            "type": "Boolean"
+                                        },
+                                        "optional": false
+                                    },
                                     "updateLockVersion": {
                                         "valueSchema": {
                                             "type": "Integer"
@@ -4646,7 +4652,31 @@ export const dynamoGeneratedSchemaDescription: {
                     }
                 }
             },
-            "indexes": []
+            "indexes": [
+                {
+                    "projection": "KeysOnly",
+                    "overloadByName": {
+                        "UnprocessedActionTransactions": {
+                            "itemTypes": [
+                                {
+                                    "partitionType": "TaskActions",
+                                    "sortRangeType": "ActionTransaction"
+                                }
+                            ],
+                            "partitionKeyAttributeByKey": {
+                                "wasProcessed": {
+                                    "type": "Boolean"
+                                }
+                            },
+                            "sortKeyAttributeByKey": {
+                                "committedTime": {
+                                    "type": "Date"
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
         },
         "Tasks": {
             "name": "Tasks",

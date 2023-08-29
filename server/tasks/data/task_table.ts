@@ -114,11 +114,37 @@ const TaskActionTable = DynamoTableSchema.new({
                          * Actions which should always be atomically applied together.
                          */
                         actions: Schema.array(TaskActionSchema),
+
+                        /**
+                         * Has this action transaction been processed? To consider an action
+                         * transaction processed we must have:
+                         *
+                         * 1. Indexed the transaction in OpenSearch
+                         * 2. Applied the transaction on all relevant task realtime servers
+                         *
+                         * We maintain an index of all actions across all spaces that haven't been
+                         * processed so we can retry if necessary.
+                         */
+                        wasProcessed: Schema.boolean,
                     }),
                 },
             ],
         },
     ],
+});
+
+// Allow querying unprocessed action transactions across all spaces.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const UnprocessedActionTransactionsIndex = TaskActionTable.addIndex({
+    name: "UnprocessedActionTransactions",
+    itemTypes: [{partitionType: "TaskActions", sortRangeType: "ActionTransaction"}],
+    partitionKeyAttributes: {
+        wasProcessed: DynamoKeyAttributeSchema.boolean,
+    },
+    sortKeyAttributes: {
+        committedTime: DynamoKeyAttributeSchema.date,
+    },
+    filter: item => !item.wasProcessed,
 });
 
 const TaskStatusTypeRegister = createCrdtRegister(
@@ -336,12 +362,15 @@ export function commitTaskActionTransaction(
             },
         });
 
-        const {actionTransactionId, committedTime, extraActions} =
-            await TaskActionTransactionCommitState.commit(context, spaceId, actions);
+        const {actionTransactionItem, extraActions} = await TaskActionTransactionCommitState.commit(
+            context,
+            spaceId,
+            actions,
+        );
 
         span.addData({
             tasks: {
-                actionTransactionId,
+                actionTransactionId: actionTransactionItem.actionTransactionId,
             },
         });
 
@@ -357,18 +386,33 @@ export function commitTaskActionTransaction(
             });
         }
 
-        // After successfully committing out action transaction, in the background
-        // index the action transaction.
-        context.tasks.indexActionTransactionAssumingItsCommitted(
-            spaceId,
-            actionTransactionId,
-            finalActions,
-        );
+        context.process.waitUntil(async () => {
+            // Index the action transaction in the background.
+            //
+            // TODO(calebmer): We need some way to recover if indexing fails! Right now
+            // maybe we can rely on a manual process where we look at the database for
+            // unprocessed transactions and manually retry them. However, it's important
+            // actions are indexed in a timely manner so we should have some process
+            // that's constantly querying the `TaskActions` table and retrying transactions
+            // that are taking a while to process.
+            await context.tasks.indexActionTransactionAssumingItsCommitted(
+                spaceId,
+                actionTransactionItem.actionTransactionId,
+                finalActions,
+            );
 
-        afterCommitTaskActionTransactionEventEmitterForTest?.emit({
-            spaceId,
-            committedTime,
-            actions: finalActions,
+            afterCommitTaskActionTransactionEventEmitterForTest?.emit({
+                spaceId,
+                committedTime: actionTransactionItem.committedTime,
+                actions: finalActions,
+            });
+
+            // Once we've finished processing, flip the `wasProcessed` flag to true which
+            // will also remove this transaction from our unprocessed transactions index.
+            await TaskActionTable.createOrReplaceItem(context, {
+                ...actionTransactionItem,
+                wasProcessed: true,
+            });
         });
 
         return {extraActions};
@@ -426,8 +470,7 @@ class TaskActionTransactionCommitState {
         spaceId: SpaceId,
         actions: ReadonlyArray<TaskAction>,
     ): Promise<{
-        actionTransactionId: TaskActionTransactionId;
-        committedTime: Date;
+        actionTransactionItem: TaskActionTransactionItem;
         extraActions: ReadonlyArray<TaskAction>;
     }> {
         return context.dynamo.retryTransaction(async context => {
@@ -540,6 +583,7 @@ class TaskActionTransactionCommitState {
                 committedTime: new Date(),
                 actionTransactionId: generateId<TaskActionTransactionId>(),
                 actions: [...actions, ...extraActions],
+                wasProcessed: false,
             };
 
             if (transactionEntries.length > 0) {
@@ -553,8 +597,7 @@ class TaskActionTransactionCommitState {
             }
 
             return {
-                actionTransactionId: actionTransactionItem.actionTransactionId,
-                committedTime: actionTransactionItem.committedTime,
+                actionTransactionItem,
                 extraActions,
             };
         });
@@ -1196,10 +1239,6 @@ async function actuallyCommitTaskActionTransaction(
                                                 oldParentTaskId.value,
                                             );
 
-                                            // TODO(calebmer): We could optimize this by using an `UpdateItem`
-                                            // transaction entry that increments our attributes (and
-                                            // `updateLockVersion`). This would not require a condition check so would
-                                            // save us RCUs.
                                             state.updateTaskItem(
                                                 {
                                                     ...oldParentTask,
@@ -1222,10 +1261,6 @@ async function actuallyCommitTaskActionTransaction(
                                                 newParentTaskId.value,
                                             );
 
-                                            // TODO(calebmer): We could optimize this by using an `UpdateItem`
-                                            // transaction entry that increments our attributes (and
-                                            // `updateLockVersion`). This would not require a condition check so would
-                                            // save us RCUs.
                                             state.updateTaskItem(
                                                 {
                                                     ...newParentTask,
@@ -1401,10 +1436,6 @@ async function actuallyCommitTaskActionTransaction(
                                             taskItem.parentTaskId.value,
                                         );
 
-                                        // TODO(calebmer): We could optimize this by using an `UpdateItem`
-                                        // transaction entry that increments our attributes (and
-                                        // `updateLockVersion`). This would not require a condition check so would
-                                        // save us RCUs.
                                         state.updateTaskItem(
                                             {
                                                 ...newParentTask,
@@ -1424,10 +1455,6 @@ async function actuallyCommitTaskActionTransaction(
                                             taskItem.parentTaskId.value,
                                         );
 
-                                        // TODO(calebmer): We could optimize this by using an `UpdateItem`
-                                        // transaction entry that increments our attributes (and
-                                        // `updateLockVersion`). This would not require a condition check so would
-                                        // save us RCUs.
                                         state.updateTaskItem(
                                             {
                                                 ...newParentTask,

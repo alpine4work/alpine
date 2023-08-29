@@ -1,5 +1,5 @@
 import {TaskRealtimeActionHistory} from "~/server/tasks/realtime/task_realtime_action_history.js";
-import {testTracer} from "~/server/tracer/test_tracer.js";
+import {testTracer} from "~/server/dynamo/test_helpers/test_tracer.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {MonotonicClock} from "~/shared/helpers/clock/monotonic_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";

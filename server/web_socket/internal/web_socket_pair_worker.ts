@@ -7,7 +7,15 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 // In Cloudflare Workers `WebSocket` and `WebSocketPair` should be available
 // globally.
 // https://developers.cloudflare.com/workers/runtime-apis/websockets/use-websockets
-export const WebSocket: typeof WebSocketType = assertExists((globalThis as any).WebSocket);
-export const WebSocketPair: typeof WebSocketPairType = assertExists(
-    (globalThis as any).WebSocketPair,
-);
+
+export const WebSocket: typeof WebSocketType =
+    // In case this is imported in Node.js, don't fail with an assertion.
+    typeof process !== "undefined" && process.versions.node
+        ? null
+        : assertExists((globalThis as any).WebSocket);
+
+export const WebSocketPair: typeof WebSocketPairType =
+    // In case this is imported in Node.js, don't fail with an assertion.
+    typeof process !== "undefined" && process.versions.node
+        ? null
+        : assertExists((globalThis as any).WebSocketPair);

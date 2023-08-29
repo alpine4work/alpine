@@ -429,6 +429,11 @@ export type TracerEventData = {
         readonly conditionExpression?: string;
 
         /**
+         * The update expression for an `UpdateItem` action.
+         */
+        readonly updateExpression?: string;
+
+        /**
          * If this is a batch action (`BatchGetItem` or `BatchWriteItem`) then how many
          * items are in the batch?
          */

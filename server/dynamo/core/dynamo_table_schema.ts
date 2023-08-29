@@ -126,6 +126,7 @@ type DynamoTableSchemaIndexInternalConfig = {
     readonly sortKeyAttributes: DynamoTableSchemaTypes.KeyAttributes.ConfigBase;
     readonly includePrimaryKeyInSortKey: boolean;
     readonly projection: "KeysOnly" | "All";
+    readonly filter: ((item: any) => boolean) | null;
 };
 
 type DynamoTableSchemaInitializationState =
@@ -1091,11 +1092,16 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         );
         if (indexConfigs) {
             for (const indexConfig of indexConfigs) {
-                const indexPartitionKey = this._serializeIndexPartitionKey(indexConfig, item);
-                const indexSortKey = this._serializeItemIndexSortKey(indexConfig, item);
+                // If a filter function is defined then don't add index keys for items that
+                // return `false`. This will exclude those items from our index.
+                if (indexConfig.filter === null || indexConfig.filter(item)) {
+                    const indexPartitionKey = this._serializeIndexPartitionKey(indexConfig, item);
+                    const indexSortKey = this._serializeItemIndexSortKey(indexConfig, item);
 
-                serializedItem[`index${indexConfig.indexNumber}PartitionKey`] = indexPartitionKey;
-                serializedItem[`index${indexConfig.indexNumber}SortKey`] = indexSortKey;
+                    serializedItem[`index${indexConfig.indexNumber}PartitionKey`] =
+                        indexPartitionKey;
+                    serializedItem[`index${indexConfig.indexNumber}SortKey`] = indexSortKey;
+                }
             }
         }
 
@@ -2811,7 +2817,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         DynamoTableSchemaIndexKeyAttributesType<PartitionKeyAttributesConfig>,
         DynamoTableSchemaIndexKeyAttributesType<SortKeyAttributesConfig>
     > {
-        const indexConfig = this._defineIndex({
+        const indexConfig = this._defineIndex<
+            ItemTypes,
+            PartitionKeyAttributesConfig,
+            SortKeyAttributesConfig
+        >({
             ...config,
             projection: "KeysOnly",
         });
@@ -2971,7 +2981,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         DynamoTableSchemaIndexKeyAttributesType<PartitionKeyAttributesConfig>,
         DynamoTableSchemaIndexKeyAttributesType<SortKeyAttributesConfig>
     > {
-        const indexConfig = this._defineIndex({
+        const indexConfig = this._defineIndex<
+            ItemTypes,
+            PartitionKeyAttributesConfig,
+            SortKeyAttributesConfig
+        >({
             ...config,
             projection: "All",
         });
@@ -3127,6 +3141,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         sortKeyAttributes,
         includePrimaryKeyInSortKey = false,
         projection,
+        filter,
     }: DynamoTableSchemaIndexConfig<
         Types,
         ItemTypes,
@@ -3246,6 +3261,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             sortKeyAttributes: sortKeyAttributes as DynamoTableSchemaTypes.KeyAttributes.ConfigBase,
             includePrimaryKeyInSortKey,
             projection,
+            filter: filter ?? null,
         };
 
         // Store the attributes for the item types in this index so we can easily
@@ -3346,9 +3362,6 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * full DynamoDB item sometimes includes the primary key to help sort index
      * items in a well understood way (instead of relying on undocumented
      * DynamoDB internals).
-     *
-     * If you don't have the primary key for an item you may use
-     * `_serializeItemIndexSortKeyWithoutPrimaryKey()`.
      */
     private _serializeItemIndexSortKey(
         indexConfig: DynamoTableSchemaIndexInternalConfig,
@@ -3909,6 +3922,43 @@ export type DynamoTableSchemaIndexConfig<
     itemTypes: ReadonlyArray<ItemTypes>;
     partitionKeyAttributes: PartitionKeyAttributesConfig;
     sortKeyAttributes: SortKeyAttributesConfig;
+
+    /**
+     * Filter some items out of the index. When you query the index, items that
+     * returned false from this function will not be available. If this function is
+     * not defined then all items are included in the index.
+     *
+     * By default, only items that match `itemTypes` are included in the index.
+     * This function lets you go a step further and filter out items that match the
+     * expected item type.
+     *
+     * We apply the filter at serialization time so it can only depend on the item.
+     * It can't depend on external state such as the current time since if that
+     * state changes we won't re-filter the item.
+     *
+     * Since this is a function we can't do backwards compatibility checking on it!
+     * You'll have to be careful about backwards compatibility when updating this
+     * function implementation yourself. Remember since this runs at serialization
+     * time, if you change the implementation then existing items in the database
+     * won't be re-indexed.
+     *
+     * In the types, we only allow properties in the item key or index key. This is
+     * so we don't break `transactionDirectlyUpdateItemAttribute()`.
+     * `transactionDirectlyUpdateItemAttribute()` currently throws if you try to
+     * update an attribute in an index key. That's because when updating an
+     * attribute in an index key we also need to update the index key. If we could
+     * filter based on any property in the item then
+     * `transactionDirectlyUpdateItemAttribute()` would have to fail on _all_
+     * attribute updates because we don't know which attributes `filter`
+     * depends on.
+     */
+    filter?: (
+        item: MergeObjectIntersection<
+            (Types["ItemKey"] & ItemTypes) &
+                DynamoTableSchemaIndexKeyAttributesType<PartitionKeyAttributesConfig> &
+                DynamoTableSchemaIndexKeyAttributesType<SortKeyAttributesConfig>
+        >,
+    ) => boolean;
 
     /**
      * Include an item's primary key in the index sort key. This makes sure you

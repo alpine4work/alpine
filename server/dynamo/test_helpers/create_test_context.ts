@@ -37,7 +37,7 @@ import {
     OpensearchContextModule,
     TestDisabledOpensearchClient,
 } from "~/server/opensearch/opensearch_context_module.js";
-import {testTracer} from "~/server/tracer/test_tracer.js";
+import {testTracer} from "~/server/dynamo/test_helpers/test_tracer.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ForkActionContextModule} from "~/shared/context/fork_action_context_module.js";

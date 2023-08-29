@@ -389,7 +389,7 @@ export function selectChatForAccounts(
     };
     suggestedChats: ReadonlyArray<ChatModel>;
 }> {
-    return context.tracer.withSpan("selectChatForAccounts", async context => {
+    return context.tracer.withSpan("Select chat or suggest chats", async context => {
         // Make sure `otherAccountIds` is unique and doesn't include our
         // authenticated account.
         otherAccountIds = Array.from(new Set(otherAccountIds)).filter(
@@ -462,7 +462,7 @@ function actuallyGetOrCreateChatForAccounts(
         initialSharedChatsPromise: ReturnType<typeof getSharedChats> | null;
     },
 ): Promise<ChatId> {
-    return context.tracer.withSpan("getOrCreateChatForAccounts", async context => {
+    return context.tracer.withSpan("Get or create chat", async context => {
         let hasAlreadyAttempted = false;
 
         return retryWithExponentialBackoff(async retry => {
@@ -885,7 +885,7 @@ function getSharedChats(
         accountCount: number;
     }>
 > {
-    return context.tracer.withSpan("getSharedChats", async context => {
+    return context.tracer.withSpan("Get shared chats", async context => {
         // Make sure `otherAccountIds` is unique and doesn't include our
         // authenticated account.
         otherAccountIds = Array.from(new Set(otherAccountIds)).filter(

@@ -50,46 +50,29 @@ export class TaskContextModule extends ContextModuleBase<{
         spaceId: SpaceId,
         actionTransactionId: TaskActionTransactionId,
         actions: ReadonlyArray<TaskAction>,
-    ) {
-        // Index the action transaction in the background.
-        //
-        // TODO(calebmer): We need some way to recover if indexing fails! Right now
-        // maybe we can rely on a manual process where we look at Honeycomb for errors
-        // and manually retry them. However, this won't catch cases where we fail to
-        // log an indexing span at all! (Maybe the machine abruptly shuts down.) We
-        // should really have an automated process that makes sure we index tasks
-        // at-least-once.
-        this._context.process.waitUntil(
-            this._dangerouslyEscalateToSystemContext(this._context, spaceId, context =>
-                context.tracer.withSpan("indexTaskActionTransaction", async (context, span) => {
-                    span.addData({
-                        tasks: {
-                            actions: actions.map(getTaskActionLabel).join(","),
-                            actionCount: actions.length,
-                            actionTransactionId,
-                        },
-                    });
+    ): Promise<void> {
+        return this._dangerouslyEscalateToSystemContext(this._context, spaceId, context =>
+            context.tracer.withSpan("indexTaskActionTransaction", async (context, span) => {
+                span.addData({
+                    tasks: {
+                        actions: actions.map(getTaskActionLabel).join(","),
+                        actionCount: actions.length,
+                        actionTransactionId,
+                    },
+                });
 
-                    try {
-                        // NOCOMMIT: Add an "applied time" property to action transactions in DynamoDB
-                        // for debugging. Or an "unapplied" item that's easier to query. Or compromise
-                        // with an index?
-                        await indexTaskActionTransactionAssumingItsCommitted(
-                            context,
-                            spaceId,
-                            actions,
-                        );
-                    } catch (error) {
-                        // Escalate task indexing errors to `DataLossError` since it means we
-                        // failed to index tasks but the user doesn't know.
-                        //
-                        // It would be very bad for the process to shutdown midway through indexing
-                        // such that we don't see this error! We need some backup monitoring/retry
-                        // method.
-                        throw DataLossError.from(error);
-                    }
-                }),
-            ),
+                try {
+                    await indexTaskActionTransactionAssumingItsCommitted(context, spaceId, actions);
+                } catch (error) {
+                    // Escalate task indexing errors to `DataLossError` since it means we
+                    // failed to index tasks but the user doesn't know.
+                    //
+                    // It would be very bad for the process to shutdown midway through indexing
+                    // such that we don't see this error! We need some backup monitoring/retry
+                    // method.
+                    throw DataLossError.from(error);
+                }
+            }),
         );
     }
 }
@@ -114,15 +97,19 @@ export class TestTaskContextModule extends TaskContextModule {
         this._shouldSkipIndexing = shouldSkipIndexing;
     }
 
-    public override indexActionTransactionAssumingItsCommitted(
+    public override async indexActionTransactionAssumingItsCommitted(
         spaceId: SpaceId,
         actionTransactionId: TaskActionTransactionId,
         actions: ReadonlyArray<TaskAction>,
-    ): void {
+    ): Promise<void> {
         // In tests, if OpenSearch is disabled we allow you to construct a tasks
         // context module that skips task indexing.
         if (this._shouldSkipIndexing) return;
 
-        super.indexActionTransactionAssumingItsCommitted(spaceId, actionTransactionId, actions);
+        return super.indexActionTransactionAssumingItsCommitted(
+            spaceId,
+            actionTransactionId,
+            actions,
+        );
     }
 }

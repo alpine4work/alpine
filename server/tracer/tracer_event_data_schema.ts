@@ -161,6 +161,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
             totalWriteCapacityUnits: Schema.float,
         },
         conditionExpression: Schema.string,
+        updateExpression: Schema.string,
         batchSize: Schema.integer,
         query: {
             keyConditionExpression: Schema.string,
