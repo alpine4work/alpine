@@ -26,6 +26,10 @@ const session2 = createTestSession(context, space);
 import.meta.jest.setTimeout(1000 * 30);
 
 testTaskActionPermutations({
+    // This test takes a ridiculously long time to run given it needs to talk to
+    // OpenSearch. Only run 15% of the test permutations. Our client-side
+    // implementation will run all the tests for coverage.
+    percent: 0.15,
     partitionNumber: parseInt(process.env.TEST_SHARD_INDEX ?? "0", 10) + 1,
     partitionCount: parseInt(process.env.TEST_TOTAL_SHARDS ?? "1", 10),
     account1: session1.account,

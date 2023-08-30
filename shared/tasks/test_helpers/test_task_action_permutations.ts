@@ -3196,6 +3196,7 @@ function permutator<Item>(inputArray: ReadonlyArray<Item>): Array<Array<Item>> {
  * committed, then we may apply it in any order.
  */
 export function testTaskActionPermutations({
+    percent = 1,
     partitionNumber = 1,
     partitionCount = 1,
     account1,
@@ -3204,6 +3205,7 @@ export function testTaskActionPermutations({
     getTask,
     getTaskCollection,
 }: {
+    percent?: number;
     partitionNumber?: number;
     partitionCount?: number;
     account1: AccountModel;
@@ -3212,7 +3214,10 @@ export function testTaskActionPermutations({
     getTask: (taskId: TaskId) => Promise<TaskTestInterface>;
     getTaskCollection: (collectionId: TaskCollectionId) => Promise<TaskCollectionTestInterface>;
 }) {
-    const tests: Array<{describeName: string; testName: string; runTest: () => Promise<void>}> = [];
+    const stableRandom = new StableRandom("testTaskActionPermutations");
+
+    const allTests: Array<{describeName: string; testName: string; runTest: () => Promise<void>}> =
+        [];
 
     for (const testCase of taskActionTestCases) {
         const clock = new HybridLogicalClock(unsynchronizedSystemClock);
@@ -3263,8 +3268,6 @@ export function testTaskActionPermutations({
             actionIndexesWithDuplicates.flatMap(permutator),
         );
 
-        const stableRandom = new StableRandom(describe.name);
-
         const permutations = [
             ...uniquePermutations(permutator(actionIndexes)),
 
@@ -3275,14 +3278,18 @@ export function testTaskActionPermutations({
             ...(permutationsWithDuplicates.length > 240
                 ? stableShuffleArray(
                       stableRandom,
-                      "permutationsWithDuplicates",
-                      permutationsWithDuplicates,
-                  ).slice(0, 240)
+                      `${testCase.name}-permutationsWithDuplicates`,
+                      permutationsWithDuplicates.map((item, i) => [item, i] as const),
+                  )
+                      .slice(0, 240)
+                      // Sort back into the original test order.
+                      .sort(([, i1], [, i2]) => i1 - i2)
+                      .map(([item]) => item)
                 : permutationsWithDuplicates),
         ];
 
         for (const permutation of permutations) {
-            tests.push({
+            allTests.push({
                 describeName: testCase.name,
                 testName: `[${permutation.join(", ")}]`,
                 runTest: async () => {
@@ -3455,6 +3462,20 @@ export function testTaskActionPermutations({
     assert(Number.isInteger(partitionNumber));
     assert(Number.isInteger(partitionCount));
     assert(1 <= partitionNumber && partitionNumber <= partitionCount);
+
+    // If we are only running some percent of tests then randomly shuffle our tests
+    // and pick the first N. That will be the set of tests we run.
+    const tests =
+        percent < 1
+            ? stableShuffleArray(
+                  stableRandom,
+                  "percent",
+                  allTests.map((item, i) => [item, i] as const),
+              )
+                  .slice(0, Math.floor(allTests.length * percent))
+                  .sort(([, i1], [, i2]) => i1 - i2)
+                  .map(([item]) => item)
+            : allTests;
 
     const partitionTestCount = Math.floor(tests.length / partitionCount);
     const partitionStartTestIndex = partitionTestCount * (partitionNumber - 1);
