@@ -23,8 +23,7 @@
 import {Server} from "http";
 import {Socket} from "net";
 import {registerShutdownListenerForIngressTraffic} from "~/server/node/shutdown_manager.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {wait} from "~/shared/helpers/async/wait.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
 
 // If the server needs to be stopped and it seems to be having trouble keeping
 // up with pending requests we should just force the closing of the connections
@@ -122,25 +121,31 @@ export function registerGracefulServerShutdown(server: Server) {
     registerShutdownListenerForIngressTraffic(async () => {
         isShuttingDown = true;
 
-        await runAllPromises([
-            new Promise<void>((resolve, reject) =>
-                server.close(error => {
-                    if (error) reject(error);
-                    else resolve();
-                }),
-            ),
-            wait(timeoutToTryEndIdle).then(() => {
-                for (const [socket, reqCount] of reqCountBySocket) {
-                    if (reqCount === 0) {
-                        socket.end();
-                    }
-                }
-            }),
-            wait(forcedStopTimeout).then(() => {
-                for (const socket of reqCountBySocket.keys()) {
+        const timeout1 = createTimeout(() => {
+            for (const [socket, reqCount] of reqCountBySocket) {
+                if (reqCount === 0) {
                     socket.end();
                 }
+            }
+        }, timeoutToTryEndIdle);
+
+        const timeout2 = createTimeout(() => {
+            for (const socket of reqCountBySocket.keys()) {
+                socket.end();
+            }
+        }, forcedStopTimeout);
+
+        await new Promise<void>((resolve, reject) =>
+            // callback won't be called as long as there are open connections. So here
+            // we're "implicitly" also waiting for the callbacks that will close idle
+            // connections or force close all connections after a delay
+            server.close(error => {
+                if (error) reject(error);
+                else resolve();
             }),
-        ]);
+        );
+
+        timeout1.clear();
+        timeout2.clear();
     });
 }
