@@ -5,6 +5,7 @@ import fs from "fs-extra";
 import {createServer} from "http";
 import {join as joinPath} from "path";
 import createServeStaticMiddleware from "serve-static";
+import {LocalTaskRealtimeServiceRouter} from "~/app/local_task_realtime_service_router.js";
 import {seedDynamo} from "~/app/seed_dynamo.js";
 import {defaultClientInfo, defaultMobileClientInfo} from "~/client/remix/client_info_context.js";
 import {Session} from "~/server/accounts/accounts_table.js";
@@ -31,6 +32,7 @@ import {NotificationsContextModule} from "~/server/notifications/data/notificati
 import {LoaderContextModule, LoaderContextModules} from "~/server/remix/loader_context.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/spaces_table.js";
+import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {SessionCookie, withSessionCookie} from "~/server/tokens/session_cookie.js";
 import {AppServiceTokenAgent} from "~/server/tokens/token_agent.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -100,6 +102,7 @@ runService({
         taskRealtimeServicePublicKey: {type: "string"},
         appServicePrivateKey: {type: "string"},
         remixDevServerPort: {type: "string"},
+        taskRealtimeServiceLocalPort: {type: "string"},
         shouldSeedDynamo: {type: "boolean"},
         ...serverProcessContextParseOptions,
     },
@@ -218,10 +221,6 @@ runService({
                 // data at a higher permission level then let the session context see it. So we
                 // derive our new context from the process context to help avoid reusing any
                 // request-level caches.
-                //
-                // NOTE(calebmer, 2023-08-07): May be worthwhile turning uses of this function
-                // into RPC calls on another machine someday for security? Not sure if that
-                // helps.
                 const dangerouslyEscalateToSystemContext = (
                     context: Context<{
                         tracer: TracerContextModule;
@@ -268,6 +267,7 @@ runService({
                         tracer: new TracerContextModule(span),
                         rpc: new LocalRpcContextModule(),
                         loader: new LoaderContextModule({
+                            tokenAgent,
                             sessionCookie,
                             clientInfo,
                             devServerPort: options.remixDevServerPort
@@ -278,6 +278,19 @@ runService({
                         dynamoBatchContext: new DynamoBatchContextModule(),
                         actor: createActorContextModule(request, url, tokenAgent, sessionCookie),
                         notifications: notificationsContextModule,
+                        tasks: new TaskContextModule({
+                            // NOCOMMIT: Production router implementation.
+                            router: new LocalTaskRealtimeServiceRouter({
+                                port: parseInt(
+                                    assertExists(
+                                        options.taskRealtimeServiceLocalPort,
+                                        "Task realtime service local port must be provided when running locally",
+                                    ),
+                                    10,
+                                ),
+                            }),
+                            dangerouslyEscalateToSystemContext,
+                        }),
                     },
                     context => {
                         // The first time our server process runs in development, seed DynamoDB with

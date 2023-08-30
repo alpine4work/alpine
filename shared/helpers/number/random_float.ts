@@ -1,9 +1,10 @@
 import {lerp} from "~/shared/helpers/number/lerp.js";
 
 /**
- * Generates a random float between `a` and `b`.
+ * Generates a random float between `a` and `b` (exclusive).
  *
- * If `b` is not defined, generates a random float between 0 and `a`.
+ * If `b` is not defined, generates a random float between 0 and `a`
+ * (exclusive).
  *
  * Does not use a cryptographically secure random number generator!
  */

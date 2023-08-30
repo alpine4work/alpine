@@ -995,7 +995,7 @@ class WebSocketServerConnectionWrapper<
             };
         }
 
-        // If:
+        // This branch runs if one of the following is true:
         //
         // 1. This connection hasn't authorized yet; OR
         // 2. We have an authorization promise that's invalidated and have not started
@@ -1033,7 +1033,7 @@ class WebSocketServerConnectionWrapper<
             );
 
             this._authorizationState = {
-                startTime: Date.now(),
+                startTime: currentTime,
                 promise: authorizationPromise,
                 next: null,
             };

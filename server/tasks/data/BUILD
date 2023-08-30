@@ -32,6 +32,7 @@ ts_project(
     },
     visibility = [
         "//admin/dynamo:__pkg__",
+        "//server/remix:__pkg__",
         "//server/tasks:__subpackages__",
     ],
     deps = [

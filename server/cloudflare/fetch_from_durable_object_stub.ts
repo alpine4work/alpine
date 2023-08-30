@@ -36,6 +36,9 @@ export async function fetchFromDurableObjectStub({
     newRequest.headers.set("cyberworlds-durable-object-id-name", idName);
     addTracerPropagationContextHeader(newRequest.headers, span);
 
+    // We authenticate with an `Authorization` not a `Cookie` header.
+    newRequest.headers.delete("cookie");
+
     if (!newRequest.headers.has("authorization")) {
         const sessionCookieToken = await getSessionCookieIfExists(tokenAgent, request);
         if (!sessionCookieToken) throw unauthenticatedSessionError();

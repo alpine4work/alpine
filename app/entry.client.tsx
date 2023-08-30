@@ -27,15 +27,7 @@ function main() {
                 // log. The trace will always point to our error message renderer which
                 // isn't useful.
                 scheduleMicrotask(() => {
-                    context.tracer.getRoot().logUncaughtException(
-                        "Rendered error",
-                        error,
-                        {},
-                        {
-                            // React already logs caught errors. We shouldn't need to log again.
-                            disableConsoleLog: true,
-                        },
-                    );
+                    context.tracer.getRoot().logUncaughtException("Rendered error", error);
                 });
             },
         }),

@@ -185,7 +185,7 @@ export class TracerSpan extends TracerBase {
      * code to add extra information to the name.
      */
     public appendName(name: string) {
-        this._name = name;
+        this._name += name;
     }
 
     /**

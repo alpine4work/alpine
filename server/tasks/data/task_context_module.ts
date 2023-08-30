@@ -1,6 +1,7 @@
 import {DynamoActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
 import {ServerSystemActionContext} from "~/server/context/server_action_context.js";
 import {indexTaskActionTransactionAssumingItsCommitted} from "~/server/tasks/data/task_index.js";
+import {TaskRealtimeServiceRouterBase} from "~/server/tasks/router/task_realtime_service_router_base.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -22,6 +23,8 @@ export class TaskContextModule extends ContextModuleBase<{
     tracer: TracerContextModule;
     actor: DynamoActorContextModule;
 }> {
+    public readonly router: TaskRealtimeServiceRouterBase;
+
     private readonly _dangerouslyEscalateToSystemContext: (
         context: Context<{tracer: TracerContextModule; actor: DynamoActorContextModule}>,
         spaceId: SpaceId,
@@ -29,8 +32,10 @@ export class TaskContextModule extends ContextModuleBase<{
     ) => Promise<void>;
 
     constructor({
+        router,
         dangerouslyEscalateToSystemContext,
     }: {
+        router: TaskRealtimeServiceRouterBase;
         dangerouslyEscalateToSystemContext: (
             context: Context<{tracer: TracerContextModule; actor: DynamoActorContextModule}>,
             spaceId: SpaceId,
@@ -38,6 +43,7 @@ export class TaskContextModule extends ContextModuleBase<{
         ) => Promise<void>;
     }) {
         super();
+        this.router = router;
         this._dangerouslyEscalateToSystemContext = dangerouslyEscalateToSystemContext;
     }
 

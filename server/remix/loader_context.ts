@@ -1,7 +1,9 @@
 import {ServerRoute} from "@remix-run/server-runtime";
 import {ServerUnknownActionContextModules} from "~/server/context/server_action_context.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
+import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {SessionCookie} from "~/server/tokens/session_cookie.js";
+import {AppServiceTokenAgent} from "~/server/tokens/token_agent.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
@@ -14,6 +16,12 @@ export type LoaderContextModules = MergeObjectIntersection<
     ServerUnknownActionContextModules & {
         rpc: LocalRpcContextModule;
         loader: LoaderContextModule;
+
+        /**
+         * Our Remix server has access to the tasks context module which we don't make
+         * generally available to a `ServerActionContext`.
+         */
+        tasks: TaskContextModule;
     }
 >;
 
@@ -31,6 +39,11 @@ export interface LoaderArgs {
  * Context only available when running a Remix loader.
  */
 export class LoaderContextModule extends ContextModuleBase {
+    /**
+     * Allow Remix loaders to sign tokens and encrypt data with our token agent.
+     */
+    public readonly tokenAgent: AppServiceTokenAgent;
+
     /**
      * Manipulate the HTTP session cookie. Important to remember that the client
      * may authenticate with an `Authorization` header instead of a session cookie!
@@ -53,15 +66,18 @@ export class LoaderContextModule extends ContextModuleBase {
     public readonly devServerPort: number | null;
 
     constructor({
+        tokenAgent,
         sessionCookie,
         clientInfo,
         devServerPort,
     }: {
+        tokenAgent: AppServiceTokenAgent;
         sessionCookie: SessionCookie;
         clientInfo: ClientInfo;
         devServerPort: number | null;
     }) {
         super();
+        this.tokenAgent = tokenAgent;
         this.sessionCookie = sessionCookie;
         this.clientInfo = clientInfo;
         this.devServerPort = devServerPort;

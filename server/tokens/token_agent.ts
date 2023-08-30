@@ -1,4 +1,14 @@
-import {JWTPayload, KeyLike, SignJWT, decodeJwt, importPKCS8, importSPKI, jwtVerify} from "jose";
+import {
+    CompactEncrypt,
+    JWTPayload,
+    KeyLike,
+    SignJWT,
+    compactDecrypt,
+    decodeJwt,
+    importPKCS8,
+    importSPKI,
+    jwtVerify,
+} from "jose";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -65,39 +75,69 @@ assertAssignableTypes<DurableObjectServiceName, TokenEdgeServiceFamilyName>();
 // TODO(calebmer, #security): We should eventually implement key rotation. No
 // human should ever have access to our system's private keys.
 export abstract class TokenAgentBase {
-    protected readonly _appServicePublicKey: KeyLike;
-    protected readonly _edgeServiceFamilyPublicKey: KeyLike;
-    protected readonly _taskRealtimeServicePublicKey: KeyLike;
+    protected readonly _appServicePublicKeyForRs256: KeyLike;
+    protected readonly _appServicePublicKeyForRsaOaep: KeyLike;
+    protected readonly _edgeServiceFamilyPublicKeyForRs256: KeyLike;
+    protected readonly _edgeServiceFamilyPublicKeyForRsaOaep: KeyLike;
+    protected readonly _taskRealtimeServicePublicKeyForRs256: KeyLike;
+    protected readonly _taskRealtimeServicePublicKeyForRsaOaep: KeyLike;
 
     protected abstract readonly _serviceName: TokenServiceName;
-    protected abstract readonly _servicePrivateKey: KeyLike;
+    protected abstract readonly _servicePrivateKeyForRs256: KeyLike;
+    protected abstract readonly _servicePrivateKeyForRsaOaep: KeyLike;
 
     protected constructor({
-        appServicePublicKey,
-        edgeServiceFamilyPublicKey,
-        taskRealtimeServicePublicKey,
+        appServicePublicKeyForRs256,
+        appServicePublicKeyForRsaOaep,
+        edgeServiceFamilyPublicKeyForRs256,
+        edgeServiceFamilyPublicKeyForRsaOaep,
+        taskRealtimeServicePublicKeyForRs256,
+        taskRealtimeServicePublicKeyForRsaOaep,
     }: {
-        appServicePublicKey: KeyLike;
-        edgeServiceFamilyPublicKey: KeyLike;
-        taskRealtimeServicePublicKey: KeyLike;
+        appServicePublicKeyForRs256: KeyLike;
+        appServicePublicKeyForRsaOaep: KeyLike;
+        edgeServiceFamilyPublicKeyForRs256: KeyLike;
+        edgeServiceFamilyPublicKeyForRsaOaep: KeyLike;
+        taskRealtimeServicePublicKeyForRs256: KeyLike;
+        taskRealtimeServicePublicKeyForRsaOaep: KeyLike;
     }) {
-        this._appServicePublicKey = appServicePublicKey;
-        this._edgeServiceFamilyPublicKey = edgeServiceFamilyPublicKey;
-        this._taskRealtimeServicePublicKey = taskRealtimeServicePublicKey;
+        this._appServicePublicKeyForRs256 = appServicePublicKeyForRs256;
+        this._appServicePublicKeyForRsaOaep = appServicePublicKeyForRsaOaep;
+        this._edgeServiceFamilyPublicKeyForRs256 = edgeServiceFamilyPublicKeyForRs256;
+        this._edgeServiceFamilyPublicKeyForRsaOaep = edgeServiceFamilyPublicKeyForRsaOaep;
+        this._taskRealtimeServicePublicKeyForRs256 = taskRealtimeServicePublicKeyForRs256;
+        this._taskRealtimeServicePublicKeyForRsaOaep = taskRealtimeServicePublicKeyForRsaOaep;
     }
 
-    protected _getServicePublicKeyByName(serviceName: TokenServiceName): KeyLike {
+    protected _getServicePublicKeyForRs256(serviceName: TokenServiceName): KeyLike {
         switch (serviceName) {
             case "AppService":
-                return this._appServicePublicKey;
+                return this._appServicePublicKeyForRs256;
             case "EdgeService":
             case "DocumentCollaborationService":
             case "PostRealtimeService":
             case "ChatRealtimeService":
             case "MyAccountService":
-                return this._edgeServiceFamilyPublicKey;
+                return this._edgeServiceFamilyPublicKeyForRs256;
             case "TaskRealtimeService":
-                return this._taskRealtimeServicePublicKey;
+                return this._taskRealtimeServicePublicKeyForRs256;
+            default:
+                throw exhaustive(serviceName);
+        }
+    }
+
+    protected _getServicePublicKeyForRsaOaep(serviceName: TokenServiceName): KeyLike {
+        switch (serviceName) {
+            case "AppService":
+                return this._appServicePublicKeyForRsaOaep;
+            case "EdgeService":
+            case "DocumentCollaborationService":
+            case "PostRealtimeService":
+            case "ChatRealtimeService":
+            case "MyAccountService":
+                return this._edgeServiceFamilyPublicKeyForRsaOaep;
+            case "TaskRealtimeService":
+                return this._taskRealtimeServicePublicKeyForRsaOaep;
             default:
                 throw exhaustive(serviceName);
         }
@@ -128,7 +168,7 @@ export abstract class TokenAgentBase {
         serviceName: TokenServiceName,
         token: string,
     ): Promise<TokenPayload> {
-        const publicKey = this._getServicePublicKeyByName(serviceName);
+        const publicKey = this._getServicePublicKeyForRs256(serviceName);
 
         let serializedPayload: JWTPayload;
         try {
@@ -170,28 +210,74 @@ export abstract class TokenAgentBase {
             .setIssuer(this._serviceName)
             .setAudience(audience);
 
-        return signer.sign(this._servicePrivateKey);
+        return signer.sign(this._servicePrivateKeyForRs256);
+    }
+
+    /**
+     * Encrypt some sensitive data for the provided audience. Generates a compact
+     * JWE string. See [this explainer][1] for more information on JWE.
+     *
+     * [1]: https://www.scottbrady91.com/jose/json-web-encryption
+     */
+    public encrypt(audience: TokenServiceName, payload: string): Promise<string> {
+        const audiencePublicKey = this._getServicePublicKeyForRsaOaep(audience);
+
+        const encrypter = new CompactEncrypt(new TextEncoder().encode(payload))
+            // Algorithm taken from:
+            // https://www.scottbrady91.com/jose/json-web-encryption
+            .setProtectedHeader({alg: "RSA-OAEP", enc: "A256CBC-HS512"});
+
+        return encrypter.encrypt(audiencePublicKey);
+    }
+
+    /**
+     * Decrypt some sensitive data that was encrypted with `encrypt()` (a JWE
+     * string) with our token agent's private key.
+     */
+    public async decrypt(encryptedPayload: string): Promise<string> {
+        const {plaintext} = await compactDecrypt(
+            encryptedPayload,
+            this._servicePrivateKeyForRsaOaep,
+        );
+        return new TextDecoder().decode(plaintext);
     }
 }
 
 export class AppServiceTokenAgent extends TokenAgentBase {
     protected override readonly _serviceName: TokenServiceName;
-    protected override readonly _servicePrivateKey: KeyLike;
+    protected override readonly _servicePrivateKeyForRs256: KeyLike;
+    protected override readonly _servicePrivateKeyForRsaOaep: KeyLike;
 
     private constructor({
-        appServicePublicKey,
-        edgeServiceFamilyPublicKey,
-        taskRealtimeServicePublicKey,
-        appServicePrivateKey,
+        appServicePublicKeyForRs256,
+        appServicePublicKeyForRsaOaep,
+        edgeServiceFamilyPublicKeyForRs256,
+        edgeServiceFamilyPublicKeyForRsaOaep,
+        taskRealtimeServicePublicKeyForRs256,
+        taskRealtimeServicePublicKeyForRsaOaep,
+        appServicePrivateKeyForRs256,
+        appServicePrivateKeyForRsaOaep,
     }: {
-        appServicePublicKey: KeyLike;
-        edgeServiceFamilyPublicKey: KeyLike;
-        taskRealtimeServicePublicKey: KeyLike;
-        appServicePrivateKey: KeyLike;
+        appServicePublicKeyForRs256: KeyLike;
+        appServicePublicKeyForRsaOaep: KeyLike;
+        edgeServiceFamilyPublicKeyForRs256: KeyLike;
+        edgeServiceFamilyPublicKeyForRsaOaep: KeyLike;
+        taskRealtimeServicePublicKeyForRs256: KeyLike;
+        taskRealtimeServicePublicKeyForRsaOaep: KeyLike;
+        appServicePrivateKeyForRs256: KeyLike;
+        appServicePrivateKeyForRsaOaep: KeyLike;
     }) {
-        super({appServicePublicKey, edgeServiceFamilyPublicKey, taskRealtimeServicePublicKey});
+        super({
+            appServicePublicKeyForRs256,
+            appServicePublicKeyForRsaOaep,
+            edgeServiceFamilyPublicKeyForRs256,
+            edgeServiceFamilyPublicKeyForRsaOaep,
+            taskRealtimeServicePublicKeyForRs256,
+            taskRealtimeServicePublicKeyForRsaOaep,
+        });
         this._serviceName = "AppService";
-        this._servicePrivateKey = appServicePrivateKey;
+        this._servicePrivateKeyForRs256 = appServicePrivateKeyForRs256;
+        this._servicePrivateKeyForRsaOaep = appServicePrivateKeyForRsaOaep;
     }
 
     public static async new({
@@ -206,22 +292,34 @@ export class AppServiceTokenAgent extends TokenAgentBase {
         appServicePrivateKey: string;
     }) {
         const [
-            appServicePublicKey,
-            edgeServiceFamilyPublicKey,
-            taskRealtimeServicePublicKey,
-            appServicePrivateKey,
+            appServicePublicKeyForRs256,
+            appServicePublicKeyForRsaOaep,
+            edgeServiceFamilyPublicKeyForRs256,
+            edgeServiceFamilyPublicKeyForRsaOaep,
+            taskRealtimeServicePublicKeyForRs256,
+            taskRealtimeServicePublicKeyForRsaOaep,
+            appServicePrivateKeyForRs256,
+            appServicePrivateKeyForRsaOaep,
         ] = await runAllPromises([
             importSPKI(appServicePublicKeyString, "RS256"),
+            importSPKI(appServicePublicKeyString, "RSA-OAEP"),
             importSPKI(edgeServiceFamilyPublicKeyString, "RS256"),
+            importSPKI(edgeServiceFamilyPublicKeyString, "RSA-OAEP"),
             importSPKI(taskRealtimeServicePublicKeyString, "RS256"),
+            importSPKI(taskRealtimeServicePublicKeyString, "RSA-OAEP"),
             importPKCS8(appServicePrivateKeyString, "RS256"),
+            importPKCS8(appServicePrivateKeyString, "RSA-OAEP"),
         ]);
 
         return new AppServiceTokenAgent({
-            appServicePublicKey,
-            edgeServiceFamilyPublicKey,
-            taskRealtimeServicePublicKey,
-            appServicePrivateKey,
+            appServicePublicKeyForRs256,
+            appServicePublicKeyForRsaOaep,
+            edgeServiceFamilyPublicKeyForRs256,
+            edgeServiceFamilyPublicKeyForRsaOaep,
+            taskRealtimeServicePublicKeyForRs256,
+            taskRealtimeServicePublicKeyForRsaOaep,
+            appServicePrivateKeyForRs256,
+            appServicePrivateKeyForRsaOaep,
         });
     }
 
@@ -254,30 +352,47 @@ export class AppServiceTokenAgent extends TokenAgentBase {
             .setIssuer(this._serviceName)
             .setAudience(["AppService", "EdgeService"]);
 
-        return signer.sign(this._servicePrivateKey);
+        return signer.sign(this._servicePrivateKeyForRs256);
     }
 }
 
 export class EdgeServiceFamilyTokenAgent extends TokenAgentBase {
     protected override readonly _serviceName: TokenServiceName;
-    protected override readonly _servicePrivateKey: KeyLike;
+    protected override readonly _servicePrivateKeyForRs256: KeyLike;
+    protected override readonly _servicePrivateKeyForRsaOaep: KeyLike;
 
     private constructor({
         serviceName,
-        appServicePublicKey,
-        edgeServiceFamilyPublicKey,
-        taskRealtimeServicePublicKey,
-        edgeServiceFamilyPrivateKey,
+        appServicePublicKeyForRs256,
+        appServicePublicKeyForRsaOaep,
+        edgeServiceFamilyPublicKeyForRs256,
+        edgeServiceFamilyPublicKeyForRsaOaep,
+        taskRealtimeServicePublicKeyForRs256,
+        taskRealtimeServicePublicKeyForRsaOaep,
+        edgeServiceFamilyPrivateKeyForRs256,
+        edgeServiceFamilyPrivateKeyForRsaOaep,
     }: {
         serviceName: TokenEdgeServiceFamilyName;
-        appServicePublicKey: KeyLike;
-        edgeServiceFamilyPublicKey: KeyLike;
-        taskRealtimeServicePublicKey: KeyLike;
-        edgeServiceFamilyPrivateKey: KeyLike;
+        appServicePublicKeyForRs256: KeyLike;
+        appServicePublicKeyForRsaOaep: KeyLike;
+        edgeServiceFamilyPublicKeyForRs256: KeyLike;
+        edgeServiceFamilyPublicKeyForRsaOaep: KeyLike;
+        taskRealtimeServicePublicKeyForRs256: KeyLike;
+        taskRealtimeServicePublicKeyForRsaOaep: KeyLike;
+        edgeServiceFamilyPrivateKeyForRs256: KeyLike;
+        edgeServiceFamilyPrivateKeyForRsaOaep: KeyLike;
     }) {
-        super({appServicePublicKey, edgeServiceFamilyPublicKey, taskRealtimeServicePublicKey});
+        super({
+            appServicePublicKeyForRs256,
+            appServicePublicKeyForRsaOaep,
+            edgeServiceFamilyPublicKeyForRs256,
+            edgeServiceFamilyPublicKeyForRsaOaep,
+            taskRealtimeServicePublicKeyForRs256,
+            taskRealtimeServicePublicKeyForRsaOaep,
+        });
         this._serviceName = serviceName;
-        this._servicePrivateKey = edgeServiceFamilyPrivateKey;
+        this._servicePrivateKeyForRs256 = edgeServiceFamilyPrivateKeyForRs256;
+        this._servicePrivateKeyForRsaOaep = edgeServiceFamilyPrivateKeyForRsaOaep;
     }
 
     public static async new({
@@ -294,45 +409,74 @@ export class EdgeServiceFamilyTokenAgent extends TokenAgentBase {
         edgeServiceFamilyPrivateKey: string;
     }) {
         const [
-            appServicePublicKey,
-            edgeServiceFamilyPublicKey,
-            taskRealtimeServicePublicKey,
-            edgeServiceFamilyPrivateKey,
+            appServicePublicKeyForRs256,
+            appServicePublicKeyForRsaOaep,
+            edgeServiceFamilyPublicKeyForRs256,
+            edgeServiceFamilyPublicKeyForRsaOaep,
+            taskRealtimeServicePublicKeyForRs256,
+            taskRealtimeServicePublicKeyForRsaOaep,
+            edgeServiceFamilyPrivateKeyForRs256,
+            edgeServiceFamilyPrivateKeyForRsaOaep,
         ] = await runAllPromises([
             importSPKI(appServicePublicKeyString, "RS256"),
+            importSPKI(appServicePublicKeyString, "RSA-OAEP"),
             importSPKI(edgeServiceFamilyPublicKeyString, "RS256"),
+            importSPKI(edgeServiceFamilyPublicKeyString, "RSA-OAEP"),
             importSPKI(taskRealtimeServicePublicKeyString, "RS256"),
+            importSPKI(taskRealtimeServicePublicKeyString, "RSA-OAEP"),
             importPKCS8(edgeServiceFamilyPrivateKeyString, "RS256"),
+            importPKCS8(edgeServiceFamilyPrivateKeyString, "RSA-OAEP"),
         ]);
 
         return new EdgeServiceFamilyTokenAgent({
             serviceName,
-            appServicePublicKey,
-            edgeServiceFamilyPublicKey,
-            taskRealtimeServicePublicKey,
-            edgeServiceFamilyPrivateKey,
+            appServicePublicKeyForRs256,
+            appServicePublicKeyForRsaOaep,
+            edgeServiceFamilyPublicKeyForRs256,
+            edgeServiceFamilyPublicKeyForRsaOaep,
+            taskRealtimeServicePublicKeyForRs256,
+            taskRealtimeServicePublicKeyForRsaOaep,
+            edgeServiceFamilyPrivateKeyForRs256,
+            edgeServiceFamilyPrivateKeyForRsaOaep,
         });
     }
 }
 
 export class TaskRealtimeServiceTokenAgent extends TokenAgentBase {
     protected override readonly _serviceName: TokenServiceName;
-    protected override readonly _servicePrivateKey: KeyLike;
+    protected override readonly _servicePrivateKeyForRs256: KeyLike;
+    protected override readonly _servicePrivateKeyForRsaOaep: KeyLike;
 
     private constructor({
-        appServicePublicKey,
-        edgeServiceFamilyPublicKey,
-        taskRealtimeServicePublicKey,
-        taskRealtimeServicePrivateKey,
+        appServicePublicKeyForRs256,
+        appServicePublicKeyForRsaOaep,
+        edgeServiceFamilyPublicKeyForRs256,
+        edgeServiceFamilyPublicKeyForRsaOaep,
+        taskRealtimeServicePublicKeyForRs256,
+        taskRealtimeServicePublicKeyForRsaOaep,
+        taskRealtimeServicePrivateKeyForRs256,
+        taskRealtimeServicePrivateKeyForRsaOaep,
     }: {
-        appServicePublicKey: KeyLike;
-        edgeServiceFamilyPublicKey: KeyLike;
-        taskRealtimeServicePublicKey: KeyLike;
-        taskRealtimeServicePrivateKey: KeyLike;
+        appServicePublicKeyForRs256: KeyLike;
+        appServicePublicKeyForRsaOaep: KeyLike;
+        edgeServiceFamilyPublicKeyForRs256: KeyLike;
+        edgeServiceFamilyPublicKeyForRsaOaep: KeyLike;
+        taskRealtimeServicePublicKeyForRs256: KeyLike;
+        taskRealtimeServicePublicKeyForRsaOaep: KeyLike;
+        taskRealtimeServicePrivateKeyForRs256: KeyLike;
+        taskRealtimeServicePrivateKeyForRsaOaep: KeyLike;
     }) {
-        super({appServicePublicKey, edgeServiceFamilyPublicKey, taskRealtimeServicePublicKey});
+        super({
+            appServicePublicKeyForRs256,
+            appServicePublicKeyForRsaOaep,
+            edgeServiceFamilyPublicKeyForRs256,
+            edgeServiceFamilyPublicKeyForRsaOaep,
+            taskRealtimeServicePublicKeyForRs256,
+            taskRealtimeServicePublicKeyForRsaOaep,
+        });
         this._serviceName = "TaskRealtimeService";
-        this._servicePrivateKey = taskRealtimeServicePrivateKey;
+        this._servicePrivateKeyForRs256 = taskRealtimeServicePrivateKeyForRs256;
+        this._servicePrivateKeyForRsaOaep = taskRealtimeServicePrivateKeyForRsaOaep;
     }
 
     public static async new({
@@ -347,22 +491,34 @@ export class TaskRealtimeServiceTokenAgent extends TokenAgentBase {
         taskRealtimeServicePrivateKey: string;
     }) {
         const [
-            appServicePublicKey,
-            edgeServiceFamilyPublicKey,
-            taskRealtimeServicePublicKey,
-            taskRealtimeServicePrivateKey,
+            appServicePublicKeyForRs256,
+            appServicePublicKeyForRsaOaep,
+            edgeServiceFamilyPublicKeyForRs256,
+            edgeServiceFamilyPublicKeyForRsaOaep,
+            taskRealtimeServicePublicKeyForRs256,
+            taskRealtimeServicePublicKeyForRsaOaep,
+            taskRealtimeServicePrivateKeyForRs256,
+            taskRealtimeServicePrivateKeyForRsaOaep,
         ] = await runAllPromises([
             importSPKI(appServicePublicKeyString, "RS256"),
+            importSPKI(appServicePublicKeyString, "RSA-OAEP"),
             importSPKI(edgeServiceFamilyPublicKeyString, "RS256"),
+            importSPKI(edgeServiceFamilyPublicKeyString, "RSA-OAEP"),
             importSPKI(taskRealtimeServicePublicKeyString, "RS256"),
+            importSPKI(taskRealtimeServicePublicKeyString, "RSA-OAEP"),
             importPKCS8(taskRealtimeServicePrivateKeyString, "RS256"),
+            importPKCS8(taskRealtimeServicePrivateKeyString, "RSA-OAEP"),
         ]);
 
         return new TaskRealtimeServiceTokenAgent({
-            appServicePublicKey,
-            edgeServiceFamilyPublicKey,
-            taskRealtimeServicePublicKey,
-            taskRealtimeServicePrivateKey,
+            appServicePublicKeyForRs256,
+            appServicePublicKeyForRsaOaep,
+            edgeServiceFamilyPublicKeyForRs256,
+            edgeServiceFamilyPublicKeyForRsaOaep,
+            taskRealtimeServicePublicKeyForRs256,
+            taskRealtimeServicePublicKeyForRsaOaep,
+            taskRealtimeServicePrivateKeyForRs256,
+            taskRealtimeServicePrivateKeyForRsaOaep,
         });
     }
 }

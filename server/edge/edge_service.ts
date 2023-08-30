@@ -1,9 +1,20 @@
 import {fetchFromDurableObjectStub} from "~/server/cloudflare/fetch_from_durable_object_stub.js";
+import {EdgeTaskRealtimeServiceRouter} from "~/server/edge/edge_task_realtime_service_router.js";
+import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
+import {getSessionCookieIfExists} from "~/server/tokens/session_cookie.js";
 import {EdgeServiceFamilyTokenAgent} from "~/server/tokens/token_agent.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
+import {Context} from "~/shared/context/context.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {randomInteger} from "~/shared/helpers/number/random_integer.js";
+import {isId} from "~/shared/id/id.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.js";
 
 type EdgeServiceEnv = {
     DocumentCollaborationDurableObjectNamespace: DurableObjectNamespace;
@@ -20,14 +31,11 @@ type EdgeServiceEnv = {
 // Cache some shared resources across requests.
 let sharedResources: {
     env: EdgeServiceEnv;
-    tokenAgent: EdgeServiceFamilyTokenAgent | Promise<EdgeServiceFamilyTokenAgent>;
+    tokenAgentPromise: Promise<EdgeServiceFamilyTokenAgent>;
+    taskRealtimeServiceRouterPromise: Promise<EdgeTaskRealtimeServiceRouter>;
 } | null = null;
 
-async function handleFetch(
-    request: Request,
-    env: EdgeServiceEnv,
-    executionContext: ExecutionContext,
-) {
+function handleFetch(request: Request, env: EdgeServiceEnv, executionContext: ExecutionContext) {
     const startTime = Date.now();
 
     const url = new URL(request.url);
@@ -59,22 +67,25 @@ async function handleFetch(
         });
     }
 
-    // Route durable object requests to the appropriate object.
-    if (url.pathname.startsWith("/api/durable-objects/")) {
-        // Create a new tracer for every request because we need a Honeycomb client and
-        // the Honeycomb client needs `executionContext.waitUntil()` which is request
-        // scoped. Tracers are cheap to construct so this is fine.
-        const tracer = createServerTracer({
-            serviceName: "EdgeService",
-            jsHost: "CloudflareWorker",
-            honeycombApiKey: env.HONEYCOMB_API_KEY,
-            waitUntil: promise => executionContext.waitUntil(promise),
-        });
+    // Fast path for static asset requests. We don't want to trace these requests
+    // or perform any other request/response manipulation.
+    if (url.pathname.startsWith("/build/")) {
+        // eslint-disable-next-line no-global-fetch
+        return fetch(request);
+    }
 
-        // We wrap edge durable object routing in a span because our edge is running
-        // meaningful logic here. We don't add spans when we send requests to
-        // `AppService` since request simply falls through.
-        return traceServerResponse(tracer, request, url, async (span, request) => {
+    // Create a new tracer for every request because we need a Honeycomb client and
+    // the Honeycomb client needs `executionContext.waitUntil()` which is request
+    // scoped. Tracers are cheap to construct so this is fine.
+    const tracer = createServerTracer({
+        serviceName: "EdgeService",
+        jsHost: "CloudflareWorker",
+        honeycombApiKey: env.HONEYCOMB_API_KEY,
+        waitUntil: promise => executionContext.waitUntil(promise),
+    });
+
+    return traceServerResponse(tracer, request, url, async (span, request) => {
+        if (url.pathname.startsWith("/api/")) {
             // An env object that is referentially equal will be passed in as long as
             // environment variables remain the same.
             // https://developers.cloudflare.com/workers/runtime-apis/fetch-event/#parameters
@@ -111,126 +122,195 @@ async function handleFetch(
 
                 const ourSharedResources: typeof sharedResources = {
                     env,
-                    tokenAgent: tokenAgentPromise,
+                    tokenAgentPromise,
+                    taskRealtimeServiceRouterPromise: tokenAgentPromise.then(
+                        tokenAgent =>
+                            new EdgeTaskRealtimeServiceRouter({
+                                protocol: url.protocol,
+                                host: url.host,
+                                tokenAgent,
+                            }),
+                    ),
                 };
-
-                // When the token agent has resolved, we don't need to await it anymore.
-                void tokenAgentPromise.then(
-                    tokenAgent => (ourSharedResources.tokenAgent = tokenAgent),
-                );
 
                 sharedResources = ourSharedResources;
             }
 
-            const tokenAgent =
-                sharedResources.tokenAgent instanceof Promise
-                    ? await sharedResources.tokenAgent
-                    : sharedResources.tokenAgent;
+            // Route durable object requests to the appropriate object.
+            if (url.pathname.startsWith("/api/durable-objects/")) {
+                const tokenAgent = await sharedResources.tokenAgentPromise;
 
-            const path = url.pathname.slice("/api/durable-objects/".length).split("/");
-            switch (path[0]) {
-                case "documents": {
-                    const documentId = Schema.id().deserialize(path[1] ?? null);
-                    const pathname = `/${path.slice(2).join("/")}`;
+                const pathSegments = url.pathname.slice("/api/durable-objects/".length).split("/");
+                switch (pathSegments[0]) {
+                    case "documents": {
+                        const documentId = Schema.id().deserialize(pathSegments[1] ?? null);
+                        const pathname = `/${pathSegments.slice(2).join("/")}`;
 
-                    return fetchFromDurableObjectStub({
-                        durableObjectNamespace: env.DocumentCollaborationDurableObjectNamespace,
-                        serviceName: "DocumentCollaborationService",
-                        tokenAgent,
-                        request,
-                        pathname,
-                        idName: documentId,
-                        span,
-                    });
+                        return fetchFromDurableObjectStub({
+                            durableObjectNamespace: env.DocumentCollaborationDurableObjectNamespace,
+                            serviceName: "DocumentCollaborationService",
+                            tokenAgent,
+                            request,
+                            pathname,
+                            idName: documentId,
+                            span,
+                        });
+                    }
+                    case "posts": {
+                        const postId = Schema.id().deserialize(pathSegments[1] ?? null);
+                        const pathname = `/${pathSegments.slice(2).join("/")}`;
+
+                        return fetchFromDurableObjectStub({
+                            durableObjectNamespace: env.PostRealtimeDurableObjectNamespace,
+                            serviceName: "PostRealtimeService",
+                            tokenAgent,
+                            request,
+                            pathname,
+                            idName: postId,
+                            span,
+                        });
+                    }
+                    case "chat": {
+                        const chatId = Schema.id().deserialize(pathSegments[1] ?? null);
+                        const pathname = `/${pathSegments.slice(2).join("/")}`;
+
+                        return fetchFromDurableObjectStub({
+                            durableObjectNamespace: env.ChatRealtimeDurableObjectNamespace,
+                            serviceName: "ChatRealtimeService",
+                            tokenAgent,
+                            request,
+                            pathname,
+                            idName: chatId,
+                            span,
+                        });
+                    }
+                    case "my-account": {
+                        const accountId = Schema.id().deserialize(pathSegments[1] ?? null);
+                        const pathname = `/${pathSegments.slice(2).join("/")}`;
+
+                        return fetchFromDurableObjectStub({
+                            durableObjectNamespace: env.MyAccountDurableObjectNamespace,
+                            serviceName: "MyAccountService",
+                            tokenAgent,
+                            request,
+                            pathname,
+                            idName: accountId,
+                            span,
+                        });
+                    }
+                    default:
+                        return new Response("404 Not Found: Durable object not found", {
+                            status: 404,
+                            headers: {"content-type": "text/plain"},
+                        });
                 }
-                case "posts": {
-                    const postId = Schema.id().deserialize(path[1] ?? null);
-                    const pathname = `/${path.slice(2).join("/")}`;
+            }
 
-                    return fetchFromDurableObjectStub({
-                        durableObjectNamespace: env.PostRealtimeDurableObjectNamespace,
-                        serviceName: "PostRealtimeService",
-                        tokenAgent,
-                        request,
-                        pathname,
-                        idName: postId,
-                        span,
-                    });
-                }
-                case "chat": {
-                    const chatId = Schema.id().deserialize(path[1] ?? null);
-                    const pathname = `/${path.slice(2).join("/")}`;
-
-                    return fetchFromDurableObjectStub({
-                        durableObjectNamespace: env.ChatRealtimeDurableObjectNamespace,
-                        serviceName: "ChatRealtimeService",
-                        tokenAgent,
-                        request,
-                        pathname,
-                        idName: chatId,
-                        span,
-                    });
-                }
-                case "my-account": {
-                    const accountId = Schema.id().deserialize(path[1] ?? null);
-                    const pathname = `/${path.slice(2).join("/")}`;
-
-                    return fetchFromDurableObjectStub({
-                        durableObjectNamespace: env.MyAccountDurableObjectNamespace,
-                        serviceName: "MyAccountService",
-                        tokenAgent,
-                        request,
-                        pathname,
-                        idName: accountId,
-                        span,
-                    });
-                }
-                default:
-                    return new Response("404 Not Found: Durable object not found", {
+            // Route a WebSocket connection to the relevant `TaskRealtimeService` instance.
+            if (url.pathname.startsWith("/api/task-realtime/")) {
+                const pathSegments = url.pathname.slice("/api/task-realtime/".length).split("/");
+                if (pathSegments.length !== 1) {
+                    return new Response("404 Not Found", {
                         status: 404,
                         headers: {"content-type": "text/plain"},
                     });
+                }
+
+                const spaceId = pathSegments[0]!;
+                if (!isId<SpaceId>(spaceId)) {
+                    return new Response("400 Bad Request", {
+                        status: 400,
+                        headers: {"content-type": "text/plain"},
+                    });
+                }
+
+                const tokenAgent = await sharedResources.tokenAgentPromise;
+                const taskRealtimeServiceRouter =
+                    await sharedResources.taskRealtimeServiceRouterPromise;
+
+                const taskRealtimeServiceHosts = await taskRealtimeServiceRouter.getHosts(
+                    Context.new({
+                        process: new ProcessContextModule({
+                            waitUntil: promise => executionContext.waitUntil(promise),
+                        }),
+                        tracer: new TracerContextModule(span),
+                    }),
+                    spaceId,
+                );
+                assert(taskRealtimeServiceHosts.length > 0);
+
+                const taskRealtimeServiceHost =
+                    taskRealtimeServiceHosts.length === 1
+                        ? taskRealtimeServiceHosts[0]!
+                        : // Pick a realtime service URL at random if we got multiple. If we are
+                          // currently deploying the task realtime service there may be multiple live
+                          // servers. If we happen to pick the one that's shutting down it should be
+                          // closed soon enough.
+                          taskRealtimeServiceHosts[randomInteger(taskRealtimeServiceHosts.length)]!;
+
+                const headers = new Headers(request.headers);
+                addTracerPropagationContextHeader(headers, span);
+
+                // We authenticate with an `Authorization` not a `Cookie` header.
+                headers.delete("cookie");
+
+                if (!headers.has("authorization")) {
+                    const sessionCookieToken = await getSessionCookieIfExists(tokenAgent, request);
+                    if (!sessionCookieToken) throw unauthenticatedSessionError();
+
+                    const requestToken = await tokenAgent.dangerouslySignShortLivedToken(
+                        "TaskRealtimeService",
+                        sessionCookieToken,
+                    );
+                    headers.set("authorization", `bearer ${requestToken}`);
+                }
+
+                // eslint-disable-next-line no-global-fetch
+                return fetch(`${url.protocol}//${taskRealtimeServiceHost}/${spaceId}`, {headers});
             }
-        });
-    }
+        }
 
-    // Can't forward a request to upgrade to a WebSocket connection. All WebSocket
-    // connections are handled by Cloudflare Durable Objects.
-    if (request.headers.has("upgrade")) {
-        return new Response("400 Bad Request: Can't upgrade to WebSocket connection", {
-            status: 400,
-            headers: {"content-type": "text/plain"},
-        });
-    }
+        // Can't forward a request to upgrade to a WebSocket connection to
+        // `AppService`. All WebSocket connection routes are enumerated above.
+        if (request.headers.has("upgrade")) {
+            return new Response("400 Bad Request: Can't upgrade to WebSocket connection", {
+                status: 400,
+                headers: {"content-type": "text/plain"},
+            });
+        }
 
-    const startTimeString = new Date(startTime).toISOString();
+        const startTimeString = new Date(startTime).toISOString();
 
-    // This forwards the request from `EdgeService` to `AppService` completely
-    // untouched. To `AppService` it will look like the request is coming from a
-    // web browser.
-    //
-    // eslint-disable-next-line no-global-fetch
-    const response = await fetch(request);
+        const headers = new Headers(request.headers);
+        addTracerPropagationContextHeader(headers, span);
 
-    // For HTML requests, include edge server timing information. We use this on
-    // the client to synchronize our client time with the server time. See
-    // `synchronized_system_clock.ts`.
-    if (response.headers.get("content-type")?.includes("text/html")) {
-        // `fetch()` responses are immutable so we need to clone to add a new header...
-        const newResponse = new Response(response.body, response);
+        // This forwards the request from `EdgeService` to `AppService` completely
+        // untouched. To `AppService` it will look like the request is coming from a
+        // web browser.
+        //
+        // eslint-disable-next-line no-global-fetch
+        const response = await fetch(request, {headers});
 
-        const endTime = Date.now();
-        const durationMs = endTime - startTime;
+        // For HTML requests, include edge server timing information. We use this on
+        // the client to synchronize our client time with the server time. See
+        // `synchronized_system_clock.ts`.
+        if (response.headers.get("content-type")?.includes("text/html")) {
+            // `fetch()` responses are immutable so we need to clone to add a new header...
+            const newResponse = new Response(response.body, response);
 
-        newResponse.headers.append(
-            "server-timing",
-            `edge;dur=${durationMs};desc="Edge server wait (start time: ${startTimeString})"`,
-        );
+            const endTime = Date.now();
+            const durationMs = endTime - startTime;
 
-        return newResponse;
-    }
+            newResponse.headers.append(
+                "server-timing",
+                `edge;dur=${durationMs};desc="Edge server wait (start time: ${startTimeString})"`,
+            );
 
-    return response;
+            return newResponse;
+        }
+
+        return response;
+    });
 }
 
 // eslint-disable-next-line import/no-default-export

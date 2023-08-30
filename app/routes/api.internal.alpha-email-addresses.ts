@@ -20,15 +20,13 @@ export async function loader({request, context, span}: LoaderArgs) {
     } catch (error) {
         span.addException(error);
 
-        const status = isSystemError(error) ? 500 : 400;
-
         return new Response(
             JSON.stringify({
                 ok: false,
                 error: ErrorSchema.serialize(error),
             }),
             {
-                status,
+                status: isSystemError(error) ? 500 : 400,
                 headers: {"content-type": "application/json"},
             },
         );

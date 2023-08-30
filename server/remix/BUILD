@@ -10,6 +10,8 @@ ts_project(
         "//server/context",
         "//server/helpers",
         "//server/rpc",
+        "//server/tasks/data",
+        "//server/tokens",
         "//shared/context",
         "//shared/helpers",
         "//shared/id",

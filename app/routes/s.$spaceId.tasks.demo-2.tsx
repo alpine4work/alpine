@@ -1,9 +1,16 @@
 import {Outlet, useLocation} from "react-router";
 import {Box} from "~/client/design/box.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {TaskLayoutTopBar} from "~/client/tasks/demo_2/task_layout_top_bar.js";
+import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
+import {TaskRealtimeProtocol} from "~/shared/tasks/task_realtime_protocol.js";
 
 export default function TasksLayoutRoute() {
     const location = useLocation();
+    const {space} = useSpaceContext();
+
+    // NOCOMMIT: Remove and put somewhere else?
+    useWebSocket(TaskRealtimeProtocol, `/api/task-realtime/${space.id}`);
 
     return (
         // Strange format to override the `<SpaceLayoutTopBar>` bottom border with a

@@ -6,6 +6,10 @@ import {parseArgs} from "util";
 // eslint-disable-next-line sort-imports-by-source
 import {writeTracerEventToFileInDev} from "../tracer/write_tracer_event_to_file_in_dev.js";
 
+// Make our service easy to find in process managers. We include
+// "cyberworlds" and "node" so you can grep by those strings.
+process.title = "EdgeServiceFamily dev (cyberworlds, node)";
+
 main().catch(error => {
     // eslint-disable-next-line no-console
     console.error(error);

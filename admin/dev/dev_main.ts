@@ -99,6 +99,7 @@ const artifacts: ReadonlyArray<Artifact> = [
             "--shouldSeedDynamo",
             `--dynamoLocalPort=${dynamoLocalPort}`,
             `--opensearchLocalPort=${opensearchLocalPort}`,
+            `--taskRealtimeServiceLocalPort=${taskRealtimeDevPort}`,
             ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
         ],
         server: new MutexValue<ArtifactServer | null>(null),
@@ -270,7 +271,12 @@ async function rebuildArtifact(artifact: Artifact) {
             });
 
             artifactServer.subprocess.kill("SIGINT");
+
+            // TODO(calebmer): Instead of waiting for old process to die, do zero downtime
+            // deploy procedure where we immediately start a new server process and route
+            // traffic there?
             await exitPromise;
+
             artifactServerRef.current = null;
         }
 

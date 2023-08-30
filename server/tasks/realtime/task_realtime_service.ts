@@ -1,3 +1,4 @@
+import {WebSocketPair} from "#server/web_socket/internal/web_socket_pair.js";
 import fs from "fs-extra";
 import {Session} from "~/server/accounts/accounts_table.js";
 import {
@@ -49,6 +50,8 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TaskActionSchema} from "~/shared/tasks/actions/task_action.js";
 import {TaskRealtimeProtocol} from "~/shared/tasks/task_realtime_protocol.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {WebSocketClosingWithErrorMessageSchema} from "~/shared/web_socket/web_socket_schema.js";
 
 type TaskRealtimeSessionActionContextModules = ServerSessionActionContextModules & {
     fork: ForkActionContextModule;
@@ -215,8 +218,13 @@ runService({
                 ),
         );
 
-        const handleRequest = async (request: Request, url: URL): Promise<Response | void> => {
+        const handleRequest = async (
+            request: Request,
+            url: URL,
+            span: TracerSpan,
+        ): Promise<Response | void> => {
             const baseContext = processContext.clone({
+                tracer: new TracerContextModule(span),
                 cache: new CacheContextModule(),
                 dynamoBatchContext: new DynamoBatchContextModule(),
             });
@@ -236,8 +244,12 @@ runService({
             );
 
             switch (pathnameSegments[1]) {
-                case "": {
-                    if (pathnameSegments.length !== 2) throw new NotFoundError("Route not found");
+                case undefined: {
+                    if (actorContextModule.serviceName !== "EdgeService") {
+                        throw new PermissionDeniedError(
+                            "Only `EdgeService` can connect via WebSocket",
+                        );
+                    }
 
                     if (!(actorContextModule instanceof DynamoSessionActorContextModule)) {
                         throw new PermissionDeniedError(
@@ -278,6 +290,10 @@ runService({
                         );
                     }
 
+                    if (actorContextModule.serviceName !== "AppService") {
+                        throw new PermissionDeniedError("Only `AppService` can apply transactions");
+                    }
+
                     if (!(actorContextModule instanceof DynamoSystemActorContextModule)) {
                         throw new PermissionDeniedError(
                             "Only system actors can apply transactions",
@@ -308,7 +324,7 @@ runService({
         const httpServer = createStandardizedServerWithWebSockets(
             tracer,
             async (request, url, span) => {
-                const result = await captureResultPromise(() => handleRequest(request, url));
+                const result = await captureResultPromise(() => handleRequest(request, url, span));
 
                 if (result.ok) {
                     return (
@@ -321,13 +337,48 @@ runService({
                 } else {
                     span.addException(result.error);
 
-                    return new Response(
-                        JSON.stringify({ok: false, error: ErrorSchema.serialize(result.error)}),
-                        {
-                            status: isSystemError(result.error) ? 500 : 400,
-                            headers: {"content-type": "application/json"},
-                        },
-                    );
+                    // If there was an error and the client was trying to connect to a WebSocket
+                    // then temporarily connect so we can send an error message over the WebSocket
+                    // protocol then immediately close.
+                    //
+                    // e.g. If there was an authorization error during durable object
+                    // initialization.
+                    if (request.headers.get("upgrade") !== "websocket") {
+                        return new Response(
+                            JSON.stringify({ok: false, error: ErrorSchema.serialize(result.error)}),
+                            {
+                                status: isSystemError(result.error) ? 500 : 400,
+                                headers: {"content-type": "application/json"},
+                            },
+                        );
+                    } else {
+                        const socketPair = new WebSocketPair();
+                        const clientSocket = socketPair[0];
+                        const serverSocket = socketPair[1];
+
+                        const response = new Response(null, {
+                            status: 101,
+                            // Cloudflare's WebSocket implementation doesn't fully comply with the
+                            // TypeScript DOM WebSocket type (e.g. there is no `bufferedAmount` or
+                            // `binaryType` property) but everything seems to be fine regardless.
+                            webSocket: clientSocket as any as globalThis.WebSocket,
+                        });
+
+                        (serverSocket as any).accept();
+
+                        serverSocket.send(
+                            JSON.stringify(
+                                WebSocketClosingWithErrorMessageSchema.serialize({
+                                    type: "ClosingWithError",
+                                    error: result.error,
+                                }),
+                            ),
+                        );
+
+                        serverSocket.close();
+
+                        return response;
+                    }
                 }
             },
         );
