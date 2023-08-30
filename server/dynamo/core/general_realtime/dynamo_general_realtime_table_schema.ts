@@ -902,7 +902,11 @@ export class DynamoGeneralRealtimeTableSchema<
             "Can't access private realtime partition",
         );
 
-        const Index = this._table.addExpensiveFullIndex({
+        const Index = this._table.addExpensiveFullIndex<
+            ItemTypes,
+            PartitionKeyAttributesConfig,
+            SortKeyAttributesConfig
+        >({
             ...config,
             // For realtime tables, always include the primary key in the index sort key so
             // that index keys are unique and we can correctly sort items in user-land.

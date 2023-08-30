@@ -12,7 +12,7 @@ import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {authorizeSpaceAccess, isAccountMemberOfSpace} from "~/server/spaces/spaces_table.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
-import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
+import {TaskContextModuleBase} from "~/server/tasks/data/task_context_module.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {CacheContextModule, ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -350,11 +350,11 @@ export const afterCommitTaskActionTransactionEventEmitterForTest = import.meta.j
  * property).
  */
 export function commitTaskActionTransaction(
-    context: Context<ServerSessionActionContextModules & {tasks: TaskContextModule}>,
+    context: Context<ServerSessionActionContextModules & {tasks: TaskContextModuleBase}>,
     spaceId: SpaceId,
     actions: ReadonlyArray<TaskAction>,
 ): Promise<{extraActions: ReadonlyArray<TaskAction>}> {
-    return context.tracer.withSpan("commitTaskActionTransaction", async (context, span) => {
+    return context.tracer.withSpan("Commit task action transaction", async (context, span) => {
         span.addData({
             tasks: {
                 actions: actions.map(getTaskActionLabel).join(","),
@@ -374,38 +374,32 @@ export function commitTaskActionTransaction(
             },
         });
 
-        const finalActions = [...actions, ...extraActions];
-
         // Make sure we include extra actions in our `TracerSpan` if there were any.
-        if (extraActions.length > 0) {
+        if (actionTransactionItem.actions.length > 0) {
             span.addData({
                 tasks: {
-                    actions: finalActions.map(getTaskActionLabel).join(","),
-                    actionCount: finalActions.length,
+                    actions: actionTransactionItem.actions.map(getTaskActionLabel).join(","),
+                    actionCount: actionTransactionItem.actions.length,
                 },
             });
         }
 
+        afterCommitTaskActionTransactionEventEmitterForTest?.emit({
+            spaceId,
+            committedTime: actionTransactionItem.committedTime,
+            actions: actionTransactionItem.actions,
+        });
+
         context.process.waitUntil(async () => {
-            // Index the action transaction in the background.
+            // Process the action transaction in the background.
             //
-            // TODO(calebmer): We need some way to recover if indexing fails! Right now
+            // TODO(calebmer): We need some way to recover if processing fails! Right now
             // maybe we can rely on a manual process where we look at the database for
             // unprocessed transactions and manually retry them. However, it's important
-            // actions are indexed in a timely manner so we should have some process
+            // actions are processed in a timely manner so we should have some service
             // that's constantly querying the `TaskActions` table and retrying transactions
             // that are taking a while to process.
-            await context.tasks.indexActionTransactionAssumingItsCommitted(
-                spaceId,
-                actionTransactionItem.actionTransactionId,
-                finalActions,
-            );
-
-            afterCommitTaskActionTransactionEventEmitterForTest?.emit({
-                spaceId,
-                committedTime: actionTransactionItem.committedTime,
-                actions: finalActions,
-            });
+            await context.tasks.processActionTransactionAfterCommit(actionTransactionItem);
 
             // Once we've finished processing, flip the `wasProcessed` flag to true which
             // will also remove this transaction from our unprocessed transactions index.

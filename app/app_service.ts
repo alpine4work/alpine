@@ -289,6 +289,7 @@ runService({
                                     10,
                                 ),
                             }),
+                            tokenAgent,
                             dangerouslyEscalateToSystemContext,
                         }),
                     },

@@ -13,5 +13,6 @@ ts_project(
         "//shared/helpers",
         "//shared/id",
         "//shared/schema",
+        "//shared/tasks",
     ],
 )

@@ -32,6 +32,7 @@ ts_project(
         "//server/notifications/data",
         "//server/opensearch",
         "//server/tasks/data",
+        "//server/tasks/router",
         "//server/tokens",
         "//server/web_socket",
         "//shared/error",

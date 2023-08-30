@@ -25,6 +25,7 @@ import {authorizeSpaceAccess, isAccountMemberOfSpace} from "~/server/spaces/spac
 import {TaskRealtimeConnection} from "~/server/tasks/realtime/task_realtime_connection.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
+import {TaskRealtimeApplyActionTransactionSchema} from "~/server/tasks/router/task_realtime_apply_action_transaction_schema.js";
 import {TaskRealtimeServiceTokenAgent} from "~/server/tokens/token_agent.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -47,8 +48,6 @@ import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {isId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
-import {TaskActionSchema} from "~/shared/tasks/actions/task_action.js";
 import {TaskRealtimeProtocol} from "~/shared/tasks/task_realtime_protocol.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 import {WebSocketClosingWithErrorMessageSchema} from "~/shared/web_socket/web_socket_schema.js";
@@ -56,11 +55,6 @@ import {WebSocketClosingWithErrorMessageSchema} from "~/shared/web_socket/web_so
 type TaskRealtimeSessionActionContextModules = ServerSessionActionContextModules & {
     fork: ForkActionContextModule;
 };
-
-const TaskRealtimeSendActionTransactionSchema = Schema.object({
-    committedTime: Schema.date,
-    actions: Schema.array(TaskActionSchema),
-});
 
 runService({
     serviceName: "TaskRealtimeService",
@@ -304,7 +298,7 @@ runService({
                         {actor: actorContextModule},
                         async (context: TaskRealtimeSystemActionContext) => {
                             const actionTransaction =
-                                TaskRealtimeSendActionTransactionSchema.deserialize(
+                                TaskRealtimeApplyActionTransactionSchema.deserialize(
                                     await request.json(),
                                 );
 

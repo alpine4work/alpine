@@ -402,8 +402,6 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
                         actionCount += actions.length;
 
                         for (const action of actions) {
-                            action._committedTime =
-                                spaceSegment.actionTransactions[i]!.committedTime;
                             callback(action);
                         }
                     }
