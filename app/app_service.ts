@@ -15,16 +15,17 @@ import {
     DynamoUnknownActorContextModule,
 } from "~/server/accounts/dynamo_actor_context_module.js";
 import {
-    createServerProcessContext,
-    serverProcessContextParseOptions,
-} from "~/server/node/create_server_process_context.js";
-import {
     ServerSystemActionContext,
     ServerSystemActionContextModules,
 } from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
+import {
+    createServerProcessContext,
+    serverProcessContextParseOptions,
+} from "~/server/node/create_server_process_context.js";
 import {createStandardizedRequestListener} from "~/server/node/create_standardized_server.js";
+import {registerGracefulServerShutdown} from "~/server/node/register_graceful_server_shutdown.js";
 import {runService} from "~/server/node/run_service.js";
 import {NotificationsContextModule} from "~/server/notifications/data/notifications_context_module.js";
 import {LoaderContextModule, LoaderContextModules} from "~/server/remix/loader_context.js";
@@ -311,6 +312,12 @@ runService({
                 requestListener(req, res);
             });
         });
+
+        server.on("error", error => {
+            tracer.logUncaughtException("Uncaught exception from HTTP server", error);
+        });
+
+        registerGracefulServerShutdown(server);
 
         server.listen(port, () => {
             // Log when ready in production to help when debugging container startup.

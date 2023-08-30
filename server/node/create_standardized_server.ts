@@ -12,6 +12,7 @@ import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_er
 import {assert} from "~/shared/helpers/control/assert.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {registerGracefulServerShutdown} from "~/server/node/register_graceful_server_shutdown.js";
 
 /**
  * Create a request listener for a Node.js HTTP server that follows WhatWG
@@ -170,16 +171,7 @@ export function createStandardizedServer(
         tracer.logUncaughtException("Uncaught exception from HTTP server", error);
     });
 
-    // Gracefully close the server when a shutdown is requested so any ongoing
-    // requests aren't just...dropped.
-    registerShutdownListenerForIngressTraffic(async () => {
-        await new Promise<void>((resolve, reject) =>
-            server.close(error => {
-                if (error) reject(error);
-                else resolve();
-            }),
-        );
-    });
+    registerGracefulServerShutdown(server);
 
     return server;
 }
@@ -224,6 +216,7 @@ export function createStandardizedServerWithWebSockets(
         },
     );
 
+    // NOCOMMIT: Graceful shutdown for WebSocket server
     const webSocketServer = new WebSocketServer({
         noServer: true,
         // Disable automatic handling of `Sec-WebSocket-Protocol` header, to match
