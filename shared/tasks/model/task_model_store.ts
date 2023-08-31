@@ -9,6 +9,7 @@ import {
 } from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {TaskQueryModel} from "~/shared/tasks/model/task_query_model.js";
 import {TaskRealtimeUpdateEvent} from "~/shared/tasks/task_realtime_protocol.js";
 
 type TaskModelStoreTaskEntry =
@@ -103,6 +104,8 @@ export class TaskModelStore {
     // TODO(calebmer): We should implement some form of manual garbage collection
     // to free memory when certain collections are no longer in use.
     private readonly _collectionById: ImmutableMap<TaskCollectionId, TaskModelStoreCollectionEntry>;
+
+    private readonly _queries: ReadonlyArray<TaskQueryModel>;
 
     private constructor({
         spaceId,

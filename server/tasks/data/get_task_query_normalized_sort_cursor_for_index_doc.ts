@@ -1,25 +1,22 @@
-import {
-    TaskDisplayStatusIntegerMapping,
-    TaskIndexDoc,
-    TaskPriorityIntegerMapping,
-    getTaskIndexDocDisplayStatus,
-} from "~/server/tasks/data/task_index_doc.js";
+import {TaskIndexDoc, getTaskIndexDocDisplayStatus} from "~/server/tasks/data/task_index_doc.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {TaskDisplayStatusIntegerMapping} from "~/shared/tasks/task_display_status.js";
+import {TaskPriorityIntegerMapping} from "~/shared/tasks/task_priority.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {
     TaskQuerySortCursor,
     TaskQuerySortCursorValue,
 } from "~/shared/tasks/task_query_sort_cursor.js";
 
-export function getTaskQueryNormalizedSortCursorFromIndexDoc(
+export function getTaskQueryNormalizedSortCursorForIndexDoc(
     sorts: ReadonlyArray<TaskQueryNormalizedSort>,
     task: TaskIndexDoc,
 ): TaskQuerySortCursor {
     const cursor: Array<TaskQuerySortCursorValue> = [];
 
     for (const sort of sorts) {
-        cursor.push(getTaskQueryNormalizedSortCursorValueFromIndexDoc(sort, task));
+        cursor.push(getTaskQueryNormalizedSortCursorValueForIndexDoc(sort, task));
     }
 
     cursor.push(task.id);
@@ -27,7 +24,7 @@ export function getTaskQueryNormalizedSortCursorFromIndexDoc(
     return cursor as TaskQuerySortCursor;
 }
 
-function getTaskQueryNormalizedSortCursorValueFromIndexDoc(
+function getTaskQueryNormalizedSortCursorValueForIndexDoc(
     sort: TaskQueryNormalizedSort,
     task: TaskIndexDoc,
 ): TaskQuerySortCursorValue {

@@ -4438,6 +4438,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     },
                                                                                     "optional": false
                                                                                 },
+                                                                                "name": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "String"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
                                                                                 "accessPolicy": {
                                                                                     "valueSchema": {
                                                                                         "type": "Object",

@@ -3,7 +3,7 @@ import createJsonBigInt from "json-bigint";
 import {SessionItem, getAccountsTableForTest} from "~/server/accounts/accounts_table.js";
 import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {getSpacesTableForTest} from "~/server/spaces/spaces_table.js";
-import {getTaskQueryNormalizedSortCursorFromIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_from_index_doc.js";
+import {getTaskQueryNormalizedSortCursorForIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_for_index_doc.js";
 import {
     convertTaskQuerySortCursorToOpensearchCursor,
     getTaskQueryNormalizedSortsOpensearchSortClause,
@@ -22,6 +22,8 @@ import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {getTaskQueryNormalizedSortCursorForModel} from "~/shared/tasks/model/get_task_query_normalized_sort_cursor_for_model.js";
+import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskNotepadPageId, generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 import {
@@ -216,7 +218,7 @@ async function testQueryWithNormalizedSorts(
         }
     }
 
-    const [allTasks, sortedTasks] = await runAllPromiseThunks(
+    const [allTasks, sortedTasks1] = await runAllPromiseThunks(
         async (): Promise<Array<TaskIndexDoc & {id: TaskId}>> => {
             // eslint-disable-next-line no-global-fetch
             const allHitsResponse = await fetch(
@@ -275,7 +277,7 @@ async function testQueryWithNormalizedSorts(
                 expect(hit.sort).toEqual(
                     convertTaskQuerySortCursorToOpensearchCursor(
                         sorts,
-                        getTaskQueryNormalizedSortCursorFromIndexDoc(sorts, task),
+                        getTaskQueryNormalizedSortCursorForIndexDoc(sorts, task),
                     ),
                 );
 
@@ -284,34 +286,80 @@ async function testQueryWithNormalizedSorts(
         },
     );
 
-    const expectedSortedTasks = [...allTasks].sort((task1, task2) => {
-        const cursor1 = getTaskQueryNormalizedSortCursorFromIndexDoc(sorts, task1);
-        const cursor2 = getTaskQueryNormalizedSortCursorFromIndexDoc(sorts, task2);
+    const expectedSortedTasks1 = [...allTasks].sort((task1, task2) => {
+        const cursor1 = getTaskQueryNormalizedSortCursorForIndexDoc(sorts, task1);
+        const cursor2 = getTaskQueryNormalizedSortCursorForIndexDoc(sorts, task2);
         return compareTaskQuerySortCursors(sorts, cursor1, cursor2);
     });
 
-    // `getArray()` caches the underlying array. We don't want `expect().toEqual()`
-    // to consider a difference in whether the array is cached or not so always
-    // compute it.
-    for (const task of [...sortedTasks, ...expectedSortedTasks]) {
-        task.collections.raw.collections.getArray();
-    }
+    const sortedTasks2 = sortedTasks1.map(task => convertTaskIndexDocToModel(task));
 
-    // Make sure our JavaScript filter implementation matches the OpenSearch filter
-    // implementation.
+    const expectedSortedTasks2 = allTasks
+        .map(task => convertTaskIndexDocToModel(task))
+        .sort((task1, task2) => {
+            const cursor1 = getTaskQueryNormalizedSortCursorForModel(sorts, task1);
+            const cursor2 = getTaskQueryNormalizedSortCursorForModel(sorts, task2);
+            return compareTaskQuerySortCursors(sorts, cursor1, cursor2);
+        });
+
+    // Make sure our JavaScript filter implementation for `TaskIndexDoc` matches
+    // the OpenSearch filter implementation.
     expect(
-        sortedTasks.map(task => ({
+        sortedTasks1.map(task => ({
             id: task.id,
-            cursor: getTaskQueryNormalizedSortCursorFromIndexDoc(sorts, task),
+            cursor: getTaskQueryNormalizedSortCursorForIndexDoc(sorts, task),
         })),
     ).toEqual(
-        expectedSortedTasks.map(task => ({
+        expectedSortedTasks1.map(task => ({
             id: task.id,
-            cursor: getTaskQueryNormalizedSortCursorFromIndexDoc(sorts, task),
+            cursor: getTaskQueryNormalizedSortCursorForIndexDoc(sorts, task),
         })),
     );
 
-    return sortedTasks.map(({id}) => id);
+    // Make sure our JavaScript filter implementation for `TaskModel` matches
+    // the OpenSearch filter implementation.
+    expect(
+        sortedTasks2.map(task => ({
+            id: task.id,
+            cursor: getTaskQueryNormalizedSortCursorForModel(sorts, task),
+        })),
+    ).toEqual(
+        expectedSortedTasks2.map(task => ({
+            id: task.id,
+            cursor: getTaskQueryNormalizedSortCursorForModel(sorts, task),
+        })),
+    );
+
+    return sortedTasks1.map(({id}) => id);
+}
+
+function convertTaskIndexDocToModel(task: TaskIndexDoc): TaskModel {
+    return new TaskModel({
+        id: task.id,
+        spaceId: task.spaceId,
+        creator: task.creator,
+        createdTime: task.createdTime,
+        deletedTime: task.rawDeletedTime,
+        undeletedTime: task.rawUndeletedTime,
+        parent: {
+            taskId: task.parent.taskId,
+            position: task.parent.rawPosition,
+        },
+        addedChildTaskCount: task.addedChildTaskCount,
+        removedChildTaskCount: task.removedChildTaskCount,
+        addedClosedChildTaskCount: task.addedClosedChildTaskCount,
+        removedClosedChildTaskCount: task.removedClosedChildTaskCount,
+        collections: task.collections.raw.collections,
+        positionByCollectionId: task.collections.raw.positionById,
+        positionByAccountIdAndNotepadPageId: task.notepadPages.raw.positionById,
+        status: task.status,
+        assignee: task.assignee,
+        assigneeStatus: task.rawAssigneeStatus,
+        assigneeActivePosition: task.rawAssigneeActivePosition,
+        title: task.title.raw,
+        dueDate: task.dueDate,
+        priority: task.priority,
+    });
 }
 
 test("sorts by created time by default", async () => {

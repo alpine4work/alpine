@@ -16,6 +16,8 @@ import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {evaluateTaskQueryNormalizedFiltersForModel} from "~/shared/tasks/model/evaluate_task_query_normalized_filters_for_model.js";
+import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskNotepadPageId, generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 import {TaskQueryFilter, TaskQueryFilterDateOperation} from "~/shared/tasks/task_query_filter.js";
@@ -259,8 +261,8 @@ async function testQueryWithNormalizedFilters(
         }
     }
 
-    const [allTasks, queryTasks] = await runAllPromiseThunks(
-        async (): Promise<Array<{id: TaskId; task: TaskIndexDoc}>> => {
+    const [allTasks, queryTasks1] = await runAllPromiseThunks(
+        async (): Promise<Array<TaskIndexDoc>> => {
             // eslint-disable-next-line no-global-fetch
             const allHitsResponse = await fetch(
                 `http://localhost:${context.getOpensearchLocalPort()}/tasks/_search?track_total_hits=false`,
@@ -280,12 +282,11 @@ async function testQueryWithNormalizedFilters(
                 throw new InternalError(`OpenSearch search failed: ${JSON.stringify(allHitsBody)}`);
             }
 
-            return allHitsBody.hits.hits.map((hit: any) => ({
-                id: hit._id,
-                task: TaskIndexDocType.deserialize(hit._source),
-            }));
+            return allHitsBody.hits.hits.map((hit: any) =>
+                Object.assign(TaskIndexDocType.deserialize(hit._source), {id: hit._id}),
+            );
         },
-        async (): Promise<Array<{id: TaskId; task: TaskIndexDoc}>> => {
+        async (): Promise<Array<TaskIndexDoc>> => {
             // eslint-disable-next-line no-global-fetch
             const queryHitsResponse = await fetch(
                 `http://localhost:${context.getOpensearchLocalPort()}/tasks/_search?track_total_hits=false`,
@@ -310,29 +311,75 @@ async function testQueryWithNormalizedFilters(
                 );
             }
 
-            return queryHitsBody.hits.hits.map((hit: any) => ({
-                id: hit._id,
-                task: TaskIndexDocType.deserialize(hit._source),
-            }));
+            return queryHitsBody.hits.hits.map((hit: any) =>
+                Object.assign(TaskIndexDocType.deserialize(hit._source), {id: hit._id}),
+            );
         },
     );
 
-    const expectedQueryTasks = allTasks.filter(({task}) =>
+    const expectedQueryTasks1 = allTasks.filter(task =>
         evaluateTaskQueryNormalizedFiltersForIndexDoc(filters, task),
     );
+
+    const queryTasks2 = queryTasks1.map(task => convertTaskIndexDocToModel(task));
+
+    const expectedQueryTasks2 = allTasks
+        .map(task => convertTaskIndexDocToModel(task))
+        .filter(task => evaluateTaskQueryNormalizedFiltersForModel(filters, task));
 
     // `getArray()` caches the underlying array. We don't want `expect().toEqual()`
     // to consider a difference in whether the array is cached or not so always
     // compute it.
-    for (const {task} of [...queryTasks, ...expectedQueryTasks]) {
+    for (const task of [...queryTasks1, ...expectedQueryTasks1]) {
         task.collections.raw.collections.getArray();
     }
 
-    // Make sure our JavaScript filter implementation matches the OpenSearch filter
-    // implementation.
-    expect(queryTasks).toEqual(expectedQueryTasks);
+    // Run functions that cache properties on the object since we don't want our
+    // test to fail because a property is not cached in one model object.
+    for (const task of [...queryTasks2, ...expectedQueryTasks2]) {
+        task.getCollections().getArray();
+        task.getParent();
+        task.getTitleText();
+    }
 
-    return queryTasks.map(({id}) => id);
+    // Make sure our JavaScript filter implementation for `TaskIndexDoc` matches
+    // the OpenSearch filter implementation.
+    expect(queryTasks1).toEqual(expectedQueryTasks1);
+
+    // Make sure our JavaScript filter implementation for `TaskModel` matches
+    // the OpenSearch filter implementation.
+    expect(queryTasks2).toEqual(expectedQueryTasks2);
+
+    return queryTasks1.map(({id}) => id);
+}
+
+function convertTaskIndexDocToModel(task: TaskIndexDoc): TaskModel {
+    return new TaskModel({
+        id: task.id,
+        spaceId: task.spaceId,
+        creator: task.creator,
+        createdTime: task.createdTime,
+        deletedTime: task.rawDeletedTime,
+        undeletedTime: task.rawUndeletedTime,
+        parent: {
+            taskId: task.parent.taskId,
+            position: task.parent.rawPosition,
+        },
+        addedChildTaskCount: task.addedChildTaskCount,
+        removedChildTaskCount: task.removedChildTaskCount,
+        addedClosedChildTaskCount: task.addedClosedChildTaskCount,
+        removedClosedChildTaskCount: task.removedClosedChildTaskCount,
+        collections: task.collections.raw.collections,
+        positionByCollectionId: task.collections.raw.positionById,
+        positionByAccountIdAndNotepadPageId: task.notepadPages.raw.positionById,
+        status: task.status,
+        assignee: task.assignee,
+        assigneeStatus: task.rawAssigneeStatus,
+        assigneeActivePosition: task.rawAssigneeActivePosition,
+        title: task.title.raw,
+        dueDate: task.dueDate,
+        priority: task.priority,
+    });
 }
 
 test("searches all tasks in a space", async () => {

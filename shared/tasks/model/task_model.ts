@@ -25,6 +25,7 @@ import {
     TaskAssigneeStatusRegister,
 } from "~/shared/tasks/task_assignee_status.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
+import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskPosition, TaskPositionRegister} from "~/shared/tasks/task_position.js";
 import {TaskPositionByAccountIdAndNotepadPageIdMap} from "~/shared/tasks/task_position_by_account_id_and_notepad_page_id.js";
@@ -36,6 +37,7 @@ import {
     TaskTitleSchema,
     applyTaskTitleUpdate,
     emptyTaskTitle,
+    getTaskTitleText,
     mergeTaskTitles,
 } from "~/shared/tasks/task_title.js";
 
@@ -256,6 +258,14 @@ export class TaskModel {
         return this.rawData.status.value;
     }
 
+    public getDisplayStatus(): TaskDisplayStatus {
+        return this.rawData.status.value.type === "Closed"
+            ? "Closed"
+            : this.rawData.assignee.value && this.rawData.assigneeStatus.value.type === "Active"
+            ? "OpenActive"
+            : "OpenInactive";
+    }
+
     public getAssignee() {
         return this.rawData.assignee.value;
     }
@@ -284,6 +294,13 @@ export class TaskModel {
 
     public getTitle() {
         return this.rawData.title;
+    }
+
+    private _titleText: string | undefined = undefined;
+
+    public getTitleText() {
+        this._titleText ??= getTaskTitleText(this.rawData.title);
+        return this._titleText;
     }
 
     public getDueDate() {

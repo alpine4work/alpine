@@ -45,7 +45,10 @@ import {
     TaskAssigneeStatusSchema,
 } from "~/shared/tasks/task_assignee_status.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
-import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
+import {
+    TaskDisplayStatus,
+    TaskDisplayStatusIntegerMapping,
+} from "~/shared/tasks/task_display_status.js";
 import {
     TaskFilterableTime,
     getTaskFilterableTimeSetterDate,
@@ -58,7 +61,11 @@ import {
 } from "~/shared/tasks/task_position.js";
 import {TaskPositionByAccountIdAndNotepadPageIdMap} from "~/shared/tasks/task_position_by_account_id_and_notepad_page_id.js";
 import {TaskPositionByCollectionIdMap} from "~/shared/tasks/task_position_by_collection_id_map.js";
-import {TaskPriority, TaskPriorityRegister} from "~/shared/tasks/task_priority.js";
+import {
+    TaskPriority,
+    TaskPriorityIntegerMapping,
+    TaskPriorityRegister,
+} from "~/shared/tasks/task_priority.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {TaskStatus, TaskStatusRegister} from "~/shared/tasks/task_status.js";
 import {TaskTitle, getTaskTitleText} from "~/shared/tasks/task_title.js";
@@ -370,18 +377,6 @@ const TaskIndexAssigneeStatusType = createCrdtRegisterOpensearchType(
     }),
 );
 
-// Leave room between enum values for more enum values to be inserted in the
-// future. We may add other display statuses in the future like "expired" or
-// "waiting on approval". If we do we don't yet know how we'll want these states
-// to be ordered. So to start we take the max value for our field type (`byte`
-// which has a max of 127), divide by 4 so we can distribute our statuses with
-// room at all positions to add new statuses.
-export const TaskDisplayStatusIntegerMapping = createEnumIntegerMapping({
-    OpenInactive: 32,
-    OpenActive: 64,
-    Closed: 96,
-});
-
 const TaskIndexDisplayStatusType = new OpensearchIndexByteType({
     isFilterable: true,
     isSortable: true,
@@ -439,13 +434,6 @@ const TaskIndexDueDateType = createCrdtRegisterOpensearchType(
         })
         .nullable(),
 );
-
-export const TaskPriorityIntegerMapping = createEnumIntegerMapping({
-    Low: 1,
-    Medium: 2,
-    High: 3,
-    Urgent: 4,
-});
 
 /**
  * Indexes `TaskPriority`.
@@ -587,10 +575,10 @@ export function getTaskIndexDocDisplayStatus(task: {
     rawAssigneeStatus: CrdtRegister<TaskAssigneeStatus>;
 }): TaskDisplayStatus {
     return task.status.value.type === "Closed"
-        ? ("Closed" as const)
+        ? "Closed"
         : task.assignee.value && task.rawAssigneeStatus.value.type === "Active"
-        ? ("OpenActive" as const)
-        : ("OpenInactive" as const);
+        ? "OpenActive"
+        : "OpenInactive";
 }
 
 export function getTaskIndexDocAssigneeStatus(

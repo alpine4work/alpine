@@ -1,7 +1,7 @@
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {getTaskQueryNormalizedSortCursorFromIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_from_index_doc.js";
+import {getTaskQueryNormalizedSortCursorForIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_for_index_doc.js";
 import {
     getTaskIndexDocIfExistsForTest,
     indexTaskActionTransactionTestCheckpoint,
@@ -52,7 +52,7 @@ function testQueryTaskIndex(
         sorts,
         limit,
         afterCursor: afterCursor
-            ? getTaskQueryNormalizedSortCursorFromIndexDoc(sorts, afterCursor)
+            ? getTaskQueryNormalizedSortCursorForIndexDoc(sorts, afterCursor)
             : null,
     });
 }

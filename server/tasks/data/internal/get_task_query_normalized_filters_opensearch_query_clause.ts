@@ -4,9 +4,7 @@ import {
     OpensearchQueryValue,
 } from "~/server/opensearch/opensearch_query_clause.js";
 import {
-    TaskDisplayStatusIntegerMapping,
     TaskIndexDocType,
-    TaskPriorityIntegerMapping,
     TaskStatusTypeIntegerMapping,
 } from "~/server/tasks/data/task_index_doc.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
@@ -15,8 +13,11 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {AccountId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
-import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
-import {TaskPriority} from "~/shared/tasks/task_priority.js";
+import {
+    TaskDisplayStatus,
+    TaskDisplayStatusIntegerMapping,
+} from "~/shared/tasks/task_display_status.js";
+import {TaskPriority, TaskPriorityIntegerMapping} from "~/shared/tasks/task_priority.js";
 import {
     TaskQueryAccountNormalizedFilter,
     TaskQueryDateNormalizedFilter,

@@ -2,7 +2,7 @@ import {RBTree} from "bintrees";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/data/apply_task_action_to_task_index_doc.js";
 import {evaluateTaskQueryNormalizedFiltersForIndexDoc} from "~/server/tasks/data/evaluate_task_query_normalized_filters_for_index_doc.js";
-import {getTaskQueryNormalizedSortCursorFromIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_from_index_doc.js";
+import {getTaskQueryNormalizedSortCursorForIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_for_index_doc.js";
 import {queryTaskIndex} from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {mightTaskActionAddTaskToQueryLoadedRange} from "~/server/tasks/realtime/might_task_action_add_task_to_query_loaded_range.js";
@@ -190,7 +190,7 @@ export class TaskRealtimeQuery {
             const task = this.store.getTaskForQuery(this, taskId);
 
             assert(
-                isDeepEqual(cursor, getTaskQueryNormalizedSortCursorFromIndexDoc(this.sorts, task)),
+                isDeepEqual(cursor, getTaskQueryNormalizedSortCursorForIndexDoc(this.sorts, task)),
                 "Task cursor in query does not match expected cursor from task in store",
             );
 
@@ -487,7 +487,7 @@ export class TaskRealtimeQuery {
         loadedTasks: Array<TaskIndexDoc>,
     ): Promise<unknown> {
         const addVisibleTask = (taskEntry: TaskRealtimeQueryStoreTaskEntry) => {
-            const cursor = getTaskQueryNormalizedSortCursorFromIndexDoc(this.sorts, taskEntry.task);
+            const cursor = getTaskQueryNormalizedSortCursorForIndexDoc(this.sorts, taskEntry.task);
 
             // If our fresh task wants to go into our already loaded range then ignore it!
             // We can't send realtime events to clients while loading more tasks. Adding a
@@ -549,7 +549,7 @@ export class TaskRealtimeQuery {
                 ? this._loadedBeforeCursor
                 : "FullyLoaded";
         } else {
-            const lastCursor = getTaskQueryNormalizedSortCursorFromIndexDoc(
+            const lastCursor = getTaskQueryNormalizedSortCursorForIndexDoc(
                 this.sorts,
                 lastLoadedTask,
             );
@@ -785,7 +785,7 @@ export class TaskRealtimeQuery {
             previousTaskById.set(taskId, newTask);
         }
 
-        const oldCursor = getTaskQueryNormalizedSortCursorFromIndexDoc(this.sorts, oldTask);
+        const oldCursor = getTaskQueryNormalizedSortCursorForIndexDoc(this.sorts, oldTask);
 
         // If the task is no longer visible, remove it from our tree.
         const isStillVisible = evaluateTaskQueryNormalizedFiltersForIndexDoc(this.filters, newTask);
@@ -816,7 +816,7 @@ export class TaskRealtimeQuery {
             return {isStillVisible: false};
         }
 
-        const newCursor = getTaskQueryNormalizedSortCursorFromIndexDoc(this.sorts, newTask);
+        const newCursor = getTaskQueryNormalizedSortCursorForIndexDoc(this.sorts, newTask);
 
         // If the sort values of our task have changed then we want to move it to a new
         // position in our tree. This has O(log(n)) performance since we use a binary
@@ -909,7 +909,7 @@ export class TaskRealtimeQuery {
         const isVisible = evaluateTaskQueryNormalizedFiltersForIndexDoc(this.filters, task);
         if (!isVisible) return {isVisible: false};
 
-        const cursor = getTaskQueryNormalizedSortCursorFromIndexDoc(this.sorts, task);
+        const cursor = getTaskQueryNormalizedSortCursorForIndexDoc(this.sorts, task);
         this._tree.insert(cursor);
 
         // If we are adding a task in the loaded range the increment our loaded count.

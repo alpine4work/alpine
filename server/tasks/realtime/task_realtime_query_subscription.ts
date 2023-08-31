@@ -1,5 +1,5 @@
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
-import {getTaskQueryNormalizedSortCursorFromIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_from_index_doc.js";
+import {getTaskQueryNormalizedSortCursorForIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_for_index_doc.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {TaskRealtimeQuery} from "~/server/tasks/realtime/task_realtime_query.js";
@@ -416,7 +416,7 @@ export class TaskRealtimeQuerySubscriptionInternal {
             (this._loadedBeforeCursor === "FullyLoaded" ||
                 compareTaskQuerySortCursors(
                     this.query.sorts,
-                    getTaskQueryNormalizedSortCursorFromIndexDoc(this.query.sorts, newTask),
+                    getTaskQueryNormalizedSortCursorForIndexDoc(this.query.sorts, newTask),
                     this._loadedBeforeCursor,
                 ) <= 0)
         ) {
@@ -437,11 +437,11 @@ export class TaskRealtimeQuerySubscriptionInternal {
         if (this._loadedBeforeCursor === "FullyLoaded") {
             this._onLoadedTaskUpdate(context, eventBuilder, taskId, oldTask, newTask, actions);
         } else if (this._loadedBeforeCursor !== "Unloaded") {
-            const oldCursor = getTaskQueryNormalizedSortCursorFromIndexDoc(
+            const oldCursor = getTaskQueryNormalizedSortCursorForIndexDoc(
                 this.query.sorts,
                 oldTask,
             );
-            const newCursor = getTaskQueryNormalizedSortCursorFromIndexDoc(
+            const newCursor = getTaskQueryNormalizedSortCursorForIndexDoc(
                 this.query.sorts,
                 newTask,
             );
@@ -480,7 +480,7 @@ export class TaskRealtimeQuerySubscriptionInternal {
             (this._loadedBeforeCursor === "FullyLoaded" ||
                 compareTaskQuerySortCursors(
                     this.query.sorts,
-                    getTaskQueryNormalizedSortCursorFromIndexDoc(this.query.sorts, oldTask),
+                    getTaskQueryNormalizedSortCursorForIndexDoc(this.query.sorts, oldTask),
                     this._loadedBeforeCursor,
                 ) <= 0)
         ) {

@@ -6,6 +6,8 @@ ts_project(
     visibility = ["//visibility:public"],
     deps = [
         "//:node_modules/@internationalized/date",
+        "//:node_modules/@types/functional-red-black-tree",
+        "//:node_modules/functional-red-black-tree",
         "//:node_modules/prosemirror-model",
         "//:node_modules/unicode-default-word-boundary",
         "//:node_modules/y-prosemirror",
