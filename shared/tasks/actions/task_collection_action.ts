@@ -18,6 +18,7 @@ export type TaskCollectionCreateAction = SchemaType<typeof TaskCollectionCreateA
 
 const TaskCollectionCreateActionSchema = Schema.object({
     type: Schema.value("Create"),
+    name: LabelStringSchema,
     accessPolicy: TaskCollectionAccessPolicySchema,
 });
 

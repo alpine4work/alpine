@@ -37,7 +37,7 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
-import {LabelStringRegister} from "~/shared/tasks/helpers/label_string_register.js";
+import {LabelStringSchemaRegister} from "~/shared/tasks/label_string_schema_register.js";
 import {TaskCollectionAccessPolicyRegister} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
@@ -501,7 +501,7 @@ async function actuallyIndexTaskAction(
                     createdTime: action.time,
                     rawDeletedTime: null,
                     rawUndeletedTime: null,
-                    name: new LabelStringRegister("", action.time),
+                    name: new LabelStringSchemaRegister(action.collectionAction.name, action.time),
                     accessPolicy: new TaskCollectionAccessPolicyRegister(
                         action.collectionAction.accessPolicy,
                         action.time,

@@ -17,14 +17,14 @@ import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
-import {LabelStringRegister} from "~/shared/tasks/helpers/label_string_register.js";
+import {LabelStringSchemaRegister} from "~/shared/tasks/label_string_schema_register.js";
 import {
     TaskCollectionAccessPolicyRegister,
     TaskCollectionAccessPolicySchema,
 } from "~/shared/tasks/task_collection_access_policy.js";
 
 const TaskCollectionNameType = createCrdtRegisterOpensearchType(
-    LabelStringRegister,
+    LabelStringSchemaRegister,
     // NOCOMMIT: Test different searches. Including fuzzy searches.
     new OpensearchIndexSearchAsYouTypeType({
         // When localizing our product we should also index with other

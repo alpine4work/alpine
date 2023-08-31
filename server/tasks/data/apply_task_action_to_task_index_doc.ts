@@ -1,5 +1,6 @@
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
+import {areUint8ArraysEqual} from "~/shared/helpers/binary/are_uint8_arrays_equal.js";
 import {
     HybridLogicalTime,
     maxHybridLogicalTime,
@@ -320,11 +321,13 @@ export function applyTaskActionToTaskIndexDoc(
             };
         }
         case "UpdateTitle": {
+            const newTitle = applyTaskTitleUpdate(task.title.raw, action.titleUpdate);
+
+            if (areUint8ArraysEqual(newTitle, task.title.raw)) return task;
+
             return {
                 ...task,
-                title: {
-                    raw: applyTaskTitleUpdate(task.title.raw, action.titleUpdate),
-                },
+                title: {raw: newTitle},
             };
         }
         case "UpdateDueDate": {

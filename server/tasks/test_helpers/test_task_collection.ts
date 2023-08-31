@@ -7,6 +7,8 @@ import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {generateId} from "~/shared/id/id.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 
+let testTaskCollectionCount = 1;
+
 export class TestTaskCollection {
     public readonly context: TestContext;
     public readonly space: TestSpace;
@@ -28,6 +30,7 @@ export class TestTaskCollection {
                 collectionId: id,
                 collectionAction: {
                     type: "Create",
+                    name: `Test Collection ${testTaskCollectionCount++}`,
                     accessPolicy: {
                         accountGrantById: new Map([[session.account.id, {level: "Manage"}]]),
                         defaultGrant: null,
@@ -49,6 +52,7 @@ export class TestTaskCollection {
                 collectionId: id,
                 collectionAction: {
                     type: "Create",
+                    name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[session.account.id, {level: "Manage"}]]),
                         defaultGrant: {type: "Space", level: "Manage"},

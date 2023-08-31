@@ -14,7 +14,7 @@ import {isId} from "~/shared/id/id.js";
 import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {ObjectSchema, Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
 import {analyzeTaskTitleText} from "~/shared/tasks/analyze_task_title_text.js";
-import {CalendarDateSchema} from "~/shared/tasks/helpers/calendar_date_schema.js";
+import {CalendarDateSchema} from "~/shared/tasks/calendar_date_schema.js";
 import {TaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
 import {

@@ -113,7 +113,9 @@ export class TaskCollectionSet {
     }
 
     public apply(action: TaskCollectionSetAction): TaskCollectionSet {
-        return new TaskCollectionSet(this._entries.apply(action));
+        const newEntries = this._entries.apply(action);
+        if (this._entries === newEntries) return this;
+        return new TaskCollectionSet(newEntries);
     }
 
     public merge(other: TaskCollectionSet) {

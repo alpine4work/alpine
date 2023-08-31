@@ -99,6 +99,7 @@ test("can't update collection from a different space", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
+                name: "Test",
                 accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
             },
         },
