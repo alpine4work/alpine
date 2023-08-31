@@ -2,7 +2,7 @@ import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js"
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchemaRegister} from "~/shared/tasks/label_string_schema_register.js";
-import {TaskCollectionModel} from "~/shared/tasks/task_collection_model.js";
+import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 
 test("merging identical tasks returns a referentially equal value to the first one", () => {
     const spaceId = generateId<SpaceId>();

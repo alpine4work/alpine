@@ -7,8 +7,8 @@ import {
     TaskUpdateCollectionAction,
     TaskUpdateTaskAction,
 } from "~/shared/tasks/actions/task_action.js";
-import {TaskCollectionModel} from "~/shared/tasks/task_collection_model.js";
-import {TaskModel} from "~/shared/tasks/task_model.js";
+import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
+import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskRealtimeUpdateEvent} from "~/shared/tasks/task_realtime_protocol.js";
 
 type TaskModelStoreTaskEntry =

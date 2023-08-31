@@ -2,7 +2,7 @@ import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js"
 import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
-import {TaskModel} from "~/shared/tasks/task_model.js";
+import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskPriorityRegister} from "~/shared/tasks/task_priority.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 

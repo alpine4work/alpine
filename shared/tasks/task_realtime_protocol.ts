@@ -6,8 +6,8 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskActionSchema} from "~/shared/tasks/actions/task_action.js";
-import {TaskCollectionModel} from "~/shared/tasks/task_collection_model.js";
-import {TaskModel} from "~/shared/tasks/task_model.js";
+import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
+import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskQueryNormalizedFiltersSchema} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSortSchema} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";

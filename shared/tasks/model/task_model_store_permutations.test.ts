@@ -2,7 +2,7 @@ import {AccountModel} from "~/shared/accounts/account_model.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
-import {TaskModelStore} from "~/shared/tasks/task_model_store.js";
+import {TaskModelStore} from "~/shared/tasks/model/task_model_store.js";
 import {testTaskActionPermutations} from "~/shared/tasks/test_helpers/test_task_action_permutations.js";
 
 const spaceId = generateId<SpaceId>();
