@@ -13,6 +13,10 @@ import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 
 let number = 1;
 
+export function generateTaskRealtimeUpdateEventNumber() {
+    return number++;
+}
+
 export type TaskRealtimeUpdateEvent = {
     readonly number: number;
     readonly actions: ReadonlyArray<TaskAction>;
@@ -67,7 +71,7 @@ export const taskRealtimeQueryStoreBeforeSendEventTestCheckpoint = new TestCheck
  * to the client.
  */
 export class TaskRealtimeUpdateEventBuilder {
-    private readonly _number = number++;
+    private readonly _number = generateTaskRealtimeUpdateEventNumber();
     private _isBuilding = true;
     private _isSending = false;
     private _promises: Array<PromiseLike<unknown>> = [];

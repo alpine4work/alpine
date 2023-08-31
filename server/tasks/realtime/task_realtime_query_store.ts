@@ -16,7 +16,7 @@ import {
     TaskRealtimeQuerySubscriptionInternal,
 } from "~/server/tasks/realtime/task_realtime_query_subscription.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
-import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_update_event.js";
+import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
 import {InternalError} from "~/shared/error/error.js";
 import {isNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
@@ -33,6 +33,7 @@ import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
+import {TaskRealtimeQueryLoadedState} from "~/shared/tasks/task_realtime_protocol.js";
 
 /**
  * This class is the main component of our task realtime implementation. It
@@ -144,8 +145,8 @@ export class TaskRealtimeQueryStore {
             limit: number;
         },
     ): Promise<{
+        loadedState: TaskRealtimeQueryLoadedState;
         tasks: Array<TaskIndexDoc>;
-        hasMoreTasks: boolean;
     }> {
         return this._withFatalErrorHandling(context, () =>
             this._internal.loadQuery(context, options),
@@ -525,8 +526,8 @@ export class TaskRealtimeQueryStoreInternal {
             limit: number;
         },
     ): Promise<{
+        loadedState: TaskRealtimeQueryLoadedState;
         tasks: Array<TaskIndexDoc>;
-        hasMoreTasks: boolean;
     }> {
         assert(Number.isInteger(limit));
 

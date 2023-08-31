@@ -12,7 +12,7 @@ import {
 } from "~/server/tasks/realtime/task_realtime_query_store.js";
 import {TaskRealtimeQuerySubscriptionInternal} from "~/server/tasks/realtime/task_realtime_query_subscription.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
-import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_update_event.js";
+import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
 import {InternalError} from "~/shared/error/error.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -32,6 +32,7 @@ import {
     TaskQuerySortCursor,
     compareTaskQuerySortCursors,
 } from "~/shared/tasks/task_query_sort_cursor.js";
+import {TaskRealtimeQueryLoadedState} from "~/shared/tasks/task_realtime_protocol.js";
 
 // Keep track of the previous task object the query saw so we can check if
 // we've missed any updates. We run this validation in `development` and
@@ -246,7 +247,11 @@ export class TaskRealtimeQuery {
     }
 
     /**
-     * Gets some number of loaded tasks from this query up to `afterCursor`.
+     * Gets some number of loaded tasks from this query after `afterCursor`.
+     *
+     * Will return a `loadedState` you can use to paginate through the rest of the
+     * query. If you are in a `Partial` loaded state then you may call this
+     * function again with `endCursor` as `afterCursor` to get the next page.
      */
     public getLoadedTasks({
         limit,
@@ -255,7 +260,7 @@ export class TaskRealtimeQuery {
         limit: number;
         afterCursor: TaskQuerySortCursor | null;
     }): {
-        hasMoreTasks: boolean;
+        loadedState: TaskRealtimeQueryLoadedState;
         tasks: Array<TaskIndexDoc>;
     } {
         assert(!this._isDestroyed);
@@ -286,36 +291,55 @@ export class TaskRealtimeQuery {
             afterCursorIterator.next();
         }
 
-        let hasMoreTasks;
+        let lastCursor: TaskQuerySortCursor | null = afterCursor;
+        let loadedState: TaskRealtimeQueryLoadedState;
         while (true) {
             const cursor = afterCursorIterator.data();
             if (cursor === null) {
-                hasMoreTasks = this._loadedBeforeCursor !== "FullyLoaded";
+                if (this._loadedBeforeCursor === "FullyLoaded") {
+                    loadedState = {type: "Full"};
+                } else {
+                    loadedState = {
+                        type: "Partial",
+                        endCursor:
+                            this._loadedBeforeCursor !== "Unloaded"
+                                ? this._loadedBeforeCursor
+                                : null,
+                    };
+                }
                 break;
             }
             afterCursorIterator.next();
 
+            // Once we've reached our limit we can stop adding tasks.
+            if (typeof limit === "number" && tasks.length >= limit) {
+                loadedState = {type: "Partial", endCursor: lastCursor};
+                break;
+            }
+
+            // If we reached the `loadedBeforeCursor` barrier then we can only ever be
+            // partially loaded stopping at that barrier. We don't use `lastCursor` since
+            // we haven't hit our limit.
             if (
                 this._loadedBeforeCursor === "Unloaded" ||
                 (this._loadedBeforeCursor !== "FullyLoaded" &&
                     compareTaskQuerySortCursors(this.sorts, cursor, this._loadedBeforeCursor) > 0)
             ) {
-                hasMoreTasks = true;
-                break;
-            }
-
-            // Once we've reached our limit we can stop adding tasks.
-            if (typeof limit === "number" && tasks.length >= limit) {
-                hasMoreTasks = true;
+                loadedState = {
+                    type: "Partial",
+                    endCursor:
+                        this._loadedBeforeCursor !== "Unloaded" ? this._loadedBeforeCursor : null,
+                };
                 break;
             }
 
             const taskId = cursor[cursor.length - 1] as TaskId;
             tasks.push(this.store.getTaskForQuery(this, taskId));
+            lastCursor = cursor;
         }
 
         return {
-            hasMoreTasks,
+            loadedState,
             tasks,
         };
     }

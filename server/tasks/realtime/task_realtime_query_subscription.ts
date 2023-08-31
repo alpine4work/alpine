@@ -8,7 +8,7 @@ import {
     TaskRealtimeQueryStoreTaskEntry,
 } from "~/server/tasks/realtime/task_realtime_query_store.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
-import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_update_event.js";
+import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
 import {InternalError} from "~/shared/error/error.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
@@ -389,31 +389,19 @@ export class TaskRealtimeQuerySubscriptionInternal {
     ): TaskRealtimeQueryLoadedState {
         if (this._loadedBeforeCursor === "FullyLoaded") return {type: "Full"};
 
-        const {hasMoreTasks, tasks} = this.query.getLoadedTasks({
+        const {loadedState, tasks} = this.query.getLoadedTasks({
             limit,
             afterCursor: this._loadedBeforeCursor !== "Unloaded" ? this._loadedBeforeCursor : null,
         });
 
-        if (!hasMoreTasks) {
-            this._loadedBeforeCursor = "FullyLoaded";
-        } else if (tasks.length > 0) {
-            this._loadedBeforeCursor = getTaskQueryNormalizedSortCursorFromIndexDoc(
-                this.query.sorts,
-                tasks[tasks.length - 1]!,
-            );
-        }
+        this._loadedBeforeCursor =
+            loadedState.type === "Full" ? "FullyLoaded" : loadedState.endCursor ?? "Unloaded";
 
         for (const task of tasks) {
             this._onLoadedTaskAdd(context, eventBuilder, task);
         }
 
-        if (this._loadedBeforeCursor === "FullyLoaded") {
-            return {type: "Full"};
-        } else if (this._loadedBeforeCursor === "Unloaded") {
-            return {type: "Partial", endCursor: null};
-        } else {
-            return {type: "Partial", endCursor: this._loadedBeforeCursor};
-        }
+        return loadedState;
     }
 
     public onVisibleTaskAdd(

@@ -18,6 +18,19 @@ import {
 
 export type TaskRealtimeEvent = WebSocketProtocolEventType<typeof TaskRealtimeProtocol>;
 
+export type TaskRealtimeUpdateEvent = SchemaType<typeof TaskRealtimeUpdateEventSchema>;
+
+const TaskRealtimeUpdateEventSchema = Schema.object({
+    type: Schema.value("Update"),
+    number: Schema.integer,
+    actions: Schema.array(TaskActionSchema),
+    backfillAuthorizedTasks: Schema.array(TaskModel.schema),
+    backfillUnauthorizedTaskIds: Schema.array(Schema.id<TaskId>()),
+    backfillAuthorizedCollections: Schema.array(TaskCollectionModel.schema),
+    backfillUnauthorizedCollectionIds: Schema.array(Schema.id<TaskCollectionId>()),
+    referencedAccounts: Schema.array(AccountModel.schema()),
+});
+
 const TaskQuerySortCursorSchema = Schema.array(
     Schema.unknown,
 ) as any as Schema<TaskQuerySortCursor>;
@@ -73,15 +86,6 @@ export const TaskRealtimeProtocol = defineWebSocketProtocol({
         },
     },
     events: {
-        Update: Schema.object({
-            type: Schema.value("Update"),
-            number: Schema.integer,
-            actions: Schema.array(TaskActionSchema),
-            backfillAuthorizedTasks: Schema.array(TaskModel.schema),
-            backfillUnauthorizedTaskIds: Schema.array(Schema.id<TaskId>()),
-            backfillAuthorizedCollections: Schema.array(TaskCollectionModel.schema),
-            backfillUnauthorizedCollectionIds: Schema.array(Schema.id<TaskCollectionId>()),
-            referencedAccounts: Schema.array(AccountModel.schema()),
-        }),
+        Update: TaskRealtimeUpdateEventSchema,
     },
 });

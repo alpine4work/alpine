@@ -178,8 +178,8 @@ export class TestTaskRealtimeServer {
             limit?: number;
         },
     ): Promise<{
-        tasks: Array<TaskIndexDoc>;
         hasMoreTasks: boolean;
+        tasks: Array<TaskIndexDoc>;
     }> {
         const evaluationContext: TaskQueryEvaluationContext = {
             currentAccountId: session.account.id,
@@ -196,12 +196,17 @@ export class TestTaskRealtimeServer {
 
         if (filters.type === "Impossible") return {tasks: [], hasMoreTasks: false};
 
-        return this.server.loadQuery(session.space.systemAction(), {
+        const {loadedState, tasks} = await this.server.loadQuery(session.space.systemAction(), {
             spaceId: session.space.id,
             filters: filters.normalizedFilters,
             sorts: normalizeTaskQuerySorts(options?.sorts ?? []),
             limit: options?.limit ?? 100,
         });
+
+        return {
+            hasMoreTasks: loadedState.type === "Partial",
+            tasks,
+        };
     }
 
     public evictAll() {

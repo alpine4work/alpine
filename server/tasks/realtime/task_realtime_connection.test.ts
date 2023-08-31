@@ -12,7 +12,7 @@ import {
     taskRealtimeQueryStoreBeforeLoadCollectionTestCheckpoint,
     taskRealtimeQueryStoreBeforeLoadTaskTestCheckpoint,
 } from "~/server/tasks/realtime/task_realtime_query_store.js";
-import {taskRealtimeQueryStoreBeforeSendEventTestCheckpoint} from "~/server/tasks/realtime/task_realtime_update_event.js";
+import {taskRealtimeQueryStoreBeforeSendEventTestCheckpoint} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
 import {TestTaskRealtimeServer} from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";

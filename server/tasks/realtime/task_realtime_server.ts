@@ -23,6 +23,7 @@ import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
+import {TaskRealtimeQueryLoadedState} from "~/shared/tasks/task_realtime_protocol.js";
 
 // Run the query store eviction procedure every minute. When an item in the
 // query store is made evictable it is guaranteed to survive at least one
@@ -296,8 +297,8 @@ export class TaskRealtimeServer {
             limit: number;
         },
     ): Promise<{
+        loadedState: TaskRealtimeQueryLoadedState;
         tasks: Array<TaskIndexDoc>;
-        hasMoreTasks: boolean;
     }> {
         // Must be a system actor because we do no filtering to check whether you are
         // allowed to see the queried tasks. Permissions filtering is done at a
