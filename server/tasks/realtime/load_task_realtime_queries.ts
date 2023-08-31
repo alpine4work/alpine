@@ -61,7 +61,7 @@ export async function loadTaskRealtimeQueries(
             action: (context: ServerSystemActionContext) => Promise<Value>,
         ) => Promise<Value>;
         spaceId: SpaceId;
-        queries: Array<{
+        queries: ReadonlyArray<{
             filters: TaskQueryNormalizedFilters;
             sorts: ReadonlyArray<TaskQueryNormalizedSort>;
             limit: number;

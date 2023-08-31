@@ -7,6 +7,7 @@ import {
     DynamoSystemActorContextModule,
 } from "~/server/accounts/dynamo_actor_context_module.js";
 import {
+    ServerSessionActionContext,
     ServerSessionActionContextModules,
     ServerSystemActionContext,
     ServerSystemActionContextModules,
@@ -22,10 +23,15 @@ import {createStandardizedServerWithWebSockets} from "~/server/node/create_stand
 import {runService} from "~/server/node/run_service.js";
 import {NotificationsContextModule} from "~/server/notifications/data/notifications_context_module.js";
 import {authorizeSpaceAccess, isAccountMemberOfSpace} from "~/server/spaces/spaces_table.js";
+import {loadTaskRealtimeQueries} from "~/server/tasks/realtime/load_task_realtime_queries.js";
 import {TaskRealtimeConnection} from "~/server/tasks/realtime/task_realtime_connection.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
-import {TaskRealtimeApplyActionTransactionSchema} from "~/server/tasks/router/task_realtime_apply_action_transaction_schema.js";
+import {
+    TaskRealtimeApplyActionTransactionInputSchema,
+    TaskRealtimeLoadQueriesInputSchema,
+    TaskRealtimeLoadQueriesOutputSchema,
+} from "~/server/tasks/router/task_realtime_service_procedure_schemas.js";
 import {TaskRealtimeServiceTokenAgent} from "~/server/tokens/token_agent.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -275,7 +281,7 @@ runService({
                 // This endpoint should be called every time an action transaction is commit in
                 // a space that's part of this server's space partition. We add the actions to
                 // our action history and broadcast realtime events to all connected clients.
-                case "apply-action-transaction": {
+                case "applyActionTransaction": {
                     if (pathnameSegments.length !== 2) throw new NotFoundError("Route not found");
 
                     if (request.method !== "POST") {
@@ -298,7 +304,7 @@ runService({
                         {actor: actorContextModule},
                         async (context: TaskRealtimeSystemActionContext) => {
                             const actionTransaction =
-                                TaskRealtimeApplyActionTransactionSchema.deserialize(
+                                TaskRealtimeApplyActionTransactionInputSchema.deserialize(
                                     await request.json(),
                                 );
 
@@ -307,6 +313,59 @@ runService({
                                 committedTime: actionTransaction.committedTime,
                                 actions: actionTransaction.actions,
                             });
+                        },
+                    );
+                }
+                case "loadQueries": {
+                    if (pathnameSegments.length !== 2) throw new NotFoundError("Route not found");
+
+                    if (request.method !== "POST") {
+                        throw new InvalidArgumentError(
+                            quote`Invalid request method ${request.method}`,
+                        );
+                    }
+
+                    if (actorContextModule.serviceName !== "AppService") {
+                        throw new PermissionDeniedError("Only `AppService` can load queries");
+                    }
+
+                    if (!(actorContextModule instanceof DynamoSessionActorContextModule)) {
+                        throw new PermissionDeniedError("Only session actors can load queries");
+                    }
+
+                    return baseContext.with(
+                        {
+                            actor: actorContextModule,
+                            notifications: notificationsContextModule,
+                        },
+                        async (context: ServerSessionActionContext) => {
+                            const {queries} = TaskRealtimeLoadQueriesInputSchema.deserialize(
+                                await request.json(),
+                            );
+
+                            const {loadedStates, updateEvent} = await loadTaskRealtimeQueries(
+                                context,
+                                {
+                                    server,
+                                    dangerouslyEscalateToSystemContext,
+                                    spaceId,
+                                    queries,
+                                },
+                            );
+
+                            return new Response(
+                                JSON.stringify(
+                                    TaskRealtimeLoadQueriesOutputSchema.serialize({
+                                        ok: true,
+                                        loadedStates,
+                                        updateEvent,
+                                    }),
+                                ),
+                                {
+                                    status: 200,
+                                    headers: {"content-type": "application/json"},
+                                },
+                            );
                         },
                     );
                 }

@@ -214,7 +214,7 @@ export function createServerProcessContext({
             // NOCOMMIT: Production OpenSearch
             new OpensearchClient({
                 protocol: "http",
-                host: `http://localhost:${parseInt(
+                host: `localhost:${parseInt(
                     assertExists(
                         options.opensearchLocalPort,
                         "OpenSearch local port must be provided when running OpenSearch locally",

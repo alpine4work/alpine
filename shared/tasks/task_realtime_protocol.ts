@@ -20,7 +20,7 @@ export type TaskRealtimeEvent = WebSocketProtocolEventType<typeof TaskRealtimePr
 
 export type TaskRealtimeUpdateEvent = SchemaType<typeof TaskRealtimeUpdateEventSchema>;
 
-const TaskRealtimeUpdateEventSchema = Schema.object({
+export const TaskRealtimeUpdateEventSchema = Schema.object({
     type: Schema.value("Update"),
     number: Schema.integer,
     actions: Schema.array(TaskActionSchema),

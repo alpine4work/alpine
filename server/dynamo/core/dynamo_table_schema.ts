@@ -1322,6 +1322,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     public async createItem<Item extends Types["Item"]>(
         context: DynamoContext,
         item: Item,
+        {isConditionCheckErrorRetriable = false}: {isConditionCheckErrorRetriable?: boolean} = {},
     ): Promise<void> {
         await this._putItem(context, item, {
             condition: DynamoConditionExpression._unsafeRaw(
@@ -1331,7 +1332,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             // Calling `createItem()` has the intent of there is a new item I want to
             // create. It should not be used to implement upserts. Use
             // `createOrReplaceItem()` or `updateItem()` for that.
-            isConditionCheckErrorRetriable: false,
+            isConditionCheckErrorRetriable,
         });
     }
 

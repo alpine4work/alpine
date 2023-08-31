@@ -1,7 +1,17 @@
-import {DynamoActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
-import {ServerSystemActionContext} from "~/server/context/server_action_context.js";
+import {
+    DynamoActorContextModule,
+    DynamoSessionActorContextModule,
+} from "~/server/accounts/dynamo_actor_context_module.js";
+import {
+    ServerSessionActionContext,
+    ServerSystemActionContext,
+} from "~/server/context/server_action_context.js";
 import {indexTaskActionTransactionAssumingItsCommitted} from "~/server/tasks/data/task_index.js";
-import {TaskRealtimeApplyActionTransactionSchema} from "~/server/tasks/router/task_realtime_apply_action_transaction_schema.js";
+import {
+    TaskRealtimeApplyActionTransactionInputSchema,
+    TaskRealtimeLoadQueriesInputSchema,
+    TaskRealtimeLoadQueriesOutputSchema,
+} from "~/server/tasks/router/task_realtime_service_procedure_schemas.js";
 import {TaskRealtimeServiceRouterBase} from "~/server/tasks/router/task_realtime_service_router_base.js";
 import {TokenAgentBase} from "~/server/tokens/token_agent.js";
 import {Context} from "~/shared/context/context.js";
@@ -12,8 +22,16 @@ import {DataLossError, UnknownError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {SpaceId, TaskActionTransactionId} from "~/shared/id/types/id_types.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {TaskAction, getTaskActionLabel} from "~/shared/tasks/actions/task_action.js";
+import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
+import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
+import {
+    TaskRealtimeQueryLoadedState,
+    TaskRealtimeUpdateEvent,
+} from "~/shared/tasks/task_realtime_protocol.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
 export abstract class TaskContextModuleBase extends ContextModuleBase<{
@@ -152,7 +170,7 @@ export class TaskContextModule extends TaskContextModuleBase {
         ]);
 
         const requestBody = JSON.stringify(
-            TaskRealtimeApplyActionTransactionSchema.serialize({
+            TaskRealtimeApplyActionTransactionInputSchema.serialize({
                 committedTime: actionTransaction.committedTime,
                 actions: actionTransaction.actions,
             }),
@@ -173,9 +191,9 @@ export class TaskContextModule extends TaskContextModuleBase {
                 hosts.map(async host => {
                     const response = await fetchWithTracer(
                         context.tracer.getTracer(),
-                        `http://${host}/${actionTransaction.spaceId}/apply-action-transaction`,
+                        `http://${host}/${actionTransaction.spaceId}/applyActionTransaction`,
                         {
-                            spanRoute: `/:spaceId/apply-action-transaction`,
+                            spanRoute: `/:spaceId/applyActionTransaction`,
                             method: "POST",
                             headers: {
                                 authorization: `bearer ${token}`,
@@ -197,6 +215,72 @@ export class TaskContextModule extends TaskContextModuleBase {
                 }),
             );
         });
+    }
+
+    /**
+     * Execute some queries.
+     *
+     * We execute our queries in a running `TaskRealtimeService` instance for the
+     * space. Since `TaskRealtimeService` keeps query data up-to-date in realtime
+     * (unlike OpenSearch which is behind by at least 30 seconds). This also warms
+     * up `TaskRealtimeService` so when our client connects via WebSocket the data
+     * it needs is already loaded.
+     */
+    public async loadQueries(
+        this: TaskContextModule &
+            ContextModuleBase<{
+                process: ProcessContextModule;
+                tracer: TracerContextModule;
+                actor: DynamoSessionActorContextModule;
+            }>,
+        spaceId: SpaceId,
+        queries: Array<{
+            filters: TaskQueryNormalizedFilters;
+            sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+            limit: number;
+        }>,
+    ): Promise<{
+        loadedStates: ReadonlyArray<TaskRealtimeQueryLoadedState>;
+        updateEvent: TaskRealtimeUpdateEvent;
+    }> {
+        const [hosts, token] = await runAllPromises([
+            this.router.getHosts(this._context, spaceId),
+            this._tokenAgent.dangerouslySignShortLivedToken("TaskRealtimeService", {
+                type: "Session",
+                sessionId: this._context.actor.getSessionId(),
+                accountId: this._context.actor.getAccountId(),
+            }),
+        ]);
+
+        // Randomly select a host to load our queries from.
+        assert(hosts.length > 0);
+        const host = hosts[randomInteger(hosts.length)]!;
+
+        const response = await fetchWithTracer(
+            this._context.tracer.getTracer(),
+            `http://${host}/${spaceId}/loadQueries`,
+            {
+                spanRoute: `/:spaceId/loadQueries`,
+                method: "POST",
+                headers: {
+                    authorization: `bearer ${token}`,
+                    "content-type": "application/json",
+                },
+                body: JSON.stringify(TaskRealtimeLoadQueriesInputSchema.serialize({queries})),
+            },
+        );
+
+        const responseBody: {ok: true} | {ok: false; error: SchemaSerializedValue} =
+            await response.json();
+
+        if (!responseBody.ok) {
+            throw ErrorSchema.deserialize(responseBody.error);
+        }
+
+        const {loadedStates, updateEvent} =
+            TaskRealtimeLoadQueriesOutputSchema.deserialize(responseBody);
+
+        return {loadedStates, updateEvent};
     }
 }
 

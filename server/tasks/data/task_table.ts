@@ -62,7 +62,11 @@ import {
     hasTaskCollectionAccessLevel,
 } from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
-import {TaskNotepadPageIdCompressedSetSchema} from "~/shared/tasks/task_notepad_page_id.js";
+import {
+    TaskNotepadPageId,
+    TaskNotepadPageIdCompressedSetSchema,
+    generateTaskNotepadPageId,
+} from "~/shared/tasks/task_notepad_page_id.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskStatus} from "~/shared/tasks/task_status.js";
@@ -2487,4 +2491,52 @@ function convertTaskCollectionIndexDocToItem(
         deletedTime: collection.rawDeletedTime,
         accessPolicy: collection.accessPolicy,
     };
+}
+
+/**
+ * Get the account's task notepad pages for the space. We will always return at
+ * least one notepad page.
+ */
+export function getTaskNotepadPageIds(
+    context: ServerSessionActionContext,
+    spaceId: SpaceId,
+): Promise<ReadonlySet<TaskNotepadPageId>> {
+    return context.dynamo.retryTransaction(async context => {
+        let notepadItem = await TaskTable.getItemIfExists(context, {
+            partitionType: "Account",
+            sortRangeType: "Notepad",
+            accountId: context.actor.getAccountId(),
+            spaceId,
+        });
+
+        if (!notepadItem) {
+            notepadItem = {
+                partitionType: "Account",
+                sortRangeType: "Notepad",
+                accountId: context.actor.getAccountId(),
+                spaceId,
+                // Generate the notepad with an initial page.
+                pageIds: new Set([generateTaskNotepadPageId()]),
+            };
+
+            await TaskTable.createItem(context, notepadItem, {
+                // By default `createItem()` condition check errors are not retried. In this
+                // case it's ok if a concurrent process creates a notepad item. We want to
+                // retry and load that item.
+                isConditionCheckErrorRetriable: true,
+            });
+        }
+
+        if (notepadItem.pageIds.size === 0) {
+            notepadItem = {
+                ...notepadItem,
+                // Add an initial page to the notepad item.
+                pageIds: new Set([generateTaskNotepadPageId()]),
+            };
+
+            await TaskTable.directlyUpdateItem(context, notepadItem);
+        }
+
+        return notepadItem.pageIds;
+    });
 }

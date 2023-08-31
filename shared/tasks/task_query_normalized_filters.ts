@@ -38,6 +38,11 @@ function isNonEmptyReadonlySet<T>(set: ReadonlySet<T>): set is NonEmptyReadonlyS
     return set.size > 0;
 }
 
+export function assertNonEmptyReadonlySet<V>(set: ReadonlySet<V>): NonEmptyReadonlySet<V> {
+    assert(isNonEmptyReadonlySet(set));
+    return set;
+}
+
 type NonEmptyReadonlyMap<K, V> = ReadonlyMap<K, V> & {readonly _NonEmptyReadonlyMap: never};
 
 function isNonEmptyReadonlyMap<K, V>(map: ReadonlyMap<K, V>): map is NonEmptyReadonlyMap<K, V> {
