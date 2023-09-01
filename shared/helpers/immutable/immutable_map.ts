@@ -1,4 +1,5 @@
 import createTree, {Tree} from "functional-red-black-tree";
+import {TreeChange, symmetricDiffTree} from "~/shared/helpers/immutable/symmetric_diff_tree.js";
 
 /**
  * A [persistent data structure][1] containing entries of key-value pairs. Each
@@ -23,7 +24,11 @@ import createTree, {Tree} from "functional-red-black-tree";
  * [3]: https://en.wikipedia.org/wiki/Red%E2%80%93black_tree
  */
 export class ImmutableMap<Key extends string | number, Value> implements ReadonlyMap<Key, Value> {
-    private constructor(private readonly _tree: Tree<Key, Value>) {}
+    private readonly _tree: Tree<Key, Value>;
+
+    private constructor(tree: Tree<Key, Value>) {
+        this._tree = tree;
+    }
 
     private static readonly _empty = new ImmutableMap(createTree<any, any>());
 
@@ -360,5 +365,14 @@ export class ImmutableMap<Key extends string | number, Value> implements Readonl
             callback.call(thisArg, iterator.value!, iterator.key!, this);
             iterator.next();
         }
+    }
+
+    /**
+     * Returns a list of changes between `this` and `otherMap`. It is intended to
+     * be efficient in the case where `this` and `otherMap` share a large amount
+     * of structure. The keys in the output array will be in sorted order.
+     */
+    public symmetricDiff(otherMap: ImmutableMap<Key, Value>): Array<TreeChange<Key, Value>> {
+        return symmetricDiffTree(this._tree, otherMap._tree);
     }
 }
