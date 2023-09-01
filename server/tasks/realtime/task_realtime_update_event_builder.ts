@@ -264,4 +264,22 @@ export class TaskRealtimeUpdateEventBuilder {
         // during the event building phase. So we remove conflicting tasks in the event
         // finalization phase.
     }
+
+    /**
+     * Get the `TaskId`s that are included in our backfill event for the
+     * provided sender.
+     */
+    public getBackfillAuthorizedTaskIds(sender: TaskRealtimeUpdateEventSender): Set<TaskId> {
+        const event = this._eventBySender.get(sender);
+        if (!event) return new Set();
+
+        const taskIds = new Set<TaskId>();
+
+        for (const task of event.backfillAuthorizedTasks) {
+            if (event.backfillUnauthorizedTaskIds.has(task.id)) continue;
+            taskIds.add(task.id);
+        }
+
+        return taskIds;
+    }
 }

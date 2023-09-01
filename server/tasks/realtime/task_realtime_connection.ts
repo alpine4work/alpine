@@ -162,14 +162,32 @@ export class TaskRealtimeConnection {
                     try {
                         const eventBuilder = new TaskRealtimeUpdateEventBuilder();
 
-                        const loadedState = await querySubscription.loadMoreTasks(
+                        const {loadedState, tasks} = await querySubscription.loadMoreTasks(
                             context,
                             eventBuilder,
                             input.limit,
                         );
 
                         await eventBuilder.send(context, this._spaceId);
-                        return {querySubscriptionId, loadedState};
+
+                        // All the tasks we loaded that weren't backfilled we send in a
+                        // `previouslyBackfilledTaskIds` array so the client can add them to its local
+                        // query model.
+                        const backfillAuthorizedTaskIds = eventBuilder.getBackfillAuthorizedTaskIds(
+                            this._sender,
+                        );
+                        const previouslyBackfilledTaskIds: Array<TaskId> = [];
+
+                        for (const task of tasks) {
+                            if (backfillAuthorizedTaskIds.has(task.id)) continue;
+                            previouslyBackfilledTaskIds.push(task.id);
+                        }
+
+                        return {
+                            querySubscriptionId,
+                            loadedState,
+                            previouslyBackfilledTaskIds,
+                        };
                     } catch (error) {
                         // If there's an error, unsubscribe so we don't have a dangling subscription.
                         this._querySubscriptionById.delete(querySubscriptionId);
@@ -212,14 +230,28 @@ export class TaskRealtimeConnection {
                 async context => {
                     const eventBuilder = new TaskRealtimeUpdateEventBuilder();
 
-                    const loadedState = await querySubscription.loadMoreTasks(
+                    const {loadedState, tasks} = await querySubscription.loadMoreTasks(
                         context,
                         eventBuilder,
                         limit,
                     );
 
                     await eventBuilder.send(context, this._spaceId);
-                    return {loadedState};
+
+                    // All the tasks we loaded that weren't backfilled we send in a
+                    // `previouslyBackfilledTaskIds` array so the client can add them to its local
+                    // query model.
+                    const backfillAuthorizedTaskIds = eventBuilder.getBackfillAuthorizedTaskIds(
+                        this._sender,
+                    );
+                    const previouslyBackfilledTaskIds: Array<TaskId> = [];
+
+                    for (const task of tasks) {
+                        if (backfillAuthorizedTaskIds.has(task.id)) continue;
+                        previouslyBackfilledTaskIds.push(task.id);
+                    }
+
+                    return {loadedState, previouslyBackfilledTaskIds};
                 },
             );
         },

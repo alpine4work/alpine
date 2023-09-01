@@ -242,7 +242,10 @@ export class TaskRealtimeQuerySubscription {
         context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilder,
         limit: number,
-    ): Promise<TaskRealtimeQueryLoadedState> {
+    ): Promise<{
+        loadedState: TaskRealtimeQueryLoadedState;
+        tasks: Array<TaskIndexDoc>;
+    }> {
         return this._withFatalErrorHandling(context, () =>
             this._internal.loadMoreTasks(context, eventBuilder, limit),
         );
@@ -368,7 +371,10 @@ export class TaskRealtimeQuerySubscriptionInternal {
         context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilder,
         limit: number,
-    ): Promise<TaskRealtimeQueryLoadedState> {
+    ): Promise<{
+        loadedState: TaskRealtimeQueryLoadedState;
+        tasks: Array<TaskIndexDoc>;
+    }> {
         assert(this._isSubscribed);
 
         await this.query.loadMoreTasks(
@@ -386,22 +392,28 @@ export class TaskRealtimeQuerySubscriptionInternal {
         context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilder,
         limit: number,
-    ): TaskRealtimeQueryLoadedState {
-        if (this._loadedBeforeCursor === "FullyLoaded") return {type: "Full"};
+    ): {
+        loadedState: TaskRealtimeQueryLoadedState;
+        tasks: Array<TaskIndexDoc>;
+    } {
+        if (this._loadedBeforeCursor === "FullyLoaded")
+            return {loadedState: {type: "Full"}, tasks: []};
 
-        const {loadedState, tasks} = this.query.getLoadedTasks({
+        const result = this.query.getLoadedTasks({
             limit,
             afterCursor: this._loadedBeforeCursor !== "Unloaded" ? this._loadedBeforeCursor : null,
         });
 
         this._loadedBeforeCursor =
-            loadedState.type === "Full" ? "FullyLoaded" : loadedState.endCursor ?? "Unloaded";
+            result.loadedState.type === "Full"
+                ? "FullyLoaded"
+                : result.loadedState.endCursor ?? "Unloaded";
 
-        for (const task of tasks) {
+        for (const task of result.tasks) {
             this._onLoadedTaskAdd(context, eventBuilder, task);
         }
 
-        return loadedState;
+        return result;
     }
 
     public onVisibleTaskAdd(

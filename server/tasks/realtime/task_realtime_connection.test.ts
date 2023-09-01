@@ -158,6 +158,7 @@ test("can load a query when there are no tasks", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([]);
@@ -194,6 +195,7 @@ test("can load a query with some tasks", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -249,6 +251,7 @@ test("can paginate a query with many tasks", async () => {
     );
     expect(result).toEqual({
         loadedState: {type: "Partial", endCursor: [expect.any(Array), task3.id]},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -275,6 +278,7 @@ test("can paginate a query with many tasks", async () => {
         }),
     ).toEqual({
         loadedState: {type: "Partial", endCursor: [expect.any(Array), task6.id]},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -301,6 +305,7 @@ test("can paginate a query with many tasks", async () => {
         }),
     ).toEqual({
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -363,6 +368,7 @@ test("can load a query with filters", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -400,6 +406,7 @@ test("can load a query with filters", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -459,6 +466,7 @@ test("can load a query with sorts", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -531,6 +539,7 @@ test("two subscriptions with identical queries use the same underlying query", a
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(getCount()).toEqual(1);
@@ -570,6 +579,7 @@ test("two subscriptions with identical queries use the same underlying query", a
 
     expect(result).toEqual({
         loadedState: {type: "Partial", endCursor: [expect.any(Array), task3.id]},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(getCount()).toEqual(1);
@@ -600,6 +610,7 @@ test("two subscriptions with identical queries use the same underlying query", a
         }),
     ).toEqual({
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(getCount()).toEqual(1);
@@ -677,6 +688,7 @@ test("two subscriptions with different queries load different queries", async ()
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(getCount()).toEqual(1);
@@ -717,6 +729,7 @@ test("two subscriptions with different queries load different queries", async ()
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(getCount()).toEqual(2);
@@ -784,6 +797,7 @@ test("will send actions for updated tasks in the subscription's loaded range", a
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -905,6 +919,7 @@ test("will send actions for removed tasks in the subscription's loaded range", a
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -1026,6 +1041,7 @@ test("will backfill added tasks in the subscription's loaded range", async () =>
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -1152,6 +1168,7 @@ test("will send actions for updated tasks in multiple connections", async () => 
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(
@@ -1171,6 +1188,7 @@ test("will send actions for updated tasks in multiple connections", async () => 
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(
@@ -1190,6 +1208,7 @@ test("will send actions for updated tasks in multiple connections", async () => 
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(
@@ -1209,6 +1228,7 @@ test("will send actions for updated tasks in multiple connections", async () => 
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(
@@ -1228,6 +1248,7 @@ test("will send actions for updated tasks in multiple connections", async () => 
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [task2.id, task3.id, task4.id],
     });
 
     expect(connection1.takeEvents()).toEqual([
@@ -1606,6 +1627,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(
@@ -1625,6 +1647,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(
@@ -1644,6 +1667,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(
@@ -1663,6 +1687,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(
@@ -1682,6 +1707,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [task2.id, task3.id, task4.id],
     });
 
     expect(connection1.takeEvents()).toEqual([
@@ -2154,6 +2180,7 @@ test("visible task added out of loaded range ignored", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Partial", endCursor: [expect.any(Array), task3.id]},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(
@@ -2174,6 +2201,7 @@ test("visible task added out of loaded range ignored", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Partial", endCursor: null},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(
@@ -2193,6 +2221,7 @@ test("visible task added out of loaded range ignored", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection1.takeEvents()).toEqual([
@@ -2298,6 +2327,7 @@ test("visible task updated out of loaded range ignored", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Partial", endCursor: [expect.any(Array), task3.id]},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(
@@ -2318,6 +2348,7 @@ test("visible task updated out of loaded range ignored", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Partial", endCursor: null},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(
@@ -2337,6 +2368,7 @@ test("visible task updated out of loaded range ignored", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection1.takeEvents()).toEqual([
@@ -2453,6 +2485,7 @@ test("visible task removed out of loaded range ignored", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Partial", endCursor: [expect.any(Array), task3.id]},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(
@@ -2473,6 +2506,7 @@ test("visible task removed out of loaded range ignored", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Partial", endCursor: null},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(
@@ -2492,6 +2526,7 @@ test("visible task removed out of loaded range ignored", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection1.takeEvents()).toEqual([
@@ -2614,7 +2649,8 @@ test("visible task moved into loaded range", async () => {
         ),
     ).toEqual({
         querySubscriptionId: expect.any(String),
-        loadedState: {type: "Partial", endCursor: [2, expect.any(Array), task3.id]},
+        loadedState: {type: "Partial", endCursor: [50, expect.any(Array), task3.id]},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(
@@ -2636,6 +2672,7 @@ test("visible task moved into loaded range", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Partial", endCursor: null},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(
@@ -2656,6 +2693,7 @@ test("visible task moved into loaded range", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection1.takeEvents()).toEqual([
@@ -2789,7 +2827,8 @@ test("visible task moved out of loaded range", async () => {
         ),
     ).toEqual({
         querySubscriptionId: expect.any(String),
-        loadedState: {type: "Partial", endCursor: [1, expect.any(Array), task3.id]},
+        loadedState: {type: "Partial", endCursor: [25, expect.any(Array), task3.id]},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(
@@ -2811,6 +2850,7 @@ test("visible task moved out of loaded range", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Partial", endCursor: null},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(
@@ -2831,6 +2871,7 @@ test("visible task moved out of loaded range", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection1.takeEvents()).toEqual([
@@ -2957,6 +2998,7 @@ test("unsubscribe stops sending actions to connection", async () => {
 
     expect(result).toEqual({
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(
@@ -2976,6 +3018,7 @@ test("unsubscribe stops sending actions to connection", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection1.takeEvents()).toEqual([
@@ -3128,6 +3171,7 @@ test("loading tasks with zero limit is fine", async () => {
 
     expect(result).toEqual({
         loadedState: {type: "Partial", endCursor: null},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([]);
@@ -3139,6 +3183,7 @@ test("loading tasks with zero limit is fine", async () => {
         }),
     ).toEqual({
         loadedState: {type: "Partial", endCursor: null},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([]);
@@ -3170,6 +3215,7 @@ test("loading tasks with zero limit when there are no tasks", async () => {
 
     expect(result).toEqual({
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([]);
@@ -3181,6 +3227,7 @@ test("loading tasks with zero limit when there are no tasks", async () => {
         }),
     ).toEqual({
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([]);
@@ -3261,6 +3308,7 @@ test("all referenced collections will be backfilled in the query when loaded", a
 
     expect(result).toEqual({
         loadedState: {type: "Partial", endCursor: [expect.any(Array), task3.id]},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -3294,6 +3342,7 @@ test("all referenced collections will be backfilled in the query when loaded", a
         }),
     ).toEqual({
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -3394,6 +3443,7 @@ test("all referenced collections will be backfilled in the query when added", as
 
     expect(result).toEqual({
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -3532,6 +3582,7 @@ test("when a collection is added it will be backfilled", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -3658,6 +3709,7 @@ test("if a collection is referenced then the connection will receive actions for
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -3791,6 +3843,7 @@ test("if a collection is referenced then the all references must be removed to n
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -4030,6 +4083,7 @@ test("collections unreferenced by removing loaded task do not receive actions", 
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -4156,6 +4210,7 @@ test("collections can be referenced, unreferenced, then referenced again", async
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -4320,6 +4375,7 @@ test("parent tasks are backfilled when query is initially loaded", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -4394,6 +4450,7 @@ test("parent tasks are backfilled when more is loaded from query", async () => {
 
     expect(result).toEqual({
         loadedState: {type: "Partial", endCursor: [expect.any(Array), task3.id]},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -4422,6 +4479,7 @@ test("parent tasks are backfilled when more is loaded from query", async () => {
         }),
     ).toEqual({
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -4484,6 +4542,7 @@ test("parent tasks are backfilled when task is made visible", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -4565,6 +4624,7 @@ test("parent tasks is backfilled when task is updated", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -4688,6 +4748,7 @@ test("parents of loaded tasks receive update actions", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -4870,6 +4931,7 @@ test("parents of loaded tasks receive update actions until all references are re
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -5116,6 +5178,7 @@ test("grandparent tasks are backfilled when query is initially loaded", async ()
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -5191,6 +5254,7 @@ test("grandparent tasks are backfilled when more is loaded from query", async ()
 
     expect(result).toEqual({
         loadedState: {type: "Partial", endCursor: [expect.any(Array), task3.id]},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -5217,6 +5281,7 @@ test("grandparent tasks are backfilled when more is loaded from query", async ()
         }),
     ).toEqual({
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -5286,6 +5351,7 @@ test("grandparent tasks are backfilled when task is made visible", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -5373,6 +5439,7 @@ test("grandparent tasks are backfilled when task is updated", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -5607,6 +5674,7 @@ test("grandparents of loaded tasks receive update actions", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -5799,6 +5867,7 @@ test("grandparents of loaded tasks receive update actions until all references a
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -6064,6 +6133,7 @@ test("collections of parent tasks are backfilled when query is initially loaded"
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -6158,6 +6228,7 @@ test("collections of parent tasks are backfilled when more is loaded from query"
 
     expect(result).toEqual({
         loadedState: {type: "Partial", endCursor: [expect.any(Array), task3.id]},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -6184,6 +6255,7 @@ test("collections of parent tasks are backfilled when more is loaded from query"
         }),
     ).toEqual({
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -6256,6 +6328,7 @@ test("collections of parent tasks are backfilled when task is made visible", asy
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -6342,6 +6415,7 @@ test("collections of parent tasks are backfilled when task is updated", async ()
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -6574,6 +6648,7 @@ test("collections of parents of loaded tasks receive update actions", async () =
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -6797,6 +6872,7 @@ test("collections of parents of loaded tasks receive update actions until all re
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -7040,6 +7116,7 @@ test("race condition: parent task can change before previous parent task has loa
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection1.takeEvents()).toEqual([
@@ -7235,6 +7312,7 @@ test("race condition: parent task can change before previous grandparent task ha
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection1.takeEvents()).toEqual([
@@ -7438,6 +7516,7 @@ test("race condition: parent task is removed before it's loaded", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -7581,6 +7660,7 @@ test("race condition: collection can be removed before previous collection has l
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection1.takeEvents()).toEqual([
@@ -7729,6 +7809,7 @@ test("race condition: parent task can change before previous collection of paren
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection1.takeEvents()).toEqual([
@@ -7920,6 +8001,7 @@ test("multiple subscriptions that receive the same actions only show action once
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -7958,6 +8040,7 @@ test("multiple subscriptions that receive the same actions only show action once
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [task3.id],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -8094,6 +8177,7 @@ test("referenced task may be unauthorized", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -8186,6 +8270,7 @@ test("unauthorized referenced task will be authorized if later loaded", async ()
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -8374,6 +8459,7 @@ test("authorized referenced task may be loaded later", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -8574,6 +8660,7 @@ test("a loaded task may then become referenced", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -8739,6 +8826,7 @@ test("loaded task may be loaded by two subscriptions", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -8774,6 +8862,7 @@ test("loaded task may be loaded by two subscriptions", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [task1.id, task2.id],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -9030,6 +9119,7 @@ test("authorized referenced task may be referenced multiple times", async () => 
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -9065,6 +9155,7 @@ test("authorized referenced task may be referenced multiple times", async () => 
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [task1.id, task2.id],
     });
 
     expect(connection.takeEvents()).toEqual([]);
@@ -9204,6 +9295,7 @@ test("unauthorized referenced task may be referenced multiple times", async () =
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -9239,6 +9331,7 @@ test("unauthorized referenced task may be referenced multiple times", async () =
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [task1.id, task2.id],
     });
 
     expect(connection.takeEvents()).toEqual([]);
@@ -9361,6 +9454,7 @@ test("may reference unauthorized collections", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -9458,6 +9552,7 @@ test("authorized referenced collection may be referenced multiple times", async 
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -9493,6 +9588,7 @@ test("authorized referenced collection may be referenced multiple times", async 
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [task1.id, task2.id],
     });
 
     expect(connection.takeEvents()).toEqual([]);
@@ -9625,6 +9721,7 @@ test("unauthorized referenced collection may be referenced multiple times", asyn
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -9660,6 +9757,7 @@ test("unauthorized referenced collection may be referenced multiple times", asyn
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [task1.id, task2.id],
     });
 
     expect(connection.takeEvents()).toEqual([]);
@@ -9768,6 +9866,7 @@ test("will reauthorize an unauthorized referenced task to authorized", async () 
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -9884,6 +9983,7 @@ test("will reauthorize an authorized referenced task to unauthorized", async () 
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -10042,6 +10142,7 @@ test("reauthorize will noop if an unauthorized referenced task is still unauthor
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -10116,6 +10217,7 @@ test("reauthorize will noop if an authorized referenced task is still authorized
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -10232,6 +10334,7 @@ test("will reauthorize an unauthorized referenced collection to authorized", asy
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -10347,6 +10450,7 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -10506,6 +10610,7 @@ test("reauthorize will noop if an unauthorized referenced collection is still un
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -10579,6 +10684,7 @@ test("reauthorize will noop if an authorized referenced collection is still auth
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -10705,6 +10811,7 @@ test("referenced data is not evicted", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(getCount()).toEqual(1);
@@ -10813,6 +10920,7 @@ test("referenced data is not evicted", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(getCount()).toEqual(1);
@@ -10886,6 +10994,7 @@ test("unreferenced data is evicted", async () => {
 
     expect(result).toEqual({
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(getCount()).toEqual(1);
@@ -10958,6 +11067,7 @@ test("unreferenced data is evicted", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(getCount()).toEqual(2);
@@ -11031,6 +11141,7 @@ test("unreferenced data can be reused when no eviction", async () => {
 
     expect(result).toEqual({
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(getCount()).toEqual(1);
@@ -11099,6 +11210,7 @@ test("unreferenced data can be reused when no eviction", async () => {
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(getCount()).toEqual(1);
@@ -11167,6 +11279,7 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection1.takeEvents()).toEqual([
@@ -11260,6 +11373,7 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection2.takeEvents()).toEqual([
@@ -11481,6 +11595,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     server.pauseApplyActionTransactions();
@@ -11557,6 +11672,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     expect(connection2.takeEvents()).toEqual([
@@ -11811,6 +11927,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     server.pauseApplyActionTransactions();
@@ -12003,6 +12120,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     server.pauseApplyActionTransactions();
