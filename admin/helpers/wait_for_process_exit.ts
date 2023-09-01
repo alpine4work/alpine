@@ -8,20 +8,25 @@ import {quote} from "~/shared/helpers/string/quote.js";
  * exits any way besides a 0 exit code.
  */
 export function waitForProcessExit(subprocess: ChildProcess): Promise<void> {
-    return new Promise((resolve, reject) => {
-        const name = path.basename(subprocess.spawnfile);
+    return waitForProcessExitWithAnyCode(subprocess).then(({exitCode}) => {
+        if (exitCode !== 0) {
+            const name = path.basename(subprocess.spawnfile);
+            throw new UnknownError(quote`Process exited with code ${exitCode} (${name})`);
+        }
+    });
+}
 
+/**
+ * Wait for a process spawned by `child_process` to exit with any status code.
+ * The caller should decide what they want to do with the `exitCode`.
+ */
+export function waitForProcessExitWithAnyCode(
+    subprocess: ChildProcess,
+): Promise<{exitCode: number}> {
+    return new Promise((resolve, reject) => {
         // If the process already exited then immediately resolve or reject.
         if (subprocess.exitCode !== null) {
-            if (subprocess.exitCode === 0) {
-                resolve();
-            } else {
-                reject(
-                    new UnknownError(
-                        quote`Process exited with code ${subprocess.exitCode} (${name})`,
-                    ),
-                );
-            }
+            resolve({exitCode: subprocess.exitCode});
             return;
         }
 
@@ -31,12 +36,11 @@ export function waitForProcessExit(subprocess: ChildProcess): Promise<void> {
             if (finished) return;
             finished = true;
 
-            if (exitCode === 0 || subprocess.killed) {
-                resolve();
-            } else if (typeof exitCode === "number") {
-                reject(new UnknownError(quote`Process exited with code ${exitCode} (${name})`));
+            if (typeof exitCode === "number") {
+                resolve({exitCode});
             } else {
-                reject(new UnknownError(quote`Process exited by signal ${signal} (${name})`));
+                const name = path.basename(subprocess.spawnfile);
+                reject(new UnknownError(quote`Process exited from signal ${signal} (${name})`));
             }
         });
 

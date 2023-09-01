@@ -53,7 +53,15 @@ export async function startRemixDevServer({remixDevServerPort}: {remixDevServerP
                 break;
             }
             case "BuildFinish": {
-                log(`Built ${event.targets.join(" ")} (${prettyMs(event.durationMs)})`);
+                if (event.hasFailed) {
+                    log(
+                        `Failed to build ${event.targets.join(" ")} (${prettyMs(
+                            event.durationMs,
+                        )})`,
+                    );
+                } else {
+                    log(`Built ${event.targets.join(" ")} (${prettyMs(event.durationMs)})`);
+                }
                 break;
             }
             default:

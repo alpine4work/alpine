@@ -1,5 +1,7 @@
 import http from "http";
 import net from "net";
+import {ArtifactServer} from "~/admin/dev/dev_main.js";
+import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -17,12 +19,36 @@ const dontKeepAliveAgent = new http.Agent({keepAlive: false});
  * way a developer may hit the server in their browser and will see a loading
  * spinner while we wait for the server to be ready.
  */
-export async function createDevProxyServer(port1: number, port2: number) {
+export async function createDevProxyServer(
+    port1: number,
+    port2: number,
+    serverMutex: MutexValue<ArtifactServer | null>,
+) {
     const proxyServer = http.createServer((proxyReq, proxyRes) => {
         let requestAttemptCount = 0;
         request();
 
         function request() {
+            // If the server failed to build then return a 500 and tell the developer to
+            // look at the terminal.
+            const server = serverMutex.getWithoutLock();
+            if (server?.hasBuildFailed) {
+                proxyRes.writeHead(500, {"content-type": "text/plain"});
+                proxyRes.end(`500 Internal Server Error: Bazel build failed (see terminal)`);
+                return;
+            }
+
+            // If we know the server subprocess is dead then return a 500 and tell the
+            // developer to look at the terminal.
+            const subprocessExitCode = server?.subprocess.exitCode ?? null;
+            if (subprocessExitCode !== null) {
+                proxyRes.writeHead(500, {"content-type": "text/plain"});
+                proxyRes.end(
+                    `500 Internal Server Error: Process exited with code ${subprocessExitCode} (see terminal)`,
+                );
+                return;
+            }
+
             requestAttemptCount++;
 
             const req = http.request({
@@ -87,6 +113,34 @@ export async function createDevProxyServer(port1: number, port2: number) {
         request();
 
         function request() {
+            // If the server failed to build then return a 500 and tell the developer to
+            // look at the terminal.
+            const server = serverMutex.getWithoutLock();
+            if (server?.hasBuildFailed) {
+                proxySocket.write(
+                    "HTTP/1.1 500 Internal Server Error\r\n" +
+                        "Content-Type: text/plain\r\n" +
+                        "\r\n" +
+                        `500 Internal Server Error: Bazel build failed (see terminal)\r\n`,
+                );
+                proxySocket.end();
+                return;
+            }
+
+            // If we know the server subprocess is dead then return a 500 and tell the
+            // developer to look at the terminal.
+            const subprocessExitCode = server?.subprocess.exitCode ?? null;
+            if (subprocessExitCode !== null) {
+                proxySocket.write(
+                    "HTTP/1.1 500 Internal Server Error\r\n" +
+                        "Content-Type: text/plain\r\n" +
+                        "\r\n" +
+                        `500 Internal Server Error: Process exited with code ${subprocessExitCode} (see terminal)\r\n`,
+                );
+                proxySocket.end();
+                return;
+            }
+
             requestAttemptCount++;
 
             const req = http.request({
@@ -120,11 +174,12 @@ export async function createDevProxyServer(port1: number, port2: number) {
                 console.error(error);
 
                 proxySocket.write(
-                    "HTTP/1.1 504 Web Gateway Timeout\r\n" +
+                    "HTTP/1.1 504 Gateway Timeout\r\n" +
                         "Content-Type: text/plain\r\n" +
                         "\r\n" +
                         "504 Gateway Timeout\r\n",
                 );
+                proxySocket.end();
             });
 
             req.on("response", res => {

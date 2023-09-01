@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import {bazelExecutablePath, lockBazelExecutable} from "~/admin/dev/bazel/bazel_executable.js";
 import {spawnWithBlockingStdio} from "~/admin/dev/stdio_coordinator.js";
-import {waitForProcessExit} from "~/admin/helpers/wait_for_process_exit.js";
+import {waitForProcessExitWithAnyCode} from "~/admin/helpers/wait_for_process_exit.js";
 import {workspacePath} from "~/admin/helpers/workspace_path.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
@@ -23,7 +23,7 @@ export const bazelBuildCompilationMode = "fastbuild";
 
 let isBuildScheduled = false;
 
-let nextBuildByTarget = new DefaultMap<string, PromiseResolver<{buildId: Id}>>(
+let nextBuildByTarget = new DefaultMap<string, PromiseResolver<{buildId: Id; hasFailed: boolean}>>(
     createPromiseResolver,
 );
 
@@ -31,7 +31,7 @@ const lastBuildByTarget = new Map<
     string,
     {
         startTime: number;
-        promise: Promise<{buildId: Id}>;
+        promise: Promise<{buildId: Id; hasFailed: boolean}>;
     }
 >();
 
@@ -42,7 +42,7 @@ const lastBuildByTarget = new Map<
  * targets and build them together. If we are already running a Bazel build then we'll
  * batch targets together and build them immediately after.
  */
-export function buildBazelTarget(target: string): Promise<{buildId: Id}> {
+export function buildBazelTarget(target: string): Promise<{buildId: Id; hasFailed: boolean}> {
     // If it has been less than 1000ms since the user last built a target, we assume
     // our previous work is still valid.
     const lastBuild = lastBuildByTarget.get(target);
@@ -85,7 +85,20 @@ function scheduleBuildBazelTargets() {
                 actuallyBuildBazelTargets([...buildByTarget.keys()])
                     // Resolve the targets we built this run.
                     .then(
-                        () => buildByTarget.forEach(({resolve}) => resolve({buildId})),
+                        ({messageByTarget}) =>
+                            buildByTarget.forEach(({resolve}, target) =>
+                                resolve({
+                                    buildId,
+                                    // We inspect Bazel's target message output to tell us whether a target
+                                    // succeeded to build or failed. See Bazel's source code for the possible
+                                    // messages:
+                                    //
+                                    // https://github.com/bazelbuild/bazel/blob/5c75d0acec21459bbb13520817e3806e1507e907/src/main/java/com/google/devtools/build/lib/buildtool/BuildResultPrinter.java#L279-L320
+                                    hasFailed: !(
+                                        messageByTarget.get(target)?.includes("up-to-date") ?? false
+                                    ),
+                                }),
+                            ),
                         error => buildByTarget.forEach(({reject}) => reject(error)),
                     )
                     .finally(() => {
@@ -106,13 +119,6 @@ function scheduleBuildBazelTargets() {
 async function actuallyBuildBazelTargets(targets: Array<string>) {
     assert(targets.length > 0);
 
-    // eslint-disable-next-line no-console
-    console.log("");
-    // eslint-disable-next-line no-console
-    console.log("");
-    // eslint-disable-next-line no-console
-    console.log(`${chalk.dim("$")} bazel build ${chalk.bold(targets.join(" "))}`);
-
     const startTime = Date.now();
     bazelBuildEvents.emit({type: "BuildStart", targets});
 
@@ -129,13 +135,44 @@ async function actuallyBuildBazelTargets(targets: Array<string>) {
         {
             cwd: workspacePath,
             env: process.env,
+            onStdioBlocked: () => {
+                // Explain what the following process output is.
+                process.stdout.write(
+                    `\n\n${chalk.dim("$")} bazel build ${chalk.bold(targets.join(" "))}\n`,
+                );
+            },
         },
     );
 
-    await waitForProcessExit(subprocess);
+    const messageByTarget = new Map<string, string>();
+
+    const handleStdioData = (chunk: Buffer) => {
+        const chunkString = chunk.toString();
+        const matches = chunkString.matchAll(/Target (\/\/.*?) (.*?)(?::|$)/gm);
+
+        for (const match of matches) {
+            const matchTarget = match[1]!;
+            const matchMessage = match[2]!;
+
+            for (const target of targets) {
+                const canonicalTarget = target.replace(/^(\/\/[^:]*?([^:/]+))$/, "$1:$2");
+                if (canonicalTarget === matchTarget) {
+                    messageByTarget.set(target, matchMessage);
+                }
+            }
+        }
+    };
+
+    subprocess.stdout.on("data", handleStdioData);
+    subprocess.stderr.on("data", handleStdioData);
+
+    const {exitCode} = await waitForProcessExitWithAnyCode(subprocess);
+    const hasFailed = exitCode !== 0;
 
     const durationMs = Date.now() - startTime;
-    bazelBuildEvents.emit({type: "BuildFinish", targets, durationMs});
+    bazelBuildEvents.emit({type: "BuildFinish", targets, durationMs, hasFailed});
+
+    return {messageByTarget};
 }
 
 export type BazelBuildEvent =
@@ -147,6 +184,7 @@ export type BazelBuildEvent =
           readonly type: "BuildFinish";
           readonly targets: ReadonlyArray<string>;
           readonly durationMs: number;
+          readonly hasFailed: boolean;
       };
 
 const bazelBuildEvents = new EventEmitter<BazelBuildEvent>();

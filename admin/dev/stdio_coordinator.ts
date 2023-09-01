@@ -1,4 +1,5 @@
-import {ChildProcess, SpawnOptionsWithoutStdio, spawn} from "child_process";
+import {ChildProcess, ChildProcessByStdio, SpawnOptionsWithoutStdio, spawn} from "child_process";
+import {Readable} from "stream";
 import {waitForProcessExit} from "~/admin/helpers/wait_for_process_exit.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 
@@ -42,8 +43,14 @@ function transformChunk(chunk: Buffer) {
 export function spawnWithBlockingStdio(
     command: string,
     args?: ReadonlyArray<string>,
-    options?: SpawnOptionsWithoutStdio,
-): ChildProcess {
+    options?: SpawnOptionsWithoutStdio & {
+        /**
+         * Callback for when our process has started blocking stdio. Useful if you want
+         * to print anything before our process.
+         */
+        onStdioBlocked?: () => void;
+    },
+): ChildProcessByStdio<null, Readable, Readable> {
     const subprocess = spawn(command, args ?? [], {
         ...options,
         stdio: ["ignore", "pipe", "pipe"],
@@ -73,6 +80,8 @@ export function spawnWithBlockingStdio(
     });
 
     blockingStdioSubprocesses.push(async () => {
+        options?.onStdioBlocked?.();
+
         for (const {where, chunk} of bufferedChunks) {
             if (where === "stdout") {
                 process.stdout.write(chunk);

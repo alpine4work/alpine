@@ -77,10 +77,17 @@ type Artifact = {
     readonly onServerRestart?: () => Promise<void>;
 };
 
-type ArtifactServer = {
-    readonly buildId: Id;
-    readonly subprocess: ChildProcess;
-};
+export type ArtifactServer =
+    | {
+          readonly buildId: Id;
+          readonly hasBuildFailed: false;
+          readonly subprocess: ChildProcess;
+      }
+    | {
+          readonly buildId: Id;
+          readonly hasBuildFailed: true;
+          readonly subprocess: null;
+      };
 
 const artifacts: ReadonlyArray<Artifact> = [
     {
@@ -195,7 +202,7 @@ const artifactsPromise = runAllPromises(
         await runAllPromises([
             rebuildArtifact(artifact),
             updateArtifactDependencyBazelPackagePaths(artifact),
-            createDevProxyServer(artifact.port, artifact.privatePort),
+            createDevProxyServer(artifact.port, artifact.privatePort, artifact.server),
         ]);
     }),
 );
@@ -255,7 +262,7 @@ process.on("uncaughtException", error => {
  * Build the artifact and restart the server associated with the artifact.
  */
 async function rebuildArtifact(artifact: Artifact) {
-    const {buildId} = await buildBazelTarget(artifact.bazelTarget);
+    const {buildId, hasFailed: hasBuildFailed} = await buildBazelTarget(artifact.bazelTarget);
 
     await artifact.server.withLock(async artifactServerRef => {
         if (artifactServerRef.current) {
@@ -265,19 +272,28 @@ async function rebuildArtifact(artifact: Artifact) {
             // don't need to restart it.
             if (artifactServer.buildId === buildId) return;
 
-            const exitPromise = waitForProcessExit(artifactServer.subprocess).catch(() => {
-                // Ignore errors. As long as the last process exits we can start the
-                // new process.
-            });
+            if (artifactServer.subprocess) {
+                const exitPromise = waitForProcessExit(artifactServer.subprocess).catch(() => {
+                    // Ignore errors. As long as the last process exits we can start the
+                    // new process.
+                });
 
-            artifactServer.subprocess.kill("SIGINT");
+                artifactServer.subprocess.kill("SIGINT");
 
-            // TODO(calebmer): Instead of waiting for old process to die, do zero downtime
-            // deploy procedure where we immediately start a new server process and route
-            // traffic there?
-            await exitPromise;
+                // TODO(calebmer): Instead of waiting for old process to die, do zero downtime
+                // deploy procedure where we immediately start a new server process and route
+                // traffic there?
+                await exitPromise;
+            }
 
             artifactServerRef.current = null;
+        }
+
+        // If the artifact server failed to build we kill the old artifact server and
+        // wait for a successful build.
+        if (hasBuildFailed) {
+            artifactServerRef.current = {buildId, hasBuildFailed, subprocess: null};
+            return;
         }
 
         // Make sure our setup promise has resolved before spawning our server.
@@ -293,7 +309,7 @@ async function rebuildArtifact(artifact: Artifact) {
         );
 
         await runAllPromises([waitForProcessSpawn(subprocess), artifact.onServerRestart?.()]);
-        artifactServerRef.current = {buildId, subprocess};
+        artifactServerRef.current = {buildId, hasBuildFailed, subprocess};
     });
 }
 
