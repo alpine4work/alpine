@@ -3,9 +3,9 @@ import net from "net";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
-// This will be ~10s of retrying.
+// This will be ~5s of retrying.
 const retryDurationMs = 50;
-const maxRetryAttemptCount = 200;
+const maxRetryAttemptCount = 100;
 
 const keepAliveAgent = new http.Agent({keepAlive: true});
 const dontKeepAliveAgent = new http.Agent({keepAlive: false});

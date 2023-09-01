@@ -36,7 +36,7 @@ export class MappedStore<OldValue, NewValue> extends Store<NewValue> {
         // 1. Garbage collect mapped state values.
         // 2. Treat `mappedStore.subscribe(listener)` and
         //    `mappedStore._store.subscribe(listener)` with the same `listener` as
-        //    distinct calls. Unsubscribe one shouldn't unsubscribe the other.
+        //    distinct calls. Unsubscribing one shouldn't unsubscribe the other.
         const wrappedListener = () => {
             this._state = null;
             listener();
