@@ -17,6 +17,7 @@ ts_project(
         "//:node_modules/express",
         "//:node_modules/fs-extra",
         "//:node_modules/pretty-ms",
+        "//:node_modules/strip-ansi",
         "//:node_modules/ws",
         "//admin/dynamo/local",
         "//admin/helpers",

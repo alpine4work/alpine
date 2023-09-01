@@ -69,6 +69,7 @@ const taskRealtimeDevPrivatePort = parseInt(assertExists(env.TASK_REALTIME_DEV_P
 type Artifact = {
     readonly bazelTarget: string;
     readonly executablePath: string;
+    readonly stdioPrefix: string;
     readonly port: number;
     readonly privatePort: number;
     readonly env?: {readonly [key: string]: string};
@@ -93,6 +94,7 @@ const artifacts: ReadonlyArray<Artifact> = [
     {
         bazelTarget: "//app",
         executablePath: "app/app.sh",
+        stdioPrefix: "app",
         env: {BAZEL_BINDIR: "."},
         port: appDevPort,
         privatePort: appDevPrivatePort,
@@ -118,6 +120,7 @@ const artifacts: ReadonlyArray<Artifact> = [
     {
         bazelTarget: "//server/edge",
         executablePath: "server/edge/edge.sh",
+        stdioPrefix: "edg",
         port: edgeDevPort,
         privatePort: edgeDevPrivatePort,
         args: [
@@ -133,6 +136,7 @@ const artifacts: ReadonlyArray<Artifact> = [
     {
         bazelTarget: "//server/tasks/realtime",
         executablePath: "server/tasks/realtime/realtime.sh",
+        stdioPrefix: "tsk",
         port: taskRealtimeDevPort,
         privatePort: taskRealtimeDevPrivatePort,
         args: [
@@ -299,13 +303,21 @@ async function rebuildArtifact(artifact: Artifact) {
         // Make sure our setup promise has resolved before spawning our server.
         await fastSetupPromise;
 
+        assert(
+            artifact.stdioPrefix.length === 3,
+            "All artifact stdio prefixes should be 3 characters long",
+        );
+
         const subprocess = spawnWithCoordinatedStdio(
             joinPath(
                 `${workspacePath}/bazel-out/${bazelBuildTargetCpu}-${bazelBuildCompilationMode}/bin`,
                 artifact.executablePath,
             ),
             [`--port=${artifact.privatePort}`, ...(artifact.args ?? [])],
-            {env: {...process.env, ...artifact.env}},
+            {
+                env: {...process.env, ...artifact.env},
+                stdioPrefix: artifact.stdioPrefix,
+            },
         );
 
         await runAllPromises([waitForProcessSpawn(subprocess), artifact.onServerRestart?.()]);
