@@ -1,10 +1,6 @@
 import {Selection} from "prosemirror-state";
 import {Step, StepMap} from "prosemirror-transform";
-import {
-    WebSocketClient,
-    WebSocketClientProcedures,
-    WebSocketClientState,
-} from "~/client/web_socket/web_socket_client.js";
+
 import {
     ContentEditorReferencesAction,
     ContentEditorState,
@@ -13,8 +9,12 @@ import {
 import {AppContext} from "~/client/context/app_context.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
+import {
+    WebSocketClient,
+    WebSocketClientProcedures,
+    WebSocketClientState,
+} from "~/client/web_socket/web_socket_client.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
-import {WebSocketProtocolProceduresType} from "~/shared/web_socket/web_socket_protocol.js";
 import {
     DocumentCollaborationPresenceState,
     DocumentCollaborationProtocol,
@@ -46,6 +46,7 @@ import {
 } from "~/shared/messaging/message_content_schema.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema.js";
+import {WebSocketProtocolProceduresType} from "~/shared/web_socket/web_socket_protocol.js";
 
 export type DocumentContentEditorState = {
     /**

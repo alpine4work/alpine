@@ -52,11 +52,12 @@ import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {ClientInfoSchema} from "~/shared/remix/client_info.js";
-import {propagatedEventDataKey} from "~/shared/remix/json_with_schema_shared.js";
+import {propagateEventDataKey} from "~/shared/remix/json_with_schema_shared.js";
 import {Schema} from "~/shared/schema/schema.js";
 import sharedStylesHref from "~/shared/styles/styles.css";
 import {sprinkles} from "~/shared/styles/styles.js";
@@ -117,13 +118,11 @@ export default function Root() {
     context = useMemo(() => {
         const loaderData = Object.values(dataRouterStateContext.loaderData);
 
-        const propagatedEventData = Array.from(
-            filterMapIterable(loaderData, data => {
-                if (!data) return null;
-                if (!hasOwnProperty(data, propagatedEventDataKey)) return null;
-                return data[propagatedEventDataKey] as TracerEventFullData;
-            }),
-        );
+        const propagatedEventData = filterMapArray(loaderData, data => {
+            if (!data) return null;
+            if (!hasOwnProperty(data, propagateEventDataKey)) return null;
+            return data[propagateEventDataKey] as TracerEventFullData;
+        });
 
         if (propagatedEventData.length === 0) return context;
         return context.tracer.withPropagatedData(mergeTracerEventData(propagatedEventData));

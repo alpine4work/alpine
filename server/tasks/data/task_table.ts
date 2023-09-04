@@ -63,7 +63,7 @@ import {
 } from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {
-    TaskNotepadPageId,
+    TaskNotepadPageIdCompressedSet,
     TaskNotepadPageIdCompressedSetSchema,
     generateTaskNotepadPageId,
 } from "~/shared/tasks/task_notepad_page_id.js";
@@ -853,7 +853,7 @@ class TaskActionTransactionCommitState {
                     sortRangeType: "Notepad",
                     accountId: this._context.actor.getAccountId(),
                     spaceId: this._spaceId,
-                    pageIds: new Set(),
+                    pageIds: TaskNotepadPageIdCompressedSet.fromIds(new Set()),
                 };
 
                 return notepadPagesItem;
@@ -1697,15 +1697,15 @@ async function actuallyCommitTaskActionTransaction(
 
                 cast<"Create">(notepadPageAction.type);
 
-                if (notepadItem.pageIds.has(notepadPageId))
+                if (notepadItem.pageIds.getIds().has(notepadPageId))
                     throw new FailedPreconditionError("Notepad page already exists");
 
-                const newPageIds = new Set(notepadItem.pageIds);
+                const newPageIds = new Set(notepadItem.pageIds.getIds());
                 newPageIds.add(notepadPageId);
 
                 state.updateActorNotepadItem({
                     ...notepadItem,
-                    pageIds: newPageIds,
+                    pageIds: TaskNotepadPageIdCompressedSet.fromIds(newPageIds),
                 });
                 break;
             }
@@ -2500,7 +2500,7 @@ function convertTaskCollectionIndexDocToItem(
 export function getTaskNotepadPageIds(
     context: ServerSessionActionContext,
     spaceId: SpaceId,
-): Promise<ReadonlySet<TaskNotepadPageId>> {
+): Promise<TaskNotepadPageIdCompressedSet> {
     return context.dynamo.retryTransaction(async context => {
         let notepadItem = await TaskTable.getItemIfExists(context, {
             partitionType: "Account",
@@ -2516,7 +2516,9 @@ export function getTaskNotepadPageIds(
                 accountId: context.actor.getAccountId(),
                 spaceId,
                 // Generate the notepad with an initial page.
-                pageIds: new Set([generateTaskNotepadPageId()]),
+                pageIds: TaskNotepadPageIdCompressedSet.fromIds(
+                    new Set([generateTaskNotepadPageId()]),
+                ),
             };
 
             await TaskTable.createItem(context, notepadItem, {
@@ -2527,11 +2529,13 @@ export function getTaskNotepadPageIds(
             });
         }
 
-        if (notepadItem.pageIds.size === 0) {
+        if (notepadItem.pageIds.isEmpty()) {
             notepadItem = {
                 ...notepadItem,
                 // Add an initial page to the notepad item.
-                pageIds: new Set([generateTaskNotepadPageId()]),
+                pageIds: TaskNotepadPageIdCompressedSet.fromIds(
+                    new Set([generateTaskNotepadPageId()]),
+                ),
             };
 
             await TaskTable.directlyUpdateItem(context, notepadItem);

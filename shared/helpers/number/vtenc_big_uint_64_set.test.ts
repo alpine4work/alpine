@@ -4,13 +4,21 @@ import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {
     decodeVtencBigUint64List,
     encodeVtencBigUint64Set,
-} from "~/shared/helpers/number/vtenc_big_int_64_set.js";
+    isVtencBigInt64SetEmpty,
+} from "~/shared/helpers/number/vtenc_big_uint_64_set.js";
 
 function expectEncodeThenDecode(values: Array<bigint>) {
     expect(decodeVtencBigUint64List(encodeVtencBigUint64Set(values))).toEqual(
         Array.from(new Set(values)).sort((a, b) => Number(a - b)),
     );
 }
+
+test("can tell if a set is empty", () => {
+    expect(isVtencBigInt64SetEmpty(encodeVtencBigUint64Set([]))).toEqual(true);
+    expect(isVtencBigInt64SetEmpty(encodeVtencBigUint64Set([0n]))).toEqual(false);
+    expect(isVtencBigInt64SetEmpty(encodeVtencBigUint64Set([1n]))).toEqual(false);
+    expect(isVtencBigInt64SetEmpty(encodeVtencBigUint64Set([1n, 2n, 3n]))).toEqual(false);
+});
 
 test("basic cases", () => {
     expectEncodeThenDecode([]);

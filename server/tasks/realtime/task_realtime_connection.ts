@@ -392,7 +392,7 @@ export class TaskRealtimeConnection {
                 // Clients should see all actions on loaded tasks.
                 eventBuilder.addActions(this._sender, actions);
             },
-            onLoadedTaskRemove: (context, eventBuilder, oldTask, actions) => {
+            onLoadedTaskRemove: (eventBuilder, oldTask, actions) => {
                 const loadedTaskReferenceCount = this._loadedTaskReferenceCountById.get(oldTask.id);
                 assert(loadedTaskReferenceCount !== undefined);
 

@@ -265,4 +265,30 @@ export class TaskQueryModel {
             loadedState: this._loadedState,
         });
     }
+
+    /**
+     * Get the number of tasks in our query's loaded range. There may be more tasks
+     * that match the query's filters in the store but this function tells us how
+     * many are considered fully loaded and kept up-to-date in realtime.
+     */
+    public getLoadedCount(): number {
+        if (this._loadedState.type === "Full") return this._taskOrder.length;
+        if (this._loadedState.endCursor === null) return 0;
+
+        let loadedCount = this._taskOrder.length;
+        const iterator = this._taskOrder.end;
+
+        while (iterator.valid) {
+            const cursor = iterator.key!;
+
+            if (compareTaskQuerySortCursors(this.sorts, cursor, this._loadedState.endCursor) <= 0) {
+                break;
+            }
+
+            loadedCount--;
+            iterator.prev();
+        }
+
+        return loadedCount;
+    }
 }

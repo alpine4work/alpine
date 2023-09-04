@@ -20,6 +20,7 @@ ts_project(
         "//:node_modules/prosemirror-view",
         "//:node_modules/react",
         "//:node_modules/react-aria",
+        "//:node_modules/react-router",
         "//:node_modules/react-stately",
         "//client/content",
         "//client/context",

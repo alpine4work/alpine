@@ -97,10 +97,9 @@ export type TaskRealtimeQuerySubscriptionCallbacks = {
      * Clients should apply these actions locally.
      */
     onLoadedTaskRemove(
-        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilder,
         oldTask: TaskIndexDoc,
-        actions: NonEmptyReadonlyArray<TaskAction>,
+        actions: ReadonlyArray<TaskAction>,
     ): void;
 
     /**
@@ -216,8 +215,8 @@ export class TaskRealtimeQuerySubscription {
         this._withFatalErrorHandling = withFatalErrorHandling;
     }
 
-    public unsubscribe(eventBuilder: TaskRealtimeUpdateEventBuilder) {
-        this._internal.unsubscribe(eventBuilder);
+    public unsubscribe(): Promise<void> {
+        return this._internal.unsubscribe();
     }
 
     public getFilters() {
@@ -334,29 +333,28 @@ export class TaskRealtimeQuerySubscriptionInternal {
         }
     }
 
-    public unsubscribe(eventBuilder: TaskRealtimeUpdateEventBuilder) {
+    /**
+     * Unsubscribe from the query. Will call the callbacks `onLoadedTaskRemove`,
+     * `onReferencedTaskRemove`, and `onReferencedCollectionRemove` for all tasks
+     * and collections that appeared in our query.
+     */
+    public unsubscribe(): Promise<void> {
         assert(this._isSubscribed);
         this._isSubscribed = false;
 
         this.query.removeSubscription(this);
 
-        for (const {taskEntry} of this._referencedTaskEntryById.values()) {
-            eventBuilder.waitUntil(
-                taskEntry.then(taskEntry => {
-                    taskEntry.removeQuerySubscriptionDependent(this);
-                    this._onReferencedTaskRemove(eventBuilder, taskEntry.task);
-                }),
-            );
+        const {tasks} = this.query.getLoadedTasks({limit: this._loadedCount, afterCursor: null});
+
+        // We construct an event builder just so we can wait out `waitUntil()`
+        // promises.
+        const eventBuilder = new TaskRealtimeUpdateEventBuilder();
+
+        for (const task of tasks) {
+            this._onLoadedTaskRemove(eventBuilder, task, []);
         }
 
-        for (const {collectionEntry} of this._referencedCollectionEntryById.values()) {
-            eventBuilder.waitUntil(
-                collectionEntry.then(collectionEntry => {
-                    collectionEntry.removeQuerySubscriptionDependent(this);
-                    this._onReferencedCollectionRemove(eventBuilder, collectionEntry.collection);
-                }),
-            );
-        }
+        return eventBuilder.waitWithoutSending();
     }
 
     /**
@@ -470,7 +468,7 @@ export class TaskRealtimeQuerySubscriptionInternal {
             );
 
             if (oldCursorComparison <= 0 && newCursorComparison > 0) {
-                this._onLoadedTaskRemove(context, eventBuilder, oldTask, actions);
+                this._onLoadedTaskRemove(eventBuilder, oldTask, actions);
             } else if (oldCursorComparison > 0 && newCursorComparison <= 0) {
                 this._onLoadedTaskAdd(context, eventBuilder, newTask);
             } else if (oldCursorComparison <= 0 && newCursorComparison <= 0) {
@@ -496,7 +494,7 @@ export class TaskRealtimeQuerySubscriptionInternal {
                     this._loadedBeforeCursor,
                 ) <= 0)
         ) {
-            this._onLoadedTaskRemove(context, eventBuilder, oldTask, actions);
+            this._onLoadedTaskRemove(eventBuilder, oldTask, actions);
         }
     }
 
@@ -567,10 +565,9 @@ export class TaskRealtimeQuerySubscriptionInternal {
     }
 
     private _onLoadedTaskRemove(
-        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilder,
         oldTask: TaskIndexDoc,
-        actions: NonEmptyReadonlyArray<TaskAction>,
+        actions: ReadonlyArray<TaskAction>,
     ) {
         // When testing, keep track of the tasks we've seen so we can guarantee we've
         // seen every relevant update for a task.
@@ -593,7 +590,7 @@ export class TaskRealtimeQuerySubscriptionInternal {
 
         this._trackTaskDependenciesFromRemove(eventBuilder, oldTask);
 
-        this._callbacks.onLoadedTaskRemove(context, eventBuilder, oldTask, actions);
+        this._callbacks.onLoadedTaskRemove(eventBuilder, oldTask, actions);
     }
 
     private _onReferencedTaskAdd(

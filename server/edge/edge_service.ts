@@ -246,6 +246,8 @@ function handleFetch(request: Request, env: EdgeServiceEnv, executionContext: Ex
                           // currently deploying the task realtime service there may be multiple live
                           // servers. If we happen to pick the one that's shutting down it should be
                           // closed soon enough.
+                          //
+                          // NOCOMMIT: Use `SessionId` as random seed for routing.
                           taskRealtimeServiceHosts[randomInteger(taskRealtimeServiceHosts.length)]!;
 
                 const headers = new Headers(request.headers);

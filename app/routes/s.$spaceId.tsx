@@ -8,6 +8,7 @@ import {PeekStackContextProvider} from "~/client/peek/peek_stack.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {SpaceLayoutTopBar} from "~/client/spaces/layout/space_layout_top_bar.js";
 import {SpaceContextProvider} from "~/client/spaces/space_context.js";
+import {TaskStoreContextProvider} from "~/client/tasks/task_store_context_provider.js";
 import {getInbox} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -100,8 +101,10 @@ export default function SpaceLayout() {
                 zIndex="0"
             >
                 <PeekStackContextProvider>
-                    <SpaceLayoutTopBar space={space} initialInbox={inbox} />
-                    <Outlet />
+                    <TaskStoreContextProvider>
+                        <SpaceLayoutTopBar space={space} initialInbox={inbox} />
+                        <Outlet />
+                    </TaskStoreContextProvider>
                 </PeekStackContextProvider>
             </Box>
         </SpaceContextProvider>

@@ -107,7 +107,7 @@ export class TaskRealtimeQueryStore {
      * `this._withErrorHandling.bind(this)`.
      */
     private readonly _withFatalErrorHandling = <Value>(
-        context: TaskRealtimeSystemActionContext,
+        context: ServerProcessContext,
         action: () => Promise<Value>,
     ): Promise<Value> => {
         assert(!this._isDestroyed);

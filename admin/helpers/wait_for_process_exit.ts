@@ -9,7 +9,9 @@ import {quote} from "~/shared/helpers/string/quote.js";
  */
 export function waitForProcessExit(subprocess: ChildProcess): Promise<void> {
     return waitForProcessExitWithAnyCode(subprocess).then(({exitCode}) => {
-        if (exitCode !== 0) {
+        // If the subprocess was explicitly killed by our code then resolve even if it
+        // has a non-zero exit code.
+        if (exitCode !== 0 && !subprocess.killed) {
             const name = path.basename(subprocess.spawnfile);
             throw new UnknownError(quote`Process exited with code ${exitCode} (${name})`);
         }

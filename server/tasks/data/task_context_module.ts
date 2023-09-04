@@ -2,10 +2,7 @@ import {
     DynamoActorContextModule,
     DynamoSessionActorContextModule,
 } from "~/server/accounts/dynamo_actor_context_module.js";
-import {
-    ServerSessionActionContext,
-    ServerSystemActionContext,
-} from "~/server/context/server_action_context.js";
+import {ServerSystemActionContext} from "~/server/context/server_action_context.js";
 import {indexTaskActionTransactionAssumingItsCommitted} from "~/server/tasks/data/task_index.js";
 import {
     TaskRealtimeApplyActionTransactionInputSchema,
@@ -253,6 +250,8 @@ export class TaskContextModule extends TaskContextModuleBase {
         ]);
 
         // Randomly select a host to load our queries from.
+        //
+        // NOCOMMIT: Use `SessionId` as random seed for routing.
         assert(hosts.length > 0);
         const host = hosts[randomInteger(hosts.length)]!;
 

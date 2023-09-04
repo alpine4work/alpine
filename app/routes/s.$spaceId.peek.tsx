@@ -12,7 +12,7 @@ import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
-import {propagatedEventDataKey} from "~/shared/remix/json_with_schema_shared.js";
+import {propagateEventDataKey} from "~/shared/remix/json_with_schema_shared.js";
 import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data.js";
 import {tracerEventDataContextPeekMoveIntoAboveKeys} from "~/shared/tracer/helpers/tracer_event_data_context_peek_move_into_above_key.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
@@ -80,8 +80,8 @@ export default function PeekLayout() {
             replacePropagatedEventData,
             ...filterMapIterable(loaderData, data => {
                 if (!data) return null;
-                if (!hasOwnProperty(data, propagatedEventDataKey)) return null;
-                return data[propagatedEventDataKey] as TracerEventFullData;
+                if (!hasOwnProperty(data, propagateEventDataKey)) return null;
+                return data[propagateEventDataKey] as TracerEventFullData;
             }),
         ];
 

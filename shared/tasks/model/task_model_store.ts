@@ -664,4 +664,11 @@ export class TaskModelStore {
             queryById,
         });
     }
+
+    /**
+     * Iterate through all the queries in our store.
+     */
+    public iterateQueries() {
+        return this._queryById;
+    }
 }

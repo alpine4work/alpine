@@ -45,7 +45,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
  */
 export type VtencBigUint64Set = Uint8Array & {readonly _VtencBigUint64Set: never};
 
-// Our implementation is for 64-bit integers.
+// Our implementation is for 64-bit unsigned integers.
 const bitWidth = 64;
 
 // Constant from:
@@ -472,4 +472,16 @@ export function decodeVtencBigUint64List(set: VtencBigUint64Set): Array<bigint> 
     }
 
     return values;
+}
+
+/**
+ * Is the provided compressed integer set empty?
+ */
+export function isVtencBigInt64SetEmpty(set: VtencBigUint64Set): boolean {
+    if (set.byteLength !== 4) return false;
+
+    const reader = new DataView(set.buffer);
+    const valuesLength = reader.getUint32(0, true);
+
+    return valuesLength === 0;
 }

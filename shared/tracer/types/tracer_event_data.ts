@@ -319,6 +319,9 @@ export type TracerEventData = {
         /** Information about the task collection the event was fired while looking at. */
         readonly taskCollectionId?: TaskCollectionId;
 
+        /** The task notepad page the event was fired while looking at. */
+        readonly taskNotepadPageId?: number;
+
         // The below IDs can be rendered in a peek so they should also be included in
         // `peek.context` to disambiguate between whether they are the primary content
         // or peek content for our event.

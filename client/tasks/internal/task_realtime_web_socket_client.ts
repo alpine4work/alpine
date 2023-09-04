@@ -1,0 +1,96 @@
+import {AppContext} from "~/client/context/app_context.js";
+import {ValueStore} from "~/client/helpers/store/value_store.js";
+import {WebSocketClient} from "~/client/web_socket/web_socket_client.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
+import {TaskModelStore} from "~/shared/tasks/model/task_model_store.js";
+import {TaskRealtimeProtocol} from "~/shared/tasks/task_realtime_protocol.js";
+
+/**
+ * Manages the client's realtime connection to `TaskRealtimeService` and owns
+ * the `TaskModelStore` object. When we connect to the WebSocket we'll
+ * subscribe to the queries in our store so we can keep them up-to-date in
+ * realtime.
+ */
+export class TaskRealtimeWebSocketClient {
+    private readonly _client: WebSocketClient<typeof TaskRealtimeProtocol>;
+    private _disconnect: (() => void) | null = null;
+
+    private readonly _store: ValueStore<TaskModelStore>;
+
+    constructor(getContext: () => AppContext, spaceId: SpaceId) {
+        this._client = new WebSocketClient(
+            getContext,
+            TaskRealtimeProtocol,
+            `/api/task-realtime/${spaceId}`,
+        );
+
+        this._store = new ValueStore(TaskModelStore.new({spaceId}));
+    }
+
+    public connect() {
+        assert(this._disconnect === null, "WebSocket is already connected");
+
+        let isConnected = false;
+
+        this._client.connect();
+
+        const unsubscribeFromClientState = this._client.state.subscribe(() => {
+            const clientState = this._client.state.getSnapshot();
+
+            if (isConnected !== clientState.isConnected) {
+                isConnected = clientState.isConnected;
+
+                // When we connect to the WebSocket we need to subscribe to queries in our
+                // store. This applies when we initially load the page and if the WebSocket
+                // temporarily disconnects.
+                //
+                // Subscribing will backfill any realtime changes we've missed while the
+                // WebSocket was not connected.
+                //
+                // TODO(calebmer): Currently calling `subscribeToQuery` sends the entire query
+                // response to the client a second time. It would be nice if we only sent
+                // changes between the last time the client was up-to-date and now. But given
+                // our CRDT everything-is-unordered backend design it's hard to know what
+                // actions the client has missed.
+                if (isConnected) {
+                    for (const [queryId, query] of this._store.getSnapshot().iterateQueries()) {
+                        this._client.procedures
+                            .subscribeToQuery({
+                                limit: query.getLoadedCount(),
+                                filters: query.filters,
+                                sorts: query.sorts,
+                            })
+                            .then(
+                                ({loadedState, previouslyBackfilledTaskIds}) => {
+                                    this._store.set(store =>
+                                        // NOCOMMIT: What if `loadedState` shrinks? The extend loaded state bit
+                                        // won't work.
+                                        store.loadTasksIntoQuery(queryId, {
+                                            loadedState,
+                                            previouslyBackfilledTaskIds,
+                                        }),
+                                    );
+                                },
+                                error => {
+                                    // NOCOMMIT
+                                    console.error(error);
+                                },
+                            );
+                    }
+                }
+            }
+        });
+
+        this._disconnect = () => {
+            unsubscribeFromClientState();
+            this._client.disconnect();
+        };
+    }
+
+    public disconnect() {
+        assert(this._disconnect !== null, "WebSocket is already disconnected");
+        this._disconnect();
+        this._disconnect = null;
+    }
+}
