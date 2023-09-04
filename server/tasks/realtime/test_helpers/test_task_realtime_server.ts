@@ -89,7 +89,7 @@ export class TestTaskRealtimeServer {
         // truly emptied out.
         afterTestEnds(async () => {
             await ProcessContextModule.waitForTestTasks();
-            this.server.evictAllForTest();
+            await this.server.evictAllForTest();
             this.server.assertEmptyForTest();
         });
 
@@ -210,6 +210,6 @@ export class TestTaskRealtimeServer {
     }
 
     public evictAll() {
-        this.server.evictAllForTest();
+        return this.server.evictAllForTest();
     }
 }

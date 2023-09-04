@@ -8,11 +8,11 @@ import {
     backfillTaskActionTransactionHistory,
 } from "~/server/tasks/data/task_table.js";
 import {TaskRealtimeActionHistory} from "~/server/tasks/realtime/task_realtime_action_history.js";
-import {TaskRealtimeQueryStore} from "~/server/tasks/realtime/task_realtime_query_store.js";
 import {
-    TaskRealtimeQuerySubscription,
-    TaskRealtimeQuerySubscriptionCallbacks,
-} from "~/server/tasks/realtime/task_realtime_query_subscription.js";
+    TaskRealtimeQueryPooledSubscription,
+    TaskRealtimeQueryStore,
+} from "~/server/tasks/realtime/task_realtime_query_store.js";
+import {TaskRealtimeQuerySubscriptionCallbacks} from "~/server/tasks/realtime/task_realtime_query_subscription.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -137,13 +137,13 @@ export class TaskRealtimeServer {
         const evict = () => {
             const startTime = Date.now();
 
-            this._evict();
-
-            const endTime = Date.now();
-            state.evictTimeout = createTimeout(
-                evict,
-                taskRealtimeServerEvictionInterval - (endTime - startTime),
-            );
+            this._evict().finally(() => {
+                const endTime = Date.now();
+                state.evictTimeout = createTimeout(
+                    evict,
+                    taskRealtimeServerEvictionInterval - (endTime - startTime),
+                );
+            });
         };
 
         const state = {
@@ -172,32 +172,34 @@ export class TaskRealtimeServer {
         }
     }
 
-    private _evict() {
+    private async _evict() {
         if (this._scheduledStoresForEviction.size === 0) return;
 
-        this._processContext.tracer.withSpanSync(
+        await this._processContext.tracer.withSpan(
             "Evicting dead items from task realtime server",
-            context => {
+            async context => {
                 const stores = this._scheduledStoresForEviction;
                 this._scheduledStoresForEviction = new Set();
 
-                for (const store of stores) {
-                    context.tracer.withSpanSync(
-                        "Evicting dead items from task realtime query store",
-                        (context, span) => {
-                            span.addData({context: {spaceId: store.spaceId}});
+                await runAllPromises(
+                    Array.from(stores, async store => {
+                        await context.tracer.withSpan(
+                            "Evicting dead items from task realtime query store",
+                            async (context, span) => {
+                                span.addData({context: {spaceId: store.spaceId}});
 
-                            try {
-                                store.evict(context);
-                            } catch (error) {
-                                span.addException(span);
+                                try {
+                                    await store.evict(context);
+                                } catch (error) {
+                                    span.addException(span);
 
-                                // Don't rethrow the error. If an eviction call fails we report it in our span
-                                // and continue.
-                            }
-                        },
-                    );
-                }
+                                    // Don't rethrow the error. If an eviction call fails we report it in our span
+                                    // and continue.
+                                }
+                            },
+                        );
+                    }),
+                );
             },
         );
     }
@@ -206,11 +208,11 @@ export class TaskRealtimeServer {
      * Immediately evict all dead items from our server. You may only run this in
      * test environments.
      */
-    public evictAllForTest() {
+    public async evictAllForTest() {
         assert(process.env.NODE_ENV === "test");
 
-        this._evict();
-        this._evict();
+        await this._evict();
+        await this._evict();
 
         // Dead items stay around for at least one eviction. So we need to evict twice
         // to evict everything. Assert that once we evict twice there are no more
@@ -319,7 +321,7 @@ export class TaskRealtimeServer {
             sorts: ReadonlyArray<TaskQueryNormalizedSort>;
             callbacks: TaskRealtimeQuerySubscriptionCallbacks;
         },
-    ): Promise<TaskRealtimeQuerySubscription> {
+    ): Promise<TaskRealtimeQueryPooledSubscription> {
         // Must be a system actor because we do no filtering to check whether you are
         // allowed to see the queried tasks. Permissions filtering is done at a
         // different level.

@@ -19,10 +19,8 @@ import {
     prepareTaskCollectionForClient,
     prepareTaskForClient,
 } from "~/server/tasks/realtime/task_realtime_protocol_helpers.js";
-import {
-    TaskRealtimeQuerySubscription,
-    TaskRealtimeQuerySubscriptionCallbacks,
-} from "~/server/tasks/realtime/task_realtime_query_subscription.js";
+import {TaskRealtimeQueryPooledSubscription} from "~/server/tasks/realtime/task_realtime_query_store.js";
+import {TaskRealtimeQuerySubscriptionCallbacks} from "~/server/tasks/realtime/task_realtime_query_subscription.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
 import {
@@ -68,7 +66,7 @@ export class TaskRealtimeConnection {
 
     private readonly _querySubscriptionById = new Map<
         TaskRealtimeQuerySubscriptionId,
-        TaskRealtimeQuerySubscription
+        TaskRealtimeQueryPooledSubscription
     >();
 
     constructor({
@@ -98,14 +96,12 @@ export class TaskRealtimeConnection {
         this._closeWithError = closeWithError;
     }
 
-    public async handleClose() {
-        const eventBuilder = new TaskRealtimeUpdateEventBuilder();
-
+    public handleClose() {
         for (const querySubscription of this._querySubscriptionById.values()) {
-            querySubscription.unsubscribe(eventBuilder);
+            // Calling unsubscribe returns the subscription to our pool where it may be
+            // revived if the user reconnects promptly.
+            querySubscription.unsubscribe();
         }
-
-        await eventBuilder.waitWithoutSending();
     }
 
     public async authorize(context: ServerSessionActionContext) {
@@ -192,13 +188,7 @@ export class TaskRealtimeConnection {
                         // If there's an error, unsubscribe so we don't have a dangling subscription.
                         this._querySubscriptionById.delete(querySubscriptionId);
 
-                        const eventBuilder = new TaskRealtimeUpdateEventBuilder();
-
-                        querySubscription.unsubscribe(eventBuilder);
-
-                        // Don't send the unsubscribe event since the client didn't receive data for
-                        // this subscription in the first place.
-                        await eventBuilder.waitWithoutSending();
+                        await querySubscription.unsubscribeWithoutAllowingRevive();
 
                         throw error;
                     }
@@ -211,9 +201,7 @@ export class TaskRealtimeConnection {
 
             this._querySubscriptionById.delete(querySubscriptionId);
 
-            const eventBuilder = new TaskRealtimeUpdateEventBuilder();
-            querySubscription.unsubscribe(eventBuilder);
-            await eventBuilder.send(context, this._spaceId);
+            await querySubscription.unsubscribeWithoutAllowingRevive();
 
             return {};
         },

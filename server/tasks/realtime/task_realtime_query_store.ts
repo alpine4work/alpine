@@ -29,11 +29,47 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {stringifyForDeepEqualCheck} from "~/shared/helpers/control/stringify_for_deep_equal_check.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.js";
+import {
+    SpaceId,
+    TaskCollectionId,
+    TaskId,
+    TaskRealtimeQuerySubscriptionId,
+} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskRealtimeQueryLoadedState} from "~/shared/tasks/task_realtime_protocol.js";
+
+// NOCOMMIT: Document!
+export type TaskRealtimeQueryPooledSubscription = {
+    readonly id: TaskRealtimeQuerySubscriptionId;
+
+    unsubscribe(): void;
+    unsubscribeWithoutAllowingRevive(): Promise<void>;
+
+    getFilters(): TaskQueryNormalizedFilters;
+    getSorts(): ReadonlyArray<TaskQueryNormalizedSort>;
+
+    /**
+     * Load more tasks into our subscription.
+     *
+     * Our subscription maintains a different loaded task count than the underlying
+     * query. If another subscription has already fully loaded the query then this
+     * call will not make a network request and instead only update our
+     * subscription's state.
+     *
+     * Returns the current loaded state of our subscription.
+     */
+    loadMoreTasks(
+        context: TaskRealtimeSystemActionContext,
+        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        limit: number,
+    ): Promise<{
+        loadedState: TaskRealtimeQueryLoadedState;
+        tasks: Array<TaskIndexDoc>;
+    }>;
+};
 
 /**
  * This class is the main component of our task realtime implementation. It
@@ -161,10 +197,27 @@ export class TaskRealtimeQueryStore {
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
         callbacks: TaskRealtimeQuerySubscriptionCallbacks;
-    }): TaskRealtimeQuerySubscription {
+    }): TaskRealtimeQueryPooledSubscription {
         assert(!this._isDestroyed);
-        const query = this._internal.getQuery({filters, sorts});
-        return new TaskRealtimeQuerySubscription(query, callbacks, this._withFatalErrorHandling);
+
+        return this._internal.subscribeToQuery(
+            {
+                filters,
+                sorts,
+                callbacks,
+            },
+            this._withFatalErrorHandling,
+        );
+    }
+
+    public reviveQuerySubscriptionIfExists(
+        context: TaskRealtimeSystemActionContext,
+        querySubscriptionId: TaskRealtimeQuerySubscriptionId,
+        callbacks: TaskRealtimeQuerySubscriptionCallbacks,
+    ): Promise<TaskRealtimeQueryPooledSubscription | null> {
+        return this._withFatalErrorHandling(context, () =>
+            this._internal.reviveQuerySubscriptionIfExists(context, querySubscriptionId, callbacks),
+        );
     }
 
     public applyActionTransaction(
@@ -214,21 +267,33 @@ export class TaskRealtimeQueryStore {
         return this._internal.getCollectionIfLoaded(collectionId);
     }
 
-    public evict(context: ServerProcessContext): void {
-        assert(!this._isDestroyed);
-
-        try {
-            this._internal.evict();
-        } catch (error) {
-            this._handleFatalError(context, error);
-            throw error;
-        }
+    public evict(context: ServerProcessContext): Promise<void> {
+        return this._withFatalErrorHandling(context, () => this._internal.evict());
     }
 }
 
 export const taskRealtimeQueryStoreBeforeLoadTaskTestCheckpoint = new TestCheckpoint<SpaceId>();
 export const taskRealtimeQueryStoreBeforeLoadCollectionTestCheckpoint =
     new TestCheckpoint<SpaceId>();
+
+type TaskRealtimeQueryStorePooledSubscriptionEntry = {
+    querySubscription: TaskRealtimeQuerySubscription;
+    state:
+        | {
+              isActive: true;
+              callbacks: TaskRealtimeQuerySubscriptionCallbacks;
+          }
+        | {
+              isActive: false;
+              pendingCalls: Array<
+                  (
+                      context: TaskRealtimeSystemActionContext,
+                      eventBuilder: TaskRealtimeUpdateEventBuilder,
+                      callbacks: TaskRealtimeQuerySubscriptionCallbacks,
+                  ) => void
+              >;
+          };
+};
 
 // Our store implementation has some public methods that `TaskRealtimeQuery` is
 // allowed to call but external users of `TaskRealtimeQueryStore` should not
@@ -360,6 +425,21 @@ export class TaskRealtimeQueryStoreInternal {
     private _openEvictableCollectionIds = new Set<TaskCollectionId>();
     private _nextEvictableCollectionIds = new Set<TaskCollectionId>();
 
+    // NOCOMMIT: Document!
+    private readonly _activeQuerySubscriptionById = new Map<
+        TaskRealtimeQuerySubscriptionId,
+        TaskRealtimeQueryStorePooledSubscriptionEntry
+    >();
+
+    private _openEvictableQuerySubscriptionById = new Map<
+        TaskRealtimeQuerySubscriptionId,
+        TaskRealtimeQueryStorePooledSubscriptionEntry
+    >();
+    private _nextEvictableQuerySubscriptionById = new Map<
+        TaskRealtimeQuerySubscriptionId,
+        TaskRealtimeQueryStorePooledSubscriptionEntry
+    >();
+
     constructor({
         spaceId,
         actionHistory,
@@ -488,7 +568,7 @@ export class TaskRealtimeQueryStoreInternal {
      * identical filters and sorts. If a subscription is not promptly added then
      * the query will be evicted on the next eviction cycle.
      */
-    public getQuery({
+    private _getQuery({
         filters,
         sorts,
     }: {
@@ -531,7 +611,7 @@ export class TaskRealtimeQueryStoreInternal {
     }> {
         assert(Number.isInteger(limit));
 
-        const query = this.getQuery({filters, sorts});
+        const query = this._getQuery({filters, sorts});
 
         // Load enough tasks to satisfy our `limit`.
         await query.loadMoreTasks(context, limit - query.getLoadedTaskCount());
@@ -1180,6 +1260,302 @@ export class TaskRealtimeQueryStoreInternal {
         }
     }
 
+    // NOCOMMIT: Document!
+    public subscribeToQuery(
+        {
+            filters,
+            sorts,
+            callbacks,
+        }: {
+            filters: TaskQueryNormalizedFilters;
+            sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+            callbacks: TaskRealtimeQuerySubscriptionCallbacks;
+        },
+        withFatalErrorHandling: <Value>(
+            context: TaskRealtimeSystemActionContext,
+            action: () => Promise<Value>,
+        ) => Promise<Value>,
+    ): TaskRealtimeQueryPooledSubscription {
+        const entry: TaskRealtimeQueryStorePooledSubscriptionEntry = {
+            querySubscription: undefined as any,
+            state: {
+                isActive: true,
+                callbacks,
+            },
+        };
+
+        const query = this._getQuery({filters, sorts});
+        const querySubscription = new TaskRealtimeQuerySubscription(
+            query,
+            this._createQueryPooledSubscriptionCallbacks(entry),
+            withFatalErrorHandling,
+        );
+
+        entry.querySubscription = querySubscription;
+
+        const querySubscriptionId = generateId<TaskRealtimeQuerySubscriptionId>();
+        this._activeQuerySubscriptionById.set(querySubscriptionId, entry);
+
+        let isUnsubscribed = false;
+
+        return {
+            id: querySubscriptionId,
+            unsubscribe: () => {
+                assert(!isUnsubscribed);
+                isUnsubscribed = true;
+
+                this._activeQuerySubscriptionById.delete(querySubscriptionId);
+                this._nextEvictableQuerySubscriptionById.set(querySubscriptionId, entry);
+
+                this._maybeScheduleEviction();
+            },
+            unsubscribeWithoutAllowingRevive: () => {
+                assert(!isUnsubscribed);
+                isUnsubscribed = true;
+
+                this._activeQuerySubscriptionById.delete(querySubscriptionId);
+
+                return querySubscription.unsubscribe();
+            },
+            getFilters: () => querySubscription.getFilters(),
+            getSorts: () => querySubscription.getSorts(),
+            loadMoreTasks: (context, eventBuilder, limit) =>
+                querySubscription.loadMoreTasks(context, eventBuilder, limit),
+        };
+    }
+
+    // NOCOMMIT: Document!
+    public async reviveQuerySubscriptionIfExists(
+        context: TaskRealtimeSystemActionContext,
+        querySubscriptionId: TaskRealtimeQuerySubscriptionId,
+        callbacks: TaskRealtimeQuerySubscriptionCallbacks,
+    ): Promise<TaskRealtimeQueryPooledSubscription | null> {
+        // Try to revive a pooled subscription from both our open evictable and next
+        // evictable maps.
+        let maybeEntry = this._openEvictableQuerySubscriptionById.get(querySubscriptionId);
+        if (maybeEntry) {
+            this._openEvictableQuerySubscriptionById.delete(querySubscriptionId);
+            this._activeQuerySubscriptionById.set(querySubscriptionId, maybeEntry);
+        } else {
+            maybeEntry = this._nextEvictableQuerySubscriptionById.get(querySubscriptionId);
+            if (maybeEntry) {
+                this._nextEvictableQuerySubscriptionById.delete(querySubscriptionId);
+                this._activeQuerySubscriptionById.set(querySubscriptionId, maybeEntry);
+            }
+        }
+
+        if (!maybeEntry) return null;
+        const entry = maybeEntry;
+        const {querySubscription} = entry;
+        assert(!entry.state.isActive);
+
+        const pendingCalls = entry.state.pendingCalls;
+        entry.state = {isActive: true, callbacks};
+
+        const eventBuilder = new TaskRealtimeUpdateEventBuilder();
+
+        // NOCOMMIT: We need to initialize loaded and referenced tasks?
+
+        // NOCOMMIT: Call all of our pending callbacks
+        for (const pendingCall of pendingCalls) {
+            pendingCall(context, eventBuilder, callbacks);
+        }
+
+        await eventBuilder.send(context, this.spaceId);
+
+        let isUnsubscribed = false;
+
+        return {
+            id: querySubscriptionId,
+            unsubscribe: () => {
+                assert(!isUnsubscribed);
+                isUnsubscribed = true;
+
+                this._activeQuerySubscriptionById.delete(querySubscriptionId);
+                this._nextEvictableQuerySubscriptionById.set(querySubscriptionId, entry);
+
+                this._maybeScheduleEviction();
+            },
+            unsubscribeWithoutAllowingRevive: () => {
+                assert(!isUnsubscribed);
+                isUnsubscribed = true;
+
+                this._activeQuerySubscriptionById.delete(querySubscriptionId);
+
+                return entry.querySubscription.unsubscribe();
+            },
+            getFilters: () => querySubscription.getFilters(),
+            getSorts: () => querySubscription.getSorts(),
+            loadMoreTasks: (context, eventBuilder, limit) =>
+                querySubscription.loadMoreTasks(context, eventBuilder, limit),
+        };
+    }
+
+    private _createQueryPooledSubscriptionCallbacks(
+        entry: TaskRealtimeQueryStorePooledSubscriptionEntry,
+    ): TaskRealtimeQuerySubscriptionCallbacks {
+        return {
+            onFatalError: (context, error) => {
+                if (entry.state.isActive) {
+                    entry.state.callbacks.onFatalError(context, error);
+                } else {
+                    // If there's a fatal error `pendingCalls` will never get called since there
+                    // shouldn't be a way to resubscribe.
+                }
+            },
+            onLoadedTaskAdd: (context, eventBuilder, newTask) => {
+                if (entry.state.isActive) {
+                    entry.state.callbacks.onLoadedTaskAdd(context, eventBuilder, newTask);
+                } else {
+                    entry.state.pendingCalls.push(
+                        createTaskRealtimeQueryStorePooledSubscriptionPendingCall(
+                            "onLoadedTaskAdd",
+                            newTask,
+                        ),
+                    );
+                }
+            },
+            onLoadedTaskUpdate: (context, eventBuilder, taskId, oldTask, newTask, actions) => {
+                if (entry.state.isActive) {
+                    entry.state.callbacks.onLoadedTaskUpdate(
+                        context,
+                        eventBuilder,
+                        taskId,
+                        oldTask,
+                        newTask,
+                        actions,
+                    );
+                } else {
+                    entry.state.pendingCalls.push(
+                        createTaskRealtimeQueryStorePooledSubscriptionPendingCall(
+                            "onLoadedTaskUpdate",
+                            taskId,
+                            oldTask,
+                            newTask,
+                            actions,
+                        ),
+                    );
+                }
+            },
+            onLoadedTaskRemove: (eventBuilder, oldTask, actions) => {
+                if (entry.state.isActive) {
+                    entry.state.callbacks.onLoadedTaskRemove(eventBuilder, oldTask, actions);
+                } else {
+                    entry.state.pendingCalls.push(
+                        createTaskRealtimeQueryStorePooledSubscriptionPendingCallWithoutContext(
+                            "onLoadedTaskRemove",
+                            oldTask,
+                            actions,
+                        ),
+                    );
+                }
+            },
+            onReferencedTaskAdd: (context, eventBuilder, newTask) => {
+                if (entry.state.isActive) {
+                    entry.state.callbacks.onReferencedTaskAdd(context, eventBuilder, newTask);
+                } else {
+                    entry.state.pendingCalls.push(
+                        createTaskRealtimeQueryStorePooledSubscriptionPendingCall(
+                            "onReferencedTaskAdd",
+                            newTask,
+                        ),
+                    );
+                }
+            },
+            onReferencedTaskUpdate: (context, eventBuilder, taskId, oldTask, newTask, actions) => {
+                if (entry.state.isActive) {
+                    entry.state.callbacks.onReferencedTaskUpdate(
+                        context,
+                        eventBuilder,
+                        taskId,
+                        oldTask,
+                        newTask,
+                        actions,
+                    );
+                } else {
+                    entry.state.pendingCalls.push(
+                        createTaskRealtimeQueryStorePooledSubscriptionPendingCall(
+                            "onReferencedTaskUpdate",
+                            taskId,
+                            oldTask,
+                            newTask,
+                            actions,
+                        ),
+                    );
+                }
+            },
+            onReferencedTaskRemove: (eventBuilder, oldTask) => {
+                if (entry.state.isActive) {
+                    entry.state.callbacks.onReferencedTaskRemove(eventBuilder, oldTask);
+                } else {
+                    entry.state.pendingCalls.push(
+                        createTaskRealtimeQueryStorePooledSubscriptionPendingCallWithoutContext(
+                            "onReferencedTaskRemove",
+                            oldTask,
+                        ),
+                    );
+                }
+            },
+            onReferencedCollectionAdd: (context, eventBuilder, newCollection) => {
+                if (entry.state.isActive) {
+                    entry.state.callbacks.onReferencedCollectionAdd(
+                        context,
+                        eventBuilder,
+                        newCollection,
+                    );
+                } else {
+                    entry.state.pendingCalls.push(
+                        createTaskRealtimeQueryStorePooledSubscriptionPendingCall(
+                            "onReferencedCollectionAdd",
+                            newCollection,
+                        ),
+                    );
+                }
+            },
+            onReferencedCollectionUpdate: (
+                context,
+                eventBuilder,
+                collectionId,
+                oldCollection,
+                newCollection,
+                actions,
+            ) => {
+                if (entry.state.isActive) {
+                    entry.state.callbacks.onReferencedCollectionUpdate(
+                        context,
+                        eventBuilder,
+                        collectionId,
+                        oldCollection,
+                        newCollection,
+                        actions,
+                    );
+                } else {
+                    entry.state.pendingCalls.push(
+                        createTaskRealtimeQueryStorePooledSubscriptionPendingCall(
+                            "onReferencedCollectionUpdate",
+                            collectionId,
+                            oldCollection,
+                            newCollection,
+                            actions,
+                        ),
+                    );
+                }
+            },
+            onReferencedCollectionRemove: (eventBuilder, oldCollection) => {
+                if (entry.state.isActive) {
+                    entry.state.callbacks.onReferencedCollectionRemove(eventBuilder, oldCollection);
+                } else {
+                    entry.state.pendingCalls.push(
+                        createTaskRealtimeQueryStorePooledSubscriptionPendingCallWithoutContext(
+                            "onReferencedCollectionRemove",
+                            oldCollection,
+                        ),
+                    );
+                }
+            },
+        };
+    }
+
     private _getEvictableCount() {
         return (
             this._openEvictableQueries.size +
@@ -1187,17 +1563,16 @@ export class TaskRealtimeQueryStoreInternal {
             this._openEvictableTaskIds.size +
             this._nextEvictableTaskIds.size +
             this._openEvictableCollectionIds.size +
-            this._nextEvictableCollectionIds.size
+            this._nextEvictableCollectionIds.size +
+            this._openEvictableQuerySubscriptionById.size +
+            this._nextEvictableQuerySubscriptionById.size
         );
     }
 
     public addEvictableQuery(query: TaskRealtimeQuery) {
         if (!this._nextEvictableQueries.has(query)) {
             this._openEvictableQueries.add(query);
-
-            // If this is the first evictable item in the store, register ourselves for the
-            // next eviction.
-            if (!this._isEvicting && this._getEvictableCount() === 1) this._scheduleEviction();
+            this._maybeScheduleEviction();
         }
     }
 
@@ -1210,10 +1585,7 @@ export class TaskRealtimeQueryStoreInternal {
     public addEvictableTaskId(taskId: TaskId) {
         if (!this._nextEvictableTaskIds.has(taskId)) {
             this._openEvictableTaskIds.add(taskId);
-
-            // If this is the first evictable item in the store, register ourselves for the
-            // next eviction.
-            if (!this._isEvicting && this._getEvictableCount() === 1) this._scheduleEviction();
+            this._maybeScheduleEviction();
         }
     }
 
@@ -1226,10 +1598,7 @@ export class TaskRealtimeQueryStoreInternal {
     public addEvictableCollectionId(collectionId: TaskCollectionId) {
         if (!this._openEvictableCollectionIds.has(collectionId)) {
             this._nextEvictableCollectionIds.add(collectionId);
-
-            // If this is the first evictable item in the store, register ourselves for the
-            // next eviction.
-            if (!this._isEvicting && this._getEvictableCount() === 1) this._scheduleEviction();
+            this._maybeScheduleEviction();
         }
     }
 
@@ -1239,9 +1608,31 @@ export class TaskRealtimeQueryStoreInternal {
         }
     }
 
-    public evict() {
+    private _maybeScheduleEviction() {
+        // If this is the first evictable item in the store, register ourselves for the
+        // next eviction.
+        if (!this._isEvicting && this._getEvictableCount() === 1) {
+            this._scheduleEviction();
+        }
+    }
+
+    public evict(): Promise<void> {
+        // IMPORTANT: This try block and loop within should be synchronous! We'll be
+        // using `openEvictableTaskIds` and `openEvictableCollectionIds` temporarily as
+        // "tasks and collections that only had evicted dependents" instead of "newly
+        // unreferenced tasks and collections". If this code were asynchronous then
+        // concurrent code could sneak in and add to `openEvictableTaskIds` and
+        // `openEvictableCollectionIds` which we'd immediately evict instead of waiting
+        // one eviction timeout.
         this._isEvicting = true;
         try {
+            let evictQuerySubscriptionById: Map<
+                TaskRealtimeQuerySubscriptionId,
+                TaskRealtimeQueryStorePooledSubscriptionEntry
+            > | null = this._nextEvictableQuerySubscriptionById;
+            this._nextEvictableQuerySubscriptionById = this._openEvictableQuerySubscriptionById;
+            this._openEvictableQuerySubscriptionById = new Map();
+
             let evictQueries: Set<TaskRealtimeQuery> | null = this._nextEvictableQueries;
             this._nextEvictableQueries = this._openEvictableQueries;
             this._openEvictableQueries = new Set();
@@ -1254,6 +1645,8 @@ export class TaskRealtimeQueryStoreInternal {
             this._nextEvictableCollectionIds = this._openEvictableCollectionIds;
             this._openEvictableCollectionIds = new Set();
 
+            const promises: Array<Promise<unknown>> = [];
+
             // If in the process of evicting one of our items, another item becomes
             // evictable then we want to evict that item too. Since it means the previous
             // item we evicted was its one reference and that one reference was dead.
@@ -1262,10 +1655,25 @@ export class TaskRealtimeQueryStoreInternal {
             // have no other references when the query is destroyed then we also want to
             // evict those tasks.
             while (
+                (evictQuerySubscriptionById && evictQuerySubscriptionById.size > 0) ||
                 (evictQueries && evictQueries.size > 0) ||
                 (evictTaskIds && evictTaskIds.size > 0) ||
                 (evictCollectionIds && evictCollectionIds.size > 0)
             ) {
+                // Evict the subscription pool once since nothing inside the query store
+                // depends on the subscription pool.
+                //
+                // The bulk of eviction work is done synchronously but it's possible the query
+                // subscriptions have some unresolved async dependencies. These dependencies
+                // won't be included in this eviction and instead will be evicted in a future
+                // eviction timeout.
+                if (evictQuerySubscriptionById !== null) {
+                    for (const {querySubscription} of evictQuerySubscriptionById.values()) {
+                        promises.push(querySubscription.unsubscribe());
+                    }
+                    evictQuerySubscriptionById = null;
+                }
+
                 if (evictQueries) {
                     for (const query of evictQueries) {
                         assert(
@@ -1319,6 +1727,8 @@ export class TaskRealtimeQueryStoreInternal {
             // eviction for the next timer run. Our `open*` evictable sets should be
             // exhausted.
             if (this._getEvictableCount() > 0) this._scheduleEviction();
+
+            return runAllPromises(promises).then(() => {});
         } finally {
             this._isEvicting = false;
         }
@@ -1473,4 +1883,49 @@ export class TaskRealtimeQueryStoreCollectionEntry {
         const isEvictable = this._getDependentCount() === 0;
         if (isEvictable) this._store.addEvictableCollectionId(this.collection.id);
     }
+}
+
+type TaskRealtimeQueryStorePooledSubscriptionPendingCallArgs<T> = T extends (
+    context: TaskRealtimeSystemActionContext,
+    eventBuilder: TaskRealtimeUpdateEventBuilder,
+    ...args: infer Args
+) => void
+    ? Args
+    : never;
+
+function createTaskRealtimeQueryStorePooledSubscriptionPendingCall<
+    CallbackName extends keyof TaskRealtimeQuerySubscriptionCallbacks,
+    CallbackArgs extends TaskRealtimeQueryStorePooledSubscriptionPendingCallArgs<
+        TaskRealtimeQuerySubscriptionCallbacks[CallbackName]
+    >,
+>(callbackName: CallbackName, ...args: CallbackArgs) {
+    return (
+        context: TaskRealtimeSystemActionContext,
+        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        callbacks: TaskRealtimeQuerySubscriptionCallbacks,
+    ) => {
+        (callbacks as any)[callbackName](context, eventBuilder, ...args);
+    };
+}
+
+type TaskRealtimeQueryStorePooledSubscriptionPendingCallWithoutContextArgs<T> = T extends (
+    eventBuilder: TaskRealtimeUpdateEventBuilder,
+    ...args: infer Args
+) => void
+    ? Args
+    : never;
+
+function createTaskRealtimeQueryStorePooledSubscriptionPendingCallWithoutContext<
+    CallbackName extends keyof TaskRealtimeQuerySubscriptionCallbacks,
+    CallbackArgs extends TaskRealtimeQueryStorePooledSubscriptionPendingCallWithoutContextArgs<
+        TaskRealtimeQuerySubscriptionCallbacks[CallbackName]
+    >,
+>(callbackName: CallbackName, ...args: CallbackArgs) {
+    return (
+        context: TaskRealtimeSystemActionContext,
+        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        callbacks: TaskRealtimeQuerySubscriptionCallbacks,
+    ) => {
+        (callbacks as any)[callbackName](eventBuilder, ...args);
+    };
 }

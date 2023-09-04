@@ -10839,7 +10839,7 @@ test("referenced data is not evicted", async () => {
 
     expect(getCount()).toEqual(1);
 
-    server.evictAll();
+    await server.evictAll();
 
     expect(getCount()).toEqual(1);
 
@@ -11028,7 +11028,7 @@ test("unreferenced data is evicted", async () => {
 
     expect(getCount()).toEqual(1);
 
-    server.evictAll();
+    await server.evictAll();
 
     expect(getCount()).toEqual(1);
 
