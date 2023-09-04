@@ -99,13 +99,11 @@ export class TaskRealtimeConnection {
     }
 
     public async handleClose() {
-        const eventBuilder = new TaskRealtimeUpdateEventBuilder();
-
-        for (const querySubscription of this._querySubscriptionById.values()) {
-            querySubscription.unsubscribe(eventBuilder);
-        }
-
-        await eventBuilder.waitWithoutSending();
+        await runAllPromises(
+            Array.from(this._querySubscriptionById.values(), querySubscription =>
+                querySubscription.unsubscribe(),
+            ),
+        );
     }
 
     public async authorize(context: ServerSessionActionContext) {
@@ -192,13 +190,7 @@ export class TaskRealtimeConnection {
                         // If there's an error, unsubscribe so we don't have a dangling subscription.
                         this._querySubscriptionById.delete(querySubscriptionId);
 
-                        const eventBuilder = new TaskRealtimeUpdateEventBuilder();
-
-                        querySubscription.unsubscribe(eventBuilder);
-
-                        // Don't send the unsubscribe event since the client didn't receive data for
-                        // this subscription in the first place.
-                        await eventBuilder.waitWithoutSending();
+                        await querySubscription.unsubscribe();
 
                         throw error;
                     }
@@ -211,9 +203,7 @@ export class TaskRealtimeConnection {
 
             this._querySubscriptionById.delete(querySubscriptionId);
 
-            const eventBuilder = new TaskRealtimeUpdateEventBuilder();
-            querySubscription.unsubscribe(eventBuilder);
-            await eventBuilder.send(context, this._spaceId);
+            await querySubscription.unsubscribe();
 
             return {};
         },
