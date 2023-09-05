@@ -22,6 +22,23 @@ index f76c5bab53a3d925d6b9b6450268508a6f78576c..c28ade31fe7d57e38be50a53e44c6c5d
      includeNodeModules: true
    }), esbuildPluginsNodeModulesPolyfill.nodeModulesPolyfillPlugin(), external.externalPlugin(/^node:.*/, {
      sideEffects: false
+diff --git a/dist/compiler/js/plugins/routes.js b/dist/compiler/js/plugins/routes.js
+index cb8522e283204fc0230b838d9e9b5aacf8f6d49a..152dfde182c74fd12309e73d16a2e9ede5ad9dc1 100644
+--- a/dist/compiler/js/plugins/routes.js
++++ b/dist/compiler/js/plugins/routes.js
+@@ -43,7 +43,11 @@ const browserSafeRouteExports = {
+   handle: true,
+   links: true,
+   meta: true,
+-  shouldRevalidate: true
++  shouldRevalidate: true,
++  // NOTE(calebmer): We add support for a client loader function that runs after
++  // our server loader but only on the client. Make sure the Remix compiler
++  // includes this loader in the client bundle.
++  clientLoader: true
+ };
+ 
+ /**
 diff --git a/dist/compiler/manifest.js b/dist/compiler/manifest.js
 index 1adfd7ee810bf08fd87cdcbc3d39e9e19526a9fa..4e3241908713bbe23ce850460cc64b2d273c5d83 100644
 --- a/dist/compiler/manifest.js

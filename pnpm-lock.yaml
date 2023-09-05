@@ -1,4 +1,4 @@
-lockfileVersion: '6.1'
+lockfileVersion: '6.0'
 
 settings:
   autoInstallPeers: true
@@ -32,16 +32,16 @@ patchedDependencies:
     hash: ykd4naedzjmzggcdstyfvaxp2e
     path: admin/patches/@react-aria__ssr@3.6.0.patch
   '@remix-run/dev@1.18.0':
-    hash: itiedt3cl57srvgj5h5hhmmvmm
+    hash: rinjp45mpbrt6gc3siziif7zkm
     path: admin/patches/@remix-run__dev@1.18.0.patch
   '@remix-run/react@1.18.0':
-    hash: tq6lzw5uol6zuaek2c4ohjysse
+    hash: pw5e6dzt5sof7sjabrlpqi3ory
     path: admin/patches/@remix-run__react@1.18.0.patch
   '@remix-run/router@1.7.0':
     hash: vytmvafzhwlog3q2vg6d2kv4pu
     path: admin/patches/@remix-run__router@1.7.0.patch
   '@remix-run/server-runtime@1.18.0':
-    hash: sa6ts3uddleaulcxiqcdbckyoe
+    hash: aw4qjtd7azdvs67jkawigt7yqi
     path: admin/patches/@remix-run__server-runtime@1.18.0.patch
   '@types/functional-red-black-tree@1.0.1':
     hash: sxycuhdxvf4ubkm5bkuezvuy6i
@@ -149,7 +149,7 @@ dependencies:
     version: 3.18.1(react@18.2.0)
   '@remix-run/dev':
     specifier: 1.18.0
-    version: 1.18.0(patch_hash=itiedt3cl57srvgj5h5hhmmvmm)(@types/node@20.3.2)(bufferutil@4.0.7)(utf-8-validate@5.0.10)
+    version: 1.18.0(patch_hash=rinjp45mpbrt6gc3siziif7zkm)(@types/node@20.3.2)(bufferutil@4.0.7)(utf-8-validate@5.0.10)
   '@remix-run/eslint-config':
     specifier: 1.18.0
     version: 1.18.0(eslint@8.20.0)(jest@29.4.0)(react@18.2.0)(typescript@5.1.3)
@@ -158,13 +158,13 @@ dependencies:
     version: 1.18.0
   '@remix-run/react':
     specifier: 1.18.0
-    version: 1.18.0(patch_hash=tq6lzw5uol6zuaek2c4ohjysse)(react-dom@18.2.0)(react@18.2.0)
+    version: 1.18.0(patch_hash=pw5e6dzt5sof7sjabrlpqi3ory)(react-dom@18.2.0)(react@18.2.0)
   '@remix-run/router':
     specifier: 1.7.0
     version: 1.7.0(patch_hash=vytmvafzhwlog3q2vg6d2kv4pu)
   '@remix-run/server-runtime':
     specifier: 1.18.0
-    version: 1.18.0(patch_hash=sa6ts3uddleaulcxiqcdbckyoe)
+    version: 1.18.0(patch_hash=aw4qjtd7azdvs67jkawigt7yqi)
   '@smithy/types':
     specifier: 1.1.1
     version: 1.1.1
@@ -5076,7 +5076,7 @@ packages:
       react: 18.2.0
     dev: false
 
-  /@remix-run/dev@1.18.0(patch_hash=itiedt3cl57srvgj5h5hhmmvmm)(@types/node@20.3.2)(bufferutil@4.0.7)(utf-8-validate@5.0.10):
+  /@remix-run/dev@1.18.0(patch_hash=rinjp45mpbrt6gc3siziif7zkm)(@types/node@20.3.2)(bufferutil@4.0.7)(utf-8-validate@5.0.10):
     resolution: {integrity: sha512-hKoLRjkKuuspJep+cGQv3OmQ4FJDuz4EpePSQe2cGoVjOHDryKm8ikVD/cM5MaGdAMYXj6Ka+LBQRhWwqZnbcw==}
     engines: {node: '>=14.0.0'}
     hasBin: true
@@ -5096,7 +5096,7 @@ packages:
       '@babel/traverse': 7.22.5
       '@babel/types': 7.22.5
       '@npmcli/package-json': 2.0.0
-      '@remix-run/server-runtime': 1.18.0(patch_hash=sa6ts3uddleaulcxiqcdbckyoe)
+      '@remix-run/server-runtime': 1.18.0(patch_hash=aw4qjtd7azdvs67jkawigt7yqi)
       '@vanilla-extract/integration': 6.2.1(@types/node@20.3.2)
       arg: 5.0.2
       cacache: 15.3.0
@@ -5196,7 +5196,7 @@ packages:
     resolution: {integrity: sha512-RRsGS+19tpYj2EXid8PP+bV8Zj6P/4yT6pMkRCIlw1uY0uRUiA3PocnyGmgl6TsqsqaahC7KdDAxhVayt4tdZA==}
     engines: {node: '>=14.0.0'}
     dependencies:
-      '@remix-run/server-runtime': 1.18.0(patch_hash=sa6ts3uddleaulcxiqcdbckyoe)
+      '@remix-run/server-runtime': 1.18.0(patch_hash=aw4qjtd7azdvs67jkawigt7yqi)
       '@remix-run/web-fetch': 4.3.4
       '@remix-run/web-file': 3.0.2
       '@remix-run/web-stream': 1.0.3
@@ -5207,7 +5207,7 @@ packages:
       stream-slice: 0.1.2
     dev: false
 
-  /@remix-run/react@1.18.0(patch_hash=tq6lzw5uol6zuaek2c4ohjysse)(react-dom@18.2.0)(react@18.2.0):
+  /@remix-run/react@1.18.0(patch_hash=pw5e6dzt5sof7sjabrlpqi3ory)(react-dom@18.2.0)(react@18.2.0):
     resolution: {integrity: sha512-Xx8O059eSsa/zAFqGKnei9sOBQLXGpbKOA19kRH7HbtnNm3V/kRbTSbfZmNh2LVNXCpcaWBRtai7C01fCJay0Q==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
@@ -5227,7 +5227,7 @@ packages:
     dev: false
     patched: true
 
-  /@remix-run/server-runtime@1.18.0(patch_hash=sa6ts3uddleaulcxiqcdbckyoe):
+  /@remix-run/server-runtime@1.18.0(patch_hash=aw4qjtd7azdvs67jkawigt7yqi):
     resolution: {integrity: sha512-iiSKgGIWMkvf4ftnjGBmIJpgqxRwv8XQilAINapaYsx1zEM6egZGYE6WvaxLuRQSceZZNgLAYzL48TmK+DAU5g==}
     engines: {node: '>=14.0.0'}
     dependencies:

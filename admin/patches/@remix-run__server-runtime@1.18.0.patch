@@ -343,7 +343,7 @@ index 2181536a3789c42cad59c61f1aedf185fae51814..71e39645ed772869ef0fa6cec0633f99
      };
    });
 diff --git a/dist/esm/server.js b/dist/esm/server.js
-index 6a99b0202e01950a2911f879517411bdbc783df2..f1d6dbfd08d7fae41ca3ec7aca452e23d355461b 100644
+index 6a99b0202e01950a2911f879517411bdbc783df2..47167fbc27c8221ee2e681354a36752848b389c1 100644
 --- a/dist/esm/server.js
 +++ b/dist/esm/server.js
 @@ -21,7 +21,7 @@ import { createServerHandoffString } from './serverHandoff.js';
@@ -355,6 +355,26 @@ index 6a99b0202e01950a2911f879517411bdbc783df2..f1d6dbfd08d7fae41ca3ec7aca452e23
    let serverMode = isServerMode(mode) ? mode : ServerMode.Production;
    let staticHandler = createStaticHandler(dataRoutes);
    let errorHandler = build.entry.module.handleError || ((error, {
+@@ -190,6 +190,9 @@ async function handleDocumentRequestRR(serverMode, build, staticHandler, request
+     staticHandlerContext: context,
+     serverHandoffString: createServerHandoffString({
+       url: context.location.pathname + context.location.search,
++      // NOTE(calebmer): Include route matches in the server handoff string so
++      // we can use them to call `clientLoader`.
++      matches: context.matches.map(match => ({params: match.params, routeId: match.route.id})),
+       state: {
+         loaderData: context.loaderData,
+         actionData: context.actionData,
+@@ -225,6 +228,9 @@ async function handleDocumentRequestRR(serverMode, build, staticHandler, request
+       staticHandlerContext: context,
+       serverHandoffString: createServerHandoffString({
+         url: context.location.pathname + context.location.search,
++        // NOTE(calebmer): Include route matches in the server handoff string so
++        // we can use them to call `clientLoader`.
++        matches: context.matches.map(match => ({params: match.params, routeId: match.route.id})),
+         state: {
+           loaderData: context.loaderData,
+           actionData: context.actionData,
 diff --git a/dist/index.d.ts b/dist/index.d.ts
 index 1b5bd46c94c3c521d50451561da232cc92005a6b..aa69625e76ac331e7a9e1986d35f10747e1cc206 100644
 --- a/dist/index.d.ts
@@ -435,7 +455,7 @@ index 02d692fcaaff6bc40dd69713fa512ae67ce11b20..be607c825b52c5601d06e08b66c7bb47
      };
    });
 diff --git a/dist/server.js b/dist/server.js
-index c0468862698b223a885bb29d78822ebf80d68ca1..aaceec4618b9b0444ab2dbcb0263d1647c7432c2 100644
+index c0468862698b223a885bb29d78822ebf80d68ca1..9ae88ab6eabff4987fc2790745d3320768ee8c39 100644
 --- a/dist/server.js
 +++ b/dist/server.js
 @@ -25,7 +25,7 @@ var serverHandoff = require('./serverHandoff.js');
@@ -447,3 +467,23 @@ index c0468862698b223a885bb29d78822ebf80d68ca1..aaceec4618b9b0444ab2dbcb0263d164
    let serverMode = mode.isServerMode(mode$1) ? mode$1 : mode.ServerMode.Production;
    let staticHandler = router.createStaticHandler(dataRoutes);
    let errorHandler = build.entry.module.handleError || ((error, {
+@@ -194,6 +194,9 @@ async function handleDocumentRequestRR(serverMode, build, staticHandler, request
+     staticHandlerContext: context,
+     serverHandoffString: serverHandoff.createServerHandoffString({
+       url: context.location.pathname + context.location.search,
++      // NOTE(calebmer): Include route matches in the server handoff string so
++      // we can use them to call `clientLoader`.
++      matches: context.matches.map(match => ({params: match.params, routeId: match.route.id})),
+       state: {
+         loaderData: context.loaderData,
+         actionData: context.actionData,
+@@ -229,6 +232,9 @@ async function handleDocumentRequestRR(serverMode, build, staticHandler, request
+       staticHandlerContext: context,
+       serverHandoffString: serverHandoff.createServerHandoffString({
+         url: context.location.pathname + context.location.search,
++        // NOTE(calebmer): Include route matches in the server handoff string so
++        // we can use them to call `clientLoader`.
++        matches: context.matches.map(match => ({params: match.params, routeId: match.route.id})),
+         state: {
+           loaderData: context.loaderData,
+           actionData: context.actionData,

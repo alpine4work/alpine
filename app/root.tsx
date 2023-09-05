@@ -6,21 +6,17 @@ import {
     UNSAFE_RemixContext as RemixContext,
     Scripts,
     ScrollRestoration,
-    loadRouteModuleWithBlockingLinks,
 } from "@remix-run/react";
 import {LinkDescriptor} from "@remix-run/server-runtime";
 import {IconContext} from "phosphor-react";
 import prosemirrorStylesHref from "prosemirror-view/style/prosemirror.css";
-import {Context, useCallback, useContext, useEffect, useMemo} from "react";
+import {useCallback, useContext, useEffect, useMemo} from "react";
 import {
-    DataRouteObject,
     UNSAFE_DataRouterContext as DataRouterContext,
     UNSAFE_DataRouterStateContext as DataRouterStateContext,
     isRouteErrorResponse,
-    matchRoutes,
     useRouteError,
 } from "react-router";
-import type {LoaderData as InboxLoaderData} from "~/app/routes/s.$spaceId.inbox.js";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
@@ -49,11 +45,8 @@ import {spacing} from "~/shared/design/spacing.js";
 import {NotFoundError, UnknownError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {ClientInfoSchema} from "~/shared/remix/client_info.js";
@@ -103,13 +96,6 @@ export default function Root() {
 
     const dataRouterStateContext = useContext(DataRouterStateContext);
     assert(dataRouterStateContext, "Expected data router state context");
-
-    // Monkey patch the Remix entry context. In a `useMemo()` so it only happens if
-    // the context object changes.
-    useMemo(
-        () => patchRemixContext(remixContext, dataRouterContext),
-        [dataRouterContext, remixContext],
-    );
 
     let context = useAppContext();
 
@@ -320,59 +306,3 @@ function RootErrorRenderer({error: _error, title}: {error: unknown; title?: stri
 // if Remix navigates between root and error boundary we don't remount the
 // HTML. (Which appears to cause CSS to flash off.)
 export const ErrorBoundary = Root;
-
-const wasPatchedSymbol = Symbol("wasPatched");
-
-function patchRemixContext(
-    remixContext: typeof RemixContext extends Context<infer T> ? NonNullable<T> : never,
-    dataRouterContext: typeof DataRouterContext extends Context<infer T> ? NonNullable<T> : never,
-) {
-    const routeMatches = matchRoutes(
-        dataRouterContext.router.routes,
-        // A URL that will match the inbox route object. The string we put in the place
-        // of `$spaceId` shouldn't matter.
-        "/s/$spaceId/inbox",
-    );
-
-    const inboxRoute: DataRouteObject & {[wasPatchedSymbol]?: boolean} = assertExists(
-        routeMatches?.find(match => match.route.id === "routes/s.$spaceId.inbox")?.route,
-        "Couldn't find inbox client route",
-    );
-
-    // Only patch the loader once on the client. (Loader property is not available
-    // on the server.)
-    if (typeof window !== "undefined" && !inboxRoute[wasPatchedSymbol]) {
-        inboxRoute[wasPatchedSymbol] = true;
-
-        const originalLoader = assertExists(inboxRoute.loader, "Inbox route should have a loader");
-        inboxRoute.loader = async options => {
-            const result = await originalLoader(options);
-
-            const data = (
-                result instanceof Response ? await result.json() : result
-            ) as InboxLoaderData;
-
-            // Load any extra modules we need for opening the inbox.
-            //
-            // This will create a request waterfall, unfortunately. If `selected` is in
-            // search params we should be able to load route modules in parallel with the
-            // original loader. Should implement that someday?
-            //
-            // IMPORTANT: This only works for client-side navigation! For server-side
-            // rendering we need to inject scripts into the page to load these route
-            // modules. This happens in the `<InboxRoute>` component.
-            if (data.peekData) {
-                await runAllPromises(
-                    data.peekData.loadExtraRouteIds.map(routeId =>
-                        loadRouteModuleWithBlockingLinks(
-                            remixContext.manifest.routes[routeId]!,
-                            remixContext.routeModules,
-                        ),
-                    ),
-                );
-            }
-
-            return data;
-        };
-    }
-}

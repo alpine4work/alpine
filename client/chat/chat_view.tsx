@@ -1,7 +1,6 @@
 import {Memo, useCallback, useEffect, useRef} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
-import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {PrettyConjunctionList} from "~/client/design/pretty_conjunction_list.js";
@@ -10,6 +9,7 @@ import {MessagingView, MessagingViewRef} from "~/client/messaging/messaging_view
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {VirtualizedScrollViewItem} from "~/client/virtualized/virtualized_scroll_view.js";
+import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
 import {Spacing, spacing} from "~/shared/design/spacing.js";

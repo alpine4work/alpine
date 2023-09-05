@@ -1,4 +1,8 @@
-import {UNSAFE_RemixContext as RemixContext, ShouldRevalidateFunction} from "@remix-run/react";
+import {
+    UNSAFE_RemixContext as RemixContext,
+    ShouldRevalidateFunction,
+    loadRouteModuleWithBlockingLinks,
+} from "@remix-run/react";
 import {HydrationState, createPath} from "@remix-run/router";
 import {ServerRoute} from "@remix-run/server-runtime";
 import {useContext} from "react";
@@ -8,6 +12,7 @@ import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_a
 import {inboxEntryViewMinHeight} from "~/client/inbox/inbox_entry_view.js";
 import {InboxView} from "~/client/inbox/inbox_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
+import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view.js";
 import {getInboxEntries} from "~/server/notifications/data/notifications_table.js";
@@ -22,9 +27,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
-
-export type LoaderData = SchemaType<typeof LoaderSchema>;
+import {Schema, SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
     filter: Schema.enum(["New", "Archive"]),
@@ -111,6 +114,29 @@ export async function loader({params, context, request, serverRoutes: routes}: L
     });
 }
 
+export async function clientLoader({data: _data}: {data: SchemaSerializedObjectValue}) {
+    const data = getLoaderDataWithSchema(LoaderSchema, _data);
+
+    // Load any extra modules we need for opening the inbox.
+    //
+    // This will create a request waterfall, unfortunately. If `selected` is in
+    // search params we should be able to load route modules in parallel with the
+    // original loader. Should implement that someday?
+    //
+    // On initial request we `modulepreload` the relevant modules so we don't need
+    // a request waterfall.
+    if (data.peekData) {
+        await runAllPromises(
+            data.peekData.loadExtraRouteIds.map(routeId =>
+                loadRouteModuleWithBlockingLinks(
+                    window.__remixManifest.routes[routeId]!,
+                    window.__remixRouteModules,
+                ),
+            ),
+        );
+    }
+}
+
 // We don't need to reload when certain search params change.
 export const shouldRevalidate: ShouldRevalidateFunction = ({
     currentUrl: _currentUrl,
@@ -170,47 +196,24 @@ export default function InboxRoute() {
                     window.history.replaceState(null, "", url);
                 }}
             />
-            {isInitialAppRender && peekData && (
-                // Inject a script that looks like Remix's `<Scripts>` component to load the
-                // route modules for our peek when server rendering.
+            {isInitialAppRender &&
+                peekData &&
+                // Preload modules we need to `import()` for rendering the inbox's peek. We
+                // `import()` these modules in our `clientLoader` function. This only works on
+                // initial render, on subsequent renders we'll have a request waterfall.
                 //
-                // `entry.client.js` looks for this global and will wait for these modules to
-                // load before beginning React hydration.
+                // Inspired by the Remix `<Scripts>` component.
                 //
                 // https://github.com/remix-run/remix/blob/40a4d7d5e25eb5edc9a622278ab111d881c7c155/packages/remix-react/components.tsx#L895
-                //
-                // IMPORTANT: This only works on server-side rendering! For client-side
-                // navigation we patch the client-side loader function. See the
-                // `patchRemixEntryContext()` function.
-                <>
-                    {Array.from(
-                        new Set(
-                            flatMapIterable(peekData.loadExtraRouteIds, routeId => {
-                                const route = remixContext.manifest.routes[routeId]!;
-                                return [...(route.imports ?? []), route.module];
-                            }),
-                        ),
-                        path => (
-                            <link key={path} rel="modulepreload" href={path} />
-                        ),
-                    )}
-                    <script
-                        type="module"
-                        dangerouslySetInnerHTML={{
-                            __html: `window.__extraRemixRouteModules = window.__extraRemixRouteModules || [];\n${peekData.loadExtraRouteIds
-                                .map(
-                                    routeId =>
-                                        `window.__extraRemixRouteModules.push({id: ${JSON.stringify(
-                                            routeId,
-                                        )}, modulePromise: import(${JSON.stringify(
-                                            remixContext.manifest.routes[routeId]!.module,
-                                        )})});\n`,
-                                )
-                                .join("")}`,
-                        }}
-                    />
-                </>
-            )}
+                Array.from(
+                    new Set(
+                        flatMapIterable(peekData.loadExtraRouteIds, routeId => {
+                            const route = remixContext.manifest.routes[routeId]!;
+                            return [...(route.imports ?? []), route.module];
+                        }),
+                    ),
+                    path => <link key={path} rel="modulepreload" href={path} />,
+                )}
         </Box>
     );
 }

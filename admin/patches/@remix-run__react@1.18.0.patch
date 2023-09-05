@@ -1,3 +1,22 @@
+diff --git a/dist/browser.d.ts b/dist/browser.d.ts
+index da399bb5e415585520698623cbf261bec20ecd65..3eb8a36a85c30a382564e40d0dd9a3b6e6d4b844 100644
+--- a/dist/browser.d.ts
++++ b/dist/browser.d.ts
+@@ -1,10 +1,14 @@
+ import type { HydrationState } from "@remix-run/router";
+ import type { ReactElement } from "react";
++import type { Params } from "react-router-dom";
+ import type { EntryContext, FutureConfig } from "./entry";
+ import type { RouteModules } from "./routeModules";
+ declare global {
+     var __remixContext: {
+         url: string;
++        // NOTE(calebmer): We include matches in `__remixContext` so we can call
++        // `clientLoader`s.
++        matches: Array<{params: Params<string>; routeId: string}>;
+         state: HydrationState;
+         future: FutureConfig;
+         a?: number;
 diff --git a/dist/data.js b/dist/data.js
 index b3b935f5b72a1b1d9aa71247f791389c4fc9a918..a49504d9c484d778684823b8fea2fb3ba244dc23 100644
 --- a/dist/data.js
@@ -98,10 +117,10 @@ index 08846c4605214228051c9ba21216a70dc8d015c3..08900bfc3a4045ea63b75385f7baec61
 +// for correct usage of this dependency's internals.
 +export { loadRouteModuleWithBlockingLinks } from './routes.js';
 diff --git a/dist/esm/routes.js b/dist/esm/routes.js
-index 76d512bf71729951e5c45dce97c9423f7308d250..b1238a970d5a4dcc8078b3586081ddde273a9cfc 100644
+index 76d512bf71729951e5c45dce97c9423f7308d250..0a5c5f2ea064e93ba8cc0eb1ddb6e0f8c640af32 100644
 --- a/dist/esm/routes.js
 +++ b/dist/esm/routes.js
-@@ -105,7 +105,7 @@ function createShouldRevalidate(route, routeModules, needsRevalidation) {
+@@ -105,14 +105,15 @@ function createShouldRevalidate(route, routeModules, needsRevalidation) {
      return arg.defaultShouldRevalidate;
    };
  }
@@ -110,6 +129,63 @@ index 76d512bf71729951e5c45dce97c9423f7308d250..b1238a970d5a4dcc8078b3586081ddde
    let routeModule = await loadRouteModule(route, routeModules);
    await prefetchStyleLinks(routeModule);
    return routeModule;
+ }
+ function createDataFunction(route, routeModules, isAction) {
+   return async ({
+-    request
++    request,
++    params
+   }) => {
+     let routeModulePromise = loadRouteModuleWithBlockingLinks(route, routeModules);
+     try {
+@@ -133,12 +134,46 @@ function createDataFunction(route, routeModules, isAction) {
+       if (isCatchResponse(result)) {
+         throw result;
+       }
++
++      // NOTE(calebmer): We add support for a `clientLoader` function to Remix
++      // data loading. `clientLoader` runs after the server loader to perform
++      // any imperative client-side loading you might need. Two cases where we
++      // currently use it:
++      //
++      // 1. Make sure we've loaded extra modules for the inbox route
++      // 2. Incorporate task data into our task data store
++      let routeModule = await routeModulePromise;
++      if (!isAction && routeModule.clientLoader) {
++        if (isDeferredResponse(result)) {
++          throw new Error("Deferred responses are not currently supported with `clientLoader`");
++        }
++
++        // Implement same unwrapping logic as `@remix-run/router`:
++        // https://github.com/remix-run/react-router/blob/4b494b935d62cd1244fe5c091db920d3f0315e9e/packages/router/router.ts#L3764-L3772
++        let data;
++        let contentType = result.headers.get("Content-Type");
++        // Check between word boundaries instead of startsWith() due to the last
++        // paragraph of https://httpwg.org/specs/rfc9110.html#field.content-type
++        if (contentType && /\bapplication\/json\b/.test(contentType)) {
++          data = await result.json();
++        } else {
++          data = await result.text();
++        }
++
++        await routeModule.clientLoader({data, params});
++
++        // Response status codes and headers are discarded when using a client
++        // loader. An upstream Remix implementation would need to handle them.
++        return data;
++      }
++
+       if (isDeferredResponse(result) && result.body) {
+         return await parseDeferredReadableStream(result.body);
+       }
+       return result;
+-    } finally {
++    } catch (error) {
+       await routeModulePromise;
++      throw error;
+     }
+   };
+ }
 diff --git a/dist/index.d.ts b/dist/index.d.ts
 index e16d76beb57831a7a4f2032e44bb2c82a383f434..23acf202e7fdd60888dec842b734029ef293e784 100644
 --- a/dist/index.d.ts
@@ -162,10 +238,68 @@ index f9e34d7b58f4c3abbdf5382fcb95f71d6322ac9f..7fa23c7a1381f4b232f52def1c201e2a
 +export function loadRouteModuleWithBlockingLinks(route: EntryRoute, routeModules: RouteModules): Promise<RouteModule>;
  export {};
 diff --git a/dist/routes.js b/dist/routes.js
-index 9ecc80713a04b565997423181c8c7091bb969be4..1b89aa583ea49434925f2111032044439627d6a4 100644
+index 9ecc80713a04b565997423181c8c7091bb969be4..28b2793393385bb1fba393c4f8c8d0ec67ffdf39 100644
 --- a/dist/routes.js
 +++ b/dist/routes.js
-@@ -179,3 +179,4 @@ function getRedirect(response) {
+@@ -133,7 +133,8 @@ async function loadRouteModuleWithBlockingLinks(route, routeModules$1) {
+ }
+ function createDataFunction(route, routeModules, isAction) {
+   return async ({
+-    request
++    request,
++    params
+   }) => {
+     let routeModulePromise = loadRouteModuleWithBlockingLinks(route, routeModules);
+     try {
+@@ -154,12 +155,46 @@ function createDataFunction(route, routeModules, isAction) {
+       if (data.isCatchResponse(result)) {
+         throw result;
+       }
++
++      // NOTE(calebmer): We add support for a `clientLoader` function to Remix
++      // data loading. `clientLoader` runs after the server loader to perform
++      // any imperative client-side loading you might need. Two cases where we
++      // currently use it:
++      //
++      // 1. Make sure we've loaded extra modules for the inbox route
++      // 2. Incorporate task data into our task data store
++      let routeModule = await routeModulePromise;
++      if (!isAction && routeModule.clientLoader) {
++        if (data.isDeferredResponse(result)) {
++          throw new Error("Deferred responses are not currently supported with `clientLoader`");
++        }
++
++        // Implement same unwrapping logic as `@remix-run/router`:
++        // https://github.com/remix-run/react-router/blob/4b494b935d62cd1244fe5c091db920d3f0315e9e/packages/router/router.ts#L3764-L3772
++        let data;
++        let contentType = result.headers.get("Content-Type");
++        // Check between word boundaries instead of startsWith() due to the last
++        // paragraph of https://httpwg.org/specs/rfc9110.html#field.content-type
++        if (contentType && /\bapplication\/json\b/.test(contentType)) {
++          data = await result.json();
++        } else {
++          data = await result.text();
++        }
++
++        await routeModule.clientLoader({data, params});
++
++        // Response status codes and headers are discarded when using a client
++        // loader. An upstream Remix implementation would need to handle them.
++        return data;
++      }
++
+       if (data.isDeferredResponse(result) && result.body) {
+         return await data.parseDeferredReadableStream(result.body);
+       }
+       return result;
+-    } finally {
++    } catch (error) {
+       await routeModulePromise;
++      throw error;
+     }
+   };
+ }
+@@ -179,3 +214,4 @@ function getRedirect(response) {
  
  exports.createClientRoutes = createClientRoutes;
  exports.createServerRoutes = createServerRoutes;
