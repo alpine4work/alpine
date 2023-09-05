@@ -5056,15 +5056,15 @@ export function testMessagingImplementation<RoomKey extends string>(
                 ],
                 otherReferencedMessages: [
                     {
-                        author: session3.account,
-                        parentMessageIndex: null,
-                        content: content3,
-                        hasContentUpdated: false,
-                    },
-                    {
                         author: session2.account,
                         parentMessageIndex: null,
                         content: content2,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageIndex: null,
+                        content: content3,
                         hasContentUpdated: false,
                     },
                 ],
@@ -5283,15 +5283,15 @@ export function testMessagingImplementation<RoomKey extends string>(
                 ],
                 otherReferencedMessages: [
                     {
-                        author: session3.account,
-                        parentMessageIndex: null,
-                        content: content3,
-                        hasContentUpdated: false,
-                    },
-                    {
                         author: session2.account,
                         parentMessageIndex: null,
                         content: content2,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session3.account,
+                        parentMessageIndex: null,
+                        content: content3,
                         hasContentUpdated: false,
                     },
                 ],
@@ -6524,6 +6524,216 @@ export function testMessagingImplementation<RoomKey extends string>(
             } finally {
                 Date.now = originalDateNow;
             }
+        });
+
+        test("recursively loads parent messages when loading from end", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            const message1 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+            });
+
+            const message3 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parentMessageIndex: message1.index,
+                content: content3,
+            });
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content4,
+            });
+
+            await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parentMessageIndex: message3.index,
+                content: content2,
+            });
+
+            await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content3,
+            });
+
+            await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content4,
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromEnd(context.action(session1), {
+                        roomKey: room.key,
+                        limit: 4,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 8,
+                messages: [
+                    {
+                        author: session2.account,
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: message3.index,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: null,
+                        content: content4,
+                        hasContentUpdated: false,
+                    },
+                ],
+                otherReferencedMessages: [
+                    {
+                        author: session1.account,
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session1.account,
+                        parentMessageIndex: message1.index,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                ],
+            });
+        });
+
+        test("recursively loads parent messages when loading from start", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            const message1 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+            });
+
+            const message3 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parentMessageIndex: message1.index,
+                content: content3,
+            });
+
+            const message4 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content4,
+            });
+
+            await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+            });
+
+            await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parentMessageIndex: message3.index,
+                content: content2,
+            });
+
+            await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content3,
+            });
+
+            await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content4,
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromStart(context.action(session1), {
+                        roomKey: room.key,
+                        limit: 4,
+                        afterMessageIndex: message4.index,
+                        beforeMessageIndex: null,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 8,
+                messages: [
+                    {
+                        author: session2.account,
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: message3.index,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session2.account,
+                        parentMessageIndex: null,
+                        content: content4,
+                        hasContentUpdated: false,
+                    },
+                ],
+                otherReferencedMessages: [
+                    {
+                        author: session1.account,
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: session1.account,
+                        parentMessageIndex: message1.index,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                ],
+            });
         });
     });
 }

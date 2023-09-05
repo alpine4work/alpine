@@ -32,8 +32,6 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {asyncIterableFromIterable} from "~/shared/helpers/iterable/async_iterable_from_iterable.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
 import {parallelFilterMapLimitAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_filter_map_limit_async_iterable_to_array.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -1367,72 +1365,91 @@ async function getChatMessagesFromStartAssumingAuthorizedChat(
     messages: Array<ChatMessageModel>;
     otherReferencedMessages: Array<ChatMessageModel>;
 }> {
-    const messageIndexes = new Set<number>();
-    const parentMessageIndexes = new Set<number>();
-
-    // Don't wait for `getSpaceId` to start our comment query.
-    let spaceIdPromise: Promise<SpaceId> | null = null;
-    let spaceId: SpaceId | null = null;
-
-    const messagePromises = await arrayFromAsyncIterable(
-        mapAsyncIterableIterator(
-            ChatTable.query(context, {
-                partitionKey: {
-                    partitionType: "Chat",
-                    chatId,
-                },
-                startSortKey: {
-                    sortRangeType: "Messages",
-                    messageIndex: typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
-                },
-                endSortKey: {
-                    sortRangeType: "Messages",
-                    messageIndex:
-                        typeof beforeMessageIndex === "number"
-                            ? beforeMessageIndex - 1
-                            : Number.MAX_SAFE_INTEGER,
-                },
-                limit,
-            }),
-            async item => {
-                messageIndexes.add(item.messageIndex);
-
-                if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null)
-                    parentMessageIndexes.add(item.payload.parentMessageIndex);
-
-                if (spaceIdPromise === null) spaceIdPromise = getSpaceId();
-                if (spaceId === null) spaceId = await spaceIdPromise;
-                return createChatMessageModelFromItem(context, spaceId, item);
+    const messageItems = await arrayFromAsyncIterable(
+        ChatTable.query(context, {
+            partitionKey: {
+                partitionType: "Chat",
+                chatId,
             },
-        ),
+            startSortKey: {
+                sortRangeType: "Messages",
+                messageIndex: typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
+            },
+            endSortKey: {
+                sortRangeType: "Messages",
+                messageIndex:
+                    typeof beforeMessageIndex === "number"
+                        ? beforeMessageIndex - 1
+                        : Number.MAX_SAFE_INTEGER,
+            },
+            limit,
+        }),
     );
 
-    const [messages, otherReferencedMessages] = await runAllPromises([
-        runAllPromises(messagePromises),
-        runAllPromises(
-            filterMapIterable(parentMessageIndexes, parentMessageIndex => {
-                if (messageIndexes.has(parentMessageIndex)) return null;
+    if (messageItems.length === 0) return {messages: [], otherReferencedMessages: []};
 
-                return (async () => {
-                    const messageItem = await ChatTable.getItemIfExists(context, {
-                        partitionType: "Chat",
-                        sortRangeType: "Messages",
-                        chatId,
-                        messageIndex: parentMessageIndex,
-                    });
-                    if (!messageItem) throw new InternalError("Parent message not found");
+    const startMessageIndex = messageItems[0]!.messageIndex;
+    const endMessageIndex = messageItems[messageItems.length - 1]!.messageIndex;
 
-                    if (spaceIdPromise === null) spaceIdPromise = getSpaceId();
-                    if (spaceId === null) spaceId = await spaceIdPromise;
-                    return createChatMessageModelFromItem(context, spaceId, messageItem);
-                })();
-            }),
-        ),
-    ]);
+    const spaceId = await getSpaceId();
+
+    let otherReferencedMessagePromiseByIndex = new Map<number, Promise<void>>();
+    const otherReferencedMessages: Array<ChatMessageModel> = [];
+
+    const loadOtherReferencedMessage = (messageIndex: number) => {
+        // If this message is already in our loaded messages range then we don't need
+        // to load it again.
+        if (startMessageIndex <= messageIndex && messageIndex <= endMessageIndex) return;
+
+        const promise = getOrSetDefaultMapValue(
+            otherReferencedMessagePromiseByIndex,
+            messageIndex,
+            async () => {
+                const item = await ChatTable.getItemIfExists(context, {
+                    partitionType: "Chat",
+                    sortRangeType: "Messages",
+                    chatId,
+                    messageIndex,
+                });
+                if (!item) throw new InternalError("Parent message not found");
+
+                // Recursively load any referenced parent messages...
+                if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
+                    loadOtherReferencedMessage(item.payload.parentMessageIndex);
+                }
+
+                otherReferencedMessages.push(
+                    await createChatMessageModelFromItem(context, spaceId, item),
+                );
+            },
+        );
+
+        // We await this promise later.
+        void promise;
+    };
+
+    const messages = await runAllPromises(
+        messageItems.map(item => {
+            if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
+                loadOtherReferencedMessage(item.payload.parentMessageIndex);
+            }
+            return createChatMessageModelFromItem(context, spaceId, item);
+        }),
+    );
+
+    // Keep loading other referenced messages until we have all of them. A
+    // referenced message may itself reference more messages.
+    while (otherReferencedMessagePromiseByIndex.size > 0) {
+        const promises = Array.from(otherReferencedMessagePromiseByIndex.values());
+        otherReferencedMessagePromiseByIndex = new Map();
+        await runAllPromises(promises);
+    }
 
     return {
         messages,
-        otherReferencedMessages,
+        otherReferencedMessages: otherReferencedMessages.sort(
+            (message1, message2) => message1.index - message2.index,
+        ),
     };
 }
 
@@ -1505,82 +1522,100 @@ async function getChatMessagesFromEndAssumingAuthorizedChat(
     messages: Array<ChatMessageModel>;
     otherReferencedMessages: Array<ChatMessageModel>;
 }> {
-    const messageIndexes = new Set<number>();
-    const parentMessageIndexes = new Set<number>();
-
-    // Don't wait for `getSpaceId` to start our comment query.
-    let spaceIdPromise: Promise<SpaceId> | null = null;
-    let spaceId: SpaceId | null = null;
-
-    const messagePromises = await arrayFromAsyncIterable(
-        mapAsyncIterableIterator(
-            typeof beforeMessageIndex !== "number" || beforeMessageIndex > 0
-                ? ChatTable.query(context, {
-                      partitionKey: {
-                          partitionType: "Chat",
-                          chatId,
-                      },
-                      startSortKey: {
-                          sortRangeType: "Messages",
-                          messageIndex:
-                              typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
-                      },
-                      endSortKey: {
-                          sortRangeType: "Messages",
-                          messageIndex:
-                              typeof beforeMessageIndex === "number"
-                                  ? beforeMessageIndex - 1
-                                  : Number.MAX_SAFE_INTEGER,
-                      },
-                      limit,
-                      // Scan backwards from `endSortKey` to `startSortKey` so we can get comments
-                      // at the end instead of start.
-                      descending: true,
-                  })
-                : (async function* () {})(),
-            async item => {
-                messageIndexes.add(item.messageIndex);
-
-                if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null)
-                    parentMessageIndexes.add(item.payload.parentMessageIndex);
-
-                if (spaceIdPromise === null) spaceIdPromise = getSpaceId();
-                if (spaceId === null) spaceId = await spaceIdPromise;
-                return createChatMessageModelFromItem(context, spaceId, item);
-            },
-        ),
+    const messageItems = await arrayFromAsyncIterable(
+        typeof beforeMessageIndex !== "number" || beforeMessageIndex > 0
+            ? ChatTable.query(context, {
+                  partitionKey: {
+                      partitionType: "Chat",
+                      chatId,
+                  },
+                  startSortKey: {
+                      sortRangeType: "Messages",
+                      messageIndex:
+                          typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
+                  },
+                  endSortKey: {
+                      sortRangeType: "Messages",
+                      messageIndex:
+                          typeof beforeMessageIndex === "number"
+                              ? beforeMessageIndex - 1
+                              : Number.MAX_SAFE_INTEGER,
+                  },
+                  limit,
+                  // Scan backwards from `endSortKey` to `startSortKey` so we can get comments
+                  // at the end instead of start.
+                  descending: true,
+              })
+            : (async function* () {})(),
     );
 
-    const [messages, otherReferencedMessages] = await runAllPromises([
-        runAllPromises(messagePromises),
-        runAllPromises(
-            filterMapIterable(parentMessageIndexes, parentMessageIndex => {
-                if (messageIndexes.has(parentMessageIndex)) return null;
+    if (messageItems.length === 0) return {messages: [], otherReferencedMessages: []};
 
-                return (async () => {
-                    const messageItem = await ChatTable.getItemIfExists(context, {
-                        partitionType: "Chat",
-                        sortRangeType: "Messages",
-                        chatId,
-                        messageIndex: parentMessageIndex,
-                    });
-                    if (!messageItem) throw new InternalError("Parent message not found");
+    const endMessageIndex = messageItems[0]!.messageIndex;
+    const startMessageIndex = messageItems[messageItems.length - 1]!.messageIndex;
 
-                    if (spaceIdPromise === null) spaceIdPromise = getSpaceId();
-                    if (spaceId === null) spaceId = await spaceIdPromise;
-                    return createChatMessageModelFromItem(context, spaceId, messageItem);
-                })();
-            }),
-        ),
-    ]);
+    const spaceId = await getSpaceId();
+
+    let otherReferencedMessagePromiseByIndex = new Map<number, Promise<void>>();
+    const otherReferencedMessages: Array<ChatMessageModel> = [];
+
+    const loadOtherReferencedMessage = (messageIndex: number) => {
+        // If this message is already in our loaded messages range then we don't need
+        // to load it again.
+        if (startMessageIndex <= messageIndex && messageIndex <= endMessageIndex) return;
+
+        const promise = getOrSetDefaultMapValue(
+            otherReferencedMessagePromiseByIndex,
+            messageIndex,
+            async () => {
+                const item = await ChatTable.getItemIfExists(context, {
+                    partitionType: "Chat",
+                    sortRangeType: "Messages",
+                    chatId,
+                    messageIndex,
+                });
+                if (!item) throw new InternalError("Parent message not found");
+
+                // Recursively load any referenced parent messages...
+                if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
+                    loadOtherReferencedMessage(item.payload.parentMessageIndex);
+                }
+
+                otherReferencedMessages.push(
+                    await createChatMessageModelFromItem(context, spaceId, item),
+                );
+            },
+        );
+
+        // We await this promise later.
+        void promise;
+    };
+
+    const messages = await runAllPromises(
+        messageItems.map(item => {
+            if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
+                loadOtherReferencedMessage(item.payload.parentMessageIndex);
+            }
+            return createChatMessageModelFromItem(context, spaceId, item);
+        }),
+    );
+
+    // Keep loading other referenced messages until we have all of them. A
+    // referenced message may itself reference more messages.
+    while (otherReferencedMessagePromiseByIndex.size > 0) {
+        const promises = Array.from(otherReferencedMessagePromiseByIndex.values());
+        otherReferencedMessagePromiseByIndex = new Map();
+        await runAllPromises(promises);
+    }
 
     // We queried in descending order so put comments back in the right order.
     messages.reverse();
-    otherReferencedMessages.reverse();
 
     return {
         messages,
-        otherReferencedMessages,
+        otherReferencedMessages: otherReferencedMessages.sort(
+            (message1, message2) => message1.index - message2.index,
+        ),
     };
 }
 
