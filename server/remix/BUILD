@@ -7,6 +7,7 @@ ts_project(
         "//:node_modules/@remix-run/dev",
         "//:node_modules/@remix-run/node",
         "//:node_modules/@remix-run/server-runtime",
+        "//:node_modules/react-router",
         "//server/context",
         "//server/helpers",
         "//server/rpc",

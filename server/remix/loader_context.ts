@@ -1,4 +1,5 @@
 import {ServerRoute} from "@remix-run/server-runtime";
+import {Params} from "react-router";
 import {ServerUnknownActionContextModules} from "~/server/context/server_action_context.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
@@ -28,7 +29,7 @@ export type LoaderContextModules = MergeObjectIntersection<
 export interface LoaderArgs {
     request: Request;
     context: LoaderContext;
-    params: {readonly [key: string]: string | undefined};
+    params: Params<string>;
     // This is added by a patch to `@remix-run/server-runtime`.
     span: TracerSpan;
     // This is added by a patch to `@remix-run/server-runtime`.

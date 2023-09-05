@@ -5,7 +5,6 @@ import {BlockInference} from "~/shared/helpers/types/block_inference.js";
 import {
     deserializedValueSymbol,
     propagateEventDataKey,
-    taskStoreDataKey,
 } from "~/shared/remix/json_with_schema_shared.js";
 import {
     TaskStoreLoaderData,
@@ -22,7 +21,6 @@ export function jsonWithSchema<Value>(
     value: BlockInference<Value>,
     {
         propagateEventData,
-        taskStoreData,
         ...responseInit
     }: ResponseInit & {
         /**
@@ -30,23 +28,6 @@ export function jsonWithSchema<Value>(
          * propagated event data in the `<Root>` component and add it to our tracer.
          */
         propagateEventData?: TracerEventData;
-
-        /**
-         * You might ask: Task data in a generic helper? What the heck is this?
-         *
-         * We have a shared loader data property for tasks because we want all task
-         * data to go into a normalized store which lives at the `/s/:spaceId` route
-         * but that data can be loaded from any route's loader function.
-         *
-         * The `/s/:spaceId` route knows to look for this shared property on all loader
-         * data and will incorporate it into the store.
-         *
-         * This does mean shared logic code in `~/shared/tasks` is always included in
-         * the JavaScript bundle for `/s/:spaceId` routes. We accept this since we do
-         * want normalized task data to be accessible everywhere throughout the
-         * product.
-         */
-        taskStoreData?: TaskStoreLoaderData;
     } = {},
 ): Response {
     const serializedValue = schema.serialize(value as Value);
@@ -64,16 +45,6 @@ export function jsonWithSchema<Value>(
     // `<Root>` component will read this property and add it to the tracer.
     if (propagateEventData) {
         (serializedValue as any)[propagateEventDataKey] = propagateEventData;
-    }
-
-    // If we have task data to load in our shared store, stash it on the serialized
-    // result. Our `/s/:spaceId` route knows to look for this property and will add
-    // the data to our shared store.
-    if (taskStoreData) {
-        const taskStoreDataSerializedValue = TaskStoreLoaderDataSchema.serialize(taskStoreData);
-        (taskStoreDataSerializedValue as any)[deserializedValueSymbol] = taskStoreData;
-
-        (serializedValue as any)[taskStoreDataKey] = taskStoreDataSerializedValue;
     }
 
     return json(serializedValue, responseInit);

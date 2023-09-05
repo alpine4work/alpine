@@ -12,7 +12,8 @@ import {TaskRealtimeProtocol} from "~/shared/tasks/task_realtime_protocol.js";
  * subscribe to the queries in our store so we can keep them up-to-date in
  * realtime.
  */
-export class TaskRealtimeWebSocketClient {
+export class TaskRealtimeClient {
+    public readonly spaceId: SpaceId;
     private readonly _client: WebSocketClient<typeof TaskRealtimeProtocol>;
     private _disconnect: (() => void) | null = null;
 
@@ -25,7 +26,12 @@ export class TaskRealtimeWebSocketClient {
             `/api/task-realtime/${spaceId}`,
         );
 
+        this.spaceId = spaceId;
         this._store = new ValueStore(TaskModelStore.new({spaceId}));
+    }
+
+    public updateStore(action: (store: TaskModelStore) => TaskModelStore) {
+        this._store.set(action);
     }
 
     public connect() {
@@ -52,7 +58,9 @@ export class TaskRealtimeWebSocketClient {
                 // response to the client a second time. It would be nice if we only sent
                 // changes between the last time the client was up-to-date and now. But given
                 // our CRDT everything-is-unordered backend design it's hard to know what
-                // actions the client has missed.
+                // actions the client has missed. This doesn't really affect perceived
+                // performance for the user so even though it's wasteful we let it happen
+                // for now.
                 if (isConnected) {
                     for (const [queryId, query] of this._store.getSnapshot().iterateQueries()) {
                         this._client.procedures
