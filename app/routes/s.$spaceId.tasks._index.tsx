@@ -1,7 +1,6 @@
 import {Params} from "react-router";
-import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {withTaskRealtimeClientForClient} from "~/client/tasks/task_realtime_client_context_provider.js";
+import {taskStoreDataClientLoader} from "~/client/tasks/task_realtime_client_context_provider.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getTaskNotepadPageIds} from "~/server/tasks/data/task_table.js";
@@ -14,33 +13,14 @@ import {Schema, SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
 import {TaskNotepadPageIdCompressedSetSchema} from "~/shared/tasks/task_notepad_page_id.js";
 import {
     TaskQueryNormalizedFilters,
-    TaskQueryNormalizedFiltersSchema,
     assertNonEmptyReadonlySet,
 } from "~/shared/tasks/task_query_normalized_filters.js";
-import {
-    TaskQueryNormalizedSort,
-    TaskQueryNormalizedSortSchema,
-} from "~/shared/tasks/task_query_normalized_sort.js";
-import {
-    TaskRealtimeQueryLoadedStateSchema,
-    TaskRealtimeUpdateEventSchema,
-} from "~/shared/tasks/task_realtime_protocol.js";
+import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 
 const LoaderSchema = Schema.object({
     notepadPageIds: TaskNotepadPageIdCompressedSetSchema,
-    assigneeActiveQuery: Schema.object({
-        id: Schema.id<TaskQueryModelId>(),
-        filters: TaskQueryNormalizedFiltersSchema,
-        sorts: Schema.array(TaskQueryNormalizedSortSchema),
-        loadedState: TaskRealtimeQueryLoadedStateSchema,
-    }),
-    notepadPageQuery: Schema.object({
-        id: Schema.id<TaskQueryModelId>(),
-        filters: TaskQueryNormalizedFiltersSchema,
-        sorts: Schema.array(TaskQueryNormalizedSortSchema),
-        loadedState: TaskRealtimeQueryLoadedStateSchema,
-    }),
-    updateEvent: TaskRealtimeUpdateEventSchema,
+    assigneeActiveQueryId: Schema.id<TaskQueryModelId>(),
+    notepadPageQueryId: Schema.id<TaskQueryModelId>(),
 });
 
 export async function loader({params, context: _context}: LoaderArgs) {
@@ -127,23 +107,15 @@ export async function loader({params, context: _context}: LoaderArgs) {
     const assigneeActiveQueryLoadedState = assertExists(loadedStates[0]);
     const notepadPageQueryLoadedState = assertExists(loadedStates[1]);
 
+    const assigneeActiveQueryId = generateId<TaskQueryModelId>();
+    const notepadPageQueryId = generateId<TaskQueryModelId>();
+
     return jsonWithSchema(
         LoaderSchema,
         {
             notepadPageIds,
-            assigneeActiveQuery: {
-                id: generateId<TaskQueryModelId>(),
-                filters: assigneeActiveQuery.filters,
-                sorts: assigneeActiveQuery.sorts,
-                loadedState: assigneeActiveQueryLoadedState,
-            },
-            notepadPageQuery: {
-                id: generateId<TaskQueryModelId>(),
-                filters: notepadPageQuery.filters,
-                sorts: notepadPageQuery.sorts,
-                loadedState: notepadPageQueryLoadedState,
-            },
-            updateEvent,
+            assigneeActiveQueryId,
+            notepadPageQueryId,
         },
         {
             propagateEventData: {
@@ -151,45 +123,41 @@ export async function loader({params, context: _context}: LoaderArgs) {
                     taskNotepadPageId: latestNotepadPageId,
                 },
             },
+            taskStoreData: {
+                queries: [
+                    {
+                        id: assigneeActiveQueryId,
+                        filters: assigneeActiveQuery.filters,
+                        sorts: assigneeActiveQuery.sorts,
+                        loadedState: assigneeActiveQueryLoadedState,
+                    },
+                    {
+                        id: notepadPageQueryId,
+                        filters: notepadPageQuery.filters,
+                        sorts: notepadPageQuery.sorts,
+                        loadedState: notepadPageQueryLoadedState,
+                    },
+                ],
+                updateEvent,
+            },
         },
     );
 }
 
 export async function clientLoader({
-    data: _data,
+    data,
     params,
 }: {
     data: SchemaSerializedObjectValue;
     params: Params<string>;
 }) {
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
-    const data = getLoaderDataWithSchema(LoaderSchema, _data);
 
-    // NOCOMMIT: Is there a single render when navigating to a new page?
-    withTaskRealtimeClientForClient(spaceId, client => {
-        client.updateStore(store => {
-            store = store.newQuery(data.assigneeActiveQuery.id, data.assigneeActiveQuery);
-            store = store.newQuery(data.notepadPageQuery.id, data.notepadPageQuery);
-
-            store = store.applyUpdateEvent(data.updateEvent);
-
-            store = store.loadTasksIntoQuery(data.assigneeActiveQuery.id, {
-                loadedState: data.assigneeActiveQuery.loadedState,
-                previouslyBackfilledTaskIds: [],
-            });
-
-            store = store.loadTasksIntoQuery(data.notepadPageQuery.id, {
-                loadedState: data.notepadPageQuery.loadedState,
-                previouslyBackfilledTaskIds: [],
-            });
-
-            return store;
-        });
-    });
+    taskStoreDataClientLoader(spaceId, data);
 }
 
 export default function TasksRoute() {
-    const {notepadPageQuery} = useLoaderDataWithSchema(LoaderSchema);
+    const {notepadPageQueryId} = useLoaderDataWithSchema(LoaderSchema);
 
     return <>Hello, world!</>;
 }

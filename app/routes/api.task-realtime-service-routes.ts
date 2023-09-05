@@ -9,6 +9,17 @@ import {InvalidArgumentError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 
+/**
+ * Returns encrypted task service routing information for `EdgeService`. This
+ * way when `EdgeService` receives a WebSocket connection request for
+ * `TaskRealtimeService` it can send the traffic to the appropriate server for
+ * the provided `SpaceId`.
+ *
+ * Uses HTTP caching to avoid frequent requests to this endpoint. Since the
+ * result should be cacheable in a shared HTTP cache (like the Cloudflare edge
+ * cache) we encrypt the result. Only the `EdgeService` private key can
+ * decrypt it.
+ */
 export async function loader({request, context, span}: LoaderArgs) {
     try {
         if (request.method !== "GET") throw new InvalidArgumentError("Must use GET HTTP method");

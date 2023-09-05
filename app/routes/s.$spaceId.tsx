@@ -37,7 +37,7 @@ export function links(): Array<LinkDescriptor> {
     ];
 }
 
-// Run the loader again when the space ID changes.
+// Run the loader again only when the `SpaceId` changes.
 export const shouldRevalidate: ShouldRevalidateFunction = ({currentParams, nextParams}) =>
     currentParams.spaceId !== nextParams.spaceId;
 

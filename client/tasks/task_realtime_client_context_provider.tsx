@@ -1,59 +1,92 @@
-import {ReactNode, useEffect, useRef, useState} from "react";
+import {ReactNode, useContext, useEffect, useRef, useState} from "react";
+import {UNSAFE_DataRouterStateContext as DataRouterStateContext} from "react-router";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {TaskRealtimeClient} from "~/client/tasks/internal/task_realtime_client.js";
+import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
+import {TaskRealtimeClient} from "~/client/tasks/task_realtime_client.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+import {taskStoreDataKey} from "~/shared/remix/json_with_schema_shared.js";
+import {TaskStoreLoaderDataSchema} from "~/shared/remix/task_store_loader_data.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.js";
+
+const taskRealtimeClientBySpaceIdForClient =
+    typeof window !== "undefined"
+        ? new Map<SpaceId, {isMounted: boolean; client: TaskRealtimeClient}>()
+        : null;
 
 /**
- * Runs an action against a `TaskRealtimeClient` on the client's web browser
- * outside of React. A shared `TaskRealtimeClient` instance exists at the
- * `/s/:spaceId` route which any UI which needs task data connects to. We only
- * allow one `TaskRealtimeClient` per-space per-browser to exist at a time.
+ * Gets the `TaskRealtimeClient` for the provided `SpaceId` if it exists.
+ * Useful for operating on the `TaskRealtimeClient` outside of React. Only runs
+ * in a client's web browser.
  *
- * Throws an error if you call this function on the server.
- *
- * If the `TaskRealtimeClient` is available then `action` will run
- * synchronously. If `<TaskRealtimeClientContextProvider>` hasn't been mounted
- * for the provided `SpaceId` then the action will be executed later when
- * `<TaskRealtimeClientContextProvider>` mounts.
+ * We have a constraint that a client's web browser may only have one
+ * `TaskRealtimeClient` per-space at a time. `TaskRealtimeClient` is owned by
+ * the `<TaskRealtimeClientContextProvider>` component which enforces this
+ * constraint.
  */
-export function withTaskRealtimeClientForClient(
-    spaceId: SpaceId,
-    action: (client: TaskRealtimeClient) => void,
-) {
+function getTaskRealtimeClientIfExistsForClient(spaceId: SpaceId): TaskRealtimeClient | null {
     assert(typeof window !== "undefined");
-
-    const clientEntry = taskRealtimeClientBySpaceIdForClient.get(spaceId);
-
-    if (!clientEntry) {
-        taskRealtimeClientBySpaceIdForClient.set(spaceId, {
-            isMounted: false,
-            client: null,
-            pendingActions: [action],
-        });
-    } else if (clientEntry.client === null) {
-        clientEntry.pendingActions.push(action);
-    } else {
-        action(clientEntry.client);
-    }
+    assert(taskRealtimeClientBySpaceIdForClient);
+    return taskRealtimeClientBySpaceIdForClient.get(spaceId)?.client ?? null;
 }
 
-const taskRealtimeClientBySpaceIdForClient = new Map<
-    SpaceId,
-    | {
-          isMounted: boolean;
-          client: TaskRealtimeClient;
-          pendingActions: null;
-      }
-    | {
-          isMounted: false;
-          client: null;
-          pendingActions: Array<(client: TaskRealtimeClient) => void>;
-      }
->();
+function loadTaskStoreDataIntoClient(
+    client: TaskRealtimeClient,
+    serializedData: SchemaSerializedValue,
+) {
+    if (!isPlainObject(serializedData)) return;
+
+    const taskStoreSerializedData = serializedData[taskStoreDataKey];
+    if (!taskStoreSerializedData) return;
+
+    const taskStoreData = getLoaderDataWithSchema(
+        TaskStoreLoaderDataSchema,
+        taskStoreSerializedData,
+    );
+
+    client.updateStore(store => {
+        for (const query of taskStoreData.queries) {
+            store = store.newQuery(query.id, query);
+        }
+
+        store = store.applyUpdateEvent(taskStoreData.updateEvent);
+
+        for (const query of taskStoreData.queries) {
+            store = store.loadTasksIntoQuery(query.id, {
+                loadedState: query.loadedState,
+                previouslyBackfilledTaskIds: [],
+            });
+        }
+
+        return store;
+    });
+}
+
+/**
+ * Function that should be called by `clientLoader` for any route that returns
+ * data in the `taskStoreData` shared key.
+ *
+ * On initial render `<TaskRealtimeClientContextProvider>` loads data from
+ * `taskStoreData` into our `TaskRealtimeClient`. However on subsequent client
+ * navigations, we need to imperatively update `TaskRealtimeClient` before the
+ * render so data is available.
+ *
+ * We use the `clientLoader` feature we've added to Remix to imperatively
+ * update `TaskRealtimeClient` before a render.
+ * `<TaskRealtimeClientContextProvider>` lives on `/s/:spaceId` but we can't
+ * use the `/s/:spaceId` route's `clientLoader` since `/s/:spaceId` doesn't
+ * revalidate unless the `SpaceId` changes. So it's the route which loaded
+ * `taskStoreData`'s responsibility to imperatively update `TaskRealtimeClient`
+ * in their `clientLoader`. You can perform this update with this function.
+ */
+export function taskStoreDataClientLoader(spaceId: SpaceId, data: SchemaSerializedValue) {
+    const client = getTaskRealtimeClientIfExistsForClient(spaceId);
+    if (client) loadTaskStoreDataIntoClient(client, data);
+}
 
 /**
  * The task realtime client lives at the space route (`/s/:spaceId`) so the
@@ -66,6 +99,9 @@ export function TaskRealtimeClientContextProvider({
     spaceId: SpaceId;
     children: ReactNode;
 }) {
+    const dataRouterStateContext = useContext(DataRouterStateContext);
+    assert(dataRouterStateContext, "Expected data router state context");
+
     const context = useAppContext();
     const contextRef = useRef(context);
     useLayoutEffectWithoutServerSideWarning(() => {
@@ -73,10 +109,22 @@ export function TaskRealtimeClientContextProvider({
     });
 
     const [client] = useState((): TaskRealtimeClient => {
+        const initializeClient = () => {
+            const client = new TaskRealtimeClient(() => contextRef.current, spaceId);
+
+            for (const loaderData of Object.values(dataRouterStateContext.loaderData)) {
+                loadTaskStoreDataIntoClient(client, loaderData);
+            }
+
+            return client;
+        };
+
         // On the server, there is no global access to the task realtime client.
         if (typeof window === "undefined") {
-            return new TaskRealtimeClient(() => contextRef.current, spaceId);
+            return initializeClient();
         } else {
+            assert(taskRealtimeClientBySpaceIdForClient);
+
             const existingClientEntry = taskRealtimeClientBySpaceIdForClient.get(spaceId);
 
             // Only one `<TaskStoreContextProvider>` should be mounted at a time per-space
@@ -87,18 +135,11 @@ export function TaskRealtimeClientContextProvider({
             // Reuse the existing client. Otherwise we need to create a new client.
             if (existingClientEntry?.client) return existingClientEntry.client;
 
-            const client = new TaskRealtimeClient(() => contextRef.current, spaceId);
-
-            if (existingClientEntry?.pendingActions) {
-                for (const action of existingClientEntry.pendingActions) {
-                    action(client);
-                }
-            }
+            const client = initializeClient();
 
             taskRealtimeClientBySpaceIdForClient.set(spaceId, {
                 isMounted: false,
                 client,
-                pendingActions: null,
             });
 
             return client;
@@ -114,7 +155,7 @@ export function TaskRealtimeClientContextProvider({
     // Mark our client entry as mounted and error if another entry was added. This
     // means two `<TaskStoreContextProvider>` are mounting at the same time.
     useEffect(() => {
-        const clientEntry = assertExists(taskRealtimeClientBySpaceIdForClient.get(spaceId));
+        const clientEntry = assertExists(taskRealtimeClientBySpaceIdForClient?.get(spaceId));
 
         assert(clientEntry.client === client);
         clientEntry.isMounted = true;
