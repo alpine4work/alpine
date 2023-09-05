@@ -18,6 +18,7 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
+import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {
     InboxEntryView,
     inboxEntryDeleteAnimationDurationMs,
@@ -466,6 +467,7 @@ function InboxViewEntries({
 }) {
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const remPx = useRemPx();
+    const [entriesSizeRef, entriesSize] = useResizeObserver();
 
     // Whenever our query data changes, try loading more entries. In case our
     // rendered range stayed the same but we now see the loading indicator.
@@ -655,6 +657,7 @@ function InboxViewEntries({
     return (
         <FocusRing offset="inset">
             <Box
+                ref={entriesSizeRef}
                 // Our notification inbox implements the `listbox` ARIA role. So the inbox
                 // receives focus and you use arrow keys to navigate through notifications.
                 // https://www.w3.org/WAI/ARIA/apg/patterns/listbox
@@ -781,6 +784,31 @@ function InboxViewEntries({
                             selectEntry,
                         ],
                     )}
+                    // Render a div at the bottom of the inbox entry list that covers the bottom
+                    // border of the last entry but only when there's enough content to scroll. If
+                    // there are only 2 entries, we want to show that last border.
+                    extraChildren={
+                        entriesSize && (
+                            <Box
+                                position="absolute"
+                                zIndex="50"
+                                left="0"
+                                right="0"
+                                top="0"
+                                height="full"
+                                style={{minHeight: entriesSize.height}}
+                            >
+                                <Box
+                                    position="absolute"
+                                    left="0"
+                                    right="0"
+                                    bottom="0"
+                                    height="1"
+                                    backgroundColor="grey-0"
+                                />
+                            </Box>
+                        )
+                    }
                 />
             </Box>
         </FocusRing>

@@ -431,7 +431,7 @@ export const Menu = forwardRef(function Menu(
                 minWidth: width,
                 maxHeight: maxHeight,
                 overflowX: "hidden",
-                overflowY: "scroll",
+                overflowY: "auto",
                 borderRadius: "md",
                 padding: "1",
                 backgroundColor: {light: "grey-0", dark: "grey-5"},

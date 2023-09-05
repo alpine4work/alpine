@@ -1258,7 +1258,7 @@ function VirtualizedScrollView(
                     position: "relative",
                     height: "full",
                     overflowX: "hidden",
-                    overflowY: "scroll",
+                    overflowY: "auto",
                 })}
                 style={{
                     // Opt-out of scroll anchoring. We need to manually implement scroll anchoring

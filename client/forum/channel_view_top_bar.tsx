@@ -310,7 +310,7 @@ function ChannelEditDescriptionModal({
                                             paddingX: "0.5",
                                             paddingY: "2",
                                             height: "64",
-                                            overflowY: "scroll",
+                                            overflowY: "auto",
                                         })}
                                     />
                                 </Box>

@@ -11,7 +11,7 @@ import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
  */
 export function SpaceRouteScrollView({children}: {children: ReactNode}) {
     return (
-        <Box flexGrow="1" overflowX="hidden" overflowY="scroll" position="relative" zIndex="0">
+        <Box flexGrow="1" overflowX="hidden" overflowY="auto" position="relative" zIndex="0">
             <OverlayScopeContextProvider>{children}</OverlayScopeContextProvider>
         </Box>
     );

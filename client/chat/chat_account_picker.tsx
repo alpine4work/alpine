@@ -600,7 +600,7 @@ function ChatAccountPickerListBox({
                 boxShadow: "elevation-20",
                 maxHeight: "64",
                 overflowX: "hidden",
-                overflowY: "scroll",
+                overflowY: "auto",
             })}
         >
             {comboBoxState.collection.size === 0 ? (

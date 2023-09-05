@@ -115,7 +115,7 @@ export function PostEditorModal({
                             Edit post
                         </h2>
                     </Box>
-                    <Box flexGrow="1" overflowY="scroll">
+                    <Box flexGrow="1" overflowY="auto">
                         <Box>
                             <Box paddingTop="5" paddingX="5">
                                 <PostContentViewHeader post={post} shouldShowChannel={true} />

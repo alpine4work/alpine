@@ -612,8 +612,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
             className={sprinkles({
                 flexGrow: "1",
                 height: "full",
-                overflowX: "hidden",
-                overflowY: "scroll",
+                overflow: "hidden",
                 display: "flex",
                 flexDirection: "column",
             })}

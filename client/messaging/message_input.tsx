@@ -421,7 +421,7 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                         backgroundColor="grey-5"
                         borderRadius={messageViewBubbleBorderRadius}
                     >
-                        <Box maxHeight="96" overflowX="hidden" overflowY="scroll">
+                        <Box maxHeight="96" overflowX="hidden" overflowY="auto">
                             <ContentEditor
                                 ref={editorRef}
                                 state={state}

@@ -731,7 +731,7 @@ function DocumentContentEditorStateful({
                     position="relative"
                     zIndex="0"
                     overflowX="hidden"
-                    overflowY="scroll"
+                    overflowY="auto"
                     style={{
                         width:
                             sidebarState.isOpen && sidebarState.animationState !== "Closing"

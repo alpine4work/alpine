@@ -246,7 +246,7 @@ function ContentEditorCommentInput({
                         backgroundColor="grey-5"
                         borderRadius={messageViewBubbleBorderRadius}
                     >
-                        <Box maxHeight="64" overflowX="hidden" overflowY="scroll">
+                        <Box maxHeight="64" overflowX="hidden" overflowY="auto">
                             <ContentEditor
                                 ref={editorRef}
                                 state={commentState}
