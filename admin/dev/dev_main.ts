@@ -2,6 +2,7 @@ import chalk from "chalk";
 import {ChildProcess} from "child_process";
 import chokidar from "chokidar";
 import fs from "fs-extra";
+import getPort from "get-port";
 import {networkInterfaces} from "os";
 import {basename, dirname, join as joinPath} from "path";
 import {
@@ -28,15 +29,16 @@ import {
     ensureDevServiceKeys,
 } from "~/admin/helpers/dev_service_keys.js";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
-import {waitForProcessExit} from "~/admin/helpers/wait_for_process_exit.js";
+import {waitForProcessExitWithAnyCode} from "~/admin/helpers/wait_for_process_exit.js";
 import {waitForProcessSpawn} from "~/admin/helpers/wait_for_process_spawn.js";
 import {workspacePath} from "~/admin/helpers/workspace_path.js";
 import {startOpensearchLocal} from "~/admin/opensearch/local/start_opensearch_local.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
+import {DeadlineExceededError, InvalidArgumentError} from "~/shared/error/error.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
+import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -52,26 +54,23 @@ process.title = "dev (cyberworlds, node)";
 const env = parseDotenv();
 
 const appDevPort = parseInt(assertExists(env.APP_DEV_PORT), 10);
-const appDevPrivatePort = parseInt(assertExists(env.APP_DEV_PRIVATE_PORT), 10);
 const honeycombApiKey = env.HONEYCOMB_API_KEY;
 const remixDevServerPort = parseInt(assertExists(env.REMIX_DEV_SERVER_PORT), 10);
 const dynamoLocalDataPath = joinPath(devEnvPaths.data, "dynamo");
 const dynamoLocalLogsPath = joinPath(devEnvPaths.log, "dynamo");
 const dynamoLocalPort = parseInt(assertExists(env.DYNAMO_LOCAL_PORT), 10);
 const edgeDevPort = parseInt(assertExists(env.EDGE_DEV_PORT), 10);
-const edgeDevPrivatePort = parseInt(assertExists(env.EDGE_DEV_PRIVATE_PORT), 10);
 const opensearchLocalDataPath = joinPath(devEnvPaths.data, "opensearch");
 const opensearchLocalLogsPath = joinPath(devEnvPaths.log, "opensearch");
 const opensearchLocalPort = parseInt(assertExists(env.OPENSEARCH_LOCAL_PORT), 10);
 const taskRealtimeDevPort = parseInt(assertExists(env.TASK_REALTIME_DEV_PORT), 10);
-const taskRealtimeDevPrivatePort = parseInt(assertExists(env.TASK_REALTIME_DEV_PRIVATE_PORT), 10);
 
-type Artifact = {
+export type Artifact = {
     readonly bazelTarget: string;
     readonly executablePath: string;
     readonly stdioPrefix: string;
-    readonly port: number;
-    readonly privatePort: number;
+    readonly publicPort: number;
+    privatePort: number;
     readonly env?: {readonly [key: string]: string};
     readonly args?: ReadonlyArray<string>;
     readonly server: MutexValue<ArtifactServer | null>;
@@ -90,68 +89,78 @@ export type ArtifactServer =
           readonly subprocess: null;
       };
 
-const artifacts: ReadonlyArray<Artifact> = [
-    {
-        bazelTarget: "//app",
-        executablePath: "app/app.sh",
-        stdioPrefix: "app",
-        env: {BAZEL_BINDIR: "."},
-        port: appDevPort,
-        privatePort: appDevPrivatePort,
-        args: [
-            `--edgeServiceUrl=http://localhost:${edgeDevPort}`,
-            `--appServicePublicKey=${devAppServicePublicKeyPath}`,
-            `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
-            `--taskRealtimeServicePublicKey=${devTaskRealtimeServicePublicKeyPath}`,
-            `--appServicePrivateKey=${devAppServicePrivateKeyPath}`,
-            `--remixDevServerPort=${remixDevServerPort}`,
-            "--shouldSeedDynamo",
-            `--dynamoLocalPort=${dynamoLocalPort}`,
-            `--opensearchLocalPort=${opensearchLocalPort}`,
-            `--taskRealtimeServiceLocalPort=${taskRealtimeDevPort}`,
-            ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
-        ],
-        server: new MutexValue<ArtifactServer | null>(null),
-        onServerRestart: async () => {
-            const remixDevServer = await remixDevServerPromise;
-            remixDevServer.reload();
+async function createArtifacts() {
+    const [privatePort1, privatePort2, privatePort3] = await runAllPromises([
+        getPort(),
+        getPort(),
+        getPort(),
+    ]);
+
+    const artifacts: ReadonlyArray<Artifact> = [
+        {
+            bazelTarget: "//app",
+            executablePath: "app/app.sh",
+            stdioPrefix: "app",
+            env: {BAZEL_BINDIR: "."},
+            publicPort: appDevPort,
+            privatePort: privatePort1,
+            args: [
+                `--edgeServiceUrl=http://localhost:${edgeDevPort}`,
+                `--appServicePublicKey=${devAppServicePublicKeyPath}`,
+                `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
+                `--taskRealtimeServicePublicKey=${devTaskRealtimeServicePublicKeyPath}`,
+                `--appServicePrivateKey=${devAppServicePrivateKeyPath}`,
+                `--remixDevServerPort=${remixDevServerPort}`,
+                "--shouldSeedDynamo",
+                `--dynamoLocalPort=${dynamoLocalPort}`,
+                `--opensearchLocalPort=${opensearchLocalPort}`,
+                `--taskRealtimeServiceLocalPort=${taskRealtimeDevPort}`,
+                ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
+            ],
+            server: new MutexValue<ArtifactServer | null>(null),
+            onServerRestart: async () => {
+                const remixDevServer = await remixDevServerPromise;
+                remixDevServer.reload();
+            },
         },
-    },
-    {
-        bazelTarget: "//server/edge",
-        executablePath: "server/edge/edge.sh",
-        stdioPrefix: "edg",
-        port: edgeDevPort,
-        privatePort: edgeDevPrivatePort,
-        args: [
-            `--appServiceUrl=http://localhost:${appDevPort}`,
-            `--appServicePublicKey=${devAppServicePublicKeyPath}`,
-            `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
-            `--taskRealtimeServicePublicKey=${devTaskRealtimeServicePublicKeyPath}`,
-            `--edgeServiceFamilyPrivateKey=${devEdgeServiceFamilyPrivateKeyPath}`,
-            ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
-        ],
-        server: new MutexValue<ArtifactServer | null>(null),
-    },
-    {
-        bazelTarget: "//server/tasks/realtime",
-        executablePath: "server/tasks/realtime/realtime.sh",
-        stdioPrefix: "tsk",
-        port: taskRealtimeDevPort,
-        privatePort: taskRealtimeDevPrivatePort,
-        args: [
-            `--edgeServiceUrl=http://localhost:${edgeDevPort}`,
-            `--appServicePublicKey=${devAppServicePublicKeyPath}`,
-            `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
-            `--taskRealtimeServicePublicKey=${devTaskRealtimeServicePublicKeyPath}`,
-            `--taskRealtimeServicePrivateKey=${devTaskRealtimeServicePrivateKeyPath}`,
-            `--dynamoLocalPort=${dynamoLocalPort}`,
-            `--opensearchLocalPort=${opensearchLocalPort}`,
-            ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
-        ],
-        server: new MutexValue<ArtifactServer | null>(null),
-    },
-];
+        {
+            bazelTarget: "//server/edge",
+            executablePath: "server/edge/edge.sh",
+            stdioPrefix: "edg",
+            publicPort: edgeDevPort,
+            privatePort: privatePort2,
+            args: [
+                `--appServiceUrl=http://localhost:${appDevPort}`,
+                `--appServicePublicKey=${devAppServicePublicKeyPath}`,
+                `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
+                `--taskRealtimeServicePublicKey=${devTaskRealtimeServicePublicKeyPath}`,
+                `--edgeServiceFamilyPrivateKey=${devEdgeServiceFamilyPrivateKeyPath}`,
+                ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
+            ],
+            server: new MutexValue<ArtifactServer | null>(null),
+        },
+        {
+            bazelTarget: "//server/tasks/realtime",
+            executablePath: "server/tasks/realtime/realtime.sh",
+            stdioPrefix: "tsk",
+            publicPort: taskRealtimeDevPort,
+            privatePort: privatePort3,
+            args: [
+                `--edgeServiceUrl=http://localhost:${edgeDevPort}`,
+                `--appServicePublicKey=${devAppServicePublicKeyPath}`,
+                `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
+                `--taskRealtimeServicePublicKey=${devTaskRealtimeServicePublicKeyPath}`,
+                `--taskRealtimeServicePrivateKey=${devTaskRealtimeServicePrivateKeyPath}`,
+                `--dynamoLocalPort=${dynamoLocalPort}`,
+                `--opensearchLocalPort=${opensearchLocalPort}`,
+                ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
+            ],
+            server: new MutexValue<ArtifactServer | null>(null),
+        },
+    ];
+
+    return artifacts;
+}
 
 // `null` entries are paths that are definitely not packages. Entries that
 // don't exist in the map we don't know whether they are a package or not.
@@ -201,14 +210,16 @@ const slowSetupPromise = runAllPromises([
     }),
 ]);
 
-const artifactsPromise = runAllPromises(
-    artifacts.map(async artifact => {
-        await runAllPromises([
-            rebuildArtifact(artifact),
-            updateArtifactDependencyBazelPackagePaths(artifact),
-            createDevProxyServer(artifact.port, artifact.privatePort, artifact.server),
-        ]);
-    }),
+const artifactsPromise = createArtifacts().then(artifacts =>
+    runAllPromises(
+        artifacts.map(async artifact => {
+            await runAllPromises([
+                rebuildArtifact(artifact),
+                updateArtifactDependencyBazelPackagePaths(artifact),
+                createDevProxyServer(artifact),
+            ]);
+        }),
+    ),
 );
 
 const fastMainPromise = runAllPromises([fastSetupPromise, artifactsPromise]);
@@ -277,17 +288,30 @@ async function rebuildArtifact(artifact: Artifact) {
             if (artifactServer.buildId === buildId) return;
 
             if (artifactServer.subprocess) {
-                const exitPromise = waitForProcessExit(artifactServer.subprocess).catch(() => {
-                    // Ignore errors. As long as the last process exits we can start the
-                    // new process.
+                // Start sending traffic to a new port before we kill the old port.
+                const privatePort = await getPort();
+                artifact.privatePort = privatePort;
+
+                // If our server process doesn't exit in a reasonable period of time, send
+                // `SIGKILL` to force the process to shutdown.
+                void Promise.race([
+                    wait(1000 * 60 * 2).then(() => false),
+                    waitForProcessExitWithAnyCode(artifactServer.subprocess).then(() => true),
+                ]).then(hasGracefullyExited => {
+                    if (!hasGracefullyExited) {
+                        // eslint-disable-next-line no-console
+                        console.error(
+                            new DeadlineExceededError(
+                                "Server graceful exit timeout exceeded, sending SIGKILL",
+                            ),
+                        );
+                        artifactServer.subprocess.kill("SIGKILL");
+                    }
                 });
 
+                // We don't wait for the old process to die. Immediately start sending traffic
+                // to the new process.
                 artifactServer.subprocess.kill("SIGINT");
-
-                // TODO(calebmer): Instead of waiting for old process to die, do zero downtime
-                // deploy procedure where we immediately start a new server process and route
-                // traffic there?
-                await exitPromise;
             }
 
             artifactServerRef.current = null;

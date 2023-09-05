@@ -1,16 +1,12 @@
 import http from "http";
 import net from "net";
-import {ArtifactServer} from "~/admin/dev/dev_main.js";
-import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
+import {Artifact} from "~/admin/dev/dev_main.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 // This will be ~5s of retrying.
 const retryDurationMs = 50;
 const maxRetryAttemptCount = 100;
-
-const keepAliveAgent = new http.Agent({keepAlive: true});
-const dontKeepAliveAgent = new http.Agent({keepAlive: false});
 
 /**
  * Create a server on `port1` that fully proxies the server on `port2`.
@@ -19,11 +15,12 @@ const dontKeepAliveAgent = new http.Agent({keepAlive: false});
  * way a developer may hit the server in their browser and will see a loading
  * spinner while we wait for the server to be ready.
  */
-export async function createDevProxyServer(
-    port1: number,
-    port2: number,
-    serverMutex: MutexValue<ArtifactServer | null>,
-) {
+export async function createDevProxyServer(artifact: Artifact) {
+    let lastPrivatePort = artifact.privatePort;
+
+    let keepAliveAgent = new http.Agent({keepAlive: true});
+    const dontKeepAliveAgent = new http.Agent({keepAlive: false});
+
     const proxyServer = http.createServer((proxyReq, proxyRes) => {
         let requestAttemptCount = 0;
         request();
@@ -31,7 +28,7 @@ export async function createDevProxyServer(
         function request() {
             // If the server failed to build then return a 500 and tell the developer to
             // look at the terminal.
-            const server = serverMutex.getWithoutLock();
+            const server = artifact.server.getWithoutLock();
             if (server?.hasBuildFailed) {
                 proxyRes.writeHead(500, {"content-type": "text/plain"});
                 proxyRes.end(`500 Internal Server Error: Bazel build failed (see terminal)`);
@@ -51,10 +48,20 @@ export async function createDevProxyServer(
 
             requestAttemptCount++;
 
+            // If the private port changes, then reset the keep-alive agent.
+            //
+            // TODO(calebmer): Destroy the last keep-alive agent when there are no more
+            // ongoing requests? Can't immediately destroy it since there may be a request
+            // we're finishing.
+            if (lastPrivatePort !== artifact.privatePort) {
+                lastPrivatePort = artifact.privatePort;
+                keepAliveAgent = new http.Agent({keepAlive: true});
+            }
+
             const req = http.request({
                 agent: keepAliveAgent,
                 hostname: "localhost",
-                port: port2,
+                port: artifact.privatePort,
                 path: proxyReq.url,
                 method: proxyReq.method,
                 headers: proxyReq.headers,
@@ -115,7 +122,7 @@ export async function createDevProxyServer(
         function request() {
             // If the server failed to build then return a 500 and tell the developer to
             // look at the terminal.
-            const server = serverMutex.getWithoutLock();
+            const server = artifact.server.getWithoutLock();
             if (server?.hasBuildFailed) {
                 proxySocket.write(
                     "HTTP/1.1 500 Internal Server Error\r\n" +
@@ -150,7 +157,7 @@ export async function createDevProxyServer(
                 // we try to reuse it.
                 agent: dontKeepAliveAgent,
                 hostname: "localhost",
-                port: port2,
+                port: artifact.privatePort,
                 path: proxyReq.url,
                 method: proxyReq.method,
                 headers: proxyReq.headers,
@@ -233,6 +240,6 @@ export async function createDevProxyServer(
     });
 
     await new Promise<void>(resolve => {
-        proxyServer.listen(port1, resolve);
+        proxyServer.listen(artifact.publicPort, resolve);
     });
 }
