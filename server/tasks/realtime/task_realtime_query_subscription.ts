@@ -4,9 +4,9 @@ import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {TaskRealtimeQuery} from "~/server/tasks/realtime/task_realtime_query.js";
 import {
-    TaskRealtimeQueryStoreCollectionEntry,
-    TaskRealtimeQueryStoreTaskEntry,
-} from "~/server/tasks/realtime/task_realtime_query_store.js";
+    TaskRealtimeStoreCollectionEntry,
+    TaskRealtimeStoreTaskEntry,
+} from "~/server/tasks/realtime/task_realtime_store.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
 import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -253,7 +253,7 @@ export class TaskRealtimeQuerySubscription {
 
 // Our subscription implementation has some public methods that
 // `TaskRealtimeQuery` is allowed to call but external users of
-// `TaskRealtimeQueryStore` should not (e.g. `onQueryTasksLoad`). These methods
+// `TaskRealtimeStore` should not (e.g. `onQueryTasksLoad`). These methods
 // are public on this internal class and we have a wrapper
 // `TaskRealtimeQuerySubscription` class with a public interface.
 export class TaskRealtimeQuerySubscriptionInternal {
@@ -267,7 +267,7 @@ export class TaskRealtimeQuerySubscriptionInternal {
         TaskId,
         {
             referenceCount: number;
-            taskEntry: PromiseImmediate<TaskRealtimeQueryStoreTaskEntry>;
+            taskEntry: PromiseImmediate<TaskRealtimeStoreTaskEntry>;
         }
     >();
 
@@ -275,7 +275,7 @@ export class TaskRealtimeQuerySubscriptionInternal {
         TaskCollectionId,
         {
             referenceCount: number;
-            collectionEntry: PromiseImmediate<TaskRealtimeQueryStoreCollectionEntry>;
+            collectionEntry: PromiseImmediate<TaskRealtimeStoreCollectionEntry>;
         }
     >();
 
@@ -869,7 +869,7 @@ export class TaskRealtimeQuerySubscriptionInternal {
             referencedTaskEntry.referenceCount++;
         } else {
             const taskEntryPromiseResolver =
-                createPromiseImmediateResolver<TaskRealtimeQueryStoreTaskEntry>();
+                createPromiseImmediateResolver<TaskRealtimeStoreTaskEntry>();
 
             // Use a promise resolver for `taskEntry` since we want to update
             // `_referencedTaskEntryById` immediately before calling `_onReferencedTaskAdd`

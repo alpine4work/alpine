@@ -8,7 +8,7 @@ import {
     backfillTaskActionTransactionHistory,
 } from "~/server/tasks/data/task_table.js";
 import {TaskRealtimeActionHistory} from "~/server/tasks/realtime/task_realtime_action_history.js";
-import {TaskRealtimeQueryStore} from "~/server/tasks/realtime/task_realtime_query_store.js";
+import {TaskRealtimeStore} from "~/server/tasks/realtime/task_realtime_store.js";
 import {
     TaskRealtimeQuerySubscription,
     TaskRealtimeQuerySubscriptionCallbacks,
@@ -67,11 +67,11 @@ export class TaskRealtimeServer {
     private readonly _startActionHistory: () => void;
     private readonly _stopActionHistory: () => void;
     private readonly _backfillActionHistoryPromiseBySpaceId = new Map<SpaceId, Promise<void>>();
-    private _scheduledStoresForEviction = new Set<TaskRealtimeQueryStore>();
+    private _scheduledStoresForEviction = new Set<TaskRealtimeStore>();
     private _disableActionHistoryBackfillForTest?: boolean;
 
-    private readonly _storeBySpaceId = new DefaultMap<SpaceId, TaskRealtimeQueryStore>(spaceId => {
-        const store: TaskRealtimeQueryStore = new TaskRealtimeQueryStore({
+    private readonly _storeBySpaceId = new DefaultMap<SpaceId, TaskRealtimeStore>(spaceId => {
+        const store: TaskRealtimeStore = new TaskRealtimeStore({
             spaceId,
             actionHistory: this._actionHistory,
             ensureFullActionHistory: context => this._ensureFullActionHistory(context, spaceId),

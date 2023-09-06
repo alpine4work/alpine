@@ -46,7 +46,7 @@ type TaskRealtimeWorkingUpdateEvent = {
     backfillUnauthorizedCollectionIds: Set<TaskCollectionId>;
 };
 
-export const taskRealtimeQueryStoreBeforeSendEventTestCheckpoint = new TestCheckpoint<SpaceId>();
+export const taskRealtimeStoreBeforeSendEventTestCheckpoint = new TestCheckpoint<SpaceId>();
 
 /**
  * Builds an update event for the client.
@@ -59,7 +59,7 @@ export const taskRealtimeQueryStoreBeforeSendEventTestCheckpoint = new TestCheck
  *   to share code paths with realtime updates so we need to support that too
  *   which is usually sending events to a single client
  *
- * So when `TaskRealtimeQueryStore` sees a new action transaction, it uses our
+ * So when `TaskRealtimeStore` sees a new action transaction, it uses our
  * subscription machinery to figure out which dependents may need to see the
  * action. Eventually we call the `TaskRealtimeConnection`'s query subscription
  * callbacks. These callbacks "accept" actions on tasks by calling methods on
@@ -109,7 +109,7 @@ export class TaskRealtimeUpdateEventBuilder {
         assert(!this._isSending);
         this._isSending = true;
 
-        await taskRealtimeQueryStoreBeforeSendEventTestCheckpoint.waitForTest(spaceId);
+        await taskRealtimeStoreBeforeSendEventTestCheckpoint.waitForTest(spaceId);
 
         // Wait for all our `waitUntil()` promises to resolve before building the
         // final event.

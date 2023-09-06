@@ -7,9 +7,9 @@ import {queryTaskIndex} from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {mightTaskActionAddTaskToQueryLoadedRange} from "~/server/tasks/realtime/might_task_action_add_task_to_query_loaded_range.js";
 import {
-    TaskRealtimeQueryStoreInternal,
-    TaskRealtimeQueryStoreTaskEntry,
-} from "~/server/tasks/realtime/task_realtime_query_store.js";
+    TaskRealtimeStoreInternal,
+    TaskRealtimeStoreTaskEntry,
+} from "~/server/tasks/realtime/task_realtime_store.js";
 import {TaskRealtimeQuerySubscriptionInternal} from "~/server/tasks/realtime/task_realtime_query_subscription.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
 import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
@@ -53,10 +53,10 @@ const previousTaskByIdByQueryForTest =
  * may be missing tasks outside the loaded range. The loaded range starts at
  * the beginning of the query.
  *
- * Works closely with `TaskRealtimeQueryStore` where the subscribed tasks in a
+ * Works closely with `TaskRealtimeStore` where the subscribed tasks in a
  * space are stored and kept up-to-date in realtime. This class does not hold
  * the task objects themselves, since multiple queries can reference the same
- * task tasks are stored in `TaskRealtimeQueryStore` (which also owns query
+ * task tasks are stored in `TaskRealtimeStore` (which also owns query
  * classes).
  *
  * The entire query doesn't need to be loaded at once. We may have a partially
@@ -67,7 +67,7 @@ const previousTaskByIdByQueryForTest =
  * this query class that manages client WebSocket connections and permissions.
  */
 export class TaskRealtimeQuery {
-    public readonly store: TaskRealtimeQueryStoreInternal;
+    public readonly store: TaskRealtimeStoreInternal;
     public readonly filters: TaskQueryNormalizedFilters;
     public readonly sorts: ReadonlyArray<TaskQueryNormalizedSort>;
 
@@ -78,7 +78,7 @@ export class TaskRealtimeQuery {
      * tree to get O(log(n)) insertion/removal of tasks at any point in the list.
      *
      * We only store task cursors in our tree (to establish order). The full task
-     * object can be found in `TaskRealtimeQueryStore` which is shared across all
+     * object can be found in `TaskRealtimeStore` which is shared across all
      * queries in a space.
      *
      * Queries have a "loaded range" in which we keep all tasks in the query of
@@ -142,7 +142,7 @@ export class TaskRealtimeQuery {
     private readonly _subscriptions = new Set<TaskRealtimeQuerySubscriptionInternal>();
 
     constructor(
-        store: TaskRealtimeQueryStoreInternal,
+        store: TaskRealtimeStoreInternal,
         {
             filters,
             sorts,
@@ -486,7 +486,7 @@ export class TaskRealtimeQuery {
         afterCursor: TaskQuerySortCursor | null,
         loadedTasks: Array<TaskIndexDoc>,
     ): Promise<unknown> {
-        const addVisibleTask = (taskEntry: TaskRealtimeQueryStoreTaskEntry) => {
+        const addVisibleTask = (taskEntry: TaskRealtimeStoreTaskEntry) => {
             const cursor = getTaskQueryNormalizedSortCursorForIndexDoc(this.sorts, taskEntry.task);
 
             // If our fresh task wants to go into our already loaded range then ignore it!
@@ -530,7 +530,7 @@ export class TaskRealtimeQuery {
 
         const freshTaskEntryById = new Map<
             TaskId,
-            {taskEntry: TaskRealtimeQueryStoreTaskEntry; oldTask: TaskIndexDoc}
+            {taskEntry: TaskRealtimeStoreTaskEntry; oldTask: TaskIndexDoc}
         >();
 
         const hasMoreLoadedTasks = loadedTasks.length > limit;
@@ -735,7 +735,7 @@ export class TaskRealtimeQuery {
     }
 
     /**
-     * When a task that's visible in our query changes `TaskRealtimeQueryStore`
+     * When a task that's visible in our query changes `TaskRealtimeStore`
      * calls this function. The query is then responsible for:
      *
      * 1. Determining if the task is still visible after the update

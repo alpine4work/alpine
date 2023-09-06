@@ -9,10 +9,10 @@ import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.
 import {queryTaskIndexTestCounter} from "~/server/tasks/data/task_index.js";
 import {TaskRealtimeConnection} from "~/server/tasks/realtime/task_realtime_connection.js";
 import {
-    taskRealtimeQueryStoreBeforeLoadCollectionTestCheckpoint,
-    taskRealtimeQueryStoreBeforeLoadTaskTestCheckpoint,
-} from "~/server/tasks/realtime/task_realtime_query_store.js";
-import {taskRealtimeQueryStoreBeforeSendEventTestCheckpoint} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
+    taskRealtimeStoreBeforeLoadCollectionTestCheckpoint,
+    taskRealtimeStoreBeforeLoadTaskTestCheckpoint,
+} from "~/server/tasks/realtime/task_realtime_store.js";
+import {taskRealtimeStoreBeforeSendEventTestCheckpoint} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
 import {TestTaskRealtimeServer} from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
@@ -7155,11 +7155,9 @@ test("race condition: parent task can change before previous parent task has loa
     );
 
     // Pause loading of `task2`...
-    const pausePromise1 = taskRealtimeQueryStoreBeforeLoadTaskTestCheckpoint.pauseForTest(space.id);
+    const pausePromise1 = taskRealtimeStoreBeforeLoadTaskTestCheckpoint.pauseForTest(space.id);
 
-    const pausePromise2 = taskRealtimeQueryStoreBeforeSendEventTestCheckpoint.pauseForTest(
-        space.id,
-    );
+    const pausePromise2 = taskRealtimeStoreBeforeSendEventTestCheckpoint.pauseForTest(space.id);
 
     await task1.updateParentTask(session, task2);
     const waitPromise1 = server.waitForApplyActionTransactions();
@@ -7170,9 +7168,7 @@ test("race condition: parent task can change before previous parent task has loa
 
     expect(connection1.takeEvents()).toEqual([]);
 
-    const pausePromise3 = taskRealtimeQueryStoreBeforeSendEventTestCheckpoint.pauseForTest(
-        space.id,
-    );
+    const pausePromise3 = taskRealtimeStoreBeforeSendEventTestCheckpoint.pauseForTest(space.id);
 
     // Update to `task3` before `task2` has loaded.
     await task1.updateParentTask(session, task3);
@@ -7329,11 +7325,9 @@ test("race condition: parent task can change before previous grandparent task ha
     ]);
 
     // Pause loading of `task4`...
-    const pausePromise1 = taskRealtimeQueryStoreBeforeLoadTaskTestCheckpoint.pauseForTest(space.id);
+    const pausePromise1 = taskRealtimeStoreBeforeLoadTaskTestCheckpoint.pauseForTest(space.id);
 
-    const pausePromise2 = taskRealtimeQueryStoreBeforeSendEventTestCheckpoint.pauseForTest(
-        space.id,
-    );
+    const pausePromise2 = taskRealtimeStoreBeforeSendEventTestCheckpoint.pauseForTest(space.id);
 
     // Make sure `task2` and `task3` are loaded in the store...
     void connection2.procedures.subscribeToQuery(
@@ -7362,9 +7356,7 @@ test("race condition: parent task can change before previous grandparent task ha
     // We've reached `eventBuilder.send()` which is blocked on loading `task4`.
     (await pausePromise2).unpause();
 
-    const pausePromise3 = taskRealtimeQueryStoreBeforeSendEventTestCheckpoint.pauseForTest(
-        space.id,
-    );
+    const pausePromise3 = taskRealtimeStoreBeforeSendEventTestCheckpoint.pauseForTest(space.id);
     await task1.updateParentTask(session, task2);
     const waitPromise1 = server.waitForApplyActionTransactions();
 
@@ -7373,9 +7365,7 @@ test("race condition: parent task can change before previous grandparent task ha
 
     expect(connection1.takeEvents()).toEqual([]);
 
-    const pausePromise4 = taskRealtimeQueryStoreBeforeSendEventTestCheckpoint.pauseForTest(
-        space.id,
-    );
+    const pausePromise4 = taskRealtimeStoreBeforeSendEventTestCheckpoint.pauseForTest(space.id);
 
     // Update to `task3` before `task4` has loaded.
     await task1.updateParentTask(session, task3);
@@ -7533,11 +7523,9 @@ test("race condition: parent task is removed before it's loaded", async () => {
     ]);
 
     // Pause loading of `task2`...
-    const pausePromise1 = taskRealtimeQueryStoreBeforeLoadTaskTestCheckpoint.pauseForTest(space.id);
+    const pausePromise1 = taskRealtimeStoreBeforeLoadTaskTestCheckpoint.pauseForTest(space.id);
 
-    const pausePromise2 = taskRealtimeQueryStoreBeforeSendEventTestCheckpoint.pauseForTest(
-        space.id,
-    );
+    const pausePromise2 = taskRealtimeStoreBeforeSendEventTestCheckpoint.pauseForTest(space.id);
 
     await task1.updateParentTask(session, task2);
     const waitPromise1 = server.waitForApplyActionTransactions();
@@ -7548,9 +7536,7 @@ test("race condition: parent task is removed before it's loaded", async () => {
 
     expect(connection.takeEvents()).toEqual([]);
 
-    const pausePromise3 = taskRealtimeQueryStoreBeforeSendEventTestCheckpoint.pauseForTest(
-        space.id,
-    );
+    const pausePromise3 = taskRealtimeStoreBeforeSendEventTestCheckpoint.pauseForTest(space.id);
 
     // Remove `task1` from loaded tasks.
     await task1.updateAssignee(session, null);
@@ -7677,13 +7663,11 @@ test("race condition: collection can be removed before previous collection has l
     ]);
 
     // Pause loading of `collection`...
-    const pausePromise1 = taskRealtimeQueryStoreBeforeLoadCollectionTestCheckpoint.pauseForTest(
+    const pausePromise1 = taskRealtimeStoreBeforeLoadCollectionTestCheckpoint.pauseForTest(
         space.id,
     );
 
-    const pausePromise2 = taskRealtimeQueryStoreBeforeSendEventTestCheckpoint.pauseForTest(
-        space.id,
-    );
+    const pausePromise2 = taskRealtimeStoreBeforeSendEventTestCheckpoint.pauseForTest(space.id);
 
     await task1.addCollection(session, collection);
     const waitPromise1 = server.waitForApplyActionTransactions();
@@ -7694,9 +7678,7 @@ test("race condition: collection can be removed before previous collection has l
 
     expect(connection1.takeEvents()).toEqual([]);
 
-    const pausePromise3 = taskRealtimeQueryStoreBeforeSendEventTestCheckpoint.pauseForTest(
-        space.id,
-    );
+    const pausePromise3 = taskRealtimeStoreBeforeSendEventTestCheckpoint.pauseForTest(space.id);
 
     // Remove `collection` fore `collection` has loaded.
     await task1.removeCollection(session, collection);
@@ -7826,13 +7808,11 @@ test("race condition: parent task can change before previous collection of paren
     ]);
 
     // Pause loading of `collection`...
-    const pausePromise1 = taskRealtimeQueryStoreBeforeLoadCollectionTestCheckpoint.pauseForTest(
+    const pausePromise1 = taskRealtimeStoreBeforeLoadCollectionTestCheckpoint.pauseForTest(
         space.id,
     );
 
-    const pausePromise2 = taskRealtimeQueryStoreBeforeSendEventTestCheckpoint.pauseForTest(
-        space.id,
-    );
+    const pausePromise2 = taskRealtimeStoreBeforeSendEventTestCheckpoint.pauseForTest(space.id);
 
     // Make sure `task2` is loaded in the store...
     void connection2.procedures.subscribeToQuery(
@@ -7861,9 +7841,7 @@ test("race condition: parent task can change before previous collection of paren
     // We've reached `eventBuilder.send()` which is blocked on loading `collection`.
     (await pausePromise2).unpause();
 
-    const pausePromise3 = taskRealtimeQueryStoreBeforeSendEventTestCheckpoint.pauseForTest(
-        space.id,
-    );
+    const pausePromise3 = taskRealtimeStoreBeforeSendEventTestCheckpoint.pauseForTest(space.id);
     await task1.updateParentTask(session, task2);
     const waitPromise1 = server.waitForApplyActionTransactions();
 
@@ -7872,9 +7850,7 @@ test("race condition: parent task can change before previous collection of paren
 
     expect(connection1.takeEvents()).toEqual([]);
 
-    const pausePromise4 = taskRealtimeQueryStoreBeforeSendEventTestCheckpoint.pauseForTest(
-        space.id,
-    );
+    const pausePromise4 = taskRealtimeStoreBeforeSendEventTestCheckpoint.pauseForTest(space.id);
 
     // Remove parent before `collection` has loaded.
     await task1.updateParentTask(session, null);
@@ -11984,7 +11960,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
         },
     ];
 
-    const pause1Promise = taskRealtimeQueryStoreBeforeLoadTaskTestCheckpoint.pauseForTest(space.id);
+    const pause1Promise = taskRealtimeStoreBeforeLoadTaskTestCheckpoint.pauseForTest(space.id);
 
     const applyActions1Promise = server.applyActionTransaction({
         spaceId: space.id,
@@ -12005,9 +11981,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
 
     expect(connection2.takeEvents()).toEqual([]);
 
-    const pause2Promise = taskRealtimeQueryStoreBeforeSendEventTestCheckpoint.pauseForTest(
-        space.id,
-    );
+    const pause2Promise = taskRealtimeStoreBeforeSendEventTestCheckpoint.pauseForTest(space.id);
 
     const subscribePromise = connection2.procedures.subscribeToQuery(
         query(session, {
@@ -12177,7 +12151,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
         },
     ];
 
-    const pause1Promise = taskRealtimeQueryStoreBeforeLoadTaskTestCheckpoint.pauseForTest(space.id);
+    const pause1Promise = taskRealtimeStoreBeforeLoadTaskTestCheckpoint.pauseForTest(space.id);
 
     const applyActions1Promise = server.applyActionTransaction({
         spaceId: space.id,
@@ -12198,9 +12172,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
 
     expect(connection2.takeEvents()).toEqual([]);
 
-    const pause2Promise = taskRealtimeQueryStoreBeforeSendEventTestCheckpoint.pauseForTest(
-        space.id,
-    );
+    const pause2Promise = taskRealtimeStoreBeforeSendEventTestCheckpoint.pauseForTest(space.id);
 
     const subscribePromise = connection2.procedures.subscribeToQuery(
         query(session, {
@@ -12243,9 +12215,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
         },
     ];
 
-    const pause3Promise = taskRealtimeQueryStoreBeforeSendEventTestCheckpoint.pauseForTest(
-        space.id,
-    );
+    const pause3Promise = taskRealtimeStoreBeforeSendEventTestCheckpoint.pauseForTest(space.id);
 
     const applyActions4Promise = server.applyActionTransaction({
         spaceId: space.id,

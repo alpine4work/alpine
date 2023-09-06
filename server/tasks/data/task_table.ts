@@ -2446,7 +2446,7 @@ export async function authorizeTaskQueryAccess(
  * OpenSearch is at least 30sec behind a `TaskEssentialAttributesItem` loaded
  * from DynamoDB since 30sec is our OpenSearch refresh rate. If you're in
  * `TaskRealtimeService` then you have up-to-date `TaskIndexDoc`s in
- * `TaskRealtimeQueryStore` so those are ok to use with this function.
+ * `TaskRealtimeStore` so those are ok to use with this function.
  */
 function convertTaskIndexDocToItem(task: TaskIndexDoc): TaskEssentialAttributesItem {
     return {
