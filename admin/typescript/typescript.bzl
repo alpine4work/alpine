@@ -103,6 +103,7 @@ def ts_project(
 
             extra_kwargs = tests[test_name] if test_name in tests else {}
             extra_tags = extra_kwargs.pop("tags", default = [])
+            extra_node_options = extra_kwargs.pop("node_options", default = [])
 
             jest_bin.jest_test(
                 name = test_name,
@@ -137,7 +138,7 @@ def ts_project(
                     # Enable Node.js and Jest's experimental ES Modules support.
                     # https://jestjs.io/docs/ecmascript-modules
                     "--experimental-vm-modules",
-                ],
+                ] + extra_node_options,
                 data = _dedupe_labels(deps + test_deps + test_data + [
                                           "//:node_modules/@juggle/resize-observer",
                                           "//:node_modules/@testing-library/jest-dom",

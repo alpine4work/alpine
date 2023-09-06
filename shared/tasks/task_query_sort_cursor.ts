@@ -12,6 +12,10 @@ export type TaskQuerySortCursor = [...ReadonlyArray<TaskQuerySortCursorValue>, T
 
 export type TaskQuerySortCursorValue = string | number | ReadonlyArray<string | number> | null;
 
+export function getTaskQuerySortCursorTaskId(cursor: TaskQuerySortCursor): TaskId {
+    return cursor[cursor.length - 1] as TaskId;
+}
+
 /**
  * Compare two query sort cursors to determine where the task belongs in the
  * query relative to other tasks.

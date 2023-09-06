@@ -36,7 +36,7 @@ export type TaskId = NominalIdType<"Task">;
 export type TaskCollectionId = NominalIdType<"TaskCollection">;
 export type TaskActionTransactionId = NominalIdType<"TaskActionTransaction">;
 export type TaskRealtimeQuerySubscriptionId = NominalIdType<"TaskRealtimeQuerySubscription">;
-export type TaskQueryModelId = NominalIdType<"TaskQueryModel">;
+export type TaskClientQueryId = NominalIdType<"TaskClientQuery">;
 
 /**
  * A specialization of `AccountId`. We use this as the type of a

@@ -1,13 +1,15 @@
+import {TaskClientStore} from "~/client/tasks/internal/store/task_client_store.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
+import {waitMacrotask} from "~/shared/helpers/async/wait_macrotask.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
-import {TaskModelStore} from "~/shared/tasks/model/task_model_store.js";
 import {testTaskActionPermutations} from "~/shared/tasks/test_helpers/test_task_action_permutations.js";
 
 const spaceId = generateId<SpaceId>();
 let eventNumber = 1;
-let store = TaskModelStore.new({spaceId});
+const store = new TaskClientStore({spaceId});
 
 const account1 = new AccountModel({
     id: generateId(),
@@ -25,7 +27,7 @@ testTaskActionPermutations({
     account1,
     account2,
     applyTaskAction: action => {
-        store = store.applyUpdateEvent({
+        store.applyUpdateEvent({
             type: "Update",
             number: eventNumber++,
             actions: [action],
@@ -35,23 +37,11 @@ testTaskActionPermutations({
             backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [],
         });
-
-        const otherStore = store.applyUpdateEvent({
-            type: "Update",
-            number: eventNumber++,
-            actions: [action],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
-            referencedAccounts: [],
-        });
-
-        // Test that if we apply an action twice it's a noop.
-        expect(otherStore).toBe(store);
     },
     getTask: taskId => {
-        const task = store.getTaskForTest(taskId);
+        // Task should exist. `WeakRef`s aren't garbage collected until the end of the
+        // current JavaScript job (synchronous code and promise reactions).
+        const task = assertExists(store.getTaskIfExistsForTest(taskId));
 
         return {
             creator: task.getCreator(),
@@ -86,7 +76,9 @@ testTaskActionPermutations({
         };
     },
     getTaskCollection: collectionId => {
-        const collection = store.getCollectionForTest(collectionId);
+        // Collection should exist. `WeakRef`s aren't garbage collected until the end
+        // of the current JavaScript job (synchronous code and promise reactions).
+        const collection = assertExists(store.getCollectionIfExistsForTest(collectionId));
 
         return {
             createdTime: collection.getCreatedTime(),
@@ -95,4 +87,22 @@ testTaskActionPermutations({
             accessPolicy: collection.getAccessPolicy(),
         };
     },
+});
+
+test("the store empties out after a garbage collection", async () => {
+    // We need multiple garbage collections to fully clean out the store. I'm not
+    // sure why V8 needs this.
+    await waitMacrotask();
+    global.gc!();
+    await waitMacrotask();
+    global.gc!();
+    await waitMacrotask();
+    global.gc!();
+    await waitMacrotask();
+    global.gc!();
+    await waitMacrotask();
+    global.gc!();
+
+    expect(store.getTaskCountForTest()).toEqual(0);
+    expect(store.getCollectionCountForTest()).toEqual(0);
 });

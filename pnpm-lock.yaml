@@ -1,4 +1,4 @@
-lockfileVersion: '6.0'
+lockfileVersion: '6.1'
 
 settings:
   autoInstallPeers: true
@@ -44,7 +44,7 @@ patchedDependencies:
     hash: aw4qjtd7azdvs67jkawigt7yqi
     path: admin/patches/@remix-run__server-runtime@1.18.0.patch
   '@types/functional-red-black-tree@1.0.1':
-    hash: sxycuhdxvf4ubkm5bkuezvuy6i
+    hash: y7qvz66glgshbez7p4ffcn2dmi
     path: admin/patches/@types__functional-red-black-tree@1.0.1.patch
   '@types/node@20.3.2':
     hash: 4zjoxiw4th676hgmdgid4hevxy
@@ -209,7 +209,7 @@ dependencies:
     version: 9.0.13
   '@types/functional-red-black-tree':
     specifier: ^1.0.1
-    version: 1.0.1(patch_hash=sxycuhdxvf4ubkm5bkuezvuy6i)
+    version: 1.0.1(patch_hash=y7qvz66glgshbez7p4ffcn2dmi)
   '@types/is-ci':
     specifier: ^3.0.0
     version: 3.0.0
@@ -5898,7 +5898,7 @@ packages:
       '@types/node': 20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy)
     dev: false
 
-  /@types/functional-red-black-tree@1.0.1(patch_hash=sxycuhdxvf4ubkm5bkuezvuy6i):
+  /@types/functional-red-black-tree@1.0.1(patch_hash=y7qvz66glgshbez7p4ffcn2dmi):
     resolution: {integrity: sha512-gUXkc6hiRJ2yPyiidbDbtU5YDt0c8JjYjq671QPYmJg2kiYS53/814Hg2SY4wqL/hfCzfa3NZzeh2e30YhALww==}
     dev: false
     patched: true

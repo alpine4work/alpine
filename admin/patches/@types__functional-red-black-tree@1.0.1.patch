@@ -1,18 +1,21 @@
 diff --git a/index.d.ts b/index.d.ts
-index 1fd8dbcc2d80518bb4f26d33d560fb73483e0def..0e7c50d421b8a0b882bc440afc53e52d527c6be6 100755
+index 1fd8dbcc2d80518bb4f26d33d560fb73483e0def..ed3192b3523a80a570563d87fe67306464d0e7c6 100755
 --- a/index.d.ts
 +++ b/index.d.ts
-@@ -7,7 +7,8 @@ declare namespace createRBTree {
+@@ -7,7 +7,11 @@ declare namespace createRBTree {
      /** Represents a functional red-black tree. */
      interface Tree<K, V> {
          /** Returns the root node of the tree. */
 -        root: Node<K, V>;
 +        // NOTE(calebmer): Fix incorrect type in type definition.
-+        root: Node<K, V> | null;
++        readonly root: Node<K, V> | null;
++
++        // NOTE(calebmer): Allow access to the comparison function.
++        readonly _compare: (key1: K, key2: K) => number;
  
          /** A sorted array of all keys in the tree. */
          readonly keys: K[];
-@@ -107,7 +108,9 @@ declare namespace createRBTree {
+@@ -107,7 +111,9 @@ declare namespace createRBTree {
           * @param key The key of the item to look up.
           * @returns The value of the first node associated with `key`.
           */
@@ -23,7 +26,7 @@ index 1fd8dbcc2d80518bb4f26d33d560fb73483e0def..0e7c50d421b8a0b882bc440afc53e52d
      }
  
      /** Iterates through the nodes in a red-black tree. */
-@@ -161,6 +164,10 @@ declare namespace createRBTree {
+@@ -161,6 +167,10 @@ declare namespace createRBTree {
  
          /** If true, then the iterator is not at the beginning of the sequence. */
          readonly hasPrev: boolean;
@@ -34,7 +37,7 @@ index 1fd8dbcc2d80518bb4f26d33d560fb73483e0def..0e7c50d421b8a0b882bc440afc53e52d
      }
  
      /** Represents a node in a red-black tree. */
-@@ -172,10 +179,16 @@ declare namespace createRBTree {
+@@ -172,10 +182,16 @@ declare namespace createRBTree {
          value: V;
  
          /** The left subtree of the node. */

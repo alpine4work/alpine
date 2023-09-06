@@ -2,6 +2,11 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "helpers",
+    tests = {
+        "store/internal/flattened_store_test": {
+            "node_options": ["--expose-gc"],
+        },
+    },
     visibility = [
         "//app:__subpackages__",
         "//client:__subpackages__",
@@ -18,6 +23,7 @@ ts_project(
         "//:node_modules/classnames",
         "//:node_modules/color",
         "//:node_modules/dedent",
+        "//:node_modules/functional-red-black-tree",
         "//:node_modules/react",
         "//:node_modules/react-router-dom",
         "//:node_modules/scheduler",

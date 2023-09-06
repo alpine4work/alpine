@@ -22,12 +22,12 @@ export const propagateEventDataKey = "_propagateEventData";
 
 /**
  * A key for accessing data returned by a loader that should be integrated into
- * the shared `TaskModelStore`. We have a shared `TaskModelStore` in the
- * `/s/:spaceId` layout component but we need to get data into that store
+ * the shared `TaskClientStore`. We have a shared `TaskClientStore` in
+ * the `/s/:spaceId` layout component but we need to get data into that store
  * through sub-route loaders. We do this with a special key on our loader data.
  *
  * We don't want code to directly accesses this property, instead use this
  * variable. That makes code related to shared task store data loading with
  * `jsonWithSchema()` easier to track.
  */
-export const taskStoreDataKey = "_taskStoreData";
+export const loadTaskQueryDataKey = "_loadTaskQueryData";
