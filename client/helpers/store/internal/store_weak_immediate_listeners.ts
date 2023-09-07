@@ -20,31 +20,41 @@ export class StoreWeakImmediateListeners {
         },
     );
 
-    public addListener(listener: () => void) {
+    /**
+     * Adds a listener. Returns true if this is the first listener.
+     */
+    public addListener(listener: () => void): boolean {
         const listenerEntry = this._listeners.get(listener);
 
         if (listenerEntry !== undefined) {
             listenerEntry.count++;
+            return false;
         } else {
             const listenerRef = new WeakRef(listener);
 
             this._listeners.set(listener, {count: 1, ref: listenerRef});
             this._listenerRefs.add(listenerRef);
             this._finalizationRegistry.register(listener, listenerRef, listenerRef);
+            return true;
         }
     }
 
-    public removeListener(listener: () => void) {
+    /**
+     * Removes a listener. Returns true if this is the last listener.
+     */
+    public removeListener(listener: () => void): boolean {
         const listenerEntry = this._listeners.get(listener);
 
         if (listenerEntry === undefined) {
             throw new InternalError("Can't remove listener that wasn't added to store");
         } else if (listenerEntry.count > 1) {
             listenerEntry.count--;
+            return false;
         } else {
             this._listeners.delete(listener);
             this._listenerRefs.delete(listenerEntry.ref);
             this._finalizationRegistry.unregister(listenerEntry.ref);
+            return true;
         }
     }
 

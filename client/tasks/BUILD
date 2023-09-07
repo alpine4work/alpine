@@ -2,6 +2,12 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "tasks",
+    test_deps = ["//shared/tasks/test_helpers"],
+    tests = {
+        "task_client_store_permutations_test": {
+            "node_options": ["--expose-gc"],
+        },
+    },
     visibility = [
         "//app:__subpackages__",
         "//client:__subpackages__",

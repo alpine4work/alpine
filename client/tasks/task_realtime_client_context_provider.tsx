@@ -1,15 +1,17 @@
-import {ReactNode, useContext, useEffect, useRef, useState} from "react";
+import {ReactNode, createContext, useContext, useEffect, useRef, useState} from "react";
 import {UNSAFE_DataRouterStateContext as DataRouterStateContext} from "react-router";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
+import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {TaskRealtimeClient} from "~/client/tasks/task_realtime_client.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
-import {taskStoreDataKey} from "~/shared/remix/json_with_schema_shared.js";
+import {loadTaskQueryDataKey} from "~/shared/remix/json_with_schema_shared.js";
 import {TaskStoreLoaderDataSchema} from "~/shared/remix/task_store_loader_data.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
@@ -34,58 +36,72 @@ function getTaskRealtimeClientIfExistsForClient(spaceId: SpaceId): TaskRealtimeC
     return taskRealtimeClientBySpaceIdForClient.get(spaceId)?.client ?? null;
 }
 
-function loadTaskStoreDataIntoClient(
+function loadTaskQueryDataIntoClient(
     client: TaskRealtimeClient,
     serializedData: SchemaSerializedValue,
 ) {
     if (!isPlainObject(serializedData)) return;
 
-    const taskStoreSerializedData = serializedData[taskStoreDataKey];
-    if (!taskStoreSerializedData) return;
+    const loadTaskQueryDataSerializedValue = serializedData[loadTaskQueryDataKey];
+    if (!loadTaskQueryDataSerializedValue) return;
 
-    const taskStoreData = getLoaderDataWithSchema(
+    const loadTaskQueryData = getLoaderDataWithSchema(
         TaskStoreLoaderDataSchema,
-        taskStoreSerializedData,
+        loadTaskQueryDataSerializedValue,
     );
 
-    client.updateStore(store => {
-        for (const query of taskStoreData.queries) {
-            store = store.newQuery(query.id, query);
+    batchStoreUpdates(() => {
+        for (const query of loadTaskQueryData.queries) {
+            client.store.createQuery(query);
         }
 
-        store = store.applyUpdateEvent(taskStoreData.updateEvent);
+        client.store.applyUpdateEvent(loadTaskQueryData.updateEvent);
 
-        for (const query of taskStoreData.queries) {
-            store = store.loadTasksIntoQuery(query.id, {
+        for (const query of loadTaskQueryData.queries) {
+            client.store.loadTasksIntoQuery(query.id, {
                 loadedState: query.loadedState,
                 previouslyBackfilledTaskIds: [],
             });
         }
-
-        return store;
     });
 }
 
 /**
  * Function that should be called by `clientLoader` for any route that returns
- * data in the `taskStoreData` shared key.
+ * data in the `loadTaskQueryData` shared key.
  *
  * On initial render `<TaskRealtimeClientContextProvider>` loads data from
- * `taskStoreData` into our `TaskRealtimeClient`. However on subsequent client
- * navigations, we need to imperatively update `TaskRealtimeClient` before the
- * render so data is available.
+ * `loadTaskQueryData` into our `TaskRealtimeClient`. However on subsequent
+ * client navigations, we need to imperatively update `TaskRealtimeClient`
+ * before the render so data is available.
  *
  * We use the `clientLoader` feature we've added to Remix to imperatively
  * update `TaskRealtimeClient` before a render.
  * `<TaskRealtimeClientContextProvider>` lives on `/s/:spaceId` but we can't
  * use the `/s/:spaceId` route's `clientLoader` since `/s/:spaceId` doesn't
  * revalidate unless the `SpaceId` changes. So it's the route which loaded
- * `taskStoreData`'s responsibility to imperatively update `TaskRealtimeClient`
- * in their `clientLoader`. You can perform this update with this function.
+ * `loadTaskQueryData`'s responsibility to imperatively update
+ * `TaskRealtimeClient` in their `clientLoader`. You can perform this update
+ * with this function.
  */
-export function taskStoreDataClientLoader(spaceId: SpaceId, data: SchemaSerializedValue) {
+export function clientLoaderLoadTaskQueryData(spaceId: SpaceId, data: SchemaSerializedValue) {
     const client = getTaskRealtimeClientIfExistsForClient(spaceId);
-    if (client) loadTaskStoreDataIntoClient(client, data);
+    if (client) loadTaskQueryDataIntoClient(client, data);
+}
+
+const TaskRealtimeClientContext = createContext<TaskClientStore | null>(null);
+
+/**
+ * Get the task client store from context.
+ */
+export function useTaskClientStore() {
+    const store = useContext(TaskRealtimeClientContext);
+    if (!store) {
+        throw new InternalError(
+            "Must be rendered in a `<TaskRealtimeClientContextProvider>` component to access the task client store",
+        );
+    }
+    return store;
 }
 
 /**
@@ -99,6 +115,11 @@ export function TaskRealtimeClientContextProvider({
     spaceId: SpaceId;
     children: ReactNode;
 }) {
+    assert(
+        !useContext(TaskRealtimeClientContext),
+        "Can't nest `<TaskRealtimeClientContextProvider>` components",
+    );
+
     const dataRouterStateContext = useContext(DataRouterStateContext);
     assert(dataRouterStateContext, "Expected data router state context");
 
@@ -113,7 +134,7 @@ export function TaskRealtimeClientContextProvider({
             const client = new TaskRealtimeClient(() => contextRef.current, spaceId);
 
             for (const loaderData of Object.values(dataRouterStateContext.loaderData)) {
-                loadTaskStoreDataIntoClient(client, loaderData);
+                loadTaskQueryDataIntoClient(client, loaderData);
             }
 
             return client;
@@ -165,5 +186,9 @@ export function TaskRealtimeClientContextProvider({
         };
     }, [client, spaceId]);
 
-    return <>{children}</>;
+    return (
+        <TaskRealtimeClientContext.Provider value={client.store}>
+            {children}
+        </TaskRealtimeClientContext.Provider>
+    );
 }

@@ -1,4 +1,4 @@
-import {TaskClientStore} from "~/client/tasks/internal/store/task_client_store.js";
+import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {waitMacrotask} from "~/shared/helpers/async/wait_macrotask.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

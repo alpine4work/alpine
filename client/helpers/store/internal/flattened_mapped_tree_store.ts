@@ -88,6 +88,13 @@ export class FlattenedMappedTreeStore<Key, OldValue, NewValue> extends Store<Tre
         this._newTree = newTree;
     }
 
+    private _createNestedWeakImmediateListener(key: Key) {
+        return () => {
+            this._nestedStoreInvalidatedKeys ??= new Set();
+            this._nestedStoreInvalidatedKeys.add(key);
+        };
+    }
+
     private readonly _weakImmediateListener = () => {
         const oldOldTree = this._oldTree;
         const newOldTree = (this._oldTree = this._store.getSnapshot());
@@ -195,19 +202,12 @@ export class FlattenedMappedTreeStore<Key, OldValue, NewValue> extends Store<Tre
         }
     };
 
-    private _createNestedWeakImmediateListener(key: Key) {
-        return () => {
-            this._nestedStoreInvalidatedKeys ??= new Set();
-            this._nestedStoreInvalidatedKeys.add(key);
-        };
-    }
-
     public readonly getSnapshot = () => {
-        let newTree = this._newTree;
-
         // We keep track of individual nested store keys that were invalidated so we
         // only need to update them instead of looking at every key in our map.
         if (this._nestedStoreInvalidatedKeys !== null) {
+            let newTree = this._newTree;
+
             for (const key of this._nestedStoreInvalidatedKeys) {
                 const nestedStoreEntry = this._nestedStoreByKey.get(key);
 
@@ -227,10 +227,10 @@ export class FlattenedMappedTreeStore<Key, OldValue, NewValue> extends Store<Tre
                         : newTree.insert(key, newNestedValue);
                 }
             }
-        }
 
-        this._newTree = newTree;
-        this._nestedStoreInvalidatedKeys = null;
+            this._newTree = newTree;
+            this._nestedStoreInvalidatedKeys = null;
+        }
 
         return this._newTree;
     };

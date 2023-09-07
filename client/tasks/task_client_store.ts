@@ -1,9 +1,10 @@
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
-import {TaskClientQueryInternal} from "~/client/tasks/internal/store/task_client_query.js";
+import {TaskClientQuery, TaskClientQueryInternal} from "~/client/tasks/task_client_query.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {AdvancedWeakValuesMap} from "~/shared/helpers/map/advanced_weak_values_map.js";
 import {generateId} from "~/shared/id/id.js";
 import {SpaceId, TaskClientQueryId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
@@ -96,10 +97,10 @@ export class TaskClientStore {
      * will eventually clean it up and remove it from this map. You need to hold a
      * reference to the `ValueStore` for all tasks that are currently visible.
      */
-    private readonly _taskEntryStoreById: AdvancedWeakValuesMap<
+    private readonly _taskEntryStoreById = new AdvancedWeakValuesMap<
         TaskId,
         ValueStore<TaskClientStoreTaskEntry>
-    >;
+    >();
 
     /**
      * The collections currently in our store.
@@ -107,21 +108,23 @@ export class TaskClientStore {
      * Like `taskById`, it's not guaranteed that a collection is up-to-date if it's
      * in this map. See the documentation on `taskById` for more of an explanation.
      */
-    private readonly _collectionEntryStoreById: AdvancedWeakValuesMap<
+    private readonly _collectionEntryStoreById = new AdvancedWeakValuesMap<
         TaskCollectionId,
         ValueStore<TaskClientStoreCollectionEntry>
-    >;
+    >();
 
     /**
      * The queries our client is currently subscribed to.
      */
-    private readonly _queryById: Map<TaskClientQueryId, TaskClientQueryInternal>;
+    private readonly _queryById = new Map<TaskClientQueryId, TaskClientQueryInternal>();
+
+    /**
+     * Queries for the child tasks of a given parent task.
+     */
+    private readonly _childrenQueryByParentTaskId = new Map<TaskId, TaskClientQueryInternal>();
 
     constructor({spaceId}: {spaceId: SpaceId}) {
         this._spaceId = spaceId;
-        this._taskEntryStoreById = new AdvancedWeakValuesMap();
-        this._collectionEntryStoreById = new AdvancedWeakValuesMap();
-        this._queryById = new Map();
     }
 
     public getTaskCountForTest() {
@@ -567,7 +570,15 @@ export class TaskClientStore {
      * Creates a new query model in our store. The query will be kept up-to-date in
      * realtime whenever there's a change to a task that affects the query.
      */
-    public createQuery({
+    public createQuery(options: {
+        id?: TaskClientQueryId;
+        filters: TaskQueryNormalizedFilters;
+        sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+    }): TaskClientQuery {
+        return this._createQuery(options).external;
+    }
+
+    private _createQuery({
         id = generateId<TaskClientQueryId>(),
         filters,
         sorts,
@@ -575,13 +586,13 @@ export class TaskClientStore {
         id?: TaskClientQueryId;
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
-    }): void {
+    }): TaskClientQueryInternal {
         assert(!this._queryById.has(id));
 
-        const queryById = new Map(this._queryById);
+        const query = new TaskClientQueryInternal({id, filters, sorts});
+        this._queryById.set(id, query);
 
-        const query = new TaskClientQueryInternal({filters, sorts});
-        queryById.set(id, query);
+        return query;
     }
 
     /**
@@ -631,80 +642,62 @@ export class TaskClientStore {
         );
     }
 
-    // NOCOMMIT: This stuff!!
+    /**
+     * Iterate through all the queries in our store.
+     */
+    public iterateQueries(): Iterable<TaskClientQuery> {
+        return mapIterable(this._queryById.values(), query => query.external);
+    }
 
-    // /**
-    //  * Iterate through all the queries in our store.
-    //  */
-    // public iterateQueries() {
-    //     return this._queryById;
-    // }
+    /**
+     * Get a query by its `TaskClientQueryId`. Throws if the query doesn't exist.
+     */
+    public getQuery(queryId: TaskClientQueryId): TaskClientQuery {
+        return assertExists(this._queryById.get(queryId)).external;
+    }
 
-    // /**
-    //  * Get a query by its `TaskQueryModelId`. Throws if the query doesn't exist.
-    //  */
-    // public getQuery(queryId: TaskClientQueryId) {
-    //     return assertExists(this._queryById.get(queryId));
-    // }
+    /**
+     * Gets the query for a task's children or creates a new query if one doesn't
+     * exist.
+     */
+    public getOrCreateTaskChildrenQuery(parentTaskId: TaskId): TaskClientQuery {
+        const existingQuery = this._childrenQueryByParentTaskId.get(parentTaskId);
+        if (existingQuery) return existingQuery.external;
 
-    // /**
-    //  * Gets the query for a task's children or creates a new query if one doesn't
-    //  * exist.
-    //  */
-    // public getOrCreateTaskChildrenQuery(
-    //     parentTaskId: TaskId,
-    // ): [TaskClientStore, TaskClientQueryId] {
-    //     const existingQueryId = this._childrenQueryIdByParentTaskId.get(parentTaskId);
-    //     if (existingQueryId) return [this, existingQueryId];
+        const query = this._createQuery({
+            filters: {
+                displayStatusFilter: {
+                    ifOpenInactive: true,
+                    ifOpenActive: true,
+                    ifClosed: true,
+                },
+                parentFilter: {
+                    parentTaskId,
+                },
+            },
+            sorts: [
+                {
+                    type: "ParentPosition",
+                    direction: "Ascending",
+                    missing: "Last",
+                },
+                {
+                    type: "CreatedTime",
+                    direction: "Ascending",
+                    missing: "Last",
+                },
+            ],
+        });
 
-    //     const queryId = generateId<TaskClientQueryId>();
+        this._childrenQueryByParentTaskId.set(parentTaskId, query);
 
-    //     let database = this.createQuery(queryId, {
-    //         filters: {
-    //             displayStatusFilter: {
-    //                 ifOpenInactive: true,
-    //                 ifOpenActive: true,
-    //                 ifClosed: true,
-    //             },
-    //             parentFilter: {
-    //                 parentTaskId,
-    //             },
-    //         },
-    //         sorts: [
-    //             {
-    //                 type: "ParentPosition",
-    //                 direction: "Ascending",
-    //                 missing: "Last",
-    //             },
-    //             {
-    //                 type: "CreatedTime",
-    //                 direction: "Ascending",
-    //                 missing: "Last",
-    //             },
-    //         ],
-    //     });
+        return query.external;
+    }
 
-    //     const childrenQueryIdByParentTaskId = new Map(this._childrenQueryIdByParentTaskId);
-    //     childrenQueryIdByParentTaskId.set(parentTaskId, queryId);
-
-    //     database = new TaskClientStore({
-    //         spaceId: database._spaceId,
-    //         taskById: database._taskEntryStoreById,
-    //         collectionById: database._collectionEntryStoreById,
-    //         queryById: database._queryById,
-    //         childrenQueryIdByParentTaskId,
-    //     });
-
-    //     return [database, queryId];
-    // }
-
-    // /**
-    //  * Gets the query for the provided task's children if it exists. If it doesn't
-    //  * exist that means the task's children are unloaded.
-    //  */
-    // public getTaskChildrenQueryIfExists(parentTaskId: TaskId): TaskQueryModel | null {
-    //     const childrenQueryId = this._childrenQueryIdByParentTaskId.get(parentTaskId);
-    //     if (!childrenQueryId) return null;
-    //     return this.getQuery(childrenQueryId);
-    // }
+    /**
+     * Gets the query for the provided task's children if it exists.
+     */
+    public getTaskChildrenQueryIfExists(parentTaskId: TaskId): TaskClientQuery | null {
+        return this._childrenQueryByParentTaskId.get(parentTaskId)?.external ?? null;
+    }
 }

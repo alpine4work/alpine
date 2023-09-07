@@ -1,14 +1,13 @@
 import {AppContext} from "~/client/context/app_context.js";
-import {ValueStore} from "~/client/helpers/store/value_store.js";
+import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {WebSocketClient} from "~/client/web_socket/web_socket_client.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
-import {TaskModelStore} from "~/shared/tasks/model/task_model_store.js";
 import {TaskRealtimeProtocol} from "~/shared/tasks/task_realtime_protocol.js";
 
 /**
  * Manages the client's realtime connection to `TaskRealtimeService` and owns
- * the `TaskModelStore` object. When we connect to the WebSocket we'll
+ * the `TaskClientDatabase` object. When we connect to the WebSocket we'll
  * subscribe to the queries in our store so we can keep them up-to-date in
  * realtime.
  */
@@ -17,7 +16,7 @@ export class TaskRealtimeClient {
     private readonly _client: WebSocketClient<typeof TaskRealtimeProtocol>;
     private _disconnect: (() => void) | null = null;
 
-    private readonly _store: ValueStore<TaskModelStore>;
+    public readonly store: TaskClientStore;
 
     constructor(getContext: () => AppContext, spaceId: SpaceId) {
         this._client = new WebSocketClient(
@@ -27,11 +26,7 @@ export class TaskRealtimeClient {
         );
 
         this.spaceId = spaceId;
-        this._store = new ValueStore(TaskModelStore.new({spaceId}));
-    }
-
-    public updateStore(action: (store: TaskModelStore) => TaskModelStore) {
-        this._store.set(action);
+        this.store = new TaskClientStore({spaceId});
     }
 
     public connect() {
@@ -62,30 +57,33 @@ export class TaskRealtimeClient {
                 // performance for the user so even though it's wasteful we let it happen
                 // for now.
                 if (isConnected) {
-                    for (const [queryId, query] of this._store.getSnapshot().iterateQueries()) {
-                        this._client.procedures
-                            .subscribeToQuery({
-                                limit: query.getLoadedCount(),
-                                filters: query.filters,
-                                sorts: query.sorts,
-                            })
-                            .then(
-                                ({loadedState, previouslyBackfilledTaskIds}) => {
-                                    this._store.set(store =>
-                                        // NOCOMMIT: What if `loadedState` shrinks? The extend loaded state bit
-                                        // won't work.
-                                        store.loadTasksIntoQuery(queryId, {
-                                            loadedState,
-                                            previouslyBackfilledTaskIds,
-                                        }),
-                                    );
-                                },
-                                error => {
-                                    // NOCOMMIT
-                                    console.error(error);
-                                },
-                            );
-                    }
+                    // NOCOMMIT:
+                    // for (const [queryId, query] of this._databaseStore
+                    //     .getSnapshot()
+                    //     .iterateQueries()) {
+                    //     this._client.procedures
+                    //         .subscribeToQuery({
+                    //             limit: query.getCount(),
+                    //             filters: query.filters,
+                    //             sorts: query.sorts,
+                    //         })
+                    //         .then(
+                    //             ({loadedState, previouslyBackfilledTaskIds}) => {
+                    //                 this._databaseStore.set(store =>
+                    //                     // NOCOMMIT: What if `loadedState` shrinks? The extend loaded state bit
+                    //                     // won't work.
+                    //                     store.loadTasksIntoQuery(queryId, {
+                    //                         loadedState,
+                    //                         previouslyBackfilledTaskIds,
+                    //                     }),
+                    //                 );
+                    //             },
+                    //             error => {
+                    //                 // NOCOMMIT
+                    //                 console.error(error);
+                    //             },
+                    //         );
+                    // }
                 }
             }
         });

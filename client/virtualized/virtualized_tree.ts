@@ -180,8 +180,6 @@ export class VirtualizedTree<NodeKey extends Key, Node, Item> {
         node: Node;
         startItemIndex: number;
     } | null {
-        const stack: Array<TreeNode<OrderKey, Node>> = [];
-
         const search = (
             index: number,
             node: TreeNode<OrderKey, Node> | null,
@@ -190,7 +188,6 @@ export class VirtualizedTree<NodeKey extends Key, Node, Item> {
             nodeItemIndex: number;
         } | null => {
             if (!node) return null;
-            stack.push(node);
 
             const valueItemCount = this._getNodeItemCount(node.value);
             const leftItemCount = this._getSubtreeItemCount(node.left);
@@ -235,12 +232,15 @@ export class VirtualizedTree<NodeKey extends Key, Node, Item> {
     private _getSubtreeItemCount(node: TreeNode<OrderKey, Node> | null): number {
         if (node === null) return 0;
 
+        const valueItemCount = this._getNodeItemCount(node.value);
+        assert(valueItemCount > 0, "Node must have at least one item");
+
+        // Don't spend memory caching nodes with no subtrees.
+        if (node.left === null && node.right === null) return valueItemCount;
+
         let itemCount = this._itemCountSubtreeCache.get(node);
 
         if (itemCount === undefined) {
-            const valueItemCount = this._getNodeItemCount(node.value);
-            assert(valueItemCount > 0, "Node must have at least one item");
-
             const leftItemCount = node.left !== null ? this._getSubtreeItemCount(node.left) : 0;
             const rightItemCount = node.right !== null ? this._getSubtreeItemCount(node.right) : 0;
 

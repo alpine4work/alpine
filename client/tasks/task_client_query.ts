@@ -1,9 +1,10 @@
 import createTree, {Tree} from "functional-red-black-tree";
 import {Store} from "~/client/helpers/store/store.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
-import {TaskClientStoreTaskEntry} from "~/client/tasks/internal/store/task_client_store.js";
+import {TaskClientStoreTaskEntry} from "~/client/tasks/task_client_store.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {TaskClientQueryId, TaskId} from "~/shared/id/types/id_types.js";
 import {evaluateTaskQueryNormalizedFiltersForModel} from "~/shared/tasks/model/evaluate_task_query_normalized_filters_for_model.js";
 import {getTaskQueryNormalizedSortCursorForModel} from "~/shared/tasks/model/get_task_query_normalized_sort_cursor_for_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
@@ -55,9 +56,24 @@ export class TaskClientQuery {
         this._internal = internal;
         this.taskOrderStore = this._internal.taskOrderStore;
     }
+
+    /**
+     * Get the store associated with the provided `TaskId`.
+     *
+     * Throws an error if `TaskId` is not a part of the query when you call this
+     * function.
+     *
+     * The `task` in this store should be non-null when this function is called but
+     * if you hold onto this reference for long enough you may see `task` become
+     * null because the task leaves this query and becomes unauthorized.
+     */
+    public getTaskEntryStore(taskId: TaskId): Store<TaskClientStoreTaskEntry> {
+        return this._internal.getTaskEntryStore(taskId);
+    }
 }
 
 export class TaskClientQueryInternal {
+    public readonly id: TaskClientQueryId;
     public readonly filters: TaskQueryNormalizedFilters;
     public readonly sorts: ReadonlyArray<TaskQueryNormalizedSort>;
     public readonly external: TaskClientQuery;
@@ -66,7 +82,7 @@ export class TaskClientQueryInternal {
         loadedState: TaskRealtimeQueryLoadedState;
         taskOrder: Tree<TaskQuerySortCursor, null>;
     }>;
-    private readonly _taskEntryStoreById = new Map<TaskId, ValueStore<TaskClientStoreTaskEntry>>();
+    private readonly _taskEntryStoreById = new Map<TaskId, Store<TaskClientStoreTaskEntry>>();
 
     /**
      * The query's loaded task order.
@@ -79,12 +95,15 @@ export class TaskClientQueryInternal {
     // NOCOMMIT: Referenced tasks and collections
 
     constructor({
+        id,
         filters,
         sorts,
     }: {
+        id: TaskClientQueryId;
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
     }) {
+        this.id = id;
         this.filters = filters;
         this.sorts = sorts;
         this._taskOrderStore = new ValueStore<{
@@ -158,6 +177,10 @@ export class TaskClientQueryInternal {
             taskOrderIds.size === this._taskEntryStoreById.size,
             "Query must not have a reference to a task entry store that's not in the task order",
         );
+    }
+
+    public getTaskEntryStore(taskId: TaskId): Store<TaskClientStoreTaskEntry> {
+        return assertExists(this._taskEntryStoreById.get(taskId));
     }
 
     /**
@@ -312,6 +335,11 @@ export class TaskClientQueryInternal {
 
         if (previousLoadedState !== nextLoadedState || previousTaskOrder !== nextTaskOrder) {
             this._taskOrderStore.set({loadedState: nextLoadedState, taskOrder: nextTaskOrder});
+        }
+
+        // Make sure our query is well formed in test environments.
+        if (process.env.NODE_ENV !== "production") {
+            this.assertCorrectForTest();
         }
     }
 }
