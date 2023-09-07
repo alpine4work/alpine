@@ -277,9 +277,9 @@ process.on("uncaughtException", error => {
  * Build the artifact and restart the server associated with the artifact.
  */
 async function rebuildArtifact(artifact: Artifact) {
-    const {buildId, hasFailed: hasBuildFailed} = await buildBazelTarget(artifact.bazelTarget);
-
     await artifact.server.withLock(async artifactServerRef => {
+        const {buildId, hasFailed: hasBuildFailed} = await buildBazelTarget(artifact.bazelTarget);
+
         if (artifactServerRef.current) {
             const artifactServer = artifactServerRef.current;
 

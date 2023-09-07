@@ -1,4 +1,4 @@
-import {bazelExecutablePath, lockBazelExecutable} from "~/admin/dev/bazel/bazel_executable.js";
+import {bazelExecutableMutex, bazelExecutablePath} from "~/admin/dev/bazel/bazel_executable.js";
 import {runProcess} from "~/admin/helpers/run_process.js";
 
 /**
@@ -9,7 +9,7 @@ import {runProcess} from "~/admin/helpers/run_process.js";
  * dependencies.
  */
 export function queryBazelTargetDependencyPackagePaths(target: string): Promise<Array<string>> {
-    return lockBazelExecutable(async () => {
+    return bazelExecutableMutex.withLock(async () => {
         const queryResult = await runProcess(
             bazelExecutablePath,
             ["query", `filter("^//", deps(${target}))`, "--output=package"],

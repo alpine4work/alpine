@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import {bazelExecutablePath, lockBazelExecutable} from "~/admin/dev/bazel/bazel_executable.js";
+import {bazelExecutableMutex, bazelExecutablePath} from "~/admin/dev/bazel/bazel_executable.js";
 import {spawnWithBlockingStdio, writeWithStdioPrefix} from "~/admin/dev/stdio_coordinator.js";
 import {waitForProcessExitWithAnyCode} from "~/admin/helpers/wait_for_process_exit.js";
 import {workspacePath} from "~/admin/helpers/workspace_path.js";
@@ -61,7 +61,7 @@ function scheduleBuildBazelTargets() {
 
     // Make sure to synchronously lock the Bazel executable while waiting on other
     // build requests to batch.
-    void lockBazelExecutable(() => {
+    void bazelExecutableMutex.withLock(() => {
         return new Promise<void>(resolve => {
             scheduleMicrotask(buildLoop);
 
