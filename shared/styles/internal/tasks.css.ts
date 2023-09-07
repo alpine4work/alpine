@@ -29,6 +29,22 @@ globalStyle(
     },
 );
 
+export const rowTitleInputEmptyContainerClassName = style({});
+export const rowTitleInputInitialAppRenderEmptyContainerClassName = style({});
+
+export const rowTitleInputPlaceholderClassName = style({
+    display: "none",
+});
+
+globalStyle(`${rowTitleInputEmptyContainerClassName} ${rowTitleInputPlaceholderClassName}`, {
+    display: "block",
+});
+
+globalStyle(
+    `${rowTitleInputInitialAppRenderEmptyContainerClassName} ${rowTitleInputPlaceholderClassName}`,
+    {display: "block"},
+);
+
 export const detailTitleInputEmptyContainerClassName = style({});
 
 export const detailTitleInputPlaceholderClassName = style({

@@ -751,10 +751,8 @@ function ContentEditor<Content extends ContentWithReferences>(
         };
     }, [className]);
 
-    /**
-     * Adds the `styles.empty` class if the editor document is empty and
-     * removes the class when the editor document is not empty.
-     */
+    // Adds the `emptyTitleClassName` class if the editor document is empty and
+    // removes the class when the editor document is not empty.
     function updateEditorEmptyClass(state: EditorState) {
         assert(viewRef.current);
         const viewElement = viewRef.current.dom;

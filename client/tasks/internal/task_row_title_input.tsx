@@ -20,12 +20,14 @@ import {taskRowViewMinHeight} from "~/client/tasks/internal/task_row_shared_styl
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {useTaskTitleModelYDoc} from "~/client/tasks/internal/use_task_title_model_y_doc.js";
 import {Spacing} from "~/shared/design/spacing.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {
     contentSchemaStyles,
     hideScrollbarClassName,
+    inputPlaceholderStyles,
     sprinkles,
     tasksStyles,
 } from "~/shared/styles/styles.js";
@@ -340,6 +342,7 @@ function TaskRowTitleInput(
                 const oldTitleState = view.state;
                 const newTitleState = oldTitleState.apply(transaction);
 
+                updateEditorEmptyClass(newTitleState);
                 view.updateState(newTitleState);
             },
         });
@@ -377,6 +380,8 @@ function TaskRowTitleInput(
                 callback(view);
             }
         }
+
+        updateEditorEmptyClass(view.state);
 
         return () => {
             view.dom.removeEventListener("scroll", updateFullyScrolledState);
@@ -481,14 +486,46 @@ function TaskRowTitleInput(
         focusSelection,
     }));
 
+    function updateEditorEmptyClass(state: EditorState) {
+        assert(viewRef.current.isReady);
+        const containerElement = assertExists(
+            viewRef.current.view.dom.parentElement?.parentElement,
+        );
+
+        const addEmptyClassName = state.doc.childCount === 0;
+        if (
+            addEmptyClassName &&
+            !containerElement.classList.contains(tasksStyles.rowTitleInputEmptyContainerClassName)
+        ) {
+            containerElement.classList.add(tasksStyles.rowTitleInputEmptyContainerClassName);
+        }
+        if (
+            !addEmptyClassName &&
+            containerElement.classList.contains(tasksStyles.rowTitleInputEmptyContainerClassName)
+        ) {
+            containerElement.classList.remove(tasksStyles.rowTitleInputEmptyContainerClassName);
+        }
+    }
+
+    const taskNodeForInitialAppRender = isInitialAppRender
+        ? getTaskTitleProsemirrorNode(title.raw)
+        : null;
+
     return (
         <div
-            className={sprinkles({
-                display: "flex",
-                overflow: "hidden",
-                position: "relative",
-                zIndex: "0",
-            })}
+            className={classNames(
+                sprinkles({
+                    display: "flex",
+                    overflow: "hidden",
+                    position: "relative",
+                    zIndex: "0",
+                }),
+                taskNodeForInitialAppRender &&
+                    taskNodeForInitialAppRender.childCount === 0 &&
+                    // We use a different class than `rowTitleInputEmptyContainerClassName` because
+                    // we don't want React removing the class managed by `updateEditorEmptyClass()`.
+                    tasksStyles.rowTitleInputInitialAppRenderEmptyContainerClassName,
+            )}
         >
             <div
                 ref={containerRef}
@@ -512,7 +549,7 @@ function TaskRowTitleInput(
                     });
                 }}
             >
-                {isInitialAppRender && (
+                {taskNodeForInitialAppRender && (
                     // On server-side render serialize our title to HTML since we can't mount an
                     // `EditorView` until we are on the client.
                     <div
@@ -532,13 +569,13 @@ function TaskRowTitleInput(
                         tabIndex={-1}
                         dangerouslySetInnerHTML={{
                             __html: serializeProsemirrorFragmentToHtml(
-                                getTaskTitleProsemirrorNode(title.raw).content,
+                                taskNodeForInitialAppRender.content,
                             ),
                         }}
                     />
                 )}
             </div>
-            {/* NOCOMMIT: {titleState.doc.childCount === 0 && placeholder && (
+            {placeholder && (
                 // Render the placeholder in a div adjacent to our editor. For accessibility
                 // the placeholder is present in an `aria-placeholder` but since the editor is
                 // `display: inline-block` we need the placeholder to have width in the DOM
@@ -546,16 +583,22 @@ function TaskRowTitleInput(
                 // separate `<div>` here.
                 <div
                     aria-hidden={true}
-                    className={sprinkles({
-                        position: "absolute",
-                        left: "0",
-                        top: "0",
-                        bottom: "0",
-                        paddingY: "2",
-                        pointerEvents: "none",
-                        // Make sure placeholder is rendered underneath cursor.
-                        zIndex: "-10",
-                    })}
+                    className={classNames(
+                        // Since we don't have access to the title node in our render method we
+                        // imperatively add/remove a class on our container to let us know when it's
+                        // empty or not and use CSS to control our placeholder visibility.
+                        tasksStyles.rowTitleInputPlaceholderClassName,
+                        sprinkles({
+                            position: "absolute",
+                            left: "0",
+                            top: "0",
+                            bottom: "0",
+                            paddingY: "2",
+                            pointerEvents: "none",
+                            // Make sure placeholder is rendered underneath cursor.
+                            zIndex: "-10",
+                        }),
+                    )}
                     style={{
                         ...(capabilities.hasMultilineTitle
                             ? taskRowTitleInputMultilineStyle
@@ -565,7 +608,7 @@ function TaskRowTitleInput(
                 >
                     {placeholder}
                 </div>
-            )} */}
+            )}
             <div
                 className={classNames(
                     tasksStyles.textCursorNotInheritedClassName,
