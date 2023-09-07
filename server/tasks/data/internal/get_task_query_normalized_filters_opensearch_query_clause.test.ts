@@ -18,6 +18,7 @@ import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {evaluateTaskQueryNormalizedFiltersForModel} from "~/shared/tasks/model/evaluate_task_query_normalized_filters_for_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskNotepadPageId, generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 import {TaskQueryFilter, TaskQueryFilterDateOperation} from "~/shared/tasks/task_query_filter.js";
@@ -339,7 +340,7 @@ async function testQueryWithNormalizedFilters(
     for (const task of [...queryTasks2, ...expectedQueryTasks2]) {
         task.getCollections().getArray();
         task.getParent();
-        task.getTitleText();
+        task.getTitle().getText();
     }
 
     // Make sure our JavaScript filter implementation for `TaskIndexDoc` matches
@@ -376,7 +377,7 @@ function convertTaskIndexDocToModel(task: TaskIndexDoc): TaskModel {
         assignee: task.assignee,
         assigneeStatus: task.rawAssigneeStatus,
         assigneeActivePosition: task.rawAssigneeActivePosition,
-        title: task.title.raw,
+        title: TaskTitleModel.new(task.title.raw),
         dueDate: task.dueDate,
         priority: task.priority,
     });

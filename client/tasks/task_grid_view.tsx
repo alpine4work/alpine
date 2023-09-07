@@ -9,8 +9,10 @@ import {
     RefAttributes,
     createRef,
     forwardRef,
+    useCallback,
     useEffect,
     useImperativeHandle,
+    useMemo,
     useRef,
     useState,
 } from "react";
@@ -19,38 +21,86 @@ import {useOutsideInteraction} from "~/client/design/helpers/use_outside_interac
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
-import {TaskGridViewCapabilities} from "~/client/tasks/demo_2/internal/task_grid_view_capabilities.js";
-import {TaskGridViewDndContext} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context.js";
+import {StoreMap} from "~/client/helpers/store/store_map.js";
+import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
+import {useTaskGridViewVirtualizedList} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {
-    taskRowViewCollectionsColumnWidth,
-    taskRowViewColumnPaddingX,
-    taskRowViewColumnWidth,
-    taskRowViewFirstColumnPaddingLeft,
-    taskRowViewFirstColumnWidth,
-    taskRowViewLastColumnPaddingRight,
-    taskRowViewMinHeight,
-} from "~/client/tasks/demo_2/internal/task_row_shared_styles.js";
-import {TaskRowViewDroppable} from "~/client/tasks/demo_2/internal/task_row_view_droppable.js";
-import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state.js";
-import {
-    TaskRowPresentationalView,
-    TaskRowPresentationalViewRef,
-} from "~/client/tasks/demo_2/task_row_presentational_view.js";
-import {TaskAssignee, TaskStatus} from "~/client/tasks/demo_2/task_status_button.js";
+    TaskGridViewTaskKey,
+    TaskGridViewVirtualizedTaskList,
+} from "~/client/tasks/internal/task_grid_view_virtualized_task_list.js";
+// NOCOMMIT:
+// import {TaskGridViewCapabilities} from "~/client/tasks/demo_2/internal/task_grid_view_capabilities.js";
+// import {TaskGridViewDndContext} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context.js";
+// import {
+//     taskRowViewCollectionsColumnWidth,
+//     taskRowViewColumnPaddingX,
+//     taskRowViewColumnWidth,
+//     taskRowViewFirstColumnPaddingLeft,
+//     taskRowViewFirstColumnWidth,
+//     taskRowViewLastColumnPaddingRight,
+//     taskRowViewMinHeight,
+// } from "~/client/tasks/demo_2/internal/task_row_shared_styles.js";
+// import {TaskRowViewDroppable} from "~/client/tasks/demo_2/internal/task_row_view_droppable.js";
+// import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state.js";
+// import {
+//     TaskRowPresentationalView,
+//     TaskRowPresentationalViewRef,
+// } from "~/client/tasks/demo_2/task_row_presentational_view.js";
+// import {TaskAssignee, TaskStatus} from "~/client/tasks/demo_2/task_status_button.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
+import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
+import {TaskClientStore} from "~/client/tasks/task_client_store.js";
+import {VirtualizedScrollView} from "~/client/virtualized/virtualized_scroll_view.js";
 import {ThemeColor} from "~/shared/design/theme_colors.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
 import {noop} from "~/shared/helpers/control/noop.js";
-import {LocalTaskCollectionId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.js";
+import {LocalTaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {colorSchemeVars} from "~/shared/styles/styles.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
-import {TaskTitle, emptyTaskTitle} from "~/shared/tasks/task_title_schema_old.js";
+// NOCOMMIT:
+// import {TaskTitle, emptyTaskTitle} from "~/shared/tasks/task_title_schema_old.js";
 
-export const minTaskCountToShowTopGhostTask = 7;
+const minTaskCountToShowTopGhostTask = 7;
 
-export type TaskGridPresentationalViewRef = {
+// NOCOMMIT: Task grid view should probably be a collection of virtualized
+// items not an actual component.
+export function TaskGridView({
+    capabilities,
+    store,
+    query,
+    initialBottomGhostTaskId,
+}: {
+    capabilities: TaskGridViewCapabilities;
+    store: TaskClientStore;
+    query: TaskClientQuery;
+    initialBottomGhostTaskId: TaskId;
+}) {
+    const [isExpandedByTaskKey] = useState(() => new StoreMap<TaskGridViewTaskKey, boolean>());
+    const [bottomGhostTaskId] = useState(initialBottomGhostTaskId);
+
+    const {itemCount, renderItem} = useTaskGridViewVirtualizedList({
+        capabilities,
+        store,
+        query,
+        isExpandedByTaskKey,
+        bottomGhostTaskId,
+    });
+
+    return (
+        <VirtualizedScrollView
+            itemCount={itemCount}
+            // NOCOMMIT
+            bufferedItemHeight={200}
+            renderItem={renderItem}
+        />
+    );
+}
+
+type OLD_TaskGridViewRef = {
     focusTaskRowTitleStart(index: number): void;
     focusTaskRowTitleEnd(index: number): void;
     focusTaskRowTitleSelection(index: number, selection: Selection): void;
@@ -58,13 +108,11 @@ export type TaskGridPresentationalViewRef = {
     focusEnd(): void;
 };
 
-const TaskGridPresentationalViewForwardRef = forwardRef(TaskGridPresentationalView) as <TaskRow>(
-    props: PropsWithoutRef<TaskGridPresentationalViewProps<TaskRow>> &
-        RefAttributes<TaskGridPresentationalViewRef>,
+const OLD_TaskGridViewForwardRef = forwardRef(OLD_TaskGridView) as <TaskRow>(
+    props: PropsWithoutRef<OLD_TaskGridViewProps<TaskRow>> & RefAttributes<OLD_TaskGridViewRef>,
 ) => ReactElement;
-export {TaskGridPresentationalViewForwardRef as TaskGridPresentationalView};
 
-export type TaskGridPresentationalViewProps<TaskRow> = {
+type OLD_TaskGridViewProps = {
     capabilities: TaskGridViewCapabilities;
     taskGhostRowPlaceholder?: string;
     taskRowCount: number;
@@ -131,7 +179,7 @@ export type TaskGridPresentationalViewProps<TaskRow> = {
     moveTaskToParentTop: (parentTaskRow: TaskRow, taskRow: TaskRow) => void;
 };
 
-function TaskGridPresentationalView<TaskRow>(
+function OLD_TaskGridView<TaskRow>(
     {
         capabilities,
         taskGhostRowPlaceholder = "Add a task…",
@@ -175,8 +223,8 @@ function TaskGridPresentationalView<TaskRow>(
         deleteTaskAndAllChildrenMaybeWithConfirmation,
         moveTaskBelow,
         moveTaskToParentTop,
-    }: TaskGridPresentationalViewProps<TaskRow>,
-    ref: Ref<TaskGridPresentationalViewRef>,
+    }: OLD_TaskGridViewProps<TaskRow>,
+    ref: Ref<OLD_TaskGridViewRef>,
 ) {
     const topGhostTaskRowRef = useRef<TaskRowPresentationalViewRef>(null);
     const bottomGhostTaskRowRef = useRef<TaskRowPresentationalViewRef>(null);

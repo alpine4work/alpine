@@ -1,6 +1,12 @@
+import {useMemo} from "react";
 import {Params} from "react-router";
+import {Box} from "~/client/design/box.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {clientLoaderLoadTaskQueryData} from "~/client/tasks/task_realtime_client_context_provider.js";
+import {TaskGridView} from "~/client/tasks/task_grid_view.js";
+import {
+    clientLoaderLoadTaskQueryData,
+    useTaskClientStore,
+} from "~/client/tasks/task_realtime_client_context_provider.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getTaskNotepadPageIds} from "~/server/tasks/data/task_table.js";
@@ -8,7 +14,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {generateId} from "~/shared/id/id.js";
-import {SpaceId, TaskClientQueryId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskClientQueryId, TaskId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
 import {TaskNotepadPageIdCompressedSetSchema} from "~/shared/tasks/task_notepad_page_id.js";
 import {
@@ -21,6 +27,7 @@ const LoaderSchema = Schema.object({
     notepadPageIds: TaskNotepadPageIdCompressedSetSchema,
     assigneeActiveQueryId: Schema.id<TaskClientQueryId>(),
     notepadPageQueryId: Schema.id<TaskClientQueryId>(),
+    initialBottomGhostTaskId: Schema.id<TaskId>(),
 });
 
 export async function loader({params, context: _context}: LoaderArgs) {
@@ -116,6 +123,7 @@ export async function loader({params, context: _context}: LoaderArgs) {
             notepadPageIds,
             assigneeActiveQueryId,
             notepadPageQueryId,
+            initialBottomGhostTaskId: generateId<TaskId>(),
         },
         {
             propagateEventData: {
@@ -157,7 +165,34 @@ export async function clientLoader({
 }
 
 export default function TasksRoute() {
-    const {notepadPageQueryId} = useLoaderDataWithSchema(LoaderSchema);
+    const {notepadPageQueryId, initialBottomGhostTaskId} = useLoaderDataWithSchema(LoaderSchema);
 
-    return <>Hello, world!</>;
+    const store = useTaskClientStore();
+
+    // NOCOMMIT: Is this actually the right API for this? What if the query
+    // reference changes? How do we make sure the query stays subscribed? I'm not
+    // even sure we should have query IDs! Maybe we should subscribe with
+    // filters/sorts?
+    const query = store.getQuery(notepadPageQueryId);
+
+    // NOCOMMIT: This should be in a lower-level component I think but let's start
+    // here since I want the background color.
+    return (
+        <Box flexGrow="1" overflow="hidden" backgroundColor="grey-0">
+            <TaskGridView
+                capabilities={useMemo(
+                    () => ({
+                        hasParentTaskTitle: false,
+                        hasMultilineTitle: false,
+                        hasColumns: true,
+                        hasDenseFields: false,
+                    }),
+                    [],
+                )}
+                store={store}
+                query={query}
+                initialBottomGhostTaskId={initialBottomGhostTaskId}
+            />
+        </Box>
+    );
 }

@@ -85,7 +85,7 @@ export function evaluateTaskQueryNormalizedFiltersForModel(
     }
 
     if (filters.titleFilter !== undefined) {
-        const titleText = task.getTitleText();
+        const titleText = task.getTitle().getText();
         const titleWords = analyzeTaskTitleText(titleText);
 
         for (const filter of filters.titleFilter) {

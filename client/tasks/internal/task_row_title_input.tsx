@@ -1,5 +1,4 @@
 import classNames from "classnames";
-import {CaretLeft} from "phosphor-react";
 import {AllSelection, EditorState, Selection, TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {
@@ -8,35 +7,39 @@ import {
     forwardRef,
     useCallback,
     useImperativeHandle,
+    useMemo,
     useRef,
     useState,
 } from "react";
-import {isMac} from "~/client/helpers/browser/is_mac.js";
+import {ySyncPlugin} from "y-prosemirror";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
-import {TaskGridViewCapabilities} from "~/client/tasks/demo_2/internal/task_grid_view_capabilities.js";
-import {taskRowViewMinHeight} from "~/client/tasks/demo_2/internal/task_row_shared_styles.js";
-import {TaskRowTitleChildTasksButton} from "~/client/tasks/demo_2/internal/task_row_title_child_tasks_button.js";
+import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
+import {taskRowViewMinHeight} from "~/client/tasks/internal/task_row_shared_styles.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
-import {Spacing, spacing} from "~/shared/design/spacing.js";
+import {useTaskTitleModelYDoc} from "~/client/tasks/internal/use_task_title_model_y_doc.js";
+import {Spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {
     contentSchemaStyles,
     hideScrollbarClassName,
-    inputPlaceholderStyles,
     sprinkles,
     tasksStyles,
 } from "~/shared/styles/styles.js";
-import {TaskTitle, assertTaskTitle} from "~/shared/tasks/task_title_schema_old.js";
+import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
+import {
+    TaskTitleProsemirrorSchema,
+    TaskTitleUpdate,
+    getTaskTitleProsemirrorNode,
+} from "~/shared/tasks/task_title.js";
 
 const taskRowTitleInputSingleLineHeight: Spacing = taskRowViewMinHeight;
 
 export type TaskRowTitleInputRef = {
-    getSelection(): Selection;
+    // NOCOMMIT: getSelection(): Selection;
     focusStart(): void;
     focusEnd(): void;
     focusAll(): void;
@@ -98,47 +101,30 @@ function TaskRowTitleInput(
         title,
         onTitleChange,
         placeholder,
-        indentation,
-        parentTaskTitle,
-        childTaskCount,
-        closedChildTaskCount,
-        areChildTasksCollapsed,
-        onAreChildTasksCollapsedToggle,
-        createTaskAbove,
-        createTaskBelowAndFocus,
-        createTaskChildAtStartAndFocus,
-        nestWithPreviousTaskRowIfExistsAndExpand,
-        unnestTaskIfNestedRow,
-        deleteTaskAndAllChildrenAndFocusPreviousRow,
-        focusNextTaskTitleCoord,
-        focusPreviousTaskTitleCoord,
-        preserveLastTaskTitleArrowNavigationCoord,
-        focusFirstTaskTitleStart,
-        focusLastTaskTitleEnd,
-        focusTaskNextCell,
     }: {
         capabilities: TaskGridViewCapabilities;
-        title: TaskTitle;
-        onTitleChange: (title: TaskTitle) => void;
+        title: TaskTitleModel;
+        onTitleChange: (titleUpdate: TaskTitleUpdate) => void;
         placeholder?: string;
-        indentation: number;
-        parentTaskTitle: TaskTitle | null;
-        childTaskCount: number;
-        closedChildTaskCount: number;
-        areChildTasksCollapsed: boolean;
-        onAreChildTasksCollapsedToggle: () => void;
-        createTaskAbove: () => void;
-        createTaskBelowAndFocus: () => void;
-        createTaskChildAtStartAndFocus: () => void;
-        nestWithPreviousTaskRowIfExistsAndExpand: (selection: Selection) => void;
-        unnestTaskIfNestedRow: (selection: Selection) => void;
-        deleteTaskAndAllChildrenAndFocusPreviousRow: () => void;
-        focusNextTaskTitleCoord: (coord: number) => void;
-        focusPreviousTaskTitleCoord: (coord: number) => void;
-        preserveLastTaskTitleArrowNavigationCoord: () => void;
-        focusFirstTaskTitleStart: () => void;
-        focusLastTaskTitleEnd: () => void;
-        focusTaskNextCell: () => void;
+        // NOCOMMIT:
+        // indentation: number;
+        // parentTaskTitle: TaskTitle | null;
+        // childTaskCount: number;
+        // closedChildTaskCount: number;
+        // areChildTasksCollapsed: boolean;
+        // onAreChildTasksCollapsedToggle: () => void;
+        // createTaskAbove: () => void;
+        // createTaskBelowAndFocus: () => void;
+        // createTaskChildAtStartAndFocus: () => void;
+        // nestWithPreviousTaskRowIfExistsAndExpand: (selection: Selection) => void;
+        // unnestTaskIfNestedRow: (selection: Selection) => void;
+        // deleteTaskAndAllChildrenAndFocusPreviousRow: () => void;
+        // focusNextTaskTitleCoord: (coord: number) => void;
+        // focusPreviousTaskTitleCoord: (coord: number) => void;
+        // preserveLastTaskTitleArrowNavigationCoord: () => void;
+        // focusFirstTaskTitleStart: () => void;
+        // focusLastTaskTitleEnd: () => void;
+        // focusTaskNextCell: () => void;
     },
     ref: Ref<TaskRowTitleInputRef>,
 ) {
@@ -150,14 +136,7 @@ function TaskRowTitleInput(
         | {isReady: true; view: EditorView}
     >({isReady: false, callbacks: new Set()});
 
-    const [titleState, setTitleState] = useState(() => EditorState.create({doc: title}));
-
-    // If our title in state changed out-of-step with our editor state then reset
-    // the editor state. Maybe a parent component didn't accept our title update?
-    // Or a parent component push a new update down.
-    if (title !== titleState.doc) {
-        setTitleState(EditorState.create({doc: title}));
-    }
+    const titleDoc = useTaskTitleModelYDoc(title, onTitleChange);
 
     const handleKeyDown = (view: EditorView, event: KeyboardEvent) => {
         switch (event.key) {
@@ -166,138 +145,140 @@ function TaskRowTitleInput(
                 event.stopPropagation();
 
                 if (!isModifiedKeyboardEvent(event)) {
-                    if (
-                        view.state.selection.from === view.state.selection.to &&
-                        view.state.selection.from === 0
-                    ) {
-                        createTaskAbove();
-                    } else if (childTaskCount > 0 && !areChildTasksCollapsed) {
-                        createTaskChildAtStartAndFocus();
-                    } else {
-                        createTaskBelowAndFocus();
-                    }
+                    // NOCOMMIT:
+                    // if (
+                    //     view.state.selection.from === view.state.selection.to &&
+                    //     view.state.selection.from === 0
+                    // ) {
+                    //     createTaskAbove();
+                    // } else if (childTaskCount > 0 && !areChildTasksCollapsed) {
+                    //     createTaskChildAtStartAndFocus();
+                    // } else {
+                    //     createTaskBelowAndFocus();
+                    // }
                 }
                 break;
             }
             case "Backspace": {
-                if (
-                    view.state.doc.childCount === 0 &&
-                    // Cmd-backspace always deletes the task when its title is empty regardless of
-                    // what other content it contains.
-                    ((isMac ? event.metaKey : event.ctrlKey) || childTaskCount === 0)
-                ) {
-                    event.preventDefault();
-                    event.stopPropagation();
+                // NOCOMMIT:
+                // if (
+                //     view.state.doc.childCount === 0 &&
+                //     // Cmd-backspace always deletes the task when its title is empty regardless of
+                //     // what other content it contains.
+                //     ((isMac ? event.metaKey : event.ctrlKey) || childTaskCount === 0)
+                // ) {
+                //     event.preventDefault();
+                //     event.stopPropagation();
 
-                    // TODO(calebmer): If the task we're deleting has other fields (like comments
-                    // and notes) we should probably popup a warning and ask "are you sure you want
-                    // to delete"? The join behavior is great for quickly iterating on tasks but
-                    // can be dangerous.
-                    //
-                    // TODO(calebmer): Should we actually delete subtasks? Maybe we should give
-                    // users an option to leave subtasks?
-                    deleteTaskAndAllChildrenAndFocusPreviousRow();
-                }
+                //     // TODO(calebmer): If the task we're deleting has other fields (like comments
+                //     // and notes) we should probably popup a warning and ask "are you sure you want
+                //     // to delete"? The join behavior is great for quickly iterating on tasks but
+                //     // can be dangerous.
+                //     //
+                //     // TODO(calebmer): Should we actually delete subtasks? Maybe we should give
+                //     // users an option to leave subtasks?
+                //     deleteTaskAndAllChildrenAndFocusPreviousRow();
+                // }
                 break;
             }
             case "ArrowUp": {
-                if (isMac ? event.metaKey : event.ctrlKey) {
-                    event.preventDefault();
-                    event.stopPropagation();
+                // NOCOMMIT:
+                // if (isMac ? event.metaKey : event.ctrlKey) {
+                //     event.preventDefault();
+                //     event.stopPropagation();
 
-                    focusFirstTaskTitleStart();
-                } else if (event.altKey) {
-                    event.preventDefault();
-                    event.stopPropagation();
+                //     focusFirstTaskTitleStart();
+                // } else if (event.altKey) {
+                //     event.preventDefault();
+                //     event.stopPropagation();
 
-                    view.dispatch(
-                        view.state.tr
-                            .setSelection(Selection.atStart(view.state.doc))
-                            .scrollIntoView(),
-                    );
-                } else if (!isModifiedKeyboardEvent(event)) {
-                    const viewRect = view.dom.getBoundingClientRect();
-                    const coords = view.coordsAtPos(view.state.selection.from);
-                    const height = coords.bottom - coords.top;
+                //     view.dispatch(
+                //         view.state.tr
+                //             .setSelection(Selection.atStart(view.state.doc))
+                //             .scrollIntoView(),
+                //     );
+                // } else if (!isModifiedKeyboardEvent(event)) {
+                //     const viewRect = view.dom.getBoundingClientRect();
+                //     const coords = view.coordsAtPos(view.state.selection.from);
+                //     const height = coords.bottom - coords.top;
 
-                    // Only navigate to the previous task if our selection is at the top of
-                    // the view.
-                    if (coords.top - height <= viewRect.top) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        focusPreviousTaskTitleCoord(coords.left);
-                    } else {
-                        preserveLastTaskTitleArrowNavigationCoord();
-                    }
-                }
+                //     // Only navigate to the previous task if our selection is at the top of
+                //     // the view.
+                //     if (coords.top - height <= viewRect.top) {
+                //         event.preventDefault();
+                //         event.stopPropagation();
+                //         focusPreviousTaskTitleCoord(coords.left);
+                //     } else {
+                //         preserveLastTaskTitleArrowNavigationCoord();
+                //     }
+                // }
                 break;
             }
             case "ArrowDown": {
-                if (isMac ? event.metaKey : event.ctrlKey) {
-                    event.preventDefault();
-                    event.stopPropagation();
+                // NOCOMMIT:
+                // if (isMac ? event.metaKey : event.ctrlKey) {
+                //     event.preventDefault();
+                //     event.stopPropagation();
 
-                    focusLastTaskTitleEnd();
-                } else if (event.altKey) {
-                    event.preventDefault();
-                    event.stopPropagation();
+                //     focusLastTaskTitleEnd();
+                // } else if (event.altKey) {
+                //     event.preventDefault();
+                //     event.stopPropagation();
 
-                    view.dispatch(
-                        view.state.tr
-                            .setSelection(Selection.atEnd(view.state.doc))
-                            .scrollIntoView(),
-                    );
-                } else if (!isModifiedKeyboardEvent(event)) {
-                    const viewRect = view.dom.getBoundingClientRect();
-                    const coords = view.coordsAtPos(view.state.selection.from);
-                    const height = coords.bottom - coords.top;
+                //     view.dispatch(
+                //         view.state.tr
+                //             .setSelection(Selection.atEnd(view.state.doc))
+                //             .scrollIntoView(),
+                //     );
+                // } else if (!isModifiedKeyboardEvent(event)) {
+                //     const viewRect = view.dom.getBoundingClientRect();
+                //     const coords = view.coordsAtPos(view.state.selection.from);
+                //     const height = coords.bottom - coords.top;
 
-                    // Only navigate to the next task if our selection is at the bottom of
-                    // the view.
-                    if (coords.bottom + height >= viewRect.bottom) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        focusNextTaskTitleCoord(coords.left);
-                    } else {
-                        preserveLastTaskTitleArrowNavigationCoord();
-                    }
-                }
+                //     // Only navigate to the next task if our selection is at the bottom of
+                //     // the view.
+                //     if (coords.bottom + height >= viewRect.bottom) {
+                //         event.preventDefault();
+                //         event.stopPropagation();
+                //         focusNextTaskTitleCoord(coords.left);
+                //     } else {
+                //         preserveLastTaskTitleArrowNavigationCoord();
+                //     }
+                // }
                 break;
             }
             case "ArrowRight": {
-                if (
-                    view.state.selection.from === view.state.selection.to &&
-                    view.state.selection.from === view.state.doc.nodeSize - 2
-                ) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    focusTaskNextCell();
-                }
+                // NOCOMMIT:
+                // if (
+                //     view.state.selection.from === view.state.selection.to &&
+                //     view.state.selection.from === view.state.doc.nodeSize - 2
+                // ) {
+                //     event.preventDefault();
+                //     event.stopPropagation();
+                //     focusTaskNextCell();
+                // }
                 break;
             }
             case "Tab": {
-                if (event.shiftKey) {
-                    event.preventDefault();
-                    event.stopPropagation();
+                // NOCOMMIT:
+                // if (event.shiftKey) {
+                //     event.preventDefault();
+                //     event.stopPropagation();
 
-                    unnestTaskIfNestedRow(view.state.selection);
-                } else if (!isModifiedKeyboardEvent(event)) {
-                    event.preventDefault();
-                    event.stopPropagation();
+                //     unnestTaskIfNestedRow(view.state.selection);
+                // } else if (!isModifiedKeyboardEvent(event)) {
+                //     event.preventDefault();
+                //     event.stopPropagation();
 
-                    nestWithPreviousTaskRowIfExistsAndExpand(view.state.selection);
-                }
+                //     nestWithPreviousTaskRowIfExistsAndExpand(view.state.selection);
+                // }
                 break;
             }
         }
     };
 
-    const titleStateRef = useRef(titleState);
-    const onTitleChangeRef = useRef(onTitleChange);
     const handleKeyDownRef = useRef(handleKeyDown);
     useLayoutEffectWithoutServerSideWarning(() => {
-        titleStateRef.current = titleState;
-        onTitleChangeRef.current = onTitleChange;
         handleKeyDownRef.current = handleKeyDown;
     });
 
@@ -312,10 +293,12 @@ function TaskRowTitleInput(
         if (isInitialAppRender) return;
 
         const containerElement = assertExists(containerRef.current);
-        const initialTitleState = titleStateRef.current;
 
         const view = new EditorView(containerElement, {
-            state: initialTitleState,
+            state: EditorState.create({
+                schema: TaskTitleProsemirrorSchema,
+                plugins: [ySyncPlugin(titleDoc.getXmlFragment("doc"))],
+            }),
 
             // We add this prop to `prosemirror-view` with a patch. With this prop when the
             // editor is focused we place focus where the browser places focus. So if the
@@ -357,26 +340,7 @@ function TaskRowTitleInput(
                 const oldTitleState = view.state;
                 const newTitleState = oldTitleState.apply(transaction);
 
-                // We need to run this with immediate priority so that we call
-                // `view.updateState()` synchronously.
-                //
-                // See the "Efficient updating" section in the [editor view guide][1].
-                // If we don't synchronously apply the transaction it is considered
-                // cancelled. A quote from the guide:
-                //
-                // > When such a transaction is canceled or modified somehow, the view
-                // > will undo the DOM change...
-                //
-                // [1]: https://prosemirror.net/docs/guide/#view
-                runWithImmediatePriority(() => {
-                    setTitleState(newTitleState);
-
-                    // We only need to send this update to our parent if the doc changed. Otherwise
-                    // we have a selection change.
-                    if (oldTitleState.doc !== newTitleState.doc) {
-                        onTitleChangeRef.current(assertTaskTitle(newTitleState.doc));
-                    }
-                });
+                view.updateState(newTitleState);
             },
         });
 
@@ -423,13 +387,7 @@ function TaskRowTitleInput(
         // IMPORTANT: We want to maintain the `EditorView` instance during updates. Be
         // careful about what you put in here. Ideally we never destroy the
         // `EditorView` while this component is mounted.
-    }, [capabilities.hasMultilineTitle, isInitialAppRender]);
-
-    // Update our `EditorView`'s `EditorState` whenever it changes.
-    useLayoutEffectWithoutServerSideWarning(() => {
-        if (!viewRef.current.isReady) return;
-        viewRef.current.view.updateState(titleState);
-    }, [isInitialAppRender, titleState]);
+    }, [capabilities.hasMultilineTitle, isInitialAppRender, titleDoc]);
 
     const runWhenViewIsReady = useCallback((run: (view: EditorView) => void) => {
         if (viewRef.current.isReady) {
@@ -452,70 +410,65 @@ function TaskRowTitleInput(
         });
     }, [placeholder, runWhenViewIsReady]);
 
-    const getSelection = useCallback(() => titleState.selection, [titleState.selection]);
+    const {focusStart, focusEnd, focusAll, focusCoord, focusSelection} = useMemo(
+        () => ({
+            focusStart: () => {
+                runWhenViewIsReady(view => {
+                    const selection = Selection.atStart(view.state.doc);
 
-    const focusStart = useCallback(() => {
-        runWhenViewIsReady(view => {
-            const selection = Selection.atStart(view.state.doc);
-
-            view.focus();
-            view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
-        });
-    }, [runWhenViewIsReady]);
-
-    const focusEnd = useCallback(() => {
-        runWhenViewIsReady(view => {
-            const selection = Selection.atEnd(view.state.doc);
-
-            view.focus();
-            view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
-        });
-    }, [runWhenViewIsReady]);
-
-    const focusAll = useCallback(() => {
-        runWhenViewIsReady(view => {
-            const selection = new AllSelection(view.state.doc);
-
-            view.focus();
-            view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
-        });
-    }, [runWhenViewIsReady]);
-
-    const focusCoord = useCallback(
-        (coord: number, side: "top" | "bottom") => {
-            runWhenViewIsReady(view => {
-                const viewRect = view.dom.getBoundingClientRect();
-
-                const posResult = view.posAtCoords({
-                    left: coord,
-                    top:
-                        side === "top"
-                            ? viewRect.top + parseFloat(getComputedStyle(view.dom).paddingTop) + 1
-                            : viewRect.bottom -
-                              parseFloat(getComputedStyle(view.dom).paddingBottom) -
-                              1,
+                    view.focus();
+                    view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
                 });
+            },
+            focusEnd: () => {
+                runWhenViewIsReady(view => {
+                    const selection = Selection.atEnd(view.state.doc);
 
-                const selection = posResult
-                    ? new TextSelection(view.state.doc.resolve(posResult.pos))
-                    : coord > viewRect.right
-                    ? Selection.atEnd(view.state.doc)
-                    : Selection.atStart(view.state.doc);
+                    view.focus();
+                    view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
+                });
+            },
+            focusAll: () => {
+                runWhenViewIsReady(view => {
+                    const selection = new AllSelection(view.state.doc);
 
-                view.focus();
-                view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
-            });
-        },
-        [runWhenViewIsReady],
-    );
+                    view.focus();
+                    view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
+                });
+            },
+            focusCoord: (coord: number, side: "top" | "bottom") => {
+                runWhenViewIsReady(view => {
+                    const viewRect = view.dom.getBoundingClientRect();
 
-    const focusSelection = useCallback(
-        (selection: Selection) => {
-            runWhenViewIsReady(view => {
-                view.focus();
-                view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
-            });
-        },
+                    const posResult = view.posAtCoords({
+                        left: coord,
+                        top:
+                            side === "top"
+                                ? viewRect.top +
+                                  parseFloat(getComputedStyle(view.dom).paddingTop) +
+                                  1
+                                : viewRect.bottom -
+                                  parseFloat(getComputedStyle(view.dom).paddingBottom) -
+                                  1,
+                    });
+
+                    const selection = posResult
+                        ? new TextSelection(view.state.doc.resolve(posResult.pos))
+                        : coord > viewRect.right
+                        ? Selection.atEnd(view.state.doc)
+                        : Selection.atStart(view.state.doc);
+
+                    view.focus();
+                    view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
+                });
+            },
+            focusSelection: (selection: Selection) => {
+                runWhenViewIsReady(view => {
+                    view.focus();
+                    view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
+                });
+            },
+        }),
         [runWhenViewIsReady],
     );
 
@@ -578,12 +531,14 @@ function TaskRowTitleInput(
                         // See why we set this attribute on `EditorView`.
                         tabIndex={-1}
                         dangerouslySetInnerHTML={{
-                            __html: serializeProsemirrorFragmentToHtml(titleState.doc.content),
+                            __html: serializeProsemirrorFragmentToHtml(
+                                getTaskTitleProsemirrorNode(title.raw).content,
+                            ),
                         }}
                     />
                 )}
             </div>
-            {titleState.doc.childCount === 0 && placeholder && (
+            {/* NOCOMMIT: {titleState.doc.childCount === 0 && placeholder && (
                 // Render the placeholder in a div adjacent to our editor. For accessibility
                 // the placeholder is present in an `aria-placeholder` but since the editor is
                 // `display: inline-block` we need the placeholder to have width in the DOM
@@ -610,7 +565,7 @@ function TaskRowTitleInput(
                 >
                     {placeholder}
                 </div>
-            )}
+            )} */}
             <div
                 className={classNames(
                     tasksStyles.textCursorNotInheritedClassName,
@@ -634,7 +589,7 @@ function TaskRowTitleInput(
                         }),
                     )}
                 >
-                    {capabilities.hasParentTaskTitle && parentTaskTitle && indentation === 0 && (
+                    {/* NOCOMMIT: {capabilities.hasParentTaskTitle && parentTaskTitle && indentation === 0 && (
                         <div
                             className={sprinkles({
                                 pointerEvents: "none",
@@ -658,15 +613,15 @@ function TaskRowTitleInput(
                                 }}
                             />
                         </div>
-                    )}
-                    {childTaskCount > 0 && (
+                    )} */}
+                    {/* NOCOMMIT: {childTaskCount > 0 && (
                         <TaskRowTitleChildTasksButton
                             childTaskCount={childTaskCount}
                             closedChildTaskCount={closedChildTaskCount}
                             areChildTasksCollapsed={areChildTasksCollapsed}
                             onAreChildTasksCollapsedToggle={onAreChildTasksCollapsedToggle}
                         />
-                    )}
+                    )} */}
                 </div>
             </div>
         </div>

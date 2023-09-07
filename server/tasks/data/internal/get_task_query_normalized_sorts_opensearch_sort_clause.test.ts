@@ -24,6 +24,7 @@ import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {getTaskQueryNormalizedSortCursorForModel} from "~/shared/tasks/model/get_task_query_normalized_sort_cursor_for_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskNotepadPageId, generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 import {
@@ -356,7 +357,7 @@ function convertTaskIndexDocToModel(task: TaskIndexDoc): TaskModel {
         assignee: task.assignee,
         assigneeStatus: task.rawAssigneeStatus,
         assigneeActivePosition: task.rawAssigneeActivePosition,
-        title: task.title.raw,
+        title: TaskTitleModel.new(task.title.raw),
         dueDate: task.dueDate,
         priority: task.priority,
     });

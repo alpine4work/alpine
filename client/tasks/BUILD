@@ -28,6 +28,8 @@ ts_project(
         "//:node_modules/react-aria",
         "//:node_modules/react-router",
         "//:node_modules/react-stately",
+        "//:node_modules/y-prosemirror",
+        "//:node_modules/yjs",
         "//client/content",
         "//client/context",
         "//client/design",

@@ -1,5 +1,4 @@
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
-import {areUint8ArraysEqual} from "~/shared/helpers/binary/are_uint8_arrays_equal.js";
 import {
     HybridLogicalTime,
     compareHybridLogicalTimes,
@@ -18,6 +17,7 @@ import {
     TaskParentTaskIdRegister,
     TaskTaskAction,
 } from "~/shared/tasks/actions/task_task_action.js";
+import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskAssigneeRegister} from "~/shared/tasks/task_assignee.js";
 import {TaskAssigneeActivePositionRegister} from "~/shared/tasks/task_assignee_active_position.js";
 import {
@@ -33,13 +33,7 @@ import {TaskPositionByCollectionIdMap} from "~/shared/tasks/task_position_by_col
 import {TaskPriorityRegister} from "~/shared/tasks/task_priority.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {TaskStatusRegister} from "~/shared/tasks/task_status.js";
-import {
-    TaskTitleSchema,
-    applyTaskTitleUpdate,
-    emptyTaskTitle,
-    getTaskTitleText,
-    mergeTaskTitles,
-} from "~/shared/tasks/task_title.js";
+import {emptyTaskTitle} from "~/shared/tasks/task_title.js";
 
 export type TaskModelData = SchemaType<typeof TaskModelDataSchema>;
 
@@ -77,7 +71,7 @@ const TaskModelDataSchema = Schema.object({
     assigneeStatus: TaskAssigneeStatusRegister.schema,
     assigneeActivePosition: TaskAssigneeActivePositionRegister.schema,
 
-    title: TaskTitleSchema,
+    title: TaskTitleModel.schema,
     dueDate: TaskDueDateRegister.schema,
     priority: TaskPriorityRegister.schema,
 });
@@ -149,7 +143,7 @@ export class TaskModel {
             assignee: new TaskAssigneeRegister(null, actionTime),
             assigneeStatus: new TaskAssigneeStatusRegister({type: "Inactive"}, actionTime),
             assigneeActivePosition: new TaskAssigneeActivePositionRegister(null, actionTime),
-            title: emptyTaskTitle.get(),
+            title: TaskTitleModel.new(emptyTaskTitle.get()),
             dueDate: new TaskDueDateRegister(null, actionTime),
             priority: new TaskPriorityRegister(null, actionTime),
         });
@@ -296,13 +290,6 @@ export class TaskModel {
         return this.rawData.title;
     }
 
-    private _titleText: string | undefined = undefined;
-
-    public getTitleText() {
-        this._titleText ??= getTaskTitleText(this.rawData.title);
-        return this._titleText;
-    }
-
     public getDueDate() {
         return this.rawData.dueDate.value;
     }
@@ -368,9 +355,7 @@ function mergeTaskModelData(task1: TaskModelData, task2: TaskModelData) {
         assigneeStatus: task1.assigneeStatus.merge(task2.assigneeStatus),
         assigneeActivePosition: task1.assigneeActivePosition.merge(task2.assigneeActivePosition),
 
-        title: areUint8ArraysEqual(task1.title, task2.title)
-            ? task1.title
-            : mergeTaskTitles(task1.title, task2.title),
+        title: task1.title.isEqual(task2.title) ? task1.title : task1.title.apply(task2.title.raw),
         dueDate: task1.dueDate.merge(task2.dueDate),
         priority: task1.priority.merge(task2.priority),
     };
@@ -669,9 +654,9 @@ function applyTaskActionToTaskModelData(
             };
         }
         case "UpdateTitle": {
-            const newTitle = applyTaskTitleUpdate(task.title, action.titleUpdate);
+            const newTitle = task.title.apply(action.titleUpdate);
 
-            if (areUint8ArraysEqual(newTitle, task.title)) return task;
+            if (newTitle.isEqual(task.title)) return task;
 
             return {
                 ...task,

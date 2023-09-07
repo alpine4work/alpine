@@ -31,17 +31,17 @@ export type TaskGridViewCapabilities =
               hasMultilineTitle: true;
           }
     ) &
-        // Can't set both `hasDenseAssigneeAndDueDate` and `hasColumns` to true.
+        // Can't set both `hasDenseFields` and `hasColumns` to true.
         (| {
-                  hasDenseAssigneeAndDueDate: false;
+                  hasDenseFields: false;
                   hasColumns: false;
               }
             | {
-                  hasDenseAssigneeAndDueDate: true;
+                  hasDenseFields: true;
                   hasColumns: false;
               }
             | {
-                  hasDenseAssigneeAndDueDate: false;
+                  hasDenseFields: false;
                   hasColumns: true;
               }
         );
