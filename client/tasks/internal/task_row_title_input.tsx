@@ -35,13 +35,14 @@ import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {
     TaskTitleProsemirrorSchema,
     TaskTitleUpdate,
+    emptyTaskTitleProsemirrorNode,
     getTaskTitleProsemirrorNode,
 } from "~/shared/tasks/task_title.js";
 
 const taskRowTitleInputSingleLineHeight: Spacing = taskRowViewMinHeight;
 
 export type TaskRowTitleInputRef = {
-    // NOCOMMIT: getSelection(): Selection;
+    getSelection(): Selection;
     focusStart(): void;
     focusEnd(): void;
     focusAll(): void;
@@ -415,8 +416,17 @@ function TaskRowTitleInput(
         });
     }, [placeholder, runWhenViewIsReady]);
 
-    const {focusStart, focusEnd, focusAll, focusCoord, focusSelection} = useMemo(
+    const {getSelection, focusStart, focusEnd, focusAll, focusCoord, focusSelection} = useMemo(
         () => ({
+            getSelection: () => {
+                if (!viewRef.current.isReady) {
+                    // A selection at the start of an empty task title should be the same as the
+                    // initial selection for our title when the view is ready.
+                    return Selection.atStart(emptyTaskTitleProsemirrorNode);
+                } else {
+                    return viewRef.current.view.state.selection;
+                }
+            },
             focusStart: () => {
                 runWhenViewIsReady(view => {
                     const selection = Selection.atStart(view.state.doc);

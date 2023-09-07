@@ -83,10 +83,11 @@ export const TaskTitleSchema = Schema.bytes.transform<TaskTitle>({
     },
 });
 
+export const emptyTaskTitleProsemirrorNode = TaskTitleProsemirrorSchema.node("doc", {}, []);
+
 export const emptyTaskTitle = new Lazy(() => {
-    const node = TaskTitleProsemirrorSchema.node("doc", {}, []);
     const doc = new Y.Doc();
-    prosemirrorToYXmlFragment(node, doc.getXmlFragment("doc"));
+    prosemirrorToYXmlFragment(emptyTaskTitleProsemirrorNode, doc.getXmlFragment("doc"));
     return Y.encodeStateAsUpdateV2(doc) as TaskTitle;
 });
 
