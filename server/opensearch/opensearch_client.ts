@@ -267,6 +267,30 @@ export class OpensearchClient implements OpensearchClientInterface {
                 // we need to wait for it here before we can use it.
                 await waitForHttpServer(`${this._protocol}://${this._host}`);
 
+                // We need to wait for OpenSearch primary shards to be allocated before we can
+                // check the status of indexes or create new indexes. Otherwise OpenSearch
+                // returns weird partial health errors.
+                const healthResponse = await fetchWithTracer(
+                    tracer,
+                    `${this._protocol}://${this._host}/_cluster/health?wait_for_status=yellow&timeout=60s`,
+                    {
+                        spanRoute: "/_cluster/health",
+                        method: "GET",
+                    },
+                );
+
+                // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
+                // float-64 size in cluster health. Ok to use native JSON parser instead of
+                // `json-bigint`.
+                const healthBody = await healthResponse.json();
+                if (!healthResponse.ok) {
+                    throw new InternalError(
+                        // NOTE(#opensearch-important-json-disclaimer): Parsed by native JSON parser
+                        // so it's ok to stringify with native JSON parser.
+                        `OpenSearch health check failed: ${JSON.stringify(healthBody)}`,
+                    );
+                }
+
                 const getResponse = await fetchWithTracer(
                     tracer,
                     `${this._protocol}://${this._host}/${index.name}/_settings`,
