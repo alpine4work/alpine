@@ -2,11 +2,15 @@
 // a cycle. Instead we import those dependencies here and tell our
 // `internal/store.ts` module about them.
 
-import {FlattenedStore} from "~/client/helpers/store/internal/flattened_store.js";
+import {FlattenedMappedStore} from "~/client/helpers/store/internal/flattened_mapped_store.js";
 import {MappedStore} from "~/client/helpers/store/internal/mapped_store.js";
-import {Store, setFlattenedStore, setMappedStore} from "~/client/helpers/store/internal/store.js";
+import {
+    Store,
+    setFlattenedMappedStore,
+    setMappedStore,
+} from "~/client/helpers/store/internal/store.js";
 
-setFlattenedStore(FlattenedStore);
+setFlattenedMappedStore(FlattenedMappedStore);
 setMappedStore(MappedStore);
 
 export {Store};

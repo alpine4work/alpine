@@ -10,7 +10,6 @@ import {
 import {taskRowViewMinHeight} from "~/client/tasks/internal/task_row_shared_styles.js";
 import {TaskRowView} from "~/client/tasks/internal/task_row_view.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {VirtualizedScrollViewItem} from "~/client/virtualized/virtualized_scroll_view.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
@@ -18,20 +17,18 @@ import {colorSchemeVars} from "~/shared/styles/styles.js";
 
 export function useTaskGridViewVirtualizedList({
     capabilities,
-    store,
     query,
     isExpandedByTaskKey,
     bottomGhostTaskId,
 }: {
     capabilities: TaskGridViewCapabilities;
-    store: TaskClientStore;
     query: TaskClientQuery;
     isExpandedByTaskKey: StoreMap<TaskGridViewTaskKey, boolean>;
     bottomGhostTaskId: TaskId;
 }) {
     const listStore = useMemo(
-        () => TaskGridViewVirtualizedTaskList.new(store, query, isExpandedByTaskKey),
-        [isExpandedByTaskKey, query, store],
+        () => TaskGridViewVirtualizedTaskList.new(query, isExpandedByTaskKey),
+        [isExpandedByTaskKey, query],
     );
 
     const list = useStore(listStore);

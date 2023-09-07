@@ -1,10 +1,11 @@
-import {ReactNode, createContext, useContext, useEffect, useRef, useState} from "react";
+import {useLoaderData} from "@remix-run/react";
+import {ReactNode, useContext, useEffect, useRef, useState} from "react";
 import {UNSAFE_DataRouterStateContext as DataRouterStateContext} from "react-router";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
-import {TaskClientStore} from "~/client/tasks/task_client_store.js";
+import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskRealtimeClient} from "~/client/tasks/task_realtime_client.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -36,13 +37,15 @@ function getTaskRealtimeClientIfExistsForClient(spaceId: SpaceId): TaskRealtimeC
     return taskRealtimeClientBySpaceIdForClient.get(spaceId)?.client ?? null;
 }
 
+const loaderTaskQueriesSymbol = Symbol("loaderTaskQueries");
+
 function loadTaskQueryDataIntoClient(
     client: TaskRealtimeClient,
-    serializedData: SchemaSerializedValue,
+    loaderData: SchemaSerializedValue,
 ) {
-    if (!isPlainObject(serializedData)) return;
+    if (!isPlainObject(loaderData)) return;
 
-    const loadTaskQueryDataSerializedValue = serializedData[loadTaskQueryDataKey];
+    const loadTaskQueryDataSerializedValue = loaderData[loadTaskQueryDataKey];
     if (!loadTaskQueryDataSerializedValue) return;
 
     const loadTaskQueryData = getLoaderDataWithSchema(
@@ -51,18 +54,21 @@ function loadTaskQueryDataIntoClient(
     );
 
     batchStoreUpdates(() => {
-        for (const query of loadTaskQueryData.queries) {
-            client.store.createQuery(query);
-        }
+        const queries = loadTaskQueryData.queries.map(query => client.store.createQuery(query));
 
         client.store.applyUpdateEvent(loadTaskQueryData.updateEvent);
 
-        for (const query of loadTaskQueryData.queries) {
-            client.store.loadTasksIntoQuery(query.id, {
-                loadedState: query.loadedState,
+        for (let i = 0; i < loadTaskQueryData.queries.length; i++) {
+            const query = queries[i]!;
+            const {loadedState} = loadTaskQueryData.queries[i]!;
+
+            client.store.loadTasksIntoQuery(query, {
+                loadedState,
                 previouslyBackfilledTaskIds: [],
             });
         }
+
+        (loaderData as any)[loaderTaskQueriesSymbol] = queries;
     });
 }
 
@@ -89,19 +95,14 @@ export function clientLoaderLoadTaskQueryData(spaceId: SpaceId, data: SchemaSeri
     if (client) loadTaskQueryDataIntoClient(client, data);
 }
 
-const TaskRealtimeClientContext = createContext<TaskClientStore | null>(null);
-
 /**
- * Get the task client store from context.
+ * Get the task queries loaded by this route's loader if this route loaded any
+ * queries. They will be in the same order as you passed your queries into
+ * `loadTaskQueryData`.
  */
-export function useTaskClientStore() {
-    const store = useContext(TaskRealtimeClientContext);
-    if (!store) {
-        throw new InternalError(
-            "Must be rendered in a `<TaskRealtimeClientContextProvider>` component to access the task client store",
-        );
-    }
-    return store;
+export function useLoaderTaskQueries(): Array<TaskClientQuery> {
+    const loaderData = useLoaderData();
+    return loaderData[loaderTaskQueriesSymbol] ?? [];
 }
 
 /**
@@ -115,11 +116,6 @@ export function TaskRealtimeClientContextProvider({
     spaceId: SpaceId;
     children: ReactNode;
 }) {
-    assert(
-        !useContext(TaskRealtimeClientContext),
-        "Can't nest `<TaskRealtimeClientContextProvider>` components",
-    );
-
     const dataRouterStateContext = useContext(DataRouterStateContext);
     assert(dataRouterStateContext, "Expected data router state context");
 
@@ -186,9 +182,5 @@ export function TaskRealtimeClientContextProvider({
         };
     }, [client, spaceId]);
 
-    return (
-        <TaskRealtimeClientContext.Provider value={client.store}>
-            {children}
-        </TaskRealtimeClientContext.Provider>
-    );
+    return <>{children}</>;
 }

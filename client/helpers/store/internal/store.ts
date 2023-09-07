@@ -1,10 +1,13 @@
 // To defend against cyclic import issues we initialize these variables in
+
+import {cast} from "~/shared/helpers/control/cast.js";
+
 // their respective modules instead of importing them here.
-let FlattenedStore: typeof import("~/client/helpers/store/internal/flattened_store.js").FlattenedStore;
+let FlattenedMappedStore: typeof import("~/client/helpers/store/internal/flattened_mapped_store.js").FlattenedMappedStore;
 let MappedStore: typeof import("~/client/helpers/store/internal/mapped_store.js").MappedStore;
 
-export function setFlattenedStore(value: typeof FlattenedStore) {
-    FlattenedStore = value;
+export function setFlattenedMappedStore(value: typeof FlattenedMappedStore) {
+    FlattenedMappedStore = value;
 }
 
 export function setMappedStore(value: typeof MappedStore) {
@@ -116,7 +119,7 @@ export abstract class Store<Value> {
      * `Store.flatMap()`.
      */
     public flat<Value>(this: Store<Store<Value>>): Store<Value> {
-        return new FlattenedStore(this);
+        return new FlattenedMappedStore(this, cast);
     }
 
     /**
@@ -137,6 +140,6 @@ export abstract class Store<Value> {
      * [1]: http://learnyouahaskell.com/a-fistful-of-monads
      */
     public flatMap<NewValue>(map: (value: Value) => Store<NewValue>): Store<NewValue> {
-        return new FlattenedStore(new MappedStore(this, map));
+        return new FlattenedMappedStore(this, map);
     }
 }

@@ -1,13 +1,12 @@
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
+import {Store} from "~/client/helpers/store/store.js";
+import {StoreMap} from "~/client/helpers/store/store_map.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {TaskClientQuery, TaskClientQueryInternal} from "~/client/tasks/task_client_query.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {AdvancedWeakValuesMap} from "~/shared/helpers/map/advanced_weak_values_map.js";
-import {generateId} from "~/shared/id/id.js";
-import {SpaceId, TaskClientQueryId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {
     TaskUpdateCollectionAction,
     TaskUpdateTaskAction,
@@ -116,12 +115,12 @@ export class TaskClientStore {
     /**
      * The queries our client is currently subscribed to.
      */
-    private readonly _queryById = new Map<TaskClientQueryId, TaskClientQueryInternal>();
+    private readonly _queries = new Set<TaskClientQueryInternal>();
 
     /**
      * Queries for the child tasks of a given parent task.
      */
-    private readonly _childrenQueryByParentTaskId = new Map<TaskId, TaskClientQueryInternal>();
+    private readonly _childrenQueryByParentTaskId = new StoreMap<TaskId, TaskClientQuery>();
 
     constructor({spaceId}: {spaceId: SpaceId}) {
         this._spaceId = spaceId;
@@ -560,7 +559,7 @@ export class TaskClientStore {
 
             // Apply task updates to all our queries. This will also update stores within
             // the query which will call listeners at the end of the batch.
-            for (const query of this._queryById.values()) {
+            for (const query of this._queries) {
                 query.onTasksUpdated(taskEntryUpdateById);
             }
         });
@@ -571,7 +570,6 @@ export class TaskClientStore {
      * realtime whenever there's a change to a task that affects the query.
      */
     public createQuery(options: {
-        id?: TaskClientQueryId;
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
     }): TaskClientQuery {
@@ -579,20 +577,21 @@ export class TaskClientStore {
     }
 
     private _createQuery({
-        id = generateId<TaskClientQueryId>(),
         filters,
         sorts,
     }: {
-        id?: TaskClientQueryId;
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
     }): TaskClientQueryInternal {
-        assert(!this._queryById.has(id));
-
-        const query = new TaskClientQueryInternal({id, filters, sorts});
-        this._queryById.set(id, query);
+        const query = new TaskClientQueryInternal({store: this, filters, sorts});
+        this._queries.add(query);
 
         return query;
+    }
+
+    private _getQueryInternal(query: TaskClientQuery): TaskClientQueryInternal {
+        // Our client store is allowed to look at the internals for a query.
+        return (query as any)._internal;
     }
 
     /**
@@ -605,7 +604,7 @@ export class TaskClientStore {
      * `previouslyBackfilledTaskIds`.
      */
     public loadTasksIntoQuery(
-        queryId: TaskClientQueryId,
+        query: TaskClientQuery,
         {
             loadedState,
             previouslyBackfilledTaskIds,
@@ -614,9 +613,9 @@ export class TaskClientStore {
             previouslyBackfilledTaskIds: ReadonlyArray<TaskId>;
         },
     ): void {
-        const query = assertExists(this._queryById.get(queryId));
+        assert(query.store === this);
 
-        query.onTasksLoaded(
+        this._getQueryInternal(query).onTasksLoaded(
             loadedState,
             previouslyBackfilledTaskIds.map(taskId => {
                 const taskEntryStore = this._taskEntryStoreById.get(taskId);
@@ -643,26 +642,12 @@ export class TaskClientStore {
     }
 
     /**
-     * Iterate through all the queries in our store.
-     */
-    public iterateQueries(): Iterable<TaskClientQuery> {
-        return mapIterable(this._queryById.values(), query => query.external);
-    }
-
-    /**
-     * Get a query by its `TaskClientQueryId`. Throws if the query doesn't exist.
-     */
-    public getQuery(queryId: TaskClientQueryId): TaskClientQuery {
-        return assertExists(this._queryById.get(queryId)).external;
-    }
-
-    /**
      * Gets the query for a task's children or creates a new query if one doesn't
      * exist.
      */
     public getOrCreateTaskChildrenQuery(parentTaskId: TaskId): TaskClientQuery {
-        const existingQuery = this._childrenQueryByParentTaskId.get(parentTaskId);
-        if (existingQuery) return existingQuery.external;
+        const existingQuery = this._childrenQueryByParentTaskId.getSnapshot(parentTaskId);
+        if (existingQuery) return existingQuery;
 
         const query = this._createQuery({
             filters: {
@@ -689,15 +674,16 @@ export class TaskClientStore {
             ],
         });
 
-        this._childrenQueryByParentTaskId.set(parentTaskId, query);
+        this._childrenQueryByParentTaskId.set(parentTaskId, query.external);
 
         return query.external;
     }
 
     /**
-     * Gets the query for the provided task's children if it exists.
+     * Gets the query for the provided task's children if it exists. If the query
+     * doesn't exist it means the task's children are not loaded.
      */
-    public getTaskChildrenQueryIfExists(parentTaskId: TaskId): TaskClientQuery | null {
-        return this._childrenQueryByParentTaskId.get(parentTaskId)?.external ?? null;
+    public getTaskChildrenQueryStore(parentTaskId: TaskId): Store<TaskClientQuery | undefined> {
+        return this._childrenQueryByParentTaskId.get(parentTaskId);
     }
 }

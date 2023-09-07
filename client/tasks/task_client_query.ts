@@ -1,10 +1,10 @@
 import createTree, {Tree} from "functional-red-black-tree";
 import {Store} from "~/client/helpers/store/store.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
-import {TaskClientStoreTaskEntry} from "~/client/tasks/task_client_store.js";
+import {TaskClientStore, TaskClientStoreTaskEntry} from "~/client/tasks/task_client_store.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {TaskClientQueryId, TaskId} from "~/shared/id/types/id_types.js";
+import {TaskId} from "~/shared/id/types/id_types.js";
 import {evaluateTaskQueryNormalizedFiltersForModel} from "~/shared/tasks/model/evaluate_task_query_normalized_filters_for_model.js";
 import {getTaskQueryNormalizedSortCursorForModel} from "~/shared/tasks/model/get_task_query_normalized_sort_cursor_for_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
@@ -42,6 +42,7 @@ import {TaskRealtimeQueryLoadedState} from "~/shared/tasks/task_realtime_protoco
  * `loadMoreQueryTasks` procedure in `TaskRealtimeProtocol`.
  */
 export class TaskClientQuery {
+    public readonly store: TaskClientStore;
     private readonly _internal: TaskClientQueryInternal;
 
     /**
@@ -54,6 +55,7 @@ export class TaskClientQuery {
 
     constructor(internal: TaskClientQueryInternal) {
         this._internal = internal;
+        this.store = this._internal.store;
         this.taskOrderStore = this._internal.taskOrderStore;
     }
 
@@ -73,7 +75,7 @@ export class TaskClientQuery {
 }
 
 export class TaskClientQueryInternal {
-    public readonly id: TaskClientQueryId;
+    public readonly store: TaskClientStore;
     public readonly filters: TaskQueryNormalizedFilters;
     public readonly sorts: ReadonlyArray<TaskQueryNormalizedSort>;
     public readonly external: TaskClientQuery;
@@ -95,15 +97,15 @@ export class TaskClientQueryInternal {
     // NOCOMMIT: Referenced tasks and collections
 
     constructor({
-        id,
+        store,
         filters,
         sorts,
     }: {
-        id: TaskClientQueryId;
+        store: TaskClientStore;
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
     }) {
-        this.id = id;
+        this.store = store;
         this.filters = filters;
         this.sorts = sorts;
         this._taskOrderStore = new ValueStore<{

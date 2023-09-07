@@ -5,23 +5,37 @@ import {InternalError} from "~/shared/error/error.js";
 /**
  * A combinator for `Store` which turns `Store<Store<Value>>` into
  * `Store<Value>`.
+ *
+ * Combines both a `flat()` combinator and a `map()` combinator into a
+ * `flatMap()` combinator. The `flat()` combinator can be trivially derived by
+ * using an identity function for `map()`. Since `flatMap()` is more common
+ * than `flat()` we wanted a combinator implementation that's more efficient
+ * for `flatMap()`.
  */
-export class FlattenedStore<Value> extends Store<Value> {
-    private readonly _store: Store<Store<Value>>;
-    private _nestedStore: Store<Value>;
+export class FlattenedMappedStore<OldValue, NewValue> extends Store<NewValue> {
+    private readonly _store: Store<OldValue>;
+    private readonly _map: (oldValue: OldValue) => Store<NewValue>;
+    private _oldValue: OldValue;
+    private _nestedStore: Store<NewValue>;
     private readonly _listeners = new Map<() => void, number>();
     private _weakImmediateListeners: StoreWeakImmediateListeners | null = null;
 
-    constructor(store: Store<Store<Value>>) {
+    constructor(store: Store<OldValue>, map: (oldValue: OldValue) => Store<NewValue>) {
         super();
         this._store = store;
+        this._map = map;
         this._store._addWeakImmediateListener(this._weakImmediateListener);
-        this._nestedStore = store.getSnapshot();
+        this._oldValue = store.getSnapshot();
+        this._nestedStore = map(this._oldValue);
     }
 
     private readonly _weakImmediateListener = () => {
         const oldNestedStore = this._nestedStore;
-        const newNestedStore = (this._nestedStore = this._store.getSnapshot());
+        const oldOldValue = this._oldValue;
+        const newOldValue = (this._oldValue = this._store.getSnapshot());
+        const newNestedStore = !Object.is(oldOldValue, newOldValue)
+            ? (this._nestedStore = this._map(newOldValue))
+            : this._nestedStore;
 
         // If the nested store changed then move our listeners from the old nested
         // store to the new nested store.

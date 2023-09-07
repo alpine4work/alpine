@@ -13,6 +13,8 @@
  *
  * cast<string>(x); // Error
  * ```
+ *
+ * Also serves as the identity function since it always returns its argument.
  */
 export function cast<Type>(value: Type): Type {
     return value;

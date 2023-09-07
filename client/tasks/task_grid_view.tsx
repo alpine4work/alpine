@@ -70,12 +70,10 @@ const minTaskCountToShowTopGhostTask = 7;
 // items not an actual component.
 export function TaskGridView({
     capabilities,
-    store,
     query,
     initialBottomGhostTaskId,
 }: {
     capabilities: TaskGridViewCapabilities;
-    store: TaskClientStore;
     query: TaskClientQuery;
     initialBottomGhostTaskId: TaskId;
 }) {
@@ -84,7 +82,6 @@ export function TaskGridView({
 
     const {itemCount, renderItem} = useTaskGridViewVirtualizedList({
         capabilities,
-        store,
         query,
         isExpandedByTaskKey,
         bottomGhostTaskId,
