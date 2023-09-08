@@ -203,8 +203,25 @@ export class TaskClientQueryInternal {
         let taskOrder = previousTaskOrder;
 
         for (const [taskId, {taskEntryStore, oldTaskEntry, newTaskEntry}] of taskEntryUpdateById) {
-            // Ignore tasks that haven't been backfilled yet.
-            if (newTaskEntry.task === null) continue;
+            if (newTaskEntry.task === null) {
+                // Ignore tasks that haven't been backfilled yet.
+                if (oldTaskEntry === null || oldTaskEntry.task === null) continue;
+
+                // If a task is being reverted we need to remove it from our query. But we
+                // don't have to remove tasks that don't exist in our query.
+                if (!this._taskEntryStoreById.has(taskId)) continue;
+
+                const oldCursor = getTaskQueryNormalizedSortCursorForModel(
+                    this.sorts,
+                    oldTaskEntry.task,
+                );
+
+                taskOrder = taskOrder.remove(oldCursor);
+
+                // Get rid of our task entry store reference so it can be garbage collected.
+                this._taskEntryStoreById.delete(taskId);
+                continue;
+            }
 
             const isVisible = evaluateTaskQueryNormalizedFiltersForModel(
                 this.filters,

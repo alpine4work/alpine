@@ -14,6 +14,12 @@ import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
 import {commitTaskActionTransaction} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {
+    assertNonEmptyReadonlySet,
+    defaultTaskQueryNormalizedFilters,
+} from "~/shared/tasks/task_query_normalized_filters.js";
+import {defaultTaskQueryNormalizedSorts} from "~/shared/tasks/task_query_normalized_sort.js";
+import {getTaskQuerySortCursorTaskId} from "~/shared/tasks/task_query_sort_cursor.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 
 const account1 = new AccountModel({
@@ -7516,4 +7522,134 @@ test("create task applied after optimistic updates that are resolved out of orde
         isAuthorized: true,
         authorizationEventNumber: 1,
     });
+});
+
+test("if optimistic task creation is reverted then queries remove the task", async () => {
+    const store = new TaskClientStore({spaceId: generateId()});
+
+    const action1 = {
+        type: "UpdateTask",
+        time: store.clock.now(),
+        taskId: generateId(),
+        taskAction: {
+            type: "Create",
+            creator: TaskSortableAccount.test(account1),
+            creatorTimeZone: defaultTimeZone,
+        },
+    } satisfies TaskAction;
+
+    const task = TaskModel.createFromAction(
+        store.spaceId,
+        action1.taskId,
+        action1.time,
+        action1.taskAction,
+    );
+
+    const action2 = {
+        type: "UpdateTask",
+        time: store.clock.now(),
+        taskId: task.id,
+        taskAction: {
+            type: "UpdatePriority",
+            priority: "High",
+        },
+    } satisfies TaskAction;
+
+    const query = store.createQuery({
+        filters: {
+            ...defaultTaskQueryNormalizedFilters,
+            creatorFilter: {
+                type: "OneOf",
+                accountIds: assertNonEmptyReadonlySet(new Set([account1.id])),
+            },
+            priorityFilter: {
+                ifHigh: true,
+                ifNull: false,
+                ifLow: false,
+                ifMedium: false,
+                ifUrgent: false,
+            },
+        },
+        sorts: defaultTaskQueryNormalizedSorts,
+    });
+
+    store.loadTasksIntoQuery(query, {
+        loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
+    });
+
+    expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual(null);
+
+    expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
+
+    store.commitTaskActionTransaction(context, [action1]);
+
+    expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
+        task: task,
+        actions: null,
+        optimisticState: {
+            original: {
+                task: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action1}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
+        task: task.apply(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                task: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action1},
+                {isOptimistic: true, action: action2},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
+        task.id,
+    ]);
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+
+    expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
+        task: null,
+        actions: [action2],
+        optimisticState: {
+            original: {
+                task: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+
+    expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
+        task: null,
+        actions: [],
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
 });
