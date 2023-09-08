@@ -101,6 +101,12 @@ export interface CrdtMap<Key extends string | number, Value extends {}> {
      * Applies an action to our map. This method is commutative and idempotent.
      */
     apply(action: CrdtMapAction<Key, Value>): CrdtMap<Key, Value>;
+
+    /**
+     * Make sure the clock's time is after the time observed by every entry in
+     * this map.
+     */
+    tick(clock: HybridLogicalClock): void;
 }
 
 /**
@@ -262,7 +268,7 @@ export function createCrdtMap<Key extends string | number, Value extends {}>(
                 type: "Set",
                 key,
                 value,
-                version: lastVersion ? clock.tick(lastVersion) : clock.now(),
+                version: lastVersion ? clock.tickNow(lastVersion) : clock.now(),
             };
         }
 
@@ -272,7 +278,7 @@ export function createCrdtMap<Key extends string | number, Value extends {}>(
             return {
                 type: "Delete",
                 key,
-                version: lastVersion ? clock.tick(lastVersion) : clock.now(),
+                version: lastVersion ? clock.tickNow(lastVersion) : clock.now(),
             };
         }
 
@@ -306,6 +312,12 @@ export function createCrdtMap<Key extends string | number, Value extends {}>(
                 }
                 default:
                     throw exhaustive(action);
+            }
+        }
+
+        public tick(clock: HybridLogicalClock) {
+            for (const valueRegister of this._map.values()) {
+                clock.tick(valueRegister.version);
             }
         }
     };

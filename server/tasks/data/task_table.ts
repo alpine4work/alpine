@@ -621,7 +621,7 @@ class TaskActionTransactionCommitState {
      * the device clock.
      */
     public isTimeReasonable(time: number): boolean {
-        return time - this._startTime < 2 * 60 * 1000;
+        return time - this._startTime < 1000 * 60 * 2;
     }
 
     public getTaskItemIfExists(taskId: TaskId): Promise<TaskEssentialAttributesItem | null> {

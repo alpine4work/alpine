@@ -1,8 +1,8 @@
 import {HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client.js";
-import {writeTracerEventToFileInDev} from "~/server/tracer/write_tracer_event_to_file_in_dev.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.js";
 import {TracerEventJsHost} from "~/shared/tracer/types/tracer_event_data.js";
+import {writeTracerEventToFileInDev} from "~/shared/tracer/write_tracer_event_to_file_in_dev.js";
 
 /**
  * Create a tracer for a service running in a server Cloudflare

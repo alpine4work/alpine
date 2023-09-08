@@ -6,7 +6,6 @@ import {
     unstable_scheduleCallback,
 } from "scheduler";
 import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_clock.js";
-import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -25,14 +24,8 @@ export function createClientTracer() {
     let scheduledFlushEventsCallbackNode: CallbackNode | null = null;
 
     const synchronizedSystemClock = new Lazy(() =>
-        PromiseImmediate.resolve(getSynchronizedSystemClock()).then(
-            clock => {
-                // Make sure we are continuously monitoring the client's time and updating
-                // our offset.
-                clock.subscribeToChanges();
-
-                return clock;
-            },
+        getSynchronizedSystemClock().then(
+            clock => clock,
             error => {
                 scheduleUncaughtError(error);
                 return null;

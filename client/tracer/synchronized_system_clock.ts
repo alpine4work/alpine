@@ -1,10 +1,12 @@
 import isValidDate from "date-fns/isValid/index.js";
 import parseISO from "date-fns/parseISO/index.js";
+import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {Clock} from "~/shared/helpers/clock/clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
-let synchronizedSystemClockPromise: Promise<SynchronizedSystemClock> | null = null;
+let synchronizedSystemClockPromise: PromiseImmediate<SynchronizedSystemClock> | null = null;
 
 /**
  * Get the synchronized system clock. The synchronized system clock uses the
@@ -18,7 +20,7 @@ let synchronizedSystemClockPromise: Promise<SynchronizedSystemClock> | null = nu
  *
  * [1]: https://en.wikipedia.org/wiki/Network_Time_Protocol
  */
-export function getSynchronizedSystemClock(): Promise<SynchronizedSystemClock> {
+export function getSynchronizedSystemClock(): PromiseImmediate<SynchronizedSystemClock> {
     if (synchronizedSystemClockPromise === null) {
         synchronizedSystemClockPromise = SynchronizedSystemClock.new();
     }
@@ -26,14 +28,42 @@ export function getSynchronizedSystemClock(): Promise<SynchronizedSystemClock> {
 }
 
 class SynchronizedSystemClock implements Clock {
-    private _isSubscribed = false;
     private _clientTimeOffsetMs: number;
 
     constructor(clientTimeOffsetMs: number) {
         this._clientTimeOffsetMs = clientTimeOffsetMs;
+
+        // When running in a web browser, occasionally refresh the client time offset
+        // to make sure our clock is still synchronized with the server.
+        //
+        // Outside of web browser environments, we assume the system clock is
+        // synchronized for us. (e.g. AWS Linux 2 AMIs use the AWS Time Sync service.)
+        if (typeof window !== "undefined") {
+            const listener = () => {
+                // When the document is made visible, immediately go and update our client
+                // time offset.
+                if (document.visibilityState === "visible") {
+                    fetchClientTimeOffsetMs()
+                        .then(clientTimeOffsetMs => (this._clientTimeOffsetMs = clientTimeOffsetMs))
+                        .catch(scheduleUncaughtError);
+                }
+            };
+
+            document.addEventListener("visibilitychange", listener);
+        }
     }
 
-    public static async new() {
+    /**
+     * Returns a `PromiseImmediate` so if the clock is available synchronously we
+     * return it synchronously.
+     */
+    public static new(): PromiseImmediate<SynchronizedSystemClock> {
+        // If we are running on the server then assume our system clock is
+        // synchronized for us. (e.g. AWS Linux 2 AMIs use the AWS Time Sync service.)
+        if (typeof window === "undefined") {
+            return PromiseImmediate.resolve(new SynchronizedSystemClock(0));
+        }
+
         // Try to get the client time offset from the HTTP `Server-Timing` header. If
         // it doesn't exist then we need to make a network request.
         //
@@ -41,11 +71,26 @@ class SynchronizedSystemClock implements Clock {
         // wait for a network roundtrip.
         let clientTimeOffsetMs = getClientTimeOffsetMsFromServerTimingIfAvailable();
         if (clientTimeOffsetMs !== null) {
-            return new SynchronizedSystemClock(clientTimeOffsetMs);
+            return PromiseImmediate.resolve(new SynchronizedSystemClock(clientTimeOffsetMs));
         }
 
-        clientTimeOffsetMs = await fetchClientTimeOffsetMs();
-        return new SynchronizedSystemClock(clientTimeOffsetMs);
+        return PromiseImmediate.resolve(
+            (async () => {
+                // It's essential that we load the client time offset from our server. So in
+                // case we there's a transient network error, keep retrying until we get the
+                // client time offset.
+                clientTimeOffsetMs = await retryWithExponentialBackoff(async retry => {
+                    try {
+                        const clientTimeOffsetMs = await fetchClientTimeOffsetMs();
+                        return clientTimeOffsetMs;
+                    } catch (error) {
+                        throw retry(error);
+                    }
+                });
+
+                return new SynchronizedSystemClock(clientTimeOffsetMs);
+            })(),
+        );
     }
 
     /**
@@ -63,29 +108,6 @@ class SynchronizedSystemClock implements Clock {
     public now() {
         return Date.now() + this._clientTimeOffsetMs;
     }
-
-    public subscribeToChanges(): () => void {
-        assert(!this._isSubscribed);
-        this._isSubscribed = true;
-
-        const listener = () => {
-            // When the document is made visible, immediately go and update our client
-            // time offset.
-            if (document.visibilityState === "visible") {
-                fetchClientTimeOffsetMs()
-                    .then(clientTimeOffsetMs => (this._clientTimeOffsetMs = clientTimeOffsetMs))
-                    .catch(scheduleUncaughtError);
-            }
-        };
-
-        document.addEventListener("visibilitychange", listener);
-        return () => {
-            assert(this._isSubscribed);
-            this._isSubscribed = false;
-
-            document.removeEventListener("visibilitychange", listener);
-        };
-    }
 }
 
 /**
@@ -99,6 +121,12 @@ class SynchronizedSystemClock implements Clock {
  */
 function getClientTimeOffsetMsFromServerTimingIfAvailable(): number | null {
     // Avoid error in Safari 10 and other old browsers.
+    //
+    // TODO(calebmer): Our mobile wrapper runs WebKit on iOS and our desktop
+    // wrapper may run WebKit on MacOS. We should inject an implementation of
+    // `Server-Timing` in these environments since a synchronized system clock
+    // being immediately available is important for monitoring and for our
+    // task system.
     if (!window.performance || !performance.getEntriesByType) return null;
 
     const navigationTimings = performance.getEntriesByType(

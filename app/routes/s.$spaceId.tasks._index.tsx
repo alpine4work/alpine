@@ -2,6 +2,7 @@ import {useMemo} from "react";
 import {Params} from "react-router";
 import {Box} from "~/client/design/box.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {TaskGridView} from "~/client/tasks/task_grid_view.js";
 import {
     clientLoaderLoadTaskQueryData,
@@ -13,10 +14,14 @@ import {getTaskNotepadPageIds} from "~/server/tasks/data/task_table.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
-import {TaskNotepadPageIdCompressedSetSchema} from "~/shared/tasks/task_notepad_page_id.js";
+import {
+    TaskNotepadPageIdCompressedSetSchema,
+    TaskNotepadPageIdSchema,
+} from "~/shared/tasks/task_notepad_page_id.js";
 import {
     TaskQueryNormalizedFilters,
     assertNonEmptyReadonlySet,
@@ -25,6 +30,7 @@ import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort
 
 const LoaderSchema = Schema.object({
     notepadPageIds: TaskNotepadPageIdCompressedSetSchema,
+    currentNotepadPageId: TaskNotepadPageIdSchema,
     initialBottomGhostTaskId: Schema.id<TaskId>(),
 });
 
@@ -117,6 +123,7 @@ export async function loader({params, context: _context}: LoaderArgs) {
         {
             notepadPageIds,
             initialBottomGhostTaskId: generateId<TaskId>(),
+            currentNotepadPageId: latestNotepadPageId,
         },
         {
             propagateEventData: {
@@ -156,9 +163,11 @@ export async function clientLoader({
 }
 
 export default function TasksRoute() {
-    const {initialBottomGhostTaskId} = useLoaderDataWithSchema(LoaderSchema);
+    const {currentNotepadPageId, initialBottomGhostTaskId} = useLoaderDataWithSchema(LoaderSchema);
     const [assigneeActiveQuery, notepadPageQuery] = useLoaderTaskQueries();
     assert(assigneeActiveQuery && notepadPageQuery);
+
+    const {currentAccount} = useSpaceContext();
 
     // NOCOMMIT: This should be in a lower-level component I think but let's start
     // here since I want the background color.
@@ -176,6 +185,22 @@ export default function TasksRoute() {
                 )}
                 query={notepadPageQuery}
                 initialBottomGhostTaskId={initialBottomGhostTaskId}
+                getAddNewTaskToQueryActions={(time, taskId) => [
+                    {
+                        type: "UpdateTask",
+                        time,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateNotepadPagePosition",
+                            accountId: currentAccount.id,
+                            notepadPageId: currentNotepadPageId,
+                            position: {
+                                orderTime: time,
+                                orderKey: initialOrderKey,
+                            },
+                        },
+                    },
+                ]}
             />
         </Box>
     );

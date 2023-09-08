@@ -1,7 +1,7 @@
-import {writeTracerEventToFileInDev} from "~/server/tracer/write_tracer_event_to_file_in_dev.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
+import {writeTracerEventToFileInDev} from "~/shared/tracer/write_tracer_event_to_file_in_dev.js";
 
 // This file should only run in a Node.js test environment. Either Jest
 // or Playwright.

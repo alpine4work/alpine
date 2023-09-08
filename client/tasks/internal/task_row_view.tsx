@@ -17,12 +17,14 @@ import {
     useState,
 } from "react";
 import {mergeProps} from "react-aria";
+import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu_button.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useStore} from "~/client/helpers/store/use_store.js";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -65,19 +67,28 @@ import {TaskRowTitleInput} from "~/client/tasks/internal/task_row_title_input.js
 //     TaskStatusButton,
 // } from "~/client/tasks/demo_2/task_status_button.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
+import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
+import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {ThemeColor} from "~/shared/design/theme_colors.js";
+import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {LocalTaskCollectionId} from "~/shared/id/types/id_types.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {generateId} from "~/shared/id/id.js";
+import {LocalTaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {
     colorSchemeVars,
     contentSchemaStyles,
     sprinkles,
     tasksStyles,
 } from "~/shared/styles/styles.js";
+import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
+import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {
     TaskTitle,
     TaskTitleUpdate,
@@ -98,18 +109,23 @@ export type TaskRowViewRef = {
 const TaskRowViewForwardRef = forwardRef(TaskRowView);
 export {TaskRowViewForwardRef as TaskRowView};
 
+const emptyTaskTitleModel = new Lazy(() => TaskTitleModel.new(emptyTaskTitle.get()));
+
 function TaskRowView(
     {
+        query,
         capabilities,
-        // title,
-        // onTitleChange,
+        taskId,
+        ghostTaskId = null,
         titlePlaceholder,
         indentation,
         withoutPaddingLeft,
+        getAddNewTaskToQueryActions,
     }: {
+        query: TaskClientQuery;
         capabilities: TaskGridViewCapabilities;
-        // title: TaskTitle;
-        // onTitleChange: (titleUpdate: TaskTitleUpdate) => void;
+        taskId: TaskId | null;
+        ghostTaskId?: TaskId | null;
         titlePlaceholder?: string;
         // NOCOMMIT:
         // capabilities: TaskGridViewCapabilities;
@@ -156,18 +172,69 @@ function TaskRowView(
         // focusFirstTaskTitleStart: () => void;
         // focusLastTaskTitleEnd: () => void;
         withoutPaddingLeft?: boolean;
+        getAddNewTaskToQueryActions: (time: HybridLogicalTime, taskId: TaskId) => Array<TaskAction>;
     },
     ref: Ref<TaskRowViewRef>,
 ) {
+    // Either `taskId` or `ghostTaskId` should be provided. This component
+    // transitions from a ghost task to a regular task when the user enters data.
+    assert(taskId !== null ? ghostTaskId === null : ghostTaskId !== null);
+
+    const context = useAppContext();
     const {timeZone} = useClientInfo();
     const {currentAccount} = useSpaceContext();
 
-    // NOCOMMIT: Temporary! To debug
-    const [title, setTitle] = useState(() => TaskTitleModel.new(emptyTaskTitle.get()));
+    const taskEntry = useStore(taskId !== null ? query.getTaskEntryStore(taskId) : null);
+    const task = taskEntry?.task ?? null;
 
-    const onTitleChange = useCallback((titleUpdate: TaskTitleUpdate) => {
-        setTitle(title => title.apply(titleUpdate));
-    }, []);
+    // If `taskId` is non-null then we expect `task` to also be non-null and
+    // authorized. If a task is in a query's loaded range then we expect it to
+    // exist on the client and be authorized.
+    assert(taskId !== null ? task !== null && taskEntry?.isAuthorized : task === null);
+
+    const onTitleChange = (titleUpdate: TaskTitleUpdate) => {
+        if (taskId) {
+            query.store.commitTaskActionTransaction(context, [
+                {
+                    type: "UpdateTask",
+                    time: query.store.clock.now(),
+                    taskId,
+                    taskAction: {
+                        type: "UpdateTitle",
+                        titleUpdate,
+                    },
+                },
+            ]);
+        }
+
+        // NOCOMMIT
+        //
+        // const taskId = generateId<TaskId>();
+        // const time = store.clock.now();
+        //
+        // store.commitTaskActionTransaction(context, [
+        //     {
+        //         type: "UpdateTask",
+        //         time,
+        //         taskId,
+        //         taskAction: {
+        //             type: "Create",
+        //             creator: TaskSortableAccount.from(currentAccount),
+        //             creatorTimeZone: timeZone,
+        //         },
+        //     },
+        //     {
+        //         type: "UpdateTask",
+        //         time,
+        //         taskId,
+        //         taskAction: {
+        //             type: "UpdateTitle",
+        //             titleUpdate,
+        //         },
+        //     },
+        //     ...getAddNewTaskToQueryActions(time, taskId),
+        // ]);
+    };
 
     // NOCOMMIT:
     // const titleInputRef = useRef<TaskRowTitleInputRef>(null);
@@ -450,7 +517,7 @@ function TaskRowView(
                     <Box flexGrow="1" overflow="hidden">
                         <TaskRowTitleInput
                             capabilities={capabilities}
-                            title={title}
+                            title={task?.getTitle() ?? emptyTaskTitleModel.get()}
                             onTitleChange={onTitleChange}
                             placeholder={titlePlaceholder}
                         />

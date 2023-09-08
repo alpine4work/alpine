@@ -1,5 +1,6 @@
 import {useCallback, useMemo} from "react";
 import {Box} from "~/client/design/box.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {StoreMap} from "~/client/helpers/store/store_map.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
@@ -12,19 +13,23 @@ import {TaskRowView} from "~/client/tasks/internal/task_row_view.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {VirtualizedScrollViewItem} from "~/client/virtualized/virtualized_scroll_view.js";
 import {spacing} from "~/shared/design/spacing.js";
+import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {colorSchemeVars} from "~/shared/styles/styles.js";
+import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 
 export function useTaskGridViewVirtualizedList({
     capabilities,
     query,
     isExpandedByTaskKey,
     bottomGhostTaskId,
+    getAddNewTaskToQueryActions: _getAddNewTaskToQueryActions,
 }: {
     capabilities: TaskGridViewCapabilities;
     query: TaskClientQuery;
     isExpandedByTaskKey: StoreMap<TaskGridViewTaskKey, boolean>;
     bottomGhostTaskId: TaskId;
+    getAddNewTaskToQueryActions: (time: HybridLogicalTime, taskId: TaskId) => Array<TaskAction>;
 }) {
     const listStore = useMemo(
         () => TaskGridViewVirtualizedTaskList.new(query, isExpandedByTaskKey),
@@ -32,6 +37,8 @@ export function useTaskGridViewVirtualizedList({
     );
 
     const list = useStore(listStore);
+
+    const getAddNewTaskToQueryActions = useEvent(_getAddNewTaskToQueryActions);
 
     return {
         itemCount: Math.max(list.getItemCount() + 1, 3),
@@ -41,24 +48,33 @@ export function useTaskGridViewVirtualizedList({
                 const listItemCount = list.getItemCount();
 
                 if (itemIndex < listItemCount) {
-                    return list.renderItem(itemIndex);
+                    return list.renderItem(itemIndex, {
+                        capabilities,
+                        getAddNewTaskToQueryActions,
+                    });
                 }
 
                 itemIndex -= listItemCount;
 
                 if (itemIndex === 0) {
                     return {
+                        // We want to use the same key and component as a regular task so we can turn a
+                        // ghost task into a regular task without losing focus.
                         key: `Task:${bottomGhostTaskId}`,
                         minHeight: spacing[taskRowViewMinHeight],
                         node: (
                             <TaskRowView
+                                query={query}
                                 capabilities={capabilities}
+                                taskId={null}
+                                ghostTaskId={bottomGhostTaskId}
                                 // NOCOMMIT: Ghost row placeholder sequence!
                                 titlePlaceholder="Add a task…"
                                 indentation={0}
                                 // If there are no task rows, the padding just makes our ghost row placeholder
                                 // look misaligned. So remove it.
                                 withoutPaddingLeft={listItemCount === 0}
+                                getAddNewTaskToQueryActions={getAddNewTaskToQueryActions}
                             />
                         ),
                     };
@@ -102,7 +118,7 @@ export function useTaskGridViewVirtualizedList({
                     ),
                 };
             },
-            [bottomGhostTaskId, capabilities, list],
+            [bottomGhostTaskId, capabilities, getAddNewTaskToQueryActions, list, query],
         ),
     };
 }

@@ -107,6 +107,24 @@ export class HybridLogicalClock {
     }
 
     /**
+     * Ensures that the next time you call `now()` you'll get a time greater than
+     * the provided time.
+     *
+     * Used to establish a causal relationship between times. In other words future
+     * times returned by `now()` are definitely after the provided time and clients
+     * can interpret actions associated with these times appropriately.
+     *
+     * If our system time is less than the provided time then we consider our
+     * logical clock's latest time to now be the provided time and increment the
+     * `ticks` property of that timestamp until our system time catches up.
+     */
+    public tick(time: HybridLogicalTime): void {
+        if (compareHybridLogicalTimes(this._latestTime, time) < 0) {
+            this._latestTime = time;
+        }
+    }
+
+    /**
      * Gets a time after the provided time.
      *
      * Used to establish a causal relationship between times. In other words the
@@ -117,14 +135,14 @@ export class HybridLogicalClock {
      * logical clock's latest time to now be the provided time and increment the
      * `ticks` property of that timestamp until our system time catches up.
      */
-    public tick(time: HybridLogicalTime): HybridLogicalTime {
+    public tickNow(time: HybridLogicalTime): HybridLogicalTime {
         const currentTime = this.now();
 
         if (compareHybridLogicalTimes(currentTime, time) > 0) {
             return currentTime;
         }
 
-        this._latestTime = [time[0], time[1]];
+        this._latestTime = time;
         return this._latestTime;
     }
 }

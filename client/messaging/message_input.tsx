@@ -173,6 +173,9 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                         typingIndicatorStateRef.current = {shouldBeShowing: false};
                     }
 
+                    // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
+                    // close the page if we haven't finished sending their message. It will
+                    // look ok on their machine but might not be on the server.
                     const promise = createMessage({
                         parentMessageIndex: replyingToMessage?.message.index ?? null,
                         content: content.doc,

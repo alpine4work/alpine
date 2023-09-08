@@ -1,5 +1,6 @@
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {
+    HybridLogicalClock,
     HybridLogicalTime,
     compareHybridLogicalTimes,
     maxHybridLogicalTime,
@@ -190,6 +191,14 @@ export class TaskModel {
         if (rawData === this.rawData) return this;
 
         return new TaskModel(rawData);
+    }
+
+    /**
+     * Make sure the hybrid logical clock's time is beyond any time observed by
+     * this task.
+     */
+    public tick(clock: HybridLogicalClock) {
+        return tickTaskModelData(this.rawData, clock);
     }
 
     public getCreator() {
@@ -692,4 +701,21 @@ function applyTaskActionToTaskModelData(
         default:
             throw exhaustive(action);
     }
+}
+
+function tickTaskModelData(task: TaskModelData, clock: HybridLogicalClock) {
+    clock.tick(task.createdTime.absoluteTime);
+    if (task.deletedTime !== null) clock.tick(task.deletedTime);
+    if (task.undeletedTime !== null) clock.tick(task.undeletedTime);
+    clock.tick(task.parent.taskId.version);
+    clock.tick(task.parent.position.version);
+    task.collections.tick(clock);
+    task.positionByCollectionId.tick(clock);
+    task.positionByAccountIdAndNotepadPageId.tick(clock);
+    clock.tick(task.status.version);
+    clock.tick(task.assignee.version);
+    clock.tick(task.assigneeStatus.version);
+    clock.tick(task.assigneeActivePosition.version);
+    clock.tick(task.dueDate.version);
+    clock.tick(task.priority.version);
 }

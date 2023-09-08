@@ -135,7 +135,7 @@ export function createCrdtRegister<Value>(valueSchema: Schema<Value>): CrdtRegis
         }
 
         public set(clock: HybridLogicalClock, value: Value): CrdtRegisterAction<Value> {
-            return {value, version: clock.tick(this.version)};
+            return {value, version: clock.tickNow(this.version)};
         }
 
         public apply(action: CrdtRegisterAction<Value>): CrdtRegister {

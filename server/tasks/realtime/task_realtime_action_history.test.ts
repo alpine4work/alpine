@@ -1,5 +1,4 @@
 import {TaskRealtimeActionHistory} from "~/server/tasks/realtime/task_realtime_action_history.js";
-import {testTracer} from "~/server/dynamo/test_helpers/test_tracer.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {MonotonicClock} from "~/shared/helpers/clock/monotonic_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
@@ -9,6 +8,7 @@ import {generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
+import {testTracer} from "~/shared/tracer/test_tracer.js";
 
 import.meta.jest.useFakeTimers();
 

@@ -4,6 +4,9 @@ ts_project(
     name = "tasks",
     test_deps = ["//shared/tasks/test_helpers"],
     tests = {
+        "task_client_store_test": {
+            "node_options": ["--expose-gc"],
+        },
         "task_client_store_permutations_test": {
             "node_options": ["--expose-gc"],
         },
@@ -35,6 +38,7 @@ ts_project(
         "//client/design",
         "//client/peek",
         "//client/spaces",
+        "//client/tracer",
         "//shared/helpers",
         "//shared/prosemirror",
         "//shared/tasks",

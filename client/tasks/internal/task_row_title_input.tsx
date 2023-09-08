@@ -1,5 +1,6 @@
 import classNames from "classnames";
-import {AllSelection, EditorState, Selection, TextSelection} from "prosemirror-state";
+import {AllSelection, EditorState, Selection, TextSelection, Transaction} from "prosemirror-state";
+import {ReplaceStep, Step} from "prosemirror-transform";
 import {EditorView} from "prosemirror-view";
 import {
     CSSProperties,
@@ -20,6 +21,7 @@ import {taskRowViewMinHeight} from "~/client/tasks/internal/task_row_shared_styl
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {useTaskTitleModelYDoc} from "~/client/tasks/internal/use_task_title_model_y_doc.js";
 import {Spacing} from "~/shared/design/spacing.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
@@ -37,6 +39,7 @@ import {
     TaskTitleUpdate,
     emptyTaskTitleProsemirrorNode,
     getTaskTitleProsemirrorNode,
+    mergeTaskTitleUpdates,
 } from "~/shared/tasks/task_title.js";
 
 const taskRowTitleInputSingleLineHeight: Spacing = taskRowViewMinHeight;
@@ -139,7 +142,91 @@ function TaskRowTitleInput(
         | {isReady: true; view: EditorView}
     >({isReady: false, callbacks: new Set()});
 
-    const titleDoc = useTaskTitleModelYDoc(title, onTitleChange);
+    const lastTransactionRef = useRef<Transaction | null>(null);
+    const throttleTimeoutRef = useRef<Timeout | null>(null);
+
+    const [throttledTitle, setThrottledTitle] = useState<{
+        title: TaskTitleModel;
+        titleUpdate: TaskTitleUpdate | null;
+    }>({
+        title,
+        titleUpdate: null,
+    });
+
+    // We want collaborative task title editing to feel as realtime as possible for
+    // connected users. However, sending an action for every keystroke can create a
+    // lot of load on our backend.
+    //
+    // To strike a balance of feeling like typing is happening in realtime while
+    // also minimizing actions we throttle updates while the user is typing
+    // letters.
+    //
+    // - While typing letters we'll send an update every N milliseconds.
+    // - If space or punctuation or any other character is typed we'll immediately
+    //   send an update and restart the throttle timer.
+    //
+    // This breaks our update actions into word boundaries. Connected users should
+    // see words appear on screen one at a time which should feel realtime enough.
+    //
+    // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
+    // close the page if we are currently throttling a title update. Navigating
+    // away from this page should be fine? The update will happen in the
+    // background.
+    const handleTitleUpdate = (titleUpdate: TaskTitleUpdate) => {
+        const lastTransaction = lastTransactionRef.current;
+
+        // If the user is typing single letters then throttle until they are done
+        // typing their word.
+        const shouldThrottle =
+            lastTransaction &&
+            !lastTransaction.getMeta("paste") &&
+            lastTransaction.steps.length === 1 &&
+            isSingleLetterInsertionStep(lastTransaction.steps[0]!);
+
+        const mergedTitleUpdate = throttledTitle.titleUpdate
+            ? mergeTaskTitleUpdates(throttledTitle.titleUpdate, titleUpdate)
+            : titleUpdate;
+
+        if (!shouldThrottle) {
+            throttleTimeoutRef.current?.clear();
+            throttleTimeoutRef.current = null;
+
+            onTitleChange(mergedTitleUpdate);
+
+            setThrottledTitle({
+                title: throttledTitle.title.apply(titleUpdate),
+                titleUpdate: null,
+            });
+        } else {
+            setThrottledTitle({
+                title: throttledTitle.title.apply(titleUpdate),
+                titleUpdate: throttledTitle.titleUpdate
+                    ? mergeTaskTitleUpdates(throttledTitle.titleUpdate, titleUpdate)
+                    : titleUpdate,
+            });
+
+            if (throttleTimeoutRef.current === null) {
+                // Estimated milliseconds a below average typist would take to type a longer
+                // than average word.
+                const throttleDurationMs = 1500;
+
+                throttleTimeoutRef.current = createTimeout(() => {
+                    throttleTimeoutRef.current = null;
+
+                    if (throttledTitleRef.current.titleUpdate !== null) {
+                        onTitleChange(throttledTitleRef.current.titleUpdate);
+
+                        setThrottledTitle({
+                            title: throttledTitleRef.current.title,
+                            titleUpdate: null,
+                        });
+                    }
+                }, throttleDurationMs);
+            }
+        }
+    };
+
+    const titleDoc = useTaskTitleModelYDoc(throttledTitle.title, handleTitleUpdate);
 
     const handleKeyDown = (view: EditorView, event: KeyboardEvent) => {
         switch (event.key) {
@@ -280,8 +367,12 @@ function TaskRowTitleInput(
         }
     };
 
+    const titleRef = useRef(title);
+    const throttledTitleRef = useRef(throttledTitle);
     const handleKeyDownRef = useRef(handleKeyDown);
     useLayoutEffectWithoutServerSideWarning(() => {
+        titleRef.current = title;
+        throttledTitleRef.current = throttledTitle;
         handleKeyDownRef.current = handleKeyDown;
     });
 
@@ -300,6 +391,9 @@ function TaskRowTitleInput(
         const view = new EditorView(containerElement, {
             state: EditorState.create({
                 schema: TaskTitleProsemirrorSchema,
+                // Make sure we start with the correct initial document. After this the
+                // `ySyncPlugin` manages document state.
+                doc: getTaskTitleProsemirrorNode(titleRef.current.raw),
                 plugins: [ySyncPlugin(titleDoc.getXmlFragment("doc"))],
             }),
 
@@ -344,6 +438,8 @@ function TaskRowTitleInput(
                 const newTitleState = oldTitleState.apply(transaction);
 
                 updateEditorEmptyClass(newTitleState);
+
+                lastTransactionRef.current = transaction;
                 view.updateState(newTitleState);
             },
         });
@@ -679,4 +775,26 @@ function TaskRowTitleInput(
             </div>
         </div>
     );
+}
+
+/**
+ * Is this step the insertion of a single letter character as determined by the
+ * letter [Unicode general category][1]?
+ *
+ * [1]: https://en.wikipedia.org/wiki/Unicode_character_property
+ */
+function isSingleLetterInsertionStep(step: Step): boolean {
+    if (!(step instanceof ReplaceStep)) return false;
+
+    // If `from` and `to` are the same we are inserting at that point instead of
+    // replacing some range.
+    if (step.from !== step.to) return false;
+
+    // Content should only consist of a single text node.
+    if (step.slice.content.childCount !== 1) return false;
+    const node = step.slice.content.child(0);
+    if (!node.isText) return false;
+
+    // Test for only a single letter character.
+    return /^\p{L}$/u.test(node.textContent);
 }

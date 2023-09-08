@@ -1,5 +1,6 @@
 import {ServerUnknownActionContextModules} from "~/server/context/server_action_context.js";
 import {getRpcImplementationIfExists} from "~/server/rpc/get_rpc_implementation.js";
+import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
@@ -15,7 +16,11 @@ import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
  * important to the logic of the RPC. For example, validating a string is only
  * a single line.
  */
-export class LocalRpcContextModule extends RpcContextModuleBase<ServerUnknownActionContextModules> {
+export class LocalRpcContextModule extends RpcContextModuleBase<
+    ServerUnknownActionContextModules & {
+        tasks: TaskContextModule;
+    }
+> {
     public async execute<Input, Output>(
         definition: RpcDefinition<Input, Output>,
         input: Input,

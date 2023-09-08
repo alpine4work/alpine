@@ -10,5 +10,5 @@ const originalSetTimeout = globalThis.setTimeout;
  * [1]: https://javascript.info/event-loop
  */
 export function waitMacrotask() {
-    return new Promise(resolve => originalSetTimeout(resolve, 0));
+    return new Promise<void>(resolve => originalSetTimeout(resolve, 0));
 }

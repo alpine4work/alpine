@@ -19,13 +19,14 @@ export class TaskRealtimeClient {
     public readonly store: TaskClientStore;
 
     constructor(getContext: () => AppContext, spaceId: SpaceId) {
+        this.spaceId = spaceId;
+
         this._client = new WebSocketClient(
             getContext,
             TaskRealtimeProtocol,
-            `/api/task-realtime/${spaceId}`,
+            `/api/task-realtime/${this.spaceId}`,
         );
 
-        this.spaceId = spaceId;
         this.store = new TaskClientStore({spaceId});
     }
 

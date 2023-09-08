@@ -1,3 +1,4 @@
+import {AccountModel} from "~/shared/accounts/account_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
@@ -50,6 +51,13 @@ export class TaskSortableAccount {
         serialize: account => account,
         deserialize: account => new TaskSortableAccount(account),
     });
+
+    public static from(account: AccountModel) {
+        return new TaskSortableAccount({
+            accountId: account.id,
+            workingAccountName: account.name,
+        });
+    }
 
     /**
      * Create from a `TestSession` object we use in server tests (see

@@ -127,3 +127,10 @@ export const TaskTitleUpdateSchema = Schema.bytes.transform<TaskTitleUpdate>({
 export function applyTaskTitleUpdate(title: TaskTitle, titleUpdate: TaskTitleUpdate): TaskTitle {
     return Y.mergeUpdatesV2([title, titleUpdate]) as TaskTitle;
 }
+
+export function mergeTaskTitleUpdates(
+    titleUpdate1: TaskTitleUpdate,
+    titleUpdate2: TaskTitleUpdate,
+): TaskTitleUpdate {
+    return Y.mergeUpdatesV2([titleUpdate1, titleUpdate2]) as TaskTitleUpdate;
+}

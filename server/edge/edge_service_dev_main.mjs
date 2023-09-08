@@ -4,7 +4,7 @@ import {join as joinPath} from "path";
 import toml from "toml";
 import {parseArgs} from "util";
 // eslint-disable-next-line sort-imports-by-source
-import {writeTracerEventToFileInDev} from "../tracer/write_tracer_event_to_file_in_dev.js";
+import {writeTracerEventToFileInDev} from "../../shared/tracer/write_tracer_event_to_file_in_dev.js";
 
 // Make our service easy to find in process managers. We include
 // "cyberworlds" and "node" so you can grep by those strings.

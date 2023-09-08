@@ -1,5 +1,4 @@
 import {TestSessionActorContextModule} from "~/server/dynamo/test_helpers/test_actor_context_module.js";
-import {testTracer} from "~/server/dynamo/test_helpers/test_tracer.js";
 import {SessionActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {Response} from "~/server/node/install_response_with_web_socket_support.js";
 import {
@@ -22,6 +21,7 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SessionId, WebSocketProcedureRequestId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {testTracer} from "~/shared/tracer/test_tracer.js";
 import {defineWebSocketProtocol} from "~/shared/web_socket/web_socket_protocol.js";
 import {
     WebSocketClosingWithErrorMessageSchema,

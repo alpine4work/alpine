@@ -40,8 +40,8 @@ const nodeSetupPromise = new Lazy(async () => {
  * want to debug events locally instead of in Honeycomb.
  *
  * In Node.js we have access to the file system so we write the file. Outside
- * of Node.js (like Cloudflare Workers) we expect a global function to be
- * provided.
+ * of Node.js (like Cloudflare Workers or the browser) we expect a global
+ * function to be provided.
  */
 export function writeTracerEventToFileInDev(event: TracerEvent) {
     assert(process.env.NODE_ENV !== "production");

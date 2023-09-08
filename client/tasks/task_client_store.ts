@@ -737,6 +737,9 @@ export class TaskClientStore {
         context: Context<{rpc: RpcContextModuleBase}>,
         actions: ReadonlyArray<TaskAction>,
     ) {
+        // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
+        // close the page if we haven't finished committing their task action. It will
+        // look committed on their machine but might not be on the server.
         const commitPromise = commitTaskActionTransaction(context, {
             spaceId: this.spaceId,
             actions,

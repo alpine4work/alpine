@@ -54,12 +54,14 @@ import {VirtualizedScrollView} from "~/client/virtualized/virtualized_scroll_vie
 import {ThemeColor} from "~/shared/design/theme_colors.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {generateId} from "~/shared/id/id.js";
 import {LocalTaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {colorSchemeVars} from "~/shared/styles/styles.js";
+import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 // NOCOMMIT:
 // import {TaskTitle, emptyTaskTitle} from "~/shared/tasks/task_title_schema_old.js";
@@ -72,10 +74,12 @@ export function TaskGridView({
     capabilities,
     query,
     initialBottomGhostTaskId,
+    getAddNewTaskToQueryActions,
 }: {
     capabilities: TaskGridViewCapabilities;
     query: TaskClientQuery;
     initialBottomGhostTaskId: TaskId;
+    getAddNewTaskToQueryActions: (time: HybridLogicalTime, taskId: TaskId) => Array<TaskAction>;
 }) {
     const [isExpandedByTaskKey] = useState(() => new StoreMap<TaskGridViewTaskKey, boolean>());
     const [bottomGhostTaskId] = useState(initialBottomGhostTaskId);
@@ -85,6 +89,7 @@ export function TaskGridView({
         query,
         isExpandedByTaskKey,
         bottomGhostTaskId,
+        getAddNewTaskToQueryActions,
     });
 
     return (

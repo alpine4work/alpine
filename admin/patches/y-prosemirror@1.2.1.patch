@@ -1,3 +1,59 @@
+diff --git a/dist/y-prosemirror.cjs b/dist/y-prosemirror.cjs
+index 52a54c8511a726df3e1a94861939f0fb75418afb..3c1696e945d26f579b5a7b9853d2d9711bf43b00 100644
+--- a/dist/y-prosemirror.cjs
++++ b/dist/y-prosemirror.cjs
+@@ -451,13 +451,35 @@ class ProsemirrorBinding {
+   _forceRerender () {
+     this.mapping = new Map();
+     this.mux(() => {
+-      const fragmentContent = this.type.toArray().map((t) =>
+-        createNodeFromYElement(
+-          /** @type {Y.XmlElement} */ (t),
+-          this.prosemirrorView.state.schema,
+-          this.mapping
+-        )
+-      ).filter((n) => n !== null);
++      // NOTE(calebmer): ProseMirror can also have inline text content at the
++      // root. Not just elements. This code is copied from the implementation
++      // of `createNodeFromYElement()`.
++      const fragmentContent = []
++      this.type.toArray().forEach((type) => {
++        if (type.constructor === Y.XmlElement) {
++          const n = createNodeFromYElement(
++            type,
++            this.prosemirrorView.state.schema,
++            this.mapping
++          )
++          if (n !== null) {
++            fragmentContent.push(n)
++          }
++        } else {
++          const ns = createTextNodesFromYText(
++            type,
++            this.prosemirrorView.state.schema,
++            this.mapping
++          )
++          if (ns !== null) {
++            ns.forEach((textchild) => {
++              if (textchild !== null) {
++                fragmentContent.push(textchild)
++              }
++            })
++          }    
++        }
++      })
+       // @ts-ignore
+       const tr = this._tr.replace(
+         0,
+@@ -1553,6 +1575,8 @@ function yXmlFragmentToProsemirrorJSON (xmlFragment) {
+ 
+   return {
+     type: 'doc',
++    // NOTE(calebmer): We need a `flat()` call here for inline content at the
++    // top level just like we need a flat on line 1547.
+     content: items.map(serialize)
+   }
+ }
 diff --git a/package.json b/package.json
 index 6767536abd7947ea0e02c8f8ecc9ec190d362123..044c83561cbdc0e5bc2bdde22dc462d6f1db6f63 100644
 --- a/package.json
@@ -26,3 +82,50 @@ index 964f8affdad7519e6681064fbcc42d804de31317..fb5bd7457374579e7f67431f3385b269
 +    content: items.map(serialize).flat()
    }
  }
+diff --git a/src/plugins/sync-plugin.js b/src/plugins/sync-plugin.js
+index e4d5163b4932228fae5ede4e40fd7671daa54aca..c479412e2514760522974cb9917abfa3cac75b6d 100644
+--- a/src/plugins/sync-plugin.js
++++ b/src/plugins/sync-plugin.js
+@@ -398,13 +398,35 @@ export class ProsemirrorBinding {
+   _forceRerender () {
+     this.mapping = new Map()
+     this.mux(() => {
+-      const fragmentContent = this.type.toArray().map((t) =>
+-        createNodeFromYElement(
+-          /** @type {Y.XmlElement} */ (t),
+-          this.prosemirrorView.state.schema,
+-          this.mapping
+-        )
+-      ).filter((n) => n !== null)
++      // NOTE(calebmer): ProseMirror can also have inline text content at the
++      // root. Not just elements. This code is copied from the implementation
++      // of `createNodeFromYElement()`.
++      const fragmentContent = []
++      this.type.toArray().forEach((type) => {
++        if (type.constructor === Y.XmlElement) {
++          const n = createNodeFromYElement(
++            type,
++            this.prosemirrorView.state.schema,
++            this.mapping
++          )
++          if (n !== null) {
++            fragmentContent.push(n)
++          }
++        } else {
++          const ns = createTextNodesFromYText(
++            type,
++            this.prosemirrorView.state.schema,
++            this.mapping
++          )
++          if (ns !== null) {
++            ns.forEach((textchild) => {
++              if (textchild !== null) {
++                fragmentContent.push(textchild)
++              }
++            })
++          }    
++        }
++      })
+       // @ts-ignore
+       const tr = this._tr.replace(
+         0,

@@ -3,12 +3,18 @@ import {ConstStore} from "~/client/helpers/store/const_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {StoreMap} from "~/client/helpers/store/store_map.js";
 import {flatMapTreeStoreValues} from "~/client/helpers/store/tree_store.js";
+import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
+import {taskRowViewMinHeight} from "~/client/tasks/internal/task_row_shared_styles.js";
+import {TaskRowView} from "~/client/tasks/internal/task_row_view.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {VirtualizedScrollViewItem} from "~/client/virtualized/virtualized_scroll_view.js";
-import {UnimplementedError} from "~/shared/error/error.js";
+import {spacing} from "~/shared/design/spacing.js";
+import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
+import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {
     TaskQuerySortCursor,
     getTaskQuerySortCursorTaskId,
@@ -119,6 +125,7 @@ export type TaskGridViewVirtualizedTaskListItem =
  * change O(log(n)) instead of O(n).
  */
 export class TaskGridViewVirtualizedTaskList {
+    private readonly _query: TaskClientQuery;
     private readonly _tree: TaskGridViewVirtualizedTaskTree;
 
     /**
@@ -130,12 +137,14 @@ export class TaskGridViewVirtualizedTaskList {
     >;
 
     private constructor(
+        query: TaskClientQuery,
         tree: TaskGridViewVirtualizedTaskTree,
         itemCountSubtreeCache: WeakMap<
             TreeNode<TaskQuerySortCursor, TaskGridViewVirtualizedTaskTreeValue | null>,
             number
         >,
     ) {
+        this._query = query;
         this._tree = tree;
         this._itemCountSubtreeCache = itemCountSubtreeCache;
     }
@@ -152,7 +161,7 @@ export class TaskGridViewVirtualizedTaskList {
         >();
 
         return createTaskGridViewVirtualizedTaskTree(query, isExpandedByTaskKey, null).map(
-            tree => new TaskGridViewVirtualizedTaskList(tree, itemCountSubtreeCache),
+            tree => new TaskGridViewVirtualizedTaskList(query, tree, itemCountSubtreeCache),
         );
     }
 
@@ -296,8 +305,53 @@ export class TaskGridViewVirtualizedTaskList {
         return assertExists(search(itemIndex, this._tree.root, null, 0));
     }
 
-    public renderItem(itemIndex: number): VirtualizedScrollViewItem {
-        this.getItem(itemIndex);
-        throw new UnimplementedError("NOCOMMIT");
+    public renderItem(
+        itemIndex: number,
+        {
+            capabilities,
+            getAddNewTaskToQueryActions,
+        }: {
+            capabilities: TaskGridViewCapabilities;
+            getAddNewTaskToQueryActions: (
+                time: HybridLogicalTime,
+                taskId: TaskId,
+            ) => Array<TaskAction>;
+        },
+    ): VirtualizedScrollViewItem {
+        const item = this.getItem(itemIndex);
+
+        switch (item.type) {
+            case "Task": {
+                const taskKey = item.rootTaskId ? `${item.rootTaskId}-${item.taskId}` : item.taskId;
+
+                return {
+                    key: `Task:${taskKey}`,
+                    minHeight: spacing[taskRowViewMinHeight],
+                    node: (
+                        <TaskRowView
+                            query={this._query}
+                            capabilities={capabilities}
+                            taskId={item.taskId}
+                            indentation={item.indentation}
+                            getAddNewTaskToQueryActions={getAddNewTaskToQueryActions}
+                        />
+                    ),
+                };
+            }
+            case "UnloadedChildTask": {
+                const parentTaskKey = item.rootTaskId
+                    ? `${item.rootTaskId}-${item.parentTaskId}`
+                    : item.parentTaskId;
+
+                return {
+                    key: `UnloadedChildTask:${parentTaskKey}-${item.childTaskIndex}`,
+                    minHeight: spacing[taskRowViewMinHeight],
+                    // NOCOMMIT: Implement!
+                    node: <></>,
+                };
+            }
+            default:
+                throw exhaustive(item);
+        }
     }
 }

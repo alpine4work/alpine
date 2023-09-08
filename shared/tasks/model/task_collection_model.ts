@@ -1,5 +1,6 @@
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {
+    HybridLogicalClock,
     HybridLogicalTime,
     compareHybridLogicalTimes,
     maxHybridLogicalTime,
@@ -108,6 +109,14 @@ export class TaskCollectionModel {
         if (rawData === this.rawData) return this;
 
         return new TaskCollectionModel(rawData);
+    }
+
+    /**
+     * Make sure the hybrid logical clock's time is beyond any time observed by
+     * this collection.
+     */
+    public tick(clock: HybridLogicalClock) {
+        return tickTaskCollectionModelData(this.rawData, clock);
     }
 
     public getCreatedTime() {
@@ -229,4 +238,12 @@ function applyTaskCollectionActionToCollectionModelData(
         default:
             throw exhaustive(action);
     }
+}
+
+function tickTaskCollectionModelData(task: TaskCollectionModelData, clock: HybridLogicalClock) {
+    clock.tick(task.createdTime);
+    if (task.deletedTime !== null) clock.tick(task.deletedTime);
+    if (task.undeletedTime !== null) clock.tick(task.undeletedTime);
+    clock.tick(task.name.version);
+    clock.tick(task.accessPolicy.version);
 }
