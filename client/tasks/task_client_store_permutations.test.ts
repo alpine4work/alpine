@@ -41,7 +41,7 @@ testTaskActionPermutations({
     getTask: taskId => {
         // Task should exist. `WeakRef`s aren't garbage collected until the end of the
         // current JavaScript job (synchronous code and promise reactions).
-        const task = assertExists(store.getTaskIfExistsForTest(taskId));
+        const task = assertExists(store.getTaskEntryIfExistsForTest(taskId)?.task);
 
         return {
             creator: task.getCreator(),
@@ -70,7 +70,7 @@ testTaskActionPermutations({
             assignee: task.getAssignee(),
             assigneeStatus: task.getAssigneeStatus(),
             assigneeActivePosition: task.getAssigneeActivePosition(),
-            title: task.getTitle(),
+            title: task.getTitle().raw,
             dueDate: task.getDueDate(),
             priority: task.getPriority(),
         };
@@ -78,7 +78,9 @@ testTaskActionPermutations({
     getTaskCollection: collectionId => {
         // Collection should exist. `WeakRef`s aren't garbage collected until the end
         // of the current JavaScript job (synchronous code and promise reactions).
-        const collection = assertExists(store.getCollectionIfExistsForTest(collectionId));
+        const collection = assertExists(
+            store.getCollectionEntryIfExistsForTest(collectionId)?.collection,
+        );
 
         return {
             createdTime: collection.getCreatedTime(),

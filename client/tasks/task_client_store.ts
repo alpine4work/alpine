@@ -3,11 +3,19 @@ import {Store} from "~/client/helpers/store/store.js";
 import {StoreMap} from "~/client/helpers/store/store_map.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {TaskClientQuery, TaskClientQueryInternal} from "~/client/tasks/task_client_query.js";
+import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_clock.js";
+import {Context} from "~/shared/context/context.js";
+import {Clock} from "~/shared/helpers/clock/clock.js";
+import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AdvancedWeakValuesMap} from "~/shared/helpers/map/advanced_weak_values_map.js";
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
+import {commitTaskActionTransaction} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {
+    TaskAction,
     TaskUpdateCollectionAction,
     TaskUpdateTaskAction,
 } from "~/shared/tasks/actions/task_action.js";
@@ -25,6 +33,17 @@ export type TaskClientStoreTaskEntry =
     | {
           readonly task: TaskModel;
           readonly actions: null;
+          readonly optimisticState: TaskClientStoreTaskEntryOptimisticState | null;
+          readonly isAuthorized: boolean;
+          readonly authorizationEventNumber: number;
+      }
+    // Task uninitialized and known authorization state:
+    | {
+          readonly task: null;
+          readonly actions: ReadonlyArray<TaskUpdateTaskAction>;
+          readonly optimisticState:
+              | (TaskClientStoreTaskEntryOptimisticState & {original: {task: null}})
+              | null;
           readonly isAuthorized: boolean;
           readonly authorizationEventNumber: number;
       }
@@ -32,16 +51,42 @@ export type TaskClientStoreTaskEntry =
     | {
           readonly task: null;
           readonly actions: ReadonlyArray<TaskUpdateTaskAction>;
+          readonly optimisticState:
+              | (TaskClientStoreTaskEntryOptimisticState & {original: {task: null}})
+              | null;
           readonly isAuthorized: null;
           readonly authorizationEventNumber: null;
-      }
-    // Task uninitialized and known unauthorized state:
-    | {
-          readonly task: null;
-          readonly actions: ReadonlyArray<TaskUpdateTaskAction>;
-          readonly isAuthorized: false;
-          readonly authorizationEventNumber: number;
       };
+
+/**
+ * If the task has some optimistic updates then this optimistic state object
+ * will be populated on the task entry until the server either accepts or
+ * rejects our actions.
+ *
+ * We keep track of the original task before any optimistic updates and all
+ * actions (optimistic and non-optimistic) after. If one of our optimistic
+ * actions fails then we take the original task, apply all the actions in our
+ * optimistic state excluding the failed action, and set that as our new
+ * `TaskModel`. This effectively reverts the failed action.
+ */
+// NOTE(calebmer, 2023-09-08): Instead of adding non-optimistic updates to an
+// `actions` array could we directly apply them to `original`? Would this
+// simplify the code?
+export type TaskClientStoreTaskEntryOptimisticState = {
+    readonly original:
+        | {
+              readonly task: TaskModel;
+              readonly actions: null;
+          }
+        | {
+              readonly task: null;
+              readonly actions: ReadonlyArray<TaskUpdateTaskAction>;
+          };
+    readonly actions: ReadonlyArray<{
+        readonly isOptimistic: boolean;
+        readonly action: TaskUpdateTaskAction;
+    }>;
+};
 
 export type TaskClientStoreCollectionEntry =
     // Collection initialized and known authorization state:
@@ -79,7 +124,15 @@ export type TaskClientStoreCollectionEntry =
  * based on our client queries.
  */
 export class TaskClientStore {
-    private readonly _spaceId: SpaceId;
+    public readonly spaceId: SpaceId;
+
+    /**
+     * The clock we use on the client for assigning a time to actions. This clock
+     * is backed by our client's synchronized system clock which uses an NTP
+     * protocol with the server to get within a few milliseconds of the
+     * correct time.
+     */
+    public readonly clock: HybridLogicalClock;
 
     /**
      * The tasks currently in our store.
@@ -123,7 +176,33 @@ export class TaskClientStore {
     private readonly _childrenQueryByParentTaskId = new StoreMap<TaskId, TaskClientQuery>();
 
     constructor({spaceId}: {spaceId: SpaceId}) {
-        this._spaceId = spaceId;
+        this.spaceId = spaceId;
+
+        const synchronizedSystemClockPromise = getSynchronizedSystemClock();
+        let synchronizedSystemClock: Clock | null = null;
+
+        this.clock = new HybridLogicalClock({
+            now: () => {
+                if (synchronizedSystemClock !== null) return synchronizedSystemClock.now();
+
+                const synchronizedSystemClockPromiseState =
+                    synchronizedSystemClockPromise.getStateWithoutListening();
+
+                // While our synchronized system clock is loading (or if it failed to load) use
+                // our unsynchronized system clock time.
+                //
+                // 90% of the time our synchronized system clock is available synchronously.
+                // Because we add timing information to a `Server-Timing` HTTP header which is
+                // available synchronously in JavaScript. The `Server-Timing` HTTP header is
+                // unfortunately unavailable in Safari.
+                if (synchronizedSystemClockPromiseState.status === "fulfilled") {
+                    synchronizedSystemClock = synchronizedSystemClockPromiseState.value;
+                    return synchronizedSystemClockPromiseState.value.now();
+                } else {
+                    return unsynchronizedSystemClock.now();
+                }
+            },
+        });
     }
 
     public getTaskCountForTest() {
@@ -138,18 +217,18 @@ export class TaskClientStore {
      * Get a single task in a unit testing environment. Even if you added a task
      * recently it may have been garbage collected.
      */
-    public getTaskIfExistsForTest(taskId: TaskId) {
+    public getTaskEntryIfExistsForTest(taskId: TaskId) {
         assert(import.meta.jest);
-        return this._taskEntryStoreById.get(taskId)?.getSnapshot().task ?? null;
+        return this._taskEntryStoreById.get(taskId)?.getSnapshot() ?? null;
     }
 
     /**
      * Get a single collection in a unit testing environment. Even if you added a
      * collection recently it may have been garbage collected.
      */
-    public getCollectionIfExistsForTest(collectionId: TaskCollectionId) {
+    public getCollectionEntryIfExistsForTest(collectionId: TaskCollectionId) {
         assert(import.meta.jest);
-        return this._collectionEntryStoreById.get(collectionId)?.getSnapshot().collection ?? null;
+        return this._collectionEntryStoreById.get(collectionId)?.getSnapshot() ?? null;
     }
 
     /**
@@ -169,25 +248,74 @@ export class TaskClientStore {
                 this._taskEntryStoreById.get(backfillTask.id)?.getSnapshot();
 
             if (!oldTaskEntry) {
+                // This backfill introduced new data. Make sure our logical clock's time is
+                // beyond any times used in this object.
+                backfillTask.tick(this.clock);
+
                 newTaskEntryById.set(backfillTask.id, {
                     task: backfillTask,
                     actions: null,
+                    optimisticState: null,
                     isAuthorized: true,
                     authorizationEventNumber: event.number,
                 });
                 continue;
             }
 
-            // If a task is uninitialized we may have received some events for the task
-            // before we received the task itself.
+            // When backfilling the task, we may have received actions out-of-order from
+            // the server or we may have some out-of-order optimistic actions. We need to
+            // apply actions we received (from the server and optimistic) to the task. We
+            // also need to update our original task in `optimisticState` so if we need to
+            // revert an optimistic action we preserve the backfilled task.
             let newTask: TaskModel;
+            let newOptimisticState: TaskClientStoreTaskEntryOptimisticState | null;
             if (oldTaskEntry.task === null) {
+                newTask = backfillTask;
+
                 newTask = oldTaskEntry.actions.reduce(
                     (task, action) => task.apply(action),
-                    backfillTask,
+                    newTask,
                 );
+
+                if (oldTaskEntry.optimisticState === null) {
+                    newOptimisticState = null;
+                } else {
+                    newOptimisticState = {
+                        original: {
+                            task: backfillTask,
+                            actions: null,
+                        },
+                        actions: oldTaskEntry.optimisticState.actions,
+                    };
+                }
             } else {
                 newTask = oldTaskEntry.task.merge(backfillTask);
+
+                if (oldTaskEntry.optimisticState === null) {
+                    newOptimisticState = null;
+                } else {
+                    newOptimisticState = {
+                        original: {
+                            task:
+                                oldTaskEntry.optimisticState.original.task === null
+                                    ? oldTaskEntry.optimisticState.original.actions.reduce(
+                                          (task, action) => task.apply(action),
+                                          backfillTask,
+                                      )
+                                    : oldTaskEntry.optimisticState.original.task.merge(
+                                          backfillTask,
+                                      ),
+                            actions: null,
+                        },
+                        actions: oldTaskEntry.optimisticState.actions,
+                    };
+                }
+            }
+
+            if (newTask !== oldTaskEntry.task) {
+                // This backfill introduced new data. Make sure our logical clock's time is
+                // beyond any times used in this object.
+                newTask.tick(this.clock);
             }
 
             // Authorization state is unknown, mark the task as authorized.
@@ -195,6 +323,7 @@ export class TaskClientStore {
                 newTaskEntryById.set(backfillTask.id, {
                     task: newTask,
                     actions: null,
+                    optimisticState: newOptimisticState,
                     isAuthorized: true,
                     authorizationEventNumber: event.number,
                 });
@@ -205,13 +334,20 @@ export class TaskClientStore {
             // authorization event number.
             if (oldTaskEntry.authorizationEventNumber >= event.number) {
                 // If nothing in our entry changed then don't update the task.
-                if (newTask === oldTaskEntry.task) continue;
+                if (
+                    newTask === oldTaskEntry.task &&
+                    newOptimisticState?.original.task ===
+                        oldTaskEntry.optimisticState?.original.task
+                ) {
+                    continue;
+                }
 
                 newTaskEntryById.set(backfillTask.id, {
                     // We update the task even if it's unauthorized since we may receive events
                     // out-of-order.
                     task: newTask,
                     actions: null,
+                    optimisticState: newOptimisticState,
                     isAuthorized: oldTaskEntry.isAuthorized,
                     authorizationEventNumber: oldTaskEntry.authorizationEventNumber,
                 });
@@ -221,6 +357,7 @@ export class TaskClientStore {
             newTaskEntryById.set(backfillTask.id, {
                 task: newTask,
                 actions: null,
+                optimisticState: newOptimisticState,
                 isAuthorized: true,
                 authorizationEventNumber: event.number,
             });
@@ -236,6 +373,7 @@ export class TaskClientStore {
                 newTaskEntryById.set(backfillUnauthorizedTaskId, {
                     task: null,
                     actions: [],
+                    optimisticState: null,
                     isAuthorized: false,
                     authorizationEventNumber: event.number,
                 });
@@ -271,6 +409,10 @@ export class TaskClientStore {
                 this._collectionEntryStoreById.get(backfillCollection.id)?.getSnapshot();
 
             if (!oldCollectionEntry) {
+                // This backfill introduced new data. Make sure our logical clock's time is
+                // beyond any times used in this object.
+                backfillCollection.tick(this.clock);
+
                 newCollectionEntryById.set(backfillCollection.id, {
                     collection: backfillCollection,
                     actions: null,
@@ -290,6 +432,12 @@ export class TaskClientStore {
                 );
             } else {
                 newCollection = oldCollectionEntry.collection.merge(backfillCollection);
+            }
+
+            if (newCollection !== oldCollectionEntry.collection) {
+                // This backfill introduced new data. Make sure our logical clock's time is
+                // beyond any times used in this object.
+                newCollection.tick(this.clock);
             }
 
             // Authorization state is unknown, mark the collection as authorized.
@@ -368,6 +516,10 @@ export class TaskClientStore {
 
         // Apply actions:
         for (const action of event.actions) {
+            // All actions our client commits will have a greater logical time than the
+            // actions we've already seen.
+            this.clock.tick(action.time);
+
             switch (action.type) {
                 case "UpdateTask": {
                     const oldTaskEntry =
@@ -375,12 +527,33 @@ export class TaskClientStore {
                         this._taskEntryStoreById.get(action.taskId)?.getSnapshot();
 
                     if (!oldTaskEntry) {
-                        newTaskEntryById.set(action.taskId, {
-                            task: null,
-                            actions: [action],
-                            isAuthorized: null,
-                            authorizationEventNumber: null,
-                        });
+                        if (action.taskAction.type !== "Create") {
+                            newTaskEntryById.set(action.taskId, {
+                                task: null,
+                                actions: [action],
+                                optimisticState: null,
+                                isAuthorized: null,
+                                authorizationEventNumber: null,
+                            });
+                        } else {
+                            const newTask = TaskModel.createFromAction(
+                                this.spaceId,
+                                action.taskId,
+                                action.time,
+                                action.taskAction,
+                            );
+
+                            newTaskEntryById.set(action.taskId, {
+                                task: newTask,
+                                actions: null,
+                                optimisticState: null,
+                                // If we receive the create event for a task we assume it to be
+                                // authorized. In practice when a task is created we'll get a backfill for the
+                                // task instead of the create action.
+                                isAuthorized: true,
+                                authorizationEventNumber: event.number,
+                            });
+                        }
                         continue;
                     }
 
@@ -389,11 +562,20 @@ export class TaskClientStore {
                             newTaskEntryById.set(action.taskId, {
                                 ...oldTaskEntry,
                                 actions: [...oldTaskEntry.actions, action],
+                                optimisticState: oldTaskEntry.optimisticState
+                                    ? {
+                                          original: oldTaskEntry.optimisticState.original,
+                                          actions: [
+                                              ...oldTaskEntry.optimisticState.actions,
+                                              {isOptimistic: false, action},
+                                          ],
+                                      }
+                                    : null,
                             });
                             continue;
                         } else {
                             let newTask = TaskModel.createFromAction(
-                                this._spaceId,
+                                this.spaceId,
                                 action.taskId,
                                 action.time,
                                 action.taskAction,
@@ -406,9 +588,25 @@ export class TaskClientStore {
                                 newTask,
                             );
 
+                            if (oldTaskEntry.optimisticState) {
+                                newTask = oldTaskEntry.optimisticState.actions.reduce(
+                                    (task, {action}) => task.apply(action),
+                                    newTask,
+                                );
+                            }
+
                             newTaskEntryById.set(action.taskId, {
                                 task: newTask,
                                 actions: null,
+                                optimisticState: oldTaskEntry.optimisticState
+                                    ? {
+                                          original: oldTaskEntry.optimisticState.original,
+                                          actions: [
+                                              ...oldTaskEntry.optimisticState.actions,
+                                              {isOptimistic: false, action},
+                                          ],
+                                      }
+                                    : null,
                                 // If we receive the create event for a task we assume it to be
                                 // authorized. In practice when a task is created we'll get a backfill for the
                                 // task instead of the create action.
@@ -422,12 +620,24 @@ export class TaskClientStore {
 
                     const newTask = oldTaskEntry.task.apply(action);
 
-                    // Optimization: If the task didn't change then don't update our store.
-                    if (newTask === oldTaskEntry.task) continue;
+                    // Optimization: If the task didn't change and we don't have optimistic state
+                    // for the task then don't update our store.
+                    if (newTask === oldTaskEntry.task && oldTaskEntry.optimisticState === null) {
+                        continue;
+                    }
 
                     newTaskEntryById.set(action.taskId, {
                         task: newTask,
                         actions: null,
+                        optimisticState: oldTaskEntry.optimisticState
+                            ? {
+                                  original: oldTaskEntry.optimisticState.original,
+                                  actions: [
+                                      ...oldTaskEntry.optimisticState.actions,
+                                      {isOptimistic: false, action},
+                                  ],
+                              }
+                            : null,
                         isAuthorized: oldTaskEntry.isAuthorized,
                         authorizationEventNumber: oldTaskEntry.authorizationEventNumber,
                     });
@@ -457,7 +667,7 @@ export class TaskClientStore {
                             continue;
                         } else {
                             let newCollection = TaskCollectionModel.createFromAction(
-                                this._spaceId,
+                                this.spaceId,
                                 action.collectionId,
                                 action.time,
                                 action.collectionAction,
@@ -508,6 +718,615 @@ export class TaskClientStore {
 
         // NOCOMMIT: Accounts??
 
+        this._updateStore(newTaskEntryById, newCollectionEntryById);
+    }
+
+    /**
+     * Makes a change to the tasks in this space as the current user. We
+     * optimistically make the change and send a network request to the server. If
+     * the server responds without an error, great! Our tasks don't need to change.
+     * If the server responds with an error then we need to revert the changes made
+     * by this transaction.
+     *
+     * To accomplish this revert, while we're waiting on the server to accept or
+     * reject our transaction we keep track of all changes made to the task. If the
+     * server rejects our update then we take the original task and apply all
+     * actions we saw after our optimistic action excluding the optimistic action.
+     */
+    public commitTaskActionTransaction(
+        context: Context<{rpc: RpcContextModuleBase}>,
+        actions: ReadonlyArray<TaskAction>,
+    ) {
+        const commitPromise = commitTaskActionTransaction(context, {
+            spaceId: this.spaceId,
+            actions,
+        });
+
+        this._applyOptimisticTaskActions(actions);
+
+        commitPromise.then(
+            () => {
+                this._commitOptimisticTaskActions(actions);
+            },
+            error => {
+                // NOCOMMIT: Display the error to the user!
+                this._revertOptimisticTaskActions(actions);
+            },
+        );
+    }
+
+    private _applyOptimisticTaskActions(actions: ReadonlyArray<TaskAction>) {
+        const newTaskEntryById = new Map<TaskId, TaskClientStoreTaskEntry>();
+        const newCollectionEntryById = new Map<TaskCollectionId, TaskClientStoreCollectionEntry>();
+
+        // Apply actions optimistically:
+        for (const action of actions) {
+            switch (action.type) {
+                case "UpdateTask": {
+                    const oldTaskEntry =
+                        newTaskEntryById.get(action.taskId) ??
+                        this._taskEntryStoreById.get(action.taskId)?.getSnapshot();
+
+                    // If we do not have a task entry yet then let's create one.
+                    if (!oldTaskEntry) {
+                        if (action.taskAction.type !== "Create") {
+                            newTaskEntryById.set(action.taskId, {
+                                task: null,
+                                actions: [action],
+                                optimisticState: {
+                                    original: {
+                                        task: null,
+                                        actions: [],
+                                    },
+                                    actions: [{isOptimistic: true, action}],
+                                },
+                                isAuthorized: null,
+                                authorizationEventNumber: null,
+                            });
+                            continue;
+                        } else {
+                            const newTask = TaskModel.createFromAction(
+                                this.spaceId,
+                                action.taskId,
+                                action.time,
+                                action.taskAction,
+                            );
+
+                            newTaskEntryById.set(action.taskId, {
+                                task: newTask,
+                                actions: null,
+                                optimisticState: {
+                                    original: {
+                                        task: null,
+                                        actions: [],
+                                    },
+                                    actions: [{isOptimistic: true, action}],
+                                },
+                                // If we receive an optimistic create action it's from our account (other
+                                // creates will be rejected by the backend) so the task is authorized.
+                                isAuthorized: true,
+                                // NOCOMMIT: Proper authorization event number!!
+                                authorizationEventNumber: 0,
+                            });
+                            continue;
+                        }
+                    }
+
+                    if (oldTaskEntry.task === null) {
+                        if (action.taskAction.type !== "Create") {
+                            newTaskEntryById.set(action.taskId, {
+                                ...oldTaskEntry,
+                                actions: [...oldTaskEntry.actions, action],
+                                optimisticState: {
+                                    original: {
+                                        task: null,
+                                        actions:
+                                            oldTaskEntry.optimisticState?.original.actions ??
+                                            oldTaskEntry.actions,
+                                    },
+                                    actions: [
+                                        ...(oldTaskEntry.optimisticState?.actions ?? []),
+                                        {isOptimistic: true, action},
+                                    ],
+                                },
+                            });
+                            continue;
+                        } else {
+                            let newTask = TaskModel.createFromAction(
+                                this.spaceId,
+                                action.taskId,
+                                action.time,
+                                action.taskAction,
+                            );
+
+                            // Apply any actions we received now that the task has been created.
+                            newTask = oldTaskEntry.actions.reduce(
+                                (task, action) => task.apply(action),
+                                newTask,
+                            );
+
+                            // Apply any optimistic actions we received now that the task has been created.
+                            if (oldTaskEntry.optimisticState) {
+                                newTask = oldTaskEntry.optimisticState.actions.reduce(
+                                    (task, {action}) => task.apply(action),
+                                    newTask,
+                                );
+                            }
+
+                            newTaskEntryById.set(action.taskId, {
+                                task: newTask,
+                                actions: null,
+                                optimisticState: {
+                                    original: {
+                                        task: null,
+                                        actions:
+                                            oldTaskEntry.optimisticState?.original.actions ??
+                                            oldTaskEntry.actions,
+                                    },
+                                    actions: [
+                                        ...(oldTaskEntry.optimisticState?.actions ?? []),
+                                        {isOptimistic: true, action},
+                                    ],
+                                },
+                                // If we receive an optimistic create action it's from our account (other
+                                // creates will be rejected by the backend) so the task is authorized.
+                                isAuthorized: true,
+                                // NOCOMMIT: Proper authorization event number!!
+                                authorizationEventNumber: 0,
+                            });
+                            continue;
+                        }
+                    }
+
+                    const newTask = oldTaskEntry.task.apply(action);
+
+                    newTaskEntryById.set(action.taskId, {
+                        task: newTask,
+                        actions: null,
+                        optimisticState: {
+                            original: oldTaskEntry.optimisticState?.original ?? {
+                                task: oldTaskEntry.task,
+                                actions: null,
+                            },
+                            actions: [
+                                ...(oldTaskEntry.optimisticState?.actions ?? []),
+                                {isOptimistic: true, action},
+                            ],
+                        },
+                        isAuthorized: oldTaskEntry.isAuthorized,
+                        authorizationEventNumber: oldTaskEntry.authorizationEventNumber,
+                    });
+                    continue;
+                }
+                case "UpdateCollection": {
+                    // NOCOMMIT: Optimistically update collections!
+                    continue;
+                }
+                case "UpdateNotepadPage": {
+                    // NOCOMMIT: I think something needs to be done here?
+                    continue;
+                }
+                default:
+                    throw exhaustive(action);
+            }
+        }
+
+        this._updateStore(newTaskEntryById, newCollectionEntryById);
+    }
+
+    private _commitOptimisticTaskActions(actions: ReadonlyArray<TaskAction>) {
+        const newTaskEntryById = new Map<TaskId, TaskClientStoreTaskEntry>();
+        const newCollectionEntryById = new Map<TaskCollectionId, TaskClientStoreCollectionEntry>();
+
+        for (const action of actions) {
+            switch (action.type) {
+                case "UpdateTask": {
+                    const oldTaskEntry =
+                        newTaskEntryById.get(action.taskId) ??
+                        this._taskEntryStoreById.get(action.taskId)?.getSnapshot();
+
+                    // Entry has been garbage collected, ignore.
+                    if (!oldTaskEntry) {
+                        continue;
+                    }
+
+                    // Entry has been recreated since we added our action to optimistic
+                    // state, ignore.
+                    if (!oldTaskEntry.optimisticState) {
+                        continue;
+                    }
+
+                    let newOptimisticActions = oldTaskEntry.optimisticState.actions.filter(
+                        optimisticAction => optimisticAction.action !== action,
+                    );
+
+                    // Optimistic action is not present in task entry's optimistic state. Maybe
+                    // entry has been recreated, ignore.
+                    if (
+                        newOptimisticActions.length === oldTaskEntry.optimisticState.actions.length
+                    ) {
+                        continue;
+                    }
+
+                    // Remove any `isOptimistic: false` actions from the start of the optimistic
+                    // actions array. These are actions we'd need to re-apply on top of
+                    // `originalTask` to revert an optimistic action. Since there are no optimistic
+                    // actions that come before we won't need to reapply these.
+                    const firstActuallyOptimisticActionIndex = newOptimisticActions.findIndex(
+                        optimisticAction => optimisticAction.isOptimistic,
+                    );
+                    let removedNonOptimisticActions: Array<TaskUpdateTaskAction>;
+                    if (firstActuallyOptimisticActionIndex === -1) {
+                        removedNonOptimisticActions = newOptimisticActions.map(
+                            ({action}) => action,
+                        );
+                        newOptimisticActions = [];
+                    } else {
+                        removedNonOptimisticActions = newOptimisticActions
+                            .slice(0, firstActuallyOptimisticActionIndex)
+                            .map(({action}) => action);
+                        newOptimisticActions = newOptimisticActions.slice(
+                            firstActuallyOptimisticActionIndex,
+                        );
+                    }
+
+                    // Our task is caught up! There's no more optimistic state for the task.
+                    if (newOptimisticActions.length === 0) {
+                        newTaskEntryById.set(action.taskId, {
+                            ...oldTaskEntry,
+                            optimisticState: null,
+                        });
+                        continue;
+                    }
+
+                    // Update `original` to include the committed action and any non-optimistic
+                    // actions we don't need to keep anymore.
+                    if (oldTaskEntry.task === null) {
+                        // If there was a create action then `oldTaskEntry.task` should be non-null.
+                        assert(
+                            removedNonOptimisticActions.every(
+                                action => action.taskAction.type !== "Create",
+                            ),
+                        );
+
+                        const newOriginal = {
+                            task: null,
+                            actions: [
+                                ...oldTaskEntry.optimisticState.original.actions,
+                                action,
+                                ...removedNonOptimisticActions,
+                            ],
+                        };
+
+                        newTaskEntryById.set(action.taskId, {
+                            ...oldTaskEntry,
+                            optimisticState: {
+                                original: newOriginal,
+                                actions: newOptimisticActions,
+                            },
+                        });
+                        continue;
+                    }
+
+                    let newOriginal = oldTaskEntry.optimisticState.original;
+
+                    if (action.taskAction.type === "Create" && newOriginal.task === null) {
+                        newOriginal = {
+                            task: newOriginal.actions.reduce(
+                                (task, action) => task.apply(action),
+                                TaskModel.createFromAction(
+                                    this.spaceId,
+                                    action.taskId,
+                                    action.time,
+                                    action.taskAction,
+                                ),
+                            ),
+                            actions: null,
+                        };
+                    } else {
+                        newOriginal =
+                            newOriginal.task !== null
+                                ? {task: newOriginal.task.apply(action), actions: null}
+                                : {task: null, actions: [...newOriginal.actions, action]};
+                    }
+
+                    if (newOriginal.task !== null) {
+                        newOriginal = {
+                            task: removedNonOptimisticActions.reduce(
+                                (task, action) => task.apply(action),
+                                newOriginal.task,
+                            ),
+                            actions: null,
+                        };
+                    } else {
+                        const nonOptimisticCreateAction = removedNonOptimisticActions.find(
+                            (
+                                action,
+                            ): action is TaskUpdateTaskAction & {
+                                taskAction: {type: "Create"};
+                            } => action.taskAction.type === "Create",
+                        );
+
+                        if (!nonOptimisticCreateAction) {
+                            newOriginal = {
+                                task: null,
+                                actions: [...newOriginal.actions, ...removedNonOptimisticActions],
+                            };
+                        } else {
+                            newOriginal = {
+                                task: removedNonOptimisticActions.reduce(
+                                    (task, action) => task.apply(action),
+                                    newOriginal.actions.reduce(
+                                        (task, action) => task.apply(action),
+                                        TaskModel.createFromAction(
+                                            this.spaceId,
+                                            nonOptimisticCreateAction.taskId,
+                                            nonOptimisticCreateAction.time,
+                                            nonOptimisticCreateAction.taskAction,
+                                        ),
+                                    ),
+                                ),
+                                actions: null,
+                            };
+                        }
+                    }
+
+                    newTaskEntryById.set(action.taskId, {
+                        ...oldTaskEntry,
+                        optimisticState: {
+                            original: newOriginal,
+                            actions: newOptimisticActions,
+                        },
+                    });
+                    continue;
+                }
+                case "UpdateCollection": {
+                    // NOCOMMIT: Optimistically update collections!
+                    continue;
+                }
+                case "UpdateNotepadPage": {
+                    // NOCOMMIT: I think something needs to be done here?
+                    continue;
+                }
+                default:
+                    throw exhaustive(action);
+            }
+        }
+
+        this._updateStore(newTaskEntryById, newCollectionEntryById);
+    }
+
+    private _revertOptimisticTaskActions(actions: ReadonlyArray<TaskAction>) {
+        const newTaskEntryById = new Map<TaskId, TaskClientStoreTaskEntry>();
+        const newCollectionEntryById = new Map<TaskCollectionId, TaskClientStoreCollectionEntry>();
+
+        for (const action of actions) {
+            switch (action.type) {
+                case "UpdateTask": {
+                    const oldTaskEntry =
+                        newTaskEntryById.get(action.taskId) ??
+                        this._taskEntryStoreById.get(action.taskId)?.getSnapshot();
+
+                    // Entry has been garbage collected, ignore.
+                    if (!oldTaskEntry) {
+                        continue;
+                    }
+
+                    // Entry has been recreated since we added our action to optimistic
+                    // state, ignore.
+                    if (!oldTaskEntry.optimisticState) {
+                        continue;
+                    }
+
+                    let newOptimisticActions = oldTaskEntry.optimisticState.actions.filter(
+                        optimisticAction => optimisticAction.action !== action,
+                    );
+
+                    // Optimistic action is not present in task entry's optimistic state. Maybe
+                    // entry has been recreated, ignore.
+                    if (
+                        newOptimisticActions.length === oldTaskEntry.optimisticState.actions.length
+                    ) {
+                        continue;
+                    }
+
+                    // Remove any `isOptimistic: false` actions from the start of the optimistic
+                    // actions array. These are actions we'd need to re-apply on top of
+                    // `originalTask` to revert an optimistic action.
+                    //
+                    // We'll apply these to the original task now and won't need them for future
+                    // optimistic actions.
+                    const firstActuallyOptimisticActionIndex = newOptimisticActions.findIndex(
+                        optimisticAction => optimisticAction.isOptimistic,
+                    );
+                    let removedNonOptimisticActions: Array<TaskUpdateTaskAction>;
+                    if (firstActuallyOptimisticActionIndex === -1) {
+                        removedNonOptimisticActions = newOptimisticActions.map(
+                            ({action}) => action,
+                        );
+                        newOptimisticActions = [];
+                    } else {
+                        removedNonOptimisticActions = newOptimisticActions
+                            .slice(0, firstActuallyOptimisticActionIndex)
+                            .map(({action}) => action);
+                        newOptimisticActions = newOptimisticActions.slice(
+                            firstActuallyOptimisticActionIndex,
+                        );
+                    }
+
+                    if (
+                        oldTaskEntry.task !== null &&
+                        oldTaskEntry.optimisticState.original.task !== null
+                    ) {
+                        const newOriginal = {
+                            task: removedNonOptimisticActions.reduce(
+                                (task, action) => task.apply(action),
+                                oldTaskEntry.optimisticState.original.task,
+                            ),
+                            actions: null,
+                        };
+
+                        newTaskEntryById.set(action.taskId, {
+                            ...oldTaskEntry,
+                            // Reset `task` and `actions` in the task entry so it doesn't include the
+                            // rejected action.
+                            task: newOptimisticActions.reduce(
+                                (task, {action}) => task.apply(action),
+                                newOriginal.task,
+                            ),
+                            actions: null,
+                            optimisticState:
+                                newOptimisticActions.length > 0
+                                    ? {
+                                          original: newOriginal,
+                                          actions: newOptimisticActions,
+                                      }
+                                    : null,
+                        });
+                        continue;
+                    }
+
+                    const nonOptimisticCreateAction = removedNonOptimisticActions.find(
+                        (
+                            action,
+                        ): action is TaskUpdateTaskAction & {
+                            taskAction: {type: "Create"};
+                        } => action.taskAction.type === "Create",
+                    );
+
+                    let newOriginal;
+                    if (!nonOptimisticCreateAction) {
+                        newOriginal = {
+                            task: null,
+                            actions: [
+                                ...oldTaskEntry.optimisticState.original.actions!,
+                                ...removedNonOptimisticActions,
+                            ],
+                        };
+                    } else {
+                        newOriginal = {
+                            task: removedNonOptimisticActions.reduce(
+                                (task, action) => task.apply(action),
+                                oldTaskEntry.optimisticState.original.actions!.reduce(
+                                    (task, action) => task.apply(action),
+                                    TaskModel.createFromAction(
+                                        this.spaceId,
+                                        nonOptimisticCreateAction.taskId,
+                                        nonOptimisticCreateAction.time,
+                                        nonOptimisticCreateAction.taskAction,
+                                    ),
+                                ),
+                            ),
+                            actions: null,
+                        };
+                    }
+
+                    if (newOriginal.task !== null) {
+                        // If our new original task is non-null because there was a non-optimistic
+                        // create action then the task entry as a whole should also have a
+                        // non-null task.
+                        assert(oldTaskEntry.task !== null);
+
+                        newTaskEntryById.set(action.taskId, {
+                            ...oldTaskEntry,
+                            // Reset `task` and `actions` in the task entry so it doesn't include the
+                            // rejected action.
+                            task: newOptimisticActions.reduce(
+                                (task, {action}) => task.apply(action),
+                                newOriginal.task,
+                            ),
+                            actions: null,
+                            optimisticState:
+                                newOptimisticActions.length > 0
+                                    ? {
+                                          original: newOriginal,
+                                          actions: newOptimisticActions,
+                                      }
+                                    : null,
+                        });
+                        continue;
+                    }
+
+                    const optimisticCreateAction = newOptimisticActions.find(
+                        (
+                            optimisticAction,
+                        ): optimisticAction is {
+                            isOptimistic: boolean;
+                            action: TaskUpdateTaskAction & {taskAction: {type: "Create"}};
+                        } => optimisticAction.action.taskAction.type === "Create",
+                    );
+
+                    if (!optimisticCreateAction) {
+                        newTaskEntryById.set(action.taskId, {
+                            ...oldTaskEntry,
+                            // Reset `task` and `actions` in the task entry so it doesn't include the
+                            // rejected action.
+                            task: null,
+                            actions: [
+                                ...newOriginal.actions,
+                                ...newOptimisticActions.map(({action}) => action),
+                            ],
+                            optimisticState:
+                                newOptimisticActions.length > 0
+                                    ? {
+                                          original: newOriginal,
+                                          actions: newOptimisticActions,
+                                      }
+                                    : null,
+                        });
+                    } else {
+                        newTaskEntryById.set(action.taskId, {
+                            // Reset `task` and `actions` in the task entry so it doesn't include the
+                            // rejected action.
+                            task: newOptimisticActions.reduce(
+                                (task, {action}) => task.apply(action),
+                                newOriginal.actions.reduce(
+                                    (task, action) => task.apply(action),
+                                    TaskModel.createFromAction(
+                                        this.spaceId,
+                                        optimisticCreateAction.action.taskId,
+                                        optimisticCreateAction.action.time,
+                                        optimisticCreateAction.action.taskAction,
+                                    ),
+                                ),
+                            ),
+                            actions: null,
+                            optimisticState:
+                                newOptimisticActions.length > 0
+                                    ? {
+                                          original: newOriginal,
+                                          actions: newOptimisticActions,
+                                      }
+                                    : null,
+                            // If we receive an optimistic create action it's from our account (other
+                            // creates will be rejected by the backend) so the task is authorized.
+                            isAuthorized: oldTaskEntry.isAuthorized ?? true,
+                            // NOCOMMIT: Proper authorization event number!!
+                            authorizationEventNumber: oldTaskEntry.authorizationEventNumber ?? 0,
+                        });
+                    }
+                    continue;
+                }
+                case "UpdateCollection": {
+                    // NOCOMMIT: Optimistically update collections!
+                    continue;
+                }
+                case "UpdateNotepadPage": {
+                    // NOCOMMIT: I think something needs to be done here?
+                    continue;
+                }
+                default:
+                    throw exhaustive(action);
+            }
+        }
+
+        this._updateStore(newTaskEntryById, newCollectionEntryById);
+    }
+
+    private _updateStore(
+        newTaskEntryById: ReadonlyMap<TaskId, TaskClientStoreTaskEntry>,
+        newCollectionEntryById: Map<TaskCollectionId, TaskClientStoreCollectionEntry>,
+    ) {
         // Apply all the updates to our store in one batch...
         batchStoreUpdates(() => {
             const taskEntryUpdateById = new Map<
