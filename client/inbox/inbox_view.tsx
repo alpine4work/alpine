@@ -12,7 +12,9 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {delayFullPageTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query.js";
+import {isMac} from "~/client/helpers/browser/is_mac.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
+import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -362,6 +364,9 @@ export function InboxView({
             onGlobalKeyDown={event => {
                 switch (event.key) {
                     case "ArrowUp": {
+                        // Ignore modified arrow up/down events like cmd-up which scrolls.
+                        if (isModifiedKeyboardEvent(event)) break;
+
                         // If focus is within a text input element then arrow key presses are for
                         // text editing.
                         if (isTextInputElement(document.activeElement)) break;
@@ -375,6 +380,9 @@ export function InboxView({
                         break;
                     }
                     case "ArrowDown": {
+                        // Ignore modified arrow up/down events like cmd-down which scrolls.
+                        if (isModifiedKeyboardEvent(event)) break;
+
                         // If focus is within a text input element then arrow key presses are for
                         // text editing.
                         if (isTextInputElement(document.activeElement)) break;

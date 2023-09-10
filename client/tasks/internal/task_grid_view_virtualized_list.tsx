@@ -1,5 +1,6 @@
-import {useCallback, useMemo, useState} from "react";
+import {createRef, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
+import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {StoreMap} from "~/client/helpers/store/store_map.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
@@ -9,11 +10,13 @@ import {
     TaskGridViewVirtualizedTaskList,
 } from "~/client/tasks/internal/task_grid_view_virtualized_task_list.js";
 import {taskRowViewMinHeight} from "~/client/tasks/internal/task_row_shared_styles.js";
-import {TaskRowView} from "~/client/tasks/internal/task_row_view.js";
+import {TaskRowView, TaskRowViewRef} from "~/client/tasks/internal/task_row_view.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {VirtualizedScrollViewItem} from "~/client/virtualized/virtualized_scroll_view.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
 import {generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {colorSchemeVars} from "~/shared/styles/styles.js";
@@ -43,23 +46,102 @@ export function useTaskGridViewVirtualizedList({
 
     const getAddNewTaskToQueryActions = useEvent(_getAddNewTaskToQueryActions);
 
+    const taskRowRefByItemIndex = useConstant(() => new LazyMap(() => createRef<TaskRowViewRef>()));
+
+    const lastArrowNavigationCoordRef = useRef<{setTime: Date; coord: number} | null>(null);
+
     return {
         itemCount: Math.max(list.getItemCount() + 1, 3),
 
-        renderItem: useCallback(
-            (itemIndex: number): VirtualizedScrollViewItem => {
-                const listItemCount = list.getItemCount();
+        renderItem: useMemo(() => {
+            const preserveLastTaskTitleArrowNavigationCoord = () => {
+                if (lastArrowNavigationCoordRef.current) {
+                    lastArrowNavigationCoordRef.current = {
+                        setTime: new Date(),
+                        coord: lastArrowNavigationCoordRef.current.coord,
+                    };
+                }
+            };
 
-                if (itemIndex < listItemCount) {
-                    return list.renderItem(itemIndex, {
-                        capabilities,
-                        getAddNewTaskToQueryActions,
-                    });
+            return (itemIndex: number): VirtualizedScrollViewItem => {
+                const focusNextTaskTitleCoord = (coord: number) => {
+                    coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
+
+                    taskRowRefByItemIndex
+                        .get(itemIndex + 1)
+                        ?.current?.focusTitleCoord(coord, "top");
+
+                    lastArrowNavigationCoordRef.current = {
+                        setTime: new Date(),
+                        coord,
+                    };
+                };
+
+                const focusPreviousTaskTitleCoord = (coord: number) => {
+                    coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
+
+                    taskRowRefByItemIndex
+                        .get(itemIndex - 1)
+                        ?.current?.focusTitleCoord(coord, "bottom");
+
+                    lastArrowNavigationCoordRef.current = {
+                        setTime: new Date(),
+                        coord,
+                    };
+                };
+
+                const listItemCount = list.getItemCount();
+                let relativeItemIndex = itemIndex;
+
+                if (relativeItemIndex < listItemCount) {
+                    const item = list.getItem(relativeItemIndex);
+
+                    switch (item.type) {
+                        case "Task": {
+                            const taskKey = item.rootTaskId
+                                ? `${item.rootTaskId}-${item.taskId}`
+                                : item.taskId;
+
+                            return {
+                                key: `Task:${taskKey}`,
+                                minHeight: spacing[taskRowViewMinHeight],
+                                node: (
+                                    <TaskRowView
+                                        ref={taskRowRefByItemIndex.get(itemIndex)}
+                                        query={query}
+                                        capabilities={capabilities}
+                                        taskId={item.taskId}
+                                        indentation={item.indentation}
+                                        getAddNewTaskToQueryActions={getAddNewTaskToQueryActions}
+                                        focusNextTaskTitleCoord={focusNextTaskTitleCoord}
+                                        focusPreviousTaskTitleCoord={focusPreviousTaskTitleCoord}
+                                        preserveLastTaskTitleArrowNavigationCoord={
+                                            preserveLastTaskTitleArrowNavigationCoord
+                                        }
+                                    />
+                                ),
+                            };
+                        }
+                        case "UnloadedChildTask": {
+                            const parentTaskKey = item.rootTaskId
+                                ? `${item.rootTaskId}-${item.parentTaskId}`
+                                : item.parentTaskId;
+
+                            return {
+                                key: `UnloadedChildTask:${parentTaskKey}-${item.childTaskIndex}`,
+                                minHeight: spacing[taskRowViewMinHeight],
+                                // NOCOMMIT: Implement!
+                                node: <></>,
+                            };
+                        }
+                        default:
+                            throw exhaustive(item);
+                    }
                 }
 
-                itemIndex -= listItemCount;
+                relativeItemIndex -= listItemCount;
 
-                if (itemIndex === 0) {
+                if (relativeItemIndex === 0) {
                     return {
                         // We want to use the same key and component as a regular task so we can turn a
                         // ghost task into a regular task without losing focus.
@@ -67,11 +149,12 @@ export function useTaskGridViewVirtualizedList({
                         minHeight: spacing[taskRowViewMinHeight],
                         node: (
                             <TaskRowView
+                                ref={taskRowRefByItemIndex.get(itemIndex)}
                                 query={query}
                                 capabilities={capabilities}
                                 taskId={null}
                                 ghostTaskId={bottomGhostTaskId}
-                                onGhostTaskIdConsumed={() =>
+                                onGhostTaskCreated={() =>
                                     setBottomGhostTaskId(generateId<TaskId>())
                                 }
                                 // NOCOMMIT: Ghost row placeholder sequence!
@@ -81,15 +164,20 @@ export function useTaskGridViewVirtualizedList({
                                 // look misaligned. So remove it.
                                 withoutPaddingLeft={listItemCount === 0}
                                 getAddNewTaskToQueryActions={getAddNewTaskToQueryActions}
+                                focusNextTaskTitleCoord={focusNextTaskTitleCoord}
+                                focusPreviousTaskTitleCoord={focusPreviousTaskTitleCoord}
+                                preserveLastTaskTitleArrowNavigationCoord={
+                                    preserveLastTaskTitleArrowNavigationCoord
+                                }
                             />
                         ),
                     };
                 }
 
-                itemIndex -= 1;
+                relativeItemIndex -= 1;
 
                 return {
-                    key: `DecorativeGhostTask:${itemIndex}`,
+                    key: `DecorativeGhostTask:${relativeItemIndex}`,
                     minHeight: spacing[taskRowViewMinHeight],
                     node: (
                         <Box
@@ -123,8 +211,14 @@ export function useTaskGridViewVirtualizedList({
                         </Box>
                     ),
                 };
-            },
-            [bottomGhostTaskId, capabilities, getAddNewTaskToQueryActions, list, query],
-        ),
+            };
+        }, [
+            bottomGhostTaskId,
+            capabilities,
+            getAddNewTaskToQueryActions,
+            list,
+            query,
+            taskRowRefByItemIndex,
+        ]),
     };
 }

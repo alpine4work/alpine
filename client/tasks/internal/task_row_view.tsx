@@ -31,7 +31,10 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {taskRowViewMinHeight} from "~/client/tasks/internal/task_row_shared_styles.js";
-import {TaskRowTitleInput} from "~/client/tasks/internal/task_row_title_input.js";
+import {
+    TaskRowTitleInput,
+    TaskRowTitleInputRef,
+} from "~/client/tasks/internal/task_row_title_input.js";
 // NOCOMMIT:
 // import {getTaskStatusMenuActions} from "~/client/tasks/demo_2/internal/get_task_status_menu_actions.js";
 // import {TaskAssigneeInput} from "~/client/tasks/demo_2/internal/task_assignee_input.js";
@@ -112,17 +115,20 @@ function TaskRowView(
         capabilities,
         taskId,
         ghostTaskId = null,
-        onGhostTaskIdConsumed,
+        onGhostTaskCreated,
         titlePlaceholder,
         indentation,
         withoutPaddingLeft,
         getAddNewTaskToQueryActions,
+        focusNextTaskTitleCoord,
+        focusPreviousTaskTitleCoord,
+        preserveLastTaskTitleArrowNavigationCoord,
     }: {
         query: TaskClientQuery;
         capabilities: TaskGridViewCapabilities;
         taskId: TaskId | null;
         ghostTaskId?: TaskId | null;
-        onGhostTaskIdConsumed?: () => void;
+        onGhostTaskCreated?: () => void;
         titlePlaceholder?: string;
         // NOCOMMIT:
         // capabilities: TaskGridViewCapabilities;
@@ -163,13 +169,13 @@ function TaskRowView(
         // unnestTaskIfNestedRow: (titleSelection: Selection) => void;
         // deleteTaskAndAllChildrenAndFocusPreviousRow: () => void;
         // deleteTaskAndAllChildrenMaybeWithConfirmation: () => void;
-        // focusNextTaskTitleCoord: (coord: number) => void;
-        // focusPreviousTaskTitleCoord: (coord: number) => void;
-        // preserveLastTaskTitleArrowNavigationCoord: () => void;
         // focusFirstTaskTitleStart: () => void;
         // focusLastTaskTitleEnd: () => void;
         withoutPaddingLeft?: boolean;
         getAddNewTaskToQueryActions: (time: HybridLogicalTime, taskId: TaskId) => Array<TaskAction>;
+        focusNextTaskTitleCoord: (coord: number) => void;
+        focusPreviousTaskTitleCoord: (coord: number) => void;
+        preserveLastTaskTitleArrowNavigationCoord: () => void;
     },
     ref: Ref<TaskRowViewRef>,
 ) {
@@ -257,14 +263,10 @@ function TaskRowView(
         } else {
             assert(ghostTaskId);
 
-            // Make sure any state update from the `onGhostTaskIdConsumed` callback runs in
+            // Make sure any state update from the `onGhostTaskCreated` callback runs in
             // the same React commit as our store updates (which use
             // `useSyncExternalStore()`).
             runWithImmediatePriority(() => {
-                // When we create a new task that occupies our ghost `TaskId` then we need to
-                // regenerate a new ghost `TaskId` so there are no conflicts.
-                onGhostTaskIdConsumed?.();
-
                 const commitPromise = query.store.commitTaskActionTransaction(context, [
                     {
                         type: "UpdateTask",
@@ -289,12 +291,16 @@ function TaskRowView(
                 ]);
 
                 handleCommitPromise(commitPromise);
+
+                // When we create a new task that occupies our ghost `TaskId` then we need to
+                // regenerate a new ghost `TaskId` so there are no conflicts.
+                onGhostTaskCreated?.();
             });
         }
     };
 
+    const titleInputRef = useRef<TaskRowTitleInputRef>(null);
     // NOCOMMIT:
-    // const titleInputRef = useRef<TaskRowTitleInputRef>(null);
     // const denseAssigneeAndDueDateRef = useRef<TaskRowViewDenseFieldsRef>(null);
     // const assigneeCellRef = useRef<TaskRowAssigneeCellRef>(null);
     // const priorityCellRef = useRef<TaskRowPriorityCellRef>(null);
@@ -305,24 +311,19 @@ function TaskRowView(
         useMemo(
             () => ({
                 focusTitleStart: () => {
-                    // NOCOMMIT:
-                    // assertExists(titleInputRef.current).focusStart();
+                    assertExists(titleInputRef.current).focusStart();
                 },
                 focusTitleEnd: () => {
-                    // NOCOMMIT:
-                    // assertExists(titleInputRef.current).focusEnd();
+                    assertExists(titleInputRef.current).focusEnd();
                 },
                 focusTitleAll: () => {
-                    // NOCOMMIT:
-                    // assertExists(titleInputRef.current).focusAll();
+                    assertExists(titleInputRef.current).focusAll();
                 },
                 focusTitleCoord: (coord: number, side: "top" | "bottom") => {
-                    // NOCOMMIT:
-                    // assertExists(titleInputRef.current).focusCoord(coord, side);
+                    assertExists(titleInputRef.current).focusCoord(coord, side);
                 },
                 focusTitleSelection: (selection: Selection) => {
-                    // NOCOMMIT:
-                    // assertExists(titleInputRef.current).focusSelection(selection);
+                    assertExists(titleInputRef.current).focusSelection(selection);
                 },
             }),
             [],
@@ -573,10 +574,16 @@ function TaskRowView(
                     </Box>
                     <Box flexGrow="1" overflow="hidden">
                         <TaskRowTitleInput
+                            ref={titleInputRef}
                             capabilities={capabilities}
                             title={task?.getTitle() ?? emptyTaskTitleModel.get()}
                             onTitleChange={onTitleChange}
                             placeholder={titlePlaceholder}
+                            focusNextTaskTitleCoord={focusNextTaskTitleCoord}
+                            focusPreviousTaskTitleCoord={focusPreviousTaskTitleCoord}
+                            preserveLastTaskTitleArrowNavigationCoord={
+                                preserveLastTaskTitleArrowNavigationCoord
+                            }
                         />
                         {/* NOCOMMIT: <TaskRowTitleInput
                             ref={titleInputRef}

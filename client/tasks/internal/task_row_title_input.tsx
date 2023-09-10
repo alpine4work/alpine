@@ -13,6 +13,7 @@ import {
     useState,
 } from "react";
 import {ySyncPlugin} from "y-prosemirror";
+import {isMac} from "~/client/helpers/browser/is_mac.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -107,6 +108,9 @@ function TaskRowTitleInput(
         title,
         onTitleChange,
         placeholder,
+        focusNextTaskTitleCoord,
+        focusPreviousTaskTitleCoord,
+        preserveLastTaskTitleArrowNavigationCoord,
     }: {
         capabilities: TaskGridViewCapabilities;
         title: TaskTitleModel;
@@ -125,9 +129,10 @@ function TaskRowTitleInput(
         // nestWithPreviousTaskRowIfExistsAndExpand: (selection: Selection) => void;
         // unnestTaskIfNestedRow: (selection: Selection) => void;
         // deleteTaskAndAllChildrenAndFocusPreviousRow: () => void;
-        // focusNextTaskTitleCoord: (coord: number) => void;
-        // focusPreviousTaskTitleCoord: (coord: number) => void;
-        // preserveLastTaskTitleArrowNavigationCoord: () => void;
+        focusNextTaskTitleCoord: (coord: number) => void;
+        focusPreviousTaskTitleCoord: (coord: number) => void;
+        preserveLastTaskTitleArrowNavigationCoord: () => void;
+        // NOCOMMIT:
         // focusFirstTaskTitleStart: () => void;
         // focusLastTaskTitleEnd: () => void;
         // focusTaskNextCell: () => void;
@@ -188,69 +193,67 @@ function TaskRowTitleInput(
                 break;
             }
             case "ArrowUp": {
-                // NOCOMMIT:
-                // if (isMac ? event.metaKey : event.ctrlKey) {
-                //     event.preventDefault();
-                //     event.stopPropagation();
+                if (isMac ? event.metaKey : event.ctrlKey) {
+                    event.preventDefault();
+                    event.stopPropagation();
 
-                //     focusFirstTaskTitleStart();
-                // } else if (event.altKey) {
-                //     event.preventDefault();
-                //     event.stopPropagation();
+                    // NOCOMMIT: Treat cmd-up/cmd-down as page up/down
+                } else if (event.altKey) {
+                    event.preventDefault();
+                    event.stopPropagation();
 
-                //     view.dispatch(
-                //         view.state.tr
-                //             .setSelection(Selection.atStart(view.state.doc))
-                //             .scrollIntoView(),
-                //     );
-                // } else if (!isModifiedKeyboardEvent(event)) {
-                //     const viewRect = view.dom.getBoundingClientRect();
-                //     const coords = view.coordsAtPos(view.state.selection.from);
-                //     const height = coords.bottom - coords.top;
+                    view.dispatch(
+                        view.state.tr
+                            .setSelection(Selection.atStart(view.state.doc))
+                            .scrollIntoView(),
+                    );
+                } else if (!isModifiedKeyboardEvent(event)) {
+                    const viewRect = view.dom.getBoundingClientRect();
+                    const coords = view.coordsAtPos(view.state.selection.from);
+                    const height = coords.bottom - coords.top;
 
-                //     // Only navigate to the previous task if our selection is at the top of
-                //     // the view.
-                //     if (coords.top - height <= viewRect.top) {
-                //         event.preventDefault();
-                //         event.stopPropagation();
-                //         focusPreviousTaskTitleCoord(coords.left);
-                //     } else {
-                //         preserveLastTaskTitleArrowNavigationCoord();
-                //     }
-                // }
+                    // Only navigate to the previous task if our selection is at the top of
+                    // the view.
+                    if (coords.top - height <= viewRect.top) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        focusPreviousTaskTitleCoord(coords.left);
+                    } else {
+                        preserveLastTaskTitleArrowNavigationCoord();
+                    }
+                }
                 break;
             }
             case "ArrowDown": {
-                // NOCOMMIT:
-                // if (isMac ? event.metaKey : event.ctrlKey) {
-                //     event.preventDefault();
-                //     event.stopPropagation();
+                if (isMac ? event.metaKey : event.ctrlKey) {
+                    event.preventDefault();
+                    event.stopPropagation();
 
-                //     focusLastTaskTitleEnd();
-                // } else if (event.altKey) {
-                //     event.preventDefault();
-                //     event.stopPropagation();
+                    // NOCOMMIT: Treat cmd-up/cmd-down as page up/down
+                } else if (event.altKey) {
+                    event.preventDefault();
+                    event.stopPropagation();
 
-                //     view.dispatch(
-                //         view.state.tr
-                //             .setSelection(Selection.atEnd(view.state.doc))
-                //             .scrollIntoView(),
-                //     );
-                // } else if (!isModifiedKeyboardEvent(event)) {
-                //     const viewRect = view.dom.getBoundingClientRect();
-                //     const coords = view.coordsAtPos(view.state.selection.from);
-                //     const height = coords.bottom - coords.top;
+                    view.dispatch(
+                        view.state.tr
+                            .setSelection(Selection.atEnd(view.state.doc))
+                            .scrollIntoView(),
+                    );
+                } else if (!isModifiedKeyboardEvent(event)) {
+                    const viewRect = view.dom.getBoundingClientRect();
+                    const coords = view.coordsAtPos(view.state.selection.from);
+                    const height = coords.bottom - coords.top;
 
-                //     // Only navigate to the next task if our selection is at the bottom of
-                //     // the view.
-                //     if (coords.bottom + height >= viewRect.bottom) {
-                //         event.preventDefault();
-                //         event.stopPropagation();
-                //         focusNextTaskTitleCoord(coords.left);
-                //     } else {
-                //         preserveLastTaskTitleArrowNavigationCoord();
-                //     }
-                // }
+                    // Only navigate to the next task if our selection is at the bottom of
+                    // the view.
+                    if (coords.bottom + height >= viewRect.bottom) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        focusNextTaskTitleCoord(coords.left);
+                    } else {
+                        preserveLastTaskTitleArrowNavigationCoord();
+                    }
+                }
                 break;
             }
             case "ArrowRight": {
