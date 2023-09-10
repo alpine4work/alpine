@@ -201,6 +201,10 @@ export class TaskModel {
         return tickTaskModelData(this.rawData, clock);
     }
 
+    public getSpaceId() {
+        return this.rawData.spaceId;
+    }
+
     public getCreator() {
         return this.rawData.creator;
     }

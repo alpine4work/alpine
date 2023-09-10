@@ -27,14 +27,17 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
+import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {taskRowViewMinHeight} from "~/client/tasks/internal/task_row_shared_styles.js";
 import {
     TaskRowTitleInput,
     TaskRowTitleInputRef,
 } from "~/client/tasks/internal/task_row_title_input.js";
+import {TaskStatusButton} from "~/client/tasks/internal/task_status_button.js";
 // NOCOMMIT:
 // import {getTaskStatusMenuActions} from "~/client/tasks/demo_2/internal/get_task_status_menu_actions.js";
 // import {TaskAssigneeInput} from "~/client/tasks/demo_2/internal/task_assignee_input.js";
@@ -369,28 +372,31 @@ function TaskRowView(
     const contextMenuActions = (() => {
         const contextMenuActions: Array<ReadonlyArray<MenuAction>> = [];
 
-        // NOCOMMIT:
-        // if (status) {
-        //     contextMenuActions.push([
-        //         {
-        //             label: "Copy link",
-        //             onPress: () => {
-        //                 // NOCOMMIT: Needs production implementation
-        //             },
-        //         },
-        //     ]);
+        if (task) {
+            contextMenuActions.push([
+                {
+                    label: "Copy link",
+                    pressErrorTitle: "Couldn’t copy task link",
+                    onPress: async () => {
+                        const url = new URL(
+                            `/s/${task.getSpaceId()}/tasks/${task.id}`,
+                            window.location.href,
+                        );
+                        await writeTextToClipboard(url.toString());
+                    },
+                },
+            ]);
 
-        //     contextMenuActions.push(
-        //         getTaskStatusMenuActions({
-        //             timeZone,
-        //             currentAccount,
-        //             status,
-        //             onStatusChange,
-        //             assignee,
-        //             onAssigneeChange,
-        //         }),
-        //     );
-        // }
+            contextMenuActions.push(
+                getTaskStatusMenuActions({
+                    context,
+                    timeZone,
+                    currentAccount,
+                    store: query.store,
+                    task,
+                }),
+            );
+        }
 
         // NOCOMMIT:
         // if (capabilities.hasDenseAssigneeAndDueDate) {
@@ -565,28 +571,24 @@ function TaskRowView(
                                             tasksStyles.pointerEventsNoneNotInheritedClassName
                                         }
                                     >
-                                        {/* NOCOMMIT: {status !== null ? (
-                                        <TaskStatusButton
-                                            status={status}
-                                            onStatusChange={onStatusChange}
-                                            assignee={assignee}
-                                        />
-                                    ) : (
-                                        <Box
-                                            width="4"
-                                            height="4"
-                                            borderRadius="full"
-                                            border="grey-10"
-                                            pointerEvents="none"
-                                        />
-                                    )} */}
-                                        <Box
-                                            width="4"
-                                            height="4"
-                                            borderRadius="full"
-                                            border="grey-10"
-                                            pointerEvents="none"
-                                        />
+                                        {task ? (
+                                            <TaskStatusButton
+                                                store={query.store}
+                                                task={task}
+                                                // Disable the ability to focus this button. Since there are so many tasks and
+                                                // the `Tab` keyboard shortcut indents a task, we don't rely on `Tab` for focus
+                                                // navigation.
+                                                isFocusable={false}
+                                            />
+                                        ) : (
+                                            <Box
+                                                width="4"
+                                                height="4"
+                                                borderRadius="full"
+                                                border="grey-10"
+                                                pointerEvents="none"
+                                            />
+                                        )}
                                     </Box>
                                 </Box>
                             )}

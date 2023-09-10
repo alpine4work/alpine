@@ -3,13 +3,14 @@ import {Box} from "~/client/design/box.js";
 import {buttonPressedOverlayOpacity} from "~/client/design/button.js";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
+import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 
-export function TaskStatusCircle({
-    status,
+export function TaskDisplayStatusCircle({
+    displayStatus,
     size,
     isPressed,
 }: {
-    status: "OpenInactive" | "OpenActive" | "Closed";
+    displayStatus: TaskDisplayStatus;
     size: "3" | "4" | "5" | "6";
     isPressed?: boolean;
 }) {
@@ -40,12 +41,14 @@ export function TaskStatusCircle({
                 alignItems: "center",
                 overflow: "hidden",
                 border:
-                    status === "OpenInactive" || status === "OpenActive" ? "grey-40" : undefined,
+                    displayStatus === "OpenInactive" || displayStatus === "OpenActive"
+                        ? "grey-40"
+                        : undefined,
                 backgroundColor:
-                    status === "Closed" ? "theme-50-const" : isPressed ? "grey-10" : "grey-0",
+                    displayStatus === "Closed" ? "theme-50" : isPressed ? "grey-10" : "grey-0",
             })}
         >
-            {isPressed && status === "Closed" && (
+            {isPressed && displayStatus === "Closed" && (
                 // For accent buttons, instead of choosing a darker background color shade when
                 // pressed we add a black overlay at a lowered opacity. We accomplish this with
                 // an overlay element since such a color is not in our color scheme.
@@ -67,7 +70,7 @@ export function TaskStatusCircle({
                     }}
                 />
             )}
-            {status === "Closed" && (
+            {displayStatus === "Closed" && (
                 <Check
                     weight="bold"
                     size={addRemLengths(spacing["2"], spacing["0.5"])}
@@ -75,7 +78,7 @@ export function TaskStatusCircle({
                     color={colorSchemeVars["grey-0-const"]}
                 />
             )}
-            {status === "OpenActive" && (
+            {displayStatus === "OpenActive" && (
                 <Box
                     position="absolute"
                     top="0"
