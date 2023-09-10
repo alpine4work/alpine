@@ -93,6 +93,17 @@ export function TaskDisplayStatusCircle({
                         transform: `translateY(${activeHalfCircleMargin}px) translateX(${
                             parseRemLengthNumber(spacing[size]) / 2
                         }rem) translateX(-1px)`,
+                        // NOTE(calebmer): Safari appears to have a bug where `overflow: hidden` is not
+                        // actually clipping our circle? After some research it's a known bug that
+                        // Safari with `overflow: hidden` and `border-radius` doesn't always work. A
+                        // solution is to use `mask-image` instead. Curiously, I've found setting a
+                        // mask image that doesn't do any actual masking gets Safari to clip the half
+                        // circle properly. Going to...go with that for now I guess.
+                        //
+                        // This should probably be svg anyway.
+                        //
+                        // https://discourse.webflow.com/t/safari-not-hiding-overflow-on-rounded-corner-divs/55060
+                        maskImage: "linear-gradient(white, white)",
                     }}
                 >
                     <Box

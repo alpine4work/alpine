@@ -75,6 +75,8 @@ const taskRowTitleInputSingleLineStyle: CSSProperties = {
     // below the element. Adding `vertical-align` stops the space from being added.
     // https://stackoverflow.com/questions/27536428/inline-block-element-height-issue
     verticalAlign: "top",
+    // Don't allow bouncy over-scrolling on Safari.
+    overscrollBehavior: "none",
 };
 
 const taskRowTitleInputMultilineClassName = `ProseMirror ${sprinkles({
@@ -375,7 +377,7 @@ function TaskRowTitleInput(
         const updateFullyScrolledState = () => {
             setIsFullyScrolledLeft(view.dom.scrollLeft === 0);
             setIsFullyScrolledRight(
-                Math.ceil(view.dom.scrollLeft + view.dom.clientWidth) >= view.dom.scrollWidth,
+                Math.ceil(view.dom.scrollLeft + view.dom.clientWidth) + 1 >= view.dom.scrollWidth,
             );
         };
 
