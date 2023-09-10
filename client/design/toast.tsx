@@ -26,7 +26,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
-import {toastStyles} from "~/shared/styles/styles.js";
+import {greyElevated2ClassName, toastStyles} from "~/shared/styles/styles.js";
 
 // Error toasts should be visible long enough for the user to read but short
 // enough so that the user can try again. Or if the user is already trying
@@ -276,7 +276,8 @@ function ToastView({
         <Box
             position="relative"
             maxWidth="128"
-            backgroundColor={{light: "grey-0", dark: "grey-5"}}
+            className={greyElevated2ClassName}
+            backgroundColor="grey-0"
             borderRadius="base"
             boxShadow="elevation-30"
             display="flex"
@@ -366,7 +367,7 @@ function ToastViewTimer({startTime, expirationTime}: {startTime: Date; expiratio
 
     return (
         <Box position="relative" width="3" height="3" marginX="0.5">
-            <Box position="absolute" inset="0" color={{light: "grey-10", dark: "grey-20"}}>
+            <Box position="absolute" inset="0" color="grey-10">
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
                     style={{

@@ -91,7 +91,7 @@ import {
 import {Schema} from "~/shared/schema/schema.js";
 import {
     colorSchemeVars,
-    greyElevatedClassName,
+    greyElevated1ClassName,
     peekContainerClassName,
     spinAnimationClassName,
     sprinkles,
@@ -1062,7 +1062,7 @@ function PeekOverlay({
                     borderTopRadius="md"
                     boxShadow={index === 0 ? "elevation-40" : "elevation-30"}
                     backgroundColor="grey-0"
-                    className={greyElevatedClassName}
+                    className={greyElevated1ClassName}
                     style={{
                         width: peekWidth,
                         height: addRemLengths(peekHeight, peekBottomBuffer),

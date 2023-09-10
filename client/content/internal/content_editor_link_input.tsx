@@ -9,7 +9,7 @@ import {Tooltip} from "~/client/design/tooltip.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {sprinkles} from "~/shared/styles/styles.js";
+import {greyElevated2ClassName, sprinkles} from "~/shared/styles/styles.js";
 
 export function ContentEditorLinkInput({
     viewRef,
@@ -80,8 +80,9 @@ export function ContentEditorLinkInput({
             // Maybe the width should grow with the URL length for a bit? Until a
             // max width?
             width={url.length > 40 ? "96" : "64"}
+            className={greyElevated2ClassName}
             color="grey-text"
-            backgroundColor={{light: "grey-0", dark: "grey-5"}}
+            backgroundColor="grey-0"
             borderRadius="md"
             boxShadow="elevation-20"
             position="relative"
@@ -177,9 +178,9 @@ function ContentEditorLinkInputClearButton({
                             borderRadius: "base",
                             color: isPressed ? "grey-text" : "grey-70",
                             backgroundColor: isPressed
-                                ? {light: "grey-10", dark: "grey-20"}
+                                ? "grey-10"
                                 : isHovered
-                                ? {light: "grey-5", dark: "grey-10"}
+                                ? "grey-5"
                                 : undefined,
                         })}
                     >
@@ -205,7 +206,7 @@ function ContentEditorLinkInputSaveButton({
 
     return (
         <Box {...hoverProps} paddingY="1.5">
-            <Box paddingLeft="1" borderLeft={{light: "grey-5", dark: "grey-10"}} marginLeft="1">
+            <Box paddingLeft="1" borderLeft="grey-5" marginLeft="1">
                 <FocusRing offset="0">
                     <button
                         {...buttonProps}
@@ -219,9 +220,9 @@ function ContentEditorLinkInputSaveButton({
                             borderRadius: "base",
                             color: isPressed ? "grey-text" : "grey-70",
                             backgroundColor: isPressed
-                                ? {light: "grey-10", dark: "grey-20"}
+                                ? "grey-10"
                                 : isHovered
-                                ? {light: "grey-5", dark: "grey-10"}
+                                ? "grey-5"
                                 : undefined,
                         })}
                     >

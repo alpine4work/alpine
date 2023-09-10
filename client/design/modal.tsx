@@ -1,3 +1,4 @@
+import classNames from "classnames";
 import {X} from "phosphor-react";
 import {ReactNode, useEffect, useState} from "react";
 import {FocusScope} from "react-aria";
@@ -10,7 +11,7 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {RemLength, Spacing, isRemLength, spacing} from "~/shared/design/spacing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {modalStyles, sprinkles} from "~/shared/styles/styles.js";
+import {greyElevated1ClassName, modalStyles, sprinkles} from "~/shared/styles/styles.js";
 
 export const defaultModalMaxWidth: Spacing = "128";
 
@@ -141,17 +142,20 @@ export function Modal({
                             aria-modal="true"
                             aria-labelledby={ariaLabelledBy}
                             aria-describedby={ariaDescribedBy}
-                            className={sprinkles({
-                                position: "relative",
-                                zIndex: "0",
-                                width: "full",
-                                maxHeight: "full",
-                                backgroundColor: {light: "grey-0", dark: "grey-90-elevated"},
-                                boxShadow: "elevation-40-with-dark-color-scheme-lighter-border",
-                                borderRadius: "md",
-                                display: "flex",
-                                overflow: "hidden",
-                            })}
+                            className={classNames(
+                                greyElevated1ClassName,
+                                sprinkles({
+                                    position: "relative",
+                                    zIndex: "0",
+                                    width: "full",
+                                    maxHeight: "full",
+                                    backgroundColor: "grey-0",
+                                    boxShadow: "elevation-40-with-dark-color-scheme-lighter-border",
+                                    borderRadius: "md",
+                                    display: "flex",
+                                    overflow: "hidden",
+                                }),
+                            )}
                             style={{
                                 maxWidth: isRemLength(maxWidth) ? maxWidth : spacing[maxWidth],
                                 animation: modalStyles.modalOverlayFadeInAnimation,

@@ -17,6 +17,7 @@ import {Tooltip} from "~/client/design/tooltip.js";
 import {HighlightColor, colorByHighlightColor} from "~/shared/design/highlight_color.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
+import {greyElevated2ClassName} from "~/shared/styles/styles.js";
 
 export type ContentEditorHighlightSelectorRef = {
     focus(options?: FocusOptions): void;
@@ -90,8 +91,9 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
         <Box
             display="flex"
             paddingX="1"
+            className={greyElevated2ClassName}
             color="grey-text"
-            backgroundColor={{light: "grey-0", dark: "grey-5"}}
+            backgroundColor="grey-0"
             borderRadius="md"
             boxShadow="elevation-20"
             role="toolbar"
@@ -260,7 +262,7 @@ function ContentEditorHighlightSelectorButton({
                     // right over our toolbar the tooltips immediately disappear/reappear because
                     // there is no gap in between the hovered elements.
                     paddingRight={dividerRight ? "1" : "0"}
-                    borderRight={dividerRight ? {light: "grey-5", dark: "grey-10"} : undefined}
+                    borderRight={dividerRight ? "grey-5" : undefined}
                     paddingLeft={dividerLeft ? "1" : "0"}
                 >
                     <FocusRing offset="0">
@@ -270,11 +272,7 @@ function ContentEditorHighlightSelectorButton({
                             padding="1"
                             borderRadius="base"
                             backgroundColor={
-                                isPressed || isActive
-                                    ? {light: "grey-10", dark: "grey-20"}
-                                    : isHovered
-                                    ? {light: "grey-5", dark: "grey-10"}
-                                    : undefined
+                                isPressed || isActive ? "grey-10" : isHovered ? "grey-5" : undefined
                             }
                             tabIndex={isFocusable ? (wasLastFocused ? 0 : -1) : undefined}
                             onFocus={onFocus}

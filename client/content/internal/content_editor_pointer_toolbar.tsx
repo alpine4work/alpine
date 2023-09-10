@@ -1,4 +1,5 @@
 import {useHover, useInteractionModality} from "@react-aria/interactions";
+import classNames from "classnames";
 import {
     ChatCircleText,
     IconContext,
@@ -46,6 +47,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 import {
+    greyElevated2ClassName,
     overlayAnimateContainerClassName,
     overlayAnimateFadeInClassName,
     overlayAnimateFadeOutClassName,
@@ -359,16 +361,17 @@ function ContentEditorPointerToolbarOverlay({
                         paddingLeft="1"
                         paddingRight="0.5"
                         color="grey-text"
-                        backgroundColor={{light: "grey-0", dark: "grey-5"}}
+                        backgroundColor="grey-0"
                         borderRadius="md"
                         boxShadow="elevation-20"
-                        className={
+                        className={classNames(
+                            greyElevated2ClassName,
                             animation === "FadingIn"
                                 ? overlayAnimateFadeInClassName
                                 : animation === "FadingOut"
                                 ? overlayAnimateFadeOutClassName
-                                : undefined
-                        }
+                                : undefined,
+                        )}
                         style={{marginLeft: -1, marginRight: -1}}
                     >
                         <ContentEditorPointerToolbarButtons
@@ -749,7 +752,7 @@ function ContentEditorPointerToolbarButton({
                     // right over our toolbar the tooltips immediately disappear/reappear because
                     // there is no gap in between the hovered elements.
                     paddingRight={dividerRight ? "1" : "0.5"}
-                    borderRight={dividerRight ? {light: "grey-5", dark: "grey-10"} : undefined}
+                    borderRight={dividerRight ? "grey-5" : undefined}
                     paddingLeft={dividerLeft ? "1" : undefined}
                 >
                     <Box
@@ -757,11 +760,7 @@ function ContentEditorPointerToolbarButton({
                         borderRadius="base"
                         color={isPressed || isActive ? "grey-text" : "grey-70"}
                         backgroundColor={
-                            isPressed || isActive
-                                ? {light: "grey-10", dark: "grey-20"}
-                                : isHovered
-                                ? {light: "grey-5", dark: "grey-10"}
-                                : undefined
+                            isPressed || isActive ? "grey-10" : isHovered ? "grey-5" : undefined
                         }
                     >
                         <IconContext.Provider

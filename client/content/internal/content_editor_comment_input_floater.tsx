@@ -34,7 +34,7 @@ import {
 } from "~/shared/messaging/messaging_shared_styles.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 import {
-    greyElevatedClassName,
+    greyElevated1ClassName,
     overlayFadeOutAnimationDurationMs,
     sprinkles,
 } from "~/shared/styles/styles.js";
@@ -216,7 +216,7 @@ function ContentEditorCommentInput({
                 backgroundColor="grey-0"
                 borderRadius="xl"
                 boxShadow="elevation-20"
-                className={greyElevatedClassName}
+                className={greyElevated1ClassName}
                 onKeyDown={event => {
                     if (event.key === "Escape") {
                         event.preventDefault();

@@ -233,20 +233,38 @@ export const colorSchemeVars = {
  * colors. This has no effect in light mode but in dark mode elevated colors are
  * slightly lighter. Since we can't use shadows in dark mode to simulate depth we
  * instead give surfaces that are "higher up" a lighter background. We use this
- * for peeks and since peeks contain arbitrary content we need to implement
+ * for peeks since peeks contain arbitrary content we need to implement
  * these lighter backgrounds at the color system level.
  */
-export const greyElevatedClassName = style({
+export const greyElevated1ClassName = style({
     vars: {
-        [specialGreyColorVars["grey-wash"]]: colors["grey-5-elevated"],
+        [specialGreyColorVars["grey-wash"]]: colors["grey-5-elevated-1-wash"],
     },
 });
 
-globalStyle(`${darkColorSchemeSelector} ${greyElevatedClassName}`, {
+globalStyle(`${darkColorSchemeSelector} ${greyElevated1ClassName}`, {
     vars: {
-        [colorSchemeVars["grey-0"]]: colors["grey-90-elevated"],
-        [colorSchemeVars["grey-5"]]: colors["grey-80-elevated"],
-        [colorSchemeVars["grey-10"]]: colors["grey-70-elevated"],
-        [specialGreyColorVars["grey-wash"]]: colors["grey-dark-elevated"],
+        [colorSchemeVars["grey-0"]]: colors["grey-90-elevated-1"],
+        [colorSchemeVars["grey-5"]]: colors["grey-80-elevated-1"],
+        [colorSchemeVars["grey-10"]]: colors["grey-70-elevated-1"],
+        [specialGreyColorVars["grey-wash"]]: colors["grey-dark-elevated-1-wash"],
+    },
+});
+
+/**
+ * When you put this class on an element then all children will use "elevated"
+ * colors. This has no effect in light mode but in dark mode elevated colors are
+ * slightly lighter. Since we can't use shadows in dark mode to simulate depth we
+ * instead give surfaces that are "higher up" a lighter background. We use this
+ * for hovering overlays.
+ */
+export const greyElevated2ClassName = style({});
+
+globalStyle(`${darkColorSchemeSelector} ${greyElevated2ClassName}`, {
+    vars: {
+        [colorSchemeVars["grey-0"]]: colors["grey-90-elevated-2"],
+        [colorSchemeVars["grey-5"]]: colors["grey-80-elevated-2"],
+        [colorSchemeVars["grey-10"]]: colors["grey-70-elevated-2"],
+        [colorSchemeVars["grey-20"]]: colors["grey-60-elevated-2"],
     },
 });

@@ -35,7 +35,11 @@ import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {overlayFadeOutAnimationDurationMs, spinAnimationClassName} from "~/shared/styles/styles.js";
+import {
+    greyElevated2ClassName,
+    overlayFadeOutAnimationDurationMs,
+    spinAnimationClassName,
+} from "~/shared/styles/styles.js";
 
 // Node.js ESM interop (#node-esm-migration)
 const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
@@ -324,7 +328,9 @@ export function ContentEditorMentionFloater({
                     overflowY={!isClosing ? "scroll" : "hidden"}
                     borderRadius="md"
                     padding="1"
-                    backgroundColor={{light: "grey-0", dark: "grey-5"}}
+                    // NOCOMMIT(#modal-block-clicks): Modal should block other clicks below.
+                    className={greyElevated2ClassName}
+                    backgroundColor="grey-0"
                     boxShadow="elevation-20"
                 >
                     {isLoading && shouldShowLoadingIndicatorIfLoading ? (
@@ -487,13 +493,7 @@ function ContentEditorMentionAccountItem({
                 display="flex"
                 alignItems="center"
                 gap="2"
-                backgroundColor={
-                    isPressed
-                        ? {light: "grey-10", dark: "grey-20"}
-                        : isHovered
-                        ? {light: "grey-5", dark: "grey-10"}
-                        : undefined
-                }
+                backgroundColor={isPressed ? "grey-10" : isHovered ? "grey-5" : undefined}
             >
                 <AccountAvatar account={account} size="6" />
                 <Box fontStyle="truncate">{account.name}</Box>

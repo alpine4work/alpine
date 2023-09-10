@@ -1,5 +1,6 @@
 import {isFocusVisible} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
+import classNames from "classnames";
 import _Fuse from "fuse.js";
 import {CaretDown, MagnifyingGlass, SpinnerGap, X} from "phosphor-react";
 import {
@@ -47,6 +48,7 @@ import {
     backgroundColorVar,
     colorSchemeVars,
     fontSizes,
+    greyElevated2ClassName,
     overlayFadeInAnimationDurationMs,
     overlayFadeOutAnimationDurationMs,
     spinAnimationClassName,
@@ -592,16 +594,20 @@ function ChatAccountPickerListBox({
         <ul
             {...listBoxProps}
             ref={listBoxRef}
-            className={sprinkles({
-                borderRadius: "md",
-                padding: "1",
-                marginX: "2",
-                backgroundColor: {light: "grey-0", dark: "grey-5"},
-                boxShadow: "elevation-20",
-                maxHeight: "64",
-                overflowX: "hidden",
-                overflowY: "auto",
-            })}
+            className={classNames(
+                // NOCOMMIT(#modal-block-clicks): Modal should block other clicks below.
+                greyElevated2ClassName,
+                sprinkles({
+                    borderRadius: "md",
+                    padding: "1",
+                    marginX: "2",
+                    backgroundColor: "grey-0",
+                    boxShadow: "elevation-20",
+                    maxHeight: "64",
+                    overflowX: "hidden",
+                    overflowY: "auto",
+                }),
+            )}
         >
             {comboBoxState.collection.size === 0 ? (
                 <Box
@@ -663,11 +669,7 @@ function ChatAccountPickerListBoxOption({
                     paddingY: "1.5",
                     borderRadius: "base",
                     color: "grey-text",
-                    backgroundColor: isPressed
-                        ? {light: "grey-10", dark: "grey-20"}
-                        : isHovered
-                        ? {light: "grey-5", dark: "grey-10"}
-                        : undefined,
+                    backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
                 })}
             >
                 {cloneElement(item.rendered, {isPressed} as any)}
@@ -722,11 +724,7 @@ function ChatAccountPickerListBoxOptionItem({
                                 width="5"
                                 height="5"
                                 borderRadius="full"
-                                backgroundColor={
-                                    isPressed
-                                        ? {light: "grey-20", dark: "grey-30"}
-                                        : {light: "grey-10", dark: "grey-20"}
-                                }
+                                backgroundColor={isPressed ? "grey-20" : "grey-10"}
                                 color="grey-70"
                                 fontSize="50"
                                 display="flex"

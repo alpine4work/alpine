@@ -36,7 +36,7 @@ import {
 } from "~/shared/rpc/notifications_rpc_definitions.js";
 import {
     backgroundColorVar,
-    greyElevatedClassName,
+    greyElevated1ClassName,
     overlayAnimateContainerClassName,
     overlayAnimateFadeInClassName,
     overlayAnimateFadeOutClassName,
@@ -322,7 +322,7 @@ export function SpaceLayoutTopBarInboxButton({
                             flexDirection="column"
                             overflow="hidden"
                             className={classNames(
-                                greyElevatedClassName,
+                                greyElevated1ClassName,
                                 overlayState.animationState === "FadingIn" &&
                                     overlayAnimateFadeInClassName,
                                 overlayState.animationState === "FadingOut" &&

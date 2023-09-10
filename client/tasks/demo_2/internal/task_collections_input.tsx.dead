@@ -658,6 +658,7 @@ function TaskDetailCollectionsFieldListBox({
     return (
         <Box
             borderRadius="md"
+            // NOCOMMIT: Overlay colors changed
             backgroundColor={{light: "grey-0", dark: "grey-5"}}
             boxShadow="elevation-20"
             width="64"

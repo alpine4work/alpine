@@ -23,7 +23,7 @@ export const colors = {
     "grey-60": "#57575c",
     "grey-70": "#3f3f45",
     "grey-80": "#2f2f33",
-    "grey-90": "#212124",
+    "grey-90": "#202023",
 
     // Our darkest grey is not a part of the grey color spectrum. In order to
     // render the product in dark mode, we invert the color spectrum so
@@ -48,14 +48,18 @@ export const colors = {
     // color system instead of writing a bunch of `isPeek` logic. These grey colors
     // are just a hair lighter in peeks, it's a small detail that's almost
     // unnoticeable but it helps reinforce a sense of depth subconsciously.
-    "grey-70-elevated": "#45454a",
-    "grey-80-elevated": "#37373b",
-    "grey-90-elevated": "#262629",
+    "grey-70-elevated-1": "#45454a",
+    "grey-80-elevated-1": "#37373b",
+    "grey-90-elevated-1": "#222225",
+    "grey-60-elevated-2": "#5e5e63",
+    "grey-70-elevated-2": "#47474d",
+    "grey-80-elevated-2": "#3b3b3f",
+    "grey-90-elevated-2": "#27272a",
 
     // These colors are not replaced everywhere in a peek, only the `grey-wash`
     // color variable.
-    "grey-5-elevated": "#ebebef",
-    "grey-dark-elevated": "#131315",
+    "grey-5-elevated-1-wash": "#ebebef",
+    "grey-dark-elevated-1-wash": "#131315",
 
     "red-5": "#fcf1e8",
     "red-10": "#ffd4c2",

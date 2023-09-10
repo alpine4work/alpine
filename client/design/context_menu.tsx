@@ -1,3 +1,4 @@
+import classNames from "classnames";
 import {
     ReactElement,
     Ref,
@@ -25,7 +26,7 @@ import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {sprinkles} from "~/shared/styles/styles.js";
+import {greyElevated2ClassName, sprinkles} from "~/shared/styles/styles.js";
 
 const contextMenuEventActionsSymbol = Symbol("actions");
 
@@ -531,13 +532,16 @@ const ContextMenu = forwardRef(function ContextMenu(
     return (
         <div
             ref={useMergedRefs<HTMLDivElement>(ref, useOutsidePress(onCloseWithAnimation))}
-            className={sprinkles({
-                minWidth: defaultMenuWidth,
-                borderRadius: "md",
-                padding: "1",
-                backgroundColor: {light: "grey-0", dark: "grey-5"},
-                boxShadow: "elevation-20",
-            })}
+            className={classNames(
+                greyElevated2ClassName,
+                sprinkles({
+                    minWidth: defaultMenuWidth,
+                    borderRadius: "md",
+                    padding: "1",
+                    backgroundColor: "grey-0",
+                    boxShadow: "elevation-20",
+                }),
+            )}
         >
             {flattenedActions.map((action, index) => {
                 switch (action.type) {

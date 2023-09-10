@@ -351,6 +351,7 @@ function TaskPriorityInputListBox({
             className={sprinkles({
                 borderRadius: "md",
                 padding: "1",
+                // NOCOMMIT: Overlay colors changed
                 backgroundColor: {light: "grey-0", dark: "grey-5"},
                 boxShadow: "elevation-20",
                 width: "48",

@@ -259,6 +259,7 @@ export function TaskQueryViewCustomizationBar({
                             <Box
                                 overflow="hidden"
                                 borderRadius="md"
+                                // NOCOMMIT: Overlay colors changed
                                 backgroundColor={{light: "grey-0", dark: "grey-5"}}
                                 boxShadow="elevation-20"
                             >

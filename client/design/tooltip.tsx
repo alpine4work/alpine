@@ -1,4 +1,5 @@
 import {isFocusVisible} from "@react-aria/interactions";
+import classNames from "classnames";
 import {
     MutableRefObject,
     ReactElement,
@@ -35,6 +36,7 @@ import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {
+    greyElevated2ClassName,
     overlayAnimateContainerClassName,
     overlayAnimateFadeInClassName,
     overlayAnimateFadeOutClassName,
@@ -878,16 +880,17 @@ function Tooltip(
                             paddingY="0.5"
                             fontSize="50"
                             color="grey-text"
-                            backgroundColor={{light: "grey-0", dark: "grey-5"}}
+                            backgroundColor="grey-0"
                             borderRadius="sm"
                             boxShadow="elevation-20"
-                            className={
+                            className={classNames(
+                                greyElevated2ClassName,
                                 state.isFadingOut
                                     ? overlayAnimateFadeOutClassName
                                     : state.isFadingIn
                                     ? overlayAnimateFadeInClassName
-                                    : undefined
-                            }
+                                    : undefined,
+                            )}
                         >
                             {content}
                         </Box>

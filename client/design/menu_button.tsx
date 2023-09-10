@@ -1,4 +1,5 @@
 import {setInteractionModality} from "@react-aria/interactions";
+import classNames from "classnames";
 import {Check, IconContext, SpinnerGap} from "phosphor-react";
 import {
     ReactElement,
@@ -33,7 +34,12 @@ import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
+import {
+    colorSchemeVars,
+    greyElevated2ClassName,
+    spinAnimationClassName,
+    sprinkles,
+} from "~/shared/styles/styles.js";
 
 // TODO(calebmer): Implement the mobile action sheet version of our menu
 // component.
@@ -427,16 +433,20 @@ export const Menu = forwardRef(function Menu(
             //
             // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
             tabIndex={-1}
-            className={sprinkles({
-                minWidth: width,
-                maxHeight: maxHeight,
-                overflowX: "hidden",
-                overflowY: "auto",
-                borderRadius: "md",
-                padding: "1",
-                backgroundColor: {light: "grey-0", dark: "grey-5"},
-                boxShadow: "elevation-20",
-            })}
+            className={classNames(
+                // NOCOMMIT(#modal-block-clicks): Modal should block other clicks below.
+                greyElevated2ClassName,
+                sprinkles({
+                    minWidth: width,
+                    maxHeight: maxHeight,
+                    overflowX: "hidden",
+                    overflowY: "auto",
+                    borderRadius: "md",
+                    padding: "1",
+                    backgroundColor: "grey-0",
+                    boxShadow: "elevation-20",
+                }),
+            )}
             onFocus={setAriaActiveDescendant}
             onBlur={setAriaActiveDescendant}
             onKeyDown={event => {
@@ -875,11 +885,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                 // seems silly to call attention to the destructive action with color.
                 color={isVisuallyDisabled ? "grey-40" : "grey-text"}
                 backgroundColor={
-                    isPressed && !isVisuallyDisabled
-                        ? {light: "grey-10", dark: "grey-20"}
-                        : isHovered
-                        ? {light: "grey-5", dark: "grey-10"}
-                        : undefined
+                    isPressed && !isVisuallyDisabled ? "grey-10" : isHovered ? "grey-5" : undefined
                 }
                 // When a menu item is disabled, `aria-disabled` is set to true.
                 //
@@ -1061,13 +1067,7 @@ function MenuCustomItem({
                       }
                     : {})}
                 borderRadius="base"
-                backgroundColor={
-                    isPressed
-                        ? {light: "grey-10", dark: "grey-20"}
-                        : isHovered
-                        ? {light: "grey-5", dark: "grey-10"}
-                        : undefined
-                }
+                backgroundColor={isPressed ? "grey-10" : isHovered ? "grey-5" : undefined}
                 // When a menu item is disabled, `aria-disabled` is set to true.
                 //
                 // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
