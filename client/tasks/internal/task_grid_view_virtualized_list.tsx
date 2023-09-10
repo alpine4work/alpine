@@ -1,4 +1,4 @@
-import {useCallback, useMemo} from "react";
+import {useCallback, useMemo, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {StoreMap} from "~/client/helpers/store/store_map.js";
@@ -14,6 +14,7 @@ import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {VirtualizedScrollViewItem} from "~/client/virtualized/virtualized_scroll_view.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {colorSchemeVars} from "~/shared/styles/styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
@@ -22,15 +23,17 @@ export function useTaskGridViewVirtualizedList({
     capabilities,
     query,
     isExpandedByTaskKey,
-    bottomGhostTaskId,
+    initialBottomGhostTaskId,
     getAddNewTaskToQueryActions: _getAddNewTaskToQueryActions,
 }: {
     capabilities: TaskGridViewCapabilities;
     query: TaskClientQuery;
     isExpandedByTaskKey: StoreMap<TaskGridViewTaskKey, boolean>;
-    bottomGhostTaskId: TaskId;
+    initialBottomGhostTaskId: TaskId;
     getAddNewTaskToQueryActions: (time: HybridLogicalTime, taskId: TaskId) => Array<TaskAction>;
 }) {
+    const [bottomGhostTaskId, setBottomGhostTaskId] = useState(initialBottomGhostTaskId);
+
     const listStore = useMemo(
         () => TaskGridViewVirtualizedTaskList.new(query, isExpandedByTaskKey),
         [isExpandedByTaskKey, query],
@@ -68,6 +71,9 @@ export function useTaskGridViewVirtualizedList({
                                 capabilities={capabilities}
                                 taskId={null}
                                 ghostTaskId={bottomGhostTaskId}
+                                onGhostTaskIdConsumed={() =>
+                                    setBottomGhostTaskId(generateId<TaskId>())
+                                }
                                 // NOCOMMIT: Ghost row placeholder sequence!
                                 titlePlaceholder="Add a task…"
                                 indentation={0}

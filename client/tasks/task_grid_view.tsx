@@ -82,13 +82,12 @@ export function TaskGridView({
     getAddNewTaskToQueryActions: (time: HybridLogicalTime, taskId: TaskId) => Array<TaskAction>;
 }) {
     const [isExpandedByTaskKey] = useState(() => new StoreMap<TaskGridViewTaskKey, boolean>());
-    const [bottomGhostTaskId] = useState(initialBottomGhostTaskId);
 
     const {itemCount, renderItem} = useTaskGridViewVirtualizedList({
         capabilities,
         query,
         isExpandedByTaskKey,
-        bottomGhostTaskId,
+        initialBottomGhostTaskId,
         getAddNewTaskToQueryActions,
     });
 

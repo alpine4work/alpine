@@ -24,6 +24,7 @@ import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu_button.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
@@ -70,6 +71,7 @@ import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_b
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
+import {Context} from "~/shared/context/context.js";
 import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {ThemeColor} from "~/shared/design/theme_colors.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
@@ -79,6 +81,7 @@ import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {LocalTaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {
     colorSchemeVars,
     contentSchemaStyles,
@@ -87,16 +90,8 @@ import {
 } from "~/shared/styles/styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
-import {TaskPriority} from "~/shared/tasks/task_priority.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
-import {
-    TaskTitle,
-    TaskTitleUpdate,
-    applyTaskTitleUpdate,
-    emptyTaskTitle,
-} from "~/shared/tasks/task_title.js";
-// NOCOMMIT:
-// import {TaskTitle} from "~/shared/tasks/task_title_schema_old.js";
+import {TaskTitleUpdate, emptyTaskTitle} from "~/shared/tasks/task_title.js";
 
 export type TaskRowViewRef = {
     focusTitleStart(): void;
@@ -117,6 +112,7 @@ function TaskRowView(
         capabilities,
         taskId,
         ghostTaskId = null,
+        onGhostTaskIdConsumed,
         titlePlaceholder,
         indentation,
         withoutPaddingLeft,
@@ -126,6 +122,7 @@ function TaskRowView(
         capabilities: TaskGridViewCapabilities;
         taskId: TaskId | null;
         ghostTaskId?: TaskId | null;
+        onGhostTaskIdConsumed?: () => void;
         titlePlaceholder?: string;
         // NOCOMMIT:
         // capabilities: TaskGridViewCapabilities;
@@ -188,16 +185,66 @@ function TaskRowView(
     const task = taskEntry?.task ?? null;
 
     // If `taskId` is non-null then we expect `task` to also be non-null and
-    // authorized. If a task is in a query's loaded range then we expect it to
-    // exist on the client and be authorized.
+    // authorized. This component should only be rendered with `TaskId`s in the
+    // query's loaded range and if the task is in the query's loaded range we
+    // expect that it exists on the client and is authorized.
     assert(taskId !== null ? task !== null && taskEntry?.isAuthorized : task === null);
 
+    const titleCommitStateRef = useRef<{
+        pendingActionTransactionBuilder: {
+            add: (titleUpdate: TaskTitleUpdate) => void;
+            commit: (context: Context<{rpc: RpcContextModuleBase}>) => {
+                finally: (callback: () => void) => void;
+            };
+        } | null;
+    } | null>(null);
+
     const onTitleChange = (titleUpdate: TaskTitleUpdate) => {
+        const time = query.store.clock.now();
+
+        // When our commit promise finishes, commit the pending update title action if
+        // there is one.
+        const handleCommitPromise = (commitPromise: {finally: (callback: () => void) => void}) => {
+            assert(!titleCommitStateRef.current);
+
+            titleCommitStateRef.current = {
+                pendingActionTransactionBuilder: null,
+            };
+
+            commitPromise.finally(() => {
+                assert(titleCommitStateRef.current);
+
+                const {pendingActionTransactionBuilder} = titleCommitStateRef.current;
+                titleCommitStateRef.current = null;
+
+                if (pendingActionTransactionBuilder) {
+                    const commitPromise = pendingActionTransactionBuilder.commit(context);
+                    handleCommitPromise(commitPromise);
+                }
+            });
+        };
+
+        // If we are currently committing the title then add our update to our pending
+        // action transaction builder. We'll commit the pending action after our
+        // current action commits.
+        if (titleCommitStateRef.current) {
+            if (titleCommitStateRef.current.pendingActionTransactionBuilder) {
+                titleCommitStateRef.current.pendingActionTransactionBuilder.add(titleUpdate);
+            } else {
+                titleCommitStateRef.current.pendingActionTransactionBuilder =
+                    query.store.getTaskUpdateTitleActionTransactionBuilder(
+                        assertExists(taskId ?? ghostTaskId),
+                        titleUpdate,
+                    );
+            }
+            return;
+        }
+
         if (taskId) {
-            query.store.commitTaskActionTransaction(context, [
+            const commitPromise = query.store.commitTaskActionTransaction(context, [
                 {
                     type: "UpdateTask",
-                    time: query.store.clock.now(),
+                    time,
                     taskId,
                     taskAction: {
                         type: "UpdateTitle",
@@ -205,35 +252,45 @@ function TaskRowView(
                     },
                 },
             ]);
-        }
 
-        // NOCOMMIT
-        //
-        // const taskId = generateId<TaskId>();
-        // const time = store.clock.now();
-        //
-        // store.commitTaskActionTransaction(context, [
-        //     {
-        //         type: "UpdateTask",
-        //         time,
-        //         taskId,
-        //         taskAction: {
-        //             type: "Create",
-        //             creator: TaskSortableAccount.from(currentAccount),
-        //             creatorTimeZone: timeZone,
-        //         },
-        //     },
-        //     {
-        //         type: "UpdateTask",
-        //         time,
-        //         taskId,
-        //         taskAction: {
-        //             type: "UpdateTitle",
-        //             titleUpdate,
-        //         },
-        //     },
-        //     ...getAddNewTaskToQueryActions(time, taskId),
-        // ]);
+            handleCommitPromise(commitPromise);
+        } else {
+            assert(ghostTaskId);
+
+            // Make sure any state update from the `onGhostTaskIdConsumed` callback runs in
+            // the same React commit as our store updates (which use
+            // `useSyncExternalStore()`).
+            runWithImmediatePriority(() => {
+                // When we create a new task that occupies our ghost `TaskId` then we need to
+                // regenerate a new ghost `TaskId` so there are no conflicts.
+                onGhostTaskIdConsumed?.();
+
+                const commitPromise = query.store.commitTaskActionTransaction(context, [
+                    {
+                        type: "UpdateTask",
+                        time,
+                        taskId: ghostTaskId,
+                        taskAction: {
+                            type: "Create",
+                            creator: TaskSortableAccount.from(currentAccount),
+                            creatorTimeZone: timeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time,
+                        taskId: ghostTaskId,
+                        taskAction: {
+                            type: "UpdateTitle",
+                            titleUpdate,
+                        },
+                    },
+                    ...getAddNewTaskToQueryActions(time, ghostTaskId),
+                ]);
+
+                handleCommitPromise(commitPromise);
+            });
+        }
     };
 
     // NOCOMMIT:

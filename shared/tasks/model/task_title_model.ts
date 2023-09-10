@@ -58,6 +58,7 @@ export class TaskTitleModel {
      * Are these two titles equal?
      */
     public isEqual(otherTitle: TaskTitleModel) {
+        if (this === otherTitle) return true;
         return areUint8ArraysEqual(this.raw, otherTitle.raw);
     }
 

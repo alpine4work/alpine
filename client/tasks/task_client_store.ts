@@ -27,6 +27,7 @@ import {
     TaskRealtimeQueryLoadedState,
     TaskRealtimeUpdateEvent,
 } from "~/shared/tasks/task_realtime_protocol.js";
+import {TaskTitleUpdate, mergeTaskTitleUpdates} from "~/shared/tasks/task_title.js";
 
 export type TaskClientStoreTaskEntry =
     // Task initialized and known authorization state:
@@ -736,7 +737,7 @@ export class TaskClientStore {
     public commitTaskActionTransaction(
         context: Context<{rpc: RpcContextModuleBase}>,
         actions: ReadonlyArray<TaskAction>,
-    ) {
+    ): {finally: (callback: () => void) => void} {
         // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
         // close the page if we haven't finished committing their task action. It will
         // look committed on their machine but might not be on the server.
@@ -756,6 +757,113 @@ export class TaskClientStore {
                 this._revertOptimisticTaskActions(actions);
             },
         );
+
+        return {
+            finally: callback => {
+                commitPromise.finally(callback);
+            },
+        };
+    }
+
+    /**
+     * Helps build a merged task `UpdateTitle` transaction from many individual
+     * actions. Each individual `UpdateTitle` transaction is applied optimistically
+     * to our store but when `commit()` is called we send one, merged, action to
+     * the server.
+     *
+     * We only send one `UpdateTitle` action at a time so it's naturally throttled
+     * by the network. If the user's network is slow we send fewer, larger,
+     * `UpdateTitle` actions. If the user's network is fast we send many smaller
+     * `UpdateTitle` actions.
+     *
+     * Under the hood this has the same logic as `commitTaskActionTransaction()`
+     * but allows you to merge individual actions into a single action for the
+     * server.
+     */
+    public getTaskUpdateTitleActionTransactionBuilder(
+        taskId: TaskId,
+        initialTitleUpdate: TaskTitleUpdate,
+    ): {
+        add: (titleUpdate: TaskTitleUpdate) => void;
+        commit: (context: Context<{rpc: RpcContextModuleBase}>) => {
+            finally: (callback: () => void) => void;
+        };
+    } {
+        let isFinished = false;
+        let mergedTitleUpdate = initialTitleUpdate;
+
+        const actions: Array<TaskAction> = [
+            {
+                type: "UpdateTask",
+                time: this.clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateTitle",
+                    titleUpdate: initialTitleUpdate,
+                },
+            },
+        ];
+
+        this._applyOptimisticTaskActions(actions);
+
+        return {
+            add: (titleUpdate: TaskTitleUpdate) => {
+                assert(!isFinished);
+
+                mergedTitleUpdate = mergeTaskTitleUpdates(mergedTitleUpdate, titleUpdate);
+
+                const action: TaskAction = {
+                    type: "UpdateTask",
+                    time: this.clock.now(),
+                    taskId,
+                    taskAction: {
+                        type: "UpdateTitle",
+                        titleUpdate,
+                    },
+                };
+                actions.push(action);
+
+                this._applyOptimisticTaskActions([action]);
+            },
+            commit: context => {
+                assert(!isFinished);
+                isFinished = true;
+
+                // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
+                // close the page if we haven't finished committing their task action. It will
+                // look committed on their machine but might not be on the server.
+                const commitPromise = commitTaskActionTransaction(context, {
+                    spaceId: this.spaceId,
+                    actions: [
+                        {
+                            type: "UpdateTask",
+                            time: this.clock.now(),
+                            taskId,
+                            taskAction: {
+                                type: "UpdateTitle",
+                                titleUpdate: mergedTitleUpdate,
+                            },
+                        },
+                    ],
+                });
+
+                commitPromise.then(
+                    () => {
+                        this._commitOptimisticTaskActions(actions);
+                    },
+                    error => {
+                        // NOCOMMIT: Display the error to the user!
+                        this._revertOptimisticTaskActions(actions);
+                    },
+                );
+
+                return {
+                    finally: callback => {
+                        commitPromise.finally(callback);
+                    },
+                };
+            },
+        };
     }
 
     private _applyOptimisticTaskActions(actions: ReadonlyArray<TaskAction>) {
