@@ -77,6 +77,7 @@ import {AccountModel} from "~/shared/accounts/account_model.js";
 import {Context} from "~/shared/context/context.js";
 import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {ThemeColor} from "~/shared/design/theme_colors.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -119,7 +120,9 @@ function TaskRowView(
         titlePlaceholder,
         indentation,
         withoutPaddingLeft,
+        withPaddingBottom,
         getAddNewTaskToQueryActions,
+        focusTaskTitleStart,
         focusNextTaskTitleCoord,
         focusPreviousTaskTitleCoord,
         preserveLastTaskTitleArrowNavigationCoord,
@@ -160,6 +163,8 @@ function TaskRowView(
         // onAreChildTasksCollapsedToggle: () => void;
         // onExpand: (() => Promise<void>) | null;
         indentation: number;
+        withoutPaddingLeft?: boolean;
+        withPaddingBottom?: boolean;
         // NOCOMMIT:
         // droppableIndentations: ReadonlyArray<number>;
         // createTaskAbove: () => void;
@@ -171,8 +176,15 @@ function TaskRowView(
         // deleteTaskAndAllChildrenMaybeWithConfirmation: () => void;
         // focusFirstTaskTitleStart: () => void;
         // focusLastTaskTitleEnd: () => void;
-        withoutPaddingLeft?: boolean;
-        getAddNewTaskToQueryActions: (time: HybridLogicalTime, taskId: TaskId) => Array<TaskAction>;
+        getAddNewTaskToQueryActions: (
+            time: HybridLogicalTime,
+            taskId: TaskId,
+            position:
+                | {type: "End"}
+                | {type: "Above"; taskId: TaskId}
+                | {type: "Below"; taskId: TaskId},
+        ) => Array<TaskAction>;
+        focusTaskTitleStart: (taskId: TaskId) => void;
         focusNextTaskTitleCoord: (coord: number) => void;
         focusPreviousTaskTitleCoord: (coord: number) => void;
         preserveLastTaskTitleArrowNavigationCoord: () => void;
@@ -287,7 +299,7 @@ function TaskRowView(
                             titleUpdate,
                         },
                     },
-                    ...getAddNewTaskToQueryActions(time, ghostTaskId),
+                    ...getAddNewTaskToQueryActions(time, ghostTaskId, {type: "End"}),
                 ]);
 
                 handleCommitPromise(commitPromise);
@@ -427,72 +439,75 @@ function TaskRowView(
     }rem`;
 
     return (
-        <ContextMenuActions actions={contextMenuActions}>
-            <Box
-                ref={hoverRef}
-                minHeight={taskRowViewMinHeight}
-                position="relative"
-                // NOTE(calebmer): Setting z-index here creates a new stacking context which
-                // means the task row drop indicator lines can't render on top of
-                // adjacent rows.
-                zIndex={undefined}
-            >
+        <>
+            <ContextMenuActions actions={contextMenuActions}>
                 <Box
-                    position="absolute"
-                    zIndex="-10"
-                    top="0"
-                    bottom="0"
-                    left="5"
-                    right="5"
-                    pointerEvents="none"
-                    style={{
-                        // Draw the top and bottom border with a shadow so it:
-                        //
-                        // 1. Doesn't add 2px to layout
-                        // 2. Adjacent borders share the same space so we don't get 2px dividers
-                        boxShadow: `0 -1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 -1px 0 0 ${colorSchemeVars["grey-5"]}`,
-                    }}
-                />
-                <Box
+                    ref={hoverRef}
+                    minHeight={taskRowViewMinHeight}
                     position="relative"
                     // NOTE(calebmer): Setting z-index here creates a new stacking context which
-                    // means the editable collection overlay can't render on top of adjacent rows.
+                    // means the task row drop indicator lines can't render on top of
+                    // adjacent rows.
                     zIndex={undefined}
-                    flexGrow="1"
-                    // Important not to set `overflow="hidden"` here so that the collections overlay
-                    // we open in edit mode can render outside the bounds of the row.
-                    overflow={undefined}
-                    display="flex"
                 >
                     <Box
+                        position="absolute"
+                        zIndex="-10"
+                        top="0"
+                        bottom="0"
+                        left="5"
+                        right="5"
+                        pointerEvents="none"
+                        style={{
+                            // Draw the top and bottom border with a shadow so it:
+                            //
+                            // 1. Doesn't add 2px to layout
+                            // 2. Adjacent borders share the same space so we don't get 2px dividers
+                            boxShadow: `0 -1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 -1px 0 0 ${colorSchemeVars["grey-5"]}`,
+                        }}
+                    />
+                    <Box
                         position="relative"
-                        flexShrink="0"
-                        style={{width: marginLeft}}
-                        // Create an illusion that the text editor extends into the margins by giving
-                        // the margin a text cursor and making it clickable putting focus in the task.
-                        // A double click selects the task text.
-                        //
-                        // This is an affordance for mouse users, does not need to be usable
-                        // by keyboard.
-                        className={tasksStyles.textCursorNotInheritedClassName}
-                        {...useOutOfBoundsClickSelection({
-                            onSelect: focusTitleStart,
-                            onSelectAll: focusTitleAll,
-                        })}
+                        // NOTE(calebmer): Setting z-index here creates a new stacking context which
+                        // means the editable collection overlay can't render on top of adjacent rows.
+                        zIndex={undefined}
+                        flexGrow="1"
+                        // Important not to set `overflow="hidden"` here so that the collections overlay
+                        // we open in edit mode can render outside the bounds of the row.
+                        overflow={undefined}
+                        display="flex"
                     >
-                        {!withoutPaddingLeft && (
-                            <Box
-                                display="flex"
-                                justifyContent="flex-end"
-                                alignItems="center"
-                                height={taskRowViewMinHeight}
-                                className={tasksStyles.pointerEventsNoneNotInheritedClassName}
-                            >
+                        <Box
+                            position="relative"
+                            flexShrink="0"
+                            style={{width: marginLeft}}
+                            // Create an illusion that the text editor extends into the margins by giving
+                            // the margin a text cursor and making it clickable putting focus in the task.
+                            // A double click selects the task text.
+                            //
+                            // This is an affordance for mouse users, does not need to be usable
+                            // by keyboard.
+                            className={tasksStyles.textCursorNotInheritedClassName}
+                            {...useOutOfBoundsClickSelection({
+                                onSelect: focusTitleStart,
+                                onSelectAll: focusTitleAll,
+                            })}
+                        >
+                            {!withoutPaddingLeft && (
                                 <Box
-                                    paddingRight="0.5"
+                                    display="flex"
+                                    justifyContent="flex-end"
+                                    alignItems="center"
+                                    height={taskRowViewMinHeight}
                                     className={tasksStyles.pointerEventsNoneNotInheritedClassName}
                                 >
-                                    {/* NOCOMMIT: {isHovered && taskRow && (
+                                    <Box
+                                        paddingRight="0.5"
+                                        className={
+                                            tasksStyles.pointerEventsNoneNotInheritedClassName
+                                        }
+                                    >
+                                        {/* NOCOMMIT: {isHovered && taskRow && (
                                         <button
                                             {...mergeProps(
                                                 draggableAttributes,
@@ -524,13 +539,15 @@ function TaskRowView(
                                             <DotsSixVertical size={spacing["3"]} />
                                         </button>
                                     )} */}
-                                </Box>
-                                <Box
-                                    width="5"
-                                    paddingRight="1"
-                                    className={tasksStyles.pointerEventsNoneNotInheritedClassName}
-                                >
-                                    {/* NOCOMMIT: {onExpand && isHovered && (
+                                    </Box>
+                                    <Box
+                                        width="5"
+                                        paddingRight="1"
+                                        className={
+                                            tasksStyles.pointerEventsNoneNotInheritedClassName
+                                        }
+                                    >
+                                        {/* NOCOMMIT: {onExpand && isHovered && (
                                         <IconButton
                                             size="xs"
                                             description="Expand"
@@ -540,13 +557,15 @@ function TaskRowView(
                                             <ArrowsOutSimple />
                                         </IconButton>
                                     )} */}
-                                </Box>
-                                <Box
-                                    width="6"
-                                    paddingRight="2"
-                                    className={tasksStyles.pointerEventsNoneNotInheritedClassName}
-                                >
-                                    {/* NOCOMMIT: {status !== null ? (
+                                    </Box>
+                                    <Box
+                                        width="6"
+                                        paddingRight="2"
+                                        className={
+                                            tasksStyles.pointerEventsNoneNotInheritedClassName
+                                        }
+                                    >
+                                        {/* NOCOMMIT: {status !== null ? (
                                         <TaskStatusButton
                                             status={status}
                                             onStatusChange={onStatusChange}
@@ -561,31 +580,81 @@ function TaskRowView(
                                             pointerEvents="none"
                                         />
                                     )} */}
-                                    <Box
-                                        width="4"
-                                        height="4"
-                                        borderRadius="full"
-                                        border="grey-10"
-                                        pointerEvents="none"
-                                    />
+                                        <Box
+                                            width="4"
+                                            height="4"
+                                            borderRadius="full"
+                                            border="grey-10"
+                                            pointerEvents="none"
+                                        />
+                                    </Box>
                                 </Box>
-                            </Box>
-                        )}
-                    </Box>
-                    <Box flexGrow="1" overflow="hidden">
-                        <TaskRowTitleInput
-                            ref={titleInputRef}
-                            capabilities={capabilities}
-                            title={task?.getTitle() ?? emptyTaskTitleModel.get()}
-                            onTitleChange={onTitleChange}
-                            placeholder={titlePlaceholder}
-                            focusNextTaskTitleCoord={focusNextTaskTitleCoord}
-                            focusPreviousTaskTitleCoord={focusPreviousTaskTitleCoord}
-                            preserveLastTaskTitleArrowNavigationCoord={
-                                preserveLastTaskTitleArrowNavigationCoord
-                            }
-                        />
-                        {/* NOCOMMIT: <TaskRowTitleInput
+                            )}
+                        </Box>
+                        <Box flexGrow="1" overflow="hidden">
+                            <TaskRowTitleInput
+                                ref={titleInputRef}
+                                capabilities={capabilities}
+                                title={task?.getTitle() ?? emptyTaskTitleModel.get()}
+                                onTitleChange={onTitleChange}
+                                placeholder={titlePlaceholder}
+                                focusNextTaskTitleCoord={focusNextTaskTitleCoord}
+                                focusPreviousTaskTitleCoord={focusPreviousTaskTitleCoord}
+                                preserveLastTaskTitleArrowNavigationCoord={
+                                    preserveLastTaskTitleArrowNavigationCoord
+                                }
+                                createTaskAbove={() => {
+                                    const time = query.store.clock.now();
+                                    const newTaskId = generateId<TaskId>();
+
+                                    query.store.commitTaskActionTransaction(context, [
+                                        {
+                                            type: "UpdateTask",
+                                            time,
+                                            taskId: newTaskId,
+                                            taskAction: {
+                                                type: "Create",
+                                                creator: TaskSortableAccount.from(currentAccount),
+                                                creatorTimeZone: timeZone,
+                                            },
+                                        },
+                                        ...getAddNewTaskToQueryActions(
+                                            time,
+                                            newTaskId,
+                                            taskId ? {type: "Above", taskId} : {type: "End"},
+                                        ),
+                                    ]);
+                                }}
+                                createTaskBelowAndFocus={() => {
+                                    const time = query.store.clock.now();
+                                    const newTaskId = generateId<TaskId>();
+
+                                    query.store.commitTaskActionTransaction(context, [
+                                        {
+                                            type: "UpdateTask",
+                                            time,
+                                            taskId: newTaskId,
+                                            taskAction: {
+                                                type: "Create",
+                                                creator: TaskSortableAccount.from(currentAccount),
+                                                creatorTimeZone: timeZone,
+                                            },
+                                        },
+                                        ...getAddNewTaskToQueryActions(
+                                            time,
+                                            newTaskId,
+                                            taskId ? {type: "Below", taskId} : {type: "End"},
+                                        ),
+                                    ]);
+
+                                    // Store updates are rendered by React synchronously. So if we wait a microtask
+                                    // React should have rendered the new task.
+                                    scheduleMicrotask(() => {
+                                        focusTaskTitleStart(newTaskId);
+                                    });
+                                }}
+                            />
+                            {/* NOCOMMIT: <TaskRowTitleInput
                             ref={titleInputRef}
                             capabilities={capabilities}
                             title={title}
@@ -620,8 +689,8 @@ function TaskRowView(
                                 }
                             }}
                         /> */}
-                    </Box>
-                    {/* NOCOMMIT: {capabilities.hasColumns && (
+                        </Box>
+                        {/* NOCOMMIT: {capabilities.hasColumns && (
                         <>
                             <TaskRowAssigneeCell
                                 ref={assigneeCellRef}
@@ -672,24 +741,24 @@ function TaskRowView(
                             />
                         </>
                     )} */}
-                    <Box
-                        flexShrink="0"
-                        width="5"
-                        // Create an illusion that the text editor extends into the margins by giving
-                        // the margin a text cursor and making it clickable putting focus in the task.
-                        // A double click selects the task text.
-                        //
-                        // This is an affordance for mouse users, does not need to be usable
-                        // by keyboard.
-                        cursor={false && capabilities.hasColumns ? undefined : "text"} // NOCOMMIT
-                        pointerEvents={false && capabilities.hasColumns ? "none" : undefined} // NOCOMMIT
-                        {...useOutOfBoundsClickSelection({
-                            onSelect: focusTitleEnd,
-                            onSelectAll: focusTitleAll,
-                        })}
-                    />
-                </Box>
-                {/* NOCOMMIT: {capabilities.hasDenseAssigneeAndDueDate && (
+                        <Box
+                            flexShrink="0"
+                            width="5"
+                            // Create an illusion that the text editor extends into the margins by giving
+                            // the margin a text cursor and making it clickable putting focus in the task.
+                            // A double click selects the task text.
+                            //
+                            // This is an affordance for mouse users, does not need to be usable
+                            // by keyboard.
+                            cursor={false && capabilities.hasColumns ? undefined : "text"} // NOCOMMIT
+                            pointerEvents={false && capabilities.hasColumns ? "none" : undefined} // NOCOMMIT
+                            {...useOutOfBoundsClickSelection({
+                                onSelect: focusTitleEnd,
+                                onSelectAll: focusTitleAll,
+                            })}
+                        />
+                    </Box>
+                    {/* NOCOMMIT: {capabilities.hasDenseAssigneeAndDueDate && (
                     <TaskRowViewDenseFields
                         ref={denseAssigneeAndDueDateRef}
                         status={status}
@@ -723,7 +792,7 @@ function TaskRowView(
                         focusTitleAll={focusTitleAll}
                     />
                 )} */}
-                {/* NOCOMMIT: {droppableIndentations
+                    {/* NOCOMMIT: {droppableIndentations
                     .slice()
                     .sort((a, b) => a - b)
                     .map((droppableIndentation, index, sortedDroppableIndentations) => (
@@ -738,8 +807,11 @@ function TaskRowView(
                             isVerticallyFlipped={droppableIndentation > indentation}
                         />
                     ))} */}
-            </Box>
-        </ContextMenuActions>
+                </Box>
+            </ContextMenuActions>
+            {/* NOCOMMIT: Test that we can click here to select */}
+            {withPaddingBottom && <Box width="full" height="2" pointerEvents="none" />}
+        </>
     );
 }
 

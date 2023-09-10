@@ -43,6 +43,8 @@ import {TaskRealtimeQueryLoadedState} from "~/shared/tasks/task_realtime_protoco
  */
 export class TaskClientQuery {
     public readonly store: TaskClientStore;
+    public readonly filters: TaskQueryNormalizedFilters;
+    public readonly sorts: ReadonlyArray<TaskQueryNormalizedSort>;
     private readonly _internal: TaskClientQueryInternal;
 
     /**
@@ -56,6 +58,8 @@ export class TaskClientQuery {
     constructor(internal: TaskClientQueryInternal) {
         this._internal = internal;
         this.store = this._internal.store;
+        this.filters = this._internal.filters;
+        this.sorts = this._internal.sorts;
         this.taskOrderStore = this._internal.taskOrderStore;
     }
 
@@ -71,6 +75,18 @@ export class TaskClientQuery {
      */
     public getTaskEntryStore(taskId: TaskId): Store<TaskClientStoreTaskEntry> {
         return this._internal.getTaskEntryStore(taskId);
+    }
+
+    /**
+     * Get a snapshot of the task associated with the provided `TaskId`. Prefer
+     * using `getTaskEntryStore()` since it will give you changes to the task
+     * over time.
+     *
+     * Throws an error if `TaskId` is not a part of the query when you call this
+     * function.
+     */
+    public getTaskSnapshot(taskId: TaskId): TaskModel {
+        return assertExists(this._internal.getTaskEntryStore(taskId).getSnapshot().task);
     }
 }
 

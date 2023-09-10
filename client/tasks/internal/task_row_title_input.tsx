@@ -1,6 +1,5 @@
 import classNames from "classnames";
-import {AllSelection, EditorState, Selection, TextSelection, Transaction} from "prosemirror-state";
-import {ReplaceStep, Step} from "prosemirror-transform";
+import {AllSelection, EditorState, Selection, TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {
     CSSProperties,
@@ -22,7 +21,6 @@ import {taskRowViewMinHeight} from "~/client/tasks/internal/task_row_shared_styl
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {useTaskTitleModelYDoc} from "~/client/tasks/internal/use_task_title_model_y_doc.js";
 import {Spacing} from "~/shared/design/spacing.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
@@ -40,7 +38,6 @@ import {
     TaskTitleUpdate,
     emptyTaskTitleProsemirrorNode,
     getTaskTitleProsemirrorNode,
-    mergeTaskTitleUpdates,
 } from "~/shared/tasks/task_title.js";
 
 const taskRowTitleInputSingleLineHeight: Spacing = taskRowViewMinHeight;
@@ -108,6 +105,8 @@ function TaskRowTitleInput(
         title,
         onTitleChange,
         placeholder,
+        createTaskAbove,
+        createTaskBelowAndFocus,
         focusNextTaskTitleCoord,
         focusPreviousTaskTitleCoord,
         preserveLastTaskTitleArrowNavigationCoord,
@@ -123,8 +122,8 @@ function TaskRowTitleInput(
         // closedChildTaskCount: number;
         // areChildTasksCollapsed: boolean;
         // onAreChildTasksCollapsedToggle: () => void;
-        // createTaskAbove: () => void;
-        // createTaskBelowAndFocus: () => void;
+        createTaskAbove: () => void;
+        createTaskBelowAndFocus: () => void;
         // createTaskChildAtStartAndFocus: () => void;
         // nestWithPreviousTaskRowIfExistsAndExpand: (selection: Selection) => void;
         // unnestTaskIfNestedRow: (selection: Selection) => void;
@@ -156,17 +155,19 @@ function TaskRowTitleInput(
                 event.stopPropagation();
 
                 if (!isModifiedKeyboardEvent(event)) {
+                    if (
+                        view.state.selection.from === view.state.selection.to &&
+                        view.state.selection.from === 0
+                    ) {
+                        createTaskAbove();
+                    }
                     // NOCOMMIT:
-                    // if (
-                    //     view.state.selection.from === view.state.selection.to &&
-                    //     view.state.selection.from === 0
-                    // ) {
-                    //     createTaskAbove();
-                    // } else if (childTaskCount > 0 && !areChildTasksCollapsed) {
+                    // else if (childTaskCount > 0 && !areChildTasksCollapsed) {
                     //     createTaskChildAtStartAndFocus();
-                    // } else {
-                    //     createTaskBelowAndFocus();
                     // }
+                    else {
+                        createTaskBelowAndFocus();
+                    }
                 }
                 break;
             }

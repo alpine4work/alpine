@@ -79,7 +79,11 @@ export function TaskGridView({
     capabilities: TaskGridViewCapabilities;
     query: TaskClientQuery;
     initialBottomGhostTaskId: TaskId;
-    getAddNewTaskToQueryActions: (time: HybridLogicalTime, taskId: TaskId) => Array<TaskAction>;
+    getAddNewTaskToQueryActions: (
+        time: HybridLogicalTime,
+        taskId: TaskId,
+        position: {type: "End"} | {type: "Above"; taskId: TaskId} | {type: "Below"; taskId: TaskId},
+    ) => Array<TaskAction>;
 }) {
     const [isExpandedByTaskKey] = useState(() => new StoreMap<TaskGridViewTaskKey, boolean>());
 

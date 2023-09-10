@@ -1,4 +1,4 @@
-import {createRef, useMemo, useRef, useState} from "react";
+import {createRef, useEffect, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
@@ -33,7 +33,11 @@ export function useTaskGridViewVirtualizedList({
     query: TaskClientQuery;
     isExpandedByTaskKey: StoreMap<TaskGridViewTaskKey, boolean>;
     initialBottomGhostTaskId: TaskId;
-    getAddNewTaskToQueryActions: (time: HybridLogicalTime, taskId: TaskId) => Array<TaskAction>;
+    getAddNewTaskToQueryActions: (
+        time: HybridLogicalTime,
+        taskId: TaskId,
+        position: {type: "End"} | {type: "Above"; taskId: TaskId} | {type: "Below"; taskId: TaskId},
+    ) => Array<TaskAction>;
 }) {
     const [bottomGhostTaskId, setBottomGhostTaskId] = useState(initialBottomGhostTaskId);
 
@@ -46,12 +50,39 @@ export function useTaskGridViewVirtualizedList({
 
     const getAddNewTaskToQueryActions = useEvent(_getAddNewTaskToQueryActions);
 
-    const taskRowRefByItemIndex = useConstant(() => new LazyMap(() => createRef<TaskRowViewRef>()));
+    const taskRowByIdRef = useRef(new Map<TaskId, TaskRowViewRef>());
+    const taskRowByItemIndexRef = useRef(new Map<number, TaskRowViewRef>());
 
     const lastArrowNavigationCoordRef = useRef<{setTime: Date; coord: number} | null>(null);
 
+    // Clear the last arrow navigation X position whenever the user's caret moves
+    // somewhere else.
+    useEffect(() => {
+        const clearLastArrowNavigationCoord = () => {
+            if (
+                lastArrowNavigationCoordRef.current &&
+                // If we just set this ref, don't clear it. We're processing browser events
+                // that happened because of the arrow navigation.
+                new Date().getTime() - lastArrowNavigationCoordRef.current.setTime.getTime() > 10
+            ) {
+                lastArrowNavigationCoordRef.current = null;
+            }
+        };
+
+        document.addEventListener("focus", clearLastArrowNavigationCoord);
+        document.addEventListener("blur", clearLastArrowNavigationCoord);
+        document.addEventListener("selectionchange", clearLastArrowNavigationCoord);
+        return () => {
+            document.removeEventListener("focus", clearLastArrowNavigationCoord);
+            document.removeEventListener("blur", clearLastArrowNavigationCoord);
+            document.removeEventListener("selectionchange", clearLastArrowNavigationCoord);
+        };
+    }, []);
+
+    const itemCount = Math.max(list.getItemCount() + 1, 3);
+
     return {
-        itemCount: Math.max(list.getItemCount() + 1, 3),
+        itemCount,
 
         renderItem: useMemo(() => {
             const preserveLastTaskTitleArrowNavigationCoord = () => {
@@ -64,12 +95,14 @@ export function useTaskGridViewVirtualizedList({
             };
 
             return (itemIndex: number): VirtualizedScrollViewItem => {
+                const focusTaskTitleStart = (taskId: TaskId) => {
+                    taskRowByIdRef.current.get(taskId)?.focusTitleStart();
+                };
+
                 const focusNextTaskTitleCoord = (coord: number) => {
                     coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
 
-                    taskRowRefByItemIndex
-                        .get(itemIndex + 1)
-                        ?.current?.focusTitleCoord(coord, "top");
+                    taskRowByItemIndexRef.current.get(itemIndex + 1)?.focusTitleCoord(coord, "top");
 
                     lastArrowNavigationCoordRef.current = {
                         setTime: new Date(),
@@ -80,9 +113,9 @@ export function useTaskGridViewVirtualizedList({
                 const focusPreviousTaskTitleCoord = (coord: number) => {
                     coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
 
-                    taskRowRefByItemIndex
+                    taskRowByItemIndexRef.current
                         .get(itemIndex - 1)
-                        ?.current?.focusTitleCoord(coord, "bottom");
+                        ?.focusTitleCoord(coord, "bottom");
 
                     lastArrowNavigationCoordRef.current = {
                         setTime: new Date(),
@@ -107,12 +140,24 @@ export function useTaskGridViewVirtualizedList({
                                 minHeight: spacing[taskRowViewMinHeight],
                                 node: (
                                     <TaskRowView
-                                        ref={taskRowRefByItemIndex.get(itemIndex)}
+                                        ref={taskRow => {
+                                            if (!taskRow) {
+                                                taskRowByIdRef.current.delete(item.taskId);
+                                                taskRowByItemIndexRef.current.delete(itemIndex);
+                                            } else {
+                                                taskRowByIdRef.current.set(item.taskId, taskRow);
+                                                taskRowByItemIndexRef.current.set(
+                                                    itemIndex,
+                                                    taskRow,
+                                                );
+                                            }
+                                        }}
                                         query={query}
                                         capabilities={capabilities}
                                         taskId={item.taskId}
                                         indentation={item.indentation}
                                         getAddNewTaskToQueryActions={getAddNewTaskToQueryActions}
+                                        focusTaskTitleStart={focusTaskTitleStart}
                                         focusNextTaskTitleCoord={focusNextTaskTitleCoord}
                                         focusPreviousTaskTitleCoord={focusPreviousTaskTitleCoord}
                                         preserveLastTaskTitleArrowNavigationCoord={
@@ -149,7 +194,15 @@ export function useTaskGridViewVirtualizedList({
                         minHeight: spacing[taskRowViewMinHeight],
                         node: (
                             <TaskRowView
-                                ref={taskRowRefByItemIndex.get(itemIndex)}
+                                ref={taskRow => {
+                                    if (!taskRow) {
+                                        taskRowByIdRef.current.delete(bottomGhostTaskId);
+                                        taskRowByItemIndexRef.current.delete(itemIndex);
+                                    } else {
+                                        taskRowByIdRef.current.set(bottomGhostTaskId, taskRow);
+                                        taskRowByItemIndexRef.current.set(itemIndex, taskRow);
+                                    }
+                                }}
                                 query={query}
                                 capabilities={capabilities}
                                 taskId={null}
@@ -163,7 +216,9 @@ export function useTaskGridViewVirtualizedList({
                                 // If there are no task rows, the padding just makes our ghost row placeholder
                                 // look misaligned. So remove it.
                                 withoutPaddingLeft={listItemCount === 0}
+                                withPaddingBottom={itemIndex === itemCount - 1}
                                 getAddNewTaskToQueryActions={getAddNewTaskToQueryActions}
+                                focusTaskTitleStart={focusTaskTitleStart}
                                 focusNextTaskTitleCoord={focusNextTaskTitleCoord}
                                 focusPreviousTaskTitleCoord={focusPreviousTaskTitleCoord}
                                 preserveLastTaskTitleArrowNavigationCoord={
@@ -208,17 +263,13 @@ export function useTaskGridViewVirtualizedList({
                                     boxShadow: `0 -1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 -1px 0 0 ${colorSchemeVars["grey-5"]}`,
                                 }}
                             />
+                            {itemIndex === itemCount - 1 && (
+                                <Box width="full" height="2" pointerEvents="none" />
+                            )}
                         </Box>
                     ),
                 };
             };
-        }, [
-            bottomGhostTaskId,
-            capabilities,
-            getAddNewTaskToQueryActions,
-            list,
-            query,
-            taskRowRefByItemIndex,
-        ]),
+        }, [bottomGhostTaskId, capabilities, getAddNewTaskToQueryActions, itemCount, list, query]),
     };
 }
