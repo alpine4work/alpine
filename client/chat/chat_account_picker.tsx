@@ -595,7 +595,6 @@ function ChatAccountPickerListBox({
             {...listBoxProps}
             ref={listBoxRef}
             className={classNames(
-                // NOCOMMIT(#modal-block-clicks): Modal should block other clicks below.
                 greyElevated2ClassName,
                 sprinkles({
                     borderRadius: "md",

@@ -434,7 +434,6 @@ export const Menu = forwardRef(function Menu(
             // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
             tabIndex={-1}
             className={classNames(
-                // NOCOMMIT(#modal-block-clicks): Modal should block other clicks below.
                 greyElevated2ClassName,
                 sprinkles({
                     minWidth: width,

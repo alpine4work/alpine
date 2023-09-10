@@ -328,7 +328,6 @@ export function ContentEditorMentionFloater({
                     overflowY={!isClosing ? "scroll" : "hidden"}
                     borderRadius="md"
                     padding="1"
-                    // NOCOMMIT(#modal-block-clicks): Modal should block other clicks below.
                     className={greyElevated2ClassName}
                     backgroundColor="grey-0"
                     boxShadow="elevation-20"

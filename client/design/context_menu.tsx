@@ -269,8 +269,8 @@ export function ContextMenuManager() {
             )}
             {contextMenuState.isOpen &&
                 // Add a cover to the document to prevent scrolling and hover effects while the
-                // context menu is open. Should render over all overlays accept our context
-                // menu overlay.
+                // context menu is open. Should render over all overlays except the current open
+                // menu.
                 createPortal(<Box position="absolute" inset="0" zIndex="60" />, document.body)}
             {shouldShowPasteWarningDialog && (
                 <ModalDialog
