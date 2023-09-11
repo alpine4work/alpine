@@ -9,16 +9,16 @@ import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js"
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {
-    isTaskCollectionIndexDocAccessAuthorized,
-    isTaskIndexDocAccessAuthorized,
-} from "~/server/tasks/data/task_table.js";
-import {
     collectReferencedAccountIdsFromTaskAction,
     collectReferencedAccountIdsFromTaskModelData,
     prepareTaskActionForClient,
     prepareTaskCollectionForClient,
     prepareTaskForClient,
-} from "~/server/tasks/realtime/task_realtime_protocol_helpers.js";
+} from "~/server/tasks/data/task_realtime_protocol_helpers.js";
+import {
+    isTaskCollectionIndexDocAccessAuthorized,
+    isTaskIndexDocAccessAuthorized,
+} from "~/server/tasks/data/task_table.js";
 import {
     TaskRealtimeQuerySubscription,
     TaskRealtimeQuerySubscriptionCallbacks,

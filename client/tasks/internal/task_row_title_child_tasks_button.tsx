@@ -2,25 +2,29 @@ import {CaretUp} from "phosphor-react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {Tooltip} from "~/client/design/tooltip.js";
-import {TaskChildTasksProgressWheel} from "~/client/tasks/demo_2/internal/task_child_tasks_progress_wheel.js";
+import {Store} from "~/client/helpers/store/store.js";
+import {useStore} from "~/client/helpers/store/use_store.js";
+import {TaskChildTasksProgressWheel} from "~/client/tasks/internal/task_child_tasks_progress_wheel.js";
 import {spacing} from "~/shared/design/spacing.js";
 
 export function TaskRowTitleChildTasksButton({
     childTaskCount,
     closedChildTaskCount,
-    areChildTasksCollapsed,
-    onAreChildTasksCollapsedToggle,
+    areChildTasksExpandedStore,
+    onAreChildTasksExpandedToggle,
 }: {
     childTaskCount: number;
     closedChildTaskCount: number;
-    areChildTasksCollapsed: boolean;
-    onAreChildTasksCollapsedToggle: () => void;
+    areChildTasksExpandedStore: Store<boolean | undefined>;
+    onAreChildTasksExpandedToggle: () => void;
 }) {
+    const areChildTasksExpanded = useStore(areChildTasksExpandedStore) ?? false;
+
     const {hoverProps, isHovered} = useHover({});
-    const {pressProps, isPressed} = usePress({onPress: onAreChildTasksCollapsedToggle});
+    const {pressProps, isPressed} = usePress({onPress: onAreChildTasksExpandedToggle});
 
     return (
-        <Tooltip content={areChildTasksCollapsed ? "Expand subtasks" : "Collapse subtasks"}>
+        <Tooltip content={areChildTasksExpanded ? "Collapse subtasks" : "Expand subtasks"}>
             <Box
                 // NOTE(calebmer): This is intentionally not focusable because keyboard
                 // interactivity in task rows uses keyboard shortcuts other than tabbing. Such
@@ -50,7 +54,7 @@ export function TaskRowTitleChildTasksButton({
                 <CaretUp
                     size={spacing["3"]}
                     style={{
-                        transform: areChildTasksCollapsed ? "rotate(0deg)" : "rotate(180deg)",
+                        transform: areChildTasksExpanded ? "rotate(180deg)" : "rotate(0deg)",
                         transition: "transform 200ms ease",
                     }}
                 />

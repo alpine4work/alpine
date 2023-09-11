@@ -1,3 +1,4 @@
+import {AccountModel} from "~/shared/accounts/account_model.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -11,5 +12,6 @@ export const commitTaskActionTransaction = defineRpc({
     },
     output: {
         extraActions: Schema.array(TaskActionSchema),
+        extraActionsReferencedAccounts: Schema.array(AccountModel.schema()),
     },
 });

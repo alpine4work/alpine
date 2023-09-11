@@ -174,8 +174,6 @@ export default function TasksRoute() {
 
     const {currentAccount} = useSpaceContext();
 
-    // NOCOMMIT: This should be in a lower-level component I think but let's start
-    // here since I want the background color.
     return (
         <Box flexGrow="1" overflow="hidden" backgroundColor="grey-0">
             <TaskGridView
@@ -270,6 +268,19 @@ export default function TasksRoute() {
                         },
                     ];
                 }}
+                getMaybeRemoveTaskFromQueryWhenNestingActions={(time, taskId) => [
+                    {
+                        type: "UpdateTask",
+                        time,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateNotepadPagePosition",
+                            accountId: currentAccount.id,
+                            notepadPageId: currentNotepadPageId,
+                            position: null,
+                        },
+                    },
+                ]}
             />
         </Box>
     );

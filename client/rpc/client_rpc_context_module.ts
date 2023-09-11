@@ -152,7 +152,7 @@ async function executeRpcs(callBatch: Array<RpcCall>): Promise<void> {
 
         const response = await responsePromise.catch(error => {
             // Classify network errors as the `Unavailable` status code.
-            throw new UnavailableError(error.message, {cause: error});
+            throw UnavailableError.from(error);
         });
 
         if (otherCalls.length === 0) {

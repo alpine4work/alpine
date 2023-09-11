@@ -25,6 +25,7 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu_button.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
+import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
@@ -122,9 +123,12 @@ function TaskRowView(
         onGhostTaskCreated,
         titlePlaceholder,
         indentation,
+        areChildTasksExpandedStore,
+        onAreChildTasksExpandedToggle,
         withoutPaddingLeft,
         withPaddingBottom,
         getAddNewTaskToQueryActions,
+        nestWithPreviousTaskRowIfExistsAndExpand,
         focusTaskTitleStart,
         focusNextTaskTitleCoord,
         focusPreviousTaskTitleCoord,
@@ -160,12 +164,10 @@ function TaskRowView(
         // onEditingCollectionsChange: (isEditingCollections: boolean) => void;
         // editingCollectionsContainerRef: RefCallback<HTMLElement> | null;
         // parentTaskTitle: TaskTitle | null;
-        // childTaskCount: number;
-        // closedChildTaskCount: number;
-        // areChildTasksCollapsed: boolean;
-        // onAreChildTasksCollapsedToggle: () => void;
         // onExpand: (() => Promise<void>) | null;
         indentation: number;
+        areChildTasksExpandedStore: Store<boolean | undefined>;
+        onAreChildTasksExpandedToggle: () => void;
         withoutPaddingLeft?: boolean;
         withPaddingBottom?: boolean;
         // NOCOMMIT:
@@ -173,12 +175,6 @@ function TaskRowView(
         // createTaskAbove: () => void;
         // createTaskBelowAndFocus: () => void;
         // createTaskChildAtStartAndFocus: () => void;
-        // nestWithPreviousTaskRowIfExistsAndExpand: (titleSelection: Selection) => void;
-        // unnestTaskIfNestedRow: (titleSelection: Selection) => void;
-        // deleteTaskAndAllChildrenAndFocusPreviousRow: () => void;
-        // deleteTaskAndAllChildrenMaybeWithConfirmation: () => void;
-        // focusFirstTaskTitleStart: () => void;
-        // focusLastTaskTitleEnd: () => void;
         getAddNewTaskToQueryActions: (
             time: HybridLogicalTime,
             taskId: TaskId,
@@ -187,6 +183,13 @@ function TaskRowView(
                 | {type: "Above"; taskId: TaskId}
                 | {type: "Below"; taskId: TaskId},
         ) => Array<TaskAction>;
+        nestWithPreviousTaskRowIfExistsAndExpand: (titleSelection: Selection) => void;
+        // NOCOMMIT:
+        // unnestTaskIfNestedRow: (titleSelection: Selection) => void;
+        // deleteTaskAndAllChildrenAndFocusPreviousRow: () => void;
+        // deleteTaskAndAllChildrenMaybeWithConfirmation: () => void;
+        // focusFirstTaskTitleStart: () => void;
+        // focusLastTaskTitleEnd: () => void;
         focusTaskTitleStart: (taskId: TaskId) => void;
         focusNextTaskTitleCoord: (coord: number) => void;
         focusPreviousTaskTitleCoord: (coord: number) => void;
@@ -477,7 +480,6 @@ function TaskRowView(
                         // NOTE(calebmer): Setting z-index here creates a new stacking context which
                         // means the editable collection overlay can't render on top of adjacent rows.
                         zIndex={undefined}
-                        flexGrow="1"
                         // Important not to set `overflow="hidden"` here so that the collections overlay
                         // we open in edit mode can render outside the bounds of the row.
                         overflow={undefined}
@@ -600,11 +602,10 @@ function TaskRowView(
                                 title={task?.getTitle() ?? emptyTaskTitleModel.get()}
                                 onTitleChange={onTitleChange}
                                 placeholder={titlePlaceholder}
-                                focusNextTaskTitleCoord={focusNextTaskTitleCoord}
-                                focusPreviousTaskTitleCoord={focusPreviousTaskTitleCoord}
-                                preserveLastTaskTitleArrowNavigationCoord={
-                                    preserveLastTaskTitleArrowNavigationCoord
-                                }
+                                childTaskCount={task?.getChildTaskCount() ?? 0}
+                                closedChildTaskCount={task?.getClosedChildTaskCount() ?? 0}
+                                areChildTasksExpandedStore={areChildTasksExpandedStore}
+                                onAreChildTasksExpandedToggle={onAreChildTasksExpandedToggle}
                                 createTaskAbove={() => {
                                     const time = query.store.clock.now();
                                     const newTaskId = generateId<TaskId>();
@@ -655,6 +656,17 @@ function TaskRowView(
                                         focusTaskTitleStart(newTaskId);
                                     });
                                 }}
+                                nestWithPreviousTaskRowIfExistsAndExpand={
+                                    nestWithPreviousTaskRowIfExistsAndExpand
+                                }
+                                unnestTaskIfNestedRow={() => {
+                                    // NOCOMMIT: Implement!
+                                }}
+                                focusNextTaskTitleCoord={focusNextTaskTitleCoord}
+                                focusPreviousTaskTitleCoord={focusPreviousTaskTitleCoord}
+                                preserveLastTaskTitleArrowNavigationCoord={
+                                    preserveLastTaskTitleArrowNavigationCoord
+                                }
                             />
                             {/* NOCOMMIT: <TaskRowTitleInput
                             ref={titleInputRef}
@@ -812,7 +824,7 @@ function TaskRowView(
                 </Box>
             </ContextMenuActions>
             {/* NOCOMMIT: Test that we can click here to select */}
-            {withPaddingBottom && <Box width="full" height="2" pointerEvents="none" />}
+            {withPaddingBottom && <Box width="full" height="5" pointerEvents="none" />}
         </>
     );
 }

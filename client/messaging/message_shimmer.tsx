@@ -100,7 +100,7 @@ export function MessageShimmer<Message extends MessageModel>({
     marginX?: Spacing;
 }) {
     const shimmerRef = useRef<HTMLDivElement>(null);
-    const stableRandom = new StableRandom(randomSeed);
+    const stableRandom = new StableRandom(`MessageShimmer:${randomSeed}`);
 
     const messageSize =
         messageShimmerSizes[

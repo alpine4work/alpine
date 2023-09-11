@@ -1,7 +1,8 @@
-import React, {Memo, useCallback, useRef} from "react";
+import React, {Memo, useCallback, useMemo, useRef, useState} from "react";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 
 const reactDispatchersSeenDuringRender = new Set();
 
@@ -27,15 +28,15 @@ const reactDispatchersSeenDuringRender = new Set();
  * [1]: https://github.com/reactjs/rfcs/pull/220
  */
 export function useEvent<Args extends Array<unknown>, Return>(
-    handler: (...args: Args) => Return,
+    event: (...args: Args) => Return,
 ): Memo<(...args: Args) => Return>;
 export function useEvent<Args extends Array<unknown>>(
-    handler: ((...args: Args) => void) | undefined,
+    event: ((...args: Args) => void) | undefined,
 ): Memo<(...args: Args) => void>;
 export function useEvent<Args extends Array<unknown>>(
-    handler: ((...args: Args) => void) | undefined,
+    event: ((...args: Args) => void) | undefined,
 ): Memo<(...args: Args) => unknown> {
-    const handlerRef = useRef(handler);
+    const eventRef = useRef(event);
 
     // In a real implementation, this would run before layout effects.
     //
@@ -45,7 +46,7 @@ export function useEvent<Args extends Array<unknown>>(
     //
     // Be careful when using this hook.
     useLayoutEffectWithoutServerSideWarning(() => {
-        handlerRef.current = handler;
+        eventRef.current = event;
     });
 
     {
@@ -58,8 +59,83 @@ export function useEvent<Args extends Array<unknown>>(
         if (reactDispatchersSeenDuringRender.has(getCurrentReactDispatcherIfExists()))
             throw new InternalError("Can not call event callback during React render");
 
-        return handlerRef.current?.(...args);
+        return eventRef.current?.(...args);
     }, []);
+}
+
+/**
+ * Allows you to define event handlers that can read the latest props/state but
+ * has a stable function identity. Similar to `useEvent()` but you can pass in
+ * multiple event functions at once.
+ *
+ * These event callbacks may not be called in React render functions! An error
+ * will be thrown.
+ *
+ * Uses a modified version of the user-land implementation included in the
+ * [`useEvent()` RFC][1]. Our version until such a hook is available natively.
+ *
+ * The RFC was closed on 27 September 2022, the React team plans to come up
+ * with a new RFC to provide similar functionality in the future. We will
+ * migrate to this functionality when available.
+ *
+ * IMPORTANT CAVEAT: You should not call event callbacks in layout effects of
+ * React component children! Internally this hook uses a layout effect and
+ * parent component layout effects run after child component layout effects.
+ * Use this hook responsibly.
+ *
+ * [1]: https://github.com/reactjs/rfcs/pull/220
+ */
+export function useEvents<Events extends {[key: string]: (...args: Array<any>) => unknown}>(
+    events: Events,
+): Memo<{[Key in keyof Events]: Memo<Events[Key]>}> {
+    const currentEventKeys = new Set(Object.keys(events));
+    const [eventKeys] = useState(currentEventKeys);
+
+    assert(
+        isDeepEqual(currentEventKeys, eventKeys),
+        "Can't change events passed into `useEvents()` hook",
+    );
+
+    const eventsRef = useRef(events);
+
+    // In a real implementation, this would run before layout effects.
+    //
+    // Calling this handler in a layout effect of a child component will give
+    // you weird results! Since child component layout effects run before
+    // parent component layout effects.
+    //
+    // Be careful when using this hook.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        eventsRef.current = events;
+    });
+
+    {
+        const dispatcher = getCurrentReactDispatcherIfExists();
+        assert(dispatcher !== null);
+        reactDispatchersSeenDuringRender.add(dispatcher);
+    }
+
+    return useMemo(() => {
+        return Object.fromEntries(
+            Array.from(eventKeys, eventKey => {
+                return [
+                    eventKey,
+                    (...args: Array<any>) => {
+                        if (
+                            reactDispatchersSeenDuringRender.has(
+                                getCurrentReactDispatcherIfExists(),
+                            )
+                        )
+                            throw new InternalError(
+                                "Can not call event callback during React render",
+                            );
+
+                        return eventsRef.current[eventKey]!(...args);
+                    },
+                ];
+            }),
+        ) as {[Key in keyof Events]: Memo<Events[Key]>};
+    }, [eventKeys]);
 }
 
 /**

@@ -75,6 +75,7 @@ export function TaskGridView({
     query,
     initialBottomGhostTaskId,
     getAddNewTaskToQueryActions,
+    getMaybeRemoveTaskFromQueryWhenNestingActions,
 }: {
     capabilities: TaskGridViewCapabilities;
     query: TaskClientQuery;
@@ -84,15 +85,22 @@ export function TaskGridView({
         taskId: TaskId,
         position: {type: "End"} | {type: "Above"; taskId: TaskId} | {type: "Below"; taskId: TaskId},
     ) => Array<TaskAction>;
+    getMaybeRemoveTaskFromQueryWhenNestingActions: (
+        time: HybridLogicalTime,
+        taskId: TaskId,
+    ) => Array<TaskAction>;
 }) {
-    const [isExpandedByTaskKey] = useState(() => new StoreMap<TaskGridViewTaskKey, boolean>());
+    const [areChildTasksExpandedByTaskKey] = useState(
+        () => new StoreMap<TaskGridViewTaskKey, boolean>(),
+    );
 
     const {itemCount, renderItem} = useTaskGridViewVirtualizedList({
         capabilities,
         query,
-        isExpandedByTaskKey,
+        areChildTasksExpandedByTaskKey,
         initialBottomGhostTaskId,
         getAddNewTaskToQueryActions,
+        getMaybeRemoveTaskFromQueryWhenNestingActions,
     });
 
     return (

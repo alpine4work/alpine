@@ -12,7 +12,23 @@ import {
     getTaskQuerySortCursorTaskId,
 } from "~/shared/tasks/task_query_sort_cursor.js";
 
-// NOCOMMIT: Document! Should probably be in a different file.
+/**
+ * The key of a task in a grid view. Tasks are unique within a query but
+ * because you may expand a task's children a task might not be unique in a
+ * grid view. Since you could have a task in the root query and a task visible
+ * in an expanded parent.
+ *
+ * So the way we key tasks in a grid view is by saying a task in the root query
+ * has the key `TaskId`. Then child tasks have a key that's their root parent
+ * task in the query (not the same as the root parent task, just the highest
+ * task in the query) combined with their `TaskId`. Since tasks within a child
+ * task tree are always unique.
+ *
+ * This key will be unique for any task within the grid view. Unfortunately it
+ * does mean when indenting/dedenting between root tasks and child tasks our
+ * task's key changes so React will need to remount the component. For those
+ * operations we take care to place focus in the new task.
+ */
 export type TaskGridViewTaskKey = TaskId | `${TaskId}-${TaskId}`;
 
 /**
@@ -41,15 +57,22 @@ const nullConstStore = new ConstStore(null);
 
 function createTaskGridViewVirtualizedTaskTree(
     query: TaskClientQuery,
-    isExpandedByTaskKey: StoreMap<TaskGridViewTaskKey, boolean>,
+    areChildTasksExpandedByTaskKey: StoreMap<TaskGridViewTaskKey, boolean>,
     rootTaskId: TaskId | null,
 ): Store<TaskGridViewVirtualizedTaskTree> {
     return flatMapTreeStoreValues(query.taskOrderStore, (_null, cursor) => {
         const taskId = getTaskQuerySortCursorTaskId(cursor);
         const taskKey: TaskGridViewTaskKey = rootTaskId ? `${rootTaskId}-${taskId}` : taskId;
 
-        return isExpandedByTaskKey.get(taskKey).flatMap(isExpanded => {
-            if (!isExpanded) return nullConstStore;
+        // It's a rare edge case but it is possible for there to be a temporary cycle
+        // among task children. If we detect a child task with the same `TaskId` as our
+        // root task that means we have a cycle. Break it by returning a null store.
+        if (rootTaskId === taskId) {
+            return nullConstStore;
+        }
+
+        return areChildTasksExpandedByTaskKey.get(taskKey).flatMap(areChildTasksExpanded => {
+            if (!areChildTasksExpanded) return nullConstStore;
 
             // Optimization: Only recompute if the child task count changed.
             const childTaskCountStore = query
@@ -71,7 +94,7 @@ function createTaskGridViewVirtualizedTaskTree(
 
                     return createTaskGridViewVirtualizedTaskTree(
                         childrenQuery,
-                        isExpandedByTaskKey,
+                        areChildTasksExpandedByTaskKey,
                         rootTaskId ?? taskId,
                     ).map(
                         (children): TaskGridViewVirtualizedTaskTreeValue => ({
@@ -143,7 +166,7 @@ export class TaskGridViewVirtualizedTaskList {
 
     public static new(
         query: TaskClientQuery,
-        isExpandedByTaskKey: StoreMap<TaskGridViewTaskKey, boolean>,
+        areChildTasksExpandedByTaskKey: StoreMap<TaskGridViewTaskKey, boolean>,
     ): Store<TaskGridViewVirtualizedTaskList> {
         // Share the item count subtree cache across all virtualized lists that
         // are created.
@@ -152,9 +175,11 @@ export class TaskGridViewVirtualizedTaskList {
             number
         >();
 
-        return createTaskGridViewVirtualizedTaskTree(query, isExpandedByTaskKey, null).map(
-            tree => new TaskGridViewVirtualizedTaskList(query, tree, itemCountSubtreeCache),
-        );
+        return createTaskGridViewVirtualizedTaskTree(
+            query,
+            areChildTasksExpandedByTaskKey,
+            null,
+        ).map(tree => new TaskGridViewVirtualizedTaskList(query, tree, itemCountSubtreeCache));
     }
 
     /**
@@ -281,7 +306,7 @@ export class TaskGridViewVirtualizedTaskList {
                         rootTaskId,
                         parentTaskId: getTaskQuerySortCursorTaskId(node.key),
                         childTaskIndex: childTaskIndex - childrenItemCount,
-                        indentation,
+                        indentation: indentation + 1,
                     };
                 } else {
                     return search(

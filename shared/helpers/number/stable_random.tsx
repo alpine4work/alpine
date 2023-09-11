@@ -28,11 +28,15 @@ function cyrb53(baseString: string, keyString: string, seed = 0) {
  * second index integer to generate several random numbers for a single key string.
  */
 export class StableRandom {
-    constructor(private readonly baseString: string) {}
+    private readonly _baseString: string;
+
+    constructor(baseString: string) {
+        this._baseString = baseString;
+    }
 
     /** Generate a random number between 0 and 1 based on  */
     random(keyString: string, index: number) {
-        return cyrb53(this.baseString, keyString, index) / Number.MAX_SAFE_INTEGER;
+        return cyrb53(this._baseString, keyString, index) / Number.MAX_SAFE_INTEGER;
     }
 
     /**

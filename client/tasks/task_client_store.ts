@@ -11,6 +11,7 @@ import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_s
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AdvancedWeakValuesMap} from "~/shared/helpers/map/advanced_weak_values_map.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {commitTaskActionTransaction} from "~/shared/rpc/tasks_rpc_definitions.js";
@@ -746,15 +747,125 @@ export class TaskClientStore {
             actions,
         });
 
-        this._applyOptimisticTaskActions(actions);
+        const optimisticExtraActions = this._getOptimisticExtraActions(actions);
+
+        const optimisticExtraActionsByTaskId = new Map<TaskId, Array<TaskAction>>();
+        for (const action of optimisticExtraActions) {
+            getOrSetDefaultMapValue(optimisticExtraActionsByTaskId, action.taskId, () => []).push(
+                action,
+            );
+        }
+
+        this._applyOptimisticTaskActions(
+            optimisticExtraActions.length > 0 ? [...actions, ...optimisticExtraActions] : actions,
+        );
 
         commitPromise.then(
-            () => {
-                this._commitOptimisticTaskActions(actions);
+            ({extraActions, extraActionsReferencedAccounts}) => {
+                // Between applying an update event and committing our optimistic actions we
+                // have a lot of store updates we want to batch together.
+                batchStoreUpdates(() => {
+                    this._commitOptimisticTaskActions(actions);
+
+                    // The code below is all about reconciling `optimisticExtraActions`. The
+                    // procedure is:
+                    //
+                    // 1. Apply `extraActions` from the server
+                    // 2. Commit any `optimisticExtraActions` that "match" the `extraActions` from
+                    //    the server and revert any that don't
+                    //
+                    // Our check that `optimisticExtraActions` match `extraActions` tests whether
+                    // applying `optimisticExtraActions` at this point would be a noop. If it would
+                    // be a noop then we consider `optimisticExtraActions` to match `extraActions`.
+
+                    const taskByIdBeforeExtraActions = new Map<TaskId, TaskModel | null>();
+                    for (const taskId of optimisticExtraActionsByTaskId.keys()) {
+                        taskByIdBeforeExtraActions.set(
+                            taskId,
+                            this._taskEntryStoreById.get(taskId)?.getSnapshot().task ?? null,
+                        );
+                    }
+
+                    if (extraActions.length > 0) {
+                        this.applyUpdateEvent({
+                            type: "Update",
+                            // NOCOMMIT: Proper event number?
+                            number: 0,
+                            actions: extraActions,
+                            backfillAuthorizedTasks: [],
+                            backfillUnauthorizedTaskIds: [],
+                            backfillAuthorizedCollections: [],
+                            backfillUnauthorizedCollectionIds: [],
+                            referencedAccounts: extraActionsReferencedAccounts,
+                        });
+                    }
+
+                    for (const [taskId, optimisticExtraActions] of optimisticExtraActionsByTaskId) {
+                        const taskEntry = this._taskEntryStoreById.get(taskId)?.getSnapshot();
+
+                        // This task:
+                        //
+                        // - Has `optimisticExtraActions` applied
+                        // - Does not have `extraActions` applied
+                        const taskBeforeExtraActions =
+                            taskByIdBeforeExtraActions.get(taskId) ?? null;
+
+                        // In the most common case we'll have a task entry with some optimistic state
+                        // and an original task. In unexpected cases perform the safe logic of
+                        // reverting optimistic extra task actions. Since we apply the true extra
+                        // actions above.
+                        //
+                        // These unexpected cases are:
+                        //
+                        // - If there is no task entry (maybe it was garbage collected); OR
+                        // - If there is no optimistic state (maybe it was garbage collected); OR
+                        // - If there is no original task; OR
+                        // - If there was no task entry before applying `extraActions`
+                        if (!taskEntry?.optimisticState?.original.task || !taskBeforeExtraActions) {
+                            this._revertOptimisticTaskActions(optimisticExtraActions);
+                            continue;
+                        }
+
+                        // This task:
+                        //
+                        // - Has `extraActions` applied
+                        // - Does not have `optimisticExtraActions` applied
+                        const taskWithoutOptimisticExtraActions =
+                            taskEntry.optimisticState.actions.reduce(
+                                (task, {action}) =>
+                                    !optimisticExtraActions.includes(action)
+                                        ? task.apply(action)
+                                        : task,
+                                taskEntry.optimisticState.original.task,
+                            );
+
+                        // We want to check that `optimisticExtraActions` are a noop after
+                        // `extraActions` are applied. If they are not a noop then our generated
+                        // `optimisticExtraActions` are incorrect and the server sent us the real extra
+                        // actions.
+                        //
+                        // We know `optimisticExtraActions` are a noop if a task with `extraActions`
+                        // but not `optimisticExtraActions` survives a merge with a task that has
+                        // `optimisticExtraActions`. That means the task with `optimisticExtraActions`
+                        // does not contribute any changes to the final, merged, task.
+                        if (
+                            taskWithoutOptimisticExtraActions.merge(taskBeforeExtraActions) ===
+                            taskWithoutOptimisticExtraActions
+                        ) {
+                            this._commitOptimisticTaskActions(optimisticExtraActions);
+                        } else {
+                            this._revertOptimisticTaskActions(optimisticExtraActions);
+                        }
+                    }
+                });
             },
             error => {
                 // NOCOMMIT: Display the error to the user!
-                this._revertOptimisticTaskActions(actions);
+                this._revertOptimisticTaskActions(
+                    optimisticExtraActions.length > 0
+                        ? [...actions, ...optimisticExtraActions]
+                        : actions,
+                );
             },
         );
 
@@ -1493,6 +1604,126 @@ export class TaskClientStore {
                 query.onTasksUpdated(taskEntryUpdateById);
             }
         });
+    }
+
+    /**
+     * When committing actions, the server will sometimes generate extra actions
+     * based on data it has available that the client doesn't have available.
+     *
+     * This function attempts to guess what those actions are optimistically so we
+     * can immediately apply them to our local client state instead of waiting on a
+     * server roundtrip.
+     *
+     * It's ok to miss actions that the server will return or to get the action
+     * wrong. When the server returns we will apply the server's extra actions and
+     * revert any incorrect actions.
+     *
+     * This function should be called before applying the optimistic actions
+     * against our store since it needs to read old task values.
+     */
+    private _getOptimisticExtraActions(
+        actions: ReadonlyArray<TaskAction>,
+    ): Array<TaskUpdateTaskAction> {
+        const extraActions: Array<TaskUpdateTaskAction> = [];
+
+        for (const action of actions) {
+            // If the parent tasks involved are available in our client store then we
+            // update their children counts after the parent task change.
+            if (action.type === "UpdateTask" && action.taskAction.type === "UpdateParentTaskId") {
+                const taskEntryStore = this._taskEntryStoreById.get(action.taskId);
+                const task = taskEntryStore?.getSnapshot().task;
+                if (!task) continue;
+
+                const oldParentTaskId = task.getParent()?.taskId ?? null;
+                const newParentTaskId = action.taskAction.parentTaskId;
+                if (oldParentTaskId === newParentTaskId) continue;
+
+                if (oldParentTaskId) {
+                    const oldParentTaskEntryStore = this._taskEntryStoreById.get(oldParentTaskId);
+                    const oldParentTask = oldParentTaskEntryStore?.getSnapshot().task;
+
+                    if (oldParentTask) {
+                        extraActions.push({
+                            type: "UpdateTask",
+                            time: this.clock.now(),
+                            taskId: oldParentTaskId,
+                            taskAction: {
+                                type: "UpdateChildrenCounts",
+                                addedChildTaskCount: oldParentTask.rawData.addedChildTaskCount,
+                                removedChildTaskCount:
+                                    oldParentTask.rawData.removedChildTaskCount + 1,
+                                addedClosedChildTaskCount:
+                                    oldParentTask.rawData.addedClosedChildTaskCount,
+                                removedClosedChildTaskCount:
+                                    oldParentTask.rawData.removedClosedChildTaskCount +
+                                    (task.rawData.status.value.type === "Closed" ? 1 : 0),
+                            },
+                        });
+                    }
+                }
+
+                if (newParentTaskId) {
+                    const newParentTaskEntryStore = this._taskEntryStoreById.get(newParentTaskId);
+                    const newParentTask = newParentTaskEntryStore?.getSnapshot().task;
+
+                    if (newParentTask) {
+                        extraActions.push({
+                            type: "UpdateTask",
+                            time: this.clock.now(),
+                            taskId: newParentTaskId,
+                            taskAction: {
+                                type: "UpdateChildrenCounts",
+                                addedChildTaskCount: newParentTask.rawData.addedChildTaskCount + 1,
+                                removedChildTaskCount: newParentTask.rawData.removedChildTaskCount,
+                                addedClosedChildTaskCount:
+                                    newParentTask.rawData.addedClosedChildTaskCount +
+                                    (task.rawData.status.value.type === "Closed" ? 1 : 0),
+                                removedClosedChildTaskCount:
+                                    newParentTask.rawData.removedClosedChildTaskCount,
+                            },
+                        });
+                    }
+                }
+            }
+
+            // If the parent tasks involved are available in our client store then we
+            // update their children counts after the parent task change.
+            if (action.type === "UpdateTask" && action.taskAction.type === "UpdateStatus") {
+                const taskEntryStore = this._taskEntryStoreById.get(action.taskId);
+                const task = taskEntryStore?.getSnapshot().task;
+                if (!task) continue;
+
+                const oldStatusType = task.rawData.status.value.type;
+                const newStatusType = action.taskAction.status.type;
+                if (oldStatusType === newStatusType) continue;
+
+                const parentTaskId = task.getParent()?.taskId;
+                if (!parentTaskId) continue;
+
+                const parentTaskEntryStore = this._taskEntryStoreById.get(parentTaskId);
+                const parentTask = parentTaskEntryStore?.getSnapshot().task;
+                if (!parentTask) continue;
+
+                extraActions.push({
+                    type: "UpdateTask",
+                    time: this.clock.now(),
+                    taskId: parentTaskId,
+                    taskAction: {
+                        type: "UpdateChildrenCounts",
+                        addedChildTaskCount: parentTask.rawData.addedChildTaskCount,
+                        removedChildTaskCount: parentTask.rawData.removedChildTaskCount,
+                        addedClosedChildTaskCount:
+                            parentTask.rawData.addedClosedChildTaskCount +
+                            (oldStatusType !== "Closed" && newStatusType === "Closed" ? 1 : 0),
+                        removedClosedChildTaskCount:
+                            parentTask.rawData.removedClosedChildTaskCount +
+                            (oldStatusType === "Closed" && newStatusType !== "Closed" ? 1 : 0),
+                    },
+                });
+            }
+        }
+
+        return extraActions;
     }
 
     /**

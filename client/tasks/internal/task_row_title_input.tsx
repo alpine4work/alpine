@@ -16,8 +16,10 @@ import {isMac} from "~/client/helpers/browser/is_mac.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {Store} from "~/client/helpers/store/store.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {taskRowViewMinHeight} from "~/client/tasks/internal/task_row_shared_styles.js";
+import {TaskRowTitleChildTasksButton} from "~/client/tasks/internal/task_row_title_child_tasks_button.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {useTaskTitleModelYDoc} from "~/client/tasks/internal/use_task_title_model_y_doc.js";
 import {Spacing} from "~/shared/design/spacing.js";
@@ -107,8 +109,14 @@ function TaskRowTitleInput(
         title,
         onTitleChange,
         placeholder,
+        childTaskCount,
+        closedChildTaskCount,
+        areChildTasksExpandedStore,
+        onAreChildTasksExpandedToggle,
         createTaskAbove,
         createTaskBelowAndFocus,
+        nestWithPreviousTaskRowIfExistsAndExpand,
+        unnestTaskIfNestedRow,
         focusNextTaskTitleCoord,
         focusPreviousTaskTitleCoord,
         preserveLastTaskTitleArrowNavigationCoord,
@@ -120,15 +128,17 @@ function TaskRowTitleInput(
         // NOCOMMIT:
         // indentation: number;
         // parentTaskTitle: TaskTitle | null;
-        // childTaskCount: number;
-        // closedChildTaskCount: number;
-        // areChildTasksCollapsed: boolean;
-        // onAreChildTasksCollapsedToggle: () => void;
+        childTaskCount: number;
+        closedChildTaskCount: number;
+        areChildTasksExpandedStore: Store<boolean | undefined>;
+        onAreChildTasksExpandedToggle: () => void;
         createTaskAbove: () => void;
         createTaskBelowAndFocus: () => void;
+        // NOCOMMIT:
         // createTaskChildAtStartAndFocus: () => void;
-        // nestWithPreviousTaskRowIfExistsAndExpand: (selection: Selection) => void;
-        // unnestTaskIfNestedRow: (selection: Selection) => void;
+        nestWithPreviousTaskRowIfExistsAndExpand: (selection: Selection) => void;
+        unnestTaskIfNestedRow: (selection: Selection) => void;
+        // NOCOMMIT:
         // deleteTaskAndAllChildrenAndFocusPreviousRow: () => void;
         focusNextTaskTitleCoord: (coord: number) => void;
         focusPreviousTaskTitleCoord: (coord: number) => void;
@@ -272,18 +282,17 @@ function TaskRowTitleInput(
                 break;
             }
             case "Tab": {
-                // NOCOMMIT:
-                // if (event.shiftKey) {
-                //     event.preventDefault();
-                //     event.stopPropagation();
+                if (event.shiftKey) {
+                    event.preventDefault();
+                    event.stopPropagation();
 
-                //     unnestTaskIfNestedRow(view.state.selection);
-                // } else if (!isModifiedKeyboardEvent(event)) {
-                //     event.preventDefault();
-                //     event.stopPropagation();
+                    unnestTaskIfNestedRow(view.state.selection);
+                } else if (!isModifiedKeyboardEvent(event)) {
+                    event.preventDefault();
+                    event.stopPropagation();
 
-                //     nestWithPreviousTaskRowIfExistsAndExpand(view.state.selection);
-                // }
+                    nestWithPreviousTaskRowIfExistsAndExpand(view.state.selection);
+                }
                 break;
             }
         }
@@ -682,14 +691,14 @@ function TaskRowTitleInput(
                             />
                         </div>
                     )} */}
-                    {/* NOCOMMIT: {childTaskCount > 0 && (
+                    {childTaskCount > 0 && (
                         <TaskRowTitleChildTasksButton
                             childTaskCount={childTaskCount}
                             closedChildTaskCount={closedChildTaskCount}
-                            areChildTasksCollapsed={areChildTasksCollapsed}
-                            onAreChildTasksCollapsedToggle={onAreChildTasksCollapsedToggle}
+                            areChildTasksExpandedStore={areChildTasksExpandedStore}
+                            onAreChildTasksExpandedToggle={onAreChildTasksExpandedToggle}
                         />
-                    )} */}
+                    )}
                 </div>
             </div>
         </div>

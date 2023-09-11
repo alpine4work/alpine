@@ -1,6 +1,9 @@
+import {useRef} from "react";
 import {Box} from "~/client/design/box.js";
 import {postContentViewMinHeight} from "~/client/forum/post_content_view.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {Spacing} from "~/shared/design/spacing.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {fontSizes, pulseAnimationClassName} from "~/shared/styles/styles.js";
 
 export function PostShimmer({
@@ -10,8 +13,25 @@ export function PostShimmer({
     padding: Spacing;
     parentHasMargin: boolean;
 }) {
+    const shimmerRef = useRef<HTMLDivElement>(null);
+
+    // Set shimmer start times to the same value. That way shimmers rendered at
+    // different times (because they entered the virtualization window) will have
+    // the same animation timeline.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        const shimmerElements = assertExists(shimmerRef.current).getElementsByClassName(
+            pulseAnimationClassName,
+        );
+        for (const shimmerElement of shimmerElements) {
+            for (const animation of shimmerElement.getAnimations()) {
+                animation.startTime = 0;
+            }
+        }
+    }, []);
+
     return (
         <Box
+            ref={shimmerRef}
             backgroundColor="grey-0"
             borderRadius={parentHasMargin ? "md" : undefined}
             boxShadow="elevation-5"

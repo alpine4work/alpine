@@ -1,7 +1,9 @@
-import {createRef, useEffect, useMemo, useRef, useState} from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
+import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
-import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
-import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
+import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
+import {ConstStore} from "~/client/helpers/store/const_store.js";
 import {StoreMap} from "~/client/helpers/store/store_map.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
@@ -10,45 +12,59 @@ import {
     TaskGridViewVirtualizedTaskList,
 } from "~/client/tasks/internal/task_grid_view_virtualized_task_list.js";
 import {taskRowViewMinHeight} from "~/client/tasks/internal/task_row_shared_styles.js";
+import {TaskRowShimmer} from "~/client/tasks/internal/task_row_shimmer.js";
 import {TaskRowView, TaskRowViewRef} from "~/client/tasks/internal/task_row_view.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {VirtualizedScrollViewItem} from "~/client/virtualized/virtualized_scroll_view.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
+import {noop} from "~/shared/helpers/control/noop.js";
 import {generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {colorSchemeVars} from "~/shared/styles/styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 
+const undefinedConstStore = new ConstStore(undefined);
+
 export function useTaskGridViewVirtualizedList({
     capabilities,
     query,
-    isExpandedByTaskKey,
+    areChildTasksExpandedByTaskKey,
     initialBottomGhostTaskId,
     getAddNewTaskToQueryActions: _getAddNewTaskToQueryActions,
+    getMaybeRemoveTaskFromQueryWhenNestingActions: _getMaybeRemoveTaskFromQueryWhenNestingActions,
 }: {
     capabilities: TaskGridViewCapabilities;
     query: TaskClientQuery;
-    isExpandedByTaskKey: StoreMap<TaskGridViewTaskKey, boolean>;
+    areChildTasksExpandedByTaskKey: StoreMap<TaskGridViewTaskKey, boolean>;
     initialBottomGhostTaskId: TaskId;
     getAddNewTaskToQueryActions: (
         time: HybridLogicalTime,
         taskId: TaskId,
         position: {type: "End"} | {type: "Above"; taskId: TaskId} | {type: "Below"; taskId: TaskId},
     ) => Array<TaskAction>;
+    getMaybeRemoveTaskFromQueryWhenNestingActions: (
+        time: HybridLogicalTime,
+        taskId: TaskId,
+    ) => Array<TaskAction>;
 }) {
+    const context = useAppContext();
+
     const [bottomGhostTaskId, setBottomGhostTaskId] = useState(initialBottomGhostTaskId);
 
     const listStore = useMemo(
-        () => TaskGridViewVirtualizedTaskList.new(query, isExpandedByTaskKey),
-        [isExpandedByTaskKey, query],
+        () => TaskGridViewVirtualizedTaskList.new(query, areChildTasksExpandedByTaskKey),
+        [areChildTasksExpandedByTaskKey, query],
     );
 
     const list = useStore(listStore);
 
-    const getAddNewTaskToQueryActions = useEvent(_getAddNewTaskToQueryActions);
+    const events = useEvents({
+        getAddNewTaskToQueryActions: _getAddNewTaskToQueryActions,
+        getMaybeRemoveTaskFromQueryWhenNestingActions:
+            _getMaybeRemoveTaskFromQueryWhenNestingActions,
+    });
 
     const taskRowByIdRef = useRef(new Map<TaskId, TaskRowViewRef>());
     const taskRowByItemIndexRef = useRef(new Map<number, TaskRowViewRef>());
@@ -85,6 +101,10 @@ export function useTaskGridViewVirtualizedList({
         itemCount,
 
         renderItem: useMemo(() => {
+            const focusTaskTitleStart = (taskId: TaskId) => {
+                taskRowByIdRef.current.get(taskId)?.focusTitleStart();
+            };
+
             const preserveLastTaskTitleArrowNavigationCoord = () => {
                 if (lastArrowNavigationCoordRef.current) {
                     lastArrowNavigationCoordRef.current = {
@@ -94,15 +114,19 @@ export function useTaskGridViewVirtualizedList({
                 }
             };
 
-            return (itemIndex: number): VirtualizedScrollViewItem => {
-                const focusTaskTitleStart = (taskId: TaskId) => {
-                    taskRowByIdRef.current.get(taskId)?.focusTitleStart();
-                };
+            return (_itemIndex: number): VirtualizedScrollViewItem => {
+                const itemIndex = _itemIndex;
 
                 const focusNextTaskTitleCoord = (coord: number) => {
                     coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
 
-                    taskRowByItemIndexRef.current.get(itemIndex + 1)?.focusTitleCoord(coord, "top");
+                    for (let index = itemIndex + 1; index < itemCount; index++) {
+                        const taskRow = taskRowByItemIndexRef.current.get(index);
+                        if (!taskRow) continue;
+
+                        taskRow.focusTitleCoord(coord, "top");
+                        break;
+                    }
 
                     lastArrowNavigationCoordRef.current = {
                         setTime: new Date(),
@@ -113,9 +137,13 @@ export function useTaskGridViewVirtualizedList({
                 const focusPreviousTaskTitleCoord = (coord: number) => {
                     coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
 
-                    taskRowByItemIndexRef.current
-                        .get(itemIndex - 1)
-                        ?.focusTitleCoord(coord, "bottom");
+                    for (let index = itemIndex - 1; index >= 0; index--) {
+                        const taskRow = taskRowByItemIndexRef.current.get(index);
+                        if (!taskRow) continue;
+
+                        taskRow.focusTitleCoord(coord, "bottom");
+                        break;
+                    }
 
                     lastArrowNavigationCoordRef.current = {
                         setTime: new Date(),
@@ -131,9 +159,51 @@ export function useTaskGridViewVirtualizedList({
 
                     switch (item.type) {
                         case "Task": {
-                            const taskKey = item.rootTaskId
+                            const taskKey: TaskGridViewTaskKey = item.rootTaskId
                                 ? `${item.rootTaskId}-${item.taskId}`
                                 : item.taskId;
+
+                            const nestWithPreviousTaskRowIfExistsAndExpand = () => {
+                                for (
+                                    let previousItemIndex = relativeItemIndex - 1;
+                                    previousItemIndex >= 0;
+                                    previousItemIndex--
+                                ) {
+                                    const previousItem = list.getItem(previousItemIndex);
+                                    if (previousItem.indentation === item.indentation) {
+                                        if (previousItem.type !== "Task") break;
+
+                                        // Batch the action commit and expand store updates together.
+                                        batchStoreUpdates(() => {
+                                            const time = query.store.clock.now();
+
+                                            query.store.commitTaskActionTransaction(context, [
+                                                {
+                                                    type: "UpdateTask",
+                                                    time,
+                                                    taskId: item.taskId,
+                                                    taskAction: {
+                                                        type: "UpdateParentTaskId",
+                                                        parentTaskId: previousItem.taskId,
+                                                    },
+                                                },
+                                                ...events.getMaybeRemoveTaskFromQueryWhenNestingActions(
+                                                    time,
+                                                    item.taskId,
+                                                ),
+                                            ]);
+
+                                            areChildTasksExpandedByTaskKey.set(
+                                                previousItem.rootTaskId
+                                                    ? `${previousItem.rootTaskId}-${previousItem.taskId}`
+                                                    : previousItem.taskId,
+                                                true,
+                                            );
+                                        });
+                                        break;
+                                    }
+                                }
+                            };
 
                             return {
                                 key: `Task:${taskKey}`,
@@ -156,7 +226,23 @@ export function useTaskGridViewVirtualizedList({
                                         capabilities={capabilities}
                                         taskId={item.taskId}
                                         indentation={item.indentation}
-                                        getAddNewTaskToQueryActions={getAddNewTaskToQueryActions}
+                                        areChildTasksExpandedStore={areChildTasksExpandedByTaskKey.get(
+                                            taskKey,
+                                        )}
+                                        onAreChildTasksExpandedToggle={() => {
+                                            areChildTasksExpandedByTaskKey.set(
+                                                taskKey,
+                                                !areChildTasksExpandedByTaskKey.getSnapshot(
+                                                    taskKey,
+                                                ),
+                                            );
+                                        }}
+                                        getAddNewTaskToQueryActions={
+                                            events.getAddNewTaskToQueryActions
+                                        }
+                                        nestWithPreviousTaskRowIfExistsAndExpand={
+                                            nestWithPreviousTaskRowIfExistsAndExpand
+                                        }
                                         focusTaskTitleStart={focusTaskTitleStart}
                                         focusNextTaskTitleCoord={focusNextTaskTitleCoord}
                                         focusPreviousTaskTitleCoord={focusPreviousTaskTitleCoord}
@@ -172,11 +258,38 @@ export function useTaskGridViewVirtualizedList({
                                 ? `${item.rootTaskId}-${item.parentTaskId}`
                                 : item.parentTaskId;
 
+                            const focusPreviousTaskTitleEnd = () => {
+                                for (let index = itemIndex - 1; index >= 0; index--) {
+                                    const taskRow = taskRowByItemIndexRef.current.get(index);
+                                    if (!taskRow) continue;
+
+                                    taskRow.focusTitleEnd();
+                                    break;
+                                }
+                            };
+
+                            const focusPreviousTaskTitleAll = () => {
+                                for (let index = itemIndex - 1; index >= 0; index--) {
+                                    const taskRow = taskRowByItemIndexRef.current.get(index);
+                                    if (!taskRow) continue;
+
+                                    taskRow.focusTitleAll();
+                                    break;
+                                }
+                            };
+
                             return {
                                 key: `UnloadedChildTask:${parentTaskKey}-${item.childTaskIndex}`,
                                 minHeight: spacing[taskRowViewMinHeight],
-                                // NOCOMMIT: Implement!
-                                node: <></>,
+                                node: (
+                                    <TaskRowShimmer
+                                        randomSeed={parentTaskKey}
+                                        index={item.childTaskIndex}
+                                        indentation={item.indentation}
+                                        focusPreviousTaskTitleEnd={focusPreviousTaskTitleEnd}
+                                        focusPreviousTaskTitleAll={focusPreviousTaskTitleAll}
+                                    />
+                                ),
                             };
                         }
                         default:
@@ -213,11 +326,14 @@ export function useTaskGridViewVirtualizedList({
                                 // NOCOMMIT: Ghost row placeholder sequence!
                                 titlePlaceholder="Add a task…"
                                 indentation={0}
+                                areChildTasksExpandedStore={undefinedConstStore}
+                                onAreChildTasksExpandedToggle={noop}
                                 // If there are no task rows, the padding just makes our ghost row placeholder
                                 // look misaligned. So remove it.
                                 withoutPaddingLeft={listItemCount === 0}
                                 withPaddingBottom={itemIndex === itemCount - 1}
-                                getAddNewTaskToQueryActions={getAddNewTaskToQueryActions}
+                                getAddNewTaskToQueryActions={events.getAddNewTaskToQueryActions}
+                                nestWithPreviousTaskRowIfExistsAndExpand={noop}
                                 focusTaskTitleStart={focusTaskTitleStart}
                                 focusNextTaskTitleCoord={focusNextTaskTitleCoord}
                                 focusPreviousTaskTitleCoord={focusPreviousTaskTitleCoord}
@@ -270,6 +386,15 @@ export function useTaskGridViewVirtualizedList({
                     ),
                 };
             };
-        }, [bottomGhostTaskId, capabilities, getAddNewTaskToQueryActions, itemCount, list, query]),
+        }, [
+            areChildTasksExpandedByTaskKey,
+            bottomGhostTaskId,
+            capabilities,
+            context,
+            events,
+            itemCount,
+            list,
+            query,
+        ]),
     };
 }
