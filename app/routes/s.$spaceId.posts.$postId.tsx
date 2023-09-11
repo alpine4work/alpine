@@ -22,7 +22,7 @@ const LoaderSchema = Schema.object({
 export async function loader({params, context}: LoaderArgs) {
     const postId = Schema.id<PostId>().deserialize(params.postId ?? null);
 
-    const commentLimit = getInitialLoadMessageCount(context.loader.clientInfo);
+    const commentLimit = getInitialLoadMessageCount(context.loader.getClientInfo());
 
     const {post, initialComments, initialOtherReferencedComments} = await getPostAndInitialComments(
         await context.actor.authenticate(),

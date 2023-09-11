@@ -30,7 +30,7 @@ import {
 import {GlobalKeyDownRootContextProvider} from "~/client/helpers/global_key_down_event.js";
 import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useStableValue} from "~/client/helpers/use_stable_value.js";
-import {ClientInfoContextProvider, defaultClientInfo} from "~/client/remix/client_info_context.js";
+import {ClientInfoContextProvider} from "~/client/remix/client_info_context.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
 import {CurrentTimeContextProvider} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {IsMobileContextProvider} from "~/client/remix/use_is_mobile.js";
@@ -49,7 +49,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {ClientInfoSchema} from "~/shared/remix/client_info.js";
+import {BrowserId} from "~/shared/id/types/id_types.js";
+import {ClientInfoSchema, defaultClientInfo} from "~/shared/remix/client_info.js";
 import {propagateEventDataKey} from "~/shared/remix/json_with_schema_shared.js";
 import {Schema} from "~/shared/schema/schema.js";
 import sharedStylesHref from "~/shared/styles/styles.css";
@@ -75,6 +76,7 @@ export const shouldRevalidate = () => false;
 
 const LoaderSchema = Schema.object({
     initialTime: Schema.date,
+    browserId: Schema.id<BrowserId>(),
     clientInfo: ClientInfoSchema,
     devServerPort: Schema.integer.optional(),
 });
@@ -82,7 +84,8 @@ const LoaderSchema = Schema.object({
 export function loader({context}: LoaderArgs) {
     return jsonWithSchema(LoaderSchema, {
         initialTime: new Date(),
-        clientInfo: context.loader.clientInfo,
+        browserId: context.loader.getBrowserId(),
+        clientInfo: context.loader.getClientInfo(),
         devServerPort: context.loader.devServerPort ?? undefined,
     });
 }

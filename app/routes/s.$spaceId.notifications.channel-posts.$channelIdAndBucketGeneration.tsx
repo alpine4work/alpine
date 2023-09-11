@@ -50,7 +50,7 @@ export async function loader({params, context}: LoaderArgs) {
         channelId,
         bucketGeneration,
         limit: getInitialVirtualizedScrollViewRenderedItemCount(
-            context.loader.clientInfo,
+            context.loader.getClientInfo(),
             postContentViewMinHeight,
         ),
         afterPostId: null,

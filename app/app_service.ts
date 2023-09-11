@@ -1,13 +1,11 @@
 import * as build from "@remix-run/dev/server-build";
 import {createRequestHandler} from "@remix-run/node";
-import {parse as parseCookieHeader} from "cookie";
 import fs from "fs-extra";
 import {createServer} from "http";
 import {join as joinPath} from "path";
 import createServeStaticMiddleware from "serve-static";
 import {LocalTaskRealtimeServiceRouter} from "~/app/local_task_realtime_service_router.js";
 import {seedDynamo} from "~/app/seed_dynamo.js";
-import {defaultClientInfo, defaultMobileClientInfo} from "~/client/remix/client_info_context.js";
 import {Session} from "~/server/accounts/accounts_table.js";
 import {
     DynamoActorContextModule,
@@ -45,7 +43,6 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
-import {ClientInfoSchema} from "~/shared/remix/client_info.js";
 
 const runfilesPath = assertExists(process.env.RUNFILES);
 
@@ -178,38 +175,7 @@ runService({
         const handleRequest = createRequestHandler(build, process.env.NODE_ENV);
 
         const requestListener = createStandardizedRequestListener(tracer, (request, url, span) => {
-            return withSessionCookie(tokenAgent, request, sessionCookie => {
-                const cookieHeader = request.headers.get("cookie");
-                const clientInfoCookieString = cookieHeader
-                    ? parseCookieHeader(cookieHeader)["client-info"]
-                    : null;
-
-                let clientInfo = defaultClientInfo;
-                if (clientInfoCookieString) {
-                    try {
-                        clientInfo = ClientInfoSchema.deserialize(
-                            JSON.parse(clientInfoCookieString),
-                        );
-                    } catch {
-                        // Ignore any errors when parsing the client info cookie.
-                    }
-                } else {
-                    // Device detection with user-agent parsing is generally bad and should be
-                    // avoided. However, in the case where we don't yet have a client info cookie
-                    // we use the user agent as a hint to determine what our default when
-                    // server-side rendering should be. We have logic on the client to heal the
-                    // cookie if we guess wrong. The user will see a quick flash of content but
-                    // that's all.
-                    //
-                    // [MDN recommends testing for the string "Mobi" to tell if we are on a
-                    // mobile device][1].
-                    //
-                    // [1]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Browser_detection_using_the_user_agent#mobile_tablet_or_desktop
-                    if (/Mobi/i.test(request.headers.get("user-agent") ?? "")) {
-                        clientInfo = defaultMobileClientInfo;
-                    }
-                }
-
+            return withSessionCookie(tokenAgent, request, async sessionCookie => {
                 // Sometimes we want to upgrade a session actor to a system actor. This gives
                 // the action escalated the system permission level which is dangerous! The
                 // system permission level has broad access to a space. We should tightly
@@ -256,7 +222,15 @@ runService({
                     tokenAgent,
                 });
 
-                return processContext.with<
+                const loaderContextModule = new LoaderContextModule(request, {
+                    tokenAgent,
+                    sessionCookie,
+                    devServerPort: options.remixDevServerPort
+                        ? parseInt(options.remixDevServerPort, 10)
+                        : null,
+                });
+
+                const response = await processContext.with<
                     Omit<
                         LoaderContextModules,
                         Exclude<keyof ServerProcessContextModules, "tracer">
@@ -266,14 +240,7 @@ runService({
                     {
                         tracer: new TracerContextModule(span),
                         rpc: new LocalRpcContextModule(),
-                        loader: new LoaderContextModule({
-                            tokenAgent,
-                            sessionCookie,
-                            clientInfo,
-                            devServerPort: options.remixDevServerPort
-                                ? parseInt(options.remixDevServerPort, 10)
-                                : null,
-                        }),
+                        loader: loaderContextModule,
                         cache: new CacheContextModule(),
                         dynamoBatchContext: new DynamoBatchContextModule(),
                         actor: createActorContextModule(request, url, tokenAgent, sessionCookie),
@@ -316,6 +283,10 @@ runService({
                         return handleRequest(request, context);
                     },
                 );
+
+                loaderContextModule.addResponseHeaders(response.headers);
+
+                return response;
             });
         });
 

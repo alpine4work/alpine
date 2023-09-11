@@ -32,7 +32,7 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
         getChannelPosts(context, {
             channelId,
             limit: getInitialVirtualizedScrollViewRenderedItemCount(
-                context.loader.clientInfo,
+                context.loader.getClientInfo(),
                 postContentViewMinHeight,
             ),
         }),

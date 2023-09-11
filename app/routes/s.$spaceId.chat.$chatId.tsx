@@ -31,7 +31,7 @@ export async function loader({context: _context, params}: LoaderArgs) {
         context.actor.authorizeSession(),
         {
             chatId,
-            messagesLimit: getInitialLoadMessageCount(context.loader.clientInfo),
+            messagesLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
         },
     );
 

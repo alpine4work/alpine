@@ -1,5 +1,7 @@
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {mobileMaxScreenWidth} from "~/shared/design/spacing.js";
+import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
  * Self-reported information about the client available on the server via a cookie.
@@ -51,3 +53,64 @@ export const ClientInfoSchema = Schema.object({
      */
     locale: Schema.value("en-US").default("en-US"),
 });
+
+/**
+ * Default client info to use in tests or in server-side rendering before we
+ * set the client info cookie.
+ */
+export const defaultClientInfo: ClientInfo = {
+    /**
+     * The default screen width we use when server-side rendering when we don't
+     * know what the user's actual screen width is. 1920px is the width of the
+     * [largest common screen resolution][1] so that should cover the majority of
+     * devices.
+     *
+     * [1]: https://www.browserstack.com/guide/ideal-screen-sizes-for-responsive-design
+     */
+    screenWidth: 1920,
+
+    /**
+     * The default screen height we use when server-side rendering when we don't
+     * know what the user's actual screen height is. 1080px is the height of the
+     * [largest common screen resolution][1] so that should cover the majority of
+     * devices.
+     *
+     * [1]: https://www.browserstack.com/guide/ideal-screen-sizes-for-responsive-design
+     */
+    screenHeight: 1080,
+
+    /**
+     * We use the New York time zone when we haven't gotten the client's actual
+     * time zone since that's where our company is based.
+     */
+    timeZone: defaultTimeZone,
+
+    /**
+     * We use English as the default locale when we haven't gotten the client's
+     * actual locale since we are a US company.
+     */
+    locale: "en-US",
+};
+
+/**
+ * Default client info for mobile browsers. On the server if there is no client
+ * info cookie but we sniff the user-agent and it looks like a mobile device
+ * then we will use this client info hoping it better matches the actual device.
+ */
+export const defaultMobileClientInfo: ClientInfo = {
+    ...defaultClientInfo,
+
+    /**
+     * Use the maximum screen width that triggers our mobile site instead of the
+     * desktop site.
+     */
+    screenWidth: mobileMaxScreenWidth,
+
+    /**
+     * The common responsive design height of a device with a width of
+     * `mobileMaxScreenWidth`. From [BrowserStack][1].
+     *
+     * [1]: https://www.browserstack.com/guide/ideal-screen-sizes-for-responsive-design
+     */
+    screenHeight: 1366,
+};

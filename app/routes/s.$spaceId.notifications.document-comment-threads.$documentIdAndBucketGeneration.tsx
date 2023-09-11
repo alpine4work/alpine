@@ -61,7 +61,7 @@ export async function loader({params, context}: LoaderArgs) {
                 spaceId,
                 documentId,
                 bucketGeneration,
-                commentLimit: getInitialLoadMessageCount(context.loader.clientInfo),
+                commentLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
                 commentThreadCountAgainstLimit: documentCommentThreadCountAgainstLimit,
             },
         );

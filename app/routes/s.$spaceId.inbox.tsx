@@ -74,7 +74,7 @@ export async function loader({params, context, request, serverRoutes: routes}: L
                 spaceId,
                 filter,
                 limit: getInitialVirtualizedScrollViewRenderedItemCount(
-                    context.loader.clientInfo,
+                    context.loader.getClientInfo(),
                     inboxEntryViewMinHeight,
                 ),
                 afterCursor: null,

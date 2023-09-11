@@ -38,7 +38,7 @@ export async function loader({params, context}: LoaderArgs) {
         await getDocumentAndCommentThreadsWithInitialComments(await context.actor.authenticate(), {
             documentId,
             commentThreadIds: [commentThreadId],
-            commentLimit: getInitialLoadMessageCount(context.loader.clientInfo),
+            commentLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
             commentThreadCountAgainstLimit: documentCommentThreadCountAgainstLimit,
         });
 

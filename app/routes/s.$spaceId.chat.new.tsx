@@ -53,7 +53,7 @@ export async function loader({request, context: _context, params}: LoaderArgs) {
             ? selectChatForAccounts(context.actor.authorizeSession(), {
                   spaceId,
                   otherAccountIds: selectedAccountIds,
-                  messagesLimit: getInitialLoadMessageCount(context.loader.clientInfo),
+                  messagesLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
               })
             : null,
     ]);

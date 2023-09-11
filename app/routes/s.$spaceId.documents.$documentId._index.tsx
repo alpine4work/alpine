@@ -83,7 +83,7 @@ export async function loader({params, context: _context, request}: LoaderArgs) {
             ? getDocumentCommentThreadAndInitialComments(context, {
                   documentId,
                   commentThreadId,
-                  limit: getInitialLoadMessageCount(context.loader.clientInfo),
+                  limit: getInitialLoadMessageCount(context.loader.getClientInfo()),
               })
             : null,
     ]);
