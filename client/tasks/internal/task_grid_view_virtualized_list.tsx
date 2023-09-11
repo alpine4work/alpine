@@ -4,16 +4,13 @@ import {Box} from "~/client/design/box.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {ConstStore} from "~/client/helpers/store/const_store.js";
-import {StoreMap} from "~/client/helpers/store/store_map.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
-import {
-    TaskGridViewTaskKey,
-    TaskGridViewVirtualizedTaskList,
-} from "~/client/tasks/internal/task_grid_view_virtualized_task_list.js";
+import {TaskGridViewVirtualizedTaskList} from "~/client/tasks/internal/task_grid_view_virtualized_task_list.js";
 import {taskRowViewMinHeight} from "~/client/tasks/internal/task_row_shared_styles.js";
 import {TaskRowShimmer} from "~/client/tasks/internal/task_row_shimmer.js";
 import {TaskRowView, TaskRowViewRef} from "~/client/tasks/internal/task_row_view.js";
+import {useTaskGridViewExpansionState} from "~/client/tasks/internal/use_task_grid_view_expansion_state.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {VirtualizedScrollViewItem} from "~/client/virtualized/virtualized_scroll_view.js";
 import {spacing} from "~/shared/design/spacing.js";
@@ -24,21 +21,22 @@ import {generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {colorSchemeVars} from "~/shared/styles/styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskGridViewTaskKey} from "~/shared/tasks/task_grid_view_task_key.js";
 
 const undefinedConstStore = new ConstStore(undefined);
 
 export function useTaskGridViewVirtualizedList({
     capabilities,
     query,
-    areChildTasksExpandedByTaskKey,
     initialBottomGhostTaskId,
+    initialExpandedChildTaskKeys,
     getAddNewTaskToQueryActions: _getAddNewTaskToQueryActions,
     getMaybeRemoveTaskFromQueryWhenNestingActions: _getMaybeRemoveTaskFromQueryWhenNestingActions,
 }: {
     capabilities: TaskGridViewCapabilities;
     query: TaskClientQuery;
-    areChildTasksExpandedByTaskKey: StoreMap<TaskGridViewTaskKey, boolean>;
     initialBottomGhostTaskId: TaskId;
+    initialExpandedChildTaskKeys: ReadonlySet<TaskGridViewTaskKey>;
     getAddNewTaskToQueryActions: (
         time: HybridLogicalTime,
         taskId: TaskId,
@@ -53,9 +51,16 @@ export function useTaskGridViewVirtualizedList({
 
     const [bottomGhostTaskId, setBottomGhostTaskId] = useState(initialBottomGhostTaskId);
 
+    const {getAreChildTasksExpandedStore, toggleAreChildTasksExpanded} =
+        useTaskGridViewExpansionState({
+            filters: query.filters,
+            sorts: query.sorts,
+            initialExpandedChildTaskKeys,
+        });
+
     const listStore = useMemo(
-        () => TaskGridViewVirtualizedTaskList.new(query, areChildTasksExpandedByTaskKey),
-        [areChildTasksExpandedByTaskKey, query],
+        () => TaskGridViewVirtualizedTaskList.new(query, getAreChildTasksExpandedStore),
+        [getAreChildTasksExpandedStore, query],
     );
 
     const list = useStore(listStore);
@@ -193,12 +198,19 @@ export function useTaskGridViewVirtualizedList({
                                                 ),
                                             ]);
 
-                                            areChildTasksExpandedByTaskKey.set(
+                                            const previousTaskKey: TaskGridViewTaskKey =
                                                 previousItem.rootTaskId
                                                     ? `${previousItem.rootTaskId}-${previousItem.taskId}`
-                                                    : previousItem.taskId,
-                                                true,
-                                            );
+                                                    : previousItem.taskId;
+
+                                            // Expand our new parent task if it's not already expanded.
+                                            if (
+                                                !getAreChildTasksExpandedStore(
+                                                    previousTaskKey,
+                                                ).getSnapshot()
+                                            ) {
+                                                toggleAreChildTasksExpanded(previousTaskKey);
+                                            }
                                         });
                                         break;
                                     }
@@ -226,16 +238,11 @@ export function useTaskGridViewVirtualizedList({
                                         capabilities={capabilities}
                                         taskId={item.taskId}
                                         indentation={item.indentation}
-                                        areChildTasksExpandedStore={areChildTasksExpandedByTaskKey.get(
+                                        areChildTasksExpandedStore={getAreChildTasksExpandedStore(
                                             taskKey,
                                         )}
                                         onAreChildTasksExpandedToggle={() => {
-                                            areChildTasksExpandedByTaskKey.set(
-                                                taskKey,
-                                                !areChildTasksExpandedByTaskKey.getSnapshot(
-                                                    taskKey,
-                                                ),
-                                            );
+                                            toggleAreChildTasksExpanded(taskKey);
                                         }}
                                         getAddNewTaskToQueryActions={
                                             events.getAddNewTaskToQueryActions
@@ -387,14 +394,15 @@ export function useTaskGridViewVirtualizedList({
                 };
             };
         }, [
-            areChildTasksExpandedByTaskKey,
             bottomGhostTaskId,
             capabilities,
             context,
             events,
+            getAreChildTasksExpandedStore,
             itemCount,
             list,
             query,
+            toggleAreChildTasksExpanded,
         ]),
     };
 }

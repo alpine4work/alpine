@@ -49,6 +49,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {getRealmId} from "~/shared/id/realm_id.js";
 import {BrowserId} from "~/shared/id/types/id_types.js";
 import {ClientInfoSchema, defaultClientInfo} from "~/shared/remix/client_info.js";
 import {propagateEventDataKey} from "~/shared/remix/json_with_schema_shared.js";
@@ -226,6 +227,9 @@ export default function Root() {
                 <AppContextProvider value={context}>
                     <AppInitialRenderContextProvider>
                         <ClientInfoContextProvider
+                            // If there was an error at our root loader and we couldn't load `BrowserId`
+                            // then use the `RealmId` as the `BrowserId`.
+                            browserId={loaderData?.browserId ?? (getRealmId() as any as BrowserId)}
                             initialClientInfo={loaderData?.clientInfo ?? defaultClientInfo}
                         >
                             <CurrentTimeContextProvider initialTime={initialTime}>

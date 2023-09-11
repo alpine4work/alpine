@@ -1,5 +1,6 @@
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
 
 function validate<Value>(schema: Schema<Value>, value: unknown): boolean {
@@ -733,4 +734,11 @@ test("string lower case will actually lower case on serialization and throw on v
     expect(() => schema.validate?.("foo")).not.toThrow(InvalidArgumentError);
     expect(() => schema.validate?.("Foo")).toThrow(InvalidArgumentError);
     expect(() => schema.validate?.("FOO")).toThrow(InvalidArgumentError);
+});
+
+test("missing optional property is still missing when deserialized", () => {
+    const schema = Schema.object({p: Schema.integer.optional()});
+
+    expect(hasOwnProperty(schema.deserialize({p: 42}), "p")).toEqual(true);
+    expect(hasOwnProperty(schema.deserialize({}), "p")).toEqual(false);
 });

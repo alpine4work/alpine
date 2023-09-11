@@ -1004,6 +1004,8 @@ export type ObjectSchemaConfigType<Config extends ObjectSchemaConfigBase> = Opti
     readonly [Key in keyof Config]: SchemaType<Config[Key]>;
 }>;
 
+const missingPropertySymbol = Symbol("missing");
+
 /**
  * Schema for an object value.
  *
@@ -1082,7 +1084,9 @@ export class ObjectSchema<Value> extends Schema<Value> {
                     serializedKey,
                 );
 
-                newValue[key] = keyValue;
+                if (keyValue !== missingPropertySymbol) {
+                    newValue[key] = keyValue;
+                }
             }
 
             return newValue;
@@ -1211,7 +1215,7 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
     public readonly deserializeProperty: (
         object: SchemaSerializedObjectValue,
         key: string,
-    ) => Value;
+    ) => Value | typeof missingPropertySymbol;
 
     /**
      * Validates that any constraints for the schema are met beyond the
@@ -1238,7 +1242,10 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
             key: string,
             value: Value,
         ) => void;
-        deserializeProperty: (object: SchemaSerializedObjectValue, key: string) => Value;
+        deserializeProperty: (
+            object: SchemaSerializedObjectValue,
+            key: string,
+        ) => Value | typeof missingPropertySymbol;
         validateProperty: ((value: Value) => void) | null;
     }) {
         this.serializedKey = serializedKey;
@@ -1293,7 +1300,9 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
                 this.serializeProperty(object, key, value);
             },
             deserializeProperty: (object, key) => {
-                if (!hasOwnProperty(object, key) || object[key] === undefined) return undefined;
+                if (!hasOwnProperty(object, key) || object[key] === undefined)
+                    return missingPropertySymbol;
+
                 return this.deserializeProperty(object, key);
             },
             validateProperty: validateProperty

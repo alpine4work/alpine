@@ -6,6 +6,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {getCurrentTimeZone} from "~/shared/helpers/date/time_zone.js";
+import {getRealmId} from "~/shared/id/realm_id.js";
+import {BrowserId} from "~/shared/id/types/id_types.js";
 import {ClientInfo, defaultClientInfo} from "~/shared/remix/client_info.js";
 
 const clientInfo = new Lazy(
@@ -25,7 +27,29 @@ export function getClientInfoWithoutListening(): ClientInfo {
     return clientInfo.get();
 }
 
+const BrowserIdContext = createContext<BrowserId | null>(null);
 const ClientInfoContext = createContext<ClientInfo | null>(null);
+
+/**
+ * We give web browsers an identifier that persists across page reloads. You
+ * may use this hook to access it.
+ */
+export function useBrowserId(): BrowserId {
+    const browserId = useContext(BrowserIdContext);
+
+    if (browserId === null) {
+        // In Jest return a mock value instead of requiring a root context provider.
+        if (import.meta.jest) {
+            return getRealmId() as any as BrowserId;
+        }
+
+        throw new InternalError(
+            "Expected component to be rendered inside a `<ClientInfoContextProvider>`",
+        );
+    }
+
+    return browserId;
+}
 
 /**
  * We include client information (like time zone) in React context. When server
@@ -54,9 +78,11 @@ export function useClientInfo(): ClientInfo {
 }
 
 export function ClientInfoContextProvider({
+    browserId,
     initialClientInfo,
     children,
 }: {
+    browserId: BrowserId;
     initialClientInfo: ClientInfo;
     children: ReactNode;
 }) {
@@ -81,14 +107,16 @@ export function ClientInfoContextProvider({
     }, []);
 
     return (
-        <ClientInfoContext.Provider value={clientInfo}>
-            <I18nProvider
-                // Also render `react-aria`'s `I18nProvider` so that `react-aria` hooks get the
-                // correct locale.
-                locale={clientInfo.locale}
-            >
-                {children}
-            </I18nProvider>
-        </ClientInfoContext.Provider>
+        <BrowserIdContext.Provider value={browserId}>
+            <ClientInfoContext.Provider value={clientInfo}>
+                <I18nProvider
+                    // Also render `react-aria`'s `I18nProvider` so that `react-aria` hooks get the
+                    // correct locale.
+                    locale={clientInfo.locale}
+                >
+                    {children}
+                </I18nProvider>
+            </ClientInfoContext.Provider>
+        </BrowserIdContext.Provider>
     );
 }

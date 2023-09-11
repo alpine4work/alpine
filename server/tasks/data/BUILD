@@ -39,6 +39,7 @@ ts_project(
     deps = [
         "//:node_modules/@internationalized/date",
         "//:node_modules/date-fns",
+        "//:node_modules/murmurhash",
         "//server/dynamo/core",
         "//server/helpers",
         "//server/opensearch",

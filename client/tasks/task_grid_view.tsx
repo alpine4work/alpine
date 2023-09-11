@@ -24,10 +24,7 @@ import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_prio
 import {StoreMap} from "~/client/helpers/store/store_map.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {useTaskGridViewVirtualizedList} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
-import {
-    TaskGridViewTaskKey,
-    TaskGridViewVirtualizedTaskList,
-} from "~/client/tasks/internal/task_grid_view_virtualized_task_list.js";
+import {TaskGridViewVirtualizedTaskList} from "~/client/tasks/internal/task_grid_view_virtualized_task_list.js";
 // NOCOMMIT:
 // import {TaskGridViewCapabilities} from "~/client/tasks/demo_2/internal/task_grid_view_capabilities.js";
 // import {TaskGridViewDndContext} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context.js";
@@ -62,6 +59,7 @@ import {generateId} from "~/shared/id/id.js";
 import {LocalTaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {colorSchemeVars} from "~/shared/styles/styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskGridViewTaskKey} from "~/shared/tasks/task_grid_view_task_key.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 // NOCOMMIT:
 // import {TaskTitle, emptyTaskTitle} from "~/shared/tasks/task_title_schema_old.js";
@@ -74,12 +72,14 @@ export function TaskGridView({
     capabilities,
     query,
     initialBottomGhostTaskId,
+    initialExpandedChildTaskKeys,
     getAddNewTaskToQueryActions,
     getMaybeRemoveTaskFromQueryWhenNestingActions,
 }: {
     capabilities: TaskGridViewCapabilities;
     query: TaskClientQuery;
     initialBottomGhostTaskId: TaskId;
+    initialExpandedChildTaskKeys: ReadonlySet<TaskGridViewTaskKey>;
     getAddNewTaskToQueryActions: (
         time: HybridLogicalTime,
         taskId: TaskId,
@@ -90,15 +90,11 @@ export function TaskGridView({
         taskId: TaskId,
     ) => Array<TaskAction>;
 }) {
-    const [areChildTasksExpandedByTaskKey] = useState(
-        () => new StoreMap<TaskGridViewTaskKey, boolean>(),
-    );
-
     const {itemCount, renderItem} = useTaskGridViewVirtualizedList({
         capabilities,
         query,
-        areChildTasksExpandedByTaskKey,
         initialBottomGhostTaskId,
+        initialExpandedChildTaskKeys,
         getAddNewTaskToQueryActions,
         getMaybeRemoveTaskFromQueryWhenNestingActions,
     });

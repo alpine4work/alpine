@@ -10,7 +10,11 @@ import {
 } from "~/client/tasks/task_realtime_client_context_provider.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {getTaskNotepadPageIds} from "~/server/tasks/data/task_table.js";
+import {
+    getTaskGridViewExpansionState,
+    getTaskNotepadPageIds,
+} from "~/server/tasks/data/task_table.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {compareHybridLogicalTimes} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -21,6 +25,7 @@ import {generateId} from "~/shared/id/id.js";
 import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
 import {getTaskQueryNormalizedSortCursorForModel} from "~/shared/tasks/model/get_task_query_normalized_sort_cursor_for_model.js";
+import {TaskGridViewTaskKeySchema} from "~/shared/tasks/task_grid_view_task_key.js";
 import {
     TaskNotepadPageIdCompressedSetSchema,
     TaskNotepadPageIdSchema,
@@ -34,8 +39,9 @@ import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort
 import {getTaskQuerySortCursorTaskId} from "~/shared/tasks/task_query_sort_cursor.js";
 
 const LoaderSchema = Schema.object({
-    notepadPageIds: TaskNotepadPageIdCompressedSetSchema,
-    currentNotepadPageId: TaskNotepadPageIdSchema,
+    allNotepadPageIds: TaskNotepadPageIdCompressedSetSchema,
+    notepadPageId: TaskNotepadPageIdSchema,
+    notepadPageExpandedChildTaskKeys: Schema.set(TaskGridViewTaskKeySchema),
     initialBottomGhostTaskId: Schema.id<TaskId>(),
 });
 
@@ -44,14 +50,14 @@ export async function loader({params, context: _context}: LoaderArgs) {
 
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
 
-    const notepadPageIds = await getTaskNotepadPageIds(context, spaceId);
+    const allNotepadPageIds = await getTaskNotepadPageIds(context, spaceId);
 
-    const notepadPageUncompressedIds = notepadPageIds.getIds();
-    const firstNotepadPageStep = notepadPageUncompressedIds[Symbol.iterator]().next();
+    const allNotepadPageUncompressedIds = allNotepadPageIds.getIds();
+    const firstNotepadPageStep = allNotepadPageUncompressedIds[Symbol.iterator]().next();
     assert(!firstNotepadPageStep.done);
 
-    const latestNotepadPageId = reduceIterable(
-        notepadPageUncompressedIds,
+    const notepadPageId = reduceIterable(
+        allNotepadPageUncompressedIds,
         (notepadPageId1, notepadPageId2) =>
             notepadPageId2 > notepadPageId1 ? notepadPageId2 : notepadPageId1,
         firstNotepadPageStep.value,
@@ -101,24 +107,30 @@ export async function loader({params, context: _context}: LoaderArgs) {
             },
             notepadPageFilter: {
                 accountId: context.actor.getAccountId(),
-                notepadPageId: latestNotepadPageId,
+                notepadPageId,
             },
         },
         sorts: [
             {
                 type: "NotepadPagePosition",
                 accountId: context.actor.getAccountId(),
-                notepadPageId: latestNotepadPageId,
+                notepadPageId,
                 direction: "Ascending",
                 missing: "Last",
             },
         ],
     };
 
-    const {loadedStates, updateEvent} = await context.tasks.loadQueries(spaceId, [
-        assigneeActiveQuery,
-        notepadPageQuery,
-    ]);
+    const [{loadedStates, updateEvent}, {expandedChildTaskKeys: notepadPageExpandedChildTaskKeys}] =
+        await runAllPromises([
+            context.tasks.loadQueries(spaceId, [assigneeActiveQuery, notepadPageQuery]),
+            getTaskGridViewExpansionState(context, {
+                spaceId,
+                browserId: context.loader.getBrowserId(),
+                filters: notepadPageQuery.filters,
+                sorts: notepadPageQuery.sorts,
+            }),
+        ]);
 
     const assigneeActiveQueryLoadedState = assertExists(loadedStates[0]);
     const notepadPageQueryLoadedState = assertExists(loadedStates[1]);
@@ -126,14 +138,15 @@ export async function loader({params, context: _context}: LoaderArgs) {
     return jsonWithSchema(
         LoaderSchema,
         {
-            notepadPageIds,
+            allNotepadPageIds,
+            notepadPageId,
+            notepadPageExpandedChildTaskKeys,
             initialBottomGhostTaskId: generateId<TaskId>(),
-            currentNotepadPageId: latestNotepadPageId,
         },
         {
             propagateEventData: {
                 context: {
-                    taskNotepadPageId: latestNotepadPageId,
+                    taskNotepadPageId: notepadPageId,
                 },
             },
             loadTaskQueryData: {
@@ -168,7 +181,8 @@ export async function clientLoader({
 }
 
 export default function TasksRoute() {
-    const {currentNotepadPageId, initialBottomGhostTaskId} = useLoaderDataWithSchema(LoaderSchema);
+    const {notepadPageId, notepadPageExpandedChildTaskKeys, initialBottomGhostTaskId} =
+        useLoaderDataWithSchema(LoaderSchema);
     const [assigneeActiveQuery, notepadPageQuery] = useLoaderTaskQueries();
     assert(assigneeActiveQuery && notepadPageQuery);
 
@@ -188,6 +202,7 @@ export default function TasksRoute() {
                 )}
                 query={notepadPageQuery}
                 initialBottomGhostTaskId={initialBottomGhostTaskId}
+                initialExpandedChildTaskKeys={notepadPageExpandedChildTaskKeys}
                 getAddNewTaskToQueryActions={(time, taskId, position) => {
                     let actualPosition: TaskPosition;
                     switch (position.type) {
@@ -220,14 +235,14 @@ export default function TasksRoute() {
 
                             const position1 = assertExists(
                                 task1.rawData.positionByAccountIdAndNotepadPageId.get(
-                                    `${currentAccount.id}-${currentNotepadPageId}`,
+                                    `${currentAccount.id}-${notepadPageId}`,
                                 ),
                             );
 
                             const position2 = task2
                                 ? assertExists(
                                       task2.rawData.positionByAccountIdAndNotepadPageId.get(
-                                          `${currentAccount.id}-${currentNotepadPageId}`,
+                                          `${currentAccount.id}-${notepadPageId}`,
                                       ),
                                   )
                                 : null;
@@ -262,7 +277,7 @@ export default function TasksRoute() {
                             taskAction: {
                                 type: "UpdateNotepadPagePosition",
                                 accountId: currentAccount.id,
-                                notepadPageId: currentNotepadPageId,
+                                notepadPageId,
                                 position: actualPosition,
                             },
                         },
@@ -276,7 +291,7 @@ export default function TasksRoute() {
                         taskAction: {
                             type: "UpdateNotepadPagePosition",
                             accountId: currentAccount.id,
-                            notepadPageId: currentNotepadPageId,
+                            notepadPageId,
                             position: null,
                         },
                     },
