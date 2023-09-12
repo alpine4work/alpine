@@ -68,7 +68,12 @@ const properties = defineProperties({
             "row-resize": "row-resize",
         },
         pointerEvents: {auto: "auto", none: "none"},
-        userSelect: {auto: "auto", none: "none", text: "text", all: "all"},
+        userSelect: {
+            none: "none",
+            // When `user-select` is `"text"` we need to override our global default
+            // `cursor: "default"`.
+            text: {userSelect: "text", cursor: "text"},
+        },
         textAlign: {left: "left", center: "center", right: "right", justify: "justify"},
         fontSize: fontSizes,
         fontStyle: fontStyles,

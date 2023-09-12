@@ -45,7 +45,9 @@ esbuild(
     deps = [
         "//:node_modules/@types/color",
         "//:node_modules/@vanilla-extract/esbuild-plugin",
+        "//:node_modules/autoprefixer",
         "//:node_modules/color",
+        "//:node_modules/postcss",
         "//shared/design",
         "//shared/error",
         "//shared/helpers",

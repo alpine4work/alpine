@@ -31,6 +31,10 @@ globalStyle(":root", {
     // must opt-into text selection. This makes our UI feel more native. In a
     // native UI you can't select arbitrary button text or label text.
     userSelect: "none",
+    // We need to set `cursor: "default"` since in Safari while
+    // `userSelect: "none"` means text is not selectable it still has the text
+    // cursor.
+    cursor: "default",
 });
 
 globalStyle("body", {

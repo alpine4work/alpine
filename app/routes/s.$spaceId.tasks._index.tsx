@@ -188,6 +188,8 @@ export default function TasksRoute() {
 
     const {currentAccount} = useSpaceContext();
 
+    throw new Error("test");
+
     return (
         <Box flexGrow="1" overflow="hidden" backgroundColor="grey-0">
             <TaskGridView

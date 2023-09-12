@@ -1,6 +1,8 @@
 "use strict";
 
 const {vanillaExtractPlugin} = require("@vanilla-extract/esbuild-plugin");
+const postcss = require("postcss");
+const autoprefixer = require("autoprefixer");
 
 // Extract the compilation mode from the `BAZEL_BINDIR` environment variable.
 // This is a little hacky.
@@ -17,6 +19,19 @@ if (!compilationModeMatch)
 
 const compilationMode = compilationModeMatch[1];
 
+async function processCss(css) {
+    const result = await postcss([autoprefixer]).process(css, {
+        from: undefined, // Suppress source map warning
+    });
+
+    return result.css;
+}
+
 module.exports = {
-    plugins: [vanillaExtractPlugin({identifiers: compilationMode === "opt" ? "short" : "debug"})],
+    plugins: [
+        vanillaExtractPlugin({
+            identifiers: compilationMode === "opt" ? "short" : "debug",
+            processCss,
+        }),
+    ],
 };

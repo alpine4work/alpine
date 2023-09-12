@@ -10,7 +10,9 @@ export const textCursorNotInheritedClassName = style({
 });
 
 globalStyle(`${textCursorNotInheritedClassName} > *`, {
-    cursor: "initial",
+    // Our `:root` cursor is explicitly set to `"default"` so `userSelect: "none"`
+    // text always has a default cursor.
+    cursor: "default",
 });
 
 export const pointerEventsNoneNotInheritedClassName = style({

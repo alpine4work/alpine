@@ -69,7 +69,6 @@ const headerTopMargin = "1.5em";
 export const docClassName = style({
     minHeight: "100%",
     color: colorSchemeVars["grey-text"],
-    userSelect: "text",
     // Create a new z-index stacking context.
     position: "relative",
     zIndex: 0,
@@ -117,6 +116,8 @@ export const titleClassName = style({
     // when we are rendering placeholders in `<ContentView>`.
     minHeight: `calc(${titleFontSize.lineHeight} + ${desktopTitlePaddingTop})`,
     marginBottom: paragraphMargin,
+    userSelect: "text",
+    cursor: "text",
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
     "@media": {
@@ -152,6 +153,8 @@ export const paragraphClassName = style({
     minHeight: paragraphFontSize.lineHeight,
     marginTop: paragraphMargin,
     marginBottom: paragraphMargin,
+    userSelect: "text",
+    cursor: "text",
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
 });
@@ -164,6 +167,8 @@ export const headingLevel1ClassName = style({
     ...headingLevel1FontSize,
     marginTop: headerTopMargin,
     marginBottom: paragraphMargin,
+    userSelect: "text",
+    cursor: "text",
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
 });
@@ -176,6 +181,8 @@ export const headingLevel2ClassName = style({
     ...headingLevel2FontSize,
     marginTop: headerTopMargin,
     marginBottom: paragraphMargin,
+    userSelect: "text",
+    cursor: "text",
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
 });
@@ -188,6 +195,8 @@ export const headingLevel3ClassName = style({
     ...headingLevel3FontSize,
     marginTop: headerTopMargin,
     marginBottom: paragraphMargin,
+    userSelect: "text",
+    cursor: "text",
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
 });
@@ -411,7 +420,8 @@ export const codeClassName = style({
 export const boldClassName = style({
     ...fontStyles["extra-bold"],
     // Inherit font feature settings from parent instead of turning them off. In a
-    // link they should be off. Outside of a link they should be on.
+    // link they should be off (which `fontStyles` does). Outside of a link they
+    // should be on.
     fontFeatureSettings: "inherit",
     selectors: {
         [`${codeClassName} &`]: {

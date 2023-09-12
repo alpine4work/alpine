@@ -173,7 +173,9 @@ export function ContextMenuManager() {
             // processing actions.
             else if (
                 event.target instanceof HTMLElement &&
-                getComputedStyle(event.target).userSelect !== "none"
+                (getComputedStyle(event.target).userSelect ??
+                    // In Safari `user-select` is behind a vendor prefix.
+                    getComputedStyle(event.target).webkitUserSelect) !== "none"
             ) {
                 const selection = window.getSelection();
                 if (selection && selection.anchorOffset !== selection.focusOffset) {
