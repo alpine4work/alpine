@@ -5,6 +5,7 @@ import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 const env = parseDotenv();
 
@@ -38,7 +39,16 @@ export async function createAdhocDynamoContext({
         tracer: new TracerContextModule(tracer),
         dynamo: DynamoContextModule.new({
             getAwsHttpClient: async () => awsHttpClient,
-            awsDynamoUrl: "https://dynamodb.us-east-1.amazonaws.com",
+            awsDynamoUrl:
+                awsProfile !== "local"
+                    ? "https://dynamodb.us-east-1.amazonaws.com"
+                    : `http://localhost:${parseInt(
+                          assertExists(
+                              env.DYNAMO_LOCAL_PORT,
+                              "DynamoDB local port must be provided when running DynamoDB locally",
+                          ),
+                          10,
+                      )}`,
         }),
     });
 }

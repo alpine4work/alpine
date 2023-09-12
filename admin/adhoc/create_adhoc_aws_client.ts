@@ -6,6 +6,13 @@ import {AwsClient} from "aws4fetch";
  * configured by the AWS CLI.
  */
 export async function createAdhocAwsClient({profile}: {profile?: string} = {}) {
+    if (profile === "local") {
+        return new AwsClient({
+            accessKeyId: "local",
+            secretAccessKey: "local",
+        });
+    }
+
     const getCredentials = fromIni({profile});
     const credentials = await getCredentials();
 
