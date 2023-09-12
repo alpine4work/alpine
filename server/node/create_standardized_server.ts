@@ -4,7 +4,7 @@ import {IncomingHttpHeaders, IncomingMessage, ServerResponse, createServer} from
 import {Socket} from "net";
 import {Readable} from "stream";
 import {WebSocketServer} from "ws";
-import {registerShutdownListenerForIngressTraffic} from "~/server/node/shutdown_manager.js";
+import {registerGracefulServerShutdown} from "~/server/node/register_graceful_server_shutdown.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
 import {coupleWebSocket} from "~/server/web_socket/couple_web_socket.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -12,7 +12,6 @@ import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_er
 import {assert} from "~/shared/helpers/control/assert.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
-import {registerGracefulServerShutdown} from "~/server/node/register_graceful_server_shutdown.js";
 
 /**
  * Create a request listener for a Node.js HTTP server that follows WhatWG

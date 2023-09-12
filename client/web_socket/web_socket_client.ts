@@ -275,12 +275,19 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
                 },
                 error => {
                     // Ignore errors when waiting for the client to open. Any relevant errors will
-                    // be reported by `client.waitForClose()` with a better description.
+                    // be reported by `client.waitForSoftClose()` with a better description.
                 },
             );
 
-            connection.waitForClose().then(
+            let wasSoftClosed = false;
+
+            // We wait for soft close instead of full close since if the server soft closes
+            // our connection (say during a graceful server shutdown) we want to
+            // immediately reconnect to a live server.
+            connection.waitForSoftClose().then(
                 () => {
+                    wasSoftClosed = true;
+
                     if (wasDisconnected) return;
 
                     openHealthyTimeout?.clear();
@@ -303,6 +310,22 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
                     reconnect(error);
                 },
             );
+
+            // Ignore any errors from our close promise. If we close with an error than
+            // `waitForSoftClose()` will see that error and attempt to reconnect.
+            //
+            // If we soft closed but then close later receives an error, that's unexpected
+            // and we should log it.
+            connection.waitForClose().catch(error => {
+                if (wasSoftClosed) {
+                    this._getContext()
+                        .tracer.getRoot()
+                        .logUncaughtException(
+                            "WebSocket closed with error after soft close",
+                            error,
+                        );
+                }
+            });
         };
 
         const reconnect = (error: unknown) => {

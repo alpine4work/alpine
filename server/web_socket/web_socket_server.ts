@@ -9,7 +9,12 @@ import {
 } from "~/shared/context/fork_action_context_module.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.js";
+import {
+    FailedPreconditionError,
+    InvalidArgumentError,
+    UnavailableError,
+    UnimplementedError,
+} from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {Interval, createInterval} from "~/shared/helpers/async/interval.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -18,6 +23,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {generateId} from "~/shared/id/id.js";
@@ -148,6 +154,8 @@ export class WebSocketServer<
     >();
     private _expirationInterval: Interval | null = null;
 
+    private _isClosed = false;
+
     /**
      * Used to pass a `context` object from our `close()` function call to the
      * event listener which logs a close event.
@@ -243,6 +251,9 @@ export class WebSocketServer<
         // likely a bug in Jest. When it's fixed we can remove this.
         {responseClassForTest}: {responseClassForTest?: typeof Response} = {},
     ): Promise<Response> {
+        if (this._isClosed)
+            throw new UnavailableError("WebSocket server is closed, not accepting new connections");
+
         if (request.headers.get("upgrade") !== "websocket")
             throw new InvalidArgumentError("Not a WebSocket request");
 
@@ -482,8 +493,17 @@ export class WebSocketServer<
 
     /**
      * Close all connected clients.
+     *
+     * Closes the server as well so that you can't make new WebSocket connections.
+     *
+     * This is a hard shutdown. We do not keep connections open until procedure
+     * requests finish. If you want to perform a graceful shutdown you should use
+     * `softCloseAll()` which keeps connections open until procedures finish while
+     * still instructing clients to reconnect.
      */
     public closeAll(context: Context<ProcessContextModules>) {
+        this._isClosed = true;
+
         context.tracer.withSpanSync("Closing all WebSocket connections", context => {
             for (const connection of this._connections.values()) {
                 connection.close(context, 1001, "Closing all WebSocket connections");
@@ -493,6 +513,27 @@ export class WebSocketServer<
                 // to calling `close()` I'm paranoid and adding a second call here.
                 this._handleConnectionClose(context as Context<ProcessContextModules>, connection);
             }
+        });
+    }
+
+    /**
+     * Soft close all connected clients.
+     *
+     * Closes the server as well so that you can't make new WebSocket connections.
+     */
+    // TODO(calebmer): This is used by our Node.js WebSocket server implementation
+    // during graceful shutdowns. I'd like for it to be used during a Durable
+    // Object shutdown due to a deploy too. It's unclear to me how Durable Object
+    // deploys work and if they're naturally graceful.
+    public softCloseAll(context: Context<ProcessContextModules>): Promise<void> {
+        this._isClosed = true;
+
+        return context.tracer.withSpan("Soft closing all WebSocket connections", async context => {
+            await runAllPromises(
+                mapIterable(this._connections.values(), connection =>
+                    connection.softClose(context),
+                ),
+            );
         });
     }
 
@@ -655,6 +696,12 @@ interface WebSocketServerConnectionWrapperBase<ProcessContextModules extends {},
     isSoftClosed(): boolean;
 
     /**
+     * Soft closes the connection. Does nothing if the connection is already
+     * closed.
+     */
+    softClose(context: Context<{}>): void;
+
+    /**
      * Send a JSON stringified message to the connection. If the connection is
      * closed this does nothing. If the connection is soft closed we still send
      * this message! You should only be sending acknowledgements for previously
@@ -746,6 +793,13 @@ class WebSocketServerConnectionWrapper<
      * number of unacknowledged messages.
      */
     private _isSoftClosed = false;
+
+    /**
+     * A set of promises from `ProcedureRequest` calls. When soft closing our
+     * connection we wait for all requests to finish before fully closing the
+     * connection.
+     */
+    private readonly _pendingProcedureRequestPromises = new Set<Promise<void>>();
 
     private _authorizationState: {
         startTime: number;
@@ -889,42 +943,51 @@ class WebSocketServerConnectionWrapper<
                                     break;
                                 }
                                 case "ProcedureRequest": {
-                                    // Make sure we are authorized before processing a procedure from the
-                                    // client...
-                                    await this._authorize(context);
+                                    const promise = (async () => {
+                                        // Make sure we are authorized before processing a procedure from the
+                                        // client...
+                                        await this._authorize(context);
 
-                                    const {
-                                        input: {type, ...input},
-                                    } = message;
+                                        const {
+                                            input: {type, ...input},
+                                        } = message;
 
-                                    try {
-                                        const output = await this.connection.procedures[type](
-                                            context,
-                                            input,
-                                            span,
-                                        );
+                                        try {
+                                            const output = await this.connection.procedures[type](
+                                                context,
+                                                input,
+                                                span,
+                                            );
 
-                                        this.sendMessage(context, {
-                                            type: "ProcedureResponse",
-                                            requestId: message.requestId,
-                                            result: {
-                                                ok: true,
-                                                output: {type, ...output},
-                                            },
-                                        });
-                                    } catch (error) {
-                                        span.addException(error);
+                                            this.sendMessage(context, {
+                                                type: "ProcedureResponse",
+                                                requestId: message.requestId,
+                                                result: {
+                                                    ok: true,
+                                                    output: {type, ...output},
+                                                },
+                                            });
+                                        } catch (error) {
+                                            span.addException(error);
 
-                                        this.sendMessage(context, {
-                                            type: "ProcedureResponse",
-                                            requestId: message.requestId,
-                                            result: {
-                                                ok: false,
-                                                outputType: type,
-                                                error,
-                                            },
-                                        });
-                                    }
+                                            this.sendMessage(context, {
+                                                type: "ProcedureResponse",
+                                                requestId: message.requestId,
+                                                result: {
+                                                    ok: false,
+                                                    outputType: type,
+                                                    error,
+                                                },
+                                            });
+                                        }
+                                    })();
+
+                                    this._pendingProcedureRequestPromises.add(promise);
+                                    promise.finally(() =>
+                                        this._pendingProcedureRequestPromises.delete(promise),
+                                    );
+
+                                    await promise;
                                     break;
                                 }
                                 case "SoftCloseWhileWaitingForProcedureResponses": {
@@ -1228,6 +1291,55 @@ class WebSocketServerConnectionWrapper<
             this._contextForCloseEventListenerRef.current = previousContextForCloseEventListener;
         }
     }
+
+    /**
+     * Wait for any pending procedure requests to finish then close the underlying
+     * WebSocket. This is a peaceful way to close a WebSocket connection since any
+     * work started by the client is completed. (e.g. Database writes.)
+     *
+     * This is typically used during a graceful server shutdown to make sure work
+     * is completed before we kill the server.
+     *
+     * We tell the client we're soft closing so they're expected to immediately
+     * start a new connection. In the graceful server shutdown case the client will
+     * be redirected to a live server.
+     */
+    public async softClose(
+        context: Context<ProcessContextModules> | Context<SessionActionContextModules>,
+    ) {
+        // WebSocket is already closed.
+        if (this.isClosed()) return;
+
+        // If there are no pending procedure requests then immediately close.
+        if (this._pendingProcedureRequestPromises.size === 0) {
+            this.close(context);
+            return;
+        }
+
+        // Let the client know we're soft closing if they don't know already...
+        if (!this._isSoftClosed) {
+            const messageType = "SoftCloseWhileWaitingForProcedureResponses" as const;
+
+            this._dangerouslySendRawMessageEvenWhenSoftClosedWithoutAuthorization(
+                context,
+                messageType,
+                JSON.stringify(
+                    this._messageFromServerSchema.serialize({
+                        type: messageType,
+                    }),
+                ),
+            );
+        }
+
+        this._isSoftClosed = true;
+
+        while (this._pendingProcedureRequestPromises.size > 0) {
+            await runAllPromises(this._pendingProcedureRequestPromises);
+        }
+
+        // Close after all our procedure requests have finished.
+        this.close(context);
+    }
 }
 
 export type WebSocketServerTestConnectionProcedures<
@@ -1416,6 +1528,12 @@ class WebSocketServerTestConnectionWrapper<
 
     public isSoftClosed() {
         return this.isClosed();
+    }
+
+    public async softClose() {
+        throw new UnimplementedError(
+            "Soft closing is not implemented for test WebSocket connections",
+        );
     }
 
     // Public so it can be called from `connectForTest()` but should not be called

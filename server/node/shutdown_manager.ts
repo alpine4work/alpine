@@ -3,6 +3,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 
 const ingressTrafficShutdownListeners = new Set<(signal: "SIGINT" | "SIGTERM") => Promise<void>>();
 const shutdownListeners = new Set<(signal: "SIGINT" | "SIGTERM") => Promise<void>>();
+const waitUntilPromises = new Set<Promise<unknown>>();
 
 // Perform a graceful shutdown when requested. Any code in our system can
 // schedule a callback for graceful shutdown with `registerShutdownListener()`.
@@ -24,18 +25,31 @@ function handleShutdown(signal: "SIGINT" | "SIGTERM") {
             Array.from(ingressTrafficShutdownListeners, listener => listener(signal)),
         );
 
-        const shutdownPromise = runAllPromises([
+        const shutdownPromise = ingressTrafficShutdownPromise
+            // If an ingress traffic shutdown listener failed, we still want to run our
+            // other shutdown listeners.
+            .catch(() => {})
+            .then(() =>
+                runAllPromises(Array.from(shutdownListeners, listener => listener(signal))),
+            );
+
+        const waitUntilShutdownPromise = shutdownPromise
+            // If a shutdown listener failed, we still want to wait for our `waitUntil()`
+            // promises.
+            .catch(() => {})
+            .then(async () => {
+                while (waitUntilPromises.size > 0) {
+                    await runAllPromises(waitUntilPromises);
+                }
+            });
+
+        const fullShutdownPromise = runAllPromises([
             ingressTrafficShutdownPromise,
-            ingressTrafficShutdownPromise
-                // If an ingress traffic shutdown listener failed, we still want to run our
-                // other shutdown listeners.
-                .catch(() => {})
-                .then(() =>
-                    runAllPromises(Array.from(shutdownListeners, listener => listener(signal))),
-                ),
+            shutdownPromise,
+            waitUntilShutdownPromise,
         ]);
 
-        shutdownPromise.then(
+        fullShutdownPromise.then(
             () => {
                 process.exit(0);
             },
@@ -86,4 +100,28 @@ export function registerShutdownListener(
     return () => {
         shutdownListeners.delete(listener);
     };
+}
+
+/**
+ * Register a promise which our process can't shutdown before it finishes
+ * resolving. These promises are the final thing our shutdown manager resolves
+ * before completing a shutdown. That way shutdown listeners can register more
+ * wait until promises.
+ *
+ * This API was inspired by Cloudflare Worker's
+ * [`executionContext.waitUntil()`][1] method.
+ *
+ * [1]: https://developers.cloudflare.com/workers/runtime-apis/fetch-event/#waituntil
+ */
+export function registerShutdownWaitUntilPromise(promise: Promise<unknown>) {
+    const waitUntilPromise = promise.then(
+        () => {
+            waitUntilPromises.delete(waitUntilPromise);
+        },
+        () => {
+            waitUntilPromises.delete(waitUntilPromise);
+        },
+    );
+
+    waitUntilPromises.add(waitUntilPromise);
 }

@@ -21,6 +21,7 @@ import {
 } from "~/server/node/create_server_process_context.js";
 import {createStandardizedServerWithWebSockets} from "~/server/node/create_standardized_server.js";
 import {runService} from "~/server/node/run_service.js";
+import {registerShutdownListenerForIngressTraffic} from "~/server/node/shutdown_manager.js";
 import {NotificationsContextModule} from "~/server/notifications/data/notifications_context_module.js";
 import {authorizeSpaceAccess, isAccountMemberOfSpace} from "~/server/spaces/spaces_table.js";
 import {loadTaskRealtimeQueries} from "~/server/tasks/realtime/load_task_realtime_queries.js";
@@ -50,6 +51,7 @@ import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {isId} from "~/shared/id/id.js";
@@ -217,6 +219,16 @@ runService({
                     },
                 ),
         );
+
+        // Gracefully shutdown WebSocket servers when the process is instructed to
+        // shutdown. We'll wait for any pending requests before fully shutting down.
+        registerShutdownListenerForIngressTraffic(async () => {
+            await runAllPromises(
+                mapIterable(webSocketServerBySpaceId.values(), webSocketServer =>
+                    webSocketServer.softCloseAll(processContext),
+                ),
+            );
+        });
 
         const handleRequest = async (
             request: Request,

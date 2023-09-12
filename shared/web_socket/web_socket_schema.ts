@@ -95,6 +95,9 @@ export type WebSocketMessageFromServer<Protocol extends WebSocketProtocolBase> =
     | {
           readonly type: "ClosingWithError";
           readonly error: unknown;
+      }
+    | {
+          readonly type: "SoftCloseWhileWaitingForProcedureResponses";
       };
 
 export const WebSocketClosingWithErrorMessageSchema = Schema.object({
@@ -143,5 +146,8 @@ export function createWebSocketMessageFromServerSchema<Protocol extends WebSocke
             type: Schema.value("Pong"),
         }),
         ClosingWithError: WebSocketClosingWithErrorMessageSchema,
+        SoftCloseWhileWaitingForProcedureResponses: Schema.object({
+            type: Schema.value("SoftCloseWhileWaitingForProcedureResponses"),
+        }),
     });
 }

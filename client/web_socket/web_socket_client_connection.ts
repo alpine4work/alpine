@@ -83,6 +83,7 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
     private readonly _messageFromServerSchema: Schema<WebSocketMessageFromServer<Protocol>>;
     private readonly _events = new EventEmitter<WebSocketProtocolEventType<Protocol>>();
     private readonly _openPromiseResolver = createPromiseResolver();
+    private readonly _softClosePromiseResolver = createPromiseResolver();
     private readonly _closePromiseResolver = createPromiseResolver();
     private readonly _socket: WebSocket;
     private _state: WebsocketClientConnectionState;
@@ -209,8 +210,10 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
                     : null);
 
             if (error) {
+                this._softClosePromiseResolver.reject(error);
                 this._closePromiseResolver.reject(error);
             } else {
+                this._softClosePromiseResolver.resolve();
                 this._closePromiseResolver.resolve();
             }
 
@@ -281,6 +284,17 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
                 }
                 case "ClosingWithError": {
                     closeErrorResult = {error: message.error};
+                    break;
+                }
+                case "SoftCloseWhileWaitingForProcedureResponses": {
+                    this._state = {type: "SoftClosedWhileWaitingForProcedureResponses"};
+                    this._softClosePromiseResolver.resolve();
+
+                    // If we have no remaining promise resolvers we can immediately close.
+                    if (this._procedureResponsePromiseResolverByRequestId.size === 0) {
+                        this._state = {type: "Closed"};
+                        this._socket.close();
+                    }
                     break;
                 }
                 default:
@@ -371,7 +385,7 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
      *
      * Returns a promise that resolves when the WebSocket actually closes.
      */
-    public async close(): Promise<void> {
+    public close(): Promise<void> {
         assert(
             this._state.type === "Connecting" || this._state.type === "Open",
             "WebSocket is already closed",
@@ -380,14 +394,15 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
         if (this._procedureResponsePromiseResolverByRequestId.size === 0) {
             this._state = {type: "Closed"};
             this._socket.close();
-            return;
+            return this._closePromiseResolver.promise;
         }
 
         this._state = {type: "SoftClosedWhileWaitingForProcedureResponses"};
+        this._softClosePromiseResolver.resolve();
 
         const messageType = "SoftCloseWhileWaitingForProcedureResponses";
 
-        await this._getContext().tracer.withSpan(
+        return this._getContext().tracer.withSpan(
             getSendWebSocketMessageSpanName(messageType),
             (context, span) => {
                 span.addData({
@@ -412,6 +427,22 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
      */
     public waitForClose() {
         return this._closePromiseResolver.promise;
+    }
+
+    /**
+     * Wait for the WebSocket to soft close. When `close()` is called we soft close
+     * the WebSocket, wait for pending procedure responses, then fully close the
+     * WebSocket. The server may also choose to soft close our connection during a
+     * graceful server shutdown.
+     *
+     * If we soft close successfully this promise will resolve. If the server
+     * unexpectedly closes with an error this promise will reject. Even if this
+     * promise resolves the `waitForClose()` function may still reject.
+     *
+     * Will always resolve before `waitForClose()`.
+     */
+    public waitForSoftClose() {
+        return this._softClosePromiseResolver.promise;
     }
 
     /**

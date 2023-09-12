@@ -2,10 +2,12 @@ import cluster, {Worker} from "cluster";
 import * as os from "os";
 import process from "process";
 import {ParseArgsConfig, ParsedResults, parseArgs} from "util";
-import {registerShutdownListener} from "~/server/node/shutdown_manager.js";
+import {
+    registerShutdownListener,
+    registerShutdownWaitUntilPromise,
+} from "~/server/node/shutdown_manager.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {InternalError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.js";
@@ -114,38 +116,19 @@ export function runService<Options extends ParseArgsConfig["options"]>({
     if (!honeycombApiKey && process.env.NODE_ENV === "production")
         throw new InternalError("Must provide `honeycombApiKey` arg in production");
 
-    let waitUntilPromises = new Set<Promise<unknown>>();
-
-    // Don't let the process shutdown until all promises passed into `waitUntil()`
-    // have resolved.
-    registerShutdownListener(async () => {
-        while (waitUntilPromises.size > 0) {
-            const promises = waitUntilPromises;
-            waitUntilPromises = new Set();
-            await runAllPromises(promises);
-        }
-    });
-
     const tracer = createServerTracer({
         serviceName,
         jsHost: "Node",
         honeycombApiKey,
-        waitUntil: _promise => {
-            const promise = _promise.then(
-                () => {
-                    waitUntilPromises.delete(promise);
-                },
-                error => {
-                    waitUntilPromises.delete(promise);
-
+        waitUntil: promise => {
+            registerShutdownWaitUntilPromise(
+                promise.catch(error => {
                     // eslint-disable-next-line no-console
                     console.error("Exception from server tracer:");
                     // eslint-disable-next-line no-console
                     console.error(error);
-                },
+                }),
             );
-
-            waitUntilPromises.add(promise);
         },
     });
 
