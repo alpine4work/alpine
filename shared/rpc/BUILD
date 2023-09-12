@@ -38,6 +38,7 @@ genrule(
                 "**/*.d.tsx",
                 "internal/**/*.ts",
                 "internal/**/*.tsx",
+                "test_rpc_context_module.ts",
             ],
         )
     ])),

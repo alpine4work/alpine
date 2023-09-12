@@ -67,6 +67,15 @@ export async function loader({params, context: _context}: LoaderArgs) {
         firstNotepadPageStep.value,
     );
 
+    // NOCOMMIT: Work on limits and loading next!
+    //
+    // console.log(
+    //     getInitialVirtualizedScrollViewRenderedItemCount(
+    //         context.loader.getClientInfo(),
+    //         spacing[taskRowViewMinHeight],
+    //     ),
+    // );
+
     const assigneeActiveQuery: {
         limit: number;
         filters: TaskQueryNormalizedFilters;
@@ -135,6 +144,8 @@ export async function loader({params, context: _context}: LoaderArgs) {
         ],
     };
 
+    // NOCOMMIT: Results based cleanup?
+    // NOCOMMIT: Close children on client?
     const {expandedChildTaskKeys: notepadPageExpandedChildTaskKeys} =
         await getTaskGridViewExpansionState(context, {
             spaceId,

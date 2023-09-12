@@ -108,6 +108,13 @@ export class TaskModel {
     constructor(rawData: TaskModelData) {
         this.id = rawData.id;
         this.rawData = rawData;
+
+        // Kinda hacky but in tests eagerly call `getParent()` so
+        // `expect().toEqual()` never shows parent as the reason why two objects
+        // don't match.
+        if (import.meta.jest) {
+            this.getParent();
+        }
     }
 
     public static createFromAction(

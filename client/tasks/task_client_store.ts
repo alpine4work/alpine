@@ -144,12 +144,22 @@ export class TaskClientStore {
         return this._internal.getCollectionCountForTest();
     }
 
+    /**
+     * Get a single task in a unit testing environment. Even if you added a task
+     * recently it may have been garbage collected.
+     */
     public getTaskEntryIfExistsForTest(taskId: TaskId) {
-        return this._internal.getTaskEntryIfExistsForTest(taskId);
+        assert(import.meta.jest);
+        return this._internal.getTaskEntryStoreIfExists(taskId)?.getSnapshot() ?? null;
     }
 
+    /**
+     * Get a single collection in a unit testing environment. Even if you added a
+     * collection recently it may have been garbage collected.
+     */
     public getCollectionEntryIfExistsForTest(collectionId: TaskCollectionId) {
-        return this._internal.getCollectionEntryIfExistsForTest(collectionId);
+        assert(import.meta.jest);
+        return this._internal.getCollectionEntryStoreIfExists(collectionId)?.getSnapshot() ?? null;
     }
 
     public getQueriesStore(): Store<ReadonlySet<TaskClientQuery>> {
@@ -308,35 +318,27 @@ export class TaskClientStoreInternal {
     }
 
     public getTaskCountForTest() {
+        assert(import.meta.jest);
         return this._taskEntryStoreById.getSizeForTest();
     }
 
     public getCollectionCountForTest() {
+        assert(import.meta.jest);
         return this._collectionEntryStoreById.getSizeForTest();
-    }
-
-    /**
-     * Get a single task in a unit testing environment. Even if you added a task
-     * recently it may have been garbage collected.
-     */
-    public getTaskEntryIfExistsForTest(taskId: TaskId) {
-        assert(import.meta.jest);
-        return this._taskEntryStoreById.get(taskId)?.getSnapshot() ?? null;
-    }
-
-    /**
-     * Get a single collection in a unit testing environment. Even if you added a
-     * collection recently it may have been garbage collected.
-     */
-    public getCollectionEntryIfExistsForTest(collectionId: TaskCollectionId) {
-        assert(import.meta.jest);
-        return this._collectionEntryStoreById.get(collectionId)?.getSnapshot() ?? null;
     }
 
     public getQueriesStore(): Store<ReadonlySet<TaskClientQuery>> {
         // Importantly our return type returns a `Store` not a `ValueStore`. Callers
         // shouldn't be able to access `set()`.
         return this._queriesStore;
+    }
+
+    public getTaskEntryStoreIfExists(taskId: TaskId) {
+        return this._taskEntryStoreById.get(taskId);
+    }
+
+    public getCollectionEntryStoreIfExists(collectionId: TaskCollectionId) {
+        return this._collectionEntryStoreById.get(collectionId);
     }
 
     /**
