@@ -377,47 +377,24 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
         spaceId: SpaceId,
         callback: (action: TaskAction) => void,
     ) {
-        tracer.withSpanSync("Iterate full task action history", span => {
-            span.addData({
-                context: {spaceId},
-            });
+        let segment = this._oldestSegment;
+        while (segment !== null) {
+            const spaceSegment = segment.spaceSegmentById.get(spaceId);
 
-            let actionHistorySegmentCount = 0;
-            let actionTransactionCount = 0;
-            let actionCount = 0;
+            if (spaceSegment !== undefined) {
+                const spaceSegmentActionTransactionCount = spaceSegment.actionTransactions.length;
 
-            let segment = this._oldestSegment;
-            while (segment !== null) {
-                actionHistorySegmentCount++;
+                for (let i = 0; i < spaceSegmentActionTransactionCount; i++) {
+                    const actions = spaceSegment.actionTransactions[i]!.actions;
 
-                const spaceSegment = segment.spaceSegmentById.get(spaceId);
-
-                if (spaceSegment !== undefined) {
-                    const spaceSegmentActionTransactionCount =
-                        spaceSegment.actionTransactions.length;
-
-                    for (let i = 0; i < spaceSegmentActionTransactionCount; i++) {
-                        const actions = spaceSegment.actionTransactions[i]!.actions;
-                        actionTransactionCount++;
-                        actionCount += actions.length;
-
-                        for (const action of actions) {
-                            callback(action);
-                        }
+                    for (const action of actions) {
+                        callback(action);
                     }
                 }
-
-                segment = segment.newerSegment;
             }
 
-            span.addData({
-                tasks: {
-                    actionHistorySegmentCount,
-                    actionTransactionCount,
-                    actionCount,
-                },
-            });
-        });
+            segment = segment.newerSegment;
+        }
     }
 
     /**
@@ -430,41 +407,18 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
         taskId: TaskId,
         callback: (actionTime: HybridLogicalTime, action: TaskTaskAction) => void,
     ) {
-        tracer.withSpanSync("Iterate individual task action history", span => {
-            span.addData({
-                context: {
-                    spaceId,
-                    taskId,
-                },
-            });
+        let segment = this._oldestSegment;
+        while (segment !== null) {
+            const actions = segment.spaceSegmentById.get(spaceId)?.actionsByTaskId.get(taskId);
 
-            let actionHistorySegmentCount = 0;
-            let actionCount = 0;
-
-            let segment = this._oldestSegment;
-            while (segment !== null) {
-                actionHistorySegmentCount++;
-
-                const actions = segment.spaceSegmentById.get(spaceId)?.actionsByTaskId.get(taskId);
-
-                if (actions !== undefined) {
-                    actionCount += actions.length;
-
-                    for (const action of actions) {
-                        callback(action.time, action.taskAction);
-                    }
+            if (actions !== undefined) {
+                for (const action of actions) {
+                    callback(action.time, action.taskAction);
                 }
-
-                segment = segment.newerSegment;
             }
 
-            span.addData({
-                tasks: {
-                    actionHistorySegmentCount,
-                    actionCount,
-                },
-            });
-        });
+            segment = segment.newerSegment;
+        }
     }
 
     /**
