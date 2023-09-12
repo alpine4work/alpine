@@ -47,7 +47,11 @@ abstract class NotificationsContextModuleBase
     implements NotificationsContextModuleBaseInterface
 {
     protected readonly _dangerouslyEscalateToSystemContext: (
-        context: Context<{tracer: TracerContextModule; actor: DynamoActorContextModule}>,
+        context: Context<{
+            tracer: TracerContextModule;
+            actor: DynamoActorContextModule;
+            cache: CacheContextModule;
+        }>,
         spaceId: SpaceId,
         action: (context: ServerSystemActionContext) => Promise<void>,
     ) => Promise<void>;
@@ -56,7 +60,11 @@ abstract class NotificationsContextModuleBase
         dangerouslyEscalateToSystemContext,
     }: {
         dangerouslyEscalateToSystemContext: (
-            context: Context<{tracer: TracerContextModule; actor: DynamoActorContextModule}>,
+            context: Context<{
+                tracer: TracerContextModule;
+                actor: DynamoActorContextModule;
+                cache: CacheContextModule;
+            }>,
             spaceId: SpaceId,
             action: (context: ServerSystemActionContext) => Promise<void>,
         ) => Promise<void>;
@@ -143,7 +151,11 @@ export class NotificationsContextModule extends NotificationsContextModuleBase {
         tokenAgent,
     }: {
         dangerouslyEscalateToSystemContext: (
-            context: Context<{tracer: TracerContextModule; actor: DynamoActorContextModule}>,
+            context: Context<{
+                tracer: TracerContextModule;
+                actor: DynamoActorContextModule;
+                cache: CacheContextModule;
+            }>,
             spaceId: SpaceId,
             action: (context: ServerSystemActionContext) => Promise<void>,
         ) => Promise<void>;
@@ -248,7 +260,11 @@ export class TestNotificationsContextModule extends NotificationsContextModuleBa
         dangerouslyEscalateToSystemContext,
     }: {
         dangerouslyEscalateToSystemContext: (
-            context: Context<{tracer: TracerContextModule; actor: DynamoActorContextModule}>,
+            context: Context<{
+                tracer: TracerContextModule;
+                actor: DynamoActorContextModule;
+                cache: CacheContextModule;
+            }>,
             spaceId: SpaceId,
             action: (context: ServerSystemActionContext) => Promise<void>,
         ) => Promise<void>;

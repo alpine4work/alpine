@@ -2595,6 +2595,9 @@ export function getTaskNotepadPageIds(
 //
 // The expiration time should be long enough that the user doesn't remember or
 // doesn't care about losing any expansion state.
+//
+// We pick this value so that if a user looks at a grid view once a quarter,
+// expanded task state is maintained.
 const childTaskExpansionStateExpirationMonths = 4;
 
 // After how many months should we renew expansion state expiration times?

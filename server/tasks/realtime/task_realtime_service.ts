@@ -166,6 +166,7 @@ runService({
             context: Context<{
                 tracer: TracerContextModule;
                 actor: DynamoActorContextModule;
+                cache: CacheContextModule;
             }>,
             spaceId: SpaceId,
             action: (context: ServerSystemActionContext) => Promise<Value>,
@@ -179,7 +180,11 @@ runService({
             >(
                 {
                     tracer: new TracerContextModule(context.tracer.getTracer()),
-                    cache: new CacheContextModule(),
+                    // Optimization: Share some caches that opt-in to sharing with the session
+                    // context. This is dangerous since we don't want to let system data leak into
+                    // session actions and vice-versa. We trust the cache author to make the right
+                    // determination about their cache.
+                    cache: context.cache.dangerouslyForkWithSharedCaches(),
                     dynamoBatchContext: new DynamoBatchContextModule(),
                     notifications: notificationsContextModule,
                     actor: DynamoSystemActorContextModule.dangerouslyNew(

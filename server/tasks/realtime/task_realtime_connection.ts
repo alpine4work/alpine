@@ -30,6 +30,7 @@ import {
     TaskRealtimeUpdateEventSender,
 } from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
+import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {NotFoundError} from "~/shared/error/error.js";
@@ -59,7 +60,11 @@ export class TaskRealtimeConnection {
     private readonly _accountId: AccountId;
 
     private readonly _dangerouslyEscalateToSystemContext: <Value>(
-        context: Context<{tracer: TracerContextModule; actor: DynamoActorContextModule}>,
+        context: Context<{
+            tracer: TracerContextModule;
+            actor: DynamoActorContextModule;
+            cache: CacheContextModule;
+        }>,
         spaceId: SpaceId,
         action: (context: ServerSystemActionContext) => Promise<Value>,
     ) => Promise<Value>;
@@ -83,7 +88,11 @@ export class TaskRealtimeConnection {
         spaceId: SpaceId;
         accountId: AccountId;
         dangerouslyEscalateToSystemContext: <Value>(
-            context: Context<{tracer: TracerContextModule; actor: DynamoActorContextModule}>,
+            context: Context<{
+                tracer: TracerContextModule;
+                actor: DynamoActorContextModule;
+                cache: CacheContextModule;
+            }>,
             spaceId: SpaceId,
             action: (context: ServerSystemActionContext) => Promise<Value>,
         ) => Promise<Value>;

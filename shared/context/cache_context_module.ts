@@ -26,6 +26,26 @@ export class CacheContextModule extends ContextModuleBase implements ForkableCon
         // so we want a cache with a new lifetime.
         return new CacheContextModule();
     }
+
+    /**
+     * Create a new `CacheContextModule` and share any caches that set
+     * `dangerouslyAllowSharing: true` between this cache context module and the
+     * new cache context module. See the documentation on `dangerouslyAllowSharing`
+     * for more info.
+     *
+     * The API for this isn't the cleanest and the default (don't allow cache
+     * sharing) is much safer so we prefix with "dangerously" to discourage usage.
+     */
+    public dangerouslyForkWithSharedCaches() {
+        const module = new CacheContextModule();
+
+        for (const [cache, cacheMap] of this._caches) {
+            if (!cache.dangerouslyAllowSharing) continue;
+            module._caches.set(cache, cacheMap);
+        }
+
+        return module;
+    }
 }
 
 /**
@@ -35,6 +55,30 @@ export class CacheContextModule extends ContextModuleBase implements ForkableCon
  * You typically use this to implement caching while serving a single request.
  */
 export class ContextCache<Key, Value> {
+    /**
+     * Is this cache shareable across distinct contexts with an action?
+     *
+     * For example, we have this function `dangerouslyEscalateToSystemContext`. It
+     * allows a scope of a session action to run with a system actor. By default,
+     * the system context has completely separate caches from the session context.
+     * Since we don't want privileged system data to bleed into the session context
+     * and vice versa. However, some caches aren't affected by what's in the
+     * context (like the actor). For these contexts we allow sharing between
+     * contexts.
+     *
+     * The API for this isn't the cleanest and the default (don't allow cache
+     * sharing) is much safer so we prefix with "dangerously" to discourage usage.
+     */
+    public readonly dangerouslyAllowSharing: boolean;
+
+    constructor({
+        dangerouslyAllowSharing = false,
+    }: {
+        dangerouslyAllowSharing?: boolean;
+    } = {}) {
+        this.dangerouslyAllowSharing = dangerouslyAllowSharing;
+    }
+
     /**
      * Get a value from our cache and if a value doesn't exist we will call the
      * provided function to populate the cache with a value.

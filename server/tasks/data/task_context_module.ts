@@ -11,6 +11,7 @@ import {
 } from "~/server/tasks/router/task_realtime_service_procedure_schemas.js";
 import {TaskRealtimeServiceRouterBase} from "~/server/tasks/router/task_realtime_service_router_base.js";
 import {TokenAgentBase} from "~/server/tokens/token_agent.js";
+import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -33,11 +34,16 @@ import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
 export abstract class TaskContextModuleBase extends ContextModuleBase<{
     process: ProcessContextModule;
+    cache: CacheContextModule;
     tracer: TracerContextModule;
     actor: DynamoActorContextModule;
 }> {
     private readonly _dangerouslyEscalateToSystemContext: (
-        context: Context<{tracer: TracerContextModule; actor: DynamoActorContextModule}>,
+        context: Context<{
+            tracer: TracerContextModule;
+            actor: DynamoActorContextModule;
+            cache: CacheContextModule;
+        }>,
         spaceId: SpaceId,
         action: (context: ServerSystemActionContext) => Promise<void>,
     ) => Promise<void>;
@@ -46,7 +52,11 @@ export abstract class TaskContextModuleBase extends ContextModuleBase<{
         dangerouslyEscalateToSystemContext,
     }: {
         dangerouslyEscalateToSystemContext: (
-            context: Context<{tracer: TracerContextModule; actor: DynamoActorContextModule}>,
+            context: Context<{
+                tracer: TracerContextModule;
+                actor: DynamoActorContextModule;
+                cache: CacheContextModule;
+            }>,
             spaceId: SpaceId,
             action: (context: ServerSystemActionContext) => Promise<void>,
         ) => Promise<void>;
@@ -125,7 +135,11 @@ export class TaskContextModule extends TaskContextModuleBase {
         tokenAgent: TokenAgentBase;
         router: TaskRealtimeServiceRouterBase;
         dangerouslyEscalateToSystemContext: (
-            context: Context<{tracer: TracerContextModule; actor: DynamoActorContextModule}>,
+            context: Context<{
+                tracer: TracerContextModule;
+                actor: DynamoActorContextModule;
+                cache: CacheContextModule;
+            }>,
             spaceId: SpaceId,
             action: (context: ServerSystemActionContext) => Promise<void>,
         ) => Promise<void>;

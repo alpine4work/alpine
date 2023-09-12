@@ -18,6 +18,7 @@ import {
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
 import {generateTaskRealtimeUpdateEventNumber} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
+import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -56,7 +57,11 @@ export async function loadTaskRealtimeQueries(
     }: {
         server: TaskRealtimeServer;
         dangerouslyEscalateToSystemContext: <Value>(
-            context: Context<{tracer: TracerContextModule; actor: DynamoActorContextModule}>,
+            context: Context<{
+                tracer: TracerContextModule;
+                actor: DynamoActorContextModule;
+                cache: CacheContextModule;
+            }>,
             spaceId: SpaceId,
             action: (context: ServerSystemActionContext) => Promise<Value>,
         ) => Promise<Value>;
@@ -160,13 +165,17 @@ export async function loadTaskRealtimeQueries(
         }
     };
 
-    const loadedStates = await runAllPromises(
-        queries.map(async ({filters, sorts, limit}) => {
-            await server.authorizeQueryAccess(context, {spaceId, filters, sorts});
+    const sessionContext = context;
 
-            // Escalation is safe since we've authorized that our session has access to
-            // the query.
-            return dangerouslyEscalateToSystemContext(context, spaceId, async context => {
+    // Escalation is safe since we authorize that our session has access to
+    // the query before using the escalated context.
+    //
+    // We escalate at this level to share an action cache across all query loads.
+    const loadedStates = await dangerouslyEscalateToSystemContext(context, spaceId, context =>
+        runAllPromises(
+            queries.map(async ({filters, sorts, limit}) => {
+                await server.authorizeQueryAccess(sessionContext, {spaceId, filters, sorts});
+
                 const {loadedState, tasks} = await server.loadQuery(context, {
                     spaceId,
                     filters,
@@ -189,8 +198,8 @@ export async function loadTaskRealtimeQueries(
                 }
 
                 return loadedState;
-            });
-        }),
+            }),
+        ),
     );
 
     // Wait for all discovered promises to resolve before returning.

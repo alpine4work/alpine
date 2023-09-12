@@ -157,7 +157,12 @@ export function createSpaceAccountForAlphaTransactionEntries({
 const SpaceAccountContextCache = new ContextCache<
     `${SpaceId}:${AccountId}`,
     SpaceAccountItem | null
->();
+>({
+    // Allow sharing this cache because the results do not depend on anything in
+    // the context (like the `actor`). Whether we're using a session actor or a
+    // system actor does not affect wither an account is a member of a space.
+    dangerouslyAllowSharing: true,
+});
 
 /**
  * Is the `accountId` a member of the provided `spaceId`?
