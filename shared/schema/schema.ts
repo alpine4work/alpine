@@ -1004,7 +1004,7 @@ export type ObjectSchemaConfigType<Config extends ObjectSchemaConfigBase> = Opti
     readonly [Key in keyof Config]: SchemaType<Config[Key]>;
 }>;
 
-const missingPropertySymbol = Symbol("missing");
+export const objectSchemaMissingPropertySymbol = Symbol("missing");
 
 /**
  * Schema for an object value.
@@ -1084,7 +1084,7 @@ export class ObjectSchema<Value> extends Schema<Value> {
                     serializedKey,
                 );
 
-                if (keyValue !== missingPropertySymbol) {
+                if (keyValue !== objectSchemaMissingPropertySymbol) {
                     newValue[key] = keyValue;
                 }
             }
@@ -1215,7 +1215,7 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
     public readonly deserializeProperty: (
         object: SchemaSerializedObjectValue,
         key: string,
-    ) => Value | typeof missingPropertySymbol;
+    ) => Value | typeof objectSchemaMissingPropertySymbol;
 
     /**
      * Validates that any constraints for the schema are met beyond the
@@ -1245,7 +1245,7 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
         deserializeProperty: (
             object: SchemaSerializedObjectValue,
             key: string,
-        ) => Value | typeof missingPropertySymbol;
+        ) => Value | typeof objectSchemaMissingPropertySymbol;
         validateProperty: ((value: Value) => void) | null;
     }) {
         this.serializedKey = serializedKey;
@@ -1301,7 +1301,7 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
             },
             deserializeProperty: (object, key) => {
                 if (!hasOwnProperty(object, key) || object[key] === undefined)
-                    return missingPropertySymbol;
+                    return objectSchemaMissingPropertySymbol;
 
                 return this.deserializeProperty(object, key);
             },

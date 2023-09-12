@@ -71,4 +71,16 @@ export class StoreMap<Key, Value> {
         this._storeMap.get(key)?.set(undefined);
         return wasDeleted;
     }
+
+    public keysSnapshot() {
+        return this._map.keys();
+    }
+
+    public valuesSnapshot() {
+        return this._map.values();
+    }
+
+    public entriesSnapshot() {
+        return this._map.entries();
+    }
 }

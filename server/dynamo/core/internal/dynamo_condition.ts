@@ -11,6 +11,7 @@ import {
     SchemaDeserializationError,
     SchemaSerializedValue,
     SchemaWithOnlySerialization,
+    objectSchemaMissingPropertySymbol,
 } from "~/shared/schema/schema.js";
 
 /**
@@ -416,7 +417,7 @@ class DynamoConditionAttributeExpression<
         let defaultValue: DynamoConditionExpressionCompilationDefault;
         try {
             const value = propertySchema.deserializeProperty({}, this._key);
-            if (value === undefined) {
+            if (value === objectSchemaMissingPropertySymbol) {
                 defaultValue = {hasDefault: false};
             } else {
                 defaultValue = {

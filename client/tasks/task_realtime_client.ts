@@ -1,8 +1,11 @@
 import {AppContext} from "~/client/context/app_context.js";
+import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
+import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {WebSocketClient} from "~/client/web_socket/web_socket_client.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
+import {SpaceId, TaskRealtimeQuerySubscriptionId} from "~/shared/id/types/id_types.js";
 import {TaskRealtimeProtocol} from "~/shared/tasks/task_realtime_protocol.js";
 
 /**
@@ -37,60 +40,150 @@ export class TaskRealtimeClient {
 
         this._client.connect();
 
-        const unsubscribeFromClientState = this._client.state.subscribe(() => {
+        const queriesStore = this.store.getQueriesStore();
+        const subscribedQueries = new Set<{
+            query: TaskClientQuery;
+            querySubscriptionId: Promise<TaskRealtimeQuerySubscriptionId>;
+        }>();
+
+        const unsubscribeFromState = this._client.state.subscribe(() => {
             const clientState = this._client.state.getSnapshot();
 
             if (isConnected !== clientState.isConnected) {
                 isConnected = clientState.isConnected;
+                updateSubscribedQueries();
+            }
+        });
 
-                // When we connect to the WebSocket we need to subscribe to queries in our
-                // store. This applies when we initially load the page and if the WebSocket
-                // temporarily disconnects.
+        const unsubscribeFromEvents = this._client.subscribeToEvents(event => {
+            this.store.applyUpdateEvent(event);
+        });
+
+        const updateSubscribedQueries = () => {
+            // If our WebSocket client disconnects then none of our queries are subscribed
+            // anymore. We'll resubscribe if the client reconnects.
+            if (!isConnected) {
+                subscribedQueries.clear();
+                return;
+            }
+
+            const newQueries = new Set<TaskClientQuery>(queriesStore.getSnapshot());
+            const oldSubscribedQueries = new Set<{
+                query: TaskClientQuery;
+                querySubscriptionId: Promise<TaskRealtimeQuerySubscriptionId>;
+            }>();
+
+            for (const subscribedQuery of subscribedQueries) {
+                if (newQueries.delete(subscribedQuery.query)) continue;
+                oldSubscribedQueries.add(subscribedQuery);
+            }
+
+            // Subscribe to new queries:
+            if (newQueries.size > 0) {
+                const newQueriesArray = Array.from(newQueries);
+
+                // When either:
                 //
-                // Subscribing will backfill any realtime changes we've missed while the
-                // WebSocket was not connected.
+                // 1. Our WebSocket transitions to a connected state; OR
+                // 2. A query is added to the store while our WebSocket is connected
                 //
-                // TODO(calebmer): Currently calling `subscribeToQuery` sends the entire query
-                // response to the client a second time. It would be nice if we only sent
+                // We want to subscribe to the new queries in our WebSocket. Subscribing will
+                // backfill any realtime changes we've missed while the WebSocket was not
+                // connected.
+                //
+                // TODO(calebmer): Currently calling `subscribeToQueries` sends the entire
+                // query response to the client a second time. It would be nice if we only sent
                 // changes between the last time the client was up-to-date and now. But given
                 // our CRDT everything-is-unordered backend design it's hard to know what
                 // actions the client has missed. This doesn't really affect perceived
                 // performance for the user so even though it's wasteful we let it happen
-                // for now.
-                if (isConnected) {
-                    // NOCOMMIT:
-                    // for (const [queryId, query] of this._databaseStore
-                    //     .getSnapshot()
-                    //     .iterateQueries()) {
-                    //     this._client.procedures
-                    //         .subscribeToQuery({
-                    //             limit: query.getCount(),
-                    //             filters: query.filters,
-                    //             sorts: query.sorts,
-                    //         })
-                    //         .then(
-                    //             ({loadedState, previouslyBackfilledTaskIds}) => {
-                    //                 this._databaseStore.set(store =>
-                    //                     // NOCOMMIT: What if `loadedState` shrinks? The extend loaded state bit
-                    //                     // won't work.
-                    //                     store.loadTasksIntoQuery(queryId, {
-                    //                         loadedState,
-                    //                         previouslyBackfilledTaskIds,
-                    //                     }),
-                    //                 );
-                    //             },
-                    //             error => {
-                    //                 // NOCOMMIT
-                    //                 console.error(error);
-                    //             },
-                    //         );
-                    // }
+                // for now. Maybe there's cool research around CRDT state vectors we can use
+                // for syncing? A dumb optimization like a `lastModified` timestamp that noops
+                // if the query was not modified since then could also work.
+                const subscribePromise = this._client.procedures.subscribeToQueries({
+                    queries: newQueriesArray.map(query => ({
+                        limit: query.getDesiredCountSnapshot(),
+                        filters: query.filters,
+                        sorts: query.sorts,
+                    })),
+                });
+
+                for (let i = 0; i < newQueriesArray.length; i++) {
+                    const query = newQueriesArray[i]!;
+
+                    subscribedQueries.add({
+                        query,
+                        querySubscriptionId: subscribePromise.then(
+                            output => output.queries[i]!.querySubscriptionId,
+                        ),
+                    });
                 }
+
+                subscribePromise.then(
+                    output => {
+                        batchStoreUpdates(() => {
+                            for (let i = 0; i < output.queries.length; i++) {
+                                const query = newQueriesArray[i]!;
+                                const {loadedState, previouslyBackfilledTaskIds} =
+                                    output.queries[i]!;
+
+                                this.store.loadTasksIntoQuery(query, {
+                                    loadedState,
+                                    previouslyBackfilledTaskIds,
+                                });
+                            }
+                        });
+                    },
+                    error => {
+                        // NOCOMMIT: How do we present errors??
+                        console.error(error);
+                    },
+                );
             }
-        });
+
+            // Unsubscribe from old queries:
+            if (oldSubscribedQueries.size > 0) {
+                for (const subscribedQuery of oldSubscribedQueries) {
+                    subscribedQueries.delete(subscribedQuery);
+                }
+
+                Promise.allSettled(
+                    Array.from(
+                        oldSubscribedQueries,
+                        subscribedQuery => subscribedQuery.querySubscriptionId,
+                    ),
+                )
+                    .then(querySubscriptionIdResults => {
+                        // Ignore any errors when resolving `querySubscriptionId` promises. Those
+                        // errors should have been handled above. If a `querySubscriptionId` erred it
+                        // is not subscribed on the server.
+                        const querySubscriptionIds = filterMapArray(
+                            querySubscriptionIdResults,
+                            querySubscriptionIdResult =>
+                                querySubscriptionIdResult.status === "fulfilled"
+                                    ? querySubscriptionIdResult.value
+                                    : null,
+                        );
+
+                        if (querySubscriptionIds.length === 0) return;
+
+                        return this._client.procedures.unsubscribeFromQueries({
+                            querySubscriptionIds,
+                        });
+                    })
+                    .catch(error => {
+                        // NOCOMMIT: How do we present errors??
+                        console.error(error);
+                    });
+            }
+        };
+
+        const unsubscribeFromQueriesStore = queriesStore.subscribe(updateSubscribedQueries);
 
         this._disconnect = () => {
-            unsubscribeFromClientState();
+            unsubscribeFromState();
+            unsubscribeFromEvents();
+            unsubscribeFromQueriesStore();
             this._client.disconnect();
         };
     }

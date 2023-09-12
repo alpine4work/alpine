@@ -126,6 +126,105 @@ export type TaskClientStoreCollectionEntry =
  * based on our client queries.
  */
 export class TaskClientStore {
+    private readonly _internal: TaskClientStoreInternal;
+    public readonly spaceId: SpaceId;
+    public readonly clock: HybridLogicalClock;
+
+    constructor({spaceId}: {spaceId: SpaceId}) {
+        this._internal = new TaskClientStoreInternal(this, {spaceId});
+        this.spaceId = this._internal.spaceId;
+        this.clock = this._internal.clock;
+    }
+
+    public getTaskCountForTest() {
+        return this._internal.getTaskCountForTest();
+    }
+
+    public getCollectionCountForTest() {
+        return this._internal.getCollectionCountForTest();
+    }
+
+    public getTaskEntryIfExistsForTest(taskId: TaskId) {
+        return this._internal.getTaskEntryIfExistsForTest(taskId);
+    }
+
+    public getCollectionEntryIfExistsForTest(collectionId: TaskCollectionId) {
+        return this._internal.getCollectionEntryIfExistsForTest(collectionId);
+    }
+
+    public getQueriesStore(): Store<ReadonlySet<TaskClientQuery>> {
+        return this._internal.getQueriesStore();
+    }
+
+    public applyUpdateEvent(event: TaskRealtimeUpdateEvent): void {
+        this._internal.applyUpdateEvent(event);
+    }
+
+    public commitTaskActionTransaction(
+        context: Context<{rpc: RpcContextModuleBase}>,
+        actions: ReadonlyArray<TaskAction>,
+    ): {finally: (callback: () => void) => void} {
+        return this._internal.commitTaskActionTransaction(context, actions);
+    }
+
+    public getTaskUpdateTitleActionTransactionBuilder(
+        taskId: TaskId,
+        initialTitleUpdate: TaskTitleUpdate,
+    ): {
+        add: (titleUpdate: TaskTitleUpdate) => void;
+        commit: (context: Context<{rpc: RpcContextModuleBase}>) => {
+            finally: (callback: () => void) => void;
+        };
+    } {
+        return this._internal.getTaskUpdateTitleActionTransactionBuilder(
+            taskId,
+            initialTitleUpdate,
+        );
+    }
+
+    public createAndRetainQuery(options: {
+        desiredCount: number;
+        filters: TaskQueryNormalizedFilters;
+        sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+    }): TaskClientQuery {
+        return this._internal.createAndRetainQuery(options);
+    }
+
+    public createAndRetainQueries(
+        queries: ReadonlyArray<{
+            desiredCount: number;
+            filters: TaskQueryNormalizedFilters;
+            sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+        }>,
+    ): Array<TaskClientQuery> {
+        return this._internal.createAndRetainQueries(queries);
+    }
+
+    public loadTasksIntoQuery(
+        query: TaskClientQuery,
+        options: {
+            loadedState: TaskRealtimeQueryLoadedState;
+            previouslyBackfilledTaskIds: ReadonlyArray<TaskId>;
+        },
+    ): void {
+        this._internal.loadTasksIntoQuery(query, options);
+    }
+
+    public ensureAndRetainTaskChildrenQuery(
+        parentTaskId: TaskId,
+        {desiredCount}: {desiredCount: number},
+    ): TaskClientQuery {
+        return this._internal.ensureAndRetainTaskChildrenQuery(parentTaskId, {desiredCount});
+    }
+
+    public getTaskChildrenQueryStore(parentTaskId: TaskId): Store<TaskClientQuery | undefined> {
+        return this._internal.getTaskChildrenQueryStore(parentTaskId);
+    }
+}
+
+export class TaskClientStoreInternal {
+    public readonly external: TaskClientStore;
+
     public readonly spaceId: SpaceId;
 
     /**
@@ -170,14 +269,15 @@ export class TaskClientStore {
     /**
      * The queries our client is currently subscribed to.
      */
-    private readonly _queries = new Set<TaskClientQueryInternal>();
+    private readonly _queriesStore = new ValueStore<ReadonlySet<TaskClientQuery>>(new Set());
 
     /**
      * Queries for the child tasks of a given parent task.
      */
-    private readonly _childrenQueryByParentTaskId = new StoreMap<TaskId, TaskClientQuery>();
+    private readonly _taskChildrenQueryByParentTaskId = new StoreMap<TaskId, TaskClientQuery>();
 
-    constructor({spaceId}: {spaceId: SpaceId}) {
+    constructor(external: TaskClientStore, {spaceId}: {spaceId: SpaceId}) {
+        this.external = external;
         this.spaceId = spaceId;
 
         const synchronizedSystemClockPromise = getSynchronizedSystemClock();
@@ -231,6 +331,12 @@ export class TaskClientStore {
     public getCollectionEntryIfExistsForTest(collectionId: TaskCollectionId) {
         assert(import.meta.jest);
         return this._collectionEntryStoreById.get(collectionId)?.getSnapshot() ?? null;
+    }
+
+    public getQueriesStore(): Store<ReadonlySet<TaskClientQuery>> {
+        // Importantly our return type returns a `Store` not a `ValueStore`. Callers
+        // shouldn't be able to access `set()`.
+        return this._queriesStore;
     }
 
     /**
@@ -1600,8 +1706,8 @@ export class TaskClientStore {
 
             // Apply task updates to all our queries. This will also update stores within
             // the query which will call listeners at the end of the batch.
-            for (const query of this._queries) {
-                query.onTasksUpdated(taskEntryUpdateById);
+            for (const query of this._queriesStore.getSnapshot()) {
+                query._getInternal(this).onTasksUpdated(taskEntryUpdateById);
             }
         });
     }
@@ -1729,30 +1835,112 @@ export class TaskClientStore {
     /**
      * Creates a new query model in our store. The query will be kept up-to-date in
      * realtime whenever there's a change to a task that affects the query.
+     *
+     * Also retains the query once. You are responsible for calling `release()` on
+     * the query when you're done with it to make sure resources the query uses are
+     * cleaned up.
      */
-    public createQuery(options: {
-        filters: TaskQueryNormalizedFilters;
-        sorts: ReadonlyArray<TaskQueryNormalizedSort>;
-    }): TaskClientQuery {
-        return this._createQuery(options).external;
-    }
-
-    private _createQuery({
+    public createAndRetainQuery({
+        desiredCount,
         filters,
         sorts,
     }: {
+        desiredCount: number;
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
-    }): TaskClientQueryInternal {
-        const query = new TaskClientQueryInternal({store: this, filters, sorts});
-        this._queries.add(query);
+    }): TaskClientQuery {
+        return batchStoreUpdates(() => {
+            const query = new TaskClientQueryInternal({
+                store: this,
+                desiredCount,
+                filters,
+                sorts,
+            });
 
-        return query;
+            this._queriesStore.set(oldQueries => {
+                const newQueries = new Set(oldQueries);
+                newQueries.add(query.external);
+                return newQueries;
+            });
+
+            // Detect if this is a child task query (filters for all child tasks, sorted by
+            // parent position). If this is a child task then add it to our child task
+            // query map.
+            const parentTaskId = getParentTaskIdIfChildrenQuery(query);
+            if (parentTaskId && !this._taskChildrenQueryByParentTaskId.getSnapshot(parentTaskId)) {
+                this._taskChildrenQueryByParentTaskId.set(parentTaskId, query.external);
+            }
+
+            return query.external;
+        });
     }
 
-    private _getQueryInternal(query: TaskClientQuery): TaskClientQueryInternal {
-        // Our client store is allowed to look at the internals for a query.
-        return (query as any)._internal;
+    /**
+     * Same as `createAndRetainQuery()` but efficiently creates many queries at once.
+     */
+    public createAndRetainQueries(
+        queries: ReadonlyArray<{
+            desiredCount: number;
+            filters: TaskQueryNormalizedFilters;
+            sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+        }>,
+    ): Array<TaskClientQuery> {
+        return batchStoreUpdates(() => {
+            const createdQueries = queries.map(({desiredCount, filters, sorts}) => {
+                const query = new TaskClientQueryInternal({
+                    store: this,
+                    desiredCount,
+                    filters,
+                    sorts,
+                });
+
+                // Detect if this is a child task query (filters for all child tasks, sorted by
+                // parent position). If this is a child task then add it to our child task
+                // query map.
+                const parentTaskId = getParentTaskIdIfChildrenQuery(query);
+                if (
+                    parentTaskId &&
+                    !this._taskChildrenQueryByParentTaskId.getSnapshot(parentTaskId)
+                ) {
+                    this._taskChildrenQueryByParentTaskId.set(parentTaskId, query.external);
+                }
+
+                return query.external;
+            });
+
+            this._queriesStore.set(oldQueries => {
+                const newQueries = new Set(oldQueries);
+
+                for (const query of createdQueries) {
+                    newQueries.add(query);
+                }
+
+                return newQueries;
+            });
+
+            return createdQueries;
+        });
+    }
+
+    public onQueryFinallyRelease(query: TaskClientQueryInternal) {
+        batchStoreUpdates(() => {
+            this._queriesStore.set(queries => {
+                const newQueries = new Set(queries);
+                newQueries.delete(query.external);
+                return newQueries;
+            });
+
+            // If this is a child task query then remove our query from the child task map.
+            // We will need to send a new query from here on out if you want to see child
+            // tasks.
+            const parentTaskId = getParentTaskIdIfChildrenQuery(query);
+            if (
+                parentTaskId &&
+                this._taskChildrenQueryByParentTaskId.getSnapshot(parentTaskId) === query.external
+            ) {
+                this._taskChildrenQueryByParentTaskId.delete(parentTaskId);
+            }
+        });
     }
 
     /**
@@ -1774,9 +1962,9 @@ export class TaskClientStore {
             previouslyBackfilledTaskIds: ReadonlyArray<TaskId>;
         },
     ): void {
-        assert(query.store === this);
+        assert(query.store === this.external);
 
-        this._getQueryInternal(query).onTasksLoaded(
+        query._getInternal(this).onTasksLoaded(
             loadedState,
             previouslyBackfilledTaskIds.map(taskId => {
                 const taskEntryStore = this._taskEntryStoreById.get(taskId);
@@ -1803,14 +1991,26 @@ export class TaskClientStore {
     }
 
     /**
-     * Gets the query for a task's children or creates a new query if one doesn't
-     * exist.
+     * If a children query for the provided task does not exist then we create a
+     * query and retain it. Otherwise we return the existing children query and
+     * retain it again (if it was pre-existing that implies some other code is
+     * already retaining the children query, we add an additional retain).
+     *
+     * You should call `release()` when done with the query to free up resources.
      */
-    public getOrCreateTaskChildrenQuery(parentTaskId: TaskId): TaskClientQuery {
-        const existingQuery = this._childrenQueryByParentTaskId.getSnapshot(parentTaskId);
-        if (existingQuery) return existingQuery;
+    public ensureAndRetainTaskChildrenQuery(
+        taskId: TaskId,
+        {desiredCount}: {desiredCount: number},
+    ): TaskClientQuery {
+        const existingChildrenQuery = this._taskChildrenQueryByParentTaskId.getSnapshot(taskId);
+        if (existingChildrenQuery) {
+            // NOCOMMIT: Do a `Math.max()` of `desiredCount` to force more tasks to load
+            existingChildrenQuery.retain();
+            return existingChildrenQuery;
+        }
 
-        const query = this._createQuery({
+        const query = this.createAndRetainQuery({
+            desiredCount,
             filters: {
                 displayStatusFilter: {
                     ifOpenInactive: true,
@@ -1818,7 +2018,7 @@ export class TaskClientStore {
                     ifClosed: true,
                 },
                 parentFilter: {
-                    parentTaskId,
+                    parentTaskId: taskId,
                 },
             },
             sorts: [
@@ -1835,9 +2035,10 @@ export class TaskClientStore {
             ],
         });
 
-        this._childrenQueryByParentTaskId.set(parentTaskId, query.external);
+        // Make sure the created query was added as a children query for this task.
+        assert(this._taskChildrenQueryByParentTaskId.getSnapshot(taskId));
 
-        return query.external;
+        return query;
     }
 
     /**
@@ -1845,6 +2046,33 @@ export class TaskClientStore {
      * doesn't exist it means the task's children are not loaded.
      */
     public getTaskChildrenQueryStore(parentTaskId: TaskId): Store<TaskClientQuery | undefined> {
-        return this._childrenQueryByParentTaskId.get(parentTaskId);
+        return this._taskChildrenQueryByParentTaskId.get(parentTaskId);
     }
+}
+
+function getParentTaskIdIfChildrenQuery({
+    filters,
+    sorts,
+}: {
+    filters: TaskQueryNormalizedFilters;
+    sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+}): TaskId | null {
+    if (
+        filters.parentFilter &&
+        filters.displayStatusFilter.ifOpenInactive &&
+        filters.displayStatusFilter.ifOpenActive &&
+        filters.displayStatusFilter.ifClosed &&
+        Object.keys(filters).length === 2 &&
+        sorts.length === 2 &&
+        sorts[0]!.type === "ParentPosition" &&
+        sorts[0]!.direction === "Ascending" &&
+        sorts[0]!.missing === "Last" &&
+        sorts[1]!.type === "CreatedTime" &&
+        sorts[1]!.direction === "Ascending" &&
+        sorts[1]!.missing === "Last"
+    ) {
+        return filters.parentFilter.parentTaskId;
+    }
+
+    return null;
 }

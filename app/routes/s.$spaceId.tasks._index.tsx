@@ -1,12 +1,13 @@
-import {useMemo} from "react";
+import {useEffect, useMemo} from "react";
 import {Params} from "react-router";
 import {Box} from "~/client/design/box.js";
+import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {TaskGridView} from "~/client/tasks/task_grid_view.js";
 import {
     clientLoaderLoadTaskQueryData,
-    useLoaderTaskQueries,
+    useLoaderTaskQueriesWithoutRetaining,
 } from "~/client/tasks/task_realtime_client_context_provider.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -14,7 +15,7 @@ import {
     getTaskGridViewExpansionState,
     getTaskNotepadPageIds,
 } from "~/server/tasks/data/task_table.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {compareHybridLogicalTimes} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -25,7 +26,10 @@ import {generateId} from "~/shared/id/id.js";
 import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
 import {getTaskQueryNormalizedSortCursorForModel} from "~/shared/tasks/model/get_task_query_normalized_sort_cursor_for_model.js";
-import {TaskGridViewTaskKeySchema} from "~/shared/tasks/task_grid_view_task_key.js";
+import {
+    TaskGridViewTaskKeySchema,
+    parseTaskGridViewTaskKey,
+} from "~/shared/tasks/task_grid_view_task_key.js";
 import {
     TaskNotepadPageIdCompressedSetSchema,
     TaskNotepadPageIdSchema,
@@ -88,6 +92,11 @@ export async function loader({params, context: _context}: LoaderArgs) {
                 direction: "Descending",
                 missing: "Last",
             },
+            {
+                type: "CreatedTime",
+                direction: "Ascending",
+                missing: "Last",
+            },
         ],
     };
 
@@ -118,19 +127,63 @@ export async function loader({params, context: _context}: LoaderArgs) {
                 direction: "Ascending",
                 missing: "Last",
             },
+            {
+                type: "CreatedTime",
+                direction: "Ascending",
+                missing: "Last",
+            },
         ],
     };
 
-    const [{loadedStates, updateEvent}, {expandedChildTaskKeys: notepadPageExpandedChildTaskKeys}] =
-        await runAllPromises([
-            context.tasks.loadQueries(spaceId, [assigneeActiveQuery, notepadPageQuery]),
-            getTaskGridViewExpansionState(context, {
-                spaceId,
-                browserId: context.loader.getBrowserId(),
-                filters: notepadPageQuery.filters,
-                sorts: notepadPageQuery.sorts,
-            }),
-        ]);
+    const {expandedChildTaskKeys: notepadPageExpandedChildTaskKeys} =
+        await getTaskGridViewExpansionState(context, {
+            spaceId,
+            browserId: context.loader.getBrowserId(),
+            filters: notepadPageQuery.filters,
+            sorts: notepadPageQuery.sorts,
+        });
+
+    const childTaskQueries: Array<{
+        limit: number;
+        filters: TaskQueryNormalizedFilters;
+        sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+    }> = Array.from(notepadPageExpandedChildTaskKeys, taskKey => {
+        const {taskId} = parseTaskGridViewTaskKey(taskKey);
+
+        return {
+            // NOCOMMIT: Proper limit?
+            limit: 500,
+
+            filters: {
+                displayStatusFilter: {
+                    ifOpenInactive: true,
+                    ifOpenActive: true,
+                    ifClosed: true,
+                },
+                parentFilter: {
+                    parentTaskId: taskId,
+                },
+            },
+            sorts: [
+                {
+                    type: "ParentPosition",
+                    direction: "Ascending",
+                    missing: "Last",
+                },
+                {
+                    type: "CreatedTime",
+                    direction: "Ascending",
+                    missing: "Last",
+                },
+            ],
+        };
+    });
+
+    const {loadedStates, updateEvent} = await context.tasks.loadQueries(spaceId, [
+        assigneeActiveQuery,
+        notepadPageQuery,
+        ...childTaskQueries,
+    ]);
 
     const assigneeActiveQueryLoadedState = assertExists(loadedStates[0]);
     const notepadPageQueryLoadedState = assertExists(loadedStates[1]);
@@ -152,15 +205,23 @@ export async function loader({params, context: _context}: LoaderArgs) {
             loadTaskQueryData: {
                 queries: [
                     {
+                        desiredCount: assigneeActiveQuery.limit,
                         filters: assigneeActiveQuery.filters,
                         sorts: assigneeActiveQuery.sorts,
                         loadedState: assigneeActiveQueryLoadedState,
                     },
                     {
+                        desiredCount: notepadPageQuery.limit,
                         filters: notepadPageQuery.filters,
                         sorts: notepadPageQuery.sorts,
                         loadedState: notepadPageQueryLoadedState,
                     },
+                    ...childTaskQueries.map((childTaskQuery, i) => ({
+                        desiredCount: childTaskQuery.limit,
+                        filters: childTaskQuery.filters,
+                        sorts: childTaskQuery.sorts,
+                        loadedState: loadedStates[i + 2]!,
+                    })),
                 ],
                 updateEvent,
             },
@@ -183,12 +244,27 @@ export async function clientLoader({
 export default function TasksRoute() {
     const {notepadPageId, notepadPageExpandedChildTaskKeys, initialBottomGhostTaskId} =
         useLoaderDataWithSchema(LoaderSchema);
-    const [assigneeActiveQuery, notepadPageQuery] = useLoaderTaskQueries();
+    const [assigneeActiveQuery, notepadPageQuery] = useLoaderTaskQueriesWithoutRetaining();
     assert(assigneeActiveQuery && notepadPageQuery);
 
-    const {currentAccount} = useSpaceContext();
+    // Retain our queries so they aren't destroyed after
+    useEffect(() => {
+        assigneeActiveQuery.retain();
+        notepadPageQuery.retain();
 
-    throw new Error("test");
+        return () => {
+            // Release after a microtask in case the component is re-rendering which will
+            // synchronously call `retain()` again.
+            scheduleMicrotask(() => {
+                batchStoreUpdates(() => {
+                    assigneeActiveQuery.release();
+                    notepadPageQuery.release();
+                });
+            });
+        };
+    }, [assigneeActiveQuery, notepadPageQuery]);
+
+    const {currentAccount} = useSpaceContext();
 
     return (
         <Box flexGrow="1" overflow="hidden" backgroundColor="grey-0">

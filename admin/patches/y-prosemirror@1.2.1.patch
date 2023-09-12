@@ -1,5 +1,5 @@
 diff --git a/dist/y-prosemirror.cjs b/dist/y-prosemirror.cjs
-index 52a54c8511a726df3e1a94861939f0fb75418afb..3c1696e945d26f579b5a7b9853d2d9711bf43b00 100644
+index 52a54c8511a726df3e1a94861939f0fb75418afb..cfc7a61993a8b84e75f4ee39cf696bf91930b24d 100644
 --- a/dist/y-prosemirror.cjs
 +++ b/dist/y-prosemirror.cjs
 @@ -451,13 +451,35 @@ class ProsemirrorBinding {
@@ -45,7 +45,50 @@ index 52a54c8511a726df3e1a94861939f0fb75418afb..3c1696e945d26f579b5a7b9853d2d971
        // @ts-ignore
        const tr = this._tr.replace(
          0,
-@@ -1553,6 +1575,8 @@ function yXmlFragmentToProsemirrorJSON (xmlFragment) {
+@@ -577,13 +599,35 @@ class ProsemirrorBinding {
+       );
+       transaction.changed.forEach(delType);
+       transaction.changedParentTypes.forEach(delType);
+-      const fragmentContent = this.type.toArray().map((t) =>
+-        createNodeIfNotExists(
+-          /** @type {Y.XmlElement | Y.XmlHook} */ (t),
+-          this.prosemirrorView.state.schema,
+-          this.mapping
+-        )
+-      ).filter((n) => n !== null);
++      // NOTE(calebmer): ProseMirror can also have inline text content at the
++      // root. Not just elements. This code is copied from the implementation
++      // of `createNodeFromYElement()`.
++      const fragmentContent = []
++      this.type.toArray().forEach((type) => {
++        if (type.constructor === Y.XmlElement) {
++          const n = createNodeIfNotExists(
++            type,
++            this.prosemirrorView.state.schema,
++            this.mapping
++          )
++          if (n !== null) {
++            fragmentContent.push(n)
++          }
++        } else {
++          const ns = createTextNodesFromYText(
++            type,
++            this.prosemirrorView.state.schema,
++            this.mapping
++          )
++          if (ns !== null) {
++            ns.forEach((textchild) => {
++              if (textchild !== null) {
++                fragmentContent.push(textchild)
++              }
++            })
++          }    
++        }
++      })
+       // @ts-ignore
+       let tr = this._tr.replace(
+         0,
+@@ -1553,6 +1597,8 @@ function yXmlFragmentToProsemirrorJSON (xmlFragment) {
  
    return {
      type: 'doc',
@@ -83,7 +126,7 @@ index 964f8affdad7519e6681064fbcc42d804de31317..fb5bd7457374579e7f67431f3385b269
    }
  }
 diff --git a/src/plugins/sync-plugin.js b/src/plugins/sync-plugin.js
-index e4d5163b4932228fae5ede4e40fd7671daa54aca..c479412e2514760522974cb9917abfa3cac75b6d 100644
+index e4d5163b4932228fae5ede4e40fd7671daa54aca..f430a03e19ad0ae29dac242d4034c295994f3dec 100644
 --- a/src/plugins/sync-plugin.js
 +++ b/src/plugins/sync-plugin.js
 @@ -398,13 +398,35 @@ export class ProsemirrorBinding {
@@ -128,4 +171,47 @@ index e4d5163b4932228fae5ede4e40fd7671daa54aca..c479412e2514760522974cb9917abfa3
 +      })
        // @ts-ignore
        const tr = this._tr.replace(
+         0,
+@@ -524,13 +546,35 @@ export class ProsemirrorBinding {
+       )
+       transaction.changed.forEach(delType)
+       transaction.changedParentTypes.forEach(delType)
+-      const fragmentContent = this.type.toArray().map((t) =>
+-        createNodeIfNotExists(
+-          /** @type {Y.XmlElement | Y.XmlHook} */ (t),
+-          this.prosemirrorView.state.schema,
+-          this.mapping
+-        )
+-      ).filter((n) => n !== null)
++      // NOTE(calebmer): ProseMirror can also have inline text content at the
++      // root. Not just elements. This code is copied from the implementation
++      // of `createNodeFromYElement()`.
++      const fragmentContent = []
++      this.type.toArray().forEach((type) => {
++        if (type.constructor === Y.XmlElement) {
++          const n = createNodeIfNotExists(
++            type,
++            this.prosemirrorView.state.schema,
++            this.mapping
++          )
++          if (n !== null) {
++            fragmentContent.push(n)
++          }
++        } else {
++          const ns = createTextNodesFromYText(
++            type,
++            this.prosemirrorView.state.schema,
++            this.mapping
++          )
++          if (ns !== null) {
++            ns.forEach((textchild) => {
++              if (textchild !== null) {
++                fragmentContent.push(textchild)
++              }
++            })
++          }    
++        }
++      })
+       // @ts-ignore
+       let tr = this._tr.replace(
          0,

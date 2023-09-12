@@ -11,6 +11,7 @@ export type TaskStoreLoaderData = SchemaType<typeof TaskStoreLoaderDataSchema>;
 export const TaskStoreLoaderDataSchema = Schema.object({
     queries: Schema.array(
         Schema.object({
+            desiredCount: Schema.integer,
             filters: TaskQueryNormalizedFiltersSchema,
             sorts: Schema.array(TaskQueryNormalizedSortSchema),
             loadedState: TaskRealtimeQueryLoadedStateSchema,

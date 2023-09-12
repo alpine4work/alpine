@@ -1,9 +1,16 @@
 import createTree, {Tree} from "functional-red-black-tree";
+import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
-import {TaskClientStore, TaskClientStoreTaskEntry} from "~/client/tasks/task_client_store.js";
+import {
+    TaskClientStore,
+    TaskClientStoreInternal,
+    TaskClientStoreTaskEntry,
+} from "~/client/tasks/task_client_store.js";
+import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {evaluateTaskQueryNormalizedFiltersForModel} from "~/shared/tasks/model/evaluate_task_query_normalized_filters_for_model.js";
 import {getTaskQueryNormalizedSortCursorForModel} from "~/shared/tasks/model/get_task_query_normalized_sort_cursor_for_model.js";
@@ -48,6 +55,11 @@ export class TaskClientQuery {
     private readonly _internal: TaskClientQueryInternal;
 
     /**
+     * The current loaded state of the query.
+     */
+    public readonly loadedStateStore: Store<"Unloaded" | "PartiallyLoaded" | "FullyLoaded">;
+
+    /**
      * The query's loaded task order.
      *
      * The query might be keeping track of more tasks that aren't in the loaded
@@ -57,10 +69,31 @@ export class TaskClientQuery {
 
     constructor(internal: TaskClientQueryInternal) {
         this._internal = internal;
-        this.store = this._internal.store;
+        this.store = this._internal.store.external;
         this.filters = this._internal.filters;
         this.sorts = this._internal.sorts;
+        this.loadedStateStore = this._internal.loadedStateStore;
         this.taskOrderStore = this._internal.taskOrderStore;
+    }
+
+    /**
+     * You're allowed to get the query's internal instance if you have an internal
+     * store instance. Otherwise you must use the query's public methods.
+     */
+    public _getInternal(internal: TaskClientStoreInternal) {
+        return this._internal;
+    }
+
+    public retain() {
+        this._internal.retain();
+    }
+
+    public release() {
+        this._internal.release();
+    }
+
+    public getDesiredCountSnapshot() {
+        return this._internal.getDesiredCountSnapshot();
     }
 
     /**
@@ -91,16 +124,37 @@ export class TaskClientQuery {
 }
 
 export class TaskClientQueryInternal {
-    public readonly store: TaskClientStore;
+    public readonly store: TaskClientStoreInternal;
     public readonly filters: TaskQueryNormalizedFilters;
     public readonly sorts: ReadonlyArray<TaskQueryNormalizedSort>;
     public readonly external: TaskClientQuery;
 
-    private readonly _taskOrderStore: ValueStore<{
-        loadedState: TaskRealtimeQueryLoadedState;
-        taskOrder: Tree<TaskQuerySortCursor, null>;
+    /**
+     * Queries start with 1 reference. The reference count can be increased by
+     * calling `retain()` and decreased by calling `release()` once the
+     * reference count reaches 0 the query is unloaded.
+     */
+    private _referenceCount = 1;
+
+    /**
+     * The desired number of tasks we'd like to load into this query. Used as the
+     * query's `limit` when initially loading. We may have more than or fewer tasks
+     * than the desired count at any point in time.
+     */
+    private _desiredCount: number;
+
+    private readonly _taskOrderAndLoadedStateStore: ValueStore<{
+        // `loadedState` is null when the query has not finished loading for the
+        // first time.
+        readonly loadedState: TaskRealtimeQueryLoadedState | null;
+        readonly taskOrder: Tree<TaskQuerySortCursor, null>;
     }>;
     private readonly _taskEntryStoreById = new Map<TaskId, Store<TaskClientStoreTaskEntry>>();
+
+    /**
+     * The current loaded state of the query.
+     */
+    public readonly loadedStateStore: Store<"Unloaded" | "PartiallyLoaded" | "FullyLoaded">;
 
     /**
      * The query's loaded task order.
@@ -114,33 +168,40 @@ export class TaskClientQueryInternal {
 
     constructor({
         store,
+        desiredCount,
         filters,
         sorts,
     }: {
-        store: TaskClientStore;
+        store: TaskClientStoreInternal;
+        desiredCount: number;
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
     }) {
         this.store = store;
+        this._desiredCount = desiredCount;
         this.filters = filters;
         this.sorts = sorts;
-        this._taskOrderStore = new ValueStore<{
-            loadedState: TaskRealtimeQueryLoadedState;
+        this._taskOrderAndLoadedStateStore = new ValueStore<{
+            loadedState: TaskRealtimeQueryLoadedState | null;
             taskOrder: Tree<TaskQuerySortCursor, null>;
         }>({
-            loadedState: {type: "Partial", endCursor: null},
+            loadedState: null,
             taskOrder: createTree<TaskQuerySortCursor, null>((cursor1, cursor2) =>
-                compareTaskQuerySortCursors(sorts, cursor1, cursor2),
+                compareTaskQuerySortCursors(this.sorts, cursor1, cursor2),
             ),
         });
 
-        this.taskOrderStore = this._taskOrderStore.map(({loadedState, taskOrder}) => {
-            if (loadedState.type === "Full") return taskOrder;
+        this.loadedStateStore = this._taskOrderAndLoadedStateStore.map(({loadedState}) => {
+            if (loadedState === null) return "Unloaded";
+            if (loadedState.type === "Full") return "FullyLoaded";
+            return "PartiallyLoaded";
+        });
 
-            if (loadedState.endCursor === null) {
-                return createTree<TaskQuerySortCursor, null>((cursor1, cursor2) =>
-                    compareTaskQuerySortCursors(this.sorts, cursor1, cursor2),
-                );
+        this.taskOrderStore = this._taskOrderAndLoadedStateStore.map(({loadedState, taskOrder}) => {
+            if (loadedState?.type === "Full") return taskOrder;
+
+            if (loadedState === null || loadedState.endCursor === null) {
+                return taskOrder.length === 0 ? taskOrder : createTree(taskOrder._compare);
             } else {
                 let loadedTaskOrder = taskOrder;
                 let iterator = loadedTaskOrder.end;
@@ -170,7 +231,7 @@ export class TaskClientQueryInternal {
     public assertCorrectForTest() {
         assert(process.env.NODE_ENV !== "production");
 
-        const {taskOrder} = this._taskOrderStore.getSnapshot();
+        const {taskOrder} = this._taskOrderAndLoadedStateStore.getSnapshot();
         const taskOrderIds = new Set<TaskId>();
 
         const iterator = taskOrder.begin;
@@ -197,8 +258,51 @@ export class TaskClientQueryInternal {
         );
     }
 
+    /**
+     * Add a reference for our query. You should call `release()` later when you no
+     * longer need the reference. Once the query hits zero references we will clean
+     * up this query and all its data.
+     */
+    public retain() {
+        assert(this._referenceCount > 0, "Can't retain a released query");
+
+        this._referenceCount++;
+    }
+
+    /**
+     * Release our reference to the query. Once the query hits zero references we
+     * will clean up this query and all its data.
+     */
+    public release() {
+        assert(this._referenceCount > 0, "Query is already released");
+
+        this._referenceCount--;
+
+        if (this._referenceCount === 0) {
+            batchStoreUpdates(() => {
+                // Delete the query from our store.
+                this.store.onQueryFinallyRelease(this);
+
+                // Clear our query's task data.
+                this._taskEntryStoreById.clear();
+                this._taskOrderAndLoadedStateStore.set({
+                    loadedState: null,
+                    taskOrder: createTree<TaskQuerySortCursor, null>((cursor1, cursor2) =>
+                        compareTaskQuerySortCursors(this.sorts, cursor1, cursor2),
+                    ),
+                });
+            });
+        }
+    }
+
+    public getDesiredCountSnapshot() {
+        return this._desiredCount;
+    }
+
     public getTaskEntryStore(taskId: TaskId): Store<TaskClientStoreTaskEntry> {
-        return assertExists(this._taskEntryStoreById.get(taskId));
+        const taskEntryStore = this._taskEntryStoreById.get(taskId);
+        if (!taskEntryStore) throw new InternalError("Task is not visible in query");
+        return taskEntryStore;
     }
 
     /**
@@ -215,7 +319,11 @@ export class TaskClientQueryInternal {
             }
         >,
     ) {
-        const {loadedState, taskOrder: previousTaskOrder} = this._taskOrderStore.getSnapshot();
+        // Noop if this query is released.
+        if (this._referenceCount === 0) return;
+
+        const {loadedState, taskOrder: previousTaskOrder} =
+            this._taskOrderAndLoadedStateStore.getSnapshot();
         let taskOrder = previousTaskOrder;
 
         for (const [taskId, {taskEntryStore, oldTaskEntry, newTaskEntry}] of taskEntryUpdateById) {
@@ -299,7 +407,7 @@ export class TaskClientQueryInternal {
         }
 
         if (taskOrder !== previousTaskOrder) {
-            this._taskOrderStore.set({loadedState, taskOrder});
+            this._taskOrderAndLoadedStateStore.set({loadedState, taskOrder});
         }
 
         // Make sure our query is well formed in test environments.
@@ -321,39 +429,24 @@ export class TaskClientQueryInternal {
             taskEntry: TaskClientStoreTaskEntry & {task: TaskModel};
         }>,
     ): void {
-        const {loadedState: previousLoadedState, taskOrder: previousTaskOrder} =
-            this._taskOrderStore.getSnapshot();
+        // Noop if this query is released.
+        if (this._referenceCount === 0) return;
 
-        let nextLoadedState;
+        const {loadedState: previousLoadedState, taskOrder: previousTaskOrder} =
+            this._taskOrderAndLoadedStateStore.getSnapshot();
+
+        // Optimization: Maintain our `loadedState` reference if it didn't change.
+        const nextLoadedState = isDeepEqual(loadedState, previousLoadedState)
+            ? previousLoadedState
+            : loadedState;
+
         let nextTaskOrder = previousTaskOrder;
 
-        // Can only extend the loaded state, if we're already fully loaded there's no
-        // more extending we can do.
-        if (previousLoadedState.type === "Full") {
-            nextLoadedState = previousLoadedState;
-        }
-        // The query is fully loaded now. Yay!
-        else if (loadedState.type === "Full") {
-            nextLoadedState = loadedState;
-        }
-        // Loaded state didn't change.
-        else if (previousLoadedState.endCursor === null && loadedState.endCursor === null) {
-            nextLoadedState = previousLoadedState;
-        } else {
-            // Is this loaded state an extension of the last one?
-            const isExtending =
-                previousLoadedState.endCursor === null ||
-                (loadedState.endCursor !== null &&
-                    compareTaskQuerySortCursors(
-                        this.sorts,
-                        previousLoadedState.endCursor,
-                        loadedState.endCursor,
-                    ) < 0);
-
-            nextLoadedState = !isExtending ? previousLoadedState : loadedState;
-        }
-
         for (const {taskEntryStore, taskEntry} of previouslyBackfilledTasks) {
+            // If the task is already in our store (perhaps an update event added it) then
+            // we don't need to insert the task again.
+            if (this._taskEntryStoreById.has(taskEntry.task.id)) continue;
+
             const isVisible = evaluateTaskQueryNormalizedFiltersForModel(
                 this.filters,
                 taskEntry.task,
@@ -369,7 +462,10 @@ export class TaskClientQueryInternal {
         }
 
         if (previousLoadedState !== nextLoadedState || previousTaskOrder !== nextTaskOrder) {
-            this._taskOrderStore.set({loadedState: nextLoadedState, taskOrder: nextTaskOrder});
+            this._taskOrderAndLoadedStateStore.set({
+                loadedState: nextLoadedState,
+                taskOrder: nextTaskOrder,
+            });
         }
 
         // Make sure our query is well formed in test environments.

@@ -64,6 +64,7 @@ const taskRowTitleInputSingleLineClassName = `ProseMirror ${sprinkles({
     overflowX: "scroll",
     paddingY: "2",
     backgroundColor: "transparent",
+    userSelect: "text",
 })} ${hideScrollbarClassName}`;
 
 const taskRowTitleInputSingleLineStyle: CSSProperties = {
@@ -88,6 +89,7 @@ const taskRowTitleInputMultilineClassName = `ProseMirror ${sprinkles({
     minHeight: taskRowTitleInputSingleLineHeight,
     paddingY: "2",
     backgroundColor: "transparent",
+    userSelect: "text",
 })}`;
 
 const taskRowTitleInputMultilineStyle: CSSProperties = {

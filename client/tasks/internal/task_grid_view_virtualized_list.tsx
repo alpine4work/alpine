@@ -53,6 +53,7 @@ export function useTaskGridViewVirtualizedList({
 
     const {getAreChildTasksExpandedStore, toggleAreChildTasksExpanded} =
         useTaskGridViewExpansionState({
+            store: query.store,
             filters: query.filters,
             sorts: query.sorts,
             initialExpandedChildTaskKeys,
@@ -234,7 +235,9 @@ export function useTaskGridViewVirtualizedList({
                                                 );
                                             }
                                         }}
-                                        query={query}
+                                        // It's important we use the `query` property from `item` since child tasks
+                                        // come from a different query than our root query.
+                                        query={item.query}
                                         capabilities={capabilities}
                                         taskId={item.taskId}
                                         indentation={item.indentation}

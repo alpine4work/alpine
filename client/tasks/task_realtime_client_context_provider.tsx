@@ -54,7 +54,7 @@ function loadTaskQueryDataIntoClient(
     );
 
     batchStoreUpdates(() => {
-        const queries = loadTaskQueryData.queries.map(query => client.store.createQuery(query));
+        const queries = client.store.createAndRetainQueries(loadTaskQueryData.queries);
 
         client.store.applyUpdateEvent(loadTaskQueryData.updateEvent);
 
@@ -69,6 +69,16 @@ function loadTaskQueryDataIntoClient(
         }
 
         (loaderData as any)[loaderTaskQueriesSymbol] = queries;
+
+        // After 5s, release our reference to all the queries we loaded. If the UI
+        // cares about a query it must call `retain()` on the query to keep it around.
+        setTimeout(() => {
+            batchStoreUpdates(() => {
+                for (const query of queries) {
+                    query.release();
+                }
+            });
+        }, 1000 * 5);
     });
 }
 
@@ -100,7 +110,7 @@ export function clientLoaderLoadTaskQueryData(spaceId: SpaceId, data: SchemaSeri
  * queries. They will be in the same order as you passed your queries into
  * `loadTaskQueryData`.
  */
-export function useLoaderTaskQueries(): Array<TaskClientQuery> {
+export function useLoaderTaskQueriesWithoutRetaining(): Array<TaskClientQuery> {
     const loaderData = useLoaderData();
     return loaderData[loaderTaskQueriesSymbol] ?? [];
 }
@@ -181,6 +191,38 @@ export function TaskRealtimeClientContextProvider({
             clientEntry.isMounted = false;
         };
     }, [client, spaceId]);
+
+    // Connect the client when our store has some queries and disconnect the client
+    // if the store has no remaining queries.
+    useEffect(() => {
+        const queriesStore = client.store.getQueriesStore();
+        let queryCount = queriesStore.getSnapshot().size;
+
+        if (queryCount > 0) {
+            client.connect();
+        }
+
+        const unsubscribe = queriesStore.subscribe(() => {
+            const oldQueryCount = queryCount;
+            queryCount = queriesStore.getSnapshot().size;
+            const newQueryCount = queryCount;
+
+            if (oldQueryCount === 0 && newQueryCount > 0) {
+                client.connect();
+            }
+
+            if (oldQueryCount > 0 && newQueryCount === 0) {
+                client.disconnect();
+            }
+        });
+
+        return () => {
+            unsubscribe();
+            if (queryCount === 0) {
+                client.disconnect();
+            }
+        };
+    }, [client]);
 
     return <>{children}</>;
 }

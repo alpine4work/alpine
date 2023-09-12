@@ -23,6 +23,8 @@ function createYDoc(title: TaskTitleModel): Y.Doc & {
     });
 }
 
+const titleEffectTransactionOrigin = Symbol("titleEffectTransactionOrigin");
+
 /**
  * Get a `Y.Doc` for the provided `TaskTitleModel`. We update task titles using
  * standard React data down, actions up. But we need a `Y.Doc` for managing our
@@ -73,10 +75,12 @@ export function useTaskTitleModelYDoc(
             // This happens when we get a title update from a realtime event. The component
             // will re-render with the new `title` model and we'll need to apply the update
             // in our component.
-            //
-            // NOCOMMIT: Test that realtime updates go down this path.
             if (yDoc.matches.titleUpdate === null) {
-                Y.applyUpdateV2(yDoc, titlePreviousUpdate.titleUpdate);
+                Y.applyUpdateV2(
+                    yDoc,
+                    titlePreviousUpdate.titleUpdate,
+                    titleEffectTransactionOrigin,
+                );
                 yDoc.matches = {rawTitle: title.raw, titleUpdate: null};
                 return;
             }
@@ -95,7 +99,15 @@ export function useTaskTitleModelYDoc(
     useLayoutEffectWithoutServerSideWarning(() => {
         let isUnsubscribed = false;
 
-        const handleUpdate = (titleUpdate: TaskTitleUpdate) => {
+        const handleUpdate = (titleUpdate: TaskTitleUpdate, transactionOrigin: unknown) => {
+            // If we updated `yDoc` because of our `title` effect above then in React data
+            // down, actions up, style don't report this change through `onTitleUpdate()`.
+            // The parent component already knows about the change, that's why it sent down
+            // a new `title` prop.
+            //
+            // `yDoc.matches` will be updated as well by the effect.
+            if (transactionOrigin === titleEffectTransactionOrigin) return;
+
             // If our `yDoc` starts in a good state (it matches the `title` prop) then
             // record that our `yDoc` matches the `title` prop plus the new
             // `titleUpdate`.

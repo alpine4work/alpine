@@ -70,9 +70,35 @@ export const TaskRealtimeProtocol = defineWebSocketProtocol({
                 previouslyBackfilledTaskIds: Schema.array(Schema.id<TaskId>()),
             },
         },
+        subscribeToQueries: {
+            input: {
+                queries: Schema.array(
+                    Schema.object({
+                        filters: TaskQueryNormalizedFiltersSchema,
+                        sorts: Schema.array(TaskQueryNormalizedSortSchema),
+                        limit: Schema.integer,
+                    }),
+                ),
+            },
+            output: {
+                queries: Schema.array(
+                    Schema.object({
+                        querySubscriptionId: Schema.id<TaskRealtimeQuerySubscriptionId>(),
+                        loadedState: TaskRealtimeQueryLoadedStateSchema,
+                        previouslyBackfilledTaskIds: Schema.array(Schema.id<TaskId>()),
+                    }),
+                ),
+            },
+        },
         unsubscribeFromQuery: {
             input: {
                 querySubscriptionId: Schema.id<TaskRealtimeQuerySubscriptionId>(),
+            },
+            output: {},
+        },
+        unsubscribeFromQueries: {
+            input: {
+                querySubscriptionIds: Schema.array(Schema.id<TaskRealtimeQuerySubscriptionId>()),
             },
             output: {},
         },

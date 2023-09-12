@@ -197,6 +197,107 @@ export class TaskRealtimeConnection {
                 },
             );
         },
+        subscribeToQueries: async (context, input) => {
+            await runAllPromises(
+                input.queries.map(inputQuery =>
+                    this._server.authorizeQueryAccess(context, {
+                        spaceId: this._spaceId,
+                        filters: inputQuery.filters,
+                        sorts: inputQuery.sorts,
+                    }),
+                ),
+            );
+
+            // It's safe to escalate because we authorize the query is valid above.
+            return this._dangerouslyEscalateToSystemContext(
+                context,
+                this._spaceId,
+                async context => {
+                    const eventBuilder = new TaskRealtimeUpdateEventBuilder();
+
+                    const querySubscriptions = await runAllPromises(
+                        input.queries.map(async inputQuery => {
+                            const querySubscription = await this._server.subscribeToQuery(context, {
+                                spaceId: this._spaceId,
+                                filters: inputQuery.filters,
+                                sorts: inputQuery.sorts,
+                                callbacks: this._createQuerySubscriptionCallbacks(),
+                            });
+
+                            const querySubscriptionId =
+                                generateId<TaskRealtimeQuerySubscriptionId>();
+
+                            assert(!this._querySubscriptionById.has(querySubscriptionId));
+                            this._querySubscriptionById.set(querySubscriptionId, querySubscription);
+
+                            try {
+                                const {loadedState, tasks} = await querySubscription.loadMoreTasks(
+                                    context,
+                                    eventBuilder,
+                                    inputQuery.limit,
+                                );
+
+                                return {
+                                    querySubscription,
+                                    querySubscriptionId,
+                                    loadedState,
+                                    tasks,
+                                };
+                            } catch (error) {
+                                // If there's an error, unsubscribe so we don't have a dangling subscription.
+                                this._querySubscriptionById.delete(querySubscriptionId);
+
+                                await querySubscription.unsubscribe();
+
+                                throw error;
+                            }
+                        }),
+                    );
+
+                    try {
+                        // Send the combined event to our clients...
+                        await eventBuilder.send(context, this._spaceId);
+
+                        return {
+                            queries: querySubscriptions.map(
+                                ({querySubscriptionId, loadedState, tasks}) => {
+                                    // All the tasks we loaded that weren't backfilled we send in a
+                                    // `previouslyBackfilledTaskIds` array so the client can add them to its local
+                                    // query model.
+                                    const backfillAuthorizedTaskIds =
+                                        eventBuilder.getBackfillAuthorizedTaskIds(this._sender);
+                                    const previouslyBackfilledTaskIds: Array<TaskId> = [];
+
+                                    for (const task of tasks) {
+                                        if (backfillAuthorizedTaskIds.has(task.id)) continue;
+                                        previouslyBackfilledTaskIds.push(task.id);
+                                    }
+
+                                    return {
+                                        querySubscriptionId,
+                                        loadedState,
+                                        previouslyBackfilledTaskIds,
+                                    };
+                                },
+                            ),
+                        };
+                    } catch (error) {
+                        await runAllPromises(
+                            querySubscriptions.map(
+                                async ({querySubscription, querySubscriptionId}) => {
+                                    // If there's an error, unsubscribe so we don't have a dangling subscription.
+                                    this._querySubscriptionById.delete(querySubscriptionId);
+
+                                    await querySubscription.unsubscribe();
+                                },
+                            ),
+                        );
+
+                        throw error;
+                    }
+                },
+            );
+        },
         unsubscribeFromQuery: async (context, {querySubscriptionId}) => {
             const querySubscription = this._querySubscriptionById.get(querySubscriptionId);
             if (!querySubscription) throw new NotFoundError("Query subscription not found");
@@ -204,6 +305,20 @@ export class TaskRealtimeConnection {
             this._querySubscriptionById.delete(querySubscriptionId);
 
             await querySubscription.unsubscribe();
+
+            return {};
+        },
+        unsubscribeFromQueries: async (context, {querySubscriptionIds}) => {
+            await runAllPromises(
+                querySubscriptionIds.map(async querySubscriptionId => {
+                    const querySubscription = this._querySubscriptionById.get(querySubscriptionId);
+                    if (!querySubscription) throw new NotFoundError("Query subscription not found");
+
+                    this._querySubscriptionById.delete(querySubscriptionId);
+
+                    await querySubscription.unsubscribe();
+                }),
+            );
 
             return {};
         },

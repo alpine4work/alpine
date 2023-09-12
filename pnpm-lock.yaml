@@ -1,4 +1,4 @@
-lockfileVersion: '6.1'
+lockfileVersion: '6.0'
 
 settings:
   autoInstallPeers: true
@@ -89,7 +89,7 @@ patchedDependencies:
     hash: wvv6e4atuqi3hqcxstrbgwwagy
     path: admin/patches/wrangler@3.1.2.patch
   y-prosemirror@1.2.1:
-    hash: 3qez2x57inkjedlqlige24zfja
+    hash: lbqrbu7wrmd3i3wnfxlbbnmh6y
     path: admin/patches/y-prosemirror@1.2.1.patch
 
 dependencies:
@@ -590,7 +590,7 @@ dependencies:
     version: 8.10.0(bufferutil@4.0.7)(utf-8-validate@5.0.10)
   y-prosemirror:
     specifier: ^1.2.1
-    version: 1.2.1(patch_hash=3qez2x57inkjedlqlige24zfja)(prosemirror-model@1.18.1)(prosemirror-state@1.4.2)(prosemirror-view@1.27.2)(y-protocols@1.0.5)(yjs@13.6.6)
+    version: 1.2.1(patch_hash=lbqrbu7wrmd3i3wnfxlbbnmh6y)(prosemirror-model@1.18.1)(prosemirror-state@1.4.2)(prosemirror-view@1.27.2)(y-protocols@1.0.5)(yjs@13.6.6)
   yargs:
     specifier: ^17.6.2
     version: 17.6.2
@@ -14940,7 +14940,7 @@ packages:
     resolution: {integrity: sha512-ibF0Or+FivM9lNrg+HGJfVX8WJqgo+kCLDc4vx6xMeTce7Aj+DLttKbxxRR/gNLSAelRc1omAPlJ77N/Jem07A==}
     dev: false
 
-  /y-prosemirror@1.2.1(patch_hash=3qez2x57inkjedlqlige24zfja)(prosemirror-model@1.18.1)(prosemirror-state@1.4.2)(prosemirror-view@1.27.2)(y-protocols@1.0.5)(yjs@13.6.6):
+  /y-prosemirror@1.2.1(patch_hash=lbqrbu7wrmd3i3wnfxlbbnmh6y)(prosemirror-model@1.18.1)(prosemirror-state@1.4.2)(prosemirror-view@1.27.2)(y-protocols@1.0.5)(yjs@13.6.6):
     resolution: {integrity: sha512-czMBfB1eL2awqmOSxQM8cS/fsUOGE6fjvyPLInrh4crPxFiw67wDpwIW+EGBYKRa04sYbS0ScGj7ZgvWuDrmBQ==}
     peerDependencies:
       prosemirror-model: ^1.7.1

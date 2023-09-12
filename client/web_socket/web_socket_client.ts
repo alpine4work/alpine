@@ -445,7 +445,7 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
      * Subscribe to events from our WebSocket.
      */
     public subscribeToEvents(
-        listener: (message: WebSocketProtocolEventType<Protocol>) => void,
+        listener: (event: WebSocketProtocolEventType<Protocol>) => void,
     ): () => void {
         let unsubscribeFromEvents: (() => void) | null = null;
 

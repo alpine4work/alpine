@@ -13801,3 +13801,16 @@ test("must filter by assignee to sort by active position", async () => {
         ],
     });
 });
+
+test("can't set task as own parent", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const task = await TestTask.create(session);
+
+    await expect(task.updateParentTask(session, task)).rejects.toThrow(
+        new FailedPreconditionError(
+            "Updating task's `parentTaskId` would create a circular dependency",
+        ),
+    );
+});

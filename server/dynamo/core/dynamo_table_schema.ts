@@ -66,6 +66,7 @@ import {
     SchemaDeserializationError,
     SchemaSerializedObjectValue,
     SchemaSerializedValue,
+    objectSchemaMissingPropertySymbol,
 } from "~/shared/schema/schema.js";
 
 export type DynamoTableSchemaGetTypes<Schema extends DynamoTableSchema<any>> =
@@ -574,133 +575,142 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     /**
      * Ensures that our table exists in DynamoDB local.
      */
-    private async _ensureLocalTable(context: DynamoContext): Promise<void> {
-        await retryWithExponentialBackoff(async retry => {
-            assert(this._initializationState.isInitialized, "Schema has not finished initializing");
+    private _ensureLocalTable(context: DynamoContext): Promise<void> {
+        return context.tracer.withSpan("Ensure local DynamoDB table", async context => {
+            await retryWithExponentialBackoff(async retry => {
+                assert(
+                    this._initializationState.isInitialized,
+                    "Schema has not finished initializing",
+                );
 
-            const client = getDynamoClient(context);
-            const internalClient = client.getInternalClient();
-            const tableName = this.getName();
+                const client = getDynamoClient(context);
+                const internalClient = client.getInternalClient();
+                const tableName = this.getName();
 
-            // Only allow creating tables in this way in local DynamoDB databases. In
-            // production we should use the AWS CDK.
-            assert(internalClient.isLocal());
+                // Only allow creating tables in this way in local DynamoDB databases. In
+                // production we should use the AWS CDK.
+                assert(internalClient.isLocal());
 
-            let doesTableExist;
-            let isTimeToLiveEnabled;
-            try {
-                const output = await internalClient.DescribeTimeToLive(context.tracer.getTracer(), {
-                    TableName: tableName,
-                });
-                doesTableExist = true;
-                isTimeToLiveEnabled = output.TimeToLiveDescription?.TimeToLiveStatus !== "DISABLED";
-            } catch (error) {
-                if (isDynamoResourceNotFoundError(error)) {
-                    doesTableExist = false;
-                    isTimeToLiveEnabled = false;
-                } else {
-                    throw error;
-                }
-            }
-
-            if (!doesTableExist) {
+                let doesTableExist;
+                let isTimeToLiveEnabled;
                 try {
-                    await internalClient.CreateTable(context.tracer.getTracer(), {
-                        TableName: tableName,
-                        AttributeDefinitions: [
-                            {
-                                AttributeName: "partitionKey",
-                                AttributeType: "S",
-                            },
-                            {
-                                AttributeName: "sortKey",
-                                AttributeType: "S",
-                            },
-                            ...this._initializationState.description.indexes.flatMap(
-                                (indexDescription, i) => {
-                                    const indexNumber = i + 1;
-
-                                    return [
-                                        {
-                                            AttributeName: `index${indexNumber}PartitionKey`,
-                                            AttributeType: "S",
-                                        },
-                                        {
-                                            AttributeName: `index${indexNumber}SortKey`,
-                                            AttributeType: "S",
-                                        },
-                                    ];
-                                },
-                            ),
-                        ],
-                        KeySchema: [
-                            {
-                                AttributeName: "partitionKey",
-                                KeyType: "HASH",
-                            },
-                            {
-                                AttributeName: "sortKey",
-                                KeyType: "RANGE",
-                            },
-                        ],
-                        BillingMode: "PAY_PER_REQUEST",
-                        GlobalSecondaryIndexes:
-                            this._initializationState.description.indexes.length > 0
-                                ? this._initializationState.description.indexes.map(
-                                      (indexDescription, i) => {
-                                          const indexNumber = i + 1;
-
-                                          return {
-                                              IndexName: `Index${indexNumber}`,
-                                              KeySchema: [
-                                                  {
-                                                      AttributeName: `index${indexNumber}PartitionKey`,
-                                                      KeyType: "HASH",
-                                                  },
-                                                  {
-                                                      AttributeName: `index${indexNumber}SortKey`,
-                                                      KeyType: "RANGE",
-                                                  },
-                                              ],
-                                              Projection: {
-                                                  ProjectionType: {
-                                                      KeysOnly: "KEYS_ONLY",
-                                                      All: "ALL",
-                                                  }[indexDescription.projection],
-                                              },
-                                          };
-                                      },
-                                  )
-                                : undefined,
-                    });
-                } catch (error) {
-                    // A concurrent process may be racing to create this table. Try again...
-                    if (isDynamoResourceInUseError(error)) {
-                        retry(error);
-                    } else {
-                        throw error;
-                    }
-                }
-            }
-
-            if (!isTimeToLiveEnabled) {
-                try {
-                    await internalClient.UpdateTimeToLive(context.tracer.getTracer(), {
-                        TableName: tableName,
-                        TimeToLiveSpecification: {
-                            Enabled: true,
-                            AttributeName: "expirationTime",
+                    const output = await internalClient.DescribeTimeToLive(
+                        context.tracer.getTracer(),
+                        {
+                            TableName: tableName,
                         },
-                    });
+                    );
+                    doesTableExist = true;
+                    isTimeToLiveEnabled =
+                        output.TimeToLiveDescription?.TimeToLiveStatus !== "DISABLED";
                 } catch (error) {
-                    // A concurrent process may be racing to create this table. Try again...
-                    if (isDynamoValidationError(error)) {
-                        retry(error);
+                    if (isDynamoResourceNotFoundError(error)) {
+                        doesTableExist = false;
+                        isTimeToLiveEnabled = false;
                     } else {
                         throw error;
                     }
                 }
-            }
+
+                if (!doesTableExist) {
+                    try {
+                        await internalClient.CreateTable(context.tracer.getTracer(), {
+                            TableName: tableName,
+                            AttributeDefinitions: [
+                                {
+                                    AttributeName: "partitionKey",
+                                    AttributeType: "S",
+                                },
+                                {
+                                    AttributeName: "sortKey",
+                                    AttributeType: "S",
+                                },
+                                ...this._initializationState.description.indexes.flatMap(
+                                    (indexDescription, i) => {
+                                        const indexNumber = i + 1;
+
+                                        return [
+                                            {
+                                                AttributeName: `index${indexNumber}PartitionKey`,
+                                                AttributeType: "S",
+                                            },
+                                            {
+                                                AttributeName: `index${indexNumber}SortKey`,
+                                                AttributeType: "S",
+                                            },
+                                        ];
+                                    },
+                                ),
+                            ],
+                            KeySchema: [
+                                {
+                                    AttributeName: "partitionKey",
+                                    KeyType: "HASH",
+                                },
+                                {
+                                    AttributeName: "sortKey",
+                                    KeyType: "RANGE",
+                                },
+                            ],
+                            BillingMode: "PAY_PER_REQUEST",
+                            GlobalSecondaryIndexes:
+                                this._initializationState.description.indexes.length > 0
+                                    ? this._initializationState.description.indexes.map(
+                                          (indexDescription, i) => {
+                                              const indexNumber = i + 1;
+
+                                              return {
+                                                  IndexName: `Index${indexNumber}`,
+                                                  KeySchema: [
+                                                      {
+                                                          AttributeName: `index${indexNumber}PartitionKey`,
+                                                          KeyType: "HASH",
+                                                      },
+                                                      {
+                                                          AttributeName: `index${indexNumber}SortKey`,
+                                                          KeyType: "RANGE",
+                                                      },
+                                                  ],
+                                                  Projection: {
+                                                      ProjectionType: {
+                                                          KeysOnly: "KEYS_ONLY",
+                                                          All: "ALL",
+                                                      }[indexDescription.projection],
+                                                  },
+                                              };
+                                          },
+                                      )
+                                    : undefined,
+                        });
+                    } catch (error) {
+                        // A concurrent process may be racing to create this table. Try again...
+                        if (isDynamoResourceInUseError(error)) {
+                            retry(error);
+                        } else {
+                            throw error;
+                        }
+                    }
+                }
+
+                if (!isTimeToLiveEnabled) {
+                    try {
+                        await internalClient.UpdateTimeToLive(context.tracer.getTracer(), {
+                            TableName: tableName,
+                            TimeToLiveSpecification: {
+                                Enabled: true,
+                                AttributeName: "expirationTime",
+                            },
+                        });
+                    } catch (error) {
+                        // A concurrent process may be racing to create this table. Try again...
+                        if (isDynamoValidationError(error)) {
+                            retry(error);
+                        } else {
+                            throw error;
+                        }
+                    }
+                }
+            });
         });
     }
 
@@ -1266,7 +1276,9 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     serializedItem,
                     serializedKey,
                 );
-                item[propertyKey] = propertyValue;
+                if (propertyValue !== objectSchemaMissingPropertySymbol) {
+                    item[propertyKey] = propertyValue;
+                }
             }
         } catch (error) {
             // Reclassify deserialization errors from data stored in the database as data

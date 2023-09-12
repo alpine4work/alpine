@@ -993,6 +993,8 @@ class TaskActionTransactionCommitState {
     }
 }
 
+const circularTaskDependencyErrorDisplayMessage = errorDisplayMessage`Can’t move a task to the subtasks of one of its own subtasks. Check your task’s subtasks and try removing the one you want to move your task into.`;
+
 async function actuallyCommitTaskActionTransaction(
     // We intentionally don't pass in `context` since we want all DynamoDB access
     // to go through this `state` object. That way we force reads to go through our
@@ -1138,6 +1140,16 @@ async function actuallyCommitTaskActionTransaction(
                                     async () => {
                                         if (taskAction.parentTaskId === null) return;
 
+                                        if (taskId === taskAction.parentTaskId) {
+                                            throw new FailedPreconditionError(
+                                                "Updating task's `parentTaskId` would create a circular dependency",
+                                                {
+                                                    displayMessage:
+                                                        circularTaskDependencyErrorDisplayMessage,
+                                                },
+                                            );
+                                        }
+
                                         const newParentTaskItem = await state.getTaskItemIfExists(
                                             taskAction.parentTaskId,
                                         );
@@ -1175,7 +1187,8 @@ async function actuallyCommitTaskActionTransaction(
                                                 throw new FailedPreconditionError(
                                                     "Updating task's `parentTaskId` would create a circular dependency",
                                                     {
-                                                        displayMessage: errorDisplayMessage`Can’t move a task to the subtasks of one of its own subtasks. Check your task’s subtasks and try removing the one you want to move your task into.`,
+                                                        displayMessage:
+                                                            circularTaskDependencyErrorDisplayMessage,
                                                     },
                                                 );
                                             }

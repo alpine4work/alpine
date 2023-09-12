@@ -1413,6 +1413,7 @@ test("applies commit action calls optimistically", async () => {
 
     await TestRpcContextModule.resolveLastExecution(commitTaskActionTransaction, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
@@ -1463,6 +1464,7 @@ test("can create tasks optimistically", async () => {
 
     await TestRpcContextModule.resolveLastExecution(commitTaskActionTransaction, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(action1.taskId)).toEqual({
@@ -1552,6 +1554,7 @@ test("can create then update tasks optimistically", async () => {
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(action1.taskId)).toEqual({
@@ -1580,6 +1583,7 @@ test("can create then update tasks optimistically", async () => {
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(action1.taskId)).toEqual({
@@ -1669,6 +1673,7 @@ test("can create then update tasks optimistically and resolve commits out of ord
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(action1.taskId)).toEqual({
@@ -1692,6 +1697,7 @@ test("can create then update tasks optimistically and resolve commits out of ord
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(action1.taskId)).toEqual({
@@ -1814,6 +1820,7 @@ test("can create then update tasks optimistically after an action from the serve
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(action2.taskId)).toEqual({
@@ -1844,6 +1851,7 @@ test("can create then update tasks optimistically after an action from the serve
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(action2.taskId)).toEqual({
@@ -1930,6 +1938,7 @@ test("can create then update tasks optimistically our of order", async () => {
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(action1.taskId)).toEqual({
@@ -1953,6 +1962,7 @@ test("can create then update tasks optimistically our of order", async () => {
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(action1.taskId)).toEqual({
@@ -2070,6 +2080,7 @@ test("can create then update tasks optimistically out of order after an action f
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(action2.taskId)).toEqual({
@@ -2095,6 +2106,7 @@ test("can create then update tasks optimistically out of order after an action f
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(action2.taskId)).toEqual({
@@ -2215,6 +2227,7 @@ test("can create then update tasks optimistically out of order with more non-cre
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(action2.taskId)).toEqual({
@@ -2243,6 +2256,7 @@ test("can create then update tasks optimistically out of order with more non-cre
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(action2.taskId)).toEqual({
@@ -2268,6 +2282,7 @@ test("can create then update tasks optimistically out of order with more non-cre
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 2, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(action2.taskId)).toEqual({
@@ -2359,6 +2374,7 @@ test("resolving optimistic update after garbage collection is ok", async () => {
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(action1.taskId)).toEqual({
@@ -2392,6 +2408,7 @@ test("resolving optimistic update after garbage collection is ok", async () => {
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(action1.taskId)).toEqual(null);
@@ -2493,6 +2510,7 @@ test("regular actions are added to optimistic state", async () => {
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
@@ -2630,6 +2648,7 @@ test("regular actions are added to optimistic state with multiple actions", asyn
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
@@ -2648,6 +2667,7 @@ test("regular actions are added to optimistic state with multiple actions", asyn
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
@@ -2785,6 +2805,7 @@ test("regular actions are added to optimistic state with multiple actions that a
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
@@ -2806,6 +2827,7 @@ test("regular actions are added to optimistic state with multiple actions that a
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
@@ -2894,6 +2916,7 @@ test("regular actions are added to optimistic state when task is not backfilled"
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
@@ -3012,6 +3035,7 @@ test("regular actions are added to optimistic state with multiple actions when t
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
@@ -3030,6 +3054,7 @@ test("regular actions are added to optimistic state with multiple actions when t
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
@@ -3148,6 +3173,7 @@ test("regular actions are added to optimistic state with multiple actions that a
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
@@ -3169,6 +3195,7 @@ test("regular actions are added to optimistic state with multiple actions that a
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
@@ -3289,6 +3316,7 @@ test("regular actions are added to optimistic state when task is created optimis
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
@@ -3310,6 +3338,7 @@ test("regular actions are added to optimistic state when task is created optimis
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
@@ -3461,6 +3490,7 @@ test("regular actions are added to optimistic state with multiple actions when t
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
@@ -3483,6 +3513,7 @@ test("regular actions are added to optimistic state with multiple actions when t
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
@@ -3501,6 +3532,7 @@ test("regular actions are added to optimistic state with multiple actions when t
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 2, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
@@ -3652,6 +3684,7 @@ test("regular actions are added to optimistic state with multiple actions that a
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
@@ -3674,6 +3707,7 @@ test("regular actions are added to optimistic state with multiple actions that a
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 2, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
@@ -3695,6 +3729,7 @@ test("regular actions are added to optimistic state with multiple actions that a
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
@@ -3804,6 +3839,7 @@ test("three optimistic actions when task is not backfilled", async () => {
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
@@ -3825,6 +3861,7 @@ test("three optimistic actions when task is not backfilled", async () => {
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
@@ -3843,6 +3880,7 @@ test("three optimistic actions when task is not backfilled", async () => {
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 2, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
@@ -3959,6 +3997,7 @@ test("backfilling a task when none exists and there are optimistic actions works
 
     await TestRpcContextModule.resolveLastExecution(commitTaskActionTransaction, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
@@ -4063,6 +4102,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
 
     await TestRpcContextModule.resolveLastExecution(commitTaskActionTransaction, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
@@ -4211,6 +4251,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
@@ -4229,6 +4270,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
@@ -5145,6 +5187,7 @@ test("resolving optimistic update after garbage collection is ok (rejected)", as
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(action1.taskId)).toEqual({
@@ -7083,6 +7126,7 @@ test("create task applied after optimistic updates", async () => {
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
@@ -7101,6 +7145,7 @@ test("create task applied after optimistic updates", async () => {
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
@@ -7221,6 +7266,7 @@ test("create task applied after optimistic updates that are resolved out of orde
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
@@ -7242,6 +7288,7 @@ test("create task applied after optimistic updates that are resolved out of orde
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
+        extraActionsReferencedAccounts: [],
     });
 
     expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
@@ -7555,7 +7602,8 @@ test("if optimistic task creation is reverted then queries remove the task", asy
         },
     } satisfies TaskAction;
 
-    const query = store.createQuery({
+    const query = store.createAndRetainQuery({
+        desiredCount: 100,
         filters: {
             ...defaultTaskQueryNormalizedFilters,
             creatorFilter: {
