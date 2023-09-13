@@ -33,6 +33,7 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
+import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_key.js";
 import {taskRowViewMinHeight} from "~/client/tasks/internal/task_row_shared_styles.js";
 import {
     TaskRowTitleInput,
@@ -86,7 +87,7 @@ import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js"
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {LocalTaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
@@ -98,6 +99,11 @@ import {
 } from "~/shared/styles/styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
+import {TaskPosition} from "~/shared/tasks/task_position.js";
+import {
+    TaskQuerySortCursor,
+    getTaskQuerySortCursorTaskId,
+} from "~/shared/tasks/task_query_sort_cursor.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {TaskTitleUpdate, emptyTaskTitle} from "~/shared/tasks/task_title.js";
 
@@ -121,6 +127,7 @@ function TaskRowView(
         taskId,
         ghostTaskId = null,
         onGhostTaskCreated,
+        parentTaskCursors,
         titlePlaceholder,
         indentation,
         areChildTasksExpandedStore,
@@ -139,6 +146,7 @@ function TaskRowView(
         taskId: TaskId | null;
         ghostTaskId?: TaskId | null;
         onGhostTaskCreated?: () => void;
+        parentTaskCursors: ReadonlyArray<TaskQuerySortCursor>;
         titlePlaceholder?: string;
         // NOCOMMIT:
         // capabilities: TaskGridViewCapabilities;
@@ -176,7 +184,6 @@ function TaskRowView(
         // createTaskBelowAndFocus: () => void;
         // createTaskChildAtStartAndFocus: () => void;
         getAddNewTaskToQueryActions: (
-            time: HybridLogicalTime,
             taskId: TaskId,
             position:
                 | {type: "End"}
@@ -190,7 +197,7 @@ function TaskRowView(
         // deleteTaskAndAllChildrenMaybeWithConfirmation: () => void;
         // focusFirstTaskTitleStart: () => void;
         // focusLastTaskTitleEnd: () => void;
-        focusTaskTitleStart: (taskId: TaskId) => void;
+        focusTaskTitleStart: (taskKey: TaskGridViewTaskKey) => void;
         focusNextTaskTitleCoord: (coord: number) => void;
         focusPreviousTaskTitleCoord: (coord: number) => void;
         preserveLastTaskTitleArrowNavigationCoord: () => void;
@@ -224,8 +231,6 @@ function TaskRowView(
     } | null>(null);
 
     const onTitleChange = (titleUpdate: TaskTitleUpdate) => {
-        const time = query.store.clock.now();
-
         // When our commit promise finishes, commit the pending update title action if
         // there is one.
         const handleCommitPromise = (commitPromise: {finally: (callback: () => void) => void}) => {
@@ -265,6 +270,8 @@ function TaskRowView(
         }
 
         if (taskId) {
+            const time = query.store.clock.now();
+
             const commitPromise = query.store.commitTaskActionTransaction(context, [
                 {
                     type: "UpdateTask",
@@ -288,7 +295,7 @@ function TaskRowView(
                 const commitPromise = query.store.commitTaskActionTransaction(context, [
                     {
                         type: "UpdateTask",
-                        time,
+                        time: query.store.clock.now(),
                         taskId: ghostTaskId,
                         taskAction: {
                             type: "Create",
@@ -298,14 +305,14 @@ function TaskRowView(
                     },
                     {
                         type: "UpdateTask",
-                        time,
+                        time: query.store.clock.now(),
                         taskId: ghostTaskId,
                         taskAction: {
                             type: "UpdateTitle",
                             titleUpdate,
                         },
                     },
-                    ...getAddNewTaskToQueryActions(time, ghostTaskId, {type: "End"}),
+                    ...getAddNewTaskToQueryActions(ghostTaskId, {type: "End"}),
                 ]);
 
                 handleCommitPromise(commitPromise);
@@ -607,13 +614,12 @@ function TaskRowView(
                                 areChildTasksExpandedStore={areChildTasksExpandedStore}
                                 onAreChildTasksExpandedToggle={onAreChildTasksExpandedToggle}
                                 createTaskAbove={() => {
-                                    const time = query.store.clock.now();
                                     const newTaskId = generateId<TaskId>();
 
                                     query.store.commitTaskActionTransaction(context, [
                                         {
                                             type: "UpdateTask",
-                                            time,
+                                            time: query.store.clock.now(),
                                             taskId: newTaskId,
                                             taskAction: {
                                                 type: "Create",
@@ -622,20 +628,122 @@ function TaskRowView(
                                             },
                                         },
                                         ...getAddNewTaskToQueryActions(
-                                            time,
                                             newTaskId,
                                             taskId ? {type: "Above", taskId} : {type: "End"},
                                         ),
                                     ]);
                                 }}
                                 createTaskBelowAndFocus={() => {
-                                    const time = query.store.clock.now();
                                     const newTaskId = generateId<TaskId>();
+
+                                    // If we have a task with children, the children are expanded, and the children
+                                    // are loaded then to create a task below this task we need to create it as the
+                                    // first child of this task.
+                                    //
+                                    // Otherwise we fall down to the branch below and create a task below ours in
+                                    // our query.
+                                    if (
+                                        task &&
+                                        task.getChildTaskCount() > 0 &&
+                                        areChildTasksExpandedStore.getSnapshot()
+                                    ) {
+                                        const childrenQuery = query.store
+                                            .getTaskChildrenQueryStore(task.id)
+                                            .getSnapshot();
+                                        if (
+                                            childrenQuery &&
+                                            childrenQuery.loadedStateStore.getSnapshot() !==
+                                                "Unloaded"
+                                        ) {
+                                            const time1 = query.store.clock.now();
+                                            const time2 = query.store.clock.now();
+                                            const time3 = query.store.clock.now();
+
+                                            let position: TaskPosition = {
+                                                orderTime: time3,
+                                                orderKey: initialOrderKey,
+                                            };
+
+                                            const firstChildCursor =
+                                                childrenQuery.taskOrderStore.getSnapshot().begin
+                                                    .key;
+
+                                            const firstChildPosition = firstChildCursor
+                                                ? childrenQuery
+                                                      .getTaskEntryStore(
+                                                          getTaskQuerySortCursorTaskId(
+                                                              firstChildCursor,
+                                                          ),
+                                                      )
+                                                      .getSnapshot()
+                                                      .task?.getParent()?.position
+                                                : null;
+
+                                            if (firstChildPosition) {
+                                                position = {
+                                                    orderTime: firstChildPosition.orderTime,
+                                                    orderKey: generateOrderKeyBetween(
+                                                        null,
+                                                        firstChildPosition.orderKey,
+                                                    ),
+                                                };
+                                            }
+
+                                            query.store.commitTaskActionTransaction(context, [
+                                                {
+                                                    type: "UpdateTask",
+                                                    time: time1,
+                                                    taskId: newTaskId,
+                                                    taskAction: {
+                                                        type: "Create",
+                                                        creator:
+                                                            TaskSortableAccount.from(
+                                                                currentAccount,
+                                                            ),
+                                                        creatorTimeZone: timeZone,
+                                                    },
+                                                },
+                                                {
+                                                    type: "UpdateTask",
+                                                    time: time2,
+                                                    taskId: newTaskId,
+                                                    taskAction: {
+                                                        type: "UpdateParentTaskId",
+                                                        parentTaskId: taskId,
+                                                    },
+                                                },
+                                                {
+                                                    type: "UpdateTask",
+                                                    time: time3,
+                                                    taskId: newTaskId,
+                                                    taskAction: {
+                                                        type: "UpdateParentPosition",
+                                                        parentPosition: position,
+                                                    },
+                                                },
+                                            ]);
+
+                                            // Store updates are rendered by React synchronously. So if we wait a microtask
+                                            // React should have rendered the new task.
+                                            scheduleMicrotask(() => {
+                                                if (parentTaskCursors.length === 0) {
+                                                    focusTaskTitleStart(`${task.id}-${newTaskId}`);
+                                                } else {
+                                                    focusTaskTitleStart(
+                                                        `${getTaskQuerySortCursorTaskId(
+                                                            parentTaskCursors[0]!,
+                                                        )}-${newTaskId}`,
+                                                    );
+                                                }
+                                            });
+                                            return;
+                                        }
+                                    }
 
                                     query.store.commitTaskActionTransaction(context, [
                                         {
                                             type: "UpdateTask",
-                                            time,
+                                            time: query.store.clock.now(),
                                             taskId: newTaskId,
                                             taskAction: {
                                                 type: "Create",
@@ -644,7 +752,6 @@ function TaskRowView(
                                             },
                                         },
                                         ...getAddNewTaskToQueryActions(
-                                            time,
                                             newTaskId,
                                             taskId ? {type: "Below", taskId} : {type: "End"},
                                         ),
@@ -653,7 +760,15 @@ function TaskRowView(
                                     // Store updates are rendered by React synchronously. So if we wait a microtask
                                     // React should have rendered the new task.
                                     scheduleMicrotask(() => {
-                                        focusTaskTitleStart(newTaskId);
+                                        if (parentTaskCursors.length === 0) {
+                                            focusTaskTitleStart(newTaskId);
+                                        } else {
+                                            focusTaskTitleStart(
+                                                `${getTaskQuerySortCursorTaskId(
+                                                    parentTaskCursors[0]!,
+                                                )}-${newTaskId}`,
+                                            );
+                                        }
                                     });
                                 }}
                                 nestWithPreviousTaskRowIfExistsAndExpand={

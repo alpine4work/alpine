@@ -71,10 +71,6 @@ import {
     TaskGridViewExpansionStateSchema,
 } from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {
-    TaskGridViewTaskKey,
-    parseTaskGridViewTaskKey,
-} from "~/client/tasks/internal/task_grid_view_task_key.js";
-import {
     TaskNotepadPageIdCompressedSet,
     TaskNotepadPageIdCompressedSetSchema,
     generateTaskNotepadPageId,

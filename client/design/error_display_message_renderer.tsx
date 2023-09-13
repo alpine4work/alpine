@@ -12,7 +12,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol.js";
 import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
-const defaultErrorDisplayMessage = errorDisplayMessage`An unexpected error occurred. Please try again. If the problem continues, let us know at ${errorDisplayMessage.supportLink}`;
+const defaultErrorDisplayMessage = errorDisplayMessage`An unexpected error occurred, please try again. If the problem continues, let us know at ${errorDisplayMessage.supportLink}`;
 
 const isBrowserRuntime = typeof window !== "undefined";
 

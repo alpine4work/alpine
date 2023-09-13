@@ -136,8 +136,6 @@ function TaskRowTitleInput(
         onAreChildTasksExpandedToggle: () => void;
         createTaskAbove: () => void;
         createTaskBelowAndFocus: () => void;
-        // NOCOMMIT:
-        // createTaskChildAtStartAndFocus: () => void;
         nestWithPreviousTaskRowIfExistsAndExpand: (selection: Selection) => void;
         unnestTaskIfNestedRow: (selection: Selection) => void;
         // NOCOMMIT:
@@ -174,12 +172,7 @@ function TaskRowTitleInput(
                         view.state.selection.from === 0
                     ) {
                         createTaskAbove();
-                    }
-                    // NOCOMMIT:
-                    // else if (childTaskCount > 0 && !areChildTasksCollapsed) {
-                    //     createTaskChildAtStartAndFocus();
-                    // }
-                    else {
+                    } else {
                         createTaskBelowAndFocus();
                     }
                 }

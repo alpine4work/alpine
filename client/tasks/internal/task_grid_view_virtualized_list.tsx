@@ -2,9 +2,9 @@ import {useEffect, useMemo, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
-import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {ConstStore} from "~/client/helpers/store/const_store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
+import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/get_new_task_position_for_query_sorted_by_position.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_key.js";
 import {TaskGridViewVirtualizedTaskList} from "~/client/tasks/internal/task_grid_view_virtualized_task_list.js";
@@ -15,9 +15,10 @@ import {useTaskGridViewExpansionState} from "~/client/tasks/internal/use_task_gr
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {VirtualizedScrollViewItem} from "~/client/virtualized/virtualized_scroll_view.js";
 import {spacing} from "~/shared/design/spacing.js";
-import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
@@ -41,14 +42,10 @@ export function useTaskGridViewVirtualizedList({
     initialExpandedState: TaskGridViewExpansionState;
     initialBottomGhostTaskId: TaskId;
     getAddNewTaskToQueryActions: (
-        time: HybridLogicalTime,
         taskId: TaskId,
         position: {type: "End"} | {type: "Above"; taskId: TaskId} | {type: "Below"; taskId: TaskId},
     ) => Array<TaskAction>;
-    getMaybeRemoveTaskFromQueryWhenNestingActions: (
-        time: HybridLogicalTime,
-        taskId: TaskId,
-    ) => Array<TaskAction>;
+    getMaybeRemoveTaskFromQueryWhenNestingActions: (taskId: TaskId) => Array<TaskAction>;
 }) {
     const context = useAppContext();
 
@@ -106,242 +103,63 @@ export function useTaskGridViewVirtualizedList({
 
     const itemCount = Math.max(list.getItemCount() + 1, 3);
 
-    return {
-        itemCount,
+    const renderItem = useMemo(() => {
+        const focusTaskTitleStart = (taskId: TaskGridViewTaskKey) => {
+            taskRowByTaskKeyRef.current.get(taskId)?.focusTitleStart();
+        };
 
-        renderItem: useMemo(() => {
-            const focusTaskTitleStart = (taskId: TaskGridViewTaskKey) => {
-                taskRowByTaskKeyRef.current.get(taskId)?.focusTitleStart();
-            };
-
-            const preserveLastTaskTitleArrowNavigationCoord = () => {
-                if (lastArrowNavigationCoordRef.current) {
-                    lastArrowNavigationCoordRef.current = {
-                        setTime: new Date(),
-                        coord: lastArrowNavigationCoordRef.current.coord,
-                    };
-                }
-            };
-
-            return (_itemIndex: number): VirtualizedScrollViewItem => {
-                const itemIndex = _itemIndex;
-
-                const focusNextTaskTitleCoord = (coord: number) => {
-                    coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
-
-                    for (let index = itemIndex + 1; index < itemCount; index++) {
-                        const taskRow = taskRowByItemIndexRef.current.get(index);
-                        if (!taskRow) continue;
-
-                        taskRow.focusTitleCoord(coord, "top");
-                        break;
-                    }
-
-                    lastArrowNavigationCoordRef.current = {
-                        setTime: new Date(),
-                        coord,
-                    };
+        const preserveLastTaskTitleArrowNavigationCoord = () => {
+            if (lastArrowNavigationCoordRef.current) {
+                lastArrowNavigationCoordRef.current = {
+                    setTime: new Date(),
+                    coord: lastArrowNavigationCoordRef.current.coord,
                 };
+            }
+        };
 
-                const focusPreviousTaskTitleCoord = (coord: number) => {
-                    coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
+        return (_itemIndex: number): VirtualizedScrollViewItem => {
+            const itemIndex = _itemIndex;
 
-                    for (let index = itemIndex - 1; index >= 0; index--) {
-                        const taskRow = taskRowByItemIndexRef.current.get(index);
-                        if (!taskRow) continue;
+            const focusNextTaskTitleCoord = (coord: number) => {
+                coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
 
-                        taskRow.focusTitleCoord(coord, "bottom");
-                        break;
-                    }
+                for (let index = itemIndex + 1; index < itemCount; index++) {
+                    const taskRow = taskRowByItemIndexRef.current.get(index);
+                    if (!taskRow) continue;
 
-                    lastArrowNavigationCoordRef.current = {
-                        setTime: new Date(),
-                        coord,
-                    };
-                };
-
-                const listItemCount = list.getItemCount();
-                let relativeItemIndex = itemIndex;
-
-                if (relativeItemIndex < listItemCount) {
-                    const item = list.getItem(relativeItemIndex);
-
-                    switch (item.type) {
-                        case "Task": {
-                            const taskId = getTaskQuerySortCursorTaskId(item.cursor);
-
-                            const taskKey: TaskGridViewTaskKey =
-                                item.parentTaskCursors.length > 0
-                                    ? `${getTaskQuerySortCursorTaskId(
-                                          item.parentTaskCursors[0]!,
-                                      )}-${taskId}`
-                                    : taskId;
-
-                            const taskPath = [
-                                ...item.parentTaskCursors.map(getTaskQuerySortCursorTaskId),
-                                taskId,
-                            ];
-
-                            const nestWithPreviousTaskRowIfExistsAndExpand = () => {
-                                for (
-                                    let previousItemIndex = relativeItemIndex - 1;
-                                    previousItemIndex >= 0;
-                                    previousItemIndex--
-                                ) {
-                                    const previousItem = list.getItem(previousItemIndex);
-                                    if (
-                                        previousItem.parentTaskCursors.length ===
-                                        item.parentTaskCursors.length
-                                    ) {
-                                        if (previousItem.type !== "Task") break;
-
-                                        const indent = () => {
-                                            const time = query.store.clock.now();
-
-                                            const taskId = getTaskQuerySortCursorTaskId(
-                                                item.cursor,
-                                            );
-                                            const previousTaskId = getTaskQuerySortCursorTaskId(
-                                                previousItem.cursor,
-                                            );
-
-                                            query.store.commitTaskActionTransaction(context, [
-                                                {
-                                                    type: "UpdateTask",
-                                                    time,
-                                                    taskId,
-                                                    taskAction: {
-                                                        type: "UpdateParentTaskId",
-                                                        parentTaskId: previousTaskId,
-                                                    },
-                                                },
-                                                ...events.getMaybeRemoveTaskFromQueryWhenNestingActions(
-                                                    time,
-                                                    taskId,
-                                                ),
-                                            ]);
-                                        };
-
-                                        const previousTaskPath = [
-                                            ...previousItem.parentTaskCursors,
-                                            previousItem.cursor,
-                                        ].map(getTaskQuerySortCursorTaskId);
-
-                                        // Expand our new parent task if it's not already expanded.
-                                        if (
-                                            getAreChildTasksExpandedStore(
-                                                previousTaskPath,
-                                            ).getSnapshot()
-                                        ) {
-                                            indent();
-                                        } else {
-                                            toggleAreChildTasksExpanded(previousTaskPath, {
-                                                onFinish: indent,
-                                            });
-                                        }
-                                        break;
-                                    }
-                                }
-                            };
-
-                            return {
-                                key: `Task:${taskKey}`,
-                                minHeight: spacing[taskRowViewMinHeight],
-                                node: (
-                                    <TaskRowView
-                                        ref={taskRow => {
-                                            if (!taskRow) {
-                                                taskRowByTaskKeyRef.current.delete(taskKey);
-                                                taskRowByItemIndexRef.current.delete(itemIndex);
-                                            } else {
-                                                taskRowByTaskKeyRef.current.set(taskKey, taskRow);
-                                                taskRowByItemIndexRef.current.set(
-                                                    itemIndex,
-                                                    taskRow,
-                                                );
-                                            }
-                                        }}
-                                        // It's important we use the `query` property from `item` since child tasks
-                                        // come from a different query than our root query.
-                                        query={item.query}
-                                        capabilities={capabilities}
-                                        taskId={taskId}
-                                        indentation={item.parentTaskCursors.length}
-                                        areChildTasksExpandedStore={getAreChildTasksExpandedStore(
-                                            taskPath,
-                                        )}
-                                        onAreChildTasksExpandedToggle={() => {
-                                            toggleAreChildTasksExpanded(taskPath);
-                                        }}
-                                        getAddNewTaskToQueryActions={
-                                            events.getAddNewTaskToQueryActions
-                                        }
-                                        nestWithPreviousTaskRowIfExistsAndExpand={
-                                            nestWithPreviousTaskRowIfExistsAndExpand
-                                        }
-                                        focusTaskTitleStart={focusTaskTitleStart}
-                                        focusNextTaskTitleCoord={focusNextTaskTitleCoord}
-                                        focusPreviousTaskTitleCoord={focusPreviousTaskTitleCoord}
-                                        preserveLastTaskTitleArrowNavigationCoord={
-                                            preserveLastTaskTitleArrowNavigationCoord
-                                        }
-                                    />
-                                ),
-                            };
-                        }
-                        case "UnloadedChildTask": {
-                            assert(item.parentTaskCursors.length > 0);
-
-                            const parentTaskId = getTaskQuerySortCursorTaskId(
-                                item.parentTaskCursors[item.parentTaskCursors.length - 1]!,
-                            );
-
-                            const parentTaskKey: TaskGridViewTaskKey =
-                                item.parentTaskCursors.length > 1
-                                    ? `${getTaskQuerySortCursorTaskId(
-                                          item.parentTaskCursors[0]!,
-                                      )}-${parentTaskId}`
-                                    : parentTaskId;
-
-                            const focusPreviousTaskTitleEnd = () => {
-                                for (let index = itemIndex - 1; index >= 0; index--) {
-                                    const taskRow = taskRowByItemIndexRef.current.get(index);
-                                    if (!taskRow) continue;
-
-                                    taskRow.focusTitleEnd();
-                                    break;
-                                }
-                            };
-
-                            const focusPreviousTaskTitleAll = () => {
-                                for (let index = itemIndex - 1; index >= 0; index--) {
-                                    const taskRow = taskRowByItemIndexRef.current.get(index);
-                                    if (!taskRow) continue;
-
-                                    taskRow.focusTitleAll();
-                                    break;
-                                }
-                            };
-
-                            return {
-                                key: `UnloadedChildTask:${parentTaskKey}-${item.childTaskIndex}`,
-                                minHeight: spacing[taskRowViewMinHeight],
-                                node: (
-                                    <TaskRowShimmer
-                                        randomSeed={parentTaskKey}
-                                        index={item.childTaskIndex}
-                                        indentation={item.parentTaskCursors.length}
-                                        focusPreviousTaskTitleEnd={focusPreviousTaskTitleEnd}
-                                        focusPreviousTaskTitleAll={focusPreviousTaskTitleAll}
-                                    />
-                                ),
-                            };
-                        }
-                        default:
-                            throw exhaustive(item);
-                    }
+                    taskRow.focusTitleCoord(coord, "top");
+                    break;
                 }
 
+                lastArrowNavigationCoordRef.current = {
+                    setTime: new Date(),
+                    coord,
+                };
+            };
+
+            const focusPreviousTaskTitleCoord = (coord: number) => {
+                coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
+
+                for (let index = itemIndex - 1; index >= 0; index--) {
+                    const taskRow = taskRowByItemIndexRef.current.get(index);
+                    if (!taskRow) continue;
+
+                    taskRow.focusTitleCoord(coord, "bottom");
+                    break;
+                }
+
+                lastArrowNavigationCoordRef.current = {
+                    setTime: new Date(),
+                    coord,
+                };
+            };
+
+            const listItemCount = list.getItemCount();
+            let relativeItemIndex = itemIndex;
+
+            // If this item is below our task list then render either a ghost row or empty
+            // decorative rows.
+            if (relativeItemIndex >= listItemCount) {
                 relativeItemIndex -= listItemCount;
 
                 if (relativeItemIndex === 0) {
@@ -368,6 +186,7 @@ export function useTaskGridViewVirtualizedList({
                                 onGhostTaskCreated={() =>
                                     setBottomGhostTaskId(generateId<TaskId>())
                                 }
+                                parentTaskCursors={emptyArray}
                                 // NOCOMMIT: Ghost row placeholder sequence!
                                 titlePlaceholder="Add a task…"
                                 indentation={0}
@@ -430,17 +249,226 @@ export function useTaskGridViewVirtualizedList({
                         </Box>
                     ),
                 };
-            };
-        }, [
-            bottomGhostTaskId,
-            capabilities,
-            context,
-            events,
-            getAreChildTasksExpandedStore,
-            itemCount,
-            list,
-            query,
-            toggleAreChildTasksExpanded,
-        ]),
+            }
+
+            const item = list.getItem(relativeItemIndex);
+
+            if (item.type === "Task") {
+                const taskId = getTaskQuerySortCursorTaskId(item.cursor);
+
+                const taskKey: TaskGridViewTaskKey =
+                    item.parentTaskCursors.length > 0
+                        ? `${getTaskQuerySortCursorTaskId(item.parentTaskCursors[0]!)}-${taskId}`
+                        : taskId;
+
+                const taskPath = [
+                    ...item.parentTaskCursors.map(getTaskQuerySortCursorTaskId),
+                    taskId,
+                ];
+
+                const nestWithPreviousTaskRowIfExistsAndExpand = () => {
+                    for (
+                        let previousItemIndex = relativeItemIndex - 1;
+                        previousItemIndex >= 0;
+                        previousItemIndex--
+                    ) {
+                        const previousItem = list.getItem(previousItemIndex);
+                        if (
+                            previousItem.parentTaskCursors.length !== item.parentTaskCursors.length
+                        ) {
+                            continue;
+                        }
+
+                        if (previousItem.type !== "Task") break;
+
+                        const indent = () => {
+                            const taskId = getTaskQuerySortCursorTaskId(item.cursor);
+                            const previousTaskId = getTaskQuerySortCursorTaskId(
+                                previousItem.cursor,
+                            );
+
+                            query.store.commitTaskActionTransaction(context, [
+                                {
+                                    type: "UpdateTask",
+                                    time: query.store.clock.now(),
+                                    taskId,
+                                    taskAction: {
+                                        type: "UpdateParentTaskId",
+                                        parentTaskId: previousTaskId,
+                                    },
+                                },
+                                // If we are indenting at the root of our query then we want to remove the task
+                                // from the query root since it lives in its parent task now.
+                                ...(item.query === query
+                                    ? events.getMaybeRemoveTaskFromQueryWhenNestingActions(taskId)
+                                    : []),
+                            ]);
+                        };
+
+                        const previousTaskPath = [
+                            ...previousItem.parentTaskCursors,
+                            previousItem.cursor,
+                        ].map(getTaskQuerySortCursorTaskId);
+
+                        // Expand our new parent task if it's not already expanded.
+                        if (getAreChildTasksExpandedStore(previousTaskPath).getSnapshot()) {
+                            indent();
+                        } else {
+                            toggleAreChildTasksExpanded(previousTaskPath, {
+                                onFinish: indent,
+                            });
+                        }
+                        break;
+                    }
+                };
+
+                const node = (
+                    <TaskRowView
+                        ref={taskRow => {
+                            if (!taskRow) {
+                                taskRowByTaskKeyRef.current.delete(taskKey);
+                                taskRowByItemIndexRef.current.delete(itemIndex);
+                            } else {
+                                taskRowByTaskKeyRef.current.set(taskKey, taskRow);
+                                taskRowByItemIndexRef.current.set(itemIndex, taskRow);
+                            }
+                        }}
+                        // It's important we use the `query` property from `item` since child tasks
+                        // come from a different query than our root query.
+                        query={item.query}
+                        capabilities={capabilities}
+                        taskId={taskId}
+                        parentTaskCursors={item.parentTaskCursors}
+                        indentation={item.parentTaskCursors.length}
+                        areChildTasksExpandedStore={getAreChildTasksExpandedStore(taskPath)}
+                        onAreChildTasksExpandedToggle={() => {
+                            toggleAreChildTasksExpanded(taskPath);
+                        }}
+                        getAddNewTaskToQueryActions={
+                            // If this is the root query then the new task needs to be added to that query.
+                            // Otherwise we want to add the new task at the same indentation level that our
+                            // task is currently at.
+                            item.query === query
+                                ? events.getAddNewTaskToQueryActions
+                                : (newTaskId, position) => {
+                                      const time1 = query.store.clock.now();
+                                      const time2 = query.store.clock.now();
+
+                                      return [
+                                          {
+                                              type: "UpdateTask",
+                                              time: time1,
+                                              taskId: newTaskId,
+                                              taskAction: {
+                                                  type: "UpdateParentTaskId",
+                                                  parentTaskId: getTaskQuerySortCursorTaskId(
+                                                      assertExists(
+                                                          item.parentTaskCursors[
+                                                              item.parentTaskCursors.length - 1
+                                                          ],
+                                                      ),
+                                                  ),
+                                              },
+                                          },
+                                          {
+                                              type: "UpdateTask",
+                                              time: time2,
+                                              taskId: newTaskId,
+                                              taskAction: {
+                                                  type: "UpdateParentPosition",
+                                                  parentPosition:
+                                                      getNewTaskPositionForQuerySortedByPosition(
+                                                          time2,
+                                                          item.query,
+                                                          position,
+                                                      ),
+                                              },
+                                          },
+                                      ];
+                                  }
+                        }
+                        nestWithPreviousTaskRowIfExistsAndExpand={
+                            nestWithPreviousTaskRowIfExistsAndExpand
+                        }
+                        focusTaskTitleStart={focusTaskTitleStart}
+                        focusNextTaskTitleCoord={focusNextTaskTitleCoord}
+                        focusPreviousTaskTitleCoord={focusPreviousTaskTitleCoord}
+                        preserveLastTaskTitleArrowNavigationCoord={
+                            preserveLastTaskTitleArrowNavigationCoord
+                        }
+                    />
+                );
+
+                return {
+                    key: `Task:${taskKey}`,
+                    minHeight: spacing[taskRowViewMinHeight],
+                    node,
+                };
+            } else {
+                cast<"UnloadedChildTask">(item.type);
+
+                assert(item.parentTaskCursors.length > 0);
+
+                const parentTaskId = getTaskQuerySortCursorTaskId(
+                    item.parentTaskCursors[item.parentTaskCursors.length - 1]!,
+                );
+
+                const parentTaskKey: TaskGridViewTaskKey =
+                    item.parentTaskCursors.length > 1
+                        ? `${getTaskQuerySortCursorTaskId(
+                              item.parentTaskCursors[0]!,
+                          )}-${parentTaskId}`
+                        : parentTaskId;
+
+                const focusPreviousTaskTitleEnd = () => {
+                    for (let index = itemIndex - 1; index >= 0; index--) {
+                        const taskRow = taskRowByItemIndexRef.current.get(index);
+                        if (!taskRow) continue;
+
+                        taskRow.focusTitleEnd();
+                        break;
+                    }
+                };
+
+                const focusPreviousTaskTitleAll = () => {
+                    for (let index = itemIndex - 1; index >= 0; index--) {
+                        const taskRow = taskRowByItemIndexRef.current.get(index);
+                        if (!taskRow) continue;
+
+                        taskRow.focusTitleAll();
+                        break;
+                    }
+                };
+
+                return {
+                    key: `UnloadedChildTask:${parentTaskKey}-${item.childTaskIndex}`,
+                    minHeight: spacing[taskRowViewMinHeight],
+                    node: (
+                        <TaskRowShimmer
+                            randomSeed={parentTaskKey}
+                            index={item.childTaskIndex}
+                            indentation={item.parentTaskCursors.length}
+                            focusPreviousTaskTitleEnd={focusPreviousTaskTitleEnd}
+                            focusPreviousTaskTitleAll={focusPreviousTaskTitleAll}
+                        />
+                    ),
+                };
+            }
+        };
+    }, [
+        bottomGhostTaskId,
+        capabilities,
+        context,
+        events,
+        getAreChildTasksExpandedStore,
+        itemCount,
+        list,
+        query,
+        toggleAreChildTasksExpanded,
+    ]);
+
+    return {
+        itemCount,
+        renderItem,
     };
 }

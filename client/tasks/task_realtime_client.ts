@@ -21,7 +21,16 @@ export class TaskRealtimeClient {
 
     public readonly store: TaskClientStore;
 
-    constructor(getContext: () => AppContext, spaceId: SpaceId) {
+    constructor(
+        getContext: () => AppContext,
+        {
+            spaceId,
+            onDisplayError,
+        }: {
+            spaceId: SpaceId;
+            onDisplayError: (options: {title: string; error: unknown}) => void;
+        },
+    ) {
         this.spaceId = spaceId;
 
         this._client = new WebSocketClient(
@@ -30,7 +39,7 @@ export class TaskRealtimeClient {
             `/api/task-realtime/${this.spaceId}`,
         );
 
-        this.store = new TaskClientStore({spaceId});
+        this.store = new TaskClientStore({spaceId, onDisplayError});
     }
 
     public connect() {

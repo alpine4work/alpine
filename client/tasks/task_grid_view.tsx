@@ -82,14 +82,10 @@ export function TaskGridView({
     initialExpandedState: TaskGridViewExpansionState;
     initialBottomGhostTaskId: TaskId;
     getAddNewTaskToQueryActions: (
-        time: HybridLogicalTime,
         taskId: TaskId,
         position: {type: "End"} | {type: "Above"; taskId: TaskId} | {type: "Below"; taskId: TaskId},
     ) => Array<TaskAction>;
-    getMaybeRemoveTaskFromQueryWhenNestingActions: (
-        time: HybridLogicalTime,
-        taskId: TaskId,
-    ) => Array<TaskAction>;
+    getMaybeRemoveTaskFromQueryWhenNestingActions: (taskId: TaskId) => Array<TaskAction>;
 }) {
     const {itemCount, renderItem} = useTaskGridViewVirtualizedList({
         capabilities,

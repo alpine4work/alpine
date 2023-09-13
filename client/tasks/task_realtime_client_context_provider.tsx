@@ -2,6 +2,7 @@ import {useLoaderData} from "@remix-run/react";
 import {ReactNode, useContext, useEffect, useRef, useState} from "react";
 import {UNSAFE_DataRouterStateContext as DataRouterStateContext} from "react-router";
 import {useAppContext} from "~/client/context/app_context.js";
+import {useShowToast} from "~/client/design/toast.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
@@ -135,9 +136,14 @@ export function TaskRealtimeClientContextProvider({
         contextRef.current = context;
     });
 
+    const showToast = useShowToast();
+
     const [client] = useState((): TaskRealtimeClient => {
         const initializeClient = () => {
-            const client = new TaskRealtimeClient(() => contextRef.current, spaceId);
+            const client = new TaskRealtimeClient(() => contextRef.current, {
+                spaceId,
+                onDisplayError: ({title, error}) => showToast({type: "Error", title, error}),
+            });
 
             for (const loaderData of Object.values(dataRouterStateContext.loaderData)) {
                 loadTaskQueryDataIntoClient(client, loaderData);

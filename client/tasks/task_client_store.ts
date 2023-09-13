@@ -1,3 +1,4 @@
+import {joinPrettyConjunctionList} from "~/client/design/pretty_conjunction_list.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {StoreMap} from "~/client/helpers/store/store_map.js";
@@ -130,8 +131,14 @@ export class TaskClientStore {
     public readonly spaceId: SpaceId;
     public readonly clock: HybridLogicalClock;
 
-    constructor({spaceId}: {spaceId: SpaceId}) {
-        this._internal = new TaskClientStoreInternal(this, {spaceId});
+    constructor({
+        spaceId,
+        onDisplayError,
+    }: {
+        spaceId: SpaceId;
+        onDisplayError: (options: {title: string; error: unknown}) => void;
+    }) {
+        this._internal = new TaskClientStoreInternal(this, {spaceId, onDisplayError});
         this.spaceId = this._internal.spaceId;
         this.clock = this._internal.clock;
     }
@@ -226,6 +233,7 @@ export class TaskClientStoreInternal {
     public readonly external: TaskClientStore;
 
     public readonly spaceId: SpaceId;
+    private readonly _onDisplayError: (options: {title: string; error: unknown}) => void;
 
     /**
      * The clock we use on the client for assigning a time to actions. This clock
@@ -276,9 +284,19 @@ export class TaskClientStoreInternal {
      */
     private readonly _taskChildrenQueryByParentTaskId = new StoreMap<TaskId, TaskClientQuery>();
 
-    constructor(external: TaskClientStore, {spaceId}: {spaceId: SpaceId}) {
+    constructor(
+        external: TaskClientStore,
+        {
+            spaceId,
+            onDisplayError,
+        }: {
+            spaceId: SpaceId;
+            onDisplayError: (options: {title: string; error: unknown}) => void;
+        },
+    ) {
         this.external = external;
         this.spaceId = spaceId;
+        this._onDisplayError = onDisplayError;
 
         const synchronizedSystemClockPromise = getSynchronizedSystemClock();
         let synchronizedSystemClock: Clock | null = null;
@@ -958,7 +976,51 @@ export class TaskClientStoreInternal {
                 });
             },
             error => {
-                // NOCOMMIT: Display the error to the user!
+                const taskIds = new Set<TaskId>();
+                const collectionIds = new Set<TaskCollectionId>();
+                let notepadPageCount = 0;
+
+                for (const action of actions) {
+                    switch (action.type) {
+                        case "UpdateTask": {
+                            taskIds.add(action.taskId);
+                            break;
+                        }
+                        case "UpdateCollection": {
+                            collectionIds.add(action.collectionId);
+                            break;
+                        }
+                        case "UpdateNotepadPage": {
+                            notepadPageCount++;
+                            break;
+                        }
+                        default:
+                            throw exhaustive(action);
+                    }
+                }
+
+                const failedNouns = [];
+                if (taskIds.size > 0) {
+                    failedNouns.push(taskIds.size === 1 ? "task" : "tasks");
+                }
+                if (collectionIds.size > 0) {
+                    failedNouns.push(collectionIds.size === 1 ? "collection" : "collections");
+                }
+                if (notepadPageCount > 0) {
+                    failedNouns.push("notepad");
+                }
+
+                this._onDisplayError({
+                    title:
+                        failedNouns.length === 0
+                            ? "Couldn’t save changes"
+                            : `Couldn’t save changes to ${joinPrettyConjunctionList(
+                                  failedNouns,
+                                  "and",
+                              )}`,
+                    error,
+                });
+
                 this._revertOptimisticTaskActions(
                     optimisticExtraActions.length > 0
                         ? [...actions, ...optimisticExtraActions]
@@ -1061,7 +1123,11 @@ export class TaskClientStoreInternal {
                         this._commitOptimisticTaskActions(actions);
                     },
                     error => {
-                        // NOCOMMIT: Display the error to the user!
+                        this._onDisplayError({
+                            title: "Couldn’t save changes to task",
+                            error,
+                        });
+
                         this._revertOptimisticTaskActions(actions);
                     },
                 );
