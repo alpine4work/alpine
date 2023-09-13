@@ -6,7 +6,6 @@ import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
-import {TaskGridViewTaskKey} from "~/shared/tasks/task_grid_view_task_key.js";
 import {
     TaskQuerySortCursor,
     getTaskQuerySortCursorTaskId,
@@ -41,21 +40,26 @@ const nullConstStore = new ConstStore(null);
 
 function createTaskGridViewVirtualizedTaskTree(
     query: TaskClientQuery,
-    getAreChildTasksExpandedStore: (taskKey: TaskGridViewTaskKey) => Store<boolean | undefined>,
-    rootTaskId: TaskId | null,
+    getAreChildTasksExpandedStore: (taskPath: ReadonlyArray<TaskId>) => Store<true | undefined>,
+    taskPath: ReadonlyArray<TaskId>,
 ): Store<TaskGridViewVirtualizedTaskTree> {
     return flatMapTreeStoreValues(query.taskOrderStore, (_null, cursor) => {
         const taskId = getTaskQuerySortCursorTaskId(cursor);
-        const taskKey: TaskGridViewTaskKey = rootTaskId ? `${rootTaskId}-${taskId}` : taskId;
 
         // It's a rare edge case but it is possible for there to be a temporary cycle
         // among task children. If we detect a child task with the same `TaskId` as our
         // root task that means we have a cycle. Break it by returning a null store.
-        if (rootTaskId === taskId) {
+        if (taskPath.length > 0 && taskPath[0] === taskId) {
             return nullConstStore;
         }
 
-        return getAreChildTasksExpandedStore(taskKey).flatMap(areChildTasksExpanded => {
+        const newTaskPath = [...taskPath, taskId];
+
+        // IMPORTANT: We are being very careful here to avoid taking a dependency
+        // on anything that would cause the entire task order tree to invalidate should
+        // it update. Try to avoid adding any such dependencies for common operations.
+
+        return getAreChildTasksExpandedStore(newTaskPath).flatMap(areChildTasksExpanded => {
             if (!areChildTasksExpanded) return nullConstStore;
 
             // Optimization: Only recompute if the child task count changed.
@@ -79,7 +83,7 @@ function createTaskGridViewVirtualizedTaskTree(
                     return createTaskGridViewVirtualizedTaskTree(
                         taskChildrenQuery,
                         getAreChildTasksExpandedStore,
-                        rootTaskId ?? taskId,
+                        newTaskPath,
                     ).map(
                         (childTasks): TaskGridViewVirtualizedTaskTreeValue => ({
                             children: {
@@ -103,16 +107,13 @@ export type TaskGridViewVirtualizedTaskListItem =
           // If this is a child task we need to read data from the child task query, not
           // the root query. We set this property to the query the `taskId` lives in.
           readonly query: TaskClientQuery;
-          readonly rootTaskId: TaskId | null;
-          readonly taskId: TaskId;
-          readonly indentation: number;
+          readonly parentTaskCursors: ReadonlyArray<TaskQuerySortCursor>;
+          readonly cursor: TaskQuerySortCursor;
       }
     | {
           readonly type: "UnloadedChildTask";
-          readonly rootTaskId: TaskId | null;
-          readonly parentTaskId: TaskId;
+          readonly parentTaskCursors: ReadonlyArray<TaskQuerySortCursor>;
           readonly childTaskIndex: number;
-          readonly indentation: number;
       };
 
 /**
@@ -156,7 +157,7 @@ export class TaskGridViewVirtualizedTaskList {
 
     public static new(
         query: TaskClientQuery,
-        getAreChildTasksExpandedStore: (taskKey: TaskGridViewTaskKey) => Store<boolean | undefined>,
+        getAreChildTasksExpandedStore: (taskPath: ReadonlyArray<TaskId>) => Store<true | undefined>,
     ): Store<TaskGridViewVirtualizedTaskList> {
         // Share the item count subtree cache across all virtualized lists that
         // are created.
@@ -165,11 +166,9 @@ export class TaskGridViewVirtualizedTaskList {
             number
         >();
 
-        return createTaskGridViewVirtualizedTaskTree(
-            query,
-            getAreChildTasksExpandedStore,
-            null,
-        ).map(tree => new TaskGridViewVirtualizedTaskList(query, tree, itemCountSubtreeCache));
+        return createTaskGridViewVirtualizedTaskTree(query, getAreChildTasksExpandedStore, []).map(
+            tree => new TaskGridViewVirtualizedTaskList(query, tree, itemCountSubtreeCache),
+        );
     }
 
     /**
@@ -233,13 +232,13 @@ export class TaskGridViewVirtualizedTaskList {
      * this list's bounds you'll get an error.
      */
     public getItem(itemIndex: number): TaskGridViewVirtualizedTaskListItem {
+        const parentTaskCursors: Array<TaskQuerySortCursor> = [];
+
         // Binary search to find the item...
         const search = (
             index: number,
             node: TreeNode<TaskQuerySortCursor, TaskGridViewVirtualizedTaskTreeValue | null> | null,
             query: TaskClientQuery,
-            rootTaskId: TaskId | null,
-            indentation: number,
         ): TaskGridViewVirtualizedTaskListItem | null => {
             if (!node) return null;
 
@@ -260,15 +259,9 @@ export class TaskGridViewVirtualizedTaskList {
             // If the index is not in our node then recurse into either the left or right
             // subtree.
             if (index < leftItemCount) {
-                return search(index, node.left, query, rootTaskId, indentation);
+                return search(index, node.left, query);
             } else if (leftItemCount + valueItemCount <= index) {
-                return search(
-                    index - (leftItemCount + valueItemCount),
-                    node.right,
-                    query,
-                    rootTaskId,
-                    indentation,
-                );
+                return search(index - (leftItemCount + valueItemCount), node.right, query);
             } else {
                 assert(leftItemCount <= index && index < leftItemCount + valueItemCount);
 
@@ -276,9 +269,8 @@ export class TaskGridViewVirtualizedTaskList {
                     return {
                         type: "Task",
                         query,
-                        rootTaskId,
-                        taskId: getTaskQuerySortCursorTaskId(node.key),
-                        indentation,
+                        parentTaskCursors,
+                        cursor: node.key,
                     };
                 }
 
@@ -294,25 +286,25 @@ export class TaskGridViewVirtualizedTaskList {
                 assert(0 <= childTaskIndex);
 
                 if (childTaskIndex >= childrenItemCount) {
+                    parentTaskCursors.push(node.key);
+
                     return {
                         type: "UnloadedChildTask",
-                        rootTaskId,
-                        parentTaskId: getTaskQuerySortCursorTaskId(node.key),
+                        parentTaskCursors,
                         childTaskIndex: childTaskIndex - childrenItemCount,
-                        indentation: indentation + 1,
                     };
                 } else {
+                    parentTaskCursors.push(node.key);
+
                     return search(
                         index - leftItemCount - 1,
                         node.value.children!.tasks.root,
                         node.value.children!.query,
-                        rootTaskId ?? getTaskQuerySortCursorTaskId(node.key),
-                        indentation + 1,
                     );
                 }
             }
         };
 
-        return assertExists(search(itemIndex, this._tree.root, this._query, null, 0));
+        return assertExists(search(itemIndex, this._tree.root, this._query));
     }
 }

@@ -11,10 +11,7 @@ import {
 } from "~/client/tasks/task_realtime_client_context_provider.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {
-    getTaskGridViewExpansionState,
-    getTaskNotepadPageIds,
-} from "~/server/tasks/data/task_table.js";
+import {getTaskNotepadPageIds} from "~/server/tasks/data/task_table.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {compareHybridLogicalTimes} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -23,13 +20,10 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
-import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {BrowserId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
 import {getTaskQueryNormalizedSortCursorForModel} from "~/shared/tasks/model/get_task_query_normalized_sort_cursor_for_model.js";
-import {
-    TaskGridViewTaskKeySchema,
-    parseTaskGridViewTaskKey,
-} from "~/shared/tasks/task_grid_view_task_key.js";
+import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {
     TaskNotepadPageIdCompressedSetSchema,
     TaskNotepadPageIdSchema,
@@ -45,7 +39,7 @@ import {getTaskQuerySortCursorTaskId} from "~/shared/tasks/task_query_sort_curso
 const LoaderSchema = Schema.object({
     allNotepadPageIds: TaskNotepadPageIdCompressedSetSchema,
     notepadPageId: TaskNotepadPageIdSchema,
-    notepadPageExpandedChildTaskKeys: Schema.set(TaskGridViewTaskKeySchema),
+    notepadPageViewExpandedState: TaskGridViewExpansionStateSchema,
     initialBottomGhostTaskId: Schema.id<TaskId>(),
 });
 
@@ -113,6 +107,7 @@ export async function loader({params, context: _context}: LoaderArgs) {
         limit: number;
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+        shouldLoadGridViewExpandedChildTasksForBrowserId?: BrowserId;
     } = {
         // NOCOMMIT: Proper limit?
         limit: 500,
@@ -142,69 +137,24 @@ export async function loader({params, context: _context}: LoaderArgs) {
                 missing: "Last",
             },
         ],
+
+        shouldLoadGridViewExpandedChildTasksForBrowserId: context.loader.getBrowserId(),
     };
 
-    // NOCOMMIT: Results based cleanup?
-    // NOCOMMIT: Close children on client?
-    const {expandedChildTaskKeys: notepadPageExpandedChildTaskKeys} =
-        await getTaskGridViewExpansionState(context, {
-            spaceId,
-            browserId: context.loader.getBrowserId(),
-            filters: notepadPageQuery.filters,
-            sorts: notepadPageQuery.sorts,
-        });
-
-    const childTaskQueries: Array<{
-        limit: number;
-        filters: TaskQueryNormalizedFilters;
-        sorts: ReadonlyArray<TaskQueryNormalizedSort>;
-    }> = Array.from(notepadPageExpandedChildTaskKeys, taskKey => {
-        const {taskId} = parseTaskGridViewTaskKey(taskKey);
-
-        return {
-            // NOCOMMIT: Proper limit?
-            limit: 500,
-
-            filters: {
-                displayStatusFilter: {
-                    ifOpenInactive: true,
-                    ifOpenActive: true,
-                    ifClosed: true,
-                },
-                parentFilter: {
-                    parentTaskId: taskId,
-                },
-            },
-            sorts: [
-                {
-                    type: "ParentPosition",
-                    direction: "Ascending",
-                    missing: "Last",
-                },
-                {
-                    type: "CreatedTime",
-                    direction: "Ascending",
-                    missing: "Last",
-                },
-            ],
-        };
-    });
-
-    const {loadedStates, updateEvent} = await context.tasks.loadQueries(spaceId, [
-        assigneeActiveQuery,
-        notepadPageQuery,
-        ...childTaskQueries,
-    ]);
+    const {loadedStates, gridViewExpansionStates, extraQueries, updateEvent} =
+        await context.tasks.loadQueries(spaceId, [assigneeActiveQuery, notepadPageQuery]);
 
     const assigneeActiveQueryLoadedState = assertExists(loadedStates[0]);
     const notepadPageQueryLoadedState = assertExists(loadedStates[1]);
+
+    const notepadPageViewExpandedState = gridViewExpansionStates[1] ?? null;
 
     return jsonWithSchema(
         LoaderSchema,
         {
             allNotepadPageIds,
             notepadPageId,
-            notepadPageExpandedChildTaskKeys,
+            notepadPageViewExpandedState,
             initialBottomGhostTaskId: generateId<TaskId>(),
         },
         {
@@ -227,11 +177,11 @@ export async function loader({params, context: _context}: LoaderArgs) {
                         sorts: notepadPageQuery.sorts,
                         loadedState: notepadPageQueryLoadedState,
                     },
-                    ...childTaskQueries.map((childTaskQuery, i) => ({
-                        desiredCount: childTaskQuery.limit,
-                        filters: childTaskQuery.filters,
-                        sorts: childTaskQuery.sorts,
-                        loadedState: loadedStates[i + 2]!,
+                    ...extraQueries.map(query => ({
+                        desiredCount: query.limit,
+                        filters: query.filters,
+                        sorts: query.sorts,
+                        loadedState: query.loadedState,
                     })),
                 ],
                 updateEvent,
@@ -253,7 +203,7 @@ export async function clientLoader({
 }
 
 export default function TasksRoute() {
-    const {notepadPageId, notepadPageExpandedChildTaskKeys, initialBottomGhostTaskId} =
+    const {notepadPageId, notepadPageViewExpandedState, initialBottomGhostTaskId} =
         useLoaderDataWithSchema(LoaderSchema);
     const [assigneeActiveQuery, notepadPageQuery] = useLoaderTaskQueriesWithoutRetaining();
     assert(assigneeActiveQuery && notepadPageQuery);
@@ -290,8 +240,8 @@ export default function TasksRoute() {
                     [],
                 )}
                 query={notepadPageQuery}
+                initialExpandedState={notepadPageViewExpandedState}
                 initialBottomGhostTaskId={initialBottomGhostTaskId}
-                initialExpandedChildTaskKeys={notepadPageExpandedChildTaskKeys}
                 getAddNewTaskToQueryActions={(time, taskId, position) => {
                     let actualPosition: TaskPosition;
                     switch (position.type) {

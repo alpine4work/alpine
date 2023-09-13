@@ -2,9 +2,8 @@ import {implementRpc} from "~/server/rpc/internal/implement_rpc.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
 import {collectReferencedAccountIdsFromTaskAction} from "~/server/tasks/data/task_realtime_protocol_helpers.js";
 import {
-    collapseChildTasksInGridView,
     commitTaskActionTransaction,
-    expandChildTasksInGridView,
+    updateTaskGridViewExpansionState,
 } from "~/server/tasks/data/task_table.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
@@ -38,19 +37,10 @@ implementRpc(
 );
 
 implementRpc(
-    definition.expandChildTasksInGridView,
+    definition.updateTaskGridViewExpansionState,
     {visibility: ["AppClient"]},
     async (context, input) => {
-        await expandChildTasksInGridView(context.actor.authorizeSession(), input);
-        return {};
-    },
-);
-
-implementRpc(
-    definition.collapseChildTasksInGridView,
-    {visibility: ["AppClient"]},
-    async (context, input) => {
-        await collapseChildTasksInGridView(context.actor.authorizeSession(), input);
+        await updateTaskGridViewExpansionState(context.actor.authorizeSession(), input);
         return {};
     },
 );

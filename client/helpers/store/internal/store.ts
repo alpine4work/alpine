@@ -45,6 +45,16 @@ export abstract class Store<Value> {
      * called once. Listeners are called in the order they are added.
      *
      * `subscribe()` calls this function and has a more convenient syntax.
+     *
+     * After a listener is called and before you call `getSnapshot()` you may get
+     * false positive or false negative calls to your listener. False positive
+     * calls means `listener` is called when the underlying value didn't actually
+     * update and false negative calls mean `listener` is NOT called when the
+     * underlying value changed. If the stores you need to listen to change as a
+     * result of an update, that doesn't happen until `getSnapshot()` is called
+     * which will generally stabilize your store graph. If you need to accurately
+     * determine when updates to your store happen then make sure to call
+     * `getSnapshot()` in a timely manner.
      */
     public abstract addListener(listener: () => void): void;
 
@@ -73,6 +83,16 @@ export abstract class Store<Value> {
      * an update such that a `getSnapshot()` call after an update presents the
      * right value. These listeners are weakly held to avoid creating a reference
      * cycle and allowing the store adding the listener to be garbage collected.
+     *
+     * Avoid calling user functions in weak immediate listeners. If a store is made
+     * garbage but is still calling its map function that's confusing for
+     * developers (since they thought the store was dead code) and may lead to
+     * broken results if the developer explicitly destroyed some resource used by
+     * a store.
+     *
+     * Weak immediate listeners are useful for invalidating parts of a large data
+     * structure so when `getSnapshot()` is called you only need to update those
+     * parts instead of the whole tree.
      */
     public abstract _addWeakImmediateListener(listener: () => void): void;
 

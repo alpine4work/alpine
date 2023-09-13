@@ -38,9 +38,7 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
-import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
 import {stringifyForDeepEqualCheck} from "~/shared/helpers/control/stringify_for_deep_equal_check.js";
-import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {quote} from "~/shared/helpers/string/quote.js";
@@ -69,9 +67,13 @@ import {
 } from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {
+    TaskGridViewExpansionState,
+    TaskGridViewExpansionStateSchema,
+} from "~/shared/tasks/task_grid_view_expansion_state.js";
+import {
     TaskGridViewTaskKey,
     parseTaskGridViewTaskKey,
-} from "~/shared/tasks/task_grid_view_task_key.js";
+} from "~/client/tasks/internal/task_grid_view_task_key.js";
 import {
     TaskNotepadPageIdCompressedSet,
     TaskNotepadPageIdCompressedSetSchema,
@@ -318,13 +320,12 @@ const TaskTable = DynamoTableSchema.new({
             },
             sortRanges: [
                 {
-                    name: "Expanded",
-                    sortKeyAttributes: {
-                        taskKey:
-                            DynamoKeyAttributeSchema.labelString as DynamoKeyAttributeSchema<TaskGridViewTaskKey>,
-                    },
+                    name: "Attributes",
+                    sortKeyAttributes: {},
                     withExpirationTime: "Required",
-                    attributes: Schema.object({}),
+                    attributes: Schema.object({
+                        state: TaskGridViewExpansionStateSchema,
+                    }),
                 },
             ],
         },
@@ -2598,14 +2599,14 @@ export function getTaskNotepadPageIds(
 //
 // We pick this value so that if a user looks at a grid view once a quarter,
 // expanded task state is maintained.
-const childTaskExpansionStateExpirationMonths = 4;
+const taskGridViewExpansionStateExpirationMonths = 4;
 
 // After how many months should we renew expansion state expiration times?
 //
 // We renew expansion state items that are close to expiring if the user
 // accesses them so we don't expire expansion states that are actively being
 // used.
-const childTaskExpansionStateExpirationRenewalMonths = 2;
+const taskGridViewExpansionStateExpirationRenewalMonths = 2;
 
 /**
  * Get the key we use for storing the expansion state of a grid view.
@@ -2644,76 +2645,53 @@ function getTaskGridViewExpansionStateKey({
 }
 
 /**
- * Mark a task's children as expanded in a given view.
- *
- * Knowledge of whether a task is expanded will expire if not accessed by
- * `getChildTaskExpansionState()` for a long time. This reduces storage costs
- * for dead views.
+ * Update the `TaskGridViewExpansionState` for this browser.
  */
-export async function expandChildTasksInGridView(
+export async function updateTaskGridViewExpansionState(
     context: ServerSessionActionContext,
     {
         spaceId,
         browserId,
         filters,
         sorts,
-        taskKey,
+        state,
     }: {
         spaceId: SpaceId;
         browserId: BrowserId;
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
-        taskKey: TaskGridViewTaskKey;
+        state: TaskGridViewExpansionState;
     },
 ) {
     await authorizeSpaceAccess(context, spaceId);
 
-    await TaskTable.createOrReplaceItem(context, {
-        partitionType: "TaskGridViewExpansionState",
-        sortRangeType: "Expanded",
-        spaceId,
-        accountId: context.actor.getAccountId(),
-        browserId,
-        viewKey: getTaskGridViewExpansionStateKey({filters, sorts}),
-        taskKey,
-        expirationTime: addMonths(new Date(), childTaskExpansionStateExpirationMonths),
-    });
+    if (state === null) {
+        await TaskTable.deleteItemWithKeyIfExists(context, {
+            partitionType: "TaskGridViewExpansionState",
+            sortRangeType: "Attributes",
+            spaceId,
+            accountId: context.actor.getAccountId(),
+            browserId,
+            viewKey: getTaskGridViewExpansionStateKey({filters, sorts}),
+        });
+    } else {
+        await TaskTable.createOrReplaceItem(context, {
+            partitionType: "TaskGridViewExpansionState",
+            sortRangeType: "Attributes",
+            spaceId,
+            accountId: context.actor.getAccountId(),
+            browserId,
+            viewKey: getTaskGridViewExpansionStateKey({filters, sorts}),
+            state,
+            expirationTime: addMonths(new Date(), taskGridViewExpansionStateExpirationMonths),
+        });
+    }
 }
 
 /**
- * Mark a task's children as collapsed in a given view.
- */
-export async function collapseChildTasksInGridView(
-    context: ServerSessionActionContext,
-    {
-        spaceId,
-        browserId,
-        filters,
-        sorts,
-        taskKey,
-    }: {
-        spaceId: SpaceId;
-        browserId: BrowserId;
-        filters: TaskQueryNormalizedFilters;
-        sorts: ReadonlyArray<TaskQueryNormalizedSort>;
-        taskKey: TaskGridViewTaskKey;
-    },
-) {
-    await authorizeSpaceAccess(context, spaceId);
-
-    await TaskTable.deleteItemWithKeyIfExists(context, {
-        partitionType: "TaskGridViewExpansionState",
-        sortRangeType: "Expanded",
-        spaceId,
-        accountId: context.actor.getAccountId(),
-        browserId,
-        viewKey: getTaskGridViewExpansionStateKey({filters, sorts}),
-        taskKey,
-    });
-}
-
-/**
- * Get which child tasks are expanded in our view.
+ * Get the `TaskGridViewExpansionState` for this browser. If the state hasn't
+ * been updated in a while and is about to expire then we extend the expiration
+ * time.
  */
 export async function getTaskGridViewExpansionState(
     context: ServerSessionActionContext,
@@ -2728,70 +2706,32 @@ export async function getTaskGridViewExpansionState(
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
     },
-): Promise<{
-    expandedChildTaskKeys: Set<TaskGridViewTaskKey>;
-}> {
-    const items = await arrayFromAsyncIterable(
-        TaskTable.query(context, {
-            partitionKey: {
-                partitionType: "TaskGridViewExpansionState",
-                spaceId,
-                accountId: context.actor.getAccountId(),
-                browserId,
-                viewKey: getTaskGridViewExpansionStateKey({filters, sorts}),
-            },
-            limit: "All",
-        }),
-    );
-
-    const parsedTaskKeyCache = new LazyMap(parseTaskGridViewTaskKey);
-
-    const expandedChildTaskKeys = new Set<TaskGridViewTaskKey>();
-    const expandedRootTaskIds = new Set<TaskId>();
-
-    for (const item of items) {
-        expandedChildTaskKeys.add(item.taskKey);
-
-        const {rootTaskId, taskId} = parsedTaskKeyCache.get(item.taskKey);
-        if (rootTaskId === null) {
-            expandedRootTaskIds.add(taskId);
-        }
-    }
-
-    // Accessing a view's expansion state tells us the user still cares about. So
-    // renew any expansion state items that are close to expiring soon.
-    const itemsExpiringSoon = items.filter(item => {
-        const {rootTaskId} = parsedTaskKeyCache.get(item.taskKey);
-
-        // If this is the expansion state for a child task where the root task is not
-        // expanded then don't renew the child task's expansion state.
-        //
-        // This is a simple garbage collection mechanism for child task expansion
-        // state.
-        return (
-            (rootTaskId === null || expandedRootTaskIds.has(rootTaskId)) &&
-            differenceInMonths(item.expirationTime, new Date()) <=
-                childTaskExpansionStateExpirationRenewalMonths
-        );
+): Promise<TaskGridViewExpansionState> {
+    const item = await TaskTable.getItemIfExists(context, {
+        partitionType: "TaskGridViewExpansionState",
+        sortRangeType: "Attributes",
+        spaceId,
+        accountId: context.actor.getAccountId(),
+        browserId,
+        viewKey: getTaskGridViewExpansionStateKey({filters, sorts}),
     });
-    if (itemsExpiringSoon.length > 0) {
-        const newExpirationTime = addMonths(new Date(), childTaskExpansionStateExpirationMonths);
+
+    // If the grid view's expansion state hasn't been updated in a while but is
+    // still being read then we want to extend its expiration time.
+    if (
+        item &&
+        differenceInMonths(item.expirationTime, new Date()) <=
+            taskGridViewExpansionStateExpirationRenewalMonths
+    ) {
+        const newExpirationTime = addMonths(new Date(), taskGridViewExpansionStateExpirationMonths);
 
         context.process.waitUntil(
-            context.tracer.withSpan(
-                "Renewing child task expansion state expiration times",
-                context =>
-                    runAllPromises(
-                        Array.from(itemsExpiringSoon, async item => {
-                            await TaskTable.createOrReplaceItem(context, {
-                                ...item,
-                                expirationTime: newExpirationTime,
-                            });
-                        }),
-                    ),
-            ),
+            TaskTable.createOrReplaceItem(context, {
+                ...item,
+                expirationTime: newExpirationTime,
+            }),
         );
     }
 
-    return {expandedChildTaskKeys};
+    return item?.state ?? null;
 }

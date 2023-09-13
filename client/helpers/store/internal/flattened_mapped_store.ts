@@ -24,12 +24,11 @@ export class FlattenedMappedStore<OldValue, NewValue> extends Store<NewValue> {
         super();
         this._store = store;
         this._map = map;
-        this._store._addWeakImmediateListener(this._weakImmediateListener);
         this._oldValue = store.getSnapshot();
         this._nestedStore = map(this._oldValue);
     }
 
-    private readonly _weakImmediateListener = () => {
+    public readonly getSnapshot = () => {
         const oldNestedStore = this._nestedStore;
         const oldOldValue = this._oldValue;
         const newOldValue = (this._oldValue = this._store.getSnapshot());
@@ -49,9 +48,7 @@ export class FlattenedMappedStore<OldValue, NewValue> extends Store<NewValue> {
                 }
             }
         }
-    };
 
-    public readonly getSnapshot = () => {
         return this._nestedStore.getSnapshot();
     };
 

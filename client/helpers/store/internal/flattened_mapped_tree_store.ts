@@ -21,6 +21,7 @@ import {symmetricDiffTree} from "~/shared/helpers/immutable/symmetric_diff_tree.
 export class FlattenedMappedTreeStore<Key, OldValue, NewValue> extends Store<Tree<Key, NewValue>> {
     private readonly _store: Store<Tree<Key, OldValue>>;
     private readonly _map: (value: OldValue, key: Key) => Store<NewValue>;
+    private _isOldTreeInvalid = false;
     private _oldTree: Tree<Key, OldValue>;
     private _newTree: Tree<Key, NewValue>;
 
@@ -46,7 +47,6 @@ export class FlattenedMappedTreeStore<Key, OldValue, NewValue> extends Store<Tre
     ) {
         super();
         this._store = store;
-        this._store._addWeakImmediateListener(this._weakImmediateListener);
         this._map = map;
         this._oldTree = this._store.getSnapshot();
 
@@ -95,114 +95,115 @@ export class FlattenedMappedTreeStore<Key, OldValue, NewValue> extends Store<Tre
         };
     }
 
-    private readonly _weakImmediateListener = () => {
+    public readonly getSnapshot = () => {
         const oldOldTree = this._oldTree;
         const newOldTree = (this._oldTree = this._store.getSnapshot());
 
-        if (oldOldTree === newOldTree) return;
+        if (oldOldTree !== newOldTree) {
+            const changes = symmetricDiffTree(oldOldTree, newOldTree);
+            for (const change of changes) {
+                switch (change.type) {
+                    case "CreateEntry": {
+                        const newNestedStore = this._map(change.newValue, change.key);
 
-        const changes = symmetricDiffTree(oldOldTree, newOldTree);
-        for (const change of changes) {
-            switch (change.type) {
-                case "CreateEntry": {
-                    const newNestedStore = this._map(change.newValue, change.key);
+                        const weakImmediateListener = this._createNestedWeakImmediateListener(
+                            change.key,
+                        );
 
-                    const weakImmediateListener = this._createNestedWeakImmediateListener(
-                        change.key,
-                    );
-
-                    // 1. Add a weak immediate listener that will invalidate just this key when it
-                    //    changes so we don't need to update the entire map.
-                    newNestedStore._addWeakImmediateListener(weakImmediateListener);
-
-                    // 2. Propagate outside weak immediate listeners to our nested store.
-                    this._weakImmediateListeners?.moveListeners(null, newNestedStore);
-
-                    // 3. Propagate outside listeners to our nested store.
-                    for (const [listener, listenerCount] of this._listeners) {
-                        for (let i = 0; i < listenerCount; i++) {
-                            newNestedStore.addListener(listener);
-                        }
-                    }
-
-                    // 4. Remember the nested store so we can move listeners around later.
-                    this._nestedStoreByKey.set(change.key, {
-                        store: newNestedStore,
-                        weakImmediateListener,
-                    });
-
-                    // 5. Record that this key needs to update next time `getSnapshot()` is called.
-                    this._nestedStoreInvalidatedKeys ??= new Set();
-                    this._nestedStoreInvalidatedKeys.add(change.key);
-                    break;
-                }
-                case "DeleteEntry": {
-                    const {store: oldNestedStore, weakImmediateListener} =
-                        this._nestedStoreByKey.get(change.key)!;
-
-                    // 1. Remove the weak immediate listener which is responsible for invalidating
-                    //    just this key.
-                    oldNestedStore._removeWeakImmediateListener(weakImmediateListener);
-
-                    // 2. Remove propagated outside weak immediate listeners from our nested store.
-                    this._weakImmediateListeners?.moveListeners(oldNestedStore, null);
-
-                    // 3. Remove propagated outside listeners from our nested store.
-                    for (const [listener, listenerCount] of this._listeners) {
-                        for (let i = 0; i < listenerCount; i++) {
-                            oldNestedStore.removeListener(listener);
-                        }
-                    }
-
-                    // 4. Stop keeping track of this nested store.
-                    this._nestedStoreByKey.delete(change.key);
-
-                    // 5. Record that this key needs to update next time `getSnapshot()` is called.
-                    this._nestedStoreInvalidatedKeys ??= new Set();
-                    this._nestedStoreInvalidatedKeys.add(change.key);
-                    break;
-                }
-                case "UpdateEntry": {
-                    const nestedStoreEntry = this._nestedStoreByKey.get(change.key)!;
-                    const {store: oldNestedStore, weakImmediateListener} = nestedStoreEntry;
-
-                    const newNestedStore = this._map(change.newValue, change.key);
-
-                    // If the nested store changed, move listeners from the old store to the
-                    // new store.
-                    if (oldNestedStore !== newNestedStore) {
-                        // 1. Move the weak immediate listener that invalidates just the current key
-                        //    when it changes.
-                        oldNestedStore._removeWeakImmediateListener(weakImmediateListener);
+                        // 1. Add a weak immediate listener that will invalidate just this key when it
+                        //    changes so we don't need to update the entire map.
                         newNestedStore._addWeakImmediateListener(weakImmediateListener);
 
-                        // 2. Move propagated outside weak immediate listeners to the new store.
-                        this._weakImmediateListeners?.moveListeners(oldNestedStore, newNestedStore);
+                        // 2. Propagate outside weak immediate listeners to our nested store.
+                        this._weakImmediateListeners?.moveListeners(null, newNestedStore);
 
-                        // 3. Move propagated outside listeners to the new store.
+                        // 3. Propagate outside listeners to our nested store.
                         for (const [listener, listenerCount] of this._listeners) {
                             for (let i = 0; i < listenerCount; i++) {
-                                oldNestedStore.removeListener(listener);
                                 newNestedStore.addListener(listener);
                             }
                         }
 
-                        // 4. Remember the new nested store so we can move listeners around later.
-                        nestedStoreEntry.store = newNestedStore;
+                        // 4. Remember the nested store so we can move listeners around later.
+                        this._nestedStoreByKey.set(change.key, {
+                            store: newNestedStore,
+                            weakImmediateListener,
+                        });
 
                         // 5. Record that this key needs to update next time `getSnapshot()` is called.
                         this._nestedStoreInvalidatedKeys ??= new Set();
                         this._nestedStoreInvalidatedKeys.add(change.key);
+                        break;
                     }
-                    break;
+                    case "DeleteEntry": {
+                        const {store: oldNestedStore, weakImmediateListener} =
+                            this._nestedStoreByKey.get(change.key)!;
+
+                        // 1. Remove the weak immediate listener which is responsible for invalidating
+                        //    just this key.
+                        oldNestedStore._removeWeakImmediateListener(weakImmediateListener);
+
+                        // 2. Remove propagated outside weak immediate listeners from our nested store.
+                        this._weakImmediateListeners?.moveListeners(oldNestedStore, null);
+
+                        // 3. Remove propagated outside listeners from our nested store.
+                        for (const [listener, listenerCount] of this._listeners) {
+                            for (let i = 0; i < listenerCount; i++) {
+                                oldNestedStore.removeListener(listener);
+                            }
+                        }
+
+                        // 4. Stop keeping track of this nested store.
+                        this._nestedStoreByKey.delete(change.key);
+
+                        // 5. Record that this key needs to update next time `getSnapshot()` is called.
+                        this._nestedStoreInvalidatedKeys ??= new Set();
+                        this._nestedStoreInvalidatedKeys.add(change.key);
+                        break;
+                    }
+                    case "UpdateEntry": {
+                        const nestedStoreEntry = this._nestedStoreByKey.get(change.key)!;
+                        const {store: oldNestedStore, weakImmediateListener} = nestedStoreEntry;
+
+                        const newNestedStore = this._map(change.newValue, change.key);
+
+                        // If the nested store changed, move listeners from the old store to the
+                        // new store.
+                        if (oldNestedStore !== newNestedStore) {
+                            // 1. Move the weak immediate listener that invalidates just the current key
+                            //    when it changes.
+                            oldNestedStore._removeWeakImmediateListener(weakImmediateListener);
+                            newNestedStore._addWeakImmediateListener(weakImmediateListener);
+
+                            // 2. Move propagated outside weak immediate listeners to the new store.
+                            this._weakImmediateListeners?.moveListeners(
+                                oldNestedStore,
+                                newNestedStore,
+                            );
+
+                            // 3. Move propagated outside listeners to the new store.
+                            for (const [listener, listenerCount] of this._listeners) {
+                                for (let i = 0; i < listenerCount; i++) {
+                                    oldNestedStore.removeListener(listener);
+                                    newNestedStore.addListener(listener);
+                                }
+                            }
+
+                            // 4. Remember the new nested store so we can move listeners around later.
+                            nestedStoreEntry.store = newNestedStore;
+
+                            // 5. Record that this key needs to update next time `getSnapshot()` is called.
+                            this._nestedStoreInvalidatedKeys ??= new Set();
+                            this._nestedStoreInvalidatedKeys.add(change.key);
+                        }
+                        break;
+                    }
+                    default:
+                        throw exhaustive(change);
                 }
-                default:
-                    throw exhaustive(change);
             }
         }
-    };
 
-    public readonly getSnapshot = () => {
         // We keep track of individual nested store keys that were invalidated so we
         // only need to update them instead of looking at every key in our map.
         if (this._nestedStoreInvalidatedKeys !== null) {

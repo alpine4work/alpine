@@ -360,21 +360,25 @@ runService({
                                 await request.json(),
                             );
 
-                            const {loadedStates, updateEvent} = await loadTaskRealtimeQueries(
-                                context,
-                                {
-                                    server,
-                                    dangerouslyEscalateToSystemContext,
-                                    spaceId,
-                                    queries,
-                                },
-                            );
+                            const {
+                                loadedStates,
+                                gridViewExpansionStates,
+                                extraQueries,
+                                updateEvent,
+                            } = await loadTaskRealtimeQueries(context, {
+                                server,
+                                dangerouslyEscalateToSystemContext,
+                                spaceId,
+                                queries,
+                            });
 
                             return new Response(
                                 JSON.stringify(
                                     TaskRealtimeLoadQueriesOutputSchema.serialize({
                                         ok: true,
                                         loadedStates,
+                                        gridViewExpansionStates,
+                                        extraQueries,
                                         updateEvent,
                                     }),
                                 ),

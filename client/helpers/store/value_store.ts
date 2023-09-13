@@ -1,5 +1,5 @@
-import {StoreWeakImmediateListeners} from "~/client/helpers/store/internal/store_weak_immediate_listeners.js";
 import {storeUpdatesBatch} from "~/client/helpers/store/batch_store_updates.js";
+import {StoreWeakImmediateListeners} from "~/client/helpers/store/internal/store_weak_immediate_listeners.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {InternalError} from "~/shared/error/error.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";

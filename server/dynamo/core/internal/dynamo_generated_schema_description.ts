@@ -4983,17 +4983,44 @@ export const dynamoGeneratedSchemaDescription: {
                         }
                     },
                     "sortRangeByType": {
-                        "Expanded": {
+                        "Attributes": {
                             "id": 0,
                             "orderKey": "a0",
-                            "sortKeyAttributeByKey": {
-                                "taskKey": {
-                                    "type": "LabelString"
-                                }
-                            },
+                            "sortKeyAttributeByKey": {},
                             "attributesSchema": {
                                 "type": "Object",
                                 "propertySchemaByKey": {
+                                    "state": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "referenceId": "873e38df",
+                                            "schema": {
+                                                "type": "Map",
+                                                "keySchema": {
+                                                    "type": "Id"
+                                                },
+                                                "valueSchema": {
+                                                    "type": "Object",
+                                                    "propertySchemaByKey": {
+                                                        "isExpanded": {
+                                                            "valueSchema": {
+                                                                "type": "Boolean"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "childTasks": {
+                                                            "valueSchema": {
+                                                                "type": "Reference",
+                                                                "reuseReferenceId": "873e38df"
+                                                            },
+                                                            "optional": false
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "optional": false
+                                    },
                                     "updateLockVersion": {
                                         "valueSchema": {
                                             "type": "Integer"

@@ -22,7 +22,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {SpaceId, TaskActionTransactionId} from "~/shared/id/types/id_types.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {SchemaSerializedValue, SchemaType} from "~/shared/schema/schema.js";
 import {TaskAction, getTaskActionLabel} from "~/shared/tasks/actions/task_action.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
@@ -250,10 +250,7 @@ export class TaskContextModule extends TaskContextModuleBase {
             sorts: ReadonlyArray<TaskQueryNormalizedSort>;
             limit: number;
         }>,
-    ): Promise<{
-        loadedStates: ReadonlyArray<TaskRealtimeQueryLoadedState>;
-        updateEvent: TaskRealtimeUpdateEvent;
-    }> {
+    ): Promise<SchemaType<typeof TaskRealtimeLoadQueriesOutputSchema>> {
         const [hosts, token] = await runAllPromises([
             this.router.getHosts(this._context, spaceId),
             this._tokenAgent.dangerouslySignShortLivedToken("TaskRealtimeService", {
@@ -290,10 +287,7 @@ export class TaskContextModule extends TaskContextModuleBase {
             throw ErrorSchema.deserialize(responseBody.error);
         }
 
-        const {loadedStates, updateEvent} =
-            TaskRealtimeLoadQueriesOutputSchema.deserialize(responseBody);
-
-        return {loadedStates, updateEvent};
+        return TaskRealtimeLoadQueriesOutputSchema.deserialize(responseBody);
     }
 }
 

@@ -1,5 +1,9 @@
+import createTree from "functional-red-black-tree";
+import {Store} from "~/client/helpers/store/store.js";
+import {flatMapTreeStoreValues} from "~/client/helpers/store/tree_store.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {waitMacrotask} from "~/shared/helpers/async/wait_macrotask.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 
 test("weak immediate listeners are garbage collected", async () => {
     const store1 = new ValueStore(true);
@@ -13,17 +17,38 @@ test("weak immediate listeners are garbage collected", async () => {
 
     const store4 = store1.flatMap(condition => (condition ? store2 : store3));
 
+    expect(store1._getWeakImmediateListenerCountForTest()).toEqual(0);
+
+    const store5 = flatMapTreeStoreValues(
+        new ValueStore(
+            createTree<number, Store<number>>().insert(
+                1,
+                store1.flatMap(condition => (condition ? store2 : store3)),
+            ),
+        ),
+        cast,
+    );
+
     expect(store1._getWeakImmediateListenerCountForTest()).toEqual(1);
 
-    store1.flatMap(condition => (condition ? store3 : store2));
+    flatMapTreeStoreValues(
+        new ValueStore(
+            createTree<number, Store<number>>().insert(
+                1,
+                store1.flatMap(condition => (condition ? store3 : store2)),
+            ),
+        ),
+        cast,
+    );
 
     expect(store1._getWeakImmediateListenerCountForTest()).toEqual(2);
 
     await waitMacrotask();
-    global.gc!();
+    globalThis.gc!();
 
     expect(store1._getWeakImmediateListenerCountForTest()).toEqual(1);
 
-    // Make sure `store4` is not garbage collected.
+    // Make sure `store4` and `store5` are not garbage collected.
     store4.getSnapshot();
+    store5.getSnapshot();
 });

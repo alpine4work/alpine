@@ -59,7 +59,8 @@ import {generateId} from "~/shared/id/id.js";
 import {LocalTaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {colorSchemeVars} from "~/shared/styles/styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
-import {TaskGridViewTaskKey} from "~/shared/tasks/task_grid_view_task_key.js";
+import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
+import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_key.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 // NOCOMMIT:
 // import {TaskTitle, emptyTaskTitle} from "~/shared/tasks/task_title_schema_old.js";
@@ -71,15 +72,15 @@ const minTaskCountToShowTopGhostTask = 7;
 export function TaskGridView({
     capabilities,
     query,
+    initialExpandedState,
     initialBottomGhostTaskId,
-    initialExpandedChildTaskKeys,
     getAddNewTaskToQueryActions,
     getMaybeRemoveTaskFromQueryWhenNestingActions,
 }: {
     capabilities: TaskGridViewCapabilities;
     query: TaskClientQuery;
+    initialExpandedState: TaskGridViewExpansionState;
     initialBottomGhostTaskId: TaskId;
-    initialExpandedChildTaskKeys: ReadonlySet<TaskGridViewTaskKey>;
     getAddNewTaskToQueryActions: (
         time: HybridLogicalTime,
         taskId: TaskId,
@@ -93,8 +94,8 @@ export function TaskGridView({
     const {itemCount, renderItem} = useTaskGridViewVirtualizedList({
         capabilities,
         query,
+        initialExpandedState,
         initialBottomGhostTaskId,
-        initialExpandedChildTaskKeys,
         getAddNewTaskToQueryActions,
         getMaybeRemoveTaskFromQueryWhenNestingActions,
     });

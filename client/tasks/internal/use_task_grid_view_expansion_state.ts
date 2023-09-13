@@ -1,32 +1,224 @@
-import {useCallback, useEffect, useRef, useState} from "react";
-import {useAppContext} from "~/client/context/app_context.js";
+import {RefObject, useEffect, useRef, useState} from "react";
+import {AppContext, useAppContext} from "~/client/context/app_context.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {StoreMap} from "~/client/helpers/store/store_map.js";
 import {useBrowserId} from "~/client/remix/client_info_context.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {stringifyForDeepEqualCheck} from "~/shared/helpers/control/stringify_for_deep_equal_check.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {BrowserId, TaskId} from "~/shared/id/types/id_types.js";
+import {updateTaskGridViewExpansionState} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {
-    collapseChildTasksInGridView,
-    expandChildTasksInGridView,
-} from "~/shared/rpc/tasks_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.js";
-import {
-    TaskGridViewTaskKey,
-    TaskGridViewTaskKeySchema,
-    parseTaskGridViewTaskKey,
-} from "~/shared/tasks/task_grid_view_task_key.js";
+    TaskGridViewExpansionState,
+    areChildTasksExpandedInGridView,
+    collapseChildTaskInGridView,
+    diffTaskGridViewExpansionStates,
+    expandChildTaskInGridView,
+} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 
-const BroadcastChannelMessageSchema = Schema.object({
-    taskKey: TaskGridViewTaskKeySchema,
-    areChildTasksExpanded: Schema.boolean,
-});
+function createTaskGridViewExpansionStateManager({
+    getContext,
+    store,
+    browserId,
+    filters,
+    sorts,
+    initialState,
+    isMountedRef,
+    broadcastChannelRef,
+}: {
+    getContext: () => AppContext;
+    store: TaskClientStore;
+    browserId: BrowserId;
+    filters: TaskQueryNormalizedFilters;
+    sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+    initialState: TaskGridViewExpansionState;
+    isMountedRef: RefObject<boolean>;
+    broadcastChannelRef: RefObject<BroadcastChannel | null>;
+}) {
+    let state: TaskGridViewExpansionState = null;
+    const areChildTasksExpandedStoreByTaskPath = new StoreMap<string, true>();
+
+    let updateThrottleState: {hasUpdated: boolean; timeout: Timeout} | null = null;
+
+    const updateLocally = (
+        action: (oldState: TaskGridViewExpansionState) => TaskGridViewExpansionState,
+    ) => {
+        batchStoreUpdates(() => {
+            const oldState = state;
+            const newState = action(oldState);
+
+            state = newState;
+
+            // Diff the before/after states and use the diff to update our stores. Our UI
+            // subscribes to stores so only the precise part of the tree that changed needs
+            // to re-render.
+            for (const change of diffTaskGridViewExpansionStates(oldState, newState)) {
+                if (change.isExpanded) {
+                    areChildTasksExpandedStoreByTaskPath.set(change.taskPath.join("-"), true);
+
+                    // We only hold children query references when mounted (see `useEffect()` below
+                    // that sets up our references).
+                    if (isMountedRef.current) {
+                        const taskId = change.taskPath[change.taskPath.length - 1]!;
+                        store.getTaskChildrenQueryStore(taskId).getSnapshot()?.retain();
+                    }
+                } else {
+                    areChildTasksExpandedStoreByTaskPath.delete(change.taskPath.join("-"));
+
+                    // We only hold children query references when mounted (see `useEffect()` below
+                    // that sets up our references).
+                    if (isMountedRef.current) {
+                        const taskId = change.taskPath[change.taskPath.length - 1]!;
+                        store.getTaskChildrenQueryStore(taskId).getSnapshot()?.release();
+                    }
+                }
+            }
+        });
+    };
+
+    const update = (
+        action: (oldState: TaskGridViewExpansionState) => TaskGridViewExpansionState,
+    ) => {
+        updateLocally(action);
+
+        // Broadcast to any other browser tabs our new expansion state.
+        broadcastChannelRef.current?.postMessage(state);
+
+        const sendUpdate = () => {
+            const context = getContext();
+
+            updateTaskGridViewExpansionState(context, {
+                spaceId: store.spaceId,
+                browserId,
+                filters,
+                sorts,
+                state,
+            }).catch(error => {
+                // If we couldn't persist task grid view expansion state then log an error but
+                // don't present an error alert to the user. Locally tasks should still expand
+                // just fine.
+                //
+                // This is a glitch. Users won't see the correct tasks expanded/collapsed when
+                // they reload the page.
+                context.tracer
+                    .getRoot()
+                    .logUncaughtException("Couldn't persist task grid view expansion state", error);
+            });
+        };
+
+        // We throttle updates to our expansion state to once every second or so. In case
+        // the user is spamming task open/closes.
+        if (updateThrottleState !== null) {
+            updateThrottleState.hasUpdated = true;
+        } else {
+            sendUpdate();
+
+            const createThrottleTimeout = () =>
+                createTimeout(() => {
+                    if (!updateThrottleState?.hasUpdated) {
+                        updateThrottleState = null;
+                        return;
+                    }
+
+                    updateThrottleState = {
+                        hasUpdated: false,
+                        timeout: createThrottleTimeout(),
+                    };
+
+                    sendUpdate();
+                }, 1000);
+
+            updateThrottleState = {
+                hasUpdated: false,
+                timeout: createThrottleTimeout(),
+            };
+        }
+    };
+
+    // Update locally with our initial state. This will also update our stores.
+    updateLocally(() => initialState);
+
+    return {
+        store,
+        browserId,
+        filters,
+        sorts,
+        update,
+        updateLocally,
+
+        /**
+         * Is the task at this path expanded? Should not be called during React render
+         * as this reads mutable state. Instead call `getAreChildTasksExpandedStore()`
+         * for use during React render.
+         */
+        areChildTasksExpanded: (taskPath: ReadonlyArray<TaskId>) =>
+            areChildTasksExpandedInGridView(state, taskPath),
+
+        /**
+         * Returns a store that tells us whether the task at this path is expanded.
+         */
+        getAreChildTasksExpandedStore: (taskPath: ReadonlyArray<TaskId>) =>
+            areChildTasksExpandedStoreByTaskPath.get(taskPath.join("-")),
+
+        /**
+         * Iterate all expanded `TaskId`s in our state. Should not be called during
+         * React render as this reads mutable state.
+         *
+         * May iterate over the same `TaskId` multiple times if it is present and
+         * expanded multiple times in our grid view. To get the full (unique) path of
+         * a task you may call `getTaskPath()`.
+         */
+        iterateExpandedTaskIds: (): Iterable<{taskId: TaskId; getTaskPath: () => Array<TaskId>}> =>
+            mapIterable(areChildTasksExpandedStoreByTaskPath.keysSnapshot(), taskPath => {
+                const lastTaskIdStartIndex = taskPath.lastIndexOf("-");
+                const taskId =
+                    lastTaskIdStartIndex === -1
+                        ? (taskPath as TaskId)
+                        : (taskPath.slice(lastTaskIdStartIndex + 1) as TaskId);
+                return {taskId, getTaskPath: () => taskPath.split("-") as Array<TaskId>};
+            }),
+
+        /**
+         * Iterate all expanded `TaskId`s in our state under a certain path. Should not
+         * be called during React render as this reads mutable state.
+         *
+         * Does not include the task at the provided `taskPath`.
+         *
+         * Ignores whether the task at `taskPath` or any parent tasks are collapsed.
+         *
+         * May iterate over the same `TaskId` multiple times if it is present and
+         * expanded multiple times in our grid view. To get the full (unique) path of
+         * a task you may call `getTaskPath()`.
+         */
+        iterateExpandedTaskIdsUnderPath: (
+            taskPath: ReadonlyArray<TaskId>,
+        ): Iterable<{taskId: TaskId; getTaskPath: () => Array<TaskId>}> => {
+            let currentState = state;
+            for (const taskId of taskPath) {
+                currentState = currentState?.get(taskId)?.childTasks ?? null;
+                if (!currentState) break;
+            }
+
+            return mapIterable(
+                diffTaskGridViewExpansionStates(null, currentState),
+                ({taskPath: remainingTaskPath, isExpanded}) => {
+                    assert(isExpanded);
+                    assert(remainingTaskPath.length > 0);
+                    const taskId = remainingTaskPath[remainingTaskPath.length - 1]!;
+                    return {taskId, getTaskPath: () => [...taskPath, ...remainingTaskPath]};
+                },
+            );
+        },
+    };
+}
 
 /**
  * Manages the expansion state of tasks in a grid view.
@@ -42,74 +234,159 @@ const BroadcastChannelMessageSchema = Schema.object({
  * the time all tabs in a browser will see the same expanded tasks as what's on
  * the server but that's not a guarantee.
  */
+// NOTE(calebmer, 2023-09-13): We currently retain all children queries in our
+// expansion state whether or not those queries appear in the grid view where
+// the expansion state says they should. This could lead to over-retaining. If
+// our expansion state says we have a task expanded at the root level but that
+// task was moved under another task and our expansion state didn't update then
+// when you expand the task in its new location we will permanently retain that
+// query since we think we need it for the task at the root-level position
+// (where it doesn't exist).
 export function useTaskGridViewExpansionState({
     store,
     filters,
     sorts,
-    initialExpandedChildTaskKeys,
+    initialState,
 }: {
     store: TaskClientStore;
     filters: TaskQueryNormalizedFilters;
     sorts: ReadonlyArray<TaskQueryNormalizedSort>;
-    initialExpandedChildTaskKeys: ReadonlySet<TaskGridViewTaskKey>;
+    initialState: TaskGridViewExpansionState;
 }) {
     const context = useAppContext();
+    const getContext = useEvent(() => context);
     const browserId = useBrowserId();
-    const {space} = useSpaceContext();
-
-    const [state, setState] = useState(() => ({
-        filters,
-        sorts,
-        areChildTasksExpandedByTaskKey: new StoreMap<TaskGridViewTaskKey, boolean>(
-            Array.from(initialExpandedChildTaskKeys, taskKey => [taskKey, true]),
-        ),
-    }));
-
-    // If filters/sorts changed since we mounted then we need to reset our state.
-    if (state.filters !== filters || state.sorts !== sorts) {
-        setState({
-            filters,
-            sorts,
-            areChildTasksExpandedByTaskKey: new StoreMap<TaskGridViewTaskKey, boolean>(
-                Array.from(initialExpandedChildTaskKeys, taskKey => [taskKey, true]),
-            ),
-        });
-    }
 
     const isMountedRef = useRef(false);
+    const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
+
+    const [stateManager, setStateManager] = useState(() =>
+        createTaskGridViewExpansionStateManager({
+            getContext,
+            store,
+            browserId,
+            filters,
+            sorts,
+            initialState,
+            isMountedRef,
+            broadcastChannelRef,
+        }),
+    );
+
+    // If filters/sorts changed since we mounted then we need to reset our state.
+    if (
+        stateManager.store !== store ||
+        stateManager.browserId !== browserId ||
+        stateManager.filters !== filters ||
+        stateManager.sorts !== sorts
+    ) {
+        setStateManager(
+            createTaskGridViewExpansionStateManager({
+                getContext,
+                store,
+                browserId,
+                filters,
+                sorts,
+                initialState,
+                isMountedRef,
+                broadcastChannelRef,
+            }),
+        );
+    }
+
+    const toggleAreChildTasksExpanded = useEvent((taskPath: ReadonlyArray<TaskId>) => {
+        batchStoreUpdates(() => {
+            // Our mount effect manages our retain/release cycle. If we're unmounted then
+            // we shouldn't be retaining/releasing resources.
+            assert(isMountedRef.current);
+
+            assert(taskPath.length > 0);
+            const taskId = taskPath[taskPath.length - 1]!;
+
+            if (stateManager.areChildTasksExpanded(taskPath)) {
+                stateManager.update(state => collapseChildTaskInGridView(state, taskPath));
+            } else {
+                const taskIdsToLoad = new Set([taskId]);
+
+                for (const {taskId} of stateManager.iterateExpandedTaskIdsUnderPath(taskPath)) {
+                    taskIdsToLoad.add(taskId);
+                }
+
+                // If we are expanding a task, preload all the child task queries that will be
+                // visible once the task is expanded. We wait a bit for these tasks to load
+                // then actually expand.
+                const queries = Array.from(taskIdsToLoad, taskId =>
+                    store.ensureAndRetainTaskChildrenQuery(taskId, {
+                        // NOCOMMIT: Proper limit?
+                        desiredCount: 500,
+                    }),
+                );
+
+                // If all the children queries are loaded, expand immediately!
+                if (queries.every(query => query.loadedStateStore.getSnapshot() !== "Unloaded")) {
+                    actuallyExpand();
+                } else {
+                    const queriesLoadPromise = runAllPromises(
+                        queries.map(query => {
+                            return new Promise<void>(resolve => {
+                                const unsubscribe = query.loadedStateStore.subscribe(() => {
+                                    if (query.loadedStateStore.getSnapshot() !== "Unloaded") {
+                                        unsubscribe();
+                                        resolve();
+                                    }
+                                });
+                            });
+                        }),
+                    );
+
+                    // If the children queries are not loaded, wait a bit to try and avoid showing
+                    // a loading spinner if the network responds fast.
+                    Promise.race([queriesLoadPromise, wait(delayLoadingIndicatorLimitMs)]).finally(
+                        actuallyExpand,
+                    );
+                }
+
+                function actuallyExpand() {
+                    batchStoreUpdates(() => {
+                        try {
+                            stateManager.update(state =>
+                                expandChildTaskInGridView(state, taskPath),
+                            );
+                        } finally {
+                            // `stateManager` should have taken its own reference on queries we're actually
+                            // using. Since the expanded state could change while we're waiting on our
+                            // queries to load. Release the reference we held while loading the query.
+                            for (const query of queries) {
+                                query.release();
+                            }
+                        }
+                    });
+                }
+            }
+        });
+    });
 
     // When we mount, retain a reference to all children queries for expanded
     // tasks. When we unmount release references to children queries for
     // expanded tasks.
+    //
+    // On initial load our server is responsible for preloading some child query
+    // tasks so they'll be available for us in the store.
     useEffect(() => {
         isMountedRef.current = true;
 
-        for (const [
-            taskKey,
-            areChildTasksExpanded,
-        ] of state.areChildTasksExpandedByTaskKey.entriesSnapshot()) {
-            if (!areChildTasksExpanded) continue;
-
-            const {taskId} = parseTaskGridViewTaskKey(taskKey);
+        for (const {taskId} of stateManager.iterateExpandedTaskIds()) {
             store.getTaskChildrenQueryStore(taskId).getSnapshot()?.retain();
         }
 
         return () => {
             isMountedRef.current = false;
 
-            for (const [
-                taskKey,
-                areChildTasksExpanded,
-            ] of state.areChildTasksExpandedByTaskKey.entriesSnapshot()) {
-                if (!areChildTasksExpanded) continue;
-
-                const {taskId} = parseTaskGridViewTaskKey(taskKey);
+            for (const {taskId} of stateManager.iterateExpandedTaskIds()) {
                 store.getTaskChildrenQueryStore(taskId).getSnapshot()?.release();
             }
         };
-    }, [state.areChildTasksExpandedByTaskKey, store]);
-
-    const {areChildTasksExpandedByTaskKey} = state;
+    }, [stateManager, store]);
 
     // We construct a broadcast channel so when a task expand/collapse happens we
     // can inform other tabs in our browser given that expansion state is shared
@@ -120,7 +397,6 @@ export function useTaskGridViewExpansionState({
     // common case of "I have two browser tabs open and I want to see tasks in the
     // same state as I'll get if I reload the page". It's not a big deal if there
     // are temporary inconsistencies between the expansion state of two tabs.
-    const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
     useEffect(() => {
         const broadcastChannel = new BroadcastChannel(
             `TaskGridViewExpansionState:${browserId}:${stringifyForDeepEqualCheck({
@@ -131,152 +407,21 @@ export function useTaskGridViewExpansionState({
         broadcastChannelRef.current = broadcastChannel;
 
         broadcastChannel.addEventListener("message", event => {
-            const {taskKey, areChildTasksExpanded} = BroadcastChannelMessageSchema.deserialize(
-                event.data,
-            );
+            const state: TaskGridViewExpansionState = event.data;
 
-            areChildTasksExpandedByTaskKey.set(taskKey, areChildTasksExpanded);
+            // Only update our state locally. Don't re-broadcast it, don't save on the
+            // server. The initial broadcaster should have saved this update on the server.
+            stateManager.updateLocally(() => state);
         });
 
         return () => {
             broadcastChannelRef.current = null;
             broadcastChannel.close();
         };
-    }, [areChildTasksExpandedByTaskKey, browserId, filters, sorts]);
-
-    const isExpandingTaskKeysRef = useRef(new Set<TaskGridViewTaskKey>());
-
-    const toggleAreChildTasksExpanded = useEvent((taskKey: TaskGridViewTaskKey) => {
-        batchStoreUpdates(() => {
-            // Our mount effect manages our retain/release cycle. If we're unmounted then
-            // we shouldn't be retaining/releasing resources.
-            assert(isMountedRef.current);
-
-            const {taskId} = parseTaskGridViewTaskKey(taskKey);
-            const areChildTasksExpanded = areChildTasksExpandedByTaskKey.getSnapshot(taskKey);
-
-            if (areChildTasksExpanded) {
-                // 1. Release the reference to the children query for the collapsed task to
-                //    clean up resources
-                store.getTaskChildrenQueryStore(taskId).getSnapshot()?.release();
-
-                // 2. Set our task as collapsed in local state
-                areChildTasksExpandedByTaskKey.set(taskKey, false);
-
-                // 3. Set our task as collapsed in local state in other browser tabs
-                broadcastChannelRef.current?.postMessage(
-                    BroadcastChannelMessageSchema.serialize({
-                        taskKey,
-                        areChildTasksExpanded: false,
-                    }),
-                );
-
-                // 4. Set our task as collapsed in local state on the server
-                collapseChildTasksInGridView(context, {
-                    spaceId: space.id,
-                    browserId,
-                    filters,
-                    sorts,
-                    taskKey,
-                }).catch(error => {
-                    // If we couldn't persist task grid view expansion state then log an error but
-                    // don't present an error alert to the user. Locally tasks should still expand
-                    // just fine.
-                    //
-                    // This is a glitch. Users won't see the correct tasks expanded/collapsed when
-                    // they reload the page.
-                    context.tracer
-                        .getRoot()
-                        .logUncaughtException(
-                            "Couldn't persist task grid view expansion state",
-                            error,
-                        );
-                });
-            } else {
-                // Expanding a task may be asynchronous. If we're already expanding don't
-                // attempt to expand again. This prevents users who double click really fast
-                // from double expanding.
-                if (isExpandingTaskKeysRef.current.has(taskKey)) return;
-                isExpandingTaskKeysRef.current.add(taskKey);
-
-                // 1. Get an existing query or create a new children's query and retain a
-                //    reference to that query.
-                const query = store.ensureAndRetainTaskChildrenQuery(taskId, {
-                    // NOCOMMIT: Proper limit?
-                    desiredCount: 500,
-                });
-
-                if (query.loadedStateStore.getSnapshot() !== "Unloaded") {
-                    actuallyExpand();
-                } else {
-                    const loadPromise = new Promise<void>(resolve => {
-                        const unsubscribe = query.loadedStateStore.subscribe(() => {
-                            if (query.loadedStateStore.getSnapshot() !== "Unloaded") {
-                                unsubscribe();
-                                resolve();
-                            }
-                        });
-                    });
-
-                    Promise.race([loadPromise, wait(delayLoadingIndicatorLimitMs)]).finally(
-                        actuallyExpand,
-                    );
-                }
-
-                function actuallyExpand() {
-                    try {
-                        // If we unmounted while loading data then release the query (since an unmount
-                        // effect won't release it) and don't update our state.
-                        if (!isMountedRef.current) {
-                            query.release();
-                            return;
-                        }
-
-                        // 2. Set our task as expanded in local state
-                        areChildTasksExpandedByTaskKey.set(taskKey, true);
-
-                        // 3. Set our task as expanded in local state in other browser tabs
-                        broadcastChannelRef.current?.postMessage(
-                            BroadcastChannelMessageSchema.serialize({
-                                taskKey,
-                                areChildTasksExpanded: true,
-                            }),
-                        );
-
-                        // 4. Set our task as expanded in local state on the server
-                        expandChildTasksInGridView(context, {
-                            spaceId: space.id,
-                            browserId,
-                            filters,
-                            sorts,
-                            taskKey,
-                        }).catch(error => {
-                            // If we couldn't persist task grid view expansion state then log an error but
-                            // don't present an error alert to the user. Locally tasks should still expand
-                            // just fine.
-                            //
-                            // This is a glitch. Users won't see the correct tasks expanded/collapsed when
-                            // they reload the page.
-                            context.tracer
-                                .getRoot()
-                                .logUncaughtException(
-                                    "Couldn't persist task grid view expansion state",
-                                    error,
-                                );
-                        });
-                    } finally {
-                        isExpandingTaskKeysRef.current.delete(taskKey);
-                    }
-                }
-            }
-        });
-    });
+    }, [browserId, filters, sorts, stateManager]);
 
     return {
         toggleAreChildTasksExpanded,
-        getAreChildTasksExpandedStore: useCallback(
-            (taskKey: TaskGridViewTaskKey) => areChildTasksExpandedByTaskKey.get(taskKey),
-            [areChildTasksExpandedByTaskKey],
-        ),
+        getAreChildTasksExpandedStore: stateManager.getAreChildTasksExpandedStore,
     };
 }

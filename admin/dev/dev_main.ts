@@ -33,6 +33,7 @@ import {waitForProcessExitWithAnyCode} from "~/admin/helpers/wait_for_process_ex
 import {waitForProcessSpawn} from "~/admin/helpers/wait_for_process_spawn.js";
 import {workspacePath} from "~/admin/helpers/workspace_path.js";
 import {startOpensearchLocal} from "~/admin/opensearch/local/start_opensearch_local.js";
+import {waitForHttpServer} from "~/server/helpers/wait_for_http_server.js";
 import {DeadlineExceededError, InvalidArgumentError} from "~/shared/error/error.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -344,7 +345,12 @@ async function rebuildArtifact(artifact: Artifact) {
             },
         );
 
-        await runAllPromises([waitForProcessSpawn(subprocess), artifact.onServerRestart?.()]);
+        await runAllPromises([
+            waitForProcessSpawn(subprocess).then(() =>
+                waitForHttpServer(`http://localhost:${artifact.privatePort}`),
+            ),
+            artifact.onServerRestart?.(),
+        ]);
         artifactServerRef.current = {buildId, hasBuildFailed, subprocess};
     });
 }

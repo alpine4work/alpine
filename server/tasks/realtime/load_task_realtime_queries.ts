@@ -12,6 +12,7 @@ import {
     prepareTaskForClient,
 } from "~/server/tasks/data/task_realtime_protocol_helpers.js";
 import {
+    getTaskGridViewExpansionState,
     isTaskCollectionIndexDocAccessAuthorized,
     isTaskIndexDocAccessAuthorized,
 } from "~/server/tasks/data/task_table.js";
@@ -22,7 +23,17 @@ import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {
+    AccountId,
+    BrowserId,
+    SpaceId,
+    TaskCollectionId,
+    TaskId,
+} from "~/shared/id/types/id_types.js";
+import {
+    TaskGridViewExpansionState,
+    TaskGridViewExpansionTaskState,
+} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {
@@ -70,10 +81,18 @@ export async function loadTaskRealtimeQueries(
             filters: TaskQueryNormalizedFilters;
             sorts: ReadonlyArray<TaskQueryNormalizedSort>;
             limit: number;
+            shouldLoadGridViewExpandedChildTasksForBrowserId?: BrowserId;
         }>;
     },
 ): Promise<{
     loadedStates: Array<TaskRealtimeQueryLoadedState>;
+    gridViewExpansionStates: Array<TaskGridViewExpansionState>;
+    extraQueries: Array<{
+        filters: TaskQueryNormalizedFilters;
+        sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+        limit: number;
+        loadedState: TaskRealtimeQueryLoadedState;
+    }>;
     updateEvent: TaskRealtimeUpdateEvent;
 }> {
     const accountId = context.actor.getAccountId();
@@ -167,40 +186,196 @@ export async function loadTaskRealtimeQueries(
 
     const sessionContext = context;
 
+    let extraQueryPromises: Array<
+        Promise<{
+            filters: TaskQueryNormalizedFilters;
+            sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+            limit: number;
+            loadedState: TaskRealtimeQueryLoadedState;
+        }>
+    > = [];
+
+    const loadQuery = async (
+        context: TaskRealtimeSystemActionContext,
+        {
+            filters,
+            sorts,
+            limit,
+            shouldLoadGridViewExpandedChildTasksForBrowserId,
+        }: {
+            filters: TaskQueryNormalizedFilters;
+            sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+            limit: number;
+            shouldLoadGridViewExpandedChildTasksForBrowserId?: BrowserId;
+        },
+    ) => {
+        await server.authorizeQueryAccess(sessionContext, {
+            spaceId,
+            filters,
+            sorts,
+        });
+
+        const [{loadedState, tasks}, gridViewExpansionState] = await runAllPromises([
+            // NOCOMMIT: Multi-search?
+            server.loadQuery(context, {
+                spaceId,
+                filters,
+                sorts,
+                limit,
+            }),
+            shouldLoadGridViewExpandedChildTasksForBrowserId
+                ? getTaskGridViewExpansionState(sessionContext, {
+                      spaceId,
+                      browserId: shouldLoadGridViewExpandedChildTasksForBrowserId,
+                      filters,
+                      sorts,
+                  })
+                : null,
+        ]);
+
+        const taskChildrenQueryPromises: Array<
+            Promise<{
+                filters: TaskQueryNormalizedFilters;
+                sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+                limit: number;
+                loadedState: TaskRealtimeQueryLoadedState;
+            }>
+        > = [];
+
+        // All loaded tasks are authorized because we authorized query access.
+        for (let taskIndex = 0; taskIndex < tasks.length; taskIndex++) {
+            const task = tasks[taskIndex]!;
+
+            // If another query references this task we don't have to authorize it because
+            // it's a loaded task. Yay!
+            if (loadTaskPromiseById.has(task.id)) {
+                loadTaskPromiseById.set(task.id, Promise.resolve());
+            }
+
+            trackTaskDependencies(context, task);
+
+            backfillAuthorizedTaskSet.add(task);
+            backfillUnauthorizedTaskIds.delete(task.id);
+
+            // If this task is expanded then load its child tasks. If any of this task's
+            // child tasks are expanded then we load all of those as well.
+            //
+            // A task must have at least one child task for a client to be able to expand
+            // it. However, if a task loses all its children we don't update the expanded
+            // state. So we double check the task still has some children before starting
+            // to load child tasks.
+            //
+            // The way we limit the number of child tasks we load requires knowing how grid
+            // view is lain out. An expanded task shows its child tasks directly below it.
+            // Ideally we count child tasks against the provided `limit` for the overall
+            // query because they take vertical space. However we've already loaded our
+            // main task query. We still want to limit the number of child task queries
+            // though.
+            //
+            // We make the assumption that each child task query returns at least 1 task.
+            // While a task needs at least 1 child task to expand it may lose that child
+            // task. So the assumption is correct most of the time but not all of the time.
+            //
+            // So that means we use `limit` to control the number of queries we load. If
+            // limit is 50 then we assume 50 queries will return at least 50 tasks meeting
+            // our limit. However, we can subtract from limit based on how far down in the
+            // query we are. If our expanded task is in the 10th position, that means with
+            // a limit of 50 we only need 40 more tasks. So we'll only load 40 child
+            // queries.
+            const taskGridViewExpansionState = gridViewExpansionState?.get(task.id);
+            if (
+                taskGridViewExpansionState?.isExpanded &&
+                task.addedChildTaskCount - task.removedChildTaskCount > 0 &&
+                taskChildrenQueryPromises.length < limit - (taskIndex + 1)
+            ) {
+                const addTaskChildrenQueries = (
+                    taskId: TaskId,
+                    taskState: TaskGridViewExpansionTaskState,
+                ) => {
+                    if (!taskState.isExpanded) return;
+
+                    const filters: TaskQueryNormalizedFilters = {
+                        displayStatusFilter: {
+                            ifOpenInactive: true,
+                            ifOpenActive: true,
+                            ifClosed: true,
+                        },
+                        parentFilter: {
+                            parentTaskId: taskId,
+                        },
+                    };
+
+                    const sorts: ReadonlyArray<TaskQueryNormalizedSort> = [
+                        {
+                            type: "ParentPosition",
+                            direction: "Ascending",
+                            missing: "Last",
+                        },
+                        {
+                            type: "CreatedTime",
+                            direction: "Ascending",
+                            missing: "Last",
+                        },
+                    ];
+
+                    const loadedStatePromise = loadQuery(context, {
+                        filters,
+                        sorts,
+                        limit,
+                    });
+
+                    context.process.waitUntil(loadedStatePromise);
+
+                    taskChildrenQueryPromises.push(
+                        loadedStatePromise.then(({loadedState}) => ({
+                            filters,
+                            sorts,
+                            limit,
+                            loadedState,
+                        })),
+                    );
+
+                    if (taskState.childTasks) {
+                        for (const [taskId, childTaskState] of taskState.childTasks) {
+                            addTaskChildrenQueries(taskId, childTaskState);
+                        }
+                    }
+                };
+
+                addTaskChildrenQueries(task.id, taskGridViewExpansionState);
+            }
+        }
+
+        if (extraQueryPromises.length === 0) {
+            extraQueryPromises = taskChildrenQueryPromises;
+        } else {
+            for (const extraQuery of taskChildrenQueryPromises) {
+                extraQueryPromises.push(extraQuery);
+            }
+        }
+
+        return {loadedState, gridViewExpansionState};
+    };
+
     // Escalation is safe since we authorize that our session has access to
     // the query before using the escalated context.
     //
     // We escalate at this level to share an action cache across all query loads.
-    const loadedStates = await dangerouslyEscalateToSystemContext(context, spaceId, context =>
-        runAllPromises(
-            queries.map(async ({filters, sorts, limit}) => {
-                await server.authorizeQueryAccess(sessionContext, {spaceId, filters, sorts});
-
-                const {loadedState, tasks} = await server.loadQuery(context, {
-                    spaceId,
-                    filters,
-                    sorts,
-                    limit,
-                });
-
-                // All loaded tasks are authorized because we authorized query access.
-                for (const task of tasks) {
-                    // If another query references this task we don't have to authorize it because
-                    // it's a loaded task. Yay!
-                    if (loadTaskPromiseById.has(task.id)) {
-                        loadTaskPromiseById.set(task.id, Promise.resolve());
-                    }
-
-                    trackTaskDependencies(context, task);
-
-                    backfillAuthorizedTaskSet.add(task);
-                    backfillUnauthorizedTaskIds.delete(task.id);
-                }
-
-                return loadedState;
-            }),
-        ),
+    const loadedStatesAndGridViewExpansionStates = await dangerouslyEscalateToSystemContext(
+        context,
+        spaceId,
+        context => runAllPromises(queries.map(query => loadQuery(context, query))),
     );
+
+    const loadedStates = [];
+    const gridViewExpansionStates = [];
+
+    for (const {loadedState, gridViewExpansionState} of loadedStatesAndGridViewExpansionStates) {
+        loadedStates.push(loadedState);
+        gridViewExpansionStates.push(gridViewExpansionState);
+    }
+
+    const extraQueries = await runAllPromises(extraQueryPromises);
 
     // Wait for all discovered promises to resolve before returning.
     while (promises.length > 0) {
@@ -229,6 +404,8 @@ export async function loadTaskRealtimeQueries(
 
     return {
         loadedStates,
+        gridViewExpansionStates,
+        extraQueries,
         updateEvent: {
             type: "Update",
             number: eventNumber,

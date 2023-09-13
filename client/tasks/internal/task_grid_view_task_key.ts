@@ -1,7 +1,6 @@
 import {assert} from "~/shared/helpers/control/assert.js";
-import {assertId, isId} from "~/shared/id/id.js";
+import {assertId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
-import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
 
 /**
  * The key of a task in a grid view. Tasks are unique within a query but
@@ -21,26 +20,6 @@ import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
  * operations we take care to place focus in the new task.
  */
 export type TaskGridViewTaskKey = TaskId | `${TaskId}-${TaskId}`;
-
-export const TaskGridViewTaskKeySchema = Schema.string.transform<TaskGridViewTaskKey>({
-    serialize: key => key,
-    deserialize: key => {
-        if (!key.includes("-")) {
-            if (!isId<TaskId>(key)) throw new SchemaDeserializationError("Expected id");
-            return key;
-        } else {
-            const [rootTaskId, taskId] = key.split("-", 2);
-
-            if (!rootTaskId || !taskId)
-                throw new SchemaDeserializationError('Expected two parts separated by "-"');
-
-            if (!isId<TaskId>(rootTaskId)) throw new SchemaDeserializationError("Expected id");
-            if (!isId<TaskId>(taskId)) throw new SchemaDeserializationError("Expected id");
-
-            return `${rootTaskId}-${taskId}`;
-        }
-    },
-});
 
 export function parseTaskGridViewTaskKey(key: TaskGridViewTaskKey): {
     rootTaskId: TaskId | null;
