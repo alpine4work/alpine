@@ -208,6 +208,7 @@ export class TaskRealtimeConnection {
             );
         },
         subscribeToQueries: async (context, input) => {
+            await wait(2000);
             await runAllPromises(
                 input.queries.map(inputQuery =>
                     this._server.authorizeQueryAccess(context, {

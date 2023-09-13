@@ -4,6 +4,7 @@ import {Context} from "~/shared/context/context.js";
 import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
+import {TaskId} from "~/shared/id/types/id_types.js";
 import {commitTaskActionTransaction} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {TestRpcContextModule} from "~/shared/rpc/test_rpc_context_module.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
@@ -26,6 +27,10 @@ const account1 = new AccountModel({
 const context = Context.new({
     rpc: new TestRpcContextModule(),
 });
+
+function getTaskEntryIfExists(store: TaskClientStore, taskId: TaskId) {
+    throw store.getTaskEntryStoreIfExists(taskId)?.getSnapshot() ?? null;
+}
 
 test("if optimistic task creation is reverted then queries remove the task", async () => {
     const store = new TaskClientStore({spaceId: generateId()});
@@ -82,13 +87,13 @@ test("if optimistic task creation is reverted then queries remove the task", asy
         previouslyBackfilledTaskIds: [],
     });
 
-    expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual(null);
+    expect(getTaskEntryIfExists(store, task.id)).toEqual(null);
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
 
     store.commitTaskActionTransaction(context, [action1]);
 
-    expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
+    expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task,
         actions: null,
         optimisticState: {
@@ -106,7 +111,7 @@ test("if optimistic task creation is reverted then queries remove the task", asy
 
     store.commitTaskActionTransaction(context, [action2]);
 
-    expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
+    expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task.apply(action2),
         actions: null,
         optimisticState: {
@@ -129,7 +134,7 @@ test("if optimistic task creation is reverted then queries remove the task", asy
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
 
-    expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
+    expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
         actions: [action2],
         optimisticState: {
@@ -147,7 +152,7 @@ test("if optimistic task creation is reverted then queries remove the task", asy
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
 
-    expect(store.getTaskEntryIfExistsForTest(task.id)).toEqual({
+    expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
         actions: [],
         optimisticState: null,

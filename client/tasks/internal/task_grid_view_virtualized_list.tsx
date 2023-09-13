@@ -189,43 +189,56 @@ export function useTaskGridViewVirtualizedList({
                                     previousItemIndex--
                                 ) {
                                     const previousItem = list.getItem(previousItemIndex);
-                                    if (previousItem.indentation === item.indentation) {
+                                    if (
+                                        previousItem.parentTaskCursors.length ===
+                                        item.parentTaskCursors.length
+                                    ) {
                                         if (previousItem.type !== "Task") break;
 
-                                        // Batch the action commit and expand store updates together.
-                                        batchStoreUpdates(() => {
+                                        const indent = () => {
                                             const time = query.store.clock.now();
+
+                                            const taskId = getTaskQuerySortCursorTaskId(
+                                                item.cursor,
+                                            );
+                                            const previousTaskId = getTaskQuerySortCursorTaskId(
+                                                previousItem.cursor,
+                                            );
 
                                             query.store.commitTaskActionTransaction(context, [
                                                 {
                                                     type: "UpdateTask",
                                                     time,
-                                                    taskId: item.taskId,
+                                                    taskId,
                                                     taskAction: {
                                                         type: "UpdateParentTaskId",
-                                                        parentTaskId: previousItem.taskId,
+                                                        parentTaskId: previousTaskId,
                                                     },
                                                 },
                                                 ...events.getMaybeRemoveTaskFromQueryWhenNestingActions(
                                                     time,
-                                                    item.taskId,
+                                                    taskId,
                                                 ),
                                             ]);
+                                        };
 
-                                            const previousTaskKey: TaskGridViewTaskKey =
-                                                previousItem.rootTaskId
-                                                    ? `${previousItem.rootTaskId}-${previousItem.taskId}`
-                                                    : previousItem.taskId;
+                                        const previousTaskPath = [
+                                            ...previousItem.parentTaskCursors,
+                                            previousItem.cursor,
+                                        ].map(getTaskQuerySortCursorTaskId);
 
-                                            // Expand our new parent task if it's not already expanded.
-                                            if (
-                                                !getAreChildTasksExpandedStore(
-                                                    previousTaskKey,
-                                                ).getSnapshot()
-                                            ) {
-                                                toggleAreChildTasksExpanded(previousTaskKey);
-                                            }
-                                        });
+                                        // Expand our new parent task if it's not already expanded.
+                                        if (
+                                            getAreChildTasksExpandedStore(
+                                                previousTaskPath,
+                                            ).getSnapshot()
+                                        ) {
+                                            indent();
+                                        } else {
+                                            toggleAreChildTasksExpanded(previousTaskPath, {
+                                                onFinish: indent,
+                                            });
+                                        }
                                         break;
                                     }
                                 }

@@ -144,22 +144,12 @@ export class TaskClientStore {
         return this._internal.getCollectionCountForTest();
     }
 
-    /**
-     * Get a single task in a unit testing environment. Even if you added a task
-     * recently it may have been garbage collected.
-     */
-    public getTaskEntryIfExistsForTest(taskId: TaskId) {
-        assert(import.meta.jest);
-        return this._internal.getTaskEntryStoreIfExists(taskId)?.getSnapshot() ?? null;
+    public getTaskEntryStoreIfExists(taskId: TaskId) {
+        return this._internal.getTaskEntryStoreIfExists(taskId);
     }
 
-    /**
-     * Get a single collection in a unit testing environment. Even if you added a
-     * collection recently it may have been garbage collected.
-     */
-    public getCollectionEntryIfExistsForTest(collectionId: TaskCollectionId) {
-        assert(import.meta.jest);
-        return this._internal.getCollectionEntryStoreIfExists(collectionId)?.getSnapshot() ?? null;
+    public getCollectionEntryStoreIfExists(collectionId: TaskCollectionId) {
+        return this._internal.getCollectionEntryStoreIfExists(collectionId);
     }
 
     public getQueriesStore(): Store<ReadonlySet<TaskClientQuery>> {

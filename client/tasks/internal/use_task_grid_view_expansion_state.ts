@@ -294,77 +294,106 @@ export function useTaskGridViewExpansionState({
         );
     }
 
-    const toggleAreChildTasksExpanded = useEvent((taskPath: ReadonlyArray<TaskId>) => {
-        batchStoreUpdates(() => {
-            // Our mount effect manages our retain/release cycle. If we're unmounted then
-            // we shouldn't be retaining/releasing resources.
-            assert(isMountedRef.current);
+    const toggleAreChildTasksExpanded = useEvent(
+        (taskPath: ReadonlyArray<TaskId>, {onFinish}: {onFinish?: () => void} = {}) => {
+            batchStoreUpdates(() => {
+                // Our mount effect manages our retain/release cycle. If we're unmounted then
+                // we shouldn't be retaining/releasing resources.
+                assert(isMountedRef.current);
 
-            assert(taskPath.length > 0);
-            const taskId = taskPath[taskPath.length - 1]!;
+                assert(taskPath.length > 0);
+                const taskId = taskPath[taskPath.length - 1]!;
 
-            if (stateManager.areChildTasksExpanded(taskPath)) {
-                stateManager.update(state => collapseChildTaskInGridView(state, taskPath));
-            } else {
-                const taskIdsToLoad = new Set([taskId]);
-
-                for (const {taskId} of stateManager.iterateExpandedTaskIdsUnderPath(taskPath)) {
-                    taskIdsToLoad.add(taskId);
-                }
-
-                // If we are expanding a task, preload all the child task queries that will be
-                // visible once the task is expanded. We wait a bit for these tasks to load
-                // then actually expand.
-                const queries = Array.from(taskIdsToLoad, taskId =>
-                    store.ensureAndRetainTaskChildrenQuery(taskId, {
+                if (stateManager.areChildTasksExpanded(taskPath)) {
+                    stateManager.update(state => collapseChildTaskInGridView(state, taskPath));
+                    onFinish?.();
+                } else if (
+                    // If there are no child tasks and we're trying to expand (probably because
+                    // we're indenting a task under this) then immediately expand and make sure we
+                    // have a loaded, empty, query.
+                    store
+                        .getTaskEntryStoreIfExists(taskId)
+                        ?.getSnapshot()
+                        .task?.getChildTaskCount() === 0
+                ) {
+                    const query = store.ensureAndRetainTaskChildrenQuery(taskId, {
                         // NOCOMMIT: Proper limit?
                         desiredCount: 500,
-                    }),
-                );
+                    });
 
-                // If all the children queries are loaded, expand immediately!
-                if (queries.every(query => query.loadedStateStore.getSnapshot() !== "Unloaded")) {
-                    actuallyExpand();
+                    store.loadTasksIntoQuery(query, {
+                        loadedState: {type: "Full"},
+                        previouslyBackfilledTaskIds: [],
+                    });
+
+                    stateManager.update(state => expandChildTaskInGridView(state, taskPath));
+                    onFinish?.();
                 } else {
-                    const queriesLoadPromise = runAllPromises(
-                        queries.map(query => {
-                            return new Promise<void>(resolve => {
-                                const unsubscribe = query.loadedStateStore.subscribe(() => {
-                                    if (query.loadedStateStore.getSnapshot() !== "Unloaded") {
-                                        unsubscribe();
-                                        resolve();
-                                    }
-                                });
-                            });
+                    const taskIdsToLoad = new Set([taskId]);
+
+                    for (const {taskId} of stateManager.iterateExpandedTaskIdsUnderPath(taskPath)) {
+                        taskIdsToLoad.add(taskId);
+                    }
+
+                    // If we are expanding a task, preload all the child task queries that will be
+                    // visible once the task is expanded. We wait a bit for these tasks to load
+                    // then actually expand.
+                    const queries = Array.from(taskIdsToLoad, taskId =>
+                        store.ensureAndRetainTaskChildrenQuery(taskId, {
+                            // NOCOMMIT: Proper limit?
+                            desiredCount: 500,
                         }),
                     );
 
-                    // If the children queries are not loaded, wait a bit to try and avoid showing
-                    // a loading spinner if the network responds fast.
-                    Promise.race([queriesLoadPromise, wait(delayLoadingIndicatorLimitMs)]).finally(
-                        actuallyExpand,
-                    );
-                }
+                    // If all the children queries are loaded, expand immediately!
+                    if (
+                        queries.every(query => query.loadedStateStore.getSnapshot() !== "Unloaded")
+                    ) {
+                        actuallyExpand();
+                    } else {
+                        const queriesLoadPromise = runAllPromises(
+                            queries.map(query => {
+                                return new Promise<void>(resolve => {
+                                    const unsubscribe = query.loadedStateStore.subscribe(() => {
+                                        if (query.loadedStateStore.getSnapshot() !== "Unloaded") {
+                                            unsubscribe();
+                                            resolve();
+                                        }
+                                    });
+                                });
+                            }),
+                        );
 
-                function actuallyExpand() {
-                    batchStoreUpdates(() => {
-                        try {
-                            stateManager.update(state =>
-                                expandChildTaskInGridView(state, taskPath),
-                            );
-                        } finally {
-                            // `stateManager` should have taken its own reference on queries we're actually
-                            // using. Since the expanded state could change while we're waiting on our
-                            // queries to load. Release the reference we held while loading the query.
-                            for (const query of queries) {
-                                query.release();
+                        // If the children queries are not loaded, wait a bit to try and avoid showing
+                        // a loading spinner if the network responds fast.
+                        Promise.race([
+                            queriesLoadPromise,
+                            wait(delayLoadingIndicatorLimitMs),
+                        ]).finally(actuallyExpand);
+                    }
+
+                    function actuallyExpand() {
+                        batchStoreUpdates(() => {
+                            try {
+                                stateManager.update(state =>
+                                    expandChildTaskInGridView(state, taskPath),
+                                );
+
+                                onFinish?.();
+                            } finally {
+                                // `stateManager` should have taken its own reference on queries we're actually
+                                // using. Since the expanded state could change while we're waiting on our
+                                // queries to load. Release the reference we held while loading the query.
+                                for (const query of queries) {
+                                    query.release();
+                                }
                             }
-                        }
-                    });
+                        });
+                    }
                 }
-            }
-        });
-    });
+            });
+        },
+    );
 
     // When we mount, retain a reference to all children queries for expanded
     // tasks. When we unmount release references to children queries for
