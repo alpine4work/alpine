@@ -134,8 +134,9 @@ function TaskRowView(
         onAreChildTasksExpandedToggle,
         withoutPaddingLeft,
         withPaddingBottom,
-        getAddNewTaskToQueryActions,
+        getMoveTaskToQueryActions,
         nestWithPreviousTaskRowIfExistsAndExpand,
+        unnestTaskIfNestedRow,
         focusTaskTitleStart,
         focusNextTaskTitleCoord,
         focusPreviousTaskTitleCoord,
@@ -183,7 +184,7 @@ function TaskRowView(
         // createTaskAbove: () => void;
         // createTaskBelowAndFocus: () => void;
         // createTaskChildAtStartAndFocus: () => void;
-        getAddNewTaskToQueryActions: (
+        getMoveTaskToQueryActions: (
             taskId: TaskId,
             position:
                 | {type: "End"}
@@ -191,8 +192,8 @@ function TaskRowView(
                 | {type: "Below"; taskId: TaskId},
         ) => Array<TaskAction>;
         nestWithPreviousTaskRowIfExistsAndExpand: (titleSelection: Selection) => void;
+        unnestTaskIfNestedRow: (titleSelection: Selection) => void;
         // NOCOMMIT:
-        // unnestTaskIfNestedRow: (titleSelection: Selection) => void;
         // deleteTaskAndAllChildrenAndFocusPreviousRow: () => void;
         // deleteTaskAndAllChildrenMaybeWithConfirmation: () => void;
         // focusFirstTaskTitleStart: () => void;
@@ -212,8 +213,12 @@ function TaskRowView(
     const {timeZone} = useClientInfo();
     const {currentAccount} = useSpaceContext();
 
-    const taskEntry = useStore(taskId !== null ? query.getTaskEntryStore(taskId) : null);
+    const taskEntry = useStore(taskId !== null ? query.getLoadedTaskEntryStore(taskId) : null);
     const task = taskEntry?.task ?? null;
+
+    const parentTaskId = task?.getParent()?.taskId ?? null;
+    const parentTaskEntryStore =
+        parentTaskId !== null ? query.getReferencedTaskEntryStore(parentTaskId) : null;
 
     // If `taskId` is non-null then we expect `task` to also be non-null and
     // authorized. This component should only be rendered with `TaskId`s in the
@@ -312,7 +317,7 @@ function TaskRowView(
                             titleUpdate,
                         },
                     },
-                    ...getAddNewTaskToQueryActions(ghostTaskId, {type: "End"}),
+                    ...getMoveTaskToQueryActions(ghostTaskId, {type: "End"}),
                 ]);
 
                 handleCommitPromise(commitPromise);
@@ -609,6 +614,8 @@ function TaskRowView(
                                 title={task?.getTitle() ?? emptyTaskTitleModel.get()}
                                 onTitleChange={onTitleChange}
                                 placeholder={titlePlaceholder}
+                                indentation={indentation}
+                                parentTaskEntryStore={parentTaskEntryStore}
                                 childTaskCount={task?.getChildTaskCount() ?? 0}
                                 closedChildTaskCount={task?.getClosedChildTaskCount() ?? 0}
                                 areChildTasksExpandedStore={areChildTasksExpandedStore}
@@ -627,7 +634,7 @@ function TaskRowView(
                                                 creatorTimeZone: timeZone,
                                             },
                                         },
-                                        ...getAddNewTaskToQueryActions(
+                                        ...getMoveTaskToQueryActions(
                                             newTaskId,
                                             taskId ? {type: "Above", taskId} : {type: "End"},
                                         ),
@@ -670,13 +677,12 @@ function TaskRowView(
 
                                             const firstChildPosition = firstChildCursor
                                                 ? childrenQuery
-                                                      .getTaskEntryStore(
+                                                      .getLoadedTaskSnapshot(
                                                           getTaskQuerySortCursorTaskId(
                                                               firstChildCursor,
                                                           ),
                                                       )
-                                                      .getSnapshot()
-                                                      .task?.getParent()?.position
+                                                      .getParent()?.position
                                                 : null;
 
                                             if (firstChildPosition) {
@@ -751,7 +757,7 @@ function TaskRowView(
                                                 creatorTimeZone: timeZone,
                                             },
                                         },
-                                        ...getAddNewTaskToQueryActions(
+                                        ...getMoveTaskToQueryActions(
                                             newTaskId,
                                             taskId ? {type: "Below", taskId} : {type: "End"},
                                         ),
@@ -774,9 +780,7 @@ function TaskRowView(
                                 nestWithPreviousTaskRowIfExistsAndExpand={
                                     nestWithPreviousTaskRowIfExistsAndExpand
                                 }
-                                unnestTaskIfNestedRow={() => {
-                                    // NOCOMMIT: Implement!
-                                }}
+                                unnestTaskIfNestedRow={unnestTaskIfNestedRow}
                                 focusNextTaskTitleCoord={focusNextTaskTitleCoord}
                                 focusPreviousTaskTitleCoord={focusPreviousTaskTitleCoord}
                                 preserveLastTaskTitleArrowNavigationCoord={

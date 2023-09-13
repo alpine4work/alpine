@@ -1,4 +1,5 @@
 import classNames from "classnames";
+import {CaretLeft} from "phosphor-react";
 import {AllSelection, EditorState, Selection, TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {
@@ -17,12 +18,14 @@ import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keybo
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {Store} from "~/client/helpers/store/store.js";
+import {useStore} from "~/client/helpers/store/use_store.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {taskRowViewMinHeight} from "~/client/tasks/internal/task_row_shared_styles.js";
 import {TaskRowTitleChildTasksButton} from "~/client/tasks/internal/task_row_title_child_tasks_button.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {useTaskTitleModelYDoc} from "~/client/tasks/internal/use_task_title_model_y_doc.js";
-import {Spacing} from "~/shared/design/spacing.js";
+import {TaskClientStoreTaskEntry} from "~/client/tasks/task_client_store.js";
+import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
@@ -38,6 +41,7 @@ import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {
     TaskTitleProsemirrorSchema,
     TaskTitleUpdate,
+    emptyTaskTitle,
     emptyTaskTitleProsemirrorNode,
     getTaskTitleProsemirrorNode,
 } from "~/shared/tasks/task_title.js";
@@ -111,6 +115,8 @@ function TaskRowTitleInput(
         title,
         onTitleChange,
         placeholder,
+        indentation,
+        parentTaskEntryStore,
         childTaskCount,
         closedChildTaskCount,
         areChildTasksExpandedStore,
@@ -127,9 +133,8 @@ function TaskRowTitleInput(
         title: TaskTitleModel;
         onTitleChange: (titleUpdate: TaskTitleUpdate) => void;
         placeholder?: string;
-        // NOCOMMIT:
-        // indentation: number;
-        // parentTaskTitle: TaskTitle | null;
+        indentation: number;
+        parentTaskEntryStore: Store<TaskClientStoreTaskEntry> | null;
         childTaskCount: number;
         closedChildTaskCount: number;
         areChildTasksExpandedStore: Store<boolean | undefined>;
@@ -661,31 +666,13 @@ function TaskRowTitleInput(
                         }),
                     )}
                 >
-                    {/* NOCOMMIT: {capabilities.hasParentTaskTitle && parentTaskTitle && indentation === 0 && (
-                        <div
-                            className={sprinkles({
-                                pointerEvents: "none",
-                                color: "grey-50",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "0.5",
-                                marginLeft: "1.5",
-                            })}
-                        >
-                            <CaretLeft size={spacing["3"]} />
-                            <div
-                                className={sprinkles({
-                                    fontStyle: "truncate",
-                                    maxWidth: "48",
-                                })}
-                                dangerouslySetInnerHTML={{
-                                    __html: serializeProsemirrorFragmentToHtml(
-                                        parentTaskTitle.content,
-                                    ),
-                                }}
+                    {capabilities.hasParentTaskTitle &&
+                        parentTaskEntryStore &&
+                        indentation === 0 && (
+                            <TaskRowTitleParentTaskTitle
+                                parentTaskEntryStore={parentTaskEntryStore}
                             />
-                        </div>
-                    )} */}
+                        )}
                     {childTaskCount > 0 && (
                         <TaskRowTitleChildTasksButton
                             childTaskCount={childTaskCount}
@@ -696,6 +683,47 @@ function TaskRowTitleInput(
                     )}
                 </div>
             </div>
+        </div>
+    );
+}
+
+function TaskRowTitleParentTaskTitle({
+    parentTaskEntryStore,
+}: {
+    parentTaskEntryStore: Store<TaskClientStoreTaskEntry>;
+}) {
+    const parentTaskEntry = useStore(parentTaskEntryStore);
+    const parentTaskTitle = parentTaskEntry.task?.getTitle();
+
+    const parentTaskTitleHtml = useMemo(
+        () =>
+            serializeProsemirrorFragmentToHtml(
+                getTaskTitleProsemirrorNode(parentTaskTitle?.raw ?? emptyTaskTitle.get()).content,
+            ),
+        [parentTaskTitle?.raw],
+    );
+
+    return (
+        <div
+            className={sprinkles({
+                pointerEvents: "none",
+                color: "grey-50",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5",
+                marginLeft: "1.5",
+            })}
+        >
+            <CaretLeft size={spacing["3"]} />
+            <div
+                className={sprinkles({
+                    fontStyle: "truncate",
+                    maxWidth: "48",
+                })}
+                dangerouslySetInnerHTML={{
+                    __html: parentTaskTitleHtml,
+                }}
+            />
         </div>
     );
 }

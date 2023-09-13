@@ -1,3 +1,4 @@
+import {Selection} from "prosemirror-state";
 import {useEffect, useMemo, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -20,6 +21,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {noop} from "~/shared/helpers/control/noop.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {colorSchemeVars} from "~/shared/styles/styles.js";
@@ -34,14 +36,14 @@ export function useTaskGridViewVirtualizedList({
     query,
     initialExpandedState,
     initialBottomGhostTaskId,
-    getAddNewTaskToQueryActions: _getAddNewTaskToQueryActions,
+    getMoveTaskToQueryActions: _getMoveTaskToQueryActions,
     getMaybeRemoveTaskFromQueryWhenNestingActions: _getMaybeRemoveTaskFromQueryWhenNestingActions,
 }: {
     capabilities: TaskGridViewCapabilities;
     query: TaskClientQuery;
     initialExpandedState: TaskGridViewExpansionState;
     initialBottomGhostTaskId: TaskId;
-    getAddNewTaskToQueryActions: (
+    getMoveTaskToQueryActions: (
         taskId: TaskId,
         position: {type: "End"} | {type: "Above"; taskId: TaskId} | {type: "Below"; taskId: TaskId},
     ) => Array<TaskAction>;
@@ -67,7 +69,7 @@ export function useTaskGridViewVirtualizedList({
     const list = useStore(listStore);
 
     const events = useEvents({
-        getAddNewTaskToQueryActions: _getAddNewTaskToQueryActions,
+        getMoveTaskToQueryActions: _getMoveTaskToQueryActions,
         getMaybeRemoveTaskFromQueryWhenNestingActions:
             _getMaybeRemoveTaskFromQueryWhenNestingActions,
     });
@@ -196,8 +198,9 @@ export function useTaskGridViewVirtualizedList({
                                 // look misaligned. So remove it.
                                 withoutPaddingLeft={listItemCount === 0}
                                 withPaddingBottom={itemIndex === itemCount - 1}
-                                getAddNewTaskToQueryActions={events.getAddNewTaskToQueryActions}
+                                getMoveTaskToQueryActions={events.getMoveTaskToQueryActions}
                                 nestWithPreviousTaskRowIfExistsAndExpand={noop}
+                                unnestTaskIfNestedRow={noop}
                                 focusTaskTitleStart={focusTaskTitleStart}
                                 focusNextTaskTitleCoord={focusNextTaskTitleCoord}
                                 focusPreviousTaskTitleCoord={focusPreviousTaskTitleCoord}
@@ -266,18 +269,21 @@ export function useTaskGridViewVirtualizedList({
                     taskId,
                 ];
 
-                const nestWithPreviousTaskRowIfExistsAndExpand = () => {
+                // NOCOMMIT: Preserve selection
+                // NOCOMMIT: Preserve expansion state
+                const nestWithPreviousTaskRowIfExistsAndExpand = (titleSelection: Selection) => {
                     for (
                         let previousItemIndex = relativeItemIndex - 1;
                         previousItemIndex >= 0;
                         previousItemIndex--
                     ) {
+                        const indentation = item.parentTaskCursors.length;
+
                         const previousItem = list.getItem(previousItemIndex);
-                        if (
-                            previousItem.parentTaskCursors.length !== item.parentTaskCursors.length
-                        ) {
-                            continue;
-                        }
+                        const previousIndentation = previousItem.parentTaskCursors.length;
+
+                        if (previousIndentation > indentation) continue;
+                        if (previousIndentation < indentation) break;
 
                         if (previousItem.type !== "Task") break;
 
@@ -322,6 +328,82 @@ export function useTaskGridViewVirtualizedList({
                     }
                 };
 
+                // NOCOMMIT: Preserve selection
+                // NOCOMMIT: Preserve expansion state
+                const unnestTaskIfNestedRow = (titleSelection: Selection) => {
+                    if (item.parentTaskCursors.length === 0) return;
+
+                    const oldParentTaskId =
+                        item.query.getLoadedTaskSnapshot(taskId).getParent()?.taskId ?? null;
+                    if (!oldParentTaskId) return;
+
+                    const newParentTaskId =
+                        item.parentTaskCursors.length > 1
+                            ? getTaskQuerySortCursorTaskId(
+                                  item.parentTaskCursors[item.parentTaskCursors.length - 2]!,
+                              )
+                            : null;
+
+                    // If our task no longer has any parent then move it into our root query.
+                    if (!newParentTaskId) {
+                        query.store.commitTaskActionTransaction(context, [
+                            {
+                                type: "UpdateTask",
+                                time: query.store.clock.now(),
+                                taskId,
+                                taskAction: {
+                                    type: "UpdateParentTaskId",
+                                    parentTaskId: null,
+                                },
+                            },
+                            ...events.getMoveTaskToQueryActions(taskId, {
+                                type: "Below",
+                                taskId: oldParentTaskId,
+                            }),
+                        ]);
+                    }
+                    // Move the task to our parent's parent. If we have access to the new parent's
+                    // children query then we can pick a position below our old parent.
+                    else {
+                        const time1 = query.store.clock.now();
+                        const time2 = query.store.clock.now();
+
+                        const newChildrenQuery = query.store
+                            .getTaskChildrenQueryStore(newParentTaskId)
+                            .getSnapshot();
+
+                        query.store.commitTaskActionTransaction(context, [
+                            {
+                                type: "UpdateTask",
+                                time: time1,
+                                taskId,
+                                taskAction: {
+                                    type: "UpdateParentTaskId",
+                                    parentTaskId: newParentTaskId,
+                                },
+                            },
+                            {
+                                type: "UpdateTask",
+                                time: time2,
+                                taskId,
+                                taskAction: {
+                                    type: "UpdateParentPosition",
+                                    parentPosition: newChildrenQuery
+                                        ? getNewTaskPositionForQuerySortedByPosition(
+                                              time2,
+                                              newChildrenQuery,
+                                              {type: "Below", taskId: oldParentTaskId},
+                                          )
+                                        : {
+                                              orderTime: time2,
+                                              orderKey: initialOrderKey,
+                                          },
+                                },
+                            },
+                        ]);
+                    }
+                };
+
                 const node = (
                     <TaskRowView
                         ref={taskRow => {
@@ -344,12 +426,12 @@ export function useTaskGridViewVirtualizedList({
                         onAreChildTasksExpandedToggle={() => {
                             toggleAreChildTasksExpanded(taskPath);
                         }}
-                        getAddNewTaskToQueryActions={
+                        getMoveTaskToQueryActions={
                             // If this is the root query then the new task needs to be added to that query.
                             // Otherwise we want to add the new task at the same indentation level that our
                             // task is currently at.
                             item.query === query
-                                ? events.getAddNewTaskToQueryActions
+                                ? events.getMoveTaskToQueryActions
                                 : (newTaskId, position) => {
                                       const time1 = query.store.clock.now();
                                       const time2 = query.store.clock.now();
@@ -390,6 +472,7 @@ export function useTaskGridViewVirtualizedList({
                         nestWithPreviousTaskRowIfExistsAndExpand={
                             nestWithPreviousTaskRowIfExistsAndExpand
                         }
+                        unnestTaskIfNestedRow={unnestTaskIfNestedRow}
                         focusTaskTitleStart={focusTaskTitleStart}
                         focusNextTaskTitleCoord={focusNextTaskTitleCoord}
                         focusPreviousTaskTitleCoord={focusPreviousTaskTitleCoord}

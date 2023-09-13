@@ -74,14 +74,14 @@ export function TaskGridView({
     query,
     initialExpandedState,
     initialBottomGhostTaskId,
-    getAddNewTaskToQueryActions,
+    getMoveTaskToQueryActions,
     getMaybeRemoveTaskFromQueryWhenNestingActions,
 }: {
     capabilities: TaskGridViewCapabilities;
     query: TaskClientQuery;
     initialExpandedState: TaskGridViewExpansionState;
     initialBottomGhostTaskId: TaskId;
-    getAddNewTaskToQueryActions: (
+    getMoveTaskToQueryActions: (
         taskId: TaskId,
         position: {type: "End"} | {type: "Above"; taskId: TaskId} | {type: "Below"; taskId: TaskId},
     ) => Array<TaskAction>;
@@ -92,7 +92,7 @@ export function TaskGridView({
         query,
         initialExpandedState,
         initialBottomGhostTaskId,
-        getAddNewTaskToQueryActions,
+        getMoveTaskToQueryActions,
         getMaybeRemoveTaskFromQueryWhenNestingActions,
     });
 

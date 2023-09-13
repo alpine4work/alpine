@@ -227,7 +227,7 @@ export default function TasksRoute() {
             <TaskGridView
                 capabilities={useMemo(
                     () => ({
-                        hasParentTaskTitle: false,
+                        hasParentTaskTitle: true,
                         hasMultilineTitle: false,
                         hasColumns: true,
                         hasDenseFields: false,
@@ -237,7 +237,7 @@ export default function TasksRoute() {
                 query={notepadPageQuery}
                 initialExpandedState={notepadPageViewExpandedState}
                 initialBottomGhostTaskId={initialBottomGhostTaskId}
-                getAddNewTaskToQueryActions={(taskId, position) => {
+                getMoveTaskToQueryActions={(taskId, position) => {
                     const time = notepadPageQuery.store.clock.now();
                     return [
                         {

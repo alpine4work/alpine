@@ -115,20 +115,46 @@ export class TaskClientQuery {
      * if you hold onto this reference for long enough you may see `task` become
      * null because the task leaves this query and becomes unauthorized.
      */
-    public getTaskEntryStore(taskId: TaskId): Store<TaskClientStoreTaskEntry> {
-        return this._internal.getTaskEntryStore(taskId);
+    public getLoadedTaskEntryStore(taskId: TaskId): Store<TaskClientStoreTaskEntry> {
+        return this._internal.getLoadedTaskEntryStore(taskId);
     }
 
     /**
      * Get a snapshot of the task associated with the provided `TaskId`. Prefer
-     * using `getTaskEntryStore()` since it will give you changes to the task
+     * using `getLoadedTaskEntryStore()` since it will give you changes to the task
      * over time.
      *
      * Throws an error if `TaskId` is not a part of the query when you call this
      * function.
      */
-    public getTaskSnapshot(taskId: TaskId): TaskModel {
-        return assertExists(this._internal.getTaskEntryStore(taskId).getSnapshot().task);
+    public getLoadedTaskSnapshot(taskId: TaskId): TaskModel {
+        return assertExists(this._internal.getLoadedTaskEntryStore(taskId).getSnapshot().task);
+    }
+
+    /**
+     * Get the store associated with the provided `TaskId`.
+     *
+     * Throws an error if `TaskId` is not referenced by some task in the query when
+     * you call this function.
+     *
+     * The `task` in this store should be non-null when this function is called but
+     * if you hold onto this reference for long enough you may see `task` become
+     * null because the task becomes unauthorized.
+     */
+    public getReferencedTaskEntryStore(taskId: TaskId): Store<TaskClientStoreTaskEntry> {
+        return this._internal.getReferencedTaskEntryStore(taskId);
+    }
+
+    /**
+     * Get a snapshot of the task associated with the provided `TaskId`. Prefer
+     * using `getReferencedTaskEntryStore()` since it will give you changes to the
+     * task over time.
+     *
+     * Throws an error if `TaskId` is not referenced by some task in the query when
+     * you call this function.
+     */
+    public getReferencedTaskSnapshot(taskId: TaskId): TaskModel {
+        return assertExists(this._internal.getReferencedTaskEntryStore(taskId).getSnapshot().task);
     }
 }
 
@@ -354,10 +380,16 @@ export class TaskClientQueryInternal {
         return this._desiredCount;
     }
 
-    public getTaskEntryStore(taskId: TaskId): Store<TaskClientStoreTaskEntry> {
+    public getLoadedTaskEntryStore(taskId: TaskId): Store<TaskClientStoreTaskEntry> {
         const taskEntryStore = this._taskEntryStoreById.get(taskId);
         if (!taskEntryStore) throw new InternalError("Task is not visible in query");
         return taskEntryStore;
+    }
+
+    public getReferencedTaskEntryStore(taskId: TaskId): Store<TaskClientStoreTaskEntry> {
+        const referencedTaskEntryStore = this._referencedTaskEntryStoreById.get(taskId);
+        if (!referencedTaskEntryStore) throw new InternalError("Task is not referenced in query");
+        return referencedTaskEntryStore.taskEntryStore;
     }
 
     /**

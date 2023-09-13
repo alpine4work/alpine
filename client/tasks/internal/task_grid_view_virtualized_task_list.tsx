@@ -64,7 +64,7 @@ function createTaskGridViewVirtualizedTaskTree(
 
             // Optimization: Only recompute if the child task count changed.
             const childTaskCountStore = query
-                .getTaskEntryStore(taskId)
+                .getLoadedTaskEntryStore(taskId)
                 .map(({task}) => task?.getChildTaskCount() ?? 0);
 
             return childTaskCountStore.flatMap(childTaskCount => {

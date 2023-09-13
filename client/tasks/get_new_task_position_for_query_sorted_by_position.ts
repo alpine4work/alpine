@@ -19,7 +19,7 @@ import {TaskPosition} from "~/shared/tasks/task_position.js";
  * Get the `TaskPosition` for a new task in a query that's sorted by
  * `TaskPosition`s (e.g. a notepad page or child task query).
  *
- * This function is to help implement the `getAddNewTaskToQueryActions()` prop
+ * This function is to help implement the `getMoveTaskToQueryActions()` prop
  * of `useTaskGridViewVirtualizedList()`.
  */
 export function getNewTaskPositionForQuerySortedByPosition(
@@ -46,7 +46,7 @@ export function getNewTaskPositionForQuerySortedByPosition(
         }
         case "Above":
         case "Below": {
-            const task1 = query.getTaskSnapshot(position.taskId);
+            const task1 = query.getLoadedTaskSnapshot(position.taskId);
 
             const cursor1 = getTaskQueryNormalizedSortCursorForModel(query.sorts, task1);
 
