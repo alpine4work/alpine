@@ -6,6 +6,7 @@ import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {TaskClientQuery, TaskClientQueryInternal} from "~/client/tasks/task_client_query.js";
 import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_clock.js";
 import {Context} from "~/shared/context/context.js";
+import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {Clock} from "~/shared/helpers/clock/clock.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
@@ -299,6 +300,13 @@ export class TaskClientStoreInternal {
      * Queries for the child tasks of a given parent task.
      */
     private readonly _taskChildrenQueryByParentTaskId = new StoreMap<TaskId, TaskClientQuery>();
+
+    /**
+     * We want to send our `commitTaskActionTransaction()` calls in order. If one
+     * transaction creates a task and another updates that task we need to wait for
+     * the task creation transaction to commit. This mutex coordinates the queue.
+     */
+    private readonly _commitTaskActionTransactionMutex = new Mutex();
 
     constructor(
         external: TaskClientStore,
@@ -874,10 +882,12 @@ export class TaskClientStoreInternal {
         // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
         // close the page if we haven't finished committing their task action. It will
         // look committed on their machine but might not be on the server.
-        const commitPromise = commitTaskActionTransaction(context, {
-            spaceId: this.spaceId,
-            actions,
-        });
+        const commitPromise = this._commitTaskActionTransactionMutex.withLock(() =>
+            commitTaskActionTransaction(context, {
+                spaceId: this.spaceId,
+                actions,
+            }),
+        );
 
         const optimisticExtraActions = this._getOptimisticExtraActions(actions);
 
@@ -1119,20 +1129,22 @@ export class TaskClientStoreInternal {
                 // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
                 // close the page if we haven't finished committing their task action. It will
                 // look committed on their machine but might not be on the server.
-                const commitPromise = commitTaskActionTransaction(context, {
-                    spaceId: this.spaceId,
-                    actions: [
-                        {
-                            type: "UpdateTask",
-                            time: this.clock.now(),
-                            taskId,
-                            taskAction: {
-                                type: "UpdateTitle",
-                                titleUpdate: mergedTitleUpdate,
+                const commitPromise = this._commitTaskActionTransactionMutex.withLock(() =>
+                    commitTaskActionTransaction(context, {
+                        spaceId: this.spaceId,
+                        actions: [
+                            {
+                                type: "UpdateTask",
+                                time: this.clock.now(),
+                                taskId,
+                                taskAction: {
+                                    type: "UpdateTitle",
+                                    titleUpdate: mergedTitleUpdate,
+                                },
                             },
-                        },
-                    ],
-                });
+                        ],
+                    }),
+                );
 
                 commitPromise.then(
                     () => {
