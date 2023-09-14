@@ -1,10 +1,12 @@
-import {RefObject, useEffect, useRef, useState} from "react";
+import {RefObject, useCallback, useEffect, useRef, useState} from "react";
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
+import {Store} from "~/client/helpers/store/store.js";
 import {StoreMap} from "~/client/helpers/store/store_map.js";
 import {useBrowserId} from "~/client/remix/client_info_context.js";
+import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -31,8 +33,9 @@ function createTaskGridViewExpansionStateManager({
     filters,
     sorts,
     initialState,
-    isMountedRef,
     broadcastChannelRef,
+    addRetainedQueryStore,
+    removeRetainedQueryStore,
 }: {
     getContext: () => AppContext;
     store: TaskClientStore;
@@ -40,8 +43,9 @@ function createTaskGridViewExpansionStateManager({
     filters: TaskQueryNormalizedFilters;
     sorts: ReadonlyArray<TaskQueryNormalizedSort>;
     initialState: TaskGridViewExpansionState;
-    isMountedRef: RefObject<boolean>;
     broadcastChannelRef: RefObject<BroadcastChannel | null>;
+    addRetainedQueryStore: (queryStore: Store<TaskClientQuery | undefined>) => void;
+    removeRetainedQueryStore: (queryStore: Store<TaskClientQuery | undefined>) => void;
 }) {
     let state: TaskGridViewExpansionState = null;
     const areChildTasksExpandedStoreByTaskPath = new StoreMap<string, true>();
@@ -64,21 +68,13 @@ function createTaskGridViewExpansionStateManager({
                 if (change.isExpanded) {
                     areChildTasksExpandedStoreByTaskPath.set(change.taskPath.join("-"), true);
 
-                    // We only hold children query references when mounted (see `useEffect()` below
-                    // that sets up our references).
-                    if (isMountedRef.current) {
-                        const taskId = change.taskPath[change.taskPath.length - 1]!;
-                        store.getTaskChildrenQueryStore(taskId).getSnapshot()?.retain();
-                    }
+                    const taskId = change.taskPath[change.taskPath.length - 1]!;
+                    addRetainedQueryStore(store.getTaskChildrenQueryStore(taskId));
                 } else {
                     areChildTasksExpandedStoreByTaskPath.delete(change.taskPath.join("-"));
 
-                    // We only hold children query references when mounted (see `useEffect()` below
-                    // that sets up our references).
-                    if (isMountedRef.current) {
-                        const taskId = change.taskPath[change.taskPath.length - 1]!;
-                        store.getTaskChildrenQueryStore(taskId).getSnapshot()?.release();
-                    }
+                    const taskId = change.taskPath[change.taskPath.length - 1]!;
+                    removeRetainedQueryStore(store.getTaskChildrenQueryStore(taskId));
                 }
             }
         });
@@ -260,6 +256,52 @@ export function useTaskGridViewExpansionState({
     const isMountedRef = useRef(false);
     const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
 
+    const retainedQueryStoresRef = useRef<
+        Map<Store<TaskClientQuery | undefined>, {referenceCount: number; unsubscribe: () => void}>
+    >(new Map());
+
+    const addRetainedQueryStore = useCallback((queryStore: Store<TaskClientQuery | undefined>) => {
+        // We only hold onto retained queries while mounted.
+        if (!isMountedRef.current) return;
+
+        const retainedQueryStore = retainedQueryStoresRef.current.get(queryStore);
+        if (retainedQueryStore) {
+            retainedQueryStore.referenceCount++;
+        } else {
+            let query = queryStore.getSnapshot();
+            query?.retain();
+
+            retainedQueryStoresRef.current.set(queryStore, {
+                referenceCount: 1,
+                unsubscribe: queryStore.subscribe(() => {
+                    const newQuery = queryStore.getSnapshot();
+                    newQuery?.retain();
+                    query?.release();
+                    query = newQuery;
+                }),
+            });
+        }
+    }, []);
+
+    const removeRetainedQueryStore = useCallback(
+        (queryStore: Store<TaskClientQuery | undefined>) => {
+            // We only hold onto retained queries while mounted.
+            if (!isMountedRef.current) return;
+
+            const retainedQueryStore = retainedQueryStoresRef.current.get(queryStore);
+            assert(retainedQueryStore, "Query store is not retained");
+
+            retainedQueryStore.referenceCount--;
+
+            if (retainedQueryStore.referenceCount === 0) {
+                retainedQueryStoresRef.current.delete(queryStore);
+                retainedQueryStore.unsubscribe();
+                queryStore.getSnapshot()?.release();
+            }
+        },
+        [],
+    );
+
     const [stateManager, setStateManager] = useState(() =>
         createTaskGridViewExpansionStateManager({
             getContext,
@@ -268,8 +310,9 @@ export function useTaskGridViewExpansionState({
             filters,
             sorts,
             initialState,
-            isMountedRef,
             broadcastChannelRef,
+            addRetainedQueryStore,
+            removeRetainedQueryStore,
         }),
     );
 
@@ -288,11 +331,44 @@ export function useTaskGridViewExpansionState({
                 filters,
                 sorts,
                 initialState,
-                isMountedRef,
                 broadcastChannelRef,
+                addRetainedQueryStore,
+                removeRetainedQueryStore,
             }),
         );
     }
+
+    // When we mount, retain a reference to all children queries for expanded
+    // tasks. When we unmount release references to children queries for
+    // expanded tasks.
+    //
+    // On initial load our server is responsible for preloading some child query
+    // tasks so they'll be available for us in the store.
+    useEffect(() => {
+        isMountedRef.current = true;
+
+        batchStoreUpdates(() => {
+            for (const {taskId} of stateManager.iterateExpandedTaskIds()) {
+                addRetainedQueryStore(store.getTaskChildrenQueryStore(taskId));
+            }
+        });
+
+        return () => {
+            batchStoreUpdates(() => {
+                for (const {taskId} of stateManager.iterateExpandedTaskIds()) {
+                    removeRetainedQueryStore(store.getTaskChildrenQueryStore(taskId));
+                }
+            });
+
+            assert(
+                // eslint-disable-next-line react-hooks/exhaustive-deps
+                retainedQueryStoresRef.current.size === 0,
+                "Expected all retained queries to be released",
+            );
+
+            isMountedRef.current = false;
+        };
+    }, [addRetainedQueryStore, removeRetainedQueryStore, stateManager, store]);
 
     const toggleAreChildTasksExpanded = useEvent(
         (taskPath: ReadonlyArray<TaskId>, {onFinish}: {onFinish?: () => void} = {}) => {
@@ -306,27 +382,6 @@ export function useTaskGridViewExpansionState({
 
                 if (stateManager.areChildTasksExpanded(taskPath)) {
                     stateManager.update(state => collapseChildTaskInGridView(state, taskPath));
-                    onFinish?.();
-                } else if (
-                    // If there are no child tasks and we're trying to expand (probably because
-                    // we're indenting a task under this) then immediately expand and make sure we
-                    // have a loaded, empty, query.
-                    store
-                        .getTaskEntryStoreIfExists(taskId)
-                        ?.getSnapshot()
-                        .task?.getChildTaskCount() === 0
-                ) {
-                    const query = store.ensureAndRetainTaskChildrenQuery(taskId, {
-                        // NOCOMMIT: Proper limit?
-                        desiredCount: 500,
-                    });
-
-                    store.loadTasksIntoQuery(query, {
-                        loadedState: {type: "Full"},
-                        previouslyBackfilledTaskIds: [],
-                    });
-
-                    stateManager.update(state => expandChildTaskInGridView(state, taskPath));
                     onFinish?.();
                 } else {
                     const taskIdsToLoad = new Set([taskId]);
@@ -394,28 +449,6 @@ export function useTaskGridViewExpansionState({
             });
         },
     );
-
-    // When we mount, retain a reference to all children queries for expanded
-    // tasks. When we unmount release references to children queries for
-    // expanded tasks.
-    //
-    // On initial load our server is responsible for preloading some child query
-    // tasks so they'll be available for us in the store.
-    useEffect(() => {
-        isMountedRef.current = true;
-
-        for (const {taskId} of stateManager.iterateExpandedTaskIds()) {
-            store.getTaskChildrenQueryStore(taskId).getSnapshot()?.retain();
-        }
-
-        return () => {
-            isMountedRef.current = false;
-
-            for (const {taskId} of stateManager.iterateExpandedTaskIds()) {
-                store.getTaskChildrenQueryStore(taskId).getSnapshot()?.release();
-            }
-        };
-    }, [stateManager, store]);
 
     // We construct a broadcast channel so when a task expand/collapse happens we
     // can inform other tabs in our browser given that expansion state is shared

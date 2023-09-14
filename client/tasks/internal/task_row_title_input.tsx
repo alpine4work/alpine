@@ -163,7 +163,7 @@ function TaskRowTitleInput(
         | {isReady: true; view: EditorView}
     >({isReady: false, callbacks: new Set()});
 
-    const titleDoc = useTaskTitleModelYDoc(title, onTitleChange);
+    const titleYDoc = useTaskTitleModelYDoc(title, onTitleChange);
 
     const handleKeyDown = (view: EditorView, event: KeyboardEvent) => {
         switch (event.key) {
@@ -323,7 +323,7 @@ function TaskRowTitleInput(
                 // Make sure we start with the correct initial document. After this the
                 // `ySyncPlugin` manages document state.
                 doc: getTaskTitleProsemirrorNode(titleRef.current.raw),
-                plugins: [ySyncPlugin(titleDoc.getXmlFragment("doc"))],
+                plugins: [ySyncPlugin(titleYDoc.getXmlFragment("doc"))],
             }),
 
             // We add this prop to `prosemirror-view` with a patch. With this prop when the
@@ -417,7 +417,7 @@ function TaskRowTitleInput(
         // IMPORTANT: We want to maintain the `EditorView` instance during updates. Be
         // careful about what you put in here. Ideally we never destroy the
         // `EditorView` while this component is mounted.
-    }, [capabilities.hasMultilineTitle, isInitialAppRender, titleDoc]);
+    }, [capabilities.hasMultilineTitle, isInitialAppRender, titleYDoc]);
 
     const runWhenViewIsReady = useCallback((run: (view: EditorView) => void) => {
         if (viewRef.current.isReady) {
@@ -504,6 +504,19 @@ function TaskRowTitleInput(
             focusSelection: (selection: Selection) => {
                 runWhenViewIsReady(view => {
                     view.focus();
+
+                    // If the document changed since the selection was created then create a
+                    // bookmark for the selection and resolve it to the new doc.
+                    //
+                    // We added `focusSelection()` so that when indenting/dedenting (which sometimes
+                    // mounts/unmounts the task) we can preserve the selection. For that use case we
+                    // don't expect the underlying document to actually be different but we'll have
+                    // created a new `titleYDoc` that also creates a new ProseMirror node so strict
+                    // equality checks fail.
+                    if (selection.$from.doc !== view.state.doc ) {
+                        selection = selection.getBookmark().resolve(view.state.doc)
+                    }
+
                     view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
                 });
             },

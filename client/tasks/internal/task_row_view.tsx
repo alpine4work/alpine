@@ -729,9 +729,9 @@ function TaskRowView(
                                                 },
                                             ]);
 
-                                            // Store updates are rendered by React synchronously. So if we wait a microtask
-                                            // React should have rendered the new task.
-                                            scheduleMicrotask(() => {
+                                            // Store updates are rendered by React immediately. So focus our task before
+                                            // the next paint.
+                                            requestAnimationFrame(() => {
                                                 if (parentTaskCursors.length === 0) {
                                                     focusTaskTitleStart(`${task.id}-${newTaskId}`);
                                                 } else {
@@ -763,9 +763,9 @@ function TaskRowView(
                                         ),
                                     ]);
 
-                                    // Store updates are rendered by React synchronously. So if we wait a microtask
-                                    // React should have rendered the new task.
-                                    scheduleMicrotask(() => {
+                                    // Store updates are rendered by React immediately. So focus our task before
+                                    // the next paint.
+                                    requestAnimationFrame(() => {
                                         if (parentTaskCursors.length === 0) {
                                             focusTaskTitleStart(newTaskId);
                                         } else {

@@ -5,6 +5,7 @@ import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {WebSocketClient} from "~/client/web_socket/web_socket_client.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
+import {Id, generateId} from "~/shared/id/id.js";
 import {SpaceId, TaskRealtimeQuerySubscriptionId} from "~/shared/id/types/id_types.js";
 import {TaskRealtimeProtocol} from "~/shared/tasks/task_realtime_protocol.js";
 
@@ -45,7 +46,7 @@ export class TaskRealtimeClient {
     public connect() {
         assert(this._disconnect === null, "WebSocket is already connected");
 
-        let isConnected = false;
+        let connectionId: Id | null = null;
 
         this._client.connect();
 
@@ -58,8 +59,13 @@ export class TaskRealtimeClient {
         const unsubscribeFromState = this._client.state.subscribe(() => {
             const clientState = this._client.state.getSnapshot();
 
-            if (isConnected !== clientState.isConnected) {
-                isConnected = clientState.isConnected;
+            if (clientState.isConnected && connectionId === null) {
+                connectionId = generateId();
+                updateSubscribedQueries();
+            }
+
+            if (!clientState.isConnected && connectionId !== null) {
+                connectionId = null;
                 updateSubscribedQueries();
             }
         });
@@ -71,7 +77,7 @@ export class TaskRealtimeClient {
         const updateSubscribedQueries = () => {
             // If our WebSocket client disconnects then none of our queries are subscribed
             // anymore. We'll resubscribe if the client reconnects.
-            if (!isConnected) {
+            if (!connectionId) {
                 subscribedQueries.clear();
                 return;
             }
@@ -156,6 +162,8 @@ export class TaskRealtimeClient {
                     subscribedQueries.delete(subscribedQuery);
                 }
 
+                const unsubscribeFromConnectionId = connectionId;
+
                 Promise.allSettled(
                     Array.from(
                         oldSubscribedQueries,
@@ -176,6 +184,11 @@ export class TaskRealtimeClient {
 
                         if (querySubscriptionIds.length === 0) return;
 
+                        // If our connection changed while waiting on `querySubscriptionId`s (maybe the
+                        // connection closed unexpectedly) then these queries are automatically
+                        // unsubscribed and we don't need to send a message.
+                        if (unsubscribeFromConnectionId !== connectionId) return;
+
                         return this._client.procedures.unsubscribeFromQueries({
                             querySubscriptionIds,
                         });
@@ -190,6 +203,11 @@ export class TaskRealtimeClient {
         const unsubscribeFromQueriesStore = queriesStore.subscribe(updateSubscribedQueries);
 
         this._disconnect = () => {
+            // Clear the `connectionId` since our state listener won't be called after
+            // this. This will stop an `unsubscribeFromQueries()` call from being made
+            // after disconnection.
+            connectionId = null;
+
             unsubscribeFromState();
             unsubscribeFromEvents();
             unsubscribeFromQueriesStore();
