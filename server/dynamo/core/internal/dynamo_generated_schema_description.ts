@@ -4992,32 +4992,7 @@ export const dynamoGeneratedSchemaDescription: {
                                 "propertySchemaByKey": {
                                     "state": {
                                         "valueSchema": {
-                                            "type": "Nullable",
-                                            "referenceId": "873e38df",
-                                            "schema": {
-                                                "type": "Map",
-                                                "keySchema": {
-                                                    "type": "Id"
-                                                },
-                                                "valueSchema": {
-                                                    "type": "Object",
-                                                    "propertySchemaByKey": {
-                                                        "isExpanded": {
-                                                            "valueSchema": {
-                                                                "type": "Boolean"
-                                                            },
-                                                            "optional": false
-                                                        },
-                                                        "childTasks": {
-                                                            "valueSchema": {
-                                                                "type": "Reference",
-                                                                "reuseReferenceId": "873e38df"
-                                                            },
-                                                            "optional": false
-                                                        }
-                                                    }
-                                                }
-                                            }
+                                            "type": "Unknown"
                                         },
                                         "optional": false
                                     },

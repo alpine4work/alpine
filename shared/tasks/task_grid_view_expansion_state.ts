@@ -14,6 +14,31 @@ import {Schema} from "~/shared/schema/schema.js";
  * The expansion state is saved per browser (so a user on multiple devices will
  * have multiple expansion states) and is expired if not used for many months
  * to reduce storage costs.
+ *
+ * Expansion state mirrors the tree structure of a grid view. So what do we
+ * tasks change their parents? We have no mechanism to keep expansion state
+ * consistent. So code must deal with the fact that expansion state may
+ * reference tasks at positions that don't actually exist. We have two
+ * mechanisms to try and keep expansion state eventually consistent:
+ *
+ * 1. Every 3min or so in the browser we compare expansion state to what's
+ *    rendered on the screen. Removing any branches of the expansion state tree
+ *    that correspond to tasks that don't exist in that position.
+ *
+ * 2. If the user is connected to our realtime service then in the browser when
+ *    we observe the parent of a task changing, we move the expansion state in
+ *    the browser's open grid view (and only the open grid view) to the task's
+ *    new location with `moveTaskGridViewExpansionTaskState()`. So if you're
+ *    collaborating in realtime with someone your expansion state isn't lost.
+ *
+ * These two mechanisms are best effort and only run in the user's browser.
+ * Saying expansion state is "eventually consistent" is itself a bit of a
+ * stretch given expansion state may never converge on a consistent value.
+ *
+ * It's important we keep expansion state kind of clean because we use it for
+ * preloading child queries when the user opens a view. If we're always
+ * preloading a bunch of dead child queries because their position in the tree
+ * moved, that's wasteful.
  */
 export type TaskGridViewExpansionState = ReadonlyMap<TaskId, TaskGridViewExpansionTaskState> | null;
 

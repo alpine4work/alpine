@@ -955,7 +955,7 @@ test("can move task expansion state up a level", () => {
     );
 });
 
-test("can't move task expansion state when it can't be received", () => {
+test("can't expand task when it can't be received", () => {
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
 
@@ -1278,4 +1278,27 @@ test("when moving expansion state empty collapsed state is removed", () => {
             [task1Id, {isExpanded: true, childTasks: null}],
         ]),
     );
+});
+
+test("won't expand final task to fit new expanded task state when moving", () => {
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+
+    expect(
+        moveTaskGridViewExpansionTaskState(
+            new Map([
+                [
+                    task1Id,
+                    {
+                        isExpanded: true,
+                        childTasks: new Map([[task2Id, {isExpanded: true, childTasks: null}]]),
+                    },
+                ],
+            ]),
+            [task1Id],
+            [task1Id, task3Id],
+            task2Id,
+        ),
+    ).toEqual(new Map([[task1Id, {isExpanded: true, childTasks: null}]]));
 });

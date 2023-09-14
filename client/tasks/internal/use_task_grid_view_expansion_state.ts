@@ -1,4 +1,5 @@
 import {RefObject, useCallback, useEffect, useRef, useState} from "react";
+import {unstable_IdlePriority, unstable_scheduleCallback} from "scheduler";
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
@@ -8,6 +9,7 @@ import {StoreMap} from "~/client/helpers/store/store_map.js";
 import {useBrowserId} from "~/client/remix/client_info_context.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
+import {createInterval} from "~/shared/helpers/async/interval.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {wait} from "~/shared/helpers/async/wait.js";
@@ -18,6 +20,7 @@ import {BrowserId, TaskId} from "~/shared/id/types/id_types.js";
 import {updateTaskGridViewExpansionState} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {
     TaskGridViewExpansionState,
+    TaskGridViewExpansionTaskState,
     areChildTasksExpandedInGridView,
     collapseChildTaskInGridView,
     diffTaskGridViewExpansionStates,
@@ -93,7 +96,13 @@ function createTaskGridViewExpansionStateManager({
     const update = (
         action: (oldState: TaskGridViewExpansionState) => TaskGridViewExpansionState,
     ) => {
+        const oldState = state;
         updateLocally(action);
+        const newState = state;
+
+        // If state didn't change then we don't need to send a message to other browser
+        // tabs or the server.
+        if (oldState === newState) return;
 
         // Broadcast to any other browser tabs our new expansion state.
         broadcastChannelRef.current?.postMessage(state);
@@ -249,16 +258,13 @@ function createTaskGridViewExpansionStateManager({
 // query since we think we need it for the task at the root-level position
 // (where it doesn't exist).
 export function useTaskGridViewExpansionState({
-    store,
-    filters,
-    sorts,
+    query,
     initialState,
 }: {
-    store: TaskClientStore;
-    filters: TaskQueryNormalizedFilters;
-    sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+    query: TaskClientQuery;
     initialState: TaskGridViewExpansionState;
 }) {
+    const {store, filters, sorts} = query;
     const context = useAppContext();
     const getContext = useEvent(() => context);
     const browserId = useBrowserId();
@@ -392,6 +398,16 @@ export function useTaskGridViewExpansionState({
 
                 if (stateManager.areChildTasksExpanded(taskPath)) {
                     stateManager.update(state => collapseChildTaskInGridView(state, taskPath));
+                    onFinish?.();
+                } else if (
+                    store
+                        .getTaskEntryStoreIfExists(taskId)
+                        ?.getSnapshot()
+                        .task?.getChildTaskCount() === 0
+                ) {
+                    // Noop if the task we're toggling is loaded and has no children. There's
+                    // nothing to expand! Expanded state for tasks with no children is eventually
+                    // cleaned up so don't bother adding it in the first place.
                     onFinish?.();
                 } else {
                     const taskIdsToLoad = new Set([taskId]);
@@ -544,17 +560,169 @@ export function useTaskGridViewExpansionState({
                     newTaskPath.reverse();
                 }
 
-                stateManager.update(state =>
-                    moveTaskGridViewExpansionTaskState(
-                        state,
-                        oldTaskPath,
-                        newTaskPath,
-                        oldTaskEntry.task.id,
-                    ),
-                );
+                const finallyCallbacks: Array<() => void> = [];
+                try {
+                    // If this update was the result of an indent (task nested under previous task)
+                    // and this is the first child task of the new parent then we want to
+                    // immediately expand the new parent's child tasks.
+                    //
+                    // If the task has only one child then we know it's our new task. Create a
+                    // query and update it to a fully loaded state with our task. Finally update
+                    // the task's expansion state.
+                    //
+                    // It's important we put this logic here instead of in a function like
+                    // `nestWithPreviousTaskRowIfExistsAndExpand()`. Because this will run for both
+                    // our current user and a user viewing the grid view in realtime.
+                    if (
+                        newTaskPath.length === oldTaskPath.length + 1 &&
+                        oldTaskPath.every((taskId, i) => newTaskPath[i] === taskId) &&
+                        stateManager.areChildTasksExpanded(oldTaskPath) &&
+                        !stateManager.areChildTasksExpanded(newTaskPath) &&
+                        store
+                            .getTaskEntryStoreIfExists(newTaskPath[newTaskPath.length - 1]!)
+                            ?.getSnapshot()
+                            .task?.getChildTaskCount() === 1
+                    ) {
+                        const query = store.ensureAndRetainTaskChildrenQuery(
+                            newTaskPath[newTaskPath.length - 1]!,
+                            {
+                                // NOCOMMIT: Proper limit?
+                                desiredCount: 500,
+                            },
+                        );
+
+                        // Release our query at the end of this code block. `stateManager` will grab
+                        // its own reference to the query if we need it.
+                        finallyCallbacks.push(() => query.release());
+
+                        if (query.loadedStateStore.getSnapshot() === "Unloaded") {
+                            store.loadTasksIntoQuery(query, {
+                                loadedState: {type: "Full"},
+                                previouslyBackfilledTaskIds: [newTaskEntry.task.id],
+                            });
+                        }
+
+                        stateManager.update(state => expandChildTaskInGridView(state, newTaskPath));
+                    }
+
+                    stateManager.update(state =>
+                        moveTaskGridViewExpansionTaskState(
+                            state,
+                            oldTaskPath,
+                            newTaskPath,
+                            oldTaskEntry.task.id,
+                        ),
+                    );
+                } finally {
+                    for (const callback of finallyCallbacks) {
+                        callback();
+                    }
+                }
             }
         });
     }, [stateManager, store]);
+
+    // After we mount and then every ~3 minutes after that, remove incorrect
+    // expansion state paths. You see when the user changes the parentage of a task
+    // there's no system that's responsible for keeping expansion state (which
+    // mirrors the grid view's tree structure) correct. If the client is connected
+    // to realtime then we'll attempt to move expansion state around when parent
+    // tasks change, but that's a small UX win we can't depend on for correctness.
+    //
+    // So instead we "garbage collect" expansion state when we have some idle time.
+    useEffect(() => {
+        let isCancelled = false;
+
+        const scheduleCleanup = () => {
+            // In case the browser is actively doing some work (like a React render)
+            // schedule an idle callback.
+            //
+            // We can't use `requestIdleCallback()` since it's not implemented in Safari.
+            // Generally we recommend using the React scheduler since it has centralized
+            // knowledge of all our tasks.
+            unstable_scheduleCallback(unstable_IdlePriority, cleanup);
+        };
+
+        const cleanup = () => {
+            if (isCancelled) return;
+
+            stateManager.update(oldState => {
+                const cleanup = (
+                    query: TaskClientQuery,
+                    oldState: TaskGridViewExpansionState,
+                ): TaskGridViewExpansionState => {
+                    if (!oldState) return oldState;
+
+                    let newState: Map<TaskId, TaskGridViewExpansionTaskState> | undefined =
+                        undefined;
+
+                    for (const [taskId, oldTaskState] of oldState) {
+                        const taskEntryStore = query.getLoadedTaskEntryStoreIfExists(taskId);
+
+                        if (!taskEntryStore) {
+                            // If the query is not fully loaded the task may exist later in the query so we
+                            // can't clean it up.
+                            if (query.loadedStateStore.getSnapshot() !== "FullyLoaded") {
+                                continue;
+                            }
+
+                            // The task does not exist in the query. Clean up its expansion state.
+                            newState ??= new Map(oldState);
+                            newState.delete(taskId);
+                            continue;
+                        }
+
+                        // If the task isn't expanded then we won't have loaded its children so we
+                        // can't clean it up.
+                        if (!oldTaskState.isExpanded) continue;
+
+                        const taskEntry = taskEntryStore.getSnapshot();
+
+                        // If the task has no children but is marked as expanded then remove the
+                        // expanded state.
+                        if (taskEntry.task && taskEntry.task.getChildTaskCount() === 0) {
+                            newState ??= new Map(oldState);
+                            newState.delete(taskId);
+                            continue;
+                        }
+
+                        const childrenQuery = query.store
+                            .getTaskChildrenQueryStore(taskId)
+                            .getSnapshot();
+                        if (!childrenQuery) continue;
+
+                        const newChildTasks = cleanup(childrenQuery, oldTaskState.childTasks);
+                        if (newChildTasks === oldTaskState.childTasks) continue;
+
+                        newState ??= new Map(oldState);
+
+                        if (!oldTaskState.isExpanded && newChildTasks === null) {
+                            newState.delete(taskId);
+                        } else {
+                            newState.set(taskId, {
+                                isExpanded: oldTaskState.isExpanded,
+                                childTasks: newChildTasks,
+                            });
+                        }
+                    }
+
+                    return newState ? (newState.size > 0 ? newState : null) : oldState;
+                };
+
+                return cleanup(query, oldState);
+            });
+        };
+
+        // Immediately schedule a cleanup after initial load.
+        scheduleCleanup();
+
+        const interval = createInterval(scheduleCleanup, 1000 * 60 * 3);
+
+        return () => {
+            isCancelled = true;
+            interval.clear();
+        };
+    }, [query, stateManager]);
 
     return {
         toggleAreChildTasksExpanded,

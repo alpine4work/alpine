@@ -106,6 +106,14 @@ export class TaskClientQuery {
     }
 
     /**
+     * Get the store associated with the provided `TaskId` if it's loaded in the
+     * query. If it's not loaded in the query you'll get null.
+     */
+    public getLoadedTaskEntryStoreIfExists(taskId: TaskId): Store<TaskClientStoreTaskEntry> | null {
+        return this._internal.getLoadedTaskEntryStoreIfExists(taskId);
+    }
+
+    /**
      * Get the store associated with the provided `TaskId`.
      *
      * Throws an error if `TaskId` is not a part of the query when you call this
@@ -378,6 +386,10 @@ export class TaskClientQueryInternal {
 
     public getDesiredCountSnapshot() {
         return this._desiredCount;
+    }
+
+    public getLoadedTaskEntryStoreIfExists(taskId: TaskId): Store<TaskClientStoreTaskEntry> | null {
+        return this._taskEntryStoreById.get(taskId) ?? null;
     }
 
     public getLoadedTaskEntryStore(taskId: TaskId): Store<TaskClientStoreTaskEntry> {

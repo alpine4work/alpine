@@ -55,9 +55,7 @@ export function useTaskGridViewVirtualizedList({
 
     const {getAreChildTasksExpandedStore, toggleAreChildTasksExpanded} =
         useTaskGridViewExpansionState({
-            store: query.store,
-            filters: query.filters,
-            sorts: query.sorts,
+            query,
             initialState: initialExpandedState,
         });
 
@@ -273,7 +271,6 @@ export function useTaskGridViewVirtualizedList({
                     taskId,
                 ];
 
-                // NOCOMMIT: Preserve expansion state
                 const nestWithPreviousTaskRowIfExistsAndExpand = (titleSelection: Selection) => {
                     for (
                         let previousItemIndex = relativeItemIndex - 1;
@@ -293,7 +290,7 @@ export function useTaskGridViewVirtualizedList({
                         const taskId = getTaskQuerySortCursorTaskId(item.cursor);
                         const previousTaskId = getTaskQuerySortCursorTaskId(previousItem.cursor);
 
-                        const indent = () => {
+                        const nest = () => {
                             query.store.commitTaskActionTransaction(context, [
                                 {
                                     type: "UpdateTask",
@@ -335,50 +332,18 @@ export function useTaskGridViewVirtualizedList({
                             previousItem.cursor,
                         ].map(getTaskQuerySortCursorTaskId);
 
-                        // If the task we are indenting under has no child tasks then create a new,
-                        // empty, child task query and make sure it's loaded.
-                        let emptyChildrenQuery: TaskClientQuery | null = null;
-                        if (
-                            query.store
-                                .getTaskEntryStoreIfExists(previousTaskId)
-                                ?.getSnapshot()
-                                .task?.getChildTaskCount() === 0
-                        ) {
-                            emptyChildrenQuery = query.store.ensureAndRetainTaskChildrenQuery(
-                                previousTaskId,
-                                {
-                                    // NOCOMMIT: Proper limit?
-                                    desiredCount: 500,
-                                },
-                            );
-
-                            if (emptyChildrenQuery.loadedStateStore.getSnapshot() === "Unloaded") {
-                                query.store.loadTasksIntoQuery(emptyChildrenQuery, {
-                                    loadedState: {type: "Full"},
-                                    previouslyBackfilledTaskIds: [],
-                                });
-                            }
-                        }
-
-                        try {
-                            // Expand our new parent task if it's not already expanded.
-                            if (getAreChildTasksExpandedStore(previousTaskPath).getSnapshot()) {
-                                indent();
-                            } else {
-                                toggleAreChildTasksExpanded(previousTaskPath, {
-                                    onFinish: indent,
-                                });
-                            }
-                        } finally {
-                            // Release the children query. Our expansion state hook will add a reference if
-                            // it cares about the query. We shouldn't hold a reference here.
-                            emptyChildrenQuery?.release();
+                        // Expand our new parent task if it's not already expanded.
+                        if (getAreChildTasksExpandedStore(previousTaskPath).getSnapshot()) {
+                            nest();
+                        } else {
+                            toggleAreChildTasksExpanded(previousTaskPath, {
+                                onFinish: nest,
+                            });
                         }
                         break;
                     }
                 };
 
-                // NOCOMMIT: Preserve expansion state
                 const unnestTaskIfNestedRow = (titleSelection: Selection) => {
                     if (item.parentTaskCursors.length === 0) return;
 
