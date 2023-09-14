@@ -41,12 +41,11 @@ export function areChildTasksExpandedInGridView(
     state: TaskGridViewExpansionState,
     taskPath: ReadonlyArray<TaskId>,
 ): boolean {
-    let currentState: TaskGridViewExpansionState | null = state;
+    let currentState: TaskGridViewExpansionState = state;
 
     for (const taskId of taskPath) {
-        const nextState:
-            | {isExpanded: boolean; childTasks: TaskGridViewExpansionState | null}
-            | undefined = currentState?.get(taskId);
+        const nextState: {isExpanded: boolean; childTasks: TaskGridViewExpansionState} | undefined =
+            currentState?.get(taskId);
         if (!nextState || !nextState.isExpanded) return false;
 
         currentState = nextState.childTasks;
@@ -59,9 +58,9 @@ export function areChildTasksExpandedInGridView(
  * Expand the children of this task path in the grid view.
  */
 export function expandChildTaskInGridView(
-    state: TaskGridViewExpansionState | null,
+    state: TaskGridViewExpansionState,
     taskPath: ReadonlyArray<TaskId>,
-): TaskGridViewExpansionState | null {
+): TaskGridViewExpansionState {
     if (taskPath.length === 0) return state;
 
     const taskId = taskPath[0]!;
@@ -91,16 +90,22 @@ export function expandChildTaskInGridView(
  * Collapse the children of this task path in the grid view.
  */
 export function collapseChildTaskInGridView(
-    state: TaskGridViewExpansionState | null,
+    state: TaskGridViewExpansionState,
     taskPath: ReadonlyArray<TaskId>,
-): TaskGridViewExpansionState | null {
+): TaskGridViewExpansionState {
     if (taskPath.length === 0) return state;
 
     const taskId = taskPath[0]!;
     const nextTaskPath = taskPath.slice(1);
 
     const taskState = state?.get(taskId);
-    const newChildTasks = collapseChildTaskInGridView(taskState?.childTasks ?? null, nextTaskPath);
+    if (!taskState) return state;
+
+    const newChildTasks = collapseChildTaskInGridView(taskState.childTasks, nextTaskPath);
+
+    // Optimization: If child tasks didn't change and this isn't the task we want
+    // to collapse then don't create a new map.
+    if (nextTaskPath.length > 0 && newChildTasks === taskState.childTasks) return state;
 
     const newState = new Map(state);
 
@@ -121,13 +126,111 @@ export function collapseChildTaskInGridView(
 }
 
 /**
+ * If a task is re-parented (e.g. by an indent/dedent operation) we want to
+ * move its expansion state to the task's new position in the tree. This
+ * function moves the task's expansion state to its new location.
+ *
+ * The `TaskId` is the task that's moving and the task paths are as many parent
+ * task paths as you know about. The parent tasks do not need to be visible in
+ * the task expansion state.
+ */
+export function moveTaskGridViewExpansionTaskState(
+    state: TaskGridViewExpansionState,
+    oldTaskPath: ReadonlyArray<TaskId>,
+    newTaskPath: ReadonlyArray<TaskId>,
+    targetTaskId: TaskId,
+): TaskGridViewExpansionState {
+    const recoverTaskStates: Array<TaskGridViewExpansionTaskState> = [];
+
+    for (let i = 0; i < oldTaskPath.length + 1; i++) {
+        const remove = (
+            state: TaskGridViewExpansionState,
+            taskPath: ReadonlyArray<TaskId>,
+        ): TaskGridViewExpansionState => {
+            if (taskPath.length === 0) {
+                const taskState = state?.get(targetTaskId);
+                if (!taskState) return state;
+
+                recoverTaskStates.push(taskState);
+
+                const newState = new Map(state);
+                newState.delete(targetTaskId);
+                return newState.size > 0 ? newState : null;
+            }
+
+            const taskId = taskPath[0]!;
+            const nextTaskPath = taskPath.slice(1);
+
+            const taskState = state?.get(taskId);
+            if (!taskState) return state;
+
+            const newChildTasks = remove(taskState.childTasks, nextTaskPath);
+            if (newChildTasks === taskState.childTasks) return state;
+
+            const newState = new Map(state);
+
+            newState.set(taskId, {
+                isExpanded: taskState.isExpanded,
+                childTasks: newChildTasks,
+            });
+
+            return newState.size > 1 || taskState.isExpanded || newChildTasks !== null
+                ? newState
+                : null;
+        };
+
+        state = remove(state, oldTaskPath.slice(i));
+    }
+
+    for (let i = 0; i < Math.max(newTaskPath.length, 1); i++) {
+        const add = (
+            state: TaskGridViewExpansionState,
+            taskPath: ReadonlyArray<TaskId>,
+        ): TaskGridViewExpansionState => {
+            if (taskPath.length === 0) {
+                const recoverTaskState = recoverTaskStates.shift();
+                if (!recoverTaskState) return state;
+
+                const newState = new Map(state);
+                newState.set(targetTaskId, recoverTaskState);
+                return newState;
+            }
+
+            const taskId = taskPath[0]!;
+            const nextTaskPath = taskPath.slice(1);
+
+            const taskState = state?.get(taskId);
+            if (!taskState) return state;
+
+            const newChildTasks = add(taskState.childTasks, nextTaskPath);
+            if (newChildTasks === taskState.childTasks) return state;
+
+            const newState = new Map(state);
+
+            newState.set(taskId, {
+                isExpanded: taskState.isExpanded,
+                childTasks: newChildTasks,
+            });
+
+            return newState.size > 1 || taskState.isExpanded || newChildTasks !== null
+                ? newState
+                : null;
+        };
+
+        state = add(state, newTaskPath.slice(i));
+    }
+
+    return state;
+}
+
+/**
  * Get the changes between `oldState` and `newState`. This function is useful
  * for incrementally updating some data structures that depend on
  * expansion state.
  */
 export function* diffTaskGridViewExpansionStates(
-    oldState: TaskGridViewExpansionState | null,
-    newState: TaskGridViewExpansionState | null,
+    oldState: TaskGridViewExpansionState,
+    newState: TaskGridViewExpansionState,
 ): IterableIterator<{taskPath: Array<TaskId>; isExpanded: boolean}> {
     if (oldState === newState) return;
 

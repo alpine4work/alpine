@@ -3,6 +3,7 @@ import {ReactNode, useContext, useEffect, useRef, useState} from "react";
 import {UNSAFE_DataRouterStateContext as DataRouterStateContext} from "react-router";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useShowToast} from "~/client/design/toast.js";
+import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
@@ -229,6 +230,8 @@ export function TaskRealtimeClientContextProvider({
             }
         };
     }, [client]);
+
+    useDevConsoleTool("tasks", () => ({store: client.store}));
 
     return <>{children}</>;
 }

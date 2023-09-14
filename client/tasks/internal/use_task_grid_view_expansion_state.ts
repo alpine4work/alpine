@@ -22,6 +22,7 @@ import {
     collapseChildTaskInGridView,
     diffTaskGridViewExpansionStates,
     expandChildTaskInGridView,
+    moveTaskGridViewExpansionTaskState,
 } from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
@@ -64,6 +65,7 @@ function createTaskGridViewExpansionStateManager({
             // Diff the before/after states and use the diff to update our stores. Our UI
             // subscribes to stores so only the precise part of the tree that changed needs
             // to re-render.
+            const releaseTaskIds = new Map<TaskId, number>();
             for (const change of diffTaskGridViewExpansionStates(oldState, newState)) {
                 if (change.isExpanded) {
                     areChildTasksExpandedStoreByTaskPath.set(change.taskPath.join("-"), true);
@@ -74,6 +76,14 @@ function createTaskGridViewExpansionStateManager({
                     areChildTasksExpandedStoreByTaskPath.delete(change.taskPath.join("-"));
 
                     const taskId = change.taskPath[change.taskPath.length - 1]!;
+                    releaseTaskIds.set(taskId, (releaseTaskIds.get(taskId) ?? 0) + 1);
+                }
+            }
+
+            // Perform releases after retains. In case we release a task that is
+            // retained by a later change.
+            for (const [taskId, count] of releaseTaskIds) {
+                for (let i = 0; i < count; i++) {
                     removeRetainedQueryStore(store.getTaskChildrenQueryStore(taskId));
                 }
             }
@@ -481,6 +491,70 @@ export function useTaskGridViewExpansionState({
             broadcastChannel.close();
         };
     }, [browserId, filters, sorts, stateManager]);
+
+    // Watch for any change to a task that updates its parent `TaskId`. When the
+    // parent `TaskId` changes we want to move our task's expansion state from its
+    // old location to its new location.
+    //
+    // Note that this only works if the user's browser is open and actively
+    // connected to realtime! Otherwise expansion state is lost when tasks move
+    // around. This is acceptable. When the user returns some tasks may be
+    // unexpectedly collapsed but it's unlikely they'll notice or care.
+    useEffect(() => {
+        return store.subscribeToBatchUpdate(taskEntryUpdateById => {
+            for (const {oldTaskEntry, newTaskEntry} of taskEntryUpdateById.values()) {
+                if (!oldTaskEntry?.task || !newTaskEntry.task) continue;
+
+                const oldParentTaskId = oldTaskEntry.task.getParent()?.taskId ?? null;
+                const newParentTaskId = newTaskEntry.task.getParent()?.taskId ?? null;
+
+                if (oldParentTaskId === newParentTaskId) continue;
+
+                const oldTaskPath: Array<TaskId> = [];
+                {
+                    let oldGrandParentTaskId = oldParentTaskId;
+                    while (oldGrandParentTaskId !== null) {
+                        oldTaskPath.push(oldGrandParentTaskId);
+                        oldGrandParentTaskId =
+                            store
+                                .getTaskEntryStoreIfExists(oldGrandParentTaskId)
+                                ?.getSnapshot()
+                                .task?.getParent()?.taskId ?? null;
+                    }
+
+                    // We push parent tasks onto the end but task paths have parent tasks in
+                    // the front.
+                    oldTaskPath.reverse();
+                }
+
+                const newTaskPath: Array<TaskId> = [];
+                {
+                    let newGrandParentTaskId = newParentTaskId;
+                    while (newGrandParentTaskId !== null) {
+                        newTaskPath.push(newGrandParentTaskId);
+                        newGrandParentTaskId =
+                            store
+                                .getTaskEntryStoreIfExists(newGrandParentTaskId)
+                                ?.getSnapshot()
+                                .task?.getParent()?.taskId ?? null;
+                    }
+
+                    // We push parent tasks onto the end but task paths have parent tasks in
+                    // the front.
+                    newTaskPath.reverse();
+                }
+
+                stateManager.update(state =>
+                    moveTaskGridViewExpansionTaskState(
+                        state,
+                        oldTaskPath,
+                        newTaskPath,
+                        oldTaskEntry.task.id,
+                    ),
+                );
+            }
+        });
+    }, [stateManager, store]);
 
     return {
         toggleAreChildTasksExpanded,

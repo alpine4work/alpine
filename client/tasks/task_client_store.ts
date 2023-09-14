@@ -10,6 +10,7 @@ import {Clock} from "~/shared/helpers/clock/clock.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AdvancedWeakValuesMap} from "~/shared/helpers/map/advanced_weak_values_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -165,6 +166,21 @@ export class TaskClientStore {
 
     public applyUpdateEvent(event: TaskRealtimeUpdateEvent): void {
         this._internal.applyUpdateEvent(event);
+    }
+
+    public subscribeToBatchUpdate(
+        listener: (
+            taskEntryUpdateById: ReadonlyMap<
+                TaskId,
+                {
+                    readonly taskEntryStore: Store<TaskClientStoreTaskEntry>;
+                    readonly oldTaskEntry: TaskClientStoreTaskEntry | null;
+                    readonly newTaskEntry: TaskClientStoreTaskEntry;
+                }
+            >,
+        ) => void,
+    ) {
+        return this._internal.subscribeToBatchUpdate(listener);
     }
 
     public commitTaskActionTransaction(
@@ -1767,7 +1783,42 @@ export class TaskClientStoreInternal {
             for (const query of this._queriesStore.getSnapshot()) {
                 query._getInternal(this).onTasksUpdated(taskEntryUpdateById);
             }
+
+            this._batchUpdateEventEmitter.emit(taskEntryUpdateById);
         });
+    }
+
+    private readonly _batchUpdateEventEmitter = new EventEmitter<
+        ReadonlyMap<
+            TaskId,
+            {
+                readonly taskEntryStore: Store<TaskClientStoreTaskEntry>;
+                readonly oldTaskEntry: TaskClientStoreTaskEntry | null;
+                readonly newTaskEntry: TaskClientStoreTaskEntry;
+            }
+        >
+    >();
+
+    /**
+     * Subscribes to all store task updates.
+     *
+     * Store task updates are made in batch in a `batchStoreUpdates()` call. This
+     * listener is called within that `batchStoreUpdates()` context which means you
+     * can make your own store updates that will fire listeners in the same batch.
+     */
+    public subscribeToBatchUpdate(
+        listener: (
+            taskEntryUpdateById: ReadonlyMap<
+                TaskId,
+                {
+                    readonly taskEntryStore: Store<TaskClientStoreTaskEntry>;
+                    readonly oldTaskEntry: TaskClientStoreTaskEntry | null;
+                    readonly newTaskEntry: TaskClientStoreTaskEntry;
+                }
+            >,
+        ) => void,
+    ) {
+        return this._batchUpdateEventEmitter.subscribe(listener);
     }
 
     /**
