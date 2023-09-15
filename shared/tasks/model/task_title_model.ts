@@ -41,6 +41,14 @@ export class TaskTitleModel {
         // Previous update is only available in web browsers.
         this._previousUpdate = typeof window !== "undefined" ? previousUpdate : null;
 
+        // In Jest eagerly call `getText()` which caches some data so
+        // `expect().toEqual()` never shows uncached data as the reason why two objects
+        // don't match. Seeing the cached data can also help determine the difference
+        // in a diff.
+        if (import.meta.jest) {
+            this.getText();
+        }
+
         // The previous title update is available for one second after the model is
         // constructed. Then it's cleared out so it can be garbage collected.
         if (previousUpdate !== null) {

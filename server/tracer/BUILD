@@ -16,6 +16,7 @@ ts_project(
         "//shared/helpers",
         "//shared/schema",
         "//shared/tracer",
+        "//shared/tracer/dev",
     ],
 )
 

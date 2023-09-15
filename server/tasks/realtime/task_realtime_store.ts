@@ -2,6 +2,8 @@ import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/data/apply_task_action_to_task_index_doc.js";
 import {applyTaskCollectionActionToCollectionIndexDoc} from "~/server/tasks/data/apply_task_collection_action_to_collection_index_doc.js";
+import {createEmptyTaskCollectionIndexDoc} from "~/server/tasks/data/create_empty_task_collection_index_doc.js";
+import {createEmptyTaskIndexDoc} from "~/server/tasks/data/create_empty_task_index_doc.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {
     getTaskCollectionIndexDocsIfExist,
@@ -585,7 +587,7 @@ export class TaskRealtimeStoreInternal {
             TaskId,
             {
                 taskEntry: TaskRealtimeStoreTaskEntry;
-                oldTask: TaskIndexDoc;
+                oldTask: TaskIndexDoc | null;
                 actions: Array<TaskAction>;
                 // We capture query subscriptions when we create an entry in this map since the
                 // query subscription set may change when we call into our event handlers like
@@ -601,7 +603,7 @@ export class TaskRealtimeStoreInternal {
             TaskCollectionId,
             {
                 collectionEntry: TaskRealtimeStoreCollectionEntry;
-                oldCollection: TaskCollectionIndexDoc;
+                oldCollection: TaskCollectionIndexDoc | null;
                 actions: Array<TaskAction>;
                 querySubscriptions: Array<TaskRealtimeQuerySubscriptionInternal>;
             }
@@ -634,6 +636,28 @@ export class TaskRealtimeStoreInternal {
                         getOrSetDefaultMapValue(updatedTaskEntriesById, action.taskId, () => ({
                             taskEntry,
                             oldTask,
+                            actions: [],
+                            querySubscriptions: Array.from(
+                                taskEntry.iterateQuerySubscriptionDependents(),
+                            ),
+                        })).actions.push(action);
+                    }
+                    // If this action creates a task then create a new task entry in our store. We
+                    // assume some user will actively care about subscribing to this task. Otherwise
+                    // the task will be eventually evicted.
+                    else if (action.taskAction.type === "Create") {
+                        const task = createEmptyTaskIndexDoc(action.time, action.taskAction);
+
+                        const taskEntry = new TaskRealtimeStoreTaskEntry(this, {
+                            id: action.taskId,
+                            spaceId: this.spaceId,
+                            ...task,
+                        });
+                        this._taskEntryById.set(action.taskId, taskEntry);
+
+                        getOrSetDefaultMapValue(updatedTaskEntriesById, action.taskId, () => ({
+                            taskEntry,
+                            oldTask: null,
                             actions: [],
                             querySubscriptions: Array.from(
                                 taskEntry.iterateQuerySubscriptionDependents(),
@@ -685,6 +709,31 @@ export class TaskRealtimeStoreInternal {
                                 ),
                             }),
                         ).actions.push(action);
+                    } else if (action.collectionAction.type === "Create") {
+                        const collection = createEmptyTaskCollectionIndexDoc(
+                            action.time,
+                            action.collectionAction,
+                        );
+
+                        const collectionEntry = new TaskRealtimeStoreCollectionEntry(this, {
+                            id: action.collectionId,
+                            spaceId: this.spaceId,
+                            ...collection,
+                        });
+                        this._collectionEntryById.set(action.collectionId, collectionEntry);
+
+                        getOrSetDefaultMapValue(
+                            updatedCollectionEntriesById,
+                            action.collectionId,
+                            () => ({
+                                collectionEntry,
+                                oldCollection: null,
+                                actions: [],
+                                querySubscriptions: Array.from(
+                                    collectionEntry.iterateQuerySubscriptionDependents(),
+                                ),
+                            }),
+                        ).actions.push(action);
                     }
                     break;
                 }
@@ -706,15 +755,17 @@ export class TaskRealtimeStoreInternal {
         } of updatedCollectionEntriesById.values()) {
             assert(isNonEmptyReadonlyArray(actions));
 
-            for (const querySubscription of querySubscriptions) {
-                querySubscription.onReferencedCollectionUpdate(
-                    context,
-                    eventBuilder,
-                    collectionEntry.collection.id,
-                    oldCollection,
-                    collectionEntry.collection,
-                    actions,
-                );
+            if (oldCollection !== null) {
+                for (const querySubscription of querySubscriptions) {
+                    querySubscription.onReferencedCollectionUpdate(
+                        context,
+                        eventBuilder,
+                        collectionEntry.collection.id,
+                        oldCollection,
+                        collectionEntry.collection,
+                        actions,
+                    );
+                }
             }
         }
 
@@ -793,32 +844,36 @@ export class TaskRealtimeStoreInternal {
 
             // If this task is referenced as a parent task in any query subscriptions then
             // send updates to those subscriptions.
-            for (const querySubscription of querySubscriptions) {
-                querySubscription.onReferencedTaskUpdate(
-                    context,
-                    eventBuilder,
-                    taskEntry.task.id,
-                    oldTask,
-                    taskEntry.task,
-                    actions,
-                );
+            if (oldTask !== null) {
+                for (const querySubscription of querySubscriptions) {
+                    querySubscription.onReferencedTaskUpdate(
+                        context,
+                        eventBuilder,
+                        taskEntry.task.id,
+                        oldTask,
+                        taskEntry.task,
+                        actions,
+                    );
+                }
             }
 
             // For queries this task is currently visible in, update the query and see if
             // the task is now hidden from the query.
-            for (const query of taskEntry.iterateQueryDependents()) {
-                if (addedQueryDependencies.has(query)) continue;
+            if (oldTask !== null) {
+                for (const query of taskEntry.iterateQueryDependents()) {
+                    if (addedQueryDependencies.has(query)) continue;
 
-                const {isStillVisible} = query.onVisibleTaskUpdate(
-                    context,
-                    eventBuilder,
-                    taskEntry.task.id,
-                    oldTask,
-                    taskEntry.task,
-                    actions,
-                );
-                if (!isStillVisible) {
-                    taskEntry.removeQueryDependent(query);
+                    const {isStillVisible} = query.onVisibleTaskUpdate(
+                        context,
+                        eventBuilder,
+                        taskEntry.task.id,
+                        oldTask,
+                        taskEntry.task,
+                        actions,
+                    );
+                    if (!isStillVisible) {
+                        taskEntry.removeQueryDependent(query);
+                    }
                 }
             }
         }

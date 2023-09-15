@@ -328,21 +328,6 @@ async function testQueryWithNormalizedFilters(
         .map(task => convertTaskIndexDocToModel(task))
         .filter(task => evaluateTaskQueryNormalizedFiltersForModel(filters, task));
 
-    // `getArray()` caches the underlying array. We don't want `expect().toEqual()`
-    // to consider a difference in whether the array is cached or not so always
-    // compute it.
-    for (const task of [...queryTasks1, ...expectedQueryTasks1]) {
-        task.collections.raw.collections.getArray();
-    }
-
-    // Run functions that cache properties on the object since we don't want our
-    // test to fail because a property is not cached in one model object.
-    for (const task of [...queryTasks2, ...expectedQueryTasks2]) {
-        task.getCollections().getArray();
-        task.getParent();
-        task.getTitle().getText();
-    }
-
     // Make sure our JavaScript filter implementation for `TaskIndexDoc` matches
     // the OpenSearch filter implementation.
     expect(queryTasks1).toEqual(expectedQueryTasks1);

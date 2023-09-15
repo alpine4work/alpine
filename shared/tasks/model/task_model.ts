@@ -109,9 +109,10 @@ export class TaskModel {
         this.id = rawData.id;
         this.rawData = rawData;
 
-        // Kinda hacky but in tests eagerly call `getParent()` so
-        // `expect().toEqual()` never shows parent as the reason why two objects
-        // don't match.
+        // In Jest eagerly call `getParent()` which caches some data so
+        // `expect().toEqual()` never shows uncached data as the reason why two objects
+        // don't match. Seeing the cached data can also help determine the difference
+        // in a diff.
         if (import.meta.jest) {
             this.getParent();
         }

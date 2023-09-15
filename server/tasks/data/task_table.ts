@@ -432,24 +432,34 @@ export function commitTaskActionTransaction(
             actions: actionTransactionItem.actions,
         });
 
-        context.process.waitUntil(async () => {
-            // Process the action transaction in the background.
-            //
-            // TODO(calebmer): We need some way to recover if processing fails! Right now
-            // maybe we can rely on a manual process where we look at the database for
-            // unprocessed transactions and manually retry them. However, it's important
-            // actions are processed in a timely manner so we should have some service
-            // that's constantly querying the `TaskActions` table and retrying transactions
-            // that are taking a while to process.
-            await context.tasks.processActionTransactionAfterCommit(actionTransactionItem);
+        context.process.waitUntil(
+            context.tracer.withSpan("Process task action transaction", async (context, span) => {
+                span.addData({
+                    tasks: {
+                        actions: actionTransactionItem.actions.map(getTaskActionLabel).join(","),
+                        actionCount: actionTransactionItem.actions.length,
+                        actionTransactionId: actionTransactionItem.actionTransactionId,
+                    },
+                });
 
-            // Once we've finished processing, flip the `wasProcessed` flag to true which
-            // will also remove this transaction from our unprocessed transactions index.
-            await TaskActionTable.createOrReplaceItem(context, {
-                ...actionTransactionItem,
-                wasProcessed: true,
-            });
-        });
+                // Process the action transaction in the background.
+                //
+                // TODO(calebmer): We need some way to recover if processing fails! Right now
+                // maybe we can rely on a manual process where we look at the database for
+                // unprocessed transactions and manually retry them. However, it's important
+                // actions are processed in a timely manner so we should have some service
+                // that's constantly querying the `TaskActions` table and retrying transactions
+                // that are taking a while to process.
+                await context.tasks.processActionTransactionAfterCommit(actionTransactionItem);
+
+                // Once we've finished processing, flip the `wasProcessed` flag to true which
+                // will also remove this transaction from our unprocessed transactions index.
+                await TaskActionTable.createOrReplaceItem(context, {
+                    ...actionTransactionItem,
+                    wasProcessed: true,
+                });
+            }),
+        );
 
         return {extraActions};
     });

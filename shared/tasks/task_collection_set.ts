@@ -37,6 +37,14 @@ export class TaskCollectionSet {
 
     private constructor(entries: TaskCollectionSetEntries) {
         this._entries = entries;
+
+        // In Jest eagerly call `getArray()` which caches some data so
+        // `expect().toEqual()` never shows uncached data as the reason why two objects
+        // don't match. Seeing the cached data can also help determine the difference
+        // in a diff.
+        if (import.meta.jest) {
+            this.getArray();
+        }
     }
 
     public static readonly empty = new TaskCollectionSet(TaskCollectionSetEntries.empty);

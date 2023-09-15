@@ -13,6 +13,7 @@ import {
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/data/apply_task_action_to_task_index_doc.js";
 import {applyTaskCollectionActionToCollectionIndexDoc} from "~/server/tasks/data/apply_task_collection_action_to_collection_index_doc.js";
+import {createEmptyTaskCollectionIndexDoc} from "~/server/tasks/data/create_empty_task_collection_index_doc.js";
 import {createEmptyTaskIndexDoc} from "~/server/tasks/data/create_empty_task_index_doc.js";
 import {getTaskQueryNormalizedFiltersOpensearchQueryClause} from "~/server/tasks/data/internal/get_task_query_normalized_filters_opensearch_query_clause.js";
 import {
@@ -37,8 +38,6 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
-import {LabelStringSchemaRegister} from "~/shared/tasks/label_string_schema_register.js";
-import {TaskCollectionAccessPolicyRegister} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
@@ -496,16 +495,9 @@ async function actuallyIndexTaskAction(
             if (!oldCollection && action.collectionAction.type === "Create") {
                 state.putCollectionIndexDoc(action.collectionId, {
                     id: action.collectionId,
-                    version: null,
                     spaceId: state.spaceId,
-                    createdTime: action.time,
-                    rawDeletedTime: null,
-                    rawUndeletedTime: null,
-                    name: new LabelStringSchemaRegister(action.collectionAction.name, action.time),
-                    accessPolicy: new TaskCollectionAccessPolicyRegister(
-                        action.collectionAction.accessPolicy,
-                        action.time,
-                    ),
+                    ...createEmptyTaskCollectionIndexDoc(action.time, action.collectionAction),
+                    version: null,
                 });
                 return;
             }

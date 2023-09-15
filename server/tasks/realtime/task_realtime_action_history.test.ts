@@ -8,7 +8,7 @@ import {generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
-import {testTracer} from "~/shared/tracer/test_tracer.js";
+import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 import.meta.jest.useFakeTimers();
 
