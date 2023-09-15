@@ -721,5 +721,6 @@ export function useTaskGridViewExpansionState({
     return {
         toggleAreChildTasksExpanded,
         getAreChildTasksExpandedStore: stateManager.getAreChildTasksExpandedStore,
+        iterateExpandedTaskIdsUnderPath: stateManager.iterateExpandedTaskIdsUnderPath,
     };
 }

@@ -69,11 +69,14 @@ export function useTaskGridViewVirtualizedList({
 
     const [bottomGhostTaskId, setBottomGhostTaskId] = useState(initialBottomGhostTaskId);
 
-    const {getAreChildTasksExpandedStore, toggleAreChildTasksExpanded} =
-        useTaskGridViewExpansionState({
-            query,
-            initialState: initialExpandedState,
-        });
+    const {
+        getAreChildTasksExpandedStore,
+        toggleAreChildTasksExpanded,
+        iterateExpandedTaskIdsUnderPath,
+    } = useTaskGridViewExpansionState({
+        query,
+        initialState: initialExpandedState,
+    });
 
     const listStore = useMemo(
         () => TaskGridViewVirtualizedTaskList.new(query, getAreChildTasksExpandedStore),
@@ -165,7 +168,7 @@ export function useTaskGridViewVirtualizedList({
                 }
 
                 if (parentTaskIdsToLoad.size > 0) {
-                    const retainedChildrenQueries = new Set<TaskClientQuery>();
+                    const retainedChildrenQueries: Array<TaskClientQuery> = [];
 
                     // We want to immediately release the references to any queries we load after a
                     // microtask. When our expansion state hook sees there's a new query for an
@@ -182,11 +185,25 @@ export function useTaskGridViewVirtualizedList({
 
                     for (const taskId of parentTaskIdsToLoad) {
                         const childrenQuery = query.store.ensureAndRetainTaskChildrenQuery(taskId);
-                        retainedChildrenQueries.add(childrenQuery);
+                        retainedChildrenQueries.push(childrenQuery);
 
                         childrenQuery?.loadMoreTasks(
                             getTaskGridViewLoadQueryLimit(getClientInfoWithoutListening()),
                         );
+
+                        // In addition to loading the root task query, children queries for any of its
+                        // expanded child tasks so they all pop in at the same time.
+                        for (const {taskId: expandedChildTaskId} of iterateExpandedTaskIdsUnderPath(
+                            [taskId],
+                        )) {
+                            const childrenQuery =
+                                query.store.ensureAndRetainTaskChildrenQuery(expandedChildTaskId);
+                            retainedChildrenQueries.push(childrenQuery);
+
+                            childrenQuery?.loadMoreTasks(
+                                getTaskGridViewLoadQueryLimit(getClientInfoWithoutListening()),
+                            );
+                        }
                     }
                 }
             });
