@@ -1,8 +1,13 @@
-import {Tree, Node as TreeNode} from "functional-red-black-tree";
+import createTree, {
+    Tree,
+    Iterator as TreeIterator,
+    Node as TreeNode,
+} from "functional-red-black-tree";
 import {ConstStore} from "~/client/helpers/store/const_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {flatMapTreeStoreValues} from "~/client/helpers/store/tree_store.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
+import {OutOfRangeError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
@@ -10,6 +15,15 @@ import {
     TaskQuerySortCursor,
     getTaskQuerySortCursorTaskId,
 } from "~/shared/tasks/task_query_sort_cursor.js";
+
+// HACK(calebmer): Hackishly get the constructor for a
+// `functional-red-black-tree` iterator so we can construct it since there's
+// not an official API. This happens to be a tiny bit more efficient than
+// calling `tree.find()` with the node returned from `search()` given we
+// already know the node stack.
+const unsafe_TreeIterator: {
+    new <K, V>(tree: Tree<K, V>, stack: Array<TreeNode<K, V>>): TreeIterator<K, V>;
+} = createTree().begin.constructor as any;
 
 /**
  * Tree of tasks that will be rendered by a task virtualized grid view. Parent
@@ -113,7 +127,7 @@ export type TaskGridViewVirtualizedTaskListItem =
     | {
           readonly type: "UnloadedChildTask";
           readonly parentTaskCursors: ReadonlyArray<TaskQuerySortCursor>;
-          readonly childTaskIndex: number;
+          readonly unloadedChildTaskIndex: number;
       };
 
 /**
@@ -227,20 +241,67 @@ export class TaskGridViewVirtualizedTaskList {
         return this._getSubtreeItemCount(this._tree.root);
     }
 
+    private _iterator: {
+        itemIndex: number;
+        iterator: Iterator<TaskGridViewVirtualizedTaskListItem>;
+    } | null = null;
+
     /**
      * Get the item at the specified index. If you try to access an item outside of
      * this list's bounds you'll get an error.
+     *
+     * When you first call this function we perform an O(log(n)) binary search to
+     * determine the right item. Afterwards if you iterate forward one item at a
+     * time (`getItem(n + 1)`) we internally hold an iterator so subsequent calls
+     * can be O(1). Iterating backwards (`getItem(n - 1)`) is not optimized and
+     * will be O(log(n)).
      */
     public getItem(itemIndex: number): TaskGridViewVirtualizedTaskListItem {
-        const parentTaskCursors: Array<TaskQuerySortCursor> = [];
+        if (this._iterator && itemIndex === this._iterator.itemIndex + 1) {
+            const result = this._iterator.iterator.next();
+            if (result.done) throw new OutOfRangeError("Index out of bounds");
+
+            this._iterator.itemIndex++;
+
+            return result.value;
+        }
+
+        const iterator = this._getItem(itemIndex);
+
+        const result = iterator.next();
+        if (result.done) throw new OutOfRangeError("Index out of bounds");
+
+        this._iterator = {
+            itemIndex,
+            iterator,
+        };
+
+        return result.value;
+    }
+
+    private _getItem(itemIndex: number) {
+        const stack: Array<{
+            query: TaskClientQuery;
+            cursor: TaskQuerySortCursor;
+            iterator: TreeIterator<
+                TaskQuerySortCursor,
+                TaskGridViewVirtualizedTaskTreeValue | null
+            >;
+            nextPhase: "Enter" | "ExitChildren";
+        }> = [];
 
         // Binary search to find the item...
         const search = (
             index: number,
+            tree: Tree<TaskQuerySortCursor, TaskGridViewVirtualizedTaskTreeValue | null>,
             node: TreeNode<TaskQuerySortCursor, TaskGridViewVirtualizedTaskTreeValue | null> | null,
             query: TaskClientQuery,
-        ): TaskGridViewVirtualizedTaskListItem | null => {
-            if (!node) return null;
+            nodeStack: Array<
+                TreeNode<TaskQuerySortCursor, TaskGridViewVirtualizedTaskTreeValue | null>
+            >,
+        ): IterableIterator<TaskGridViewVirtualizedTaskListItem> => {
+            if (!node) throw new OutOfRangeError("Index out of bounds");
+            nodeStack?.push(node);
 
             let valueItemCount: number;
             if (node.value === null) {
@@ -259,19 +320,27 @@ export class TaskGridViewVirtualizedTaskList {
             // If the index is not in our node then recurse into either the left or right
             // subtree.
             if (index < leftItemCount) {
-                return search(index, node.left, query);
+                return search(index, tree, node.left, query, nodeStack);
             } else if (leftItemCount + valueItemCount <= index) {
-                return search(index - (leftItemCount + valueItemCount), node.right, query);
+                return search(
+                    index - (leftItemCount + valueItemCount),
+                    tree,
+                    node.right,
+                    query,
+                    nodeStack,
+                );
             } else {
                 assert(leftItemCount <= index && index < leftItemCount + valueItemCount);
 
                 if (leftItemCount === index) {
-                    return {
-                        type: "Task",
+                    stack.push({
                         query,
-                        parentTaskCursors,
                         cursor: node.key,
-                    };
+                        iterator: new unsafe_TreeIterator(tree, nodeStack),
+                        nextPhase: "Enter",
+                    });
+
+                    return iterateTaskGridViewVirtualizedTaskListItems(stack, null);
                 }
 
                 // `null` values have only 1 item and it's the task item.
@@ -286,25 +355,186 @@ export class TaskGridViewVirtualizedTaskList {
                 assert(0 <= childTaskIndex);
 
                 if (childTaskIndex >= childrenItemCount) {
-                    parentTaskCursors.push(node.key);
+                    stack.push({
+                        query,
+                        cursor: node.key,
+                        iterator: new unsafe_TreeIterator(tree, nodeStack),
+                        nextPhase: "ExitChildren",
+                    });
 
-                    return {
-                        type: "UnloadedChildTask",
-                        parentTaskCursors,
-                        childTaskIndex: childTaskIndex - childrenItemCount,
-                    };
+                    return iterateTaskGridViewVirtualizedTaskListItems(
+                        stack,
+                        childTaskIndex - childrenItemCount,
+                    );
                 } else {
-                    parentTaskCursors.push(node.key);
+                    stack.push({
+                        query,
+                        cursor: node.key,
+                        iterator: new unsafe_TreeIterator(tree, nodeStack),
+                        nextPhase: "ExitChildren",
+                    });
 
                     return search(
                         index - leftItemCount - 1,
+                        node.value.children!.tasks,
                         node.value.children!.tasks.root,
                         node.value.children!.query,
+                        [],
                     );
                 }
             }
         };
 
-        return assertExists(search(itemIndex, this._tree.root, this._query));
+        return assertExists(search(itemIndex, this._tree, this._tree.root, this._query, []));
+    }
+}
+
+/**
+ * Iterates forward through a `TaskGridViewVirtualizedTaskTree` starting
+ * anywhere in the tree.
+ *
+ * If a node has children then the node will be visited twice. Once with the
+ * `Enter` phase and once after iterating through all its children with the
+ * `ExitChildren` phase.
+ */
+function* iterateTaskGridViewVirtualizedTaskListTreeNodes(
+    stack: Array<{
+        query: TaskClientQuery;
+        cursor: TaskQuerySortCursor;
+        iterator: TreeIterator<TaskQuerySortCursor, TaskGridViewVirtualizedTaskTreeValue | null>;
+        nextPhase: "Enter" | "ExitChildren";
+    }>,
+): IterableIterator<{
+    query: TaskClientQuery;
+    parentTaskCursors: ReadonlyArray<TaskQuerySortCursor>;
+    node: TreeNode<TaskQuerySortCursor, TaskGridViewVirtualizedTaskTreeValue | null>;
+    phase: "Enter" | "ExitChildren";
+}> {
+    while (stack.length > 0) {
+        const stackEntry = stack.pop()!;
+        const {iterator, query} = stackEntry;
+        const parentTaskCursors = stack.map(({cursor}) => cursor);
+
+        while (iterator.valid) {
+            const node = iterator.node!;
+
+            if (stackEntry.nextPhase === "ExitChildren") {
+                if (node.value) {
+                    yield {
+                        query,
+                        parentTaskCursors,
+                        node,
+                        phase: "ExitChildren",
+                    };
+                }
+
+                stackEntry.nextPhase = "Enter";
+                iterator.next();
+                continue;
+            }
+
+            yield {
+                query,
+                parentTaskCursors,
+                node,
+                phase: "Enter",
+            };
+
+            // If we don't have any loaded or unloaded children we don't need to yield an
+            // `ExitChildren` phase for this node.
+            if (!node.value) {
+                iterator.next();
+            } else {
+                const children = node.value.children;
+
+                stack.push({
+                    query,
+                    cursor: node.key,
+                    iterator,
+                    nextPhase: "ExitChildren",
+                });
+
+                if (children) {
+                    const childrenIterator = children.tasks.begin;
+
+                    if (childrenIterator.valid) {
+                        stack.push({
+                            query: children.query,
+                            cursor: childrenIterator.node!.key,
+                            iterator: childrenIterator,
+                            nextPhase: "Enter",
+                        });
+                    }
+                }
+
+                break;
+            }
+        }
+    }
+}
+
+/**
+ * Iterates through a `TaskGridViewVirtualizedTaskTree` starting anywhere in
+ * the tree and emitting `TaskGridViewVirtualizedTaskListItem`s.
+ *
+ * If we start with a `UnloadedChildTask` then you should provide
+ * `initialUnloadedChildTaskIndex`. It requires the tree node iterator to start
+ * with the `ExitChildren` phase.
+ */
+function* iterateTaskGridViewVirtualizedTaskListItems(
+    stack: Array<{
+        query: TaskClientQuery;
+        cursor: TaskQuerySortCursor;
+        iterator: TreeIterator<TaskQuerySortCursor, TaskGridViewVirtualizedTaskTreeValue | null>;
+        nextPhase: "Enter" | "ExitChildren";
+    }>,
+    initialUnloadedChildTaskIndex: number | null,
+): IterableIterator<TaskGridViewVirtualizedTaskListItem> {
+    const iterator = iterateTaskGridViewVirtualizedTaskListTreeNodes(stack);
+
+    // Handle starting in the middle of some unloaded child task section:
+    if (initialUnloadedChildTaskIndex !== null) {
+        const result = iterator.next();
+        if (result.done) return;
+
+        const {parentTaskCursors, node, phase} = result.value;
+
+        assert(phase !== "Enter");
+        assert(node.value && node.value.unloadedChildTaskCount > 0);
+
+        const childrenParentTaskCursors = [...parentTaskCursors, node.key];
+
+        for (let i = initialUnloadedChildTaskIndex; i < node.value.unloadedChildTaskCount; i++) {
+            yield {
+                type: "UnloadedChildTask",
+                parentTaskCursors: childrenParentTaskCursors,
+                unloadedChildTaskIndex: i,
+            };
+        }
+
+        initialUnloadedChildTaskIndex = null;
+    }
+
+    // Loop through our tree yielding `UnloadedChildTask`s when we exit a node
+    // when appropriate.
+    for (const {query, parentTaskCursors, node, phase} of iterator) {
+        if (phase === "Enter") {
+            yield {
+                type: "Task",
+                query,
+                parentTaskCursors,
+                cursor: node.key,
+            };
+        } else if (node.value && node.value.unloadedChildTaskCount > 0) {
+            const childrenParentTaskCursors = [...parentTaskCursors, node.key];
+
+            for (let i = 0; i < node.value.unloadedChildTaskCount; i++) {
+                yield {
+                    type: "UnloadedChildTask",
+                    parentTaskCursors: childrenParentTaskCursors,
+                    unloadedChildTaskIndex: i,
+                };
+            }
+        }
     }
 }

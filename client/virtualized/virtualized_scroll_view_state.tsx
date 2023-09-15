@@ -15,6 +15,15 @@ import {
     generateOrderKeysBetween,
 } from "~/shared/helpers/sort/order_key.js";
 
+// HACK(calebmer): Hackishly get the constructor for a
+// `functional-red-black-tree` iterator so we can construct it since there's
+// not an official API. This happens to be a tiny bit more efficient than
+// calling `tree.find()` with the node returned from `search()` given we
+// already know the node stack.
+const unsafe_TreeIterator: {
+    new <K, V>(tree: Tree<K, V>, stack: Array<TreeNode<K, V>>): TreeIterator<K, V>;
+} = createTree().begin.constructor as any;
+
 /**
  * The height of the virtualization window. Will be larger than the view height
  * so we can render more content that's available when scrolled.
@@ -1185,14 +1194,7 @@ export class VirtualizedScrollViewState {
             // rendered range.
             if (!searchResult) return state;
 
-            // HACK(calebmer): Hackishly get the constructor for a
-            // `functional-red-black-tree` iterator and construct it since there's not an
-            // official API. This happens to be a tiny bit more efficient than calling
-            // `tree.find()` with the node returned from `search()` given we already know
-            // the node stack.
-            const iterator: TreeIterator<OrderKey, VirtualizedScrollViewStateEntry> = new (
-                state._entryByOrderKey.begin as any
-            ).constructor(state._entryByOrderKey, iteratorStack);
+            const iterator = new unsafe_TreeIterator(state._entryByOrderKey, iteratorStack);
 
             // The stack should be non-empty if `searchResult` is not null.
             assert(iterator.node);

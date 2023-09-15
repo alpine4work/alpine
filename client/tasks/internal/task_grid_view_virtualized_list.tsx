@@ -4,6 +4,7 @@ import {useEffect, useMemo, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
+import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {ConstStore} from "~/client/helpers/store/const_store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
@@ -20,6 +21,7 @@ import {taskRowViewMinHeight} from "~/client/tasks/task_row_shared_styles.js";
 import {VirtualizedScrollViewItem} from "~/client/virtualized/virtualized_scroll_view.js";
 import {addRemLengths, spacing} from "~/shared/design/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -117,27 +119,77 @@ export function useTaskGridViewVirtualizedList({
         };
     }, []);
 
+    const listItemCount = list.getItemCount();
+
     const itemCount =
-        loadedState !== "FullyLoaded"
-            ? list.getItemCount() + 1
-            : Math.max(list.getItemCount() + 1, 3);
+        loadedState !== "FullyLoaded" ? listItemCount + 1 : Math.max(listItemCount + 1, 3);
 
     const tryLoadingMoreData = useEvent(
         (renderedRange: {startIndex: number; endIndex: number} | null) => {
             if (!renderedRange) return;
 
-            if (loadedState !== "FullyLoaded") {
-                const moreUnloadedTasksIndex = list.getItemCount();
+            batchStoreUpdates(() => {
+                // If we are rendering the `MoreUnloadedTasks` item then load more tasks into
+                // our query.
+                if (loadedState !== "FullyLoaded") {
+                    const moreUnloadedTasksIndex = list.getItemCount();
 
-                if (
-                    renderedRange.startIndex <= moreUnloadedTasksIndex &&
-                    moreUnloadedTasksIndex <= renderedRange.endIndex
-                ) {
-                    query.loadMoreTasks(
-                        getTaskGridViewLoadQueryLimit(getClientInfoWithoutListening()),
-                    );
+                    if (
+                        renderedRange.startIndex <= moreUnloadedTasksIndex &&
+                        moreUnloadedTasksIndex <= renderedRange.endIndex
+                    ) {
+                        query.loadMoreTasks(
+                            getTaskGridViewLoadQueryLimit(getClientInfoWithoutListening()),
+                        );
+                    }
                 }
-            }
+
+                // Load more tasks for any tasks that are rendering `UnloadedChildTask`
+                // child items.
+                const parentTaskIdsToLoad = new Set<TaskId>();
+
+                for (
+                    let i = renderedRange.startIndex;
+                    i < Math.min(renderedRange.endIndex, listItemCount);
+                    i++
+                ) {
+                    const item = list.getItem(i);
+
+                    if (item.type === "UnloadedChildTask") {
+                        parentTaskIdsToLoad.add(
+                            getTaskQuerySortCursorTaskId(
+                                item.parentTaskCursors[item.parentTaskCursors.length - 1]!,
+                            ),
+                        );
+                    }
+                }
+
+                if (parentTaskIdsToLoad.size > 0) {
+                    const retainedChildrenQueries = new Set<TaskClientQuery>();
+
+                    // We want to immediately release the references to any queries we load after a
+                    // microtask. When our expansion state hook sees there's a new query for an
+                    // expanded task it will grab its own reference. So wait a microtask for that to
+                    // happen and release our reference to let the expanded state hook manage the
+                    // query's lifetime.
+                    scheduleMicrotask(() => {
+                        batchStoreUpdates(() => {
+                            for (const query of retainedChildrenQueries) {
+                                query.release();
+                            }
+                        });
+                    });
+
+                    for (const taskId of parentTaskIdsToLoad) {
+                        const childrenQuery = query.store.ensureAndRetainTaskChildrenQuery(taskId);
+                        retainedChildrenQueries.add(childrenQuery);
+
+                        childrenQuery?.loadMoreTasks(
+                            getTaskGridViewLoadQueryLimit(getClientInfoWithoutListening()),
+                        );
+                    }
+                }
+            });
         },
     );
 
@@ -204,8 +256,6 @@ export function useTaskGridViewVirtualizedList({
                     coord,
                 };
             };
-
-            const listItemCount = list.getItemCount();
 
             // If this item is below our task list then render either a ghost row or empty
             // decorative rows.
@@ -664,12 +714,12 @@ export function useTaskGridViewVirtualizedList({
                 };
 
                 return {
-                    key: `UnloadedChildTask:${parentTaskKey}-${item.childTaskIndex}`,
+                    key: `UnloadedChildTask:${parentTaskKey}-${item.unloadedChildTaskIndex}`,
                     minHeight: spacing[taskRowViewMinHeight],
                     node: (
                         <TaskRowShimmer
                             randomSeed={parentTaskKey}
-                            index={item.childTaskIndex}
+                            index={item.unloadedChildTaskIndex}
                             indentation={item.parentTaskCursors.length}
                             focusPreviousTaskTitleEnd={focusPreviousTaskTitleEnd}
                             focusPreviousTaskTitleAll={focusPreviousTaskTitleAll}
@@ -686,6 +736,7 @@ export function useTaskGridViewVirtualizedList({
         getAreChildTasksExpandedStore,
         itemCount,
         list,
+        listItemCount,
         loadedState,
         query,
         toggleAreChildTasksExpanded,
