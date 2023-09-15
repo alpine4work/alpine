@@ -20,11 +20,11 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
-import {taskRowViewMinHeight} from "~/client/tasks/internal/task_row_shared_styles.js";
 import {TaskRowTitleChildTasksButton} from "~/client/tasks/internal/task_row_title_child_tasks_button.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {useTaskTitleModelYDoc} from "~/client/tasks/internal/use_task_title_model_y_doc.js";
 import {TaskClientStoreTaskEntry} from "~/client/tasks/task_client_store.js";
+import {taskRowViewMinHeight} from "~/client/tasks/task_row_shared_styles.js";
 import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -82,8 +82,6 @@ const taskRowTitleInputSingleLineStyle: CSSProperties = {
     // below the element. Adding `vertical-align` stops the space from being added.
     // https://stackoverflow.com/questions/27536428/inline-block-element-height-issue
     verticalAlign: "top",
-    // Don't allow bouncy over-scrolling on Safari.
-    overscrollBehavior: "none",
 };
 
 const taskRowTitleInputMultilineClassName = `ProseMirror ${sprinkles({
@@ -513,8 +511,8 @@ function TaskRowTitleInput(
                     // don't expect the underlying document to actually be different but we'll have
                     // created a new `titleYDoc` that also creates a new ProseMirror node so strict
                     // equality checks fail.
-                    if (selection.$from.doc !== view.state.doc ) {
-                        selection = selection.getBookmark().resolve(view.state.doc)
+                    if (selection.$from.doc !== view.state.doc) {
+                        selection = selection.getBookmark().resolve(view.state.doc);
                     }
 
                     view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());

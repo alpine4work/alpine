@@ -62,9 +62,10 @@ function loadTaskQueryDataIntoClient(
 
         for (let i = 0; i < loadTaskQueryData.queries.length; i++) {
             const query = queries[i]!;
-            const {loadedState} = loadTaskQueryData.queries[i]!;
+            const {limit, loadedState} = loadTaskQueryData.queries[i]!;
 
             client.store.loadTasksIntoQuery(query, {
+                limit,
                 loadedState,
                 previouslyBackfilledTaskIds: [],
             });

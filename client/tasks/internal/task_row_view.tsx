@@ -34,7 +34,7 @@ import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_key.js";
-import {taskRowViewMinHeight} from "~/client/tasks/internal/task_row_shared_styles.js";
+import {taskRowViewMinHeight} from "~/client/tasks/task_row_shared_styles.js";
 import {
     TaskRowTitleInput,
     TaskRowTitleInputRef,

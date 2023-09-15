@@ -5,6 +5,7 @@ import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/get_new_task_position_for_query_sorted_by_position.js";
+import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {TaskGridView} from "~/client/tasks/task_grid_view.js";
 import {
     clientLoaderLoadTaskQueryData,
@@ -56,22 +57,12 @@ export async function loader({params, context: _context}: LoaderArgs) {
         firstNotepadPageStep.value,
     );
 
-    // NOCOMMIT: Work on limits and loading next!
-    //
-    // console.log(
-    //     getInitialVirtualizedScrollViewRenderedItemCount(
-    //         context.loader.getClientInfo(),
-    //         spacing[taskRowViewMinHeight],
-    //     ),
-    // );
-
     const assigneeActiveQuery: {
         limit: number;
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
     } = {
-        // NOCOMMIT: Proper limit?
-        limit: 500,
+        limit: getTaskGridViewLoadQueryLimit(context.loader.getClientInfo()),
 
         filters: {
             displayStatusFilter: {
@@ -104,8 +95,7 @@ export async function loader({params, context: _context}: LoaderArgs) {
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
         shouldLoadGridViewExpandedChildTasksForBrowserId?: BrowserId;
     } = {
-        // NOCOMMIT: Proper limit?
-        limit: 500,
+        limit: getTaskGridViewLoadQueryLimit(context.loader.getClientInfo()),
 
         filters: {
             displayStatusFilter: {
@@ -161,23 +151,18 @@ export async function loader({params, context: _context}: LoaderArgs) {
             loadTaskQueryData: {
                 queries: [
                     {
-                        desiredCount: assigneeActiveQuery.limit,
+                        limit: assigneeActiveQuery.limit,
                         filters: assigneeActiveQuery.filters,
                         sorts: assigneeActiveQuery.sorts,
                         loadedState: assigneeActiveQueryLoadedState,
                     },
                     {
-                        desiredCount: notepadPageQuery.limit,
+                        limit: notepadPageQuery.limit,
                         filters: notepadPageQuery.filters,
                         sorts: notepadPageQuery.sorts,
                         loadedState: notepadPageQueryLoadedState,
                     },
-                    ...extraQueries.map(query => ({
-                        desiredCount: query.limit,
-                        filters: query.filters,
-                        sorts: query.sorts,
-                        loadedState: query.loadedState,
-                    })),
+                    ...extraQueries,
                 ],
                 updateEvent,
             },

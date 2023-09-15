@@ -47,7 +47,10 @@ import {TaskGridViewVirtualizedTaskList} from "~/client/tasks/internal/task_grid
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
-import {VirtualizedScrollView} from "~/client/virtualized/virtualized_scroll_view.js";
+import {
+    VirtualizedScrollView,
+    VirtualizedScrollViewRef,
+} from "~/client/virtualized/virtualized_scroll_view.js";
 import {ThemeColor} from "~/shared/design/theme_colors.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -62,6 +65,8 @@ import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_key.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
+import {taskRowViewMinHeight} from "~/client/tasks/task_row_shared_styles.js";
+import {spacing} from "~/shared/design/spacing.js";
 // NOCOMMIT:
 // import {TaskTitle, emptyTaskTitle} from "~/shared/tasks/task_title_schema_old.js";
 
@@ -87,21 +92,25 @@ export function TaskGridView({
     ) => Array<TaskAction>;
     getMaybeRemoveTaskFromQueryWhenNestingActions: (taskId: TaskId) => Array<TaskAction>;
 }) {
-    const {itemCount, renderItem} = useTaskGridViewVirtualizedList({
+    const viewRef = useRef<VirtualizedScrollViewRef>(null);
+
+    const {itemCount, renderItem, onRenderedRangeChange} = useTaskGridViewVirtualizedList({
         capabilities,
         query,
         initialExpandedState,
         initialBottomGhostTaskId,
+        getRenderedRange: () => assertExists(viewRef.current).getRenderedRange(),
         getMoveTaskToQueryActions,
         getMaybeRemoveTaskFromQueryWhenNestingActions,
     });
 
     return (
         <VirtualizedScrollView
+            ref={viewRef}
             itemCount={itemCount}
-            // NOCOMMIT
-            bufferedItemHeight={200}
+            bufferedItemHeight={spacing[taskRowViewMinHeight]}
             renderItem={renderItem}
+            onRenderedRangeChange={onRenderedRangeChange}
         />
     );
 }

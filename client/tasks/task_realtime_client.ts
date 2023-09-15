@@ -1,8 +1,11 @@
 import {AppContext} from "~/client/context/app_context.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
+import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {WebSocketClient} from "~/client/web_socket/web_socket_client.js";
+import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
 import {Id, generateId} from "~/shared/id/id.js";
@@ -16,6 +19,7 @@ import {TaskRealtimeProtocol} from "~/shared/tasks/task_realtime_protocol.js";
  * realtime.
  */
 export class TaskRealtimeClient {
+    private readonly _getContext: () => AppContext;
     public readonly spaceId: SpaceId;
     private readonly _client: WebSocketClient<typeof TaskRealtimeProtocol>;
     private _disconnect: (() => void) | null = null;
@@ -32,6 +36,7 @@ export class TaskRealtimeClient {
             onDisplayError: (options: {title: string; error: unknown}) => void;
         },
     ) {
+        this._getContext = getContext;
         this.spaceId = spaceId;
 
         this._client = new WebSocketClient(
@@ -53,7 +58,8 @@ export class TaskRealtimeClient {
         const queriesStore = this.store.getQueriesStore();
         const subscribedQueries = new Set<{
             query: TaskClientQuery;
-            querySubscriptionId: Promise<TaskRealtimeQuerySubscriptionId>;
+            querySubscriptionIdPromise: Promise<TaskRealtimeQuerySubscriptionId>;
+            unsubscribeFromLoadMoreTaskCount: () => void;
         }>();
 
         const unsubscribeFromState = this._client.state.subscribe(() => {
@@ -78,6 +84,9 @@ export class TaskRealtimeClient {
             // If our WebSocket client disconnects then none of our queries are subscribed
             // anymore. We'll resubscribe if the client reconnects.
             if (!connectionId) {
+                for (const subscribedQuery of subscribedQueries) {
+                    subscribedQuery.unsubscribeFromLoadMoreTaskCount();
+                }
                 subscribedQueries.clear();
                 return;
             }
@@ -85,7 +94,8 @@ export class TaskRealtimeClient {
             const newQueries = new Set<TaskClientQuery>(queriesStore.getSnapshot());
             const oldSubscribedQueries = new Set<{
                 query: TaskClientQuery;
-                querySubscriptionId: Promise<TaskRealtimeQuerySubscriptionId>;
+                querySubscriptionIdPromise: Promise<TaskRealtimeQuerySubscriptionId>;
+                unsubscribeFromLoadMoreTaskCount: () => void;
             }>();
 
             for (const subscribedQuery of subscribedQueries) {
@@ -96,6 +106,19 @@ export class TaskRealtimeClient {
             // Subscribe to new queries:
             if (newQueries.size > 0) {
                 const newQueriesArray = Array.from(newQueries);
+
+                const newQueryLimits = newQueriesArray.map(query =>
+                    // When subscribing to a query, load at least the grid view limit.
+                    //
+                    // If we're re-subscribing to a query that had many tasks then we want to load
+                    // all those tasks back. If the query requested to load more tasks then add
+                    // those on as well.
+                    Math.max(
+                        query.taskOrderStore.getSnapshot().length +
+                            query.loadMoreTaskCountStore.getSnapshot(),
+                        getTaskGridViewLoadQueryLimit(getClientInfoWithoutListening()),
+                    ),
+                );
 
                 // When either:
                 //
@@ -115,27 +138,15 @@ export class TaskRealtimeClient {
                 // for now. Maybe there's cool research around CRDT state vectors we can use
                 // for syncing? A dumb optimization like a `lastModified` timestamp that noops
                 // if the query was not modified since then could also work.
-                const subscribePromise = this._client.procedures.subscribeToQueries({
-                    queries: newQueriesArray.map(query => ({
-                        limit: query.getDesiredCountSnapshot(),
-                        filters: query.filters,
-                        sorts: query.sorts,
-                    })),
-                });
-
-                for (let i = 0; i < newQueriesArray.length; i++) {
-                    const query = newQueriesArray[i]!;
-
-                    subscribedQueries.add({
-                        query,
-                        querySubscriptionId: subscribePromise.then(
-                            output => output.queries[i]!.querySubscriptionId,
-                        ),
-                    });
-                }
-
-                subscribePromise.then(
-                    output => {
+                const subscribePromise = this._client.procedures
+                    .subscribeToQueries({
+                        queries: newQueriesArray.map((query, i) => ({
+                            limit: newQueryLimits[i]!,
+                            filters: query.filters,
+                            sorts: query.sorts,
+                        })),
+                    })
+                    .then(output => {
                         batchStoreUpdates(() => {
                             for (let i = 0; i < output.queries.length; i++) {
                                 const query = newQueriesArray[i]!;
@@ -143,22 +154,95 @@ export class TaskRealtimeClient {
                                     output.queries[i]!;
 
                                 this.store.loadTasksIntoQuery(query, {
+                                    limit: newQueryLimits[i]!,
                                     loadedState,
                                     previouslyBackfilledTaskIds,
                                 });
                             }
                         });
-                    },
-                    error => {
-                        // NOCOMMIT: How do we present errors??
-                        console.error(error);
-                    },
-                );
+
+                        return output;
+                    });
+
+                for (let i = 0; i < newQueriesArray.length; i++) {
+                    const query = newQueriesArray[i]!;
+
+                    const querySubscriptionIdPromise = subscribePromise.then(
+                        output => output.queries[i]!.querySubscriptionId,
+                    );
+
+                    const loadMoreTasksMutex = new Mutex();
+
+                    const loadMoreTasks = () => {
+                        // Use a mutex to only let one `loadMoreQueryTasks` call run at a time. A
+                        // previous `loadMoreQueryTasks` call may fulfill the next one.
+                        const loadMoreTasksPromise = loadMoreTasksMutex.withLock(async () => {
+                            // If a query was unsubscribed then don't load more tasks.
+                            if (!queriesStore.getSnapshot().has(query)) return;
+
+                            const querySubscriptionId = await querySubscriptionIdPromise;
+
+                            const loadMoreTaskCount = query.loadMoreTaskCountStore.getSnapshot();
+
+                            // Don't proceed if there are no more tasks to load. May happen if a previous
+                            // `loadMoreTasks` call fully loaded our query.
+                            if (loadMoreTaskCount === 0) return;
+
+                            const {loadedState, previouslyBackfilledTaskIds} =
+                                await this._client.procedures.loadMoreQueryTasks({
+                                    querySubscriptionId,
+                                    limit: loadMoreTaskCount,
+                                });
+
+                            this.store.loadTasksIntoQuery(query, {
+                                limit: loadMoreTaskCount,
+                                loadedState,
+                                previouslyBackfilledTaskIds,
+                            });
+                        });
+
+                        loadMoreTasksPromise.catch(error => {
+                            // If this promise fails after the query unsubscribes then that's expected! Not
+                            // a glitch, don't present to the user. `unsubscribeFromQueries` will cause any
+                            // pending loads to fail with `CancelledError`. Still log the exception for
+                            // tracking though. Maybe it was a system error?
+                            if (!queriesStore.getSnapshot().has(query)) {
+                                this._getContext()
+                                    .tracer.getRoot()
+                                    .logUncaughtException(
+                                        "Loading more tasks for query failed after query was unsubscribed",
+                                        error,
+                                    );
+                                return;
+                            }
+
+                            // NOCOMMIT: How do we present errors to the user??
+                            console.error(error);
+                        });
+                    };
+
+                    // When the query's `loadMoreTask` property changes that triggers a data load
+                    // here in our realtime client to...load more tasks.
+                    const unsubscribeFromLoadMoreTaskCount =
+                        query.loadMoreTaskCountStore.subscribe(loadMoreTasks);
+
+                    subscribedQueries.add({
+                        query,
+                        querySubscriptionIdPromise,
+                        unsubscribeFromLoadMoreTaskCount,
+                    });
+                }
+
+                subscribePromise.catch(error => {
+                    // NOCOMMIT: How do we present errors??
+                    console.error(error);
+                });
             }
 
             // Unsubscribe from old queries:
             if (oldSubscribedQueries.size > 0) {
                 for (const subscribedQuery of oldSubscribedQueries) {
+                    subscribedQuery.unsubscribeFromLoadMoreTaskCount();
                     subscribedQueries.delete(subscribedQuery);
                 }
 
@@ -167,13 +251,13 @@ export class TaskRealtimeClient {
                 Promise.allSettled(
                     Array.from(
                         oldSubscribedQueries,
-                        subscribedQuery => subscribedQuery.querySubscriptionId,
+                        subscribedQuery => subscribedQuery.querySubscriptionIdPromise,
                     ),
                 )
                     .then(querySubscriptionIdResults => {
-                        // Ignore any errors when resolving `querySubscriptionId` promises. Those
-                        // errors should have been handled above. If a `querySubscriptionId` erred it
-                        // is not subscribed on the server.
+                        // Ignore any errors when resolving `querySubscriptionIdPromise`s. Those
+                        // errors should have been handled above. If a `querySubscriptionIdPromise`
+                        // erred it is not subscribed on the server.
                         const querySubscriptionIds = filterMapArray(
                             querySubscriptionIdResults,
                             querySubscriptionIdResult =>

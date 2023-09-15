@@ -9,7 +9,7 @@ import {
 } from "~/server/tasks/realtime/task_realtime_store.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
 import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
-import {InternalError} from "~/shared/error/error.js";
+import {CancelledError, InternalError} from "~/shared/error/error.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {createPromiseImmediateResolver} from "~/shared/helpers/async/promise_immediate_resolver.js";
@@ -379,6 +379,11 @@ export class TaskRealtimeQuerySubscriptionInternal {
             context,
             this._loadedCount + limit - this.query.getLoadedTaskCount(),
         );
+
+        // If our subscription was unsubscribed while we are loading, don't continue
+        // updating the subscription's state.
+        if (!this._isSubscribed)
+            throw new CancelledError("Query subscription was unsubscribed while loading data");
 
         return this._loadMoreTasksSync(context, eventBuilder, limit);
     }

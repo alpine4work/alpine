@@ -107,10 +107,9 @@ export const defaultMobileClientInfo: ClientInfo = {
     screenWidth: mobileMaxScreenWidth,
 
     /**
-     * The common responsive design height of a device with a width of
-     * `mobileMaxScreenWidth`. From [BrowserStack][1].
+     * The largest common screen height for mobile according to [BrowserStack][1].
      *
      * [1]: https://www.browserstack.com/guide/ideal-screen-sizes-for-responsive-design
      */
-    screenHeight: 1366,
+    screenHeight: 926,
 };

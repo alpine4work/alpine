@@ -1,21 +1,24 @@
+import {SpinnerGap} from "phosphor-react";
 import {Selection} from "prosemirror-state";
 import {useEffect, useMemo, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
-import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
+import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {ConstStore} from "~/client/helpers/store/const_store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
+import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/get_new_task_position_for_query_sorted_by_position.js";
+import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_key.js";
 import {TaskGridViewVirtualizedTaskList} from "~/client/tasks/internal/task_grid_view_virtualized_task_list.js";
-import {taskRowViewMinHeight} from "~/client/tasks/internal/task_row_shared_styles.js";
 import {TaskRowShimmer} from "~/client/tasks/internal/task_row_shimmer.js";
 import {TaskRowView, TaskRowViewRef} from "~/client/tasks/internal/task_row_view.js";
 import {useTaskGridViewExpansionState} from "~/client/tasks/internal/use_task_grid_view_expansion_state.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
+import {taskRowViewMinHeight} from "~/client/tasks/task_row_shared_styles.js";
 import {VirtualizedScrollViewItem} from "~/client/virtualized/virtualized_scroll_view.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, spacing} from "~/shared/design/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -24,18 +27,28 @@ import {noop} from "~/shared/helpers/control/noop.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
-import {colorSchemeVars} from "~/shared/styles/styles.js";
+import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {getTaskQuerySortCursorTaskId} from "~/shared/tasks/task_query_sort_cursor.js";
 
 const undefinedConstStore = new ConstStore(undefined);
 
+const taskGridViewMoreUnloadedTasksSpinnerHeight = addRemLengths(
+    spacing[taskRowViewMinHeight],
+    spacing[taskRowViewMinHeight],
+    spacing[taskRowViewMinHeight],
+    spacing["4"],
+    spacing["6"],
+    spacing["4"],
+);
+
 export function useTaskGridViewVirtualizedList({
     capabilities,
     query,
     initialExpandedState,
     initialBottomGhostTaskId,
+    getRenderedRange: _getRenderedRange,
     getMoveTaskToQueryActions: _getMoveTaskToQueryActions,
     getMaybeRemoveTaskFromQueryWhenNestingActions: _getMaybeRemoveTaskFromQueryWhenNestingActions,
 }: {
@@ -43,6 +56,7 @@ export function useTaskGridViewVirtualizedList({
     query: TaskClientQuery;
     initialExpandedState: TaskGridViewExpansionState;
     initialBottomGhostTaskId: TaskId;
+    getRenderedRange: () => {startIndex: number; endIndex: number} | null;
     getMoveTaskToQueryActions: (
         taskId: TaskId,
         position: {type: "End"} | {type: "Above"; taskId: TaskId} | {type: "Below"; taskId: TaskId},
@@ -65,8 +79,10 @@ export function useTaskGridViewVirtualizedList({
     );
 
     const list = useStore(listStore);
+    const loadedState = useStore(query.loadedStateStore);
 
     const events = useEvents({
+        getRenderedRange: _getRenderedRange,
         getMoveTaskToQueryActions: _getMoveTaskToQueryActions,
         getMaybeRemoveTaskFromQueryWhenNestingActions:
             _getMaybeRemoveTaskFromQueryWhenNestingActions,
@@ -101,7 +117,38 @@ export function useTaskGridViewVirtualizedList({
         };
     }, []);
 
-    const itemCount = Math.max(list.getItemCount() + 1, 3);
+    const itemCount =
+        loadedState !== "FullyLoaded"
+            ? list.getItemCount() + 1
+            : Math.max(list.getItemCount() + 1, 3);
+
+    const tryLoadingMoreData = useEvent(
+        (renderedRange: {startIndex: number; endIndex: number} | null) => {
+            if (!renderedRange) return;
+
+            if (loadedState !== "FullyLoaded") {
+                const moreUnloadedTasksIndex = list.getItemCount();
+
+                if (
+                    renderedRange.startIndex <= moreUnloadedTasksIndex &&
+                    moreUnloadedTasksIndex <= renderedRange.endIndex
+                ) {
+                    query.loadMoreTasks(
+                        getTaskGridViewLoadQueryLimit(getClientInfoWithoutListening()),
+                    );
+                }
+            }
+        },
+    );
+
+    // Whenever our list changes, try rendering more data. Maybe a task was
+    // expanded and we haven't loaded the children of that task?
+    useEffect(() => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        list;
+
+        tryLoadingMoreData(events.getRenderedRange());
+    }, [events, list, tryLoadingMoreData]);
 
     const renderItem = useMemo(() => {
         const focusTaskTitleStart = (taskKey: TaskGridViewTaskKey) => {
@@ -159,12 +206,76 @@ export function useTaskGridViewVirtualizedList({
             };
 
             const listItemCount = list.getItemCount();
-            let relativeItemIndex = itemIndex;
 
             // If this item is below our task list then render either a ghost row or empty
             // decorative rows.
-            if (relativeItemIndex >= listItemCount) {
-                relativeItemIndex -= listItemCount;
+            if (itemIndex >= listItemCount) {
+                let relativeItemIndex = itemIndex - listItemCount;
+
+                if (loadedState !== "FullyLoaded") {
+                    const focusPreviousTaskTitleEnd = () => {
+                        for (let index = itemIndex - 1; index >= 0; index--) {
+                            const taskRow = taskRowByItemIndexRef.current.get(index);
+                            if (!taskRow) continue;
+
+                            taskRow.focusTitleEnd();
+                            break;
+                        }
+                    };
+
+                    const focusPreviousTaskTitleAll = () => {
+                        for (let index = itemIndex - 1; index >= 0; index--) {
+                            const taskRow = taskRowByItemIndexRef.current.get(index);
+                            if (!taskRow) continue;
+
+                            taskRow.focusTitleAll();
+                            break;
+                        }
+                    };
+
+                    return {
+                        key: "MoreUnloadedTasks",
+                        minHeight: taskGridViewMoreUnloadedTasksSpinnerHeight,
+                        node: (
+                            <>
+                                <TaskRowShimmer
+                                    randomSeed="MoreUnloadedTasks"
+                                    index={itemIndex}
+                                    indentation={0}
+                                    focusPreviousTaskTitleEnd={focusPreviousTaskTitleEnd}
+                                    focusPreviousTaskTitleAll={focusPreviousTaskTitleAll}
+                                />
+                                <TaskRowShimmer
+                                    randomSeed="MoreUnloadedTasks"
+                                    index={itemIndex + 1}
+                                    indentation={0}
+                                    focusPreviousTaskTitleEnd={focusPreviousTaskTitleEnd}
+                                    focusPreviousTaskTitleAll={focusPreviousTaskTitleAll}
+                                />
+                                <TaskRowShimmer
+                                    randomSeed="MoreUnloadedTasks"
+                                    index={itemIndex + 2}
+                                    indentation={0}
+                                    focusPreviousTaskTitleEnd={focusPreviousTaskTitleEnd}
+                                    focusPreviousTaskTitleAll={focusPreviousTaskTitleAll}
+                                />
+                                <Box
+                                    display="flex"
+                                    justifyContent="center"
+                                    color="grey-60"
+                                    paddingY="4"
+                                    pointerEvents="none"
+                                >
+                                    <SpinnerGap
+                                        className={spinAnimationClassName}
+                                        size={spacing["6"]}
+                                        weight="light"
+                                    />
+                                </Box>
+                            </>
+                        ),
+                    };
+                }
 
                 if (relativeItemIndex === 0) {
                     return {
@@ -256,7 +367,7 @@ export function useTaskGridViewVirtualizedList({
                 };
             }
 
-            const item = list.getItem(relativeItemIndex);
+            const item = list.getItem(itemIndex);
 
             if (item.type === "Task") {
                 const taskId = getTaskQuerySortCursorTaskId(item.cursor);
@@ -273,7 +384,7 @@ export function useTaskGridViewVirtualizedList({
 
                 const nestWithPreviousTaskRowIfExistsAndExpand = (titleSelection: Selection) => {
                     for (
-                        let previousItemIndex = relativeItemIndex - 1;
+                        let previousItemIndex = itemIndex - 1;
                         previousItemIndex >= 0;
                         previousItemIndex--
                     ) {
@@ -575,6 +686,7 @@ export function useTaskGridViewVirtualizedList({
         getAreChildTasksExpandedStore,
         itemCount,
         list,
+        loadedState,
         query,
         toggleAreChildTasksExpanded,
     ]);
@@ -582,5 +694,6 @@ export function useTaskGridViewVirtualizedList({
     return {
         itemCount,
         renderItem,
+        onRenderedRangeChange: tryLoadingMoreData,
     };
 }

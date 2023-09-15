@@ -420,10 +420,7 @@ export function useTaskGridViewExpansionState({
                     // visible once the task is expanded. We wait a bit for these tasks to load
                     // then actually expand.
                     const queries = Array.from(taskIdsToLoad, taskId =>
-                        store.ensureAndRetainTaskChildrenQuery(taskId, {
-                            // NOCOMMIT: Proper limit?
-                            desiredCount: 500,
-                        }),
+                        store.ensureAndRetainTaskChildrenQuery(taskId),
                     );
 
                     // If all the children queries are loaded, expand immediately!
@@ -585,10 +582,6 @@ export function useTaskGridViewExpansionState({
                     ) {
                         const query = store.ensureAndRetainTaskChildrenQuery(
                             newTaskPath[newTaskPath.length - 1]!,
-                            {
-                                // NOCOMMIT: Proper limit?
-                                desiredCount: 500,
-                            },
                         );
 
                         // Release our query at the end of this code block. `stateManager` will grab
@@ -597,6 +590,7 @@ export function useTaskGridViewExpansionState({
 
                         if (query.loadedStateStore.getSnapshot() === "Unloaded") {
                             store.loadTasksIntoQuery(query, {
+                                limit: 1,
                                 loadedState: {type: "Full"},
                                 previouslyBackfilledTaskIds: [newTaskEntry.task.id],
                             });

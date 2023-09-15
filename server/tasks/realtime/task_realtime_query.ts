@@ -13,7 +13,7 @@ import {
 } from "~/server/tasks/realtime/task_realtime_store.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
 import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
-import {InternalError} from "~/shared/error/error.js";
+import {CancelledError, InternalError} from "~/shared/error/error.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
@@ -378,6 +378,11 @@ export class TaskRealtimeQuery {
             } catch {
                 // noop...
             }
+
+            // If the query was destroyed while we were loading, don't continue updating
+            // the query's state.
+            if (this._isDestroyed)
+                throw new CancelledError("Query was destroyed while loading data");
         }
 
         this._loadingState = {
@@ -451,6 +456,10 @@ export class TaskRealtimeQuery {
             // OpenSearch query result.
             this.store.ensureFullActionHistory(context),
         ]);
+
+        // If the query was destroyed while we were loading, don't continue updating
+        // the query's state.
+        if (this._isDestroyed) throw new CancelledError("Query was destroyed while loading data");
 
         const maybeAddVisibleTaskLoadPromise = this._loadMoreTasksSync(
             context,
@@ -718,6 +727,11 @@ export class TaskRealtimeQuery {
         return runAllPromises(
             maybeAddVisibleTaskIdsToLoad.map(async taskId => {
                 const taskEntry = await this.store.loadTaskEntry(context, taskId);
+
+                // If the query was destroyed while we were loading, don't continue updating
+                // the query's state.
+                if (this._isDestroyed)
+                    throw new CancelledError("Query was destroyed while loading data");
 
                 // If some concurrent process added the task to our query we don't need to add
                 // it again.

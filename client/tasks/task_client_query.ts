@@ -68,6 +68,16 @@ export class TaskClientQuery {
      */
     public readonly taskOrderStore: Store<Tree<TaskQuerySortCursor, null>>;
 
+    /**
+     * The number of tasks we want to additionally load on top of what's already in
+     * the query. Will be zero if the query is fully loaded.
+     *
+     * The `TaskClientQuery` class does not make requests to load more data.
+     * Instead `TaskRealtimeClient` listens to this store and will make a request
+     * to load more data.
+     */
+    public readonly loadMoreTaskCountStore: Store<number>;
+
     constructor(internal: TaskClientQueryInternal) {
         this._internal = internal;
         this.store = this._internal.store.external;
@@ -75,6 +85,7 @@ export class TaskClientQuery {
         this.sorts = this._internal.sorts;
         this.loadedStateStore = this._internal.loadedStateStore;
         this.taskOrderStore = this._internal.taskOrderStore;
+        this.loadMoreTaskCountStore = this._internal.loadMoreTaskCountStore;
     }
 
     /**
@@ -99,10 +110,6 @@ export class TaskClientQuery {
 
     public release() {
         this._internal.release();
-    }
-
-    public getDesiredCountSnapshot() {
-        return this._internal.getDesiredCountSnapshot();
     }
 
     /**
@@ -164,6 +171,23 @@ export class TaskClientQuery {
     public getReferencedTaskSnapshot(taskId: TaskId): TaskModel {
         return assertExists(this._internal.getReferencedTaskEntryStore(taskId).getSnapshot().task);
     }
+
+    /**
+     * Load more tasks into the query.
+     *
+     * Will do nothing if the query is already fully loaded.
+     *
+     * If we're waiting on some data to load and you call this function again with
+     * the same `limit` then your request is covered by the previous load and we
+     * won't load additional data. If your limit is higher than what we're already
+     * loading (say by 10) then once the current requests finishes we'll ask for 10
+     * more tasks.
+     *
+     * Can only load more data if we're connected to the task realtime service.
+     */
+    public loadMoreTasks(limit: number): void {
+        this._internal.loadMoreTasks(limit);
+    }
 }
 
 export class TaskClientQueryInternal {
@@ -178,13 +202,6 @@ export class TaskClientQueryInternal {
      * reference count reaches 0 the query is unloaded.
      */
     private _referenceCount = 1;
-
-    /**
-     * The desired number of tasks we'd like to load into this query. Used as the
-     * query's `limit` when initially loading. We may have more than or fewer tasks
-     * than the desired count at any point in time.
-     */
-    private _desiredCount: number;
 
     private readonly _taskOrderAndLoadedStateStore: ValueStore<{
         // `loadedState` is null when the query has not finished loading for the
@@ -216,19 +233,26 @@ export class TaskClientQueryInternal {
      */
     public readonly taskOrderStore: Store<Tree<TaskQuerySortCursor, null>>;
 
+    /**
+     * The number of tasks we want to additionally load on top of what's already in
+     * the query. Will be zero if the query is fully loaded.
+     *
+     * The `TaskClientQuery` class does not make requests to load more data.
+     * Instead `TaskRealtimeClient` listens to this store and will make a request
+     * to load more data.
+     */
+    public readonly loadMoreTaskCountStore = new ValueStore(0);
+
     constructor({
         store,
-        desiredCount,
         filters,
         sorts,
     }: {
         store: TaskClientStoreInternal;
-        desiredCount: number;
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
     }) {
         this.store = store;
-        this._desiredCount = desiredCount;
         this.filters = filters;
         this.sorts = sorts;
         this._taskOrderAndLoadedStateStore = new ValueStore<{
@@ -380,12 +404,9 @@ export class TaskClientQueryInternal {
                         compareTaskQuerySortCursors(this.sorts, cursor1, cursor2),
                     ),
                 });
+                this.loadMoreTaskCountStore.set(0);
             });
         }
-    }
-
-    public getDesiredCountSnapshot() {
-        return this._desiredCount;
     }
 
     public getLoadedTaskEntryStoreIfExists(taskId: TaskId): Store<TaskClientStoreTaskEntry> | null {
@@ -402,6 +423,20 @@ export class TaskClientQueryInternal {
         const referencedTaskEntryStore = this._referencedTaskEntryStoreById.get(taskId);
         if (!referencedTaskEntryStore) throw new InternalError("Task is not referenced in query");
         return referencedTaskEntryStore.taskEntryStore;
+    }
+
+    public loadMoreTasks(limit: number) {
+        // Noop if this query is released.
+        if (this._referenceCount === 0) return;
+
+        // If the query is fully loaded we can't load more tasks.
+        if (this._taskOrderAndLoadedStateStore.getSnapshot().loadedState?.type === "Full") return;
+
+        this.loadMoreTaskCountStore.set(loadMoreTaskCount =>
+            // Take the max since if we're already loading more tasks this call will be
+            // covered by the ongoing load.
+            Math.max(loadMoreTaskCount, limit),
+        );
     }
 
     /**
@@ -550,13 +585,18 @@ export class TaskClientQueryInternal {
      * in the backfill update event which we should have and should backfill into
      * our query.
      */
-    public onTasksLoaded(
-        loadedState: TaskRealtimeQueryLoadedState,
+    public onTasksLoaded({
+        limit,
+        loadedState,
+        previouslyBackfilledTasks,
+    }: {
+        limit: number;
+        loadedState: TaskRealtimeQueryLoadedState;
         previouslyBackfilledTasks: Array<{
             taskEntryStore: ValueStore<TaskClientStoreTaskEntry>;
             taskEntry: TaskClientStoreTaskEntry & {task: TaskModel};
-        }>,
-    ): void {
+        }>;
+    }): void {
         // Noop if this query is released.
         if (this._referenceCount === 0) return;
 
@@ -591,12 +631,19 @@ export class TaskClientQueryInternal {
             this._taskEntryStoreById.set(taskEntry.task.id, taskEntryStore);
         }
 
-        if (previousLoadedState !== nextLoadedState || previousTaskOrder !== nextTaskOrder) {
-            this._taskOrderAndLoadedStateStore.set({
-                loadedState: nextLoadedState,
-                taskOrder: nextTaskOrder,
-            });
-        }
+        batchStoreUpdates(() => {
+            // If we're fully loaded then there are no more tasks to load.
+            this.loadMoreTaskCountStore.set(loadMoreTaskCount =>
+                nextLoadedState?.type === "Full" ? 0 : Math.max(0, loadMoreTaskCount - limit),
+            );
+
+            if (previousLoadedState !== nextLoadedState || previousTaskOrder !== nextTaskOrder) {
+                this._taskOrderAndLoadedStateStore.set({
+                    loadedState: nextLoadedState,
+                    taskOrder: nextTaskOrder,
+                });
+            }
+        });
 
         // Make sure our query is well formed in test environments.
         if (process.env.NODE_ENV !== "production") {
