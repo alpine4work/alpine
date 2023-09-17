@@ -108,6 +108,7 @@ import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {TaskTitleUpdate, emptyTaskTitle} from "~/shared/tasks/task_title.js";
 
 export type TaskRowViewRef = {
+    isTitleFocused(): boolean;
     focusTitleStart(): void;
     focusTitleEnd(): void;
     focusTitleAll(): void;
@@ -141,6 +142,8 @@ function TaskRowView(
         focusNextTaskTitleCoord,
         focusPreviousTaskTitleCoord,
         preserveLastTaskTitleArrowNavigationCoord,
+        focusFirstVisibleTaskTitleStart,
+        focusLastVisibleTaskTitleEnd,
     }: {
         query: TaskClientQuery;
         capabilities: TaskGridViewCapabilities;
@@ -196,12 +199,12 @@ function TaskRowView(
         // NOCOMMIT:
         // deleteTaskAndAllChildrenAndFocusPreviousRow: () => void;
         // deleteTaskAndAllChildrenMaybeWithConfirmation: () => void;
-        // focusFirstTaskTitleStart: () => void;
-        // focusLastTaskTitleEnd: () => void;
         focusTaskTitleStart: (taskKey: TaskGridViewTaskKey) => void;
         focusNextTaskTitleCoord: (coord: number) => void;
         focusPreviousTaskTitleCoord: (coord: number) => void;
         preserveLastTaskTitleArrowNavigationCoord: () => void;
+        focusFirstVisibleTaskTitleStart: () => void;
+        focusLastVisibleTaskTitleEnd: () => void;
     },
     ref: Ref<TaskRowViewRef>,
 ) {
@@ -337,29 +340,39 @@ function TaskRowView(
     // const dueDateCellRef = useRef<TaskRowDueDateCellRef>(null);
     // const collectionsCellRef = useRef<TaskRowCollectionsCellRef>(null);
 
-    const {focusTitleStart, focusTitleEnd, focusTitleAll, focusTitleCoord, focusTitleSelection} =
-        useMemo(
-            () => ({
-                focusTitleStart: () => {
-                    assertExists(titleInputRef.current).focusStart();
-                },
-                focusTitleEnd: () => {
-                    assertExists(titleInputRef.current).focusEnd();
-                },
-                focusTitleAll: () => {
-                    assertExists(titleInputRef.current).focusAll();
-                },
-                focusTitleCoord: (coord: number, side: "top" | "bottom") => {
-                    assertExists(titleInputRef.current).focusCoord(coord, side);
-                },
-                focusTitleSelection: (selection: Selection) => {
-                    assertExists(titleInputRef.current).focusSelection(selection);
-                },
-            }),
-            [],
-        );
+    const {
+        isTitleFocused,
+        focusTitleStart,
+        focusTitleEnd,
+        focusTitleAll,
+        focusTitleCoord,
+        focusTitleSelection,
+    } = useMemo(
+        () => ({
+            isTitleFocused: () => {
+                return assertExists(titleInputRef.current).isFocused();
+            },
+            focusTitleStart: () => {
+                assertExists(titleInputRef.current).focusStart();
+            },
+            focusTitleEnd: () => {
+                assertExists(titleInputRef.current).focusEnd();
+            },
+            focusTitleAll: () => {
+                assertExists(titleInputRef.current).focusAll();
+            },
+            focusTitleCoord: (coord: number, side: "top" | "bottom") => {
+                assertExists(titleInputRef.current).focusCoord(coord, side);
+            },
+            focusTitleSelection: (selection: Selection) => {
+                assertExists(titleInputRef.current).focusSelection(selection);
+            },
+        }),
+        [],
+    );
 
     useImperativeHandle(ref, () => ({
+        isTitleFocused,
         focusTitleStart,
         focusTitleEnd,
         focusTitleAll,
@@ -449,6 +462,139 @@ function TaskRowView(
 
         return contextMenuActions;
     })();
+
+    const createTaskAbove = () => {
+        const newTaskId = generateId<TaskId>();
+
+        query.store.commitTaskActionTransaction(context, [
+            {
+                type: "UpdateTask",
+                time: query.store.clock.now(),
+                taskId: newTaskId,
+                taskAction: {
+                    type: "Create",
+                    creator: TaskSortableAccount.from(currentAccount),
+                    creatorTimeZone: timeZone,
+                },
+            },
+            ...getMoveTaskToQueryActions(
+                newTaskId,
+                taskId ? {type: "Above", taskId} : {type: "End"},
+            ),
+        ]);
+    };
+
+    const createTaskBelowAndFocus = () => {
+        const newTaskId = generateId<TaskId>();
+
+        // If we have a task with children, the children are expanded, and the children
+        // are loaded then to create a task below this task we need to create it as the
+        // first child of this task.
+        //
+        // Otherwise we fall down to the branch below and create a task below ours in
+        // our query.
+        if (task && task.getChildTaskCount() > 0 && areChildTasksExpandedStore.getSnapshot()) {
+            const childrenQuery = query.store.getTaskChildrenQueryStore(task.id).getSnapshot();
+            if (childrenQuery && childrenQuery.loadedStateStore.getSnapshot() !== "Unloaded") {
+                const time1 = query.store.clock.now();
+                const time2 = query.store.clock.now();
+                const time3 = query.store.clock.now();
+
+                let position: TaskPosition = {
+                    orderTime: time3,
+                    orderKey: initialOrderKey,
+                };
+
+                const firstChildCursor = childrenQuery.taskOrderStore.getSnapshot().begin.key;
+
+                const firstChildPosition = firstChildCursor
+                    ? childrenQuery
+                          .getLoadedTaskSnapshot(getTaskQuerySortCursorTaskId(firstChildCursor))
+                          .getParent()?.position
+                    : null;
+
+                if (firstChildPosition) {
+                    position = {
+                        orderTime: firstChildPosition.orderTime,
+                        orderKey: generateOrderKeyBetween(null, firstChildPosition.orderKey),
+                    };
+                }
+
+                query.store.commitTaskActionTransaction(context, [
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId: newTaskId,
+                        taskAction: {
+                            type: "Create",
+                            creator: TaskSortableAccount.from(currentAccount),
+                            creatorTimeZone: timeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId: newTaskId,
+                        taskAction: {
+                            type: "UpdateParentTaskId",
+                            parentTaskId: taskId,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time3,
+                        taskId: newTaskId,
+                        taskAction: {
+                            type: "UpdateParentPosition",
+                            parentPosition: position,
+                        },
+                    },
+                ]);
+
+                // Store updates are rendered by React immediately. So focus our task before
+                // the next paint.
+                requestAnimationFrame(() => {
+                    if (parentTaskCursors.length === 0) {
+                        focusTaskTitleStart(`${task.id}-${newTaskId}`);
+                    } else {
+                        focusTaskTitleStart(
+                            `${getTaskQuerySortCursorTaskId(parentTaskCursors[0]!)}-${newTaskId}`,
+                        );
+                    }
+                });
+                return;
+            }
+        }
+
+        query.store.commitTaskActionTransaction(context, [
+            {
+                type: "UpdateTask",
+                time: query.store.clock.now(),
+                taskId: newTaskId,
+                taskAction: {
+                    type: "Create",
+                    creator: TaskSortableAccount.from(currentAccount),
+                    creatorTimeZone: timeZone,
+                },
+            },
+            ...getMoveTaskToQueryActions(
+                newTaskId,
+                taskId ? {type: "Below", taskId} : {type: "End"},
+            ),
+        ]);
+
+        // Store updates are rendered by React immediately. So focus our task before
+        // the next paint.
+        requestAnimationFrame(() => {
+            if (parentTaskCursors.length === 0) {
+                focusTaskTitleStart(newTaskId);
+            } else {
+                focusTaskTitleStart(
+                    `${getTaskQuerySortCursorTaskId(parentTaskCursors[0]!)}-${newTaskId}`,
+                );
+            }
+        });
+    };
 
     const marginLeft: RemLength = `${
         parseRemLengthNumber(spacing["5"]) +
@@ -620,163 +766,8 @@ function TaskRowView(
                                 closedChildTaskCount={task?.getClosedChildTaskCount() ?? 0}
                                 areChildTasksExpandedStore={areChildTasksExpandedStore}
                                 onAreChildTasksExpandedToggle={onAreChildTasksExpandedToggle}
-                                createTaskAbove={() => {
-                                    const newTaskId = generateId<TaskId>();
-
-                                    query.store.commitTaskActionTransaction(context, [
-                                        {
-                                            type: "UpdateTask",
-                                            time: query.store.clock.now(),
-                                            taskId: newTaskId,
-                                            taskAction: {
-                                                type: "Create",
-                                                creator: TaskSortableAccount.from(currentAccount),
-                                                creatorTimeZone: timeZone,
-                                            },
-                                        },
-                                        ...getMoveTaskToQueryActions(
-                                            newTaskId,
-                                            taskId ? {type: "Above", taskId} : {type: "End"},
-                                        ),
-                                    ]);
-                                }}
-                                createTaskBelowAndFocus={() => {
-                                    const newTaskId = generateId<TaskId>();
-
-                                    // If we have a task with children, the children are expanded, and the children
-                                    // are loaded then to create a task below this task we need to create it as the
-                                    // first child of this task.
-                                    //
-                                    // Otherwise we fall down to the branch below and create a task below ours in
-                                    // our query.
-                                    if (
-                                        task &&
-                                        task.getChildTaskCount() > 0 &&
-                                        areChildTasksExpandedStore.getSnapshot()
-                                    ) {
-                                        const childrenQuery = query.store
-                                            .getTaskChildrenQueryStore(task.id)
-                                            .getSnapshot();
-                                        if (
-                                            childrenQuery &&
-                                            childrenQuery.loadedStateStore.getSnapshot() !==
-                                                "Unloaded"
-                                        ) {
-                                            const time1 = query.store.clock.now();
-                                            const time2 = query.store.clock.now();
-                                            const time3 = query.store.clock.now();
-
-                                            let position: TaskPosition = {
-                                                orderTime: time3,
-                                                orderKey: initialOrderKey,
-                                            };
-
-                                            const firstChildCursor =
-                                                childrenQuery.taskOrderStore.getSnapshot().begin
-                                                    .key;
-
-                                            const firstChildPosition = firstChildCursor
-                                                ? childrenQuery
-                                                      .getLoadedTaskSnapshot(
-                                                          getTaskQuerySortCursorTaskId(
-                                                              firstChildCursor,
-                                                          ),
-                                                      )
-                                                      .getParent()?.position
-                                                : null;
-
-                                            if (firstChildPosition) {
-                                                position = {
-                                                    orderTime: firstChildPosition.orderTime,
-                                                    orderKey: generateOrderKeyBetween(
-                                                        null,
-                                                        firstChildPosition.orderKey,
-                                                    ),
-                                                };
-                                            }
-
-                                            query.store.commitTaskActionTransaction(context, [
-                                                {
-                                                    type: "UpdateTask",
-                                                    time: time1,
-                                                    taskId: newTaskId,
-                                                    taskAction: {
-                                                        type: "Create",
-                                                        creator:
-                                                            TaskSortableAccount.from(
-                                                                currentAccount,
-                                                            ),
-                                                        creatorTimeZone: timeZone,
-                                                    },
-                                                },
-                                                {
-                                                    type: "UpdateTask",
-                                                    time: time2,
-                                                    taskId: newTaskId,
-                                                    taskAction: {
-                                                        type: "UpdateParentTaskId",
-                                                        parentTaskId: taskId,
-                                                    },
-                                                },
-                                                {
-                                                    type: "UpdateTask",
-                                                    time: time3,
-                                                    taskId: newTaskId,
-                                                    taskAction: {
-                                                        type: "UpdateParentPosition",
-                                                        parentPosition: position,
-                                                    },
-                                                },
-                                            ]);
-
-                                            // Store updates are rendered by React immediately. So focus our task before
-                                            // the next paint.
-                                            requestAnimationFrame(() => {
-                                                if (parentTaskCursors.length === 0) {
-                                                    focusTaskTitleStart(`${task.id}-${newTaskId}`);
-                                                } else {
-                                                    focusTaskTitleStart(
-                                                        `${getTaskQuerySortCursorTaskId(
-                                                            parentTaskCursors[0]!,
-                                                        )}-${newTaskId}`,
-                                                    );
-                                                }
-                                            });
-                                            return;
-                                        }
-                                    }
-
-                                    query.store.commitTaskActionTransaction(context, [
-                                        {
-                                            type: "UpdateTask",
-                                            time: query.store.clock.now(),
-                                            taskId: newTaskId,
-                                            taskAction: {
-                                                type: "Create",
-                                                creator: TaskSortableAccount.from(currentAccount),
-                                                creatorTimeZone: timeZone,
-                                            },
-                                        },
-                                        ...getMoveTaskToQueryActions(
-                                            newTaskId,
-                                            taskId ? {type: "Below", taskId} : {type: "End"},
-                                        ),
-                                    ]);
-
-                                    // Store updates are rendered by React immediately. So focus our task before
-                                    // the next paint.
-                                    requestAnimationFrame(() => {
-                                        if (parentTaskCursors.length === 0) {
-                                            focusTaskTitleStart(newTaskId);
-                                        } else {
-                                            focusTaskTitleStart(
-                                                `${getTaskQuerySortCursorTaskId(
-                                                    parentTaskCursors[0]!,
-                                                )}-${newTaskId}`,
-                                            );
-                                        }
-                                    });
-                                }}
+                                createTaskAbove={createTaskAbove}
+                                createTaskBelowAndFocus={createTaskBelowAndFocus}
                                 nestWithPreviousTaskRowIfExistsAndExpand={
                                     nestWithPreviousTaskRowIfExistsAndExpand
                                 }
@@ -786,42 +777,9 @@ function TaskRowView(
                                 preserveLastTaskTitleArrowNavigationCoord={
                                     preserveLastTaskTitleArrowNavigationCoord
                                 }
+                                focusFirstVisibleTaskTitleStart={focusFirstVisibleTaskTitleStart}
+                                focusLastVisibleTaskTitleEnd={focusLastVisibleTaskTitleEnd}
                             />
-                            {/* NOCOMMIT: <TaskRowTitleInput
-                            ref={titleInputRef}
-                            capabilities={capabilities}
-                            title={title}
-                            onTitleChange={onTitleChange}
-                            placeholder={titlePlaceholder}
-                            indentation={indentation}
-                            parentTaskTitle={parentTaskTitle}
-                            childTaskCount={childTaskCount}
-                            closedChildTaskCount={closedChildTaskCount}
-                            areChildTasksCollapsed={areChildTasksCollapsed}
-                            onAreChildTasksCollapsedToggle={onAreChildTasksCollapsedToggle}
-                            createTaskAbove={createTaskAbove}
-                            createTaskBelowAndFocus={createTaskBelowAndFocus}
-                            createTaskChildAtStartAndFocus={createTaskChildAtStartAndFocus}
-                            nestWithPreviousTaskRowIfExistsAndExpand={
-                                nestWithPreviousTaskRowIfExistsAndExpand
-                            }
-                            unnestTaskIfNestedRow={unnestTaskIfNestedRow}
-                            deleteTaskAndAllChildrenAndFocusPreviousRow={
-                                deleteTaskAndAllChildrenAndFocusPreviousRow
-                            }
-                            focusNextTaskTitleCoord={focusNextTaskTitleCoord}
-                            focusPreviousTaskTitleCoord={focusPreviousTaskTitleCoord}
-                            preserveLastTaskTitleArrowNavigationCoord={
-                                preserveLastTaskTitleArrowNavigationCoord
-                            }
-                            focusFirstTaskTitleStart={focusFirstTaskTitleStart}
-                            focusLastTaskTitleEnd={focusLastTaskTitleEnd}
-                            focusTaskNextCell={() => {
-                                if (capabilities.hasColumns) {
-                                    assertExists(assigneeCellRef.current).focus();
-                                }
-                            }}
-                        /> */}
                         </Box>
                         {/* NOCOMMIT: {capabilities.hasColumns && (
                         <>

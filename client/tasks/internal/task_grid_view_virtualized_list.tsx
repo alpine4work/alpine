@@ -1,8 +1,9 @@
 import {SpinnerGap} from "phosphor-react";
 import {Selection} from "prosemirror-state";
-import {useEffect, useMemo, useRef, useState} from "react";
+import {Key, RefObject, useEffect, useMemo, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
+import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {ConstStore} from "~/client/helpers/store/const_store.js";
@@ -18,13 +19,18 @@ import {TaskRowView, TaskRowViewRef} from "~/client/tasks/internal/task_row_view
 import {useTaskGridViewExpansionState} from "~/client/tasks/internal/use_task_grid_view_expansion_state.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {taskRowViewMinHeight} from "~/client/tasks/task_row_shared_styles.js";
-import {VirtualizedScrollViewItem} from "~/client/virtualized/virtualized_scroll_view.js";
-import {addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {
+    VirtualizedScrollViewItem,
+    VirtualizedScrollViewRef,
+} from "~/client/virtualized/virtualized_scroll_view.js";
+import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
@@ -45,12 +51,30 @@ const taskGridViewMoreUnloadedTasksSpinnerHeight = addRemLengths(
     spacing["4"],
 );
 
+type TaskGridViewVirtualizedListViewRef = {
+    getHeight: () => number;
+    getContentHeight: () => number;
+    getScrollOffset: () => number;
+    setScrollOffset: (scrollOffset: number) => void;
+    getRenderedRange: () => {startIndex: number; endIndex: number} | null;
+    getKeyByIndexIfExists: (index: number) => Key | null;
+    getPositionByIndex: (index: number) => {offset: number; height: number};
+    peekRenderedRangeAfterSetScrollOffset: (
+        scrollOffset: number,
+    ) => {startIndex: number; endIndex: number} | null;
+};
+
+// Should be able to pass `VirtualizedScrollViewRef` in for
+// `TaskGridViewVirtualizedListViewRef`. Often our virtualized grid view will
+// have other stuff besides tasks so a modified ref object may be passed in.
+assertAssignableTypes<VirtualizedScrollViewRef, TaskGridViewVirtualizedListViewRef>();
+
 export function useTaskGridViewVirtualizedList({
     capabilities,
     query,
     initialExpandedState,
     initialBottomGhostTaskId,
-    getRenderedRange: _getRenderedRange,
+    viewRef,
     getMoveTaskToQueryActions: _getMoveTaskToQueryActions,
     getMaybeRemoveTaskFromQueryWhenNestingActions: _getMaybeRemoveTaskFromQueryWhenNestingActions,
 }: {
@@ -58,7 +82,7 @@ export function useTaskGridViewVirtualizedList({
     query: TaskClientQuery;
     initialExpandedState: TaskGridViewExpansionState;
     initialBottomGhostTaskId: TaskId;
-    getRenderedRange: () => {startIndex: number; endIndex: number} | null;
+    viewRef: RefObject<TaskGridViewVirtualizedListViewRef | null>;
     getMoveTaskToQueryActions: (
         taskId: TaskId,
         position: {type: "End"} | {type: "Above"; taskId: TaskId} | {type: "Below"; taskId: TaskId},
@@ -87,7 +111,6 @@ export function useTaskGridViewVirtualizedList({
     const loadedState = useStore(query.loadedStateStore);
 
     const events = useEvents({
-        getRenderedRange: _getRenderedRange,
         getMoveTaskToQueryActions: _getMoveTaskToQueryActions,
         getMaybeRemoveTaskFromQueryWhenNestingActions:
             _getMaybeRemoveTaskFromQueryWhenNestingActions,
@@ -95,6 +118,10 @@ export function useTaskGridViewVirtualizedList({
 
     const taskRowByTaskKeyRef = useRef(new Map<TaskGridViewTaskKey, TaskRowViewRef>());
     const taskRowByItemIndexRef = useRef(new Map<number, TaskRowViewRef>());
+
+    const onRenderedRangeChangeCallbacksRef = useRef<
+        Array<(renderedRange: {startIndex: number; endIndex: number} | null) => void>
+    >([]);
 
     const lastArrowNavigationCoordRef = useRef<{setTime: Date; coord: number} | null>(null);
 
@@ -216,8 +243,9 @@ export function useTaskGridViewVirtualizedList({
         // eslint-disable-next-line @typescript-eslint/no-unused-expressions
         list;
 
-        tryLoadingMoreData(events.getRenderedRange());
-    }, [events, list, tryLoadingMoreData]);
+        const view = assertExists(viewRef.current);
+        tryLoadingMoreData(view.getRenderedRange());
+    }, [events, list, tryLoadingMoreData, viewRef]);
 
     const renderItem = useMemo(() => {
         const focusTaskTitleStart = (taskKey: TaskGridViewTaskKey) => {
@@ -234,6 +262,179 @@ export function useTaskGridViewVirtualizedList({
                     setTime: new Date(),
                     coord: lastArrowNavigationCoordRef.current.coord,
                 };
+            }
+        };
+
+        const getFirstVisibleTaskRowIfExists = (): TaskRowViewRef | null => {
+            const view = assertExists(viewRef.current);
+
+            const renderedRange = view.getRenderedRange();
+            if (!renderedRange) return null;
+
+            const height = view.getHeight();
+            const scrollOffset = view.getScrollOffset();
+
+            for (let index = renderedRange.startIndex; index <= renderedRange.endIndex; index++) {
+                const position = view.getPositionByIndex(index);
+
+                // Look for the first visible item in the scroll window...
+                if (
+                    position.offset < scrollOffset ||
+                    position.offset + position.height > scrollOffset + height
+                ) {
+                    continue;
+                }
+
+                const key = view.getKeyByIndexIfExists(index);
+
+                // We want the first visible task row. Ignore everything else.
+                if (typeof key !== "string" || !key.startsWith("Task:")) continue;
+
+                return assertExists(
+                    taskRowByTaskKeyRef.current.get(
+                        key.slice("Task:".length) as TaskGridViewTaskKey,
+                    ),
+                );
+            }
+
+            return null;
+        };
+
+        const focusFirstVisibleTaskTitleStart = () => {
+            const firstVisibleTaskRow = getFirstVisibleTaskRowIfExists();
+            if (!firstVisibleTaskRow) return;
+
+            // If the first visible task title is already focused then we want to scroll
+            // one page up and focus the first task after scrolling.
+            if (firstVisibleTaskRow.isTitleFocused()) {
+                focusFirstPageUpTaskTitleStart();
+            } else {
+                firstVisibleTaskRow.focusTitleStart();
+            }
+        };
+
+        const focusFirstPageUpTaskTitleStart = () => {
+            const view = assertExists(viewRef.current);
+
+            const height = view.getHeight();
+            const scrollOffset = view.getScrollOffset();
+
+            const newScrollOffset = Math.max(
+                0,
+                scrollOffset -
+                    (height -
+                        // We want to keep some overlap between tasks when paging up/down so the user
+                        // doesn't completely lose their context.
+                        convertRemLengthToPx(
+                            spacing[taskRowViewMinHeight],
+                            getRemPxWithoutListening(),
+                        ) *
+                            2),
+            );
+
+            const renderedRange = view.getRenderedRange();
+            const expectedRenderedRange =
+                view.peekRenderedRangeAfterSetScrollOffset(newScrollOffset);
+
+            view.setScrollOffset(newScrollOffset);
+
+            if (!expectedRenderedRange) return;
+
+            if (isDeepEqual(renderedRange, expectedRenderedRange)) {
+                const firstVisibleTaskRow = getFirstVisibleTaskRowIfExists();
+                firstVisibleTaskRow?.focusTitleStart();
+            } else {
+                onRenderedRangeChangeCallbacksRef.current.push(() => {
+                    const firstVisibleTaskRow = getFirstVisibleTaskRowIfExists();
+                    firstVisibleTaskRow?.focusTitleStart();
+                });
+            }
+        };
+
+        const getLastVisibleTaskRowIfExists = (): TaskRowViewRef | null => {
+            const view = assertExists(viewRef.current);
+
+            const renderedRange = view.getRenderedRange();
+            if (!renderedRange) return null;
+
+            const height = view.getHeight();
+            const scrollOffset = view.getScrollOffset();
+
+            for (let index = renderedRange.endIndex; index >= renderedRange.startIndex; index--) {
+                const position = view.getPositionByIndex(index);
+
+                // Look for the last visible item in the scroll window...
+                if (
+                    position.offset < scrollOffset ||
+                    position.offset + position.height > scrollOffset + height
+                ) {
+                    continue;
+                }
+
+                const key = view.getKeyByIndexIfExists(index);
+
+                // We want the first visible task row. Ignore everything else.
+                if (typeof key !== "string" || !key.startsWith("Task:")) continue;
+
+                return assertExists(
+                    taskRowByTaskKeyRef.current.get(
+                        key.slice("Task:".length) as TaskGridViewTaskKey,
+                    ),
+                );
+            }
+
+            return null;
+        };
+
+        const focusLastVisibleTaskTitleEnd = () => {
+            const lastVisibleTaskRow = getLastVisibleTaskRowIfExists();
+            if (!lastVisibleTaskRow) return;
+
+            // If the last visible task title is already focused then we want to scroll
+            // one page down and focus the last task after scrolling.
+            if (lastVisibleTaskRow.isTitleFocused()) {
+                focusLastPageDownTaskTitleEnd();
+            } else {
+                lastVisibleTaskRow.focusTitleEnd();
+            }
+        };
+
+        const focusLastPageDownTaskTitleEnd = () => {
+            const view = assertExists(viewRef.current);
+
+            const height = view.getHeight();
+            const contentHeight = view.getContentHeight();
+            const scrollOffset = view.getScrollOffset();
+
+            const newScrollOffset = Math.min(
+                contentHeight - height,
+                scrollOffset +
+                    (height -
+                        // We want to keep some overlap between tasks when paging up/down so the user
+                        // doesn't completely lose their context.
+                        convertRemLengthToPx(
+                            spacing[taskRowViewMinHeight],
+                            getRemPxWithoutListening(),
+                        ) *
+                            2),
+            );
+
+            const renderedRange = view.getRenderedRange();
+            const expectedRenderedRange =
+                view.peekRenderedRangeAfterSetScrollOffset(newScrollOffset);
+
+            view.setScrollOffset(newScrollOffset);
+
+            if (!expectedRenderedRange) return;
+
+            if (isDeepEqual(renderedRange, expectedRenderedRange)) {
+                const lastVisibleTaskRow = getLastVisibleTaskRowIfExists();
+                lastVisibleTaskRow?.focusTitleEnd();
+            } else {
+                onRenderedRangeChangeCallbacksRef.current.push(() => {
+                    const lastVisibleTaskRow = getLastVisibleTaskRowIfExists();
+                    lastVisibleTaskRow?.focusTitleEnd();
+                });
             }
         };
 
@@ -387,6 +588,8 @@ export function useTaskGridViewVirtualizedList({
                                 preserveLastTaskTitleArrowNavigationCoord={
                                     preserveLastTaskTitleArrowNavigationCoord
                                 }
+                                focusFirstVisibleTaskTitleStart={focusFirstVisibleTaskTitleStart}
+                                focusLastVisibleTaskTitleEnd={focusLastVisibleTaskTitleEnd}
                             />
                         ),
                     };
@@ -448,6 +651,49 @@ export function useTaskGridViewVirtualizedList({
                     ...item.parentTaskCursors.map(getTaskQuerySortCursorTaskId),
                     taskId,
                 ];
+
+                // If this is the root query then the new task needs to be added to that query.
+                // Otherwise we want to add the new task at the same indentation level that our
+                // task is currently at.
+                const getMoveTaskToQueryActions: typeof _getMoveTaskToQueryActions =
+                    item.query === query
+                        ? events.getMoveTaskToQueryActions
+                        : (newTaskId, position) => {
+                              const time1 = query.store.clock.now();
+                              const time2 = query.store.clock.now();
+
+                              return [
+                                  {
+                                      type: "UpdateTask",
+                                      time: time1,
+                                      taskId: newTaskId,
+                                      taskAction: {
+                                          type: "UpdateParentTaskId",
+                                          parentTaskId: getTaskQuerySortCursorTaskId(
+                                              assertExists(
+                                                  item.parentTaskCursors[
+                                                      item.parentTaskCursors.length - 1
+                                                  ],
+                                              ),
+                                          ),
+                                      },
+                                  },
+                                  {
+                                      type: "UpdateTask",
+                                      time: time2,
+                                      taskId: newTaskId,
+                                      taskAction: {
+                                          type: "UpdateParentPosition",
+                                          parentPosition:
+                                              getNewTaskPositionForQuerySortedByPosition(
+                                                  time2,
+                                                  item.query,
+                                                  position,
+                                              ),
+                                      },
+                                  },
+                              ];
+                          };
 
                 const nestWithPreviousTaskRowIfExistsAndExpand = (titleSelection: Selection) => {
                     for (
@@ -633,49 +879,7 @@ export function useTaskGridViewVirtualizedList({
                         onAreChildTasksExpandedToggle={() => {
                             toggleAreChildTasksExpanded(taskPath);
                         }}
-                        getMoveTaskToQueryActions={
-                            // If this is the root query then the new task needs to be added to that query.
-                            // Otherwise we want to add the new task at the same indentation level that our
-                            // task is currently at.
-                            item.query === query
-                                ? events.getMoveTaskToQueryActions
-                                : (newTaskId, position) => {
-                                      const time1 = query.store.clock.now();
-                                      const time2 = query.store.clock.now();
-
-                                      return [
-                                          {
-                                              type: "UpdateTask",
-                                              time: time1,
-                                              taskId: newTaskId,
-                                              taskAction: {
-                                                  type: "UpdateParentTaskId",
-                                                  parentTaskId: getTaskQuerySortCursorTaskId(
-                                                      assertExists(
-                                                          item.parentTaskCursors[
-                                                              item.parentTaskCursors.length - 1
-                                                          ],
-                                                      ),
-                                                  ),
-                                              },
-                                          },
-                                          {
-                                              type: "UpdateTask",
-                                              time: time2,
-                                              taskId: newTaskId,
-                                              taskAction: {
-                                                  type: "UpdateParentPosition",
-                                                  parentPosition:
-                                                      getNewTaskPositionForQuerySortedByPosition(
-                                                          time2,
-                                                          item.query,
-                                                          position,
-                                                      ),
-                                              },
-                                          },
-                                      ];
-                                  }
-                        }
+                        getMoveTaskToQueryActions={getMoveTaskToQueryActions}
                         nestWithPreviousTaskRowIfExistsAndExpand={
                             nestWithPreviousTaskRowIfExistsAndExpand
                         }
@@ -686,6 +890,8 @@ export function useTaskGridViewVirtualizedList({
                         preserveLastTaskTitleArrowNavigationCoord={
                             preserveLastTaskTitleArrowNavigationCoord
                         }
+                        focusFirstVisibleTaskTitleStart={focusFirstVisibleTaskTitleStart}
+                        focusLastVisibleTaskTitleEnd={focusLastVisibleTaskTitleEnd}
                     />
                 );
 
@@ -757,11 +963,21 @@ export function useTaskGridViewVirtualizedList({
         loadedState,
         query,
         toggleAreChildTasksExpanded,
+        viewRef,
     ]);
 
     return {
         itemCount,
         renderItem,
-        onRenderedRangeChange: tryLoadingMoreData,
+        onRenderedRangeChange: (renderedRange: {startIndex: number; endIndex: number} | null) => {
+            tryLoadingMoreData(renderedRange);
+
+            const callbacks = onRenderedRangeChangeCallbacksRef.current;
+            onRenderedRangeChangeCallbacksRef.current = [];
+
+            for (const callback of callbacks) {
+                callback(renderedRange);
+            }
+        },
     };
 }

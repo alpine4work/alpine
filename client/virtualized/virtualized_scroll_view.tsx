@@ -201,15 +201,6 @@ export type VirtualizedScrollViewRef = {
     scrollToKeyIfExists(key: Key): void;
 
     /**
-     * Look at what the rendered range will be after calling `scrollToIndex()`.
-     * This does not actually scroll the view but rather lets you peek into the
-     * future for preloading data at a given index.
-     */
-    peekRenderedRangeAfterScrollToIndex(
-        index: number,
-    ): {startIndex: number; endIndex: number} | null;
-
-    /**
      * Get the current scroll offset for the scroll view.
      */
     getScrollOffset(): number;
@@ -220,6 +211,22 @@ export type VirtualizedScrollViewRef = {
     setScrollOffset(scrollOffset: number): void;
 
     /**
+     * Returns the key at the provided index if we've rendered that index before.
+     * Otherwise the index is un-rendered buffered space and we return null. Throws
+     * if the index is out of bounds.
+     */
+    getKeyByIndexIfExists(index: number): Key | null;
+
+    /**
+     * Get the position of an item at the provided index. Throws an error if the
+     * index is out-of-bounds.
+     */
+    getPositionByIndex(index: number): {
+        offset: number;
+        height: number;
+    };
+
+    /**
      * Get the position of an item with the provided key. Returns null if an item
      * with the provided key does not exist.
      */
@@ -227,6 +234,24 @@ export type VirtualizedScrollViewRef = {
         offset: number;
         height: number;
     } | null;
+
+    /**
+     * Look at what the rendered range will be after calling `scrollToIndex()`.
+     * This does not actually scroll the view but rather lets you peek into the
+     * future for preloading data at a given index.
+     */
+    peekRenderedRangeAfterScrollToIndex(
+        index: number,
+    ): {startIndex: number; endIndex: number} | null;
+
+    /**
+     * Look at what the rendered range will be after calling `setScrollOffset()`.
+     * This does not actually scroll the view but rather lets you peek into the
+     * future for preloading data at a given index.
+     */
+    peekRenderedRangeAfterSetScrollOffset(
+        scrollOffset: number,
+    ): {startIndex: number; endIndex: number} | null;
 };
 
 const VirtualizedScrollViewForwardRef = forwardRef(VirtualizedScrollView);
@@ -1214,6 +1239,26 @@ function VirtualizedScrollView(
                     if (index === null) return;
                     scrollToIndex(index);
                 },
+                getScrollOffset: () => {
+                    const scrollElement = assertExists(scrollRef.current);
+                    return scrollElement.scrollTop;
+                },
+                setScrollOffset: scrollOffset => {
+                    const scrollElement = assertExists(scrollRef.current);
+                    scrollElement.scrollTop = scrollOffset;
+                },
+                getKeyByIndexIfExists: index => {
+                    const state = stateRef.current.state;
+                    return state.getKeyByIndexIfExists(index);
+                },
+                getPositionByIndex: index => {
+                    const state = stateRef.current.state;
+                    return state.getPositionByIndex(index);
+                },
+                getPositionByKeyIfExists: key => {
+                    const state = stateRef.current.state;
+                    return state.getPositionByKeyIfExists(key);
+                },
                 peekRenderedRangeAfterScrollToIndex: index => {
                     const state = stateRef.current.state;
                     const scrollElement = assertExists(scrollRef.current);
@@ -1232,17 +1277,16 @@ function VirtualizedScrollView(
 
                     return peekState.getRenderedRange();
                 },
-                getScrollOffset: () => {
-                    const scrollElement = assertExists(scrollRef.current);
-                    return scrollElement.scrollTop;
-                },
-                setScrollOffset: (scrollOffset: number) => {
-                    const scrollElement = assertExists(scrollRef.current);
-                    scrollElement.scrollTop = scrollOffset;
-                },
-                getPositionByKeyIfExists: key => {
+                peekRenderedRangeAfterSetScrollOffset: scrollOffset => {
                     const state = stateRef.current.state;
-                    return state.getPositionByKeyIfExists(key);
+
+                    const peekState = state.updateRenderedRange({
+                        scrollOffset,
+                        itemCount: stateRef.current.itemCount,
+                        getItem: stateRef.current.getItemWithoutRender,
+                    });
+
+                    return peekState.getRenderedRange();
                 },
             };
         },

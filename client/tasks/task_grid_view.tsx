@@ -99,7 +99,7 @@ export function TaskGridView({
         query,
         initialExpandedState,
         initialBottomGhostTaskId,
-        getRenderedRange: () => assertExists(viewRef.current).getRenderedRange(),
+        viewRef,
         getMoveTaskToQueryActions,
         getMaybeRemoveTaskFromQueryWhenNestingActions,
     });

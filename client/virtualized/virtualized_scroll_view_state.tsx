@@ -1919,19 +1919,35 @@ export class VirtualizedScrollViewState {
         const searchResult = search(index, this._entryByOrderKey.root);
         if (!searchResult) throw new OutOfRangeError("Index out of bounds");
 
-        // HACK(calebmer): Hackishly get the constructor for a
-        // `functional-red-black-tree` iterator and construct it since there's not an
-        // official API. This happens to be a tiny bit more efficient than calling
-        // `tree.find()` with the node returned from `search()` given we already know
-        // the node stack.
-        const iterator: TreeIterator<OrderKey, VirtualizedScrollViewStateEntry> = new (
-            this._entryByOrderKey.begin as any
-        ).constructor(this._entryByOrderKey, stack);
+        const iterator = new unsafe_TreeIterator(this._entryByOrderKey, stack);
 
         return {
             iterator,
             nodeIndex: searchResult.nodeIndex,
         };
+    }
+
+    /**
+     * Returns the key at the provided index if we've rendered that index before.
+     * Otherwise the index is un-rendered buffered space and we return null. Throws
+     * if the index is out of bounds.
+     */
+    public getKeyByIndexIfExists(index: number): Key | null {
+        const {iterator} = this._getNodeAtIndex(index);
+        const node = assertExists(iterator.node);
+        return node.value.type === "Item" ? node.value.key : null;
+    }
+
+    /**
+     * Get the index of an item with the provided key. Returns null if an item
+     * with the provided key does not exist.
+     */
+    public getIndexByKeyIfExists(key: Key): number | null {
+        const iterator1 = this._orderKeyByItemKey.find(key);
+        if (!iterator1.node) return null;
+        const iterator2 = this._entryByOrderKey.find(iterator1.node.value);
+        assert(iterator2.node?.value.type === "Item", "Item entry not found for order key");
+        return this._getPreviousItemCount(iterator2);
     }
 
     /**
@@ -1957,18 +1973,6 @@ export class VirtualizedScrollViewState {
                 height: this._bufferedItemHeight,
             };
         }
-    }
-
-    /**
-     * Get the index of an item with the provided key. Returns null if an item
-     * with the provided key does not exist.
-     */
-    public getIndexByKeyIfExists(key: Key): number | null {
-        const iterator1 = this._orderKeyByItemKey.find(key);
-        if (!iterator1.node) return null;
-        const iterator2 = this._entryByOrderKey.find(iterator1.node.value);
-        assert(iterator2.node?.value.type === "Item", "Item entry not found for order key");
-        return this._getPreviousItemCount(iterator2);
     }
 
     /**

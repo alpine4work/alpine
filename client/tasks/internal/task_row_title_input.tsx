@@ -50,6 +50,7 @@ const taskRowTitleInputSingleLineHeight: Spacing = taskRowViewMinHeight;
 
 export type TaskRowTitleInputRef = {
     getSelection(): Selection;
+    isFocused(): boolean;
     focusStart(): void;
     focusEnd(): void;
     focusAll(): void;
@@ -126,6 +127,8 @@ function TaskRowTitleInput(
         focusNextTaskTitleCoord,
         focusPreviousTaskTitleCoord,
         preserveLastTaskTitleArrowNavigationCoord,
+        focusFirstVisibleTaskTitleStart,
+        focusLastVisibleTaskTitleEnd,
     }: {
         capabilities: TaskGridViewCapabilities;
         title: TaskTitleModel;
@@ -146,9 +149,9 @@ function TaskRowTitleInput(
         focusNextTaskTitleCoord: (coord: number) => void;
         focusPreviousTaskTitleCoord: (coord: number) => void;
         preserveLastTaskTitleArrowNavigationCoord: () => void;
+        focusFirstVisibleTaskTitleStart: () => void;
+        focusLastVisibleTaskTitleEnd: () => void;
         // NOCOMMIT:
-        // focusFirstTaskTitleStart: () => void;
-        // focusLastTaskTitleEnd: () => void;
         // focusTaskNextCell: () => void;
     },
     ref: Ref<TaskRowTitleInputRef>,
@@ -208,7 +211,12 @@ function TaskRowTitleInput(
                     event.preventDefault();
                     event.stopPropagation();
 
-                    // NOCOMMIT: Treat cmd-up/cmd-down as page up/down
+                    // cmd-up goes up a page instead of to the top of the query. That's because
+                    // cmd-down can't get to the bottom of a query since we load queries top down.
+                    // To see the bottom of a query we'd have to load the entire query on the
+                    // backend! Going page up/down is a reasonable implementation that's mostly in
+                    // line with user expectations.
+                    focusFirstVisibleTaskTitleStart();
                 } else if (event.altKey) {
                     event.preventDefault();
                     event.stopPropagation();
@@ -240,7 +248,12 @@ function TaskRowTitleInput(
                     event.preventDefault();
                     event.stopPropagation();
 
-                    // NOCOMMIT: Treat cmd-up/cmd-down as page up/down
+                    // cmd-down goes down a page instead of to the bottom of the query. That's
+                    // because cmd-down can't get to the bottom of a query since we load queries top
+                    // down. To see the bottom of a query we'd have to load the entire query on the
+                    // backend! Going page up/down is a reasonable implementation that's mostly in
+                    // line with user expectations.
+                    focusLastVisibleTaskTitleEnd();
                 } else if (event.altKey) {
                     event.preventDefault();
                     event.stopPropagation();
@@ -438,92 +451,98 @@ function TaskRowTitleInput(
         });
     }, [placeholder, runWhenViewIsReady]);
 
-    const {getSelection, focusStart, focusEnd, focusAll, focusCoord, focusSelection} = useMemo(
-        () => ({
-            getSelection: () => {
-                if (!viewRef.current.isReady) {
-                    // A selection at the start of an empty task title should be the same as the
-                    // initial selection for our title when the view is ready.
-                    return Selection.atStart(emptyTaskTitleProsemirrorNode);
-                } else {
-                    return viewRef.current.view.state.selection;
-                }
-            },
-            focusStart: () => {
-                runWhenViewIsReady(view => {
-                    const selection = Selection.atStart(view.state.doc);
-
-                    view.focus();
-                    view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
-                });
-            },
-            focusEnd: () => {
-                runWhenViewIsReady(view => {
-                    const selection = Selection.atEnd(view.state.doc);
-
-                    view.focus();
-                    view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
-                });
-            },
-            focusAll: () => {
-                runWhenViewIsReady(view => {
-                    const selection = new AllSelection(view.state.doc);
-
-                    view.focus();
-                    view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
-                });
-            },
-            focusCoord: (coord: number, side: "top" | "bottom") => {
-                runWhenViewIsReady(view => {
-                    const viewRect = view.dom.getBoundingClientRect();
-
-                    const posResult = view.posAtCoords({
-                        left: coord,
-                        top:
-                            side === "top"
-                                ? viewRect.top +
-                                  parseFloat(getComputedStyle(view.dom).paddingTop) +
-                                  1
-                                : viewRect.bottom -
-                                  parseFloat(getComputedStyle(view.dom).paddingBottom) -
-                                  1,
-                    });
-
-                    const selection = posResult
-                        ? new TextSelection(view.state.doc.resolve(posResult.pos))
-                        : coord > viewRect.right
-                        ? Selection.atEnd(view.state.doc)
-                        : Selection.atStart(view.state.doc);
-
-                    view.focus();
-                    view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
-                });
-            },
-            focusSelection: (selection: Selection) => {
-                runWhenViewIsReady(view => {
-                    view.focus();
-
-                    // If the document changed since the selection was created then create a
-                    // bookmark for the selection and resolve it to the new doc.
-                    //
-                    // We added `focusSelection()` so that when indenting/dedenting (which sometimes
-                    // mounts/unmounts the task) we can preserve the selection. For that use case we
-                    // don't expect the underlying document to actually be different but we'll have
-                    // created a new `titleYDoc` that also creates a new ProseMirror node so strict
-                    // equality checks fail.
-                    if (selection.$from.doc !== view.state.doc) {
-                        selection = selection.getBookmark().resolve(view.state.doc);
+    const {getSelection, isFocused, focusStart, focusEnd, focusAll, focusCoord, focusSelection} =
+        useMemo(
+            () => ({
+                getSelection: () => {
+                    if (!viewRef.current.isReady) {
+                        // A selection at the start of an empty task title should be the same as the
+                        // initial selection for our title when the view is ready.
+                        return Selection.atStart(emptyTaskTitleProsemirrorNode);
+                    } else {
+                        return viewRef.current.view.state.selection;
                     }
+                },
+                isFocused: () => {
+                    if (!viewRef.current.isReady) return false;
+                    return viewRef.current.view.dom === document.activeElement;
+                },
+                focusStart: () => {
+                    runWhenViewIsReady(view => {
+                        const selection = Selection.atStart(view.state.doc);
 
-                    view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
-                });
-            },
-        }),
-        [runWhenViewIsReady],
-    );
+                        view.focus();
+                        view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
+                    });
+                },
+                focusEnd: () => {
+                    runWhenViewIsReady(view => {
+                        const selection = Selection.atEnd(view.state.doc);
+
+                        view.focus();
+                        view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
+                    });
+                },
+                focusAll: () => {
+                    runWhenViewIsReady(view => {
+                        const selection = new AllSelection(view.state.doc);
+
+                        view.focus();
+                        view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
+                    });
+                },
+                focusCoord: (coord: number, side: "top" | "bottom") => {
+                    runWhenViewIsReady(view => {
+                        const viewRect = view.dom.getBoundingClientRect();
+
+                        const posResult = view.posAtCoords({
+                            left: coord,
+                            top:
+                                side === "top"
+                                    ? viewRect.top +
+                                      parseFloat(getComputedStyle(view.dom).paddingTop) +
+                                      1
+                                    : viewRect.bottom -
+                                      parseFloat(getComputedStyle(view.dom).paddingBottom) -
+                                      1,
+                        });
+
+                        const selection = posResult
+                            ? new TextSelection(view.state.doc.resolve(posResult.pos))
+                            : coord > viewRect.right
+                            ? Selection.atEnd(view.state.doc)
+                            : Selection.atStart(view.state.doc);
+
+                        view.focus();
+                        view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
+                    });
+                },
+                focusSelection: (selection: Selection) => {
+                    runWhenViewIsReady(view => {
+                        view.focus();
+
+                        // If the document changed since the selection was created then create a
+                        // bookmark for the selection and resolve it to the new doc.
+                        //
+                        // We added `focusSelection()` so that when indenting/dedenting (which sometimes
+                        // mounts/unmounts the task) we can preserve the selection. For that use case we
+                        // don't expect the underlying document to actually be different but we'll have
+                        // created a new `titleYDoc` that also creates a new ProseMirror node so strict
+                        // equality checks fail.
+                        if (selection.$from.doc !== view.state.doc) {
+                            selection = selection.getBookmark().resolve(view.state.doc);
+                        }
+
+                        view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
+                    });
+                },
+            }),
+            [runWhenViewIsReady],
+        );
 
     useImperativeHandle(ref, () => ({
         getSelection,
+        isFocused,
         focusStart,
         focusEnd,
         focusAll,
