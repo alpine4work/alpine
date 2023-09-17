@@ -4,6 +4,7 @@ import {
     ServerSessionActionContext,
     ServerSessionActionContextModules,
 } from "~/server/context/server_action_context.js";
+import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
@@ -30,6 +31,7 @@ import {
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {
+    HybridLogicalTime,
     compareHybridLogicalTimes,
     maxHybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
@@ -42,7 +44,7 @@ import {stringifyForDeepEqualCheck} from "~/shared/helpers/control/stringify_for
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {generateId, getMinId} from "~/shared/id/id.js";
+import {decodeIdInto, encodeId, generateId, getMinId, idByteLength} from "~/shared/id/id.js";
 import {
     AccountId,
     BrowserId,
@@ -170,7 +172,7 @@ const TaskAssigneeAccountIdRegister = createCrdtRegister(Schema.id<AccountId>().
  * `EssentialAttributes` items) and some data unrelated to task fields which
  * don't participate in querying (like notes, comments, revision history).
  */
-const TaskTable = DynamoTableSchema.new({
+export const TaskTable = DynamoTableSchema.new({
     name: "Tasks",
     partitions: [
         {
@@ -287,10 +289,48 @@ const TaskTable = DynamoTableSchema.new({
 
                         // See the documentation of `TaskUpdateChildrenCountsAction` for more
                         // information.
+                        // NOCOMMIT: Should update these with delete/undelete?
                         addedChildTaskCount: Schema.integer,
                         removedChildTaskCount: Schema.integer,
                         addedClosedChildTaskCount: Schema.integer,
                         removedClosedChildTaskCount: Schema.integer,
+
+                        /**
+                         * All of this task's current children.
+                         *
+                         * Stored in binary since that's much more space efficient than storing as
+                         * strings. 1kb (used by 1 WCU) costs ~64 128 bit `Id`s.
+                         *
+                         * Unlike `addedChildTaskCount` these are our current child tasks. If a child
+                         * task is removed then we remove it from the set. If a child task is deleted
+                         * it stays in the set, though.
+                         */
+                        childTaskIds: Schema.bytes.transform<ReadonlySet<TaskId>>({
+                            serialize: taskIds => {
+                                const bytes = new Uint8Array(taskIds.size * idByteLength);
+
+                                let byteOffset = 0;
+                                for (const taskId of taskIds) {
+                                    decodeIdInto(taskId, bytes, byteOffset);
+                                    byteOffset += idByteLength;
+                                }
+
+                                return bytes;
+                            },
+                            deserialize: bytes => {
+                                const taskIds = new Set<TaskId>();
+
+                                for (
+                                    let byteOffset = 0;
+                                    byteOffset + idByteLength <= bytes.byteLength;
+                                    byteOffset += idByteLength
+                                ) {
+                                    taskIds.add(encodeId(bytes, byteOffset));
+                                }
+
+                                return taskIds;
+                            },
+                        }),
 
                         /**
                          * The collections this task is a part of. A task inherits the highest access
@@ -347,7 +387,7 @@ type TaskActionTransactionItem = DynamoTableItemType<
 
 type TaskAccountNotepadItem = DynamoTableItemType<typeof TaskTable, "Account", "Notepad">;
 
-type TaskEssentialAttributesItem = DynamoTableItemType<
+export type TaskEssentialAttributesItem = DynamoTableItemType<
     typeof TaskTable,
     "Task",
     "EssentialAttributes"
@@ -358,6 +398,22 @@ type TaskCollectionEssentialAttributesItem = DynamoTableItemType<
     "TaskCollection",
     "EssentialAttributes"
 >;
+
+/**
+ * Get the item representing a task in unit tests.
+ */
+export async function getTaskItemForTest(
+    context: DynamoContext,
+    taskId: TaskId,
+): Promise<TaskEssentialAttributesItem> {
+    assert(import.meta.jest);
+
+    return TaskTable.getItem(context, {
+        partitionType: "Task",
+        sortRangeType: "EssentialAttributes",
+        taskId,
+    });
+}
 
 export const commitTaskActionTransactionBeforeExecuteTestCheckpoint =
     new TestCheckpoint<AccountId>();
@@ -426,43 +482,50 @@ export function commitTaskActionTransaction(
             });
         }
 
-        afterCommitTaskActionTransactionEventEmitterForTest?.emit({
-            spaceId,
-            committedTime: actionTransactionItem.committedTime,
-            actions: actionTransactionItem.actions,
-        });
-
-        context.process.waitUntil(
-            context.tracer.withSpan("Process task action transaction", async (context, span) => {
-                span.addData({
-                    tasks: {
-                        actions: actionTransactionItem.actions.map(getTaskActionLabel).join(","),
-                        actionCount: actionTransactionItem.actions.length,
-                        actionTransactionId: actionTransactionItem.actionTransactionId,
-                    },
-                });
-
-                // Process the action transaction in the background.
-                //
-                // TODO(calebmer): We need some way to recover if processing fails! Right now
-                // maybe we can rely on a manual process where we look at the database for
-                // unprocessed transactions and manually retry them. However, it's important
-                // actions are processed in a timely manner so we should have some service
-                // that's constantly querying the `TaskActions` table and retrying transactions
-                // that are taking a while to process.
-                await context.tasks.processActionTransactionAfterCommit(actionTransactionItem);
-
-                // Once we've finished processing, flip the `wasProcessed` flag to true which
-                // will also remove this transaction from our unprocessed transactions index.
-                await TaskActionTable.createOrReplaceItem(context, {
-                    ...actionTransactionItem,
-                    wasProcessed: true,
-                });
-            }),
-        );
+        afterCommitTaskActionTransaction(context, actionTransactionItem);
 
         return {extraActions};
     });
+}
+
+function afterCommitTaskActionTransaction(
+    context: Context<ServerSessionActionContextModules & {tasks: TaskContextModuleBase}>,
+    actionTransactionItem: TaskActionTransactionItem,
+) {
+    afterCommitTaskActionTransactionEventEmitterForTest?.emit({
+        spaceId: actionTransactionItem.spaceId,
+        committedTime: actionTransactionItem.committedTime,
+        actions: actionTransactionItem.actions,
+    });
+
+    context.process.waitUntil(
+        context.tracer.withSpan("Process task action transaction", async (context, span) => {
+            span.addData({
+                tasks: {
+                    actions: actionTransactionItem.actions.map(getTaskActionLabel).join(","),
+                    actionCount: actionTransactionItem.actions.length,
+                    actionTransactionId: actionTransactionItem.actionTransactionId,
+                },
+            });
+
+            // Process the action transaction in the background.
+            //
+            // TODO(calebmer): We need some way to recover if processing fails! Right now
+            // maybe we can rely on a manual process where we look at the database for
+            // unprocessed transactions and manually retry them. However, it's important
+            // actions are processed in a timely manner so we should have some service
+            // that's constantly querying the `TaskActions` table and retrying transactions
+            // that are taking a while to process.
+            await context.tasks.processActionTransactionAfterCommit(actionTransactionItem);
+
+            // Once we've finished processing, flip the `wasProcessed` flag to true which
+            // will also remove this transaction from our unprocessed transactions index.
+            await TaskActionTable.createOrReplaceItem(context, {
+                ...actionTransactionItem,
+                wasProcessed: true,
+            });
+        }),
+    );
 }
 
 /**
@@ -1055,6 +1118,7 @@ async function actuallyCommitTaskActionTransaction(
                             removedChildTaskCount: 0,
                             addedClosedChildTaskCount: 0,
                             removedClosedChildTaskCount: 0,
+                            childTaskIds: new Set(),
                             collections: TaskCollectionSet.empty,
                             assigneeId: new TaskAssigneeAccountIdRegister(null, action.time),
                         });
@@ -1294,20 +1358,26 @@ async function actuallyCommitTaskActionTransaction(
                                             if (oldParentTaskId.value === null) return;
 
                                             // Should be cached from authorization...
-                                            const oldParentTask = await state.getTaskItem(
+                                            const oldParentTaskItem = await state.getTaskItem(
                                                 oldParentTaskId.value,
                                             );
 
+                                            const oldParentChildTaskIds = new Set(
+                                                oldParentTaskItem.childTaskIds,
+                                            );
+                                            oldParentChildTaskIds.delete(taskItem.taskId);
+
                                             state.updateTaskItem(
                                                 {
-                                                    ...oldParentTask,
+                                                    ...oldParentTaskItem,
                                                     removedChildTaskCount:
-                                                        oldParentTask.removedChildTaskCount + 1,
+                                                        oldParentTaskItem.removedChildTaskCount + 1,
                                                     removedClosedChildTaskCount:
-                                                        oldParentTask.removedClosedChildTaskCount +
+                                                        oldParentTaskItem.removedClosedChildTaskCount +
                                                         (taskItem.statusType.value === "Closed"
                                                             ? 1
                                                             : 0),
+                                                    childTaskIds: oldParentChildTaskIds,
                                                 },
                                                 {shouldCommitExtraUpdateChildrenCountAction: true},
                                             );
@@ -1316,20 +1386,26 @@ async function actuallyCommitTaskActionTransaction(
                                             if (newParentTaskId.value === null) return;
 
                                             // Should be cached from authorization...
-                                            const newParentTask = await state.getTaskItem(
+                                            const newParentTaskItem = await state.getTaskItem(
                                                 newParentTaskId.value,
                                             );
 
+                                            const newParentChildTaskIds = new Set(
+                                                newParentTaskItem.childTaskIds,
+                                            );
+                                            newParentChildTaskIds.add(taskItem.taskId);
+
                                             state.updateTaskItem(
                                                 {
-                                                    ...newParentTask,
+                                                    ...newParentTaskItem,
                                                     addedChildTaskCount:
-                                                        newParentTask.addedChildTaskCount + 1,
+                                                        newParentTaskItem.addedChildTaskCount + 1,
                                                     addedClosedChildTaskCount:
-                                                        newParentTask.addedClosedChildTaskCount +
+                                                        newParentTaskItem.addedClosedChildTaskCount +
                                                         (taskItem.statusType.value === "Closed"
                                                             ? 1
                                                             : 0),
+                                                    childTaskIds: newParentChildTaskIds,
                                                 },
                                                 {shouldCommitExtraUpdateChildrenCountAction: true},
                                             );
@@ -1776,6 +1852,150 @@ async function actuallyCommitTaskActionTransaction(
     }
 }
 
+export const deleteTaskAndAllChildrenBeforeExecuteTestCheckpoint = new TestCheckpoint<AccountId>();
+
+/**
+ * Delete the provided `TaskId` and all children of that task in a single
+ * transaction. Returns the actions we committed from this function call.
+ *
+ * On the client we may not know all the transitive children of a task. So this
+ * functionality needs to be implemented on the server.
+ */
+export function deleteTaskAndAllChildren(
+    context: Context<ServerSessionActionContextModules & {tasks: TaskContextModuleBase}>,
+    taskId: TaskId,
+    actionTime: HybridLogicalTime,
+): Promise<{actions: ReadonlyArray<TaskAction>}> {
+    let hasAlreadyAttempted = false;
+
+    return context.dynamo.retryTransaction(async context => {
+        const isInitialAttempt = !hasAlreadyAttempted;
+        hasAlreadyAttempted = true;
+
+        const taskItem = await TaskTable.getItem(context, {
+            partitionType: "Task",
+            sortRangeType: "EssentialAttributes",
+            taskId,
+        });
+
+        await authorizeTaskItemAccess(context, taskItem, "Edit", null);
+
+        let rootParentTaskItem: Omit<TaskEssentialAttributesItem, "childTaskIds"> = taskItem;
+        while (rootParentTaskItem.parentTaskId.value) {
+            // Use `getTaskItemForAuthorization` since it will cache tasks seen during
+            // our `authorizeTaskItemAccess` call.
+            rootParentTaskItem = isInitialAttempt
+                ? await getTaskItemForAuthorization(
+                      context,
+                      rootParentTaskItem.parentTaskId.value,
+                      null,
+                  )
+                : await TaskTable.getItem(context, {
+                      partitionType: "Task",
+                      sortRangeType: "EssentialAttributes",
+                      taskId: rootParentTaskItem.parentTaskId.value,
+                  });
+        }
+
+        const seenTaskIds = new Set([taskItem.taskId]);
+        const transitiveChildTaskItems: Array<TaskEssentialAttributesItem> = [];
+
+        // Note that child tasks inherit the parent task's authorization.
+        const getChildTaskItems = async (taskItem: TaskEssentialAttributesItem) => {
+            await runAllPromises(
+                Array.from(taskItem.childTaskIds, async childTaskId => {
+                    const childTaskItem = await TaskTable.getItem(context, {
+                        partitionType: "Task",
+                        sortRangeType: "EssentialAttributes",
+                        taskId: childTaskId,
+                    });
+
+                    // Keep track of `seenTaskIds` since while child tasks child be an acyclic tree
+                    // where each node is unique, there may be concurrent task updates which cause
+                    // us to observe something different.
+                    if (seenTaskIds.has(childTaskItem.taskId)) return;
+                    transitiveChildTaskItems.push(childTaskItem);
+
+                    await getChildTaskItems(childTaskItem);
+                }),
+            );
+        };
+
+        await getChildTaskItems(taskItem);
+
+        const transactionEntries: Array<DynamoTransactionEntry> = [];
+
+        // Whenever we update a task's parent, we increment the `updateLockVersion` of
+        // the root parent task. This way we can force updates to the child tree
+        // structure to happen in sequence so we can validate there are no cycles.
+        //
+        // Force our recursive task deletion to be a part of this update sequence.
+        if (rootParentTaskItem.taskId !== taskItem.taskId) {
+            transactionEntries.push(
+                TaskTable.transactionDirectlyUpdateItemLockVersion(
+                    rootParentTaskItem,
+                    rootParentTaskItem.updateLockVersion,
+                ),
+            );
+        }
+
+        transactionEntries.push(
+            TaskTable.transactionDirectlyUpdateItem({
+                ...taskItem,
+                deletedTime: actionTime,
+            }),
+        );
+
+        for (const childTaskItem of transitiveChildTaskItems) {
+            transactionEntries.push(
+                TaskTable.transactionDirectlyUpdateItem({
+                    ...childTaskItem,
+                    deletedTime: actionTime,
+                }),
+            );
+        }
+
+        const actionTransactionItem: TaskActionTransactionItem = {
+            partitionType: "TaskActions",
+            sortRangeType: "ActionTransaction",
+            spaceId: taskItem.spaceId,
+            committedTime: new Date(),
+            actionTransactionId: generateId<TaskActionTransactionId>(),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: actionTime,
+                    taskId: taskItem.taskId,
+                    taskAction: {type: "Delete"},
+                },
+                ...transitiveChildTaskItems.map(
+                    (childTaskItem): TaskAction => ({
+                        type: "UpdateTask",
+                        time: actionTime,
+                        taskId: childTaskItem.taskId,
+                        taskAction: {type: "Delete"},
+                    }),
+                ),
+            ],
+            wasProcessed: false,
+        };
+
+        transactionEntries.push(
+            TaskActionTable.transactionCreateOrReplaceItem(actionTransactionItem),
+        );
+
+        await deleteTaskAndAllChildrenBeforeExecuteTestCheckpoint.waitForTest(
+            context.actor.getAccountId(),
+        );
+
+        await DynamoTableSchema.executeTransaction(context, transactionEntries);
+
+        afterCommitTaskActionTransaction(context, actionTransactionItem);
+
+        return {actions: actionTransactionItem.actions};
+    });
+}
+
 export const backfillTaskActionTransactionHistoryTestCounter = new TestCounter<SpaceId>();
 
 /**
@@ -1855,8 +2075,8 @@ const TaskItemAuthorizationCache = new ContextCache<TaskId, TaskEssentialAttribu
 async function getTaskItemForAuthorization(
     context: ServerSessionActionContext,
     taskId: TaskId,
-    loaders: {getTaskIndexDocIfExists: (taskId: TaskId) => TaskIndexDoc | undefined} | undefined,
-): Promise<TaskEssentialAttributesItem> {
+    loaders: {getTaskIndexDocIfExists: (taskId: TaskId) => TaskIndexDoc | undefined} | null,
+): Promise<Omit<TaskEssentialAttributesItem, "childTaskIds">> {
     const taskIndexDoc = loaders?.getTaskIndexDocIfExists(taskId);
     if (taskIndexDoc) return convertTaskIndexDocToItem(taskIndexDoc);
 
@@ -1892,13 +2112,11 @@ const TaskCollectionItemAuthorizationCache = new ContextCache<
 async function getTaskCollectionItemForAuthorization(
     context: ServerSessionActionContext,
     collectionId: TaskCollectionId,
-    loaders:
-        | {
-              getCollectionIndexDocIfExists: (
-                  taskId: TaskCollectionId,
-              ) => TaskCollectionIndexDoc | undefined;
-          }
-        | undefined,
+    loaders: {
+        getCollectionIndexDocIfExists: (
+            taskId: TaskCollectionId,
+        ) => TaskCollectionIndexDoc | undefined;
+    } | null,
 ): Promise<TaskCollectionEssentialAttributesItem> {
     const collectionIndexDoc = loaders?.getCollectionIndexDocIfExists(collectionId);
     if (collectionIndexDoc) return convertTaskCollectionIndexDocToItem(collectionIndexDoc);
@@ -2000,13 +2218,11 @@ async function authorizeTaskCollectionAccess(
     context: ServerSessionActionContext,
     collectionId: TaskCollectionId,
     expectedAccessLevel: TaskCollectionAccessLevel,
-    loaders:
-        | {
-              getCollectionIndexDocIfExists: (
-                  taskId: TaskCollectionId,
-              ) => TaskCollectionIndexDoc | undefined;
-          }
-        | undefined,
+    loaders: {
+        getCollectionIndexDocIfExists: (
+            taskId: TaskCollectionId,
+        ) => TaskCollectionIndexDoc | undefined;
+    } | null,
 ) {
     const collectionItem = await getTaskCollectionItemForAuthorization(
         context,
@@ -2082,10 +2298,10 @@ async function isTaskItemAccessAuthorized(
         dynamo: DynamoContextModule;
     }>,
     accountId: AccountId,
-    taskItem: TaskEssentialAttributesItem,
+    taskItem: Omit<TaskEssentialAttributesItem, "childTaskIds">,
     expectedAccessLevel: TaskCollectionAccessLevel,
     loaders: {
-        getTaskItem: (taskId: TaskId) => Promise<TaskEssentialAttributesItem>;
+        getTaskItem: (taskId: TaskId) => Promise<Omit<TaskEssentialAttributesItem, "childTaskIds">>;
         getCollectionItem: (
             taskId: TaskCollectionId,
         ) => Promise<TaskCollectionEssentialAttributesItem>;
@@ -2109,10 +2325,10 @@ async function isTaskItemAccessAuthorizedAllowingDeletedTasks(
         dynamo: DynamoContextModule;
     }>,
     accountId: AccountId,
-    taskItem: TaskEssentialAttributesItem,
+    taskItem: Omit<TaskEssentialAttributesItem, "childTaskIds">,
     expectedAccessLevel: TaskCollectionAccessLevel,
     loaders: {
-        getTaskItem: (taskId: TaskId) => Promise<TaskEssentialAttributesItem>;
+        getTaskItem: (taskId: TaskId) => Promise<Omit<TaskEssentialAttributesItem, "childTaskIds">>;
         getCollectionItem: (
             taskId: TaskCollectionId,
         ) => Promise<TaskCollectionEssentialAttributesItem>;
@@ -2199,14 +2415,12 @@ async function isTaskAccessAuthorized(
     context: ServerSessionActionContext,
     taskId: TaskId,
     expectedAccessLevel: TaskCollectionAccessLevel,
-    loaders:
-        | {
-              getTaskIndexDocIfExists: (taskId: TaskId) => TaskIndexDoc | undefined;
-              getCollectionIndexDocIfExists: (
-                  collectionId: TaskCollectionId,
-              ) => TaskCollectionIndexDoc | undefined;
-          }
-        | undefined,
+    loaders: {
+        getTaskIndexDocIfExists: (taskId: TaskId) => TaskIndexDoc | undefined;
+        getCollectionIndexDocIfExists: (
+            collectionId: TaskCollectionId,
+        ) => TaskCollectionIndexDoc | undefined;
+    } | null,
 ): Promise<boolean> {
     const taskItem = await getTaskItemForAuthorization(context, taskId, loaders);
 
@@ -2236,16 +2450,53 @@ async function authorizeTaskAccess(
     context: ServerSessionActionContext,
     taskId: TaskId,
     expectedAccessLevel: TaskCollectionAccessLevel,
-    loaders:
-        | {
-              getTaskIndexDocIfExists: (taskId: TaskId) => TaskIndexDoc | undefined;
-              getCollectionIndexDocIfExists: (
-                  collectionId: TaskCollectionId,
-              ) => TaskCollectionIndexDoc | undefined;
-          }
-        | undefined,
+    loaders: {
+        getTaskIndexDocIfExists: (taskId: TaskId) => TaskIndexDoc | undefined;
+        getCollectionIndexDocIfExists: (
+            collectionId: TaskCollectionId,
+        ) => TaskCollectionIndexDoc | undefined;
+    } | null,
 ) {
     const hasAccess = await isTaskAccessAuthorized(context, taskId, expectedAccessLevel, loaders);
+
+    if (!hasAccess) {
+        throw new PermissionDeniedError(
+            quote`Actor does not have ${expectedAccessLevel} access level to task`,
+        );
+    }
+}
+
+/**
+ * Tests if the context's actor is allowed to access the provided task item
+ * with the provided access level. Throws an error if access is unauthorized.
+ *
+ * Loads data from DynamoDB but if you are in `TaskRealtimeService` and have
+ * up-to-date in-memory you may pass in a `loaders` object to use your
+ * in-memory task instead. See the disclaimers on `authorizeTaskQueryAccess()`
+ * before using the `loaders` object.
+ */
+async function authorizeTaskItemAccess(
+    context: ServerSessionActionContext,
+    taskItem: TaskEssentialAttributesItem,
+    expectedAccessLevel: TaskCollectionAccessLevel,
+    loaders: {
+        getTaskIndexDocIfExists: (taskId: TaskId) => TaskIndexDoc | undefined;
+        getCollectionIndexDocIfExists: (
+            collectionId: TaskCollectionId,
+        ) => TaskCollectionIndexDoc | undefined;
+    } | null,
+) {
+    const hasAccess = await isTaskItemAccessAuthorized(
+        context,
+        context.actor.getAccountId(),
+        taskItem,
+        expectedAccessLevel,
+        {
+            getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, loaders),
+            getCollectionItem: collectionId =>
+                getTaskCollectionItemForAuthorization(context, collectionId, loaders),
+        },
+    );
 
     if (!hasAccess) {
         throw new PermissionDeniedError(
@@ -2357,12 +2608,12 @@ export async function authorizeTaskQueryAccess(
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
     },
-    loaders?: {
+    loaders: {
         getTaskIndexDocIfExists: (taskId: TaskId) => TaskIndexDoc | undefined;
         getCollectionIndexDocIfExists: (
             collectionId: TaskCollectionId,
         ) => TaskCollectionIndexDoc | undefined;
-    },
+    } | null = null,
 ) {
     let hasAccess = false;
 
@@ -2509,7 +2760,9 @@ export async function authorizeTaskQueryAccess(
  * `TaskRealtimeService` then you have up-to-date `TaskIndexDoc`s in
  * `TaskRealtimeStore` so those are ok to use with this function.
  */
-function convertTaskIndexDocToItem(task: TaskIndexDoc): TaskEssentialAttributesItem {
+function convertTaskIndexDocToItem(
+    task: TaskIndexDoc,
+): Omit<TaskEssentialAttributesItem, "childTaskIds"> {
     return {
         partitionType: "Task",
         sortRangeType: "EssentialAttributes",

@@ -4903,6 +4903,12 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "childTaskIds": {
+                                        "valueSchema": {
+                                            "type": "Bytes"
+                                        },
+                                        "optional": false
+                                    },
                                     "collections": {
                                         "valueSchema": {
                                             "type": "Map",

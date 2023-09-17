@@ -6,6 +6,7 @@ import {commitTaskActionTransaction} from "~/server/tasks/data/task_table.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {generateId} from "~/shared/id/id.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {TaskCollectionAccessPolicy} from "~/shared/tasks/task_collection_access_policy.js";
 
 let testTaskCollectionCount = 1;
 
@@ -99,6 +100,23 @@ export class TestTaskCollection {
                 collectionAction: {
                     type: "UpdateName",
                     name,
+                },
+            },
+        ]);
+    }
+
+    public async updateAccessPolicy(
+        session: TestSpaceSession,
+        accessPolicy: TaskCollectionAccessPolicy,
+    ) {
+        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+            {
+                type: "UpdateCollection",
+                time: testClock.nowLogical(),
+                collectionId: this.id,
+                collectionAction: {
+                    type: "UpdateAccessPolicy",
+                    accessPolicy,
                 },
             },
         ]);

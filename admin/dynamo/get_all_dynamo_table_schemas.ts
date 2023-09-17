@@ -43,7 +43,7 @@ const importAllDynamoTableSchemasPromise = new Lazy(async () => {
                             quote`Module ${relative(
                                 runfilesRepoPath,
                                 path,
-                            )} exports a "DynamoTableSchema" as ${moduleExportName}, DynamoDB table schemas should be private to the module`,
+                            )} exports a "DynamoTableSchema" as ${moduleExportName}, DynamoDB table schemas should be private to the module where it was defined`,
                         );
                     }
                 }

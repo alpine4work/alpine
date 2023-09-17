@@ -6,7 +6,11 @@ import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.
 import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {getTaskIndexDocIfExistsForTest} from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc, TaskIndexDocWithVersion} from "~/server/tasks/data/task_index_doc.js";
-import {commitTaskActionTransaction} from "~/server/tasks/data/task_table.js";
+import {
+    TaskEssentialAttributesItem,
+    commitTaskActionTransaction,
+    getTaskItemForTest,
+} from "~/server/tasks/data/task_table.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {NotFoundError} from "~/shared/error/error.js";
@@ -61,6 +65,10 @@ export class TestTask {
                 dangerouslyEscalateToSystemContext: session.context.escalateToSystemContext,
             }),
         });
+    }
+
+    public getItem(): Promise<TaskEssentialAttributesItem> {
+        return getTaskItemForTest(this.context, this.id);
     }
 
     public async getIndexDocWithVersion(): Promise<TaskIndexDocWithVersion> {

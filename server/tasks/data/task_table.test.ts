@@ -15,6 +15,8 @@ import {
     authorizeTaskQueryAccess,
     commitTaskActionTransaction,
     commitTaskActionTransactionBeforeExecuteTestCheckpoint,
+    deleteTaskAndAllChildren,
+    deleteTaskAndAllChildrenBeforeExecuteTestCheckpoint,
 } from "~/server/tasks/data/task_table.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
@@ -13813,4 +13815,426 @@ test("can't set task as own parent", async () => {
             "Updating task's `parentTaskId` would create a circular dependency",
         ),
     );
+});
+
+test("can delete a task and all its children when it has no children", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const task = await TestTask.create(session);
+
+    expect((await task.getItem()).deletedTime).toEqual(null);
+
+    const actionTime = testClock.nowLogical();
+
+    expect(await deleteTaskAndAllChildren(TestTask.action(session), task.id, actionTime)).toEqual({
+        actions: [
+            {
+                type: "UpdateTask",
+                time: actionTime,
+                taskId: task.id,
+                taskAction: {type: "Delete"},
+            },
+        ],
+    });
+
+    expect((await task.getItem()).deletedTime).toEqual(actionTime);
+});
+
+test("can't delete a task and all its children when the task doesn't exist", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const actionTime = testClock.nowLogical();
+
+    await expect(
+        deleteTaskAndAllChildren(TestTask.action(session), generateId(), actionTime),
+    ).rejects.toThrow(NotFoundError);
+});
+
+test("can't delete a task and all its children when you don't have access to the task", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const task = await TestTask.create(session1);
+
+    expect((await task.getItem()).deletedTime).toEqual(null);
+
+    const actionTime = testClock.nowLogical();
+
+    await expect(
+        deleteTaskAndAllChildren(TestTask.action(session2), task.id, actionTime),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    expect((await task.getItem()).deletedTime).toEqual(null);
+});
+
+test("can delete a task and all its children when you have access to the task through a collection", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const session3 = await space.createSession();
+
+    const task = await TestTask.create(session1);
+    const collection = await TestTaskCollection.createPrivate(session1);
+    await task.addCollection(session1, collection);
+
+    await collection.updateAccessPolicy(session1, {
+        accountGrantById: new Map([
+            [session1.account.id, {level: "Manage"}],
+            [session3.account.id, {level: "Manage"}],
+        ]),
+        defaultGrant: null,
+    });
+
+    expect((await task.getItem()).deletedTime).toEqual(null);
+
+    const actionTime = testClock.nowLogical();
+
+    await expect(
+        deleteTaskAndAllChildren(TestTask.action(session2), task.id, actionTime),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    expect((await task.getItem()).deletedTime).toEqual(null);
+
+    expect(await deleteTaskAndAllChildren(TestTask.action(session3), task.id, actionTime)).toEqual({
+        actions: [
+            {
+                type: "UpdateTask",
+                time: actionTime,
+                taskId: task.id,
+                taskAction: {type: "Delete"},
+            },
+        ],
+    });
+
+    expect((await task.getItem()).deletedTime).toEqual(actionTime);
+});
+
+test("can delete a task and all its children", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const [task1, task2, task3, task4, task5, task6, task7, task8, task9, task10] =
+        await runAllPromises([
+            TestTask.create(session),
+            TestTask.create(session),
+            TestTask.create(session),
+            TestTask.create(session),
+            TestTask.create(session),
+            TestTask.create(session),
+            TestTask.create(session),
+            TestTask.create(session),
+            TestTask.create(session),
+            TestTask.create(session),
+        ]);
+
+    await runAllPromises([
+        task2.updateParentTask(session, task1),
+        task3.updateParentTask(session, task1),
+        task4.updateParentTask(session, task1),
+        task5.updateParentTask(session, task3),
+        task6.updateParentTask(session, task5),
+        task7.updateParentTask(session, task5),
+        task8.updateParentTask(session, task4),
+        task1.updateParentTask(session, task9),
+    ]);
+
+    expect((await task1.getItem()).deletedTime).toEqual(null);
+    expect((await task2.getItem()).deletedTime).toEqual(null);
+    expect((await task3.getItem()).deletedTime).toEqual(null);
+    expect((await task4.getItem()).deletedTime).toEqual(null);
+    expect((await task5.getItem()).deletedTime).toEqual(null);
+    expect((await task6.getItem()).deletedTime).toEqual(null);
+    expect((await task7.getItem()).deletedTime).toEqual(null);
+    expect((await task8.getItem()).deletedTime).toEqual(null);
+    expect((await task9.getItem()).deletedTime).toEqual(null);
+    expect((await task10.getItem()).deletedTime).toEqual(null);
+
+    const actionTime = testClock.nowLogical();
+
+    expect(
+        (await deleteTaskAndAllChildren(TestTask.action(session), task1.id, actionTime)).actions
+            .slice()
+            .sort((action1, action2) =>
+                defaultCompareStrings(JSON.stringify(action1), JSON.stringify(action2)),
+            ),
+    ).toEqual(
+        [
+            {
+                type: "UpdateTask",
+                time: actionTime,
+                taskId: task1.id,
+                taskAction: {type: "Delete"},
+            },
+            {
+                type: "UpdateTask",
+                time: actionTime,
+                taskId: task2.id,
+                taskAction: {type: "Delete"},
+            },
+            {
+                type: "UpdateTask",
+                time: actionTime,
+                taskId: task3.id,
+                taskAction: {type: "Delete"},
+            },
+            {
+                type: "UpdateTask",
+                time: actionTime,
+                taskId: task4.id,
+                taskAction: {type: "Delete"},
+            },
+            {
+                type: "UpdateTask",
+                time: actionTime,
+                taskId: task5.id,
+                taskAction: {type: "Delete"},
+            },
+            {
+                type: "UpdateTask",
+                time: actionTime,
+                taskId: task6.id,
+                taskAction: {type: "Delete"},
+            },
+            {
+                type: "UpdateTask",
+                time: actionTime,
+                taskId: task7.id,
+                taskAction: {type: "Delete"},
+            },
+            {
+                type: "UpdateTask",
+                time: actionTime,
+                taskId: task8.id,
+                taskAction: {type: "Delete"},
+            },
+        ].sort((action1, action2) =>
+            defaultCompareStrings(JSON.stringify(action1), JSON.stringify(action2)),
+        ),
+    );
+
+    expect((await task1.getItem()).deletedTime).toEqual(actionTime);
+    expect((await task2.getItem()).deletedTime).toEqual(actionTime);
+    expect((await task3.getItem()).deletedTime).toEqual(actionTime);
+    expect((await task4.getItem()).deletedTime).toEqual(actionTime);
+    expect((await task5.getItem()).deletedTime).toEqual(actionTime);
+    expect((await task6.getItem()).deletedTime).toEqual(actionTime);
+    expect((await task7.getItem()).deletedTime).toEqual(actionTime);
+    expect((await task8.getItem()).deletedTime).toEqual(actionTime);
+    expect((await task9.getItem()).deletedTime).toEqual(null);
+    expect((await task10.getItem()).deletedTime).toEqual(null);
+});
+
+test("can handle race conditions when deleting a task and all of it's children", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const [parentTask1, parentTask2, task1, task2, task3, task4, task5] = await runAllPromises([
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+    ]);
+
+    await runAllPromises([
+        task1.updateParentTask(session, parentTask1),
+        task2.updateParentTask(session, parentTask1),
+        task3.updateParentTask(session, parentTask2),
+        task5.updateParentTask(session, parentTask1),
+    ]);
+
+    expect((await parentTask1.getItem()).deletedTime).toEqual(null);
+    expect((await parentTask2.getItem()).deletedTime).toEqual(null);
+    expect((await task1.getItem()).deletedTime).toEqual(null);
+    expect((await task2.getItem()).deletedTime).toEqual(null);
+    expect((await task3.getItem()).deletedTime).toEqual(null);
+    expect((await task4.getItem()).deletedTime).toEqual(null);
+    expect((await task5.getItem()).deletedTime).toEqual(null);
+
+    const pausePromise = deleteTaskAndAllChildrenBeforeExecuteTestCheckpoint.pauseForTest(
+        session.account.id,
+    );
+
+    const actionTime = testClock.nowLogical();
+    const deletePromise = deleteTaskAndAllChildren(
+        TestTask.action(session),
+        parentTask1.id,
+        actionTime,
+    );
+
+    const {unpause} = await pausePromise;
+
+    await task2.updateParentTask(session, parentTask2);
+    await task3.updateParentTask(session, parentTask1);
+    await task4.updateParentTask(session, parentTask1);
+    await task5.updateParentTask(session, null);
+
+    expect((await parentTask1.getItem()).deletedTime).toEqual(null);
+    expect((await parentTask2.getItem()).deletedTime).toEqual(null);
+    expect((await task1.getItem()).deletedTime).toEqual(null);
+    expect((await task2.getItem()).deletedTime).toEqual(null);
+    expect((await task3.getItem()).deletedTime).toEqual(null);
+    expect((await task4.getItem()).deletedTime).toEqual(null);
+    expect((await task5.getItem()).deletedTime).toEqual(null);
+
+    unpause();
+
+    expect(
+        (await deletePromise).actions
+            .slice()
+            .sort((action1, action2) =>
+                defaultCompareStrings(JSON.stringify(action1), JSON.stringify(action2)),
+            ),
+    ).toEqual(
+        [
+            {
+                type: "UpdateTask",
+                time: actionTime,
+                taskId: parentTask1.id,
+                taskAction: {type: "Delete"},
+            },
+            {
+                type: "UpdateTask",
+                time: actionTime,
+                taskId: task1.id,
+                taskAction: {type: "Delete"},
+            },
+            {
+                type: "UpdateTask",
+                time: actionTime,
+                taskId: task3.id,
+                taskAction: {type: "Delete"},
+            },
+            {
+                type: "UpdateTask",
+                time: actionTime,
+                taskId: task4.id,
+                taskAction: {type: "Delete"},
+            },
+        ].sort((action1, action2) =>
+            defaultCompareStrings(JSON.stringify(action1), JSON.stringify(action2)),
+        ),
+    );
+
+    expect((await parentTask1.getItem()).deletedTime).toEqual(actionTime);
+    expect((await parentTask2.getItem()).deletedTime).toEqual(null);
+    expect((await task1.getItem()).deletedTime).toEqual(actionTime);
+    expect((await task2.getItem()).deletedTime).toEqual(null);
+    expect((await task3.getItem()).deletedTime).toEqual(actionTime);
+    expect((await task4.getItem()).deletedTime).toEqual(actionTime);
+    expect((await task5.getItem()).deletedTime).toEqual(null);
+});
+
+test("can handle race conditions when deleting a task with parent and all of it's children", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const [grandParentTask, parentTask1, parentTask2, task1, task2, task3, task4, task5] =
+        await runAllPromises([
+            TestTask.create(session),
+            TestTask.create(session),
+            TestTask.create(session),
+            TestTask.create(session),
+            TestTask.create(session),
+            TestTask.create(session),
+            TestTask.create(session),
+            TestTask.create(session),
+        ]);
+
+    await runAllPromises([
+        parentTask1.updateParentTask(session, grandParentTask),
+        task1.updateParentTask(session, parentTask1),
+        task2.updateParentTask(session, parentTask1),
+        task3.updateParentTask(session, parentTask2),
+        task5.updateParentTask(session, parentTask1),
+    ]);
+
+    expect((await grandParentTask.getItem()).deletedTime).toEqual(null);
+    expect((await parentTask1.getItem()).deletedTime).toEqual(null);
+    expect((await parentTask2.getItem()).deletedTime).toEqual(null);
+    expect((await task1.getItem()).deletedTime).toEqual(null);
+    expect((await task2.getItem()).deletedTime).toEqual(null);
+    expect((await task3.getItem()).deletedTime).toEqual(null);
+    expect((await task4.getItem()).deletedTime).toEqual(null);
+    expect((await task5.getItem()).deletedTime).toEqual(null);
+
+    const pausePromise = deleteTaskAndAllChildrenBeforeExecuteTestCheckpoint.pauseForTest(
+        session.account.id,
+    );
+
+    const actionTime = testClock.nowLogical();
+    const deletePromise = deleteTaskAndAllChildren(
+        TestTask.action(session),
+        parentTask1.id,
+        actionTime,
+    );
+
+    const {unpause} = await pausePromise;
+
+    await task2.updateParentTask(session, parentTask2);
+    await task3.updateParentTask(session, parentTask1);
+    await task4.updateParentTask(session, parentTask1);
+    await task5.updateParentTask(session, null);
+
+    expect((await grandParentTask.getItem()).deletedTime).toEqual(null);
+    expect((await parentTask1.getItem()).deletedTime).toEqual(null);
+    expect((await parentTask2.getItem()).deletedTime).toEqual(null);
+    expect((await task1.getItem()).deletedTime).toEqual(null);
+    expect((await task2.getItem()).deletedTime).toEqual(null);
+    expect((await task3.getItem()).deletedTime).toEqual(null);
+    expect((await task4.getItem()).deletedTime).toEqual(null);
+    expect((await task5.getItem()).deletedTime).toEqual(null);
+
+    unpause();
+
+    expect(
+        (await deletePromise).actions
+            .slice()
+            .sort((action1, action2) =>
+                defaultCompareStrings(JSON.stringify(action1), JSON.stringify(action2)),
+            ),
+    ).toEqual(
+        [
+            {
+                type: "UpdateTask",
+                time: actionTime,
+                taskId: parentTask1.id,
+                taskAction: {type: "Delete"},
+            },
+            {
+                type: "UpdateTask",
+                time: actionTime,
+                taskId: task1.id,
+                taskAction: {type: "Delete"},
+            },
+            {
+                type: "UpdateTask",
+                time: actionTime,
+                taskId: task3.id,
+                taskAction: {type: "Delete"},
+            },
+            {
+                type: "UpdateTask",
+                time: actionTime,
+                taskId: task4.id,
+                taskAction: {type: "Delete"},
+            },
+        ].sort((action1, action2) =>
+            defaultCompareStrings(JSON.stringify(action1), JSON.stringify(action2)),
+        ),
+    );
+
+    expect((await grandParentTask.getItem()).deletedTime).toEqual(null);
+    expect((await parentTask1.getItem()).deletedTime).toEqual(actionTime);
+    expect((await parentTask2.getItem()).deletedTime).toEqual(null);
+    expect((await task1.getItem()).deletedTime).toEqual(actionTime);
+    expect((await task2.getItem()).deletedTime).toEqual(null);
+    expect((await task3.getItem()).deletedTime).toEqual(actionTime);
+    expect((await task4.getItem()).deletedTime).toEqual(actionTime);
+    expect((await task5.getItem()).deletedTime).toEqual(null);
 });
