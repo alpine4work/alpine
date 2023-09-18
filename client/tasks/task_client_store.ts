@@ -2074,7 +2074,7 @@ export class TaskClientStoreInternal {
                     if (newParentTask) {
                         const childTaskCounts = getOrSetDefaultMapValue(
                             childTaskCountsByParentTaskId,
-                            oldParentTaskId,
+                            newParentTaskId,
                             () => ({
                                 addedChildTaskCount: newParentTask.rawData.addedChildTaskCount,
                                 removedChildTaskCount: newParentTask.rawData.removedChildTaskCount,
