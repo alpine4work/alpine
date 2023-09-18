@@ -171,26 +171,34 @@ export function Modal({
                                         : modalStyles.modalContentFadeInAnimation,
                                 }}
                             >
-                                {typeof children === "function"
-                                    ? children({
-                                          onCloseWithAnimation,
-                                          onCloseWithoutAnimation,
-                                      })
-                                    : children}
-                                {!withoutCloseButton && (
-                                    <Box position="absolute" top="2" right="2">
-                                        <IconButton
-                                            size="xs"
-                                            description="Close"
-                                            withoutTooltip={true}
-                                            // Our animation principle is to respond to user input immediately
-                                            // without animation.
-                                            onPress={onCloseWithoutAnimation}
-                                        >
-                                            <X />
-                                        </IconButton>
-                                    </Box>
-                                )}
+                                <OverlayScopeContextProvider
+                                // Render an overlay scope so any initially mounted overlays get the same
+                                // opacity/scale animations as the modal content.
+                                //
+                                // `<FocusRing>` is a common example of an initially mounted overlay when we
+                                // auto-focus some content in the modal.
+                                >
+                                    {typeof children === "function"
+                                        ? children({
+                                              onCloseWithAnimation,
+                                              onCloseWithoutAnimation,
+                                          })
+                                        : children}
+                                    {!withoutCloseButton && (
+                                        <Box position="absolute" top="2" right="2">
+                                            <IconButton
+                                                size="xs"
+                                                description="Close"
+                                                withoutTooltip={true}
+                                                // Our animation principle is to respond to user input immediately
+                                                // without animation.
+                                                onPress={onCloseWithoutAnimation}
+                                            >
+                                                <X />
+                                            </IconButton>
+                                        </Box>
+                                    )}
+                                </OverlayScopeContextProvider>
                             </Box>
                         </section>
                     </GlobalKeyDownEvent>

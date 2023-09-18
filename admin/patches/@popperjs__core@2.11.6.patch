@@ -1,0 +1,834 @@
+diff --git a/dist/cjs/popper-base.js b/dist/cjs/popper-base.js
+index 7479c9175008afc63c506155507ea675dab2e7da..e3b1e333eeda2430026ba6f0515505dae82b9690 100644
+--- a/dist/cjs/popper-base.js
++++ b/dist/cjs/popper-base.js
+@@ -59,6 +59,80 @@ function isLayoutViewport() {
+   return !/^((?!chrome|android).)*safari/i.test(getUAString());
+ }
+ 
++// Adapted from:
++// https://github.com/floating-ui/floating-ui/blob/e2729e7e91b0bfc4c9b16665161b871f5d3bf9d6/packages/dom/src/utils/getCssDimensions.ts
++function getCssDimensions(element) {
++  var css = getComputedStyle(element);
++  // In testing environments, the `width` and `height` properties are empty
++  // strings for SVG elements, returning NaN. Fallback to `0` in this case.
++  var width = parseFloat(css.width) || 0;
++  var height = parseFloat(css.height) || 0;
++  var hasOffset = isHTMLElement(element);
++  var offsetWidth = hasOffset ? element.offsetWidth : width;
++  var offsetHeight = hasOffset ? element.offsetHeight : height;
++  var shouldFallback =
++    round(width) !== offsetWidth || round(height) !== offsetHeight;
++
++  if (shouldFallback) {
++    width = offsetWidth;
++    height = offsetHeight;
++  }
++
++  return {
++    width,
++    height,
++    $: shouldFallback,
++  };
++}
++
++// Adapted from:
++// https://github.com/floating-ui/floating-ui/blob/e2729e7e91b0bfc4c9b16665161b871f5d3bf9d6/packages/dom/src/platform/getScale.ts
++function getScale(element) {
++  var domElement = !isElement(element) ? element.contextElement : element;
++
++  if (!isHTMLElement(domElement)) {
++    return {x: 1, y: 1};
++  }
++
++  var rect = domElement.getBoundingClientRect();
++  var cssDimensions = getCssDimensions(domElement);
++  var x = (cssDimensions.$ ? round(rect.width) : rect.width) / cssDimensions.width;
++  var y = (cssDimensions.$ ? round(rect.height) : rect.height) / cssDimensions.height;
++
++  // NOTE(calebmer): If `width` or `height` is 0px then assume we scale evenly
++  // on both dimensions. This is not true for every animation. Uneven scale
++  // animations look unnatural so generally scale animations use the same scale
++  // on both dimensions making this a good default.
++  //
++  // We need this since our overlays render in a 0px height container. This 0px
++  // height container breaks Y scaling detection causing overlays to be
++  // misplaced during an animation. (The bug this fixes can be reproduced by
++  // opening a modal where an element is auto-focused.)
++
++  if (cssDimensions.width === 0) {
++    x = y;
++  }
++
++  if (cssDimensions.height === 0) {
++    y = x;
++  }
++
++  // 0, NaN, or Infinity should always fallback to 1.
++
++  if (!x || !Number.isFinite(x)) {
++    x = 1;
++  }
++
++  if (!y || !Number.isFinite(y)) {
++    y = 1;
++  }
++
++  return {
++    x,
++    y,
++  };
++}
++
+ function getBoundingClientRect(element, includeScale, isFixedStrategy) {
+   if (includeScale === void 0) {
+     includeScale = false;
+@@ -73,8 +147,16 @@ function getBoundingClientRect(element, includeScale, isFixedStrategy) {
+   var scaleY = 1;
+ 
+   if (includeScale && isHTMLElement(element)) {
+-    scaleX = element.offsetWidth > 0 ? round(clientRect.width) / element.offsetWidth || 1 : 1;
+-    scaleY = element.offsetHeight > 0 ? round(clientRect.height) / element.offsetHeight || 1 : 1;
++    // NOTE(calebmer): @popperjs/core@2.11.6 has a bug in its scale
++    // implementation where it rounds too aggressively. So use the scale
++    // implementation from its successor @floating-ui/dom@1.5.3. We aren't
++    // replacing popper with floating-ui yet since the migration seems involved.
++    //
++    // We also add one change floating-ui's to the `getScale()` implementation
++    // to better support overlays in our UI.
++    var scale = getScale(element);
++    scaleX = scale.x;
++    scaleY = scale.y;
+   }
+ 
+   var _ref = isElement(element) ? getWindow(element) : window,
+diff --git a/dist/cjs/popper-lite.js b/dist/cjs/popper-lite.js
+index 3f4897742950bae43af6ea45d9d1d71cc966e929..4d558e567a691496203a458e76ffb6c8ce5845f1 100644
+--- a/dist/cjs/popper-lite.js
++++ b/dist/cjs/popper-lite.js
+@@ -59,6 +59,80 @@ function isLayoutViewport() {
+   return !/^((?!chrome|android).)*safari/i.test(getUAString());
+ }
+ 
++// Adapted from:
++// https://github.com/floating-ui/floating-ui/blob/e2729e7e91b0bfc4c9b16665161b871f5d3bf9d6/packages/dom/src/utils/getCssDimensions.ts
++function getCssDimensions(element) {
++  var css = getComputedStyle(element);
++  // In testing environments, the `width` and `height` properties are empty
++  // strings for SVG elements, returning NaN. Fallback to `0` in this case.
++  var width = parseFloat(css.width) || 0;
++  var height = parseFloat(css.height) || 0;
++  var hasOffset = isHTMLElement(element);
++  var offsetWidth = hasOffset ? element.offsetWidth : width;
++  var offsetHeight = hasOffset ? element.offsetHeight : height;
++  var shouldFallback =
++    round(width) !== offsetWidth || round(height) !== offsetHeight;
++
++  if (shouldFallback) {
++    width = offsetWidth;
++    height = offsetHeight;
++  }
++
++  return {
++    width,
++    height,
++    $: shouldFallback,
++  };
++}
++
++// Adapted from:
++// https://github.com/floating-ui/floating-ui/blob/e2729e7e91b0bfc4c9b16665161b871f5d3bf9d6/packages/dom/src/platform/getScale.ts
++function getScale(element) {
++  var domElement = !isElement(element) ? element.contextElement : element;
++
++  if (!isHTMLElement(domElement)) {
++    return {x: 1, y: 1};
++  }
++
++  var rect = domElement.getBoundingClientRect();
++  var cssDimensions = getCssDimensions(domElement);
++  var x = (cssDimensions.$ ? round(rect.width) : rect.width) / cssDimensions.width;
++  var y = (cssDimensions.$ ? round(rect.height) : rect.height) / cssDimensions.height;
++
++  // NOTE(calebmer): If `width` or `height` is 0px then assume we scale evenly
++  // on both dimensions. This is not true for every animation. Uneven scale
++  // animations look unnatural so generally scale animations use the same scale
++  // on both dimensions making this a good default.
++  //
++  // We need this since our overlays render in a 0px height container. This 0px
++  // height container breaks Y scaling detection causing overlays to be
++  // misplaced during an animation. (The bug this fixes can be reproduced by
++  // opening a modal where an element is auto-focused.)
++
++  if (cssDimensions.width === 0) {
++    x = y;
++  }
++
++  if (cssDimensions.height === 0) {
++    y = x;
++  }
++
++  // 0, NaN, or Infinity should always fallback to 1.
++
++  if (!x || !Number.isFinite(x)) {
++    x = 1;
++  }
++
++  if (!y || !Number.isFinite(y)) {
++    y = 1;
++  }
++
++  return {
++    x,
++    y,
++  };
++}
++
+ function getBoundingClientRect(element, includeScale, isFixedStrategy) {
+   if (includeScale === void 0) {
+     includeScale = false;
+@@ -73,8 +147,16 @@ function getBoundingClientRect(element, includeScale, isFixedStrategy) {
+   var scaleY = 1;
+ 
+   if (includeScale && isHTMLElement(element)) {
+-    scaleX = element.offsetWidth > 0 ? round(clientRect.width) / element.offsetWidth || 1 : 1;
+-    scaleY = element.offsetHeight > 0 ? round(clientRect.height) / element.offsetHeight || 1 : 1;
++    // NOTE(calebmer): @popperjs/core@2.11.6 has a bug in its scale
++    // implementation where it rounds too aggressively. So use the scale
++    // implementation from its successor @floating-ui/dom@1.5.3. We aren't
++    // replacing popper with floating-ui yet since the migration seems involved.
++    //
++    // We also add one change floating-ui's to the `getScale()` implementation
++    // to better support overlays in our UI.
++    var scale = getScale(element);
++    scaleX = scale.x;
++    scaleY = scale.y;
+   }
+ 
+   var _ref = isElement(element) ? getWindow(element) : window,
+diff --git a/dist/cjs/popper.js b/dist/cjs/popper.js
+index 69d8cead2106b045e1ed24fd7884f3aca9f6e846..2b93211c04a5ec382c7857c4bd6e56ca063ac0f4 100644
+--- a/dist/cjs/popper.js
++++ b/dist/cjs/popper.js
+@@ -59,6 +59,80 @@ function isLayoutViewport() {
+   return !/^((?!chrome|android).)*safari/i.test(getUAString());
+ }
+ 
++// Adapted from:
++// https://github.com/floating-ui/floating-ui/blob/e2729e7e91b0bfc4c9b16665161b871f5d3bf9d6/packages/dom/src/utils/getCssDimensions.ts
++function getCssDimensions(element) {
++  var css = getComputedStyle(element);
++  // In testing environments, the `width` and `height` properties are empty
++  // strings for SVG elements, returning NaN. Fallback to `0` in this case.
++  var width = parseFloat(css.width) || 0;
++  var height = parseFloat(css.height) || 0;
++  var hasOffset = isHTMLElement(element);
++  var offsetWidth = hasOffset ? element.offsetWidth : width;
++  var offsetHeight = hasOffset ? element.offsetHeight : height;
++  var shouldFallback =
++    round(width) !== offsetWidth || round(height) !== offsetHeight;
++
++  if (shouldFallback) {
++    width = offsetWidth;
++    height = offsetHeight;
++  }
++
++  return {
++    width,
++    height,
++    $: shouldFallback,
++  };
++}
++
++// Adapted from:
++// https://github.com/floating-ui/floating-ui/blob/e2729e7e91b0bfc4c9b16665161b871f5d3bf9d6/packages/dom/src/platform/getScale.ts
++function getScale(element) {
++  var domElement = !isElement(element) ? element.contextElement : element;
++
++  if (!isHTMLElement(domElement)) {
++    return {x: 1, y: 1};
++  }
++
++  var rect = domElement.getBoundingClientRect();
++  var cssDimensions = getCssDimensions(domElement);
++  var x = (cssDimensions.$ ? round(rect.width) : rect.width) / cssDimensions.width;
++  var y = (cssDimensions.$ ? round(rect.height) : rect.height) / cssDimensions.height;
++
++  // NOTE(calebmer): If `width` or `height` is 0px then assume we scale evenly
++  // on both dimensions. This is not true for every animation. Uneven scale
++  // animations look unnatural so generally scale animations use the same scale
++  // on both dimensions making this a good default.
++  //
++  // We need this since our overlays render in a 0px height container. This 0px
++  // height container breaks Y scaling detection causing overlays to be
++  // misplaced during an animation. (The bug this fixes can be reproduced by
++  // opening a modal where an element is auto-focused.)
++
++  if (cssDimensions.width === 0) {
++    x = y;
++  }
++
++  if (cssDimensions.height === 0) {
++    y = x;
++  }
++
++  // 0, NaN, or Infinity should always fallback to 1.
++
++  if (!x || !Number.isFinite(x)) {
++    x = 1;
++  }
++
++  if (!y || !Number.isFinite(y)) {
++    y = 1;
++  }
++
++  return {
++    x,
++    y,
++  };
++}
++
+ function getBoundingClientRect(element, includeScale, isFixedStrategy) {
+   if (includeScale === void 0) {
+     includeScale = false;
+@@ -73,8 +147,16 @@ function getBoundingClientRect(element, includeScale, isFixedStrategy) {
+   var scaleY = 1;
+ 
+   if (includeScale && isHTMLElement(element)) {
+-    scaleX = element.offsetWidth > 0 ? round(clientRect.width) / element.offsetWidth || 1 : 1;
+-    scaleY = element.offsetHeight > 0 ? round(clientRect.height) / element.offsetHeight || 1 : 1;
++    // NOTE(calebmer): @popperjs/core@2.11.6 has a bug in its scale
++    // implementation where it rounds too aggressively. So use the scale
++    // implementation from its successor @floating-ui/dom@1.5.3. We aren't
++    // replacing popper with floating-ui yet since the migration seems involved.
++    //
++    // We also add one change floating-ui's to the `getScale()` implementation
++    // to better support overlays in our UI.
++    var scale = getScale(element);
++    scaleX = scale.x;
++    scaleY = scale.y;
+   }
+ 
+   var _ref = isElement(element) ? getWindow(element) : window,
+diff --git a/dist/esm/dom-utils/getBoundingClientRect.js b/dist/esm/dom-utils/getBoundingClientRect.js
+index fa065a21108c5fa4be795997184832dc36ff6696..5ded4432aab450f561b9113f42a31cda876dea16 100644
+--- a/dist/esm/dom-utils/getBoundingClientRect.js
++++ b/dist/esm/dom-utils/getBoundingClientRect.js
+@@ -2,6 +2,81 @@ import { isElement, isHTMLElement } from "./instanceOf.js";
+ import { round } from "../utils/math.js";
+ import getWindow from "./getWindow.js";
+ import isLayoutViewport from "./isLayoutViewport.js";
++
++// Adapted from:
++// https://github.com/floating-ui/floating-ui/blob/e2729e7e91b0bfc4c9b16665161b871f5d3bf9d6/packages/dom/src/utils/getCssDimensions.ts
++function getCssDimensions(element) {
++  var css = getComputedStyle(element);
++  // In testing environments, the `width` and `height` properties are empty
++  // strings for SVG elements, returning NaN. Fallback to `0` in this case.
++  var width = parseFloat(css.width) || 0;
++  var height = parseFloat(css.height) || 0;
++  var hasOffset = isHTMLElement(element);
++  var offsetWidth = hasOffset ? element.offsetWidth : width;
++  var offsetHeight = hasOffset ? element.offsetHeight : height;
++  var shouldFallback =
++    round(width) !== offsetWidth || round(height) !== offsetHeight;
++
++  if (shouldFallback) {
++    width = offsetWidth;
++    height = offsetHeight;
++  }
++
++  return {
++    width,
++    height,
++    $: shouldFallback,
++  };
++}
++
++// Adapted from:
++// https://github.com/floating-ui/floating-ui/blob/e2729e7e91b0bfc4c9b16665161b871f5d3bf9d6/packages/dom/src/platform/getScale.ts
++function getScale(element) {
++  var domElement = !isElement(element) ? element.contextElement : element;
++
++  if (!isHTMLElement(domElement)) {
++    return {x: 1, y: 1};
++  }
++
++  var rect = domElement.getBoundingClientRect();
++  var cssDimensions = getCssDimensions(domElement);
++  var x = (cssDimensions.$ ? round(rect.width) : rect.width) / cssDimensions.width;
++  var y = (cssDimensions.$ ? round(rect.height) : rect.height) / cssDimensions.height;
++
++  // NOTE(calebmer): If `width` or `height` is 0px then assume we scale evenly
++  // on both dimensions. This is not true for every animation. Uneven scale
++  // animations look unnatural so generally scale animations use the same scale
++  // on both dimensions making this a good default.
++  //
++  // We need this since our overlays render in a 0px height container. This 0px
++  // height container breaks Y scaling detection causing overlays to be
++  // misplaced during an animation. (The bug this fixes can be reproduced by
++  // opening a modal where an element is auto-focused.)
++
++  if (cssDimensions.width === 0) {
++    x = y;
++  }
++
++  if (cssDimensions.height === 0) {
++    y = x;
++  }
++
++  // 0, NaN, or Infinity should always fallback to 1.
++
++  if (!x || !Number.isFinite(x)) {
++    x = 1;
++  }
++
++  if (!y || !Number.isFinite(y)) {
++    y = 1;
++  }
++
++  return {
++    x,
++    y,
++  };
++}
++
+ export default function getBoundingClientRect(element, includeScale, isFixedStrategy) {
+   if (includeScale === void 0) {
+     includeScale = false;
+@@ -16,8 +91,16 @@ export default function getBoundingClientRect(element, includeScale, isFixedStra
+   var scaleY = 1;
+ 
+   if (includeScale && isHTMLElement(element)) {
+-    scaleX = element.offsetWidth > 0 ? round(clientRect.width) / element.offsetWidth || 1 : 1;
+-    scaleY = element.offsetHeight > 0 ? round(clientRect.height) / element.offsetHeight || 1 : 1;
++    // NOTE(calebmer): @popperjs/core@2.11.6 has a bug in its scale
++    // implementation where it rounds too aggressively. So use the scale
++    // implementation from its successor @floating-ui/dom@1.5.3. We aren't
++    // replacing popper with floating-ui yet since the migration seems involved.
++    //
++    // We also add one change floating-ui's to the `getScale()` implementation
++    // to better support overlays in our UI.
++    var scale = getScale(element);
++    scaleX = scale.x;
++    scaleY = scale.y;
+   }
+ 
+   var _ref = isElement(element) ? getWindow(element) : window,
+diff --git a/dist/umd/popper-base.js b/dist/umd/popper-base.js
+index 7a3396ea50cbef2dd80d0695ed3c321870105a3f..68ca5ef64022a407e92c67c3e19732b51ce82599 100644
+--- a/dist/umd/popper-base.js
++++ b/dist/umd/popper-base.js
+@@ -61,6 +61,80 @@
+     return !/^((?!chrome|android).)*safari/i.test(getUAString());
+   }
+ 
++  // Adapted from:
++  // https://github.com/floating-ui/floating-ui/blob/e2729e7e91b0bfc4c9b16665161b871f5d3bf9d6/packages/dom/src/utils/getCssDimensions.ts
++  function getCssDimensions(element) {
++    var css = getComputedStyle(element);
++    // In testing environments, the `width` and `height` properties are empty
++    // strings for SVG elements, returning NaN. Fallback to `0` in this case.
++    var width = parseFloat(css.width) || 0;
++    var height = parseFloat(css.height) || 0;
++    var hasOffset = isHTMLElement(element);
++    var offsetWidth = hasOffset ? element.offsetWidth : width;
++    var offsetHeight = hasOffset ? element.offsetHeight : height;
++    var shouldFallback =
++      round(width) !== offsetWidth || round(height) !== offsetHeight;
++
++    if (shouldFallback) {
++      width = offsetWidth;
++      height = offsetHeight;
++    }
++
++    return {
++      width,
++      height,
++      $: shouldFallback,
++    };
++  }
++
++  // Adapted from:
++  // https://github.com/floating-ui/floating-ui/blob/e2729e7e91b0bfc4c9b16665161b871f5d3bf9d6/packages/dom/src/platform/getScale.ts
++  function getScale(element) {
++    var domElement = !isElement(element) ? element.contextElement : element;
++
++    if (!isHTMLElement(domElement)) {
++      return {x: 1, y: 1};
++    }
++
++    var rect = domElement.getBoundingClientRect();
++    var cssDimensions = getCssDimensions(domElement);
++    var x = (cssDimensions.$ ? round(rect.width) : rect.width) / cssDimensions.width;
++    var y = (cssDimensions.$ ? round(rect.height) : rect.height) / cssDimensions.height;
++
++    // NOTE(calebmer): If `width` or `height` is 0px then assume we scale evenly
++    // on both dimensions. This is not true for every animation. Uneven scale
++    // animations look unnatural so generally scale animations use the same scale
++    // on both dimensions making this a good default.
++    //
++    // We need this since our overlays render in a 0px height container. This 0px
++    // height container breaks Y scaling detection causing overlays to be
++    // misplaced during an animation. (The bug this fixes can be reproduced by
++    // opening a modal where an element is auto-focused.)
++
++    if (cssDimensions.width === 0) {
++      x = y;
++    }
++
++    if (cssDimensions.height === 0) {
++      y = x;
++    }
++
++    // 0, NaN, or Infinity should always fallback to 1.
++
++    if (!x || !Number.isFinite(x)) {
++      x = 1;
++    }
++
++    if (!y || !Number.isFinite(y)) {
++      y = 1;
++    }
++
++    return {
++      x,
++      y,
++    };
++  }
++
+   function getBoundingClientRect(element, includeScale, isFixedStrategy) {
+     if (includeScale === void 0) {
+       includeScale = false;
+@@ -75,8 +149,16 @@
+     var scaleY = 1;
+ 
+     if (includeScale && isHTMLElement(element)) {
+-      scaleX = element.offsetWidth > 0 ? round(clientRect.width) / element.offsetWidth || 1 : 1;
+-      scaleY = element.offsetHeight > 0 ? round(clientRect.height) / element.offsetHeight || 1 : 1;
++      // NOTE(calebmer): @popperjs/core@2.11.6 has a bug in its scale
++      // implementation where it rounds too aggressively. So use the scale
++      // implementation from its successor @floating-ui/dom@1.5.3. We aren't
++      // replacing popper with floating-ui yet since the migration seems involved.
++      //
++      // We also add one change floating-ui's to the `getScale()` implementation
++      // to better support overlays in our UI.
++      var scale = getScale(element);
++      scaleX = scale.x;
++      scaleY = scale.y;
+     }
+ 
+     var _ref = isElement(element) ? getWindow(element) : window,
+diff --git a/dist/umd/popper-lite.js b/dist/umd/popper-lite.js
+index ffa4b8496cc046ea8dae106174e06c8e52697bb3..67b94e56703663487be9f6678812e8ab74adac87 100644
+--- a/dist/umd/popper-lite.js
++++ b/dist/umd/popper-lite.js
+@@ -61,6 +61,80 @@
+     return !/^((?!chrome|android).)*safari/i.test(getUAString());
+   }
+ 
++  // Adapted from:
++  // https://github.com/floating-ui/floating-ui/blob/e2729e7e91b0bfc4c9b16665161b871f5d3bf9d6/packages/dom/src/utils/getCssDimensions.ts
++  function getCssDimensions(element) {
++    var css = getComputedStyle(element);
++    // In testing environments, the `width` and `height` properties are empty
++    // strings for SVG elements, returning NaN. Fallback to `0` in this case.
++    var width = parseFloat(css.width) || 0;
++    var height = parseFloat(css.height) || 0;
++    var hasOffset = isHTMLElement(element);
++    var offsetWidth = hasOffset ? element.offsetWidth : width;
++    var offsetHeight = hasOffset ? element.offsetHeight : height;
++    var shouldFallback =
++      round(width) !== offsetWidth || round(height) !== offsetHeight;
++
++    if (shouldFallback) {
++      width = offsetWidth;
++      height = offsetHeight;
++    }
++
++    return {
++      width,
++      height,
++      $: shouldFallback,
++    };
++  }
++
++  // Adapted from:
++  // https://github.com/floating-ui/floating-ui/blob/e2729e7e91b0bfc4c9b16665161b871f5d3bf9d6/packages/dom/src/platform/getScale.ts
++  function getScale(element) {
++    var domElement = !isElement(element) ? element.contextElement : element;
++
++    if (!isHTMLElement(domElement)) {
++      return {x: 1, y: 1};
++    }
++
++    var rect = domElement.getBoundingClientRect();
++    var cssDimensions = getCssDimensions(domElement);
++    var x = (cssDimensions.$ ? round(rect.width) : rect.width) / cssDimensions.width;
++    var y = (cssDimensions.$ ? round(rect.height) : rect.height) / cssDimensions.height;
++
++    // NOTE(calebmer): If `width` or `height` is 0px then assume we scale evenly
++    // on both dimensions. This is not true for every animation. Uneven scale
++    // animations look unnatural so generally scale animations use the same scale
++    // on both dimensions making this a good default.
++    //
++    // We need this since our overlays render in a 0px height container. This 0px
++    // height container breaks Y scaling detection causing overlays to be
++    // misplaced during an animation. (The bug this fixes can be reproduced by
++    // opening a modal where an element is auto-focused.)
++
++    if (cssDimensions.width === 0) {
++      x = y;
++    }
++
++    if (cssDimensions.height === 0) {
++      y = x;
++    }
++
++    // 0, NaN, or Infinity should always fallback to 1.
++
++    if (!x || !Number.isFinite(x)) {
++      x = 1;
++    }
++
++    if (!y || !Number.isFinite(y)) {
++      y = 1;
++    }
++
++    return {
++      x,
++      y,
++    };
++  }
++
+   function getBoundingClientRect(element, includeScale, isFixedStrategy) {
+     if (includeScale === void 0) {
+       includeScale = false;
+@@ -75,8 +149,16 @@
+     var scaleY = 1;
+ 
+     if (includeScale && isHTMLElement(element)) {
+-      scaleX = element.offsetWidth > 0 ? round(clientRect.width) / element.offsetWidth || 1 : 1;
+-      scaleY = element.offsetHeight > 0 ? round(clientRect.height) / element.offsetHeight || 1 : 1;
++      // NOTE(calebmer): @popperjs/core@2.11.6 has a bug in its scale
++      // implementation where it rounds too aggressively. So use the scale
++      // implementation from its successor @floating-ui/dom@1.5.3. We aren't
++      // replacing popper with floating-ui yet since the migration seems involved.
++      //
++      // We also add one change floating-ui's to the `getScale()` implementation
++      // to better support overlays in our UI.
++      var scale = getScale(element);
++      scaleX = scale.x;
++      scaleY = scale.y;
+     }
+ 
+     var _ref = isElement(element) ? getWindow(element) : window,
+diff --git a/dist/umd/popper.js b/dist/umd/popper.js
+index 033947ffbcde193db1507e6e8b9cc783ffb4f728..89e19c65394a9a7589ebc38b6c2b0337571ea250 100644
+--- a/dist/umd/popper.js
++++ b/dist/umd/popper.js
+@@ -61,6 +61,80 @@
+     return !/^((?!chrome|android).)*safari/i.test(getUAString());
+   }
+ 
++  // Adapted from:
++  // https://github.com/floating-ui/floating-ui/blob/e2729e7e91b0bfc4c9b16665161b871f5d3bf9d6/packages/dom/src/utils/getCssDimensions.ts
++  function getCssDimensions(element) {
++    var css = getComputedStyle(element);
++    // In testing environments, the `width` and `height` properties are empty
++    // strings for SVG elements, returning NaN. Fallback to `0` in this case.
++    var width = parseFloat(css.width) || 0;
++    var height = parseFloat(css.height) || 0;
++    var hasOffset = isHTMLElement(element);
++    var offsetWidth = hasOffset ? element.offsetWidth : width;
++    var offsetHeight = hasOffset ? element.offsetHeight : height;
++    var shouldFallback =
++      round(width) !== offsetWidth || round(height) !== offsetHeight;
++
++    if (shouldFallback) {
++      width = offsetWidth;
++      height = offsetHeight;
++    }
++
++    return {
++      width,
++      height,
++      $: shouldFallback,
++    };
++  }
++
++  // Adapted from:
++  // https://github.com/floating-ui/floating-ui/blob/e2729e7e91b0bfc4c9b16665161b871f5d3bf9d6/packages/dom/src/platform/getScale.ts
++  function getScale(element) {
++    var domElement = !isElement(element) ? element.contextElement : element;
++
++    if (!isHTMLElement(domElement)) {
++      return {x: 1, y: 1};
++    }
++
++    var rect = domElement.getBoundingClientRect();
++    var cssDimensions = getCssDimensions(domElement);
++    var x = (cssDimensions.$ ? round(rect.width) : rect.width) / cssDimensions.width;
++    var y = (cssDimensions.$ ? round(rect.height) : rect.height) / cssDimensions.height;
++
++    // NOTE(calebmer): If `width` or `height` is 0px then assume we scale evenly
++    // on both dimensions. This is not true for every animation. Uneven scale
++    // animations look unnatural so generally scale animations use the same scale
++    // on both dimensions making this a good default.
++    //
++    // We need this since our overlays render in a 0px height container. This 0px
++    // height container breaks Y scaling detection causing overlays to be
++    // misplaced during an animation. (The bug this fixes can be reproduced by
++    // opening a modal where an element is auto-focused.)
++
++    if (cssDimensions.width === 0) {
++      x = y;
++    }
++
++    if (cssDimensions.height === 0) {
++      y = x;
++    }
++
++    // 0, NaN, or Infinity should always fallback to 1.
++
++    if (!x || !Number.isFinite(x)) {
++      x = 1;
++    }
++
++    if (!y || !Number.isFinite(y)) {
++      y = 1;
++    }
++
++    return {
++      x,
++      y,
++    };
++  }
++
+   function getBoundingClientRect(element, includeScale, isFixedStrategy) {
+     if (includeScale === void 0) {
+       includeScale = false;
+@@ -75,8 +149,16 @@
+     var scaleY = 1;
+ 
+     if (includeScale && isHTMLElement(element)) {
+-      scaleX = element.offsetWidth > 0 ? round(clientRect.width) / element.offsetWidth || 1 : 1;
+-      scaleY = element.offsetHeight > 0 ? round(clientRect.height) / element.offsetHeight || 1 : 1;
++      // NOTE(calebmer): @popperjs/core@2.11.6 has a bug in its scale
++      // implementation where it rounds too aggressively. So use the scale
++      // implementation from its successor @floating-ui/dom@1.5.3. We aren't
++      // replacing popper with floating-ui yet since the migration seems involved.
++      //
++      // We also add one change floating-ui's to the `getScale()` implementation
++      // to better support overlays in our UI.
++      var scale = getScale(element);
++      scaleX = scale.x;
++      scaleY = scale.y;
+     }
+ 
+     var _ref = isElement(element) ? getWindow(element) : window,
+diff --git a/lib/dom-utils/getBoundingClientRect.js b/lib/dom-utils/getBoundingClientRect.js
+index fa065a21108c5fa4be795997184832dc36ff6696..5ded4432aab450f561b9113f42a31cda876dea16 100644
+--- a/lib/dom-utils/getBoundingClientRect.js
++++ b/lib/dom-utils/getBoundingClientRect.js
+@@ -2,6 +2,81 @@ import { isElement, isHTMLElement } from "./instanceOf.js";
+ import { round } from "../utils/math.js";
+ import getWindow from "./getWindow.js";
+ import isLayoutViewport from "./isLayoutViewport.js";
++
++// Adapted from:
++// https://github.com/floating-ui/floating-ui/blob/e2729e7e91b0bfc4c9b16665161b871f5d3bf9d6/packages/dom/src/utils/getCssDimensions.ts
++function getCssDimensions(element) {
++  var css = getComputedStyle(element);
++  // In testing environments, the `width` and `height` properties are empty
++  // strings for SVG elements, returning NaN. Fallback to `0` in this case.
++  var width = parseFloat(css.width) || 0;
++  var height = parseFloat(css.height) || 0;
++  var hasOffset = isHTMLElement(element);
++  var offsetWidth = hasOffset ? element.offsetWidth : width;
++  var offsetHeight = hasOffset ? element.offsetHeight : height;
++  var shouldFallback =
++    round(width) !== offsetWidth || round(height) !== offsetHeight;
++
++  if (shouldFallback) {
++    width = offsetWidth;
++    height = offsetHeight;
++  }
++
++  return {
++    width,
++    height,
++    $: shouldFallback,
++  };
++}
++
++// Adapted from:
++// https://github.com/floating-ui/floating-ui/blob/e2729e7e91b0bfc4c9b16665161b871f5d3bf9d6/packages/dom/src/platform/getScale.ts
++function getScale(element) {
++  var domElement = !isElement(element) ? element.contextElement : element;
++
++  if (!isHTMLElement(domElement)) {
++    return {x: 1, y: 1};
++  }
++
++  var rect = domElement.getBoundingClientRect();
++  var cssDimensions = getCssDimensions(domElement);
++  var x = (cssDimensions.$ ? round(rect.width) : rect.width) / cssDimensions.width;
++  var y = (cssDimensions.$ ? round(rect.height) : rect.height) / cssDimensions.height;
++
++  // NOTE(calebmer): If `width` or `height` is 0px then assume we scale evenly
++  // on both dimensions. This is not true for every animation. Uneven scale
++  // animations look unnatural so generally scale animations use the same scale
++  // on both dimensions making this a good default.
++  //
++  // We need this since our overlays render in a 0px height container. This 0px
++  // height container breaks Y scaling detection causing overlays to be
++  // misplaced during an animation. (The bug this fixes can be reproduced by
++  // opening a modal where an element is auto-focused.)
++
++  if (cssDimensions.width === 0) {
++    x = y;
++  }
++
++  if (cssDimensions.height === 0) {
++    y = x;
++  }
++
++  // 0, NaN, or Infinity should always fallback to 1.
++
++  if (!x || !Number.isFinite(x)) {
++    x = 1;
++  }
++
++  if (!y || !Number.isFinite(y)) {
++    y = 1;
++  }
++
++  return {
++    x,
++    y,
++  };
++}
++
+ export default function getBoundingClientRect(element, includeScale, isFixedStrategy) {
+   if (includeScale === void 0) {
+     includeScale = false;
+@@ -16,8 +91,16 @@ export default function getBoundingClientRect(element, includeScale, isFixedStra
+   var scaleY = 1;
+ 
+   if (includeScale && isHTMLElement(element)) {
+-    scaleX = element.offsetWidth > 0 ? round(clientRect.width) / element.offsetWidth || 1 : 1;
+-    scaleY = element.offsetHeight > 0 ? round(clientRect.height) / element.offsetHeight || 1 : 1;
++    // NOTE(calebmer): @popperjs/core@2.11.6 has a bug in its scale
++    // implementation where it rounds too aggressively. So use the scale
++    // implementation from its successor @floating-ui/dom@1.5.3. We aren't
++    // replacing popper with floating-ui yet since the migration seems involved.
++    //
++    // We also add one change floating-ui's to the `getScale()` implementation
++    // to better support overlays in our UI.
++    var scale = getScale(element);
++    scaleX = scale.x;
++    scaleY = scale.y;
+   }
+ 
+   var _ref = isElement(element) ? getWindow(element) : window,
