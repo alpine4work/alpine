@@ -14,6 +14,7 @@ import {
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {getTaskQueryNormalizedSortCursorForModel} from "~/shared/tasks/model/get_task_query_normalized_sort_cursor_for_model.js";
 import {TaskPosition} from "~/shared/tasks/task_position.js";
+import {getTaskQuerySortCursorTaskId} from "~/shared/tasks/task_query_sort_cursor.js";
 
 /**
  * Get the `TaskPosition` for a new task in a query that's sorted by
@@ -25,7 +26,11 @@ import {TaskPosition} from "~/shared/tasks/task_position.js";
 export function getNewTaskPositionForQuerySortedByPosition(
     time: HybridLogicalTime,
     query: TaskClientQuery,
-    position: {type: "End"} | {type: "Above"; taskId: TaskId} | {type: "Below"; taskId: TaskId},
+    position:
+        | {type: "Start"}
+        | {type: "End"}
+        | {type: "Above"; taskId: TaskId}
+        | {type: "Below"; taskId: TaskId},
 ): TaskPosition {
     assert(query.sorts.length > 0);
     const firstQuerySort = query.sorts[0]!;
@@ -38,6 +43,23 @@ export function getNewTaskPositionForQuerySortedByPosition(
     );
 
     switch (position.type) {
+        case "Start": {
+            const firstCursor = query.taskOrderStore.getSnapshot().begin.key;
+
+            if (!firstCursor) {
+                return {
+                    orderTime: time,
+                    orderKey: initialOrderKey,
+                };
+            }
+
+            const firstTaskId = getTaskQuerySortCursorTaskId(firstCursor);
+
+            return getNewTaskPositionForQuerySortedByPosition(time, query, {
+                type: "Above",
+                taskId: firstTaskId,
+            });
+        }
         case "End": {
             return {
                 orderTime: time,

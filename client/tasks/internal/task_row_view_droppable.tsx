@@ -1,33 +1,35 @@
 import {useDroppable} from "@dnd-kit/core";
 import {useId} from "react";
 import {Box} from "~/client/design/box.js";
-import {TaskGridViewDroppableData} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context.js";
-import {taskRowViewMinHeight} from "~/client/tasks/demo_2/internal/task_row_shared_styles.js";
+import {TaskGridViewDroppableData} from "~/client/tasks/internal/task_grid_view_dnd_context.js";
+import {taskRowViewMinHeight} from "~/client/tasks/task_row_shared_styles.js";
 import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {cast} from "~/shared/helpers/control/cast.js";
+import {TaskId} from "~/shared/id/types/id_types.js";
 import {contentSchemaStyles} from "~/shared/styles/styles.js";
+import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 
-export function TaskRowViewDroppable<TaskRow>({
-    taskRow,
+export function TaskRowViewDroppable({
     indentation,
     nextAdjacentIndentation,
     previousAdjacentIndentation,
     isPositionedAbove,
     isVerticallyFlipped,
+    getDropActions,
 }: {
-    taskRow: TaskRow | null;
     indentation: number;
     nextAdjacentIndentation: number | null;
     previousAdjacentIndentation: number | null;
     isPositionedAbove?: boolean;
     isVerticallyFlipped?: boolean;
+    getDropActions: (taskId: TaskId) => Array<TaskAction>;
 }) {
     const {isOver, setNodeRef: setDroppableNodeRef} = useDroppable({
         id: useId(),
-        data: {
+        data: cast<TaskGridViewDroppableData>({
             type: "Row",
-            taskRow,
-            indentation,
-        } satisfies TaskGridViewDroppableData<TaskRow>,
+            getDropActions,
+        }),
     });
 
     const listItemIndent = parseRemLengthNumber(contentSchemaStyles.listItemIndentation);

@@ -2,24 +2,20 @@ import {CaretUp} from "phosphor-react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {Tooltip} from "~/client/design/tooltip.js";
-import {Store} from "~/client/helpers/store/store.js";
-import {useStore} from "~/client/helpers/store/use_store.js";
 import {TaskChildTasksProgressWheel} from "~/client/tasks/internal/task_child_tasks_progress_wheel.js";
 import {spacing} from "~/shared/design/spacing.js";
 
 export function TaskRowTitleChildTasksButton({
     childTaskCount,
     closedChildTaskCount,
-    areChildTasksExpandedStore,
+    areChildTasksExpanded,
     onAreChildTasksExpandedToggle,
 }: {
     childTaskCount: number;
     closedChildTaskCount: number;
-    areChildTasksExpandedStore: Store<boolean | undefined>;
+    areChildTasksExpanded: boolean;
     onAreChildTasksExpandedToggle: () => void;
 }) {
-    const areChildTasksExpanded = useStore(areChildTasksExpandedStore) ?? false;
-
     const {hoverProps, isHovered} = useHover({});
     const {pressProps, isPressed} = usePress({onPress: onAreChildTasksExpandedToggle});
 

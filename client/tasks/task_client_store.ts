@@ -2031,12 +2031,46 @@ export class TaskClientStoreInternal {
             }
         >();
 
-        for (const action of actions) {
+        for (let i = 0; i < actions.length; i++) {
+            const action = actions[i]!;
+
+            const applyPreviousActions = (taskId: TaskId, task: TaskModel | null) => {
+                const pendingActions: Array<TaskUpdateTaskAction> = [];
+
+                for (let j = 0; j < i; j++) {
+                    const action = actions[j]!;
+                    if (action.type !== "UpdateTask" || action.taskId !== taskId) continue;
+
+                    if (task !== null) {
+                        task = task.apply(action);
+                    } else {
+                        if (action.taskAction.type !== "Create") {
+                            pendingActions.push(action);
+                        } else {
+                            task = pendingActions.reduce(
+                                (task, action) => task.apply(action),
+                                TaskModel.createFromAction(
+                                    this.spaceId,
+                                    taskId,
+                                    action.time,
+                                    action.taskAction,
+                                ),
+                            );
+                        }
+                    }
+                }
+
+                return task;
+            };
+
             // If the parent tasks involved are available in our client store then we
             // update their children counts after the parent task change.
             if (action.type === "UpdateTask" && action.taskAction.type === "UpdateParentTaskId") {
                 const taskEntryStore = this._taskEntryStoreById.get(action.taskId);
-                const task = taskEntryStore?.getSnapshot().task;
+                const task = applyPreviousActions(
+                    action.taskId,
+                    taskEntryStore?.getSnapshot().task ?? null,
+                );
                 if (!task) continue;
 
                 const oldParentTaskId = task.getParent()?.taskId ?? null;
@@ -2045,7 +2079,10 @@ export class TaskClientStoreInternal {
 
                 if (oldParentTaskId) {
                     const oldParentTaskEntryStore = this._taskEntryStoreById.get(oldParentTaskId);
-                    const oldParentTask = oldParentTaskEntryStore?.getSnapshot().task;
+                    const oldParentTask = applyPreviousActions(
+                        oldParentTaskId,
+                        oldParentTaskEntryStore?.getSnapshot().task ?? null,
+                    );
 
                     if (oldParentTask) {
                         const childTaskCounts = getOrSetDefaultMapValue(
@@ -2069,7 +2106,10 @@ export class TaskClientStoreInternal {
 
                 if (newParentTaskId) {
                     const newParentTaskEntryStore = this._taskEntryStoreById.get(newParentTaskId);
-                    const newParentTask = newParentTaskEntryStore?.getSnapshot().task;
+                    const newParentTask = applyPreviousActions(
+                        newParentTaskId,
+                        newParentTaskEntryStore?.getSnapshot().task ?? null,
+                    );
 
                     if (newParentTask) {
                         const childTaskCounts = getOrSetDefaultMapValue(
@@ -2096,7 +2136,10 @@ export class TaskClientStoreInternal {
             // update their children counts after the parent task change.
             if (action.type === "UpdateTask" && action.taskAction.type === "UpdateStatus") {
                 const taskEntryStore = this._taskEntryStoreById.get(action.taskId);
-                const task = taskEntryStore?.getSnapshot().task;
+                const task = applyPreviousActions(
+                    action.taskId,
+                    taskEntryStore?.getSnapshot().task ?? null,
+                );
                 if (!task) continue;
 
                 const oldStatusType = task.rawData.status.value.type;
@@ -2107,7 +2150,10 @@ export class TaskClientStoreInternal {
                 if (!parentTaskId) continue;
 
                 const parentTaskEntryStore = this._taskEntryStoreById.get(parentTaskId);
-                const parentTask = parentTaskEntryStore?.getSnapshot().task;
+                const parentTask = applyPreviousActions(
+                    parentTaskId,
+                    parentTaskEntryStore?.getSnapshot().task ?? null,
+                );
                 if (!parentTask) continue;
 
                 const childTaskCounts = getOrSetDefaultMapValue(
@@ -2131,14 +2177,20 @@ export class TaskClientStoreInternal {
             // tasks don't show up in child task queries.
             if (action.type === "UpdateTask" && action.taskAction.type === "Delete") {
                 const taskEntryStore = this._taskEntryStoreById.get(action.taskId);
-                const task = taskEntryStore?.getSnapshot().task;
+                const task = applyPreviousActions(
+                    action.taskId,
+                    taskEntryStore?.getSnapshot().task ?? null,
+                );
                 if (!task) continue;
 
                 const parentTaskId = task.getParent()?.taskId;
                 if (!parentTaskId) continue;
 
                 const parentTaskEntryStore = this._taskEntryStoreById.get(parentTaskId);
-                const parentTask = parentTaskEntryStore?.getSnapshot().task;
+                const parentTask = applyPreviousActions(
+                    parentTaskId,
+                    parentTaskEntryStore?.getSnapshot().task ?? null,
+                );
 
                 if (!parentTask) continue;
 
@@ -2162,14 +2214,20 @@ export class TaskClientStoreInternal {
             // tasks don't show up in child task queries.
             if (action.type === "UpdateTask" && action.taskAction.type === "Undelete") {
                 const taskEntryStore = this._taskEntryStoreById.get(action.taskId);
-                const task = taskEntryStore?.getSnapshot().task;
+                const task = applyPreviousActions(
+                    action.taskId,
+                    taskEntryStore?.getSnapshot().task ?? null,
+                );
                 if (!task) continue;
 
                 const parentTaskId = task.getParent()?.taskId;
                 if (!parentTaskId) continue;
 
                 const parentTaskEntryStore = this._taskEntryStoreById.get(parentTaskId);
-                const parentTask = parentTaskEntryStore?.getSnapshot().task;
+                const parentTask = applyPreviousActions(
+                    parentTaskId,
+                    parentTaskEntryStore?.getSnapshot().task ?? null,
+                );
 
                 if (!parentTask) continue;
 

@@ -118,7 +118,7 @@ function TaskRowTitleInput(
         parentTaskEntryStore,
         childTaskCount,
         closedChildTaskCount,
-        areChildTasksExpandedStore,
+        areChildTasksExpanded,
         onAreChildTasksExpandedToggle,
         createTaskAbove,
         createTaskBelowAndFocus,
@@ -139,7 +139,7 @@ function TaskRowTitleInput(
         parentTaskEntryStore: Store<TaskClientStoreTaskEntry> | null;
         childTaskCount: number;
         closedChildTaskCount: number;
-        areChildTasksExpandedStore: Store<boolean | undefined>;
+        areChildTasksExpanded: boolean;
         onAreChildTasksExpandedToggle: () => void;
         createTaskAbove: () => void;
         createTaskBelowAndFocus: () => void;
@@ -698,7 +698,7 @@ function TaskRowTitleInput(
                         <TaskRowTitleChildTasksButton
                             childTaskCount={childTaskCount}
                             closedChildTaskCount={closedChildTaskCount}
-                            areChildTasksExpandedStore={areChildTasksExpandedStore}
+                            areChildTasksExpanded={areChildTasksExpanded}
                             onAreChildTasksExpandedToggle={onAreChildTasksExpandedToggle}
                         />
                     )}

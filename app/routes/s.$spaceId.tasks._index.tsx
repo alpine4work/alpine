@@ -242,7 +242,7 @@ export default function TasksRoute() {
                         },
                     ];
                 }}
-                getMaybeRemoveTaskFromQueryWhenNestingActions={taskId => [
+                getMaybeRemoveTaskFromQueryActions={taskId => [
                     {
                         type: "UpdateTask",
                         time: notepadPageQuery.store.clock.now(),

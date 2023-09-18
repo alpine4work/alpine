@@ -78,7 +78,7 @@ export function useTaskGridViewVirtualizedList({
     initialBottomGhostTaskId,
     viewRef,
     getMoveTaskToQueryActions: _getMoveTaskToQueryActions,
-    getMaybeRemoveTaskFromQueryWhenNestingActions: _getMaybeRemoveTaskFromQueryWhenNestingActions,
+    getMaybeRemoveTaskFromQueryActions: _getMaybeRemoveTaskFromQueryActions,
 }: {
     capabilities: TaskGridViewCapabilities;
     query: TaskClientQuery;
@@ -89,7 +89,7 @@ export function useTaskGridViewVirtualizedList({
         taskId: TaskId,
         position: {type: "End"} | {type: "Above"; taskId: TaskId} | {type: "Below"; taskId: TaskId},
     ) => Array<TaskAction>;
-    getMaybeRemoveTaskFromQueryWhenNestingActions: (taskId: TaskId) => Array<TaskAction>;
+    getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskAction>;
 }): {
     itemCount: number;
     renderItem: Memo<(index: number) => VirtualizedScrollViewItem>;
@@ -124,8 +124,7 @@ export function useTaskGridViewVirtualizedList({
 
     const events = useEvents({
         getMoveTaskToQueryActions: _getMoveTaskToQueryActions,
-        getMaybeRemoveTaskFromQueryWhenNestingActions:
-            _getMaybeRemoveTaskFromQueryWhenNestingActions,
+        getMaybeRemoveTaskFromQueryActions: _getMaybeRemoveTaskFromQueryActions,
     });
 
     const taskRowByTaskKeyRef = useRef(new Map<TaskGridViewTaskKey, TaskRowViewRef>());
@@ -212,7 +211,7 @@ export function useTaskGridViewVirtualizedList({
                     if (item.type === "UnloadedChildTask") {
                         parentTaskIdsToLoad.add(
                             getTaskQuerySortCursorTaskId(
-                                item.parentTaskCursors[item.parentTaskCursors.length - 1]!,
+                                item.parents[item.parents.length - 1]!.cursor,
                             ),
                         );
                     }
@@ -596,24 +595,28 @@ export function useTaskGridViewVirtualizedList({
                                         taskRowByItemIndexRef.current.set(itemIndex, taskRow);
                                     }
                                 }}
-                                query={query}
                                 capabilities={capabilities}
-                                taskId={null}
+                                query={query}
+                                cursor={null}
                                 ghostTaskId={bottomGhostTaskId}
                                 onGhostTaskCreated={() =>
                                     setBottomGhostTaskId(generateId<TaskId>())
                                 }
-                                parentTaskCursors={emptyArray}
+                                parents={emptyArray}
                                 // NOCOMMIT: Ghost row placeholder sequence!
                                 titlePlaceholder="Add a task…"
-                                indentation={0}
+                                getNextIndentation={() => 0}
                                 areChildTasksExpandedStore={undefinedConstStore}
                                 onAreChildTasksExpandedToggle={noop}
                                 // If there are no task rows, the padding just makes our ghost row placeholder
                                 // look misaligned. So remove it.
                                 withoutPaddingLeft={listItemCount === 0}
                                 withPaddingBottom={itemIndex === itemCount - 1}
+                                getMoveTaskToRootQueryActions={events.getMoveTaskToQueryActions}
                                 getMoveTaskToQueryActions={events.getMoveTaskToQueryActions}
+                                getMaybeRemoveTaskFromQueryActions={
+                                    events.getMaybeRemoveTaskFromQueryActions
+                                }
                                 nestWithPreviousTaskRowIfExistsAndExpand={noop}
                                 unnestTaskIfNestedRow={noop}
                                 deleteTaskAndAllChildren={noop}
@@ -681,12 +684,12 @@ export function useTaskGridViewVirtualizedList({
                 const taskId = getTaskQuerySortCursorTaskId(item.cursor);
 
                 const taskKey: TaskGridViewTaskKey =
-                    item.parentTaskCursors.length > 0
-                        ? `${getTaskQuerySortCursorTaskId(item.parentTaskCursors[0]!)}-${taskId}`
+                    item.parents.length > 0
+                        ? `${getTaskQuerySortCursorTaskId(item.parents[0]!.cursor)}-${taskId}`
                         : taskId;
 
                 const taskPath = [
-                    ...item.parentTaskCursors.map(getTaskQuerySortCursorTaskId),
+                    ...item.parents.map(({cursor}) => getTaskQuerySortCursorTaskId(cursor)),
                     taskId,
                 ];
 
@@ -708,11 +711,8 @@ export function useTaskGridViewVirtualizedList({
                                       taskAction: {
                                           type: "UpdateParentTaskId",
                                           parentTaskId: getTaskQuerySortCursorTaskId(
-                                              assertExists(
-                                                  item.parentTaskCursors[
-                                                      item.parentTaskCursors.length - 1
-                                                  ],
-                                              ),
+                                              assertExists(item.parents[item.parents.length - 1])
+                                                  .cursor,
                                           ),
                                       },
                                   },
@@ -733,16 +733,31 @@ export function useTaskGridViewVirtualizedList({
                               ];
                           };
 
+                const getMaybeRemoveTaskFromQueryActions: typeof _getMaybeRemoveTaskFromQueryActions =
+                    item.query === query
+                        ? events.getMaybeRemoveTaskFromQueryActions
+                        : taskId => [
+                              {
+                                  type: "UpdateTask",
+                                  time: query.store.clock.now(),
+                                  taskId,
+                                  taskAction: {
+                                      type: "UpdateParentTaskId",
+                                      parentTaskId: null,
+                                  },
+                              },
+                          ];
+
                 const nestWithPreviousTaskRowIfExistsAndExpand = (titleSelection: Selection) => {
                     for (
                         let previousItemIndex = itemIndex - 1;
                         previousItemIndex >= 0;
                         previousItemIndex--
                     ) {
-                        const indentation = item.parentTaskCursors.length;
+                        const indentation = item.parents.length;
 
                         const previousItem = list.getItem(previousItemIndex);
-                        const previousIndentation = previousItem.parentTaskCursors.length;
+                        const previousIndentation = previousItem.parents.length;
 
                         if (previousIndentation > indentation) continue;
                         if (previousIndentation < indentation) break;
@@ -766,14 +781,14 @@ export function useTaskGridViewVirtualizedList({
                                 // If we are indenting at the root of our query then we want to remove the task
                                 // from the query root since it lives in its parent task now.
                                 ...(item.query === query
-                                    ? events.getMaybeRemoveTaskFromQueryWhenNestingActions(taskId)
+                                    ? events.getMaybeRemoveTaskFromQueryActions(taskId)
                                     : []),
                             ]);
 
                             // Store updates are rendered by React immediately. So focus our task before
                             // the next paint.
                             requestAnimationFrame(() => {
-                                if (previousItem.parentTaskCursors.length === 0) {
+                                if (previousItem.parents.length === 0) {
                                     focusTaskTitleSelection(
                                         `${previousTaskId}-${taskId}`,
                                         titleSelection,
@@ -781,7 +796,7 @@ export function useTaskGridViewVirtualizedList({
                                 } else {
                                     focusTaskTitleSelection(
                                         `${getTaskQuerySortCursorTaskId(
-                                            previousItem.parentTaskCursors[0]!,
+                                            previousItem.parents[0]!.cursor,
                                         )}-${taskId}`,
                                         titleSelection,
                                     );
@@ -790,9 +805,11 @@ export function useTaskGridViewVirtualizedList({
                         };
 
                         const previousTaskPath = [
-                            ...previousItem.parentTaskCursors,
-                            previousItem.cursor,
-                        ].map(getTaskQuerySortCursorTaskId);
+                            ...previousItem.parents.map(({cursor}) =>
+                                getTaskQuerySortCursorTaskId(cursor),
+                            ),
+                            getTaskQuerySortCursorTaskId(previousItem.cursor),
+                        ];
 
                         // Expand our new parent task if it's not already expanded.
                         if (getAreChildTasksExpandedStore(previousTaskPath).getSnapshot()) {
@@ -807,16 +824,16 @@ export function useTaskGridViewVirtualizedList({
                 };
 
                 const unnestTaskIfNestedRow = (titleSelection: Selection) => {
-                    if (item.parentTaskCursors.length === 0) return;
+                    if (item.parents.length === 0) return;
 
                     const oldParentTaskId =
                         item.query.getLoadedTaskSnapshot(taskId).getParent()?.taskId ?? null;
                     if (!oldParentTaskId) return;
 
                     const newParentTaskId =
-                        item.parentTaskCursors.length > 1
+                        item.parents.length > 1
                             ? getTaskQuerySortCursorTaskId(
-                                  item.parentTaskCursors[item.parentTaskCursors.length - 2]!,
+                                  item.parents[item.parents.length - 2]!.cursor,
                               )
                             : null;
 
@@ -882,12 +899,12 @@ export function useTaskGridViewVirtualizedList({
                     // Store updates are rendered by React immediately. So focus our task before
                     // the next paint.
                     requestAnimationFrame(() => {
-                        if (item.parentTaskCursors.length <= 1) {
+                        if (item.parents.length <= 1) {
                             focusTaskTitleSelection(taskId, titleSelection);
                         } else {
                             focusTaskTitleSelection(
                                 `${getTaskQuerySortCursorTaskId(
-                                    item.parentTaskCursors[0]!,
+                                    item.parents[0]!.cursor,
                                 )}-${taskId}`,
                                 titleSelection,
                             );
@@ -965,18 +982,26 @@ export function useTaskGridViewVirtualizedList({
                                 taskRowByItemIndexRef.current.set(itemIndex, taskRow);
                             }
                         }}
+                        capabilities={capabilities}
                         // It's important we use the `query` property from `item` since child tasks
                         // come from a different query than our root query.
                         query={item.query}
-                        capabilities={capabilities}
-                        taskId={taskId}
-                        parentTaskCursors={item.parentTaskCursors}
-                        indentation={item.parentTaskCursors.length}
+                        cursor={item.cursor}
+                        parents={item.parents}
+                        // Lazily computed with a function to not mess with the
+                        // `list.getItem(index + 1)` iterator optimization.
+                        getNextIndentation={() =>
+                            itemIndex + 1 < listItemCount
+                                ? list.getItem(itemIndex + 1).parents.length
+                                : 0
+                        }
                         areChildTasksExpandedStore={getAreChildTasksExpandedStore(taskPath)}
                         onAreChildTasksExpandedToggle={() => {
                             toggleAreChildTasksExpanded(taskPath);
                         }}
+                        getMoveTaskToRootQueryActions={events.getMoveTaskToQueryActions}
                         getMoveTaskToQueryActions={getMoveTaskToQueryActions}
+                        getMaybeRemoveTaskFromQueryActions={getMaybeRemoveTaskFromQueryActions}
                         nestWithPreviousTaskRowIfExistsAndExpand={
                             nestWithPreviousTaskRowIfExistsAndExpand
                         }
@@ -1004,17 +1029,15 @@ export function useTaskGridViewVirtualizedList({
             } else {
                 cast<"UnloadedChildTask">(item.type);
 
-                assert(item.parentTaskCursors.length > 0);
+                assert(item.parents.length > 0);
 
                 const parentTaskId = getTaskQuerySortCursorTaskId(
-                    item.parentTaskCursors[item.parentTaskCursors.length - 1]!,
+                    item.parents[item.parents.length - 1]!.cursor,
                 );
 
                 const parentTaskKey: TaskGridViewTaskKey =
-                    item.parentTaskCursors.length > 1
-                        ? `${getTaskQuerySortCursorTaskId(
-                              item.parentTaskCursors[0]!,
-                          )}-${parentTaskId}`
+                    item.parents.length > 1
+                        ? `${getTaskQuerySortCursorTaskId(item.parents[0]!.cursor)}-${parentTaskId}`
                         : parentTaskId;
 
                 const focusPreviousTaskTitleEnd = () => {
@@ -1044,7 +1067,7 @@ export function useTaskGridViewVirtualizedList({
                         <TaskRowShimmer
                             randomSeed={parentTaskKey}
                             index={item.unloadedChildTaskIndex}
-                            indentation={item.parentTaskCursors.length}
+                            indentation={item.parents.length}
                             focusPreviousTaskTitleEnd={focusPreviousTaskTitleEnd}
                             focusPreviousTaskTitleAll={focusPreviousTaskTitleAll}
                         />

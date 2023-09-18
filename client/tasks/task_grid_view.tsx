@@ -67,6 +67,7 @@ import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_k
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 import {taskRowViewMinHeight} from "~/client/tasks/task_row_shared_styles.js";
 import {spacing} from "~/shared/design/spacing.js";
+import {TaskGridViewDndContext} from "~/client/tasks/internal/task_grid_view_dnd_context.js";
 // NOCOMMIT:
 // import {TaskTitle, emptyTaskTitle} from "~/shared/tasks/task_title_schema_old.js";
 
@@ -80,7 +81,7 @@ export function TaskGridView({
     initialExpandedState,
     initialBottomGhostTaskId,
     getMoveTaskToQueryActions,
-    getMaybeRemoveTaskFromQueryWhenNestingActions,
+    getMaybeRemoveTaskFromQueryActions,
 }: {
     capabilities: TaskGridViewCapabilities;
     query: TaskClientQuery;
@@ -90,7 +91,7 @@ export function TaskGridView({
         taskId: TaskId,
         position: {type: "End"} | {type: "Above"; taskId: TaskId} | {type: "Below"; taskId: TaskId},
     ) => Array<TaskAction>;
-    getMaybeRemoveTaskFromQueryWhenNestingActions: (taskId: TaskId) => Array<TaskAction>;
+    getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskAction>;
 }) {
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
@@ -101,11 +102,11 @@ export function TaskGridView({
         initialBottomGhostTaskId,
         viewRef,
         getMoveTaskToQueryActions,
-        getMaybeRemoveTaskFromQueryWhenNestingActions,
+        getMaybeRemoveTaskFromQueryActions,
     });
 
     return (
-        <>
+        <TaskGridViewDndContext store={query.store}>
             {modals}
             <VirtualizedScrollView
                 ref={viewRef}
@@ -114,7 +115,7 @@ export function TaskGridView({
                 renderItem={renderItem}
                 onRenderedRangeChange={onRenderedRangeChange}
             />
-        </>
+        </TaskGridViewDndContext>
     );
 }
 

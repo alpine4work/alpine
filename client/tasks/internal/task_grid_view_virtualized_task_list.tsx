@@ -118,15 +118,19 @@ function createTaskGridViewVirtualizedTaskTree(
 export type TaskGridViewVirtualizedTaskListItem =
     | {
           readonly type: "Task";
-          // If this is a child task we need to read data from the child task query, not
-          // the root query. We set this property to the query the `taskId` lives in.
+          readonly parents: ReadonlyArray<{
+              readonly query: TaskClientQuery;
+              readonly cursor: TaskQuerySortCursor;
+          }>;
           readonly query: TaskClientQuery;
-          readonly parentTaskCursors: ReadonlyArray<TaskQuerySortCursor>;
           readonly cursor: TaskQuerySortCursor;
       }
     | {
           readonly type: "UnloadedChildTask";
-          readonly parentTaskCursors: ReadonlyArray<TaskQuerySortCursor>;
+          readonly parents: ReadonlyArray<{
+              readonly query: TaskClientQuery;
+              readonly cursor: TaskQuerySortCursor;
+          }>;
           readonly unloadedChildTaskIndex: number;
       };
 
@@ -405,15 +409,18 @@ function* iterateTaskGridViewVirtualizedTaskListTreeNodes(
         nextPhase: "Enter" | "ExitChildren";
     }>,
 ): IterableIterator<{
+    parents: ReadonlyArray<{
+        query: TaskClientQuery;
+        cursor: TaskQuerySortCursor;
+    }>;
     query: TaskClientQuery;
-    parentTaskCursors: ReadonlyArray<TaskQuerySortCursor>;
     node: TreeNode<TaskQuerySortCursor, TaskGridViewVirtualizedTaskTreeValue | null>;
     phase: "Enter" | "ExitChildren";
 }> {
     while (stack.length > 0) {
         const stackEntry = stack.pop()!;
         const {iterator, query} = stackEntry;
-        const parentTaskCursors = stack.map(({cursor}) => cursor);
+        const parents = stack.map(({query, cursor}) => ({query, cursor}));
 
         while (iterator.valid) {
             const node = iterator.node!;
@@ -421,8 +428,8 @@ function* iterateTaskGridViewVirtualizedTaskListTreeNodes(
             if (stackEntry.nextPhase === "ExitChildren") {
                 if (node.value) {
                     yield {
+                        parents,
                         query,
-                        parentTaskCursors,
                         node,
                         phase: "ExitChildren",
                     };
@@ -434,8 +441,8 @@ function* iterateTaskGridViewVirtualizedTaskListTreeNodes(
             }
 
             yield {
+                parents,
                 query,
-                parentTaskCursors,
                 node,
                 phase: "Enter",
             };
@@ -497,17 +504,17 @@ function* iterateTaskGridViewVirtualizedTaskListItems(
         const result = iterator.next();
         if (result.done) return;
 
-        const {parentTaskCursors, node, phase} = result.value;
+        const {parents, query, node, phase} = result.value;
 
         assert(phase !== "Enter");
         assert(node.value && node.value.unloadedChildTaskCount > 0);
 
-        const childrenParentTaskCursors = [...parentTaskCursors, node.key];
+        const childrenParents = [...parents, {query, cursor: node.key}];
 
         for (let i = initialUnloadedChildTaskIndex; i < node.value.unloadedChildTaskCount; i++) {
             yield {
                 type: "UnloadedChildTask",
-                parentTaskCursors: childrenParentTaskCursors,
+                parents: childrenParents,
                 unloadedChildTaskIndex: i,
             };
         }
@@ -517,21 +524,21 @@ function* iterateTaskGridViewVirtualizedTaskListItems(
 
     // Loop through our tree yielding `UnloadedChildTask`s when we exit a node
     // when appropriate.
-    for (const {query, parentTaskCursors, node, phase} of iterator) {
+    for (const {parents, query, node, phase} of iterator) {
         if (phase === "Enter") {
             yield {
                 type: "Task",
+                parents,
                 query,
-                parentTaskCursors,
                 cursor: node.key,
             };
         } else if (node.value && node.value.unloadedChildTaskCount > 0) {
-            const childrenParentTaskCursors = [...parentTaskCursors, node.key];
+            const childrenParents = [...parents, {query, cursor: node.key}];
 
             for (let i = 0; i < node.value.unloadedChildTaskCount; i++) {
                 yield {
                     type: "UnloadedChildTask",
-                    parentTaskCursors: childrenParentTaskCursors,
+                    parents: childrenParents,
                     unloadedChildTaskIndex: i,
                 };
             }

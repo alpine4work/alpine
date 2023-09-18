@@ -1,29 +1,12 @@
 import {useDraggable} from "@dnd-kit/core";
-import {CalendarDate, parseAbsolute, toCalendarDate} from "@internationalized/date";
-import {ArrowsOutSimple, DotsSixVertical} from "phosphor-react";
+import {DotsSixVertical} from "phosphor-react";
 import {Selection} from "prosemirror-state";
-import {
-    PropsWithoutRef,
-    ReactElement,
-    Ref,
-    RefAttributes,
-    RefCallback,
-    forwardRef,
-    useCallback,
-    useId,
-    useImperativeHandle,
-    useMemo,
-    useRef,
-    useState,
-} from "react";
+import {Ref, forwardRef, useId, useImperativeHandle, useMemo, useRef, useState} from "react";
 import {mergeProps} from "react-aria";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
-import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
-import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu_button.js";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
@@ -31,65 +14,29 @@ import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overla
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/get_new_task_position_for_query_sorted_by_position.js";
 import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
+import {TaskGridViewDraggableData} from "~/client/tasks/internal/task_grid_view_dnd_context.js";
 import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_key.js";
-import {taskRowViewMinHeight} from "~/client/tasks/task_row_shared_styles.js";
 import {
     TaskRowTitleInput,
     TaskRowTitleInputRef,
 } from "~/client/tasks/internal/task_row_title_input.js";
+import {TaskRowViewDroppable} from "~/client/tasks/internal/task_row_view_droppable.js";
 import {TaskStatusButton} from "~/client/tasks/internal/task_status_button.js";
-// NOCOMMIT:
-// import {getTaskStatusMenuActions} from "~/client/tasks/demo_2/internal/get_task_status_menu_actions.js";
-// import {TaskAssigneeInput} from "~/client/tasks/demo_2/internal/task_assignee_input.js";
-// import {TaskDateInput} from "~/client/tasks/demo_2/internal/task_date_input.js";
-// import {TaskGridViewCapabilities} from "~/client/tasks/demo_2/internal/task_grid_view_capabilities.js";
-// import {TaskGridViewDraggableData} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context.js";
-// import {TaskPriorityInput} from "~/client/tasks/demo_2/internal/task_priority_input.js";
-// import {
-//     TaskRowAssigneeCell,
-//     TaskRowAssigneeCellRef,
-// } from "~/client/tasks/demo_2/internal/task_row_assignee_cell.js";
-// import {
-//     TaskRowCollectionsCell,
-//     TaskRowCollectionsCellRef,
-// } from "~/client/tasks/demo_2/internal/task_row_collections_cell.js";
-// import {
-//     TaskRowDueDateCell,
-//     TaskRowDueDateCellRef,
-// } from "~/client/tasks/demo_2/internal/task_row_due_date_cell.js";
-// import {
-//     TaskRowPriorityCell,
-//     TaskRowPriorityCellRef,
-// } from "~/client/tasks/demo_2/internal/task_row_priority_cell.js";
-// import {taskRowViewMinHeight} from "~/client/tasks/demo_2/internal/task_row_shared_styles.js";
-// import {
-//     TaskRowTitleInput,
-//     TaskRowTitleInputRef,
-// } from "~/client/tasks/demo_2/internal/task_row_title_input.js";
-// import {TaskRowViewDroppable} from "~/client/tasks/demo_2/internal/task_row_view_droppable.js";
-// import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state.js";
-// import {
-//     TaskAssignee,
-//     TaskStatus,
-//     TaskStatusButton,
-// } from "~/client/tasks/demo_2/task_status_button.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {TaskClientStore} from "~/client/tasks/task_client_store.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
+import {taskRowViewMinHeight} from "~/client/tasks/task_row_shared_styles.js";
 import {Context} from "~/shared/context/context.js";
-import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
-import {ThemeColor} from "~/shared/design/theme_colors.js";
-import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {RemLength, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
-import {LocalTaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {TaskId} from "~/shared/id/types/id_types.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {
     colorSchemeVars,
@@ -98,6 +45,7 @@ import {
     tasksStyles,
 } from "~/shared/styles/styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {
@@ -123,19 +71,21 @@ const emptyTaskTitleModel = new Lazy(() => TaskTitleModel.new(emptyTaskTitle.get
 
 function TaskRowView(
     {
-        query,
         capabilities,
-        taskId,
+        query,
+        cursor,
         ghostTaskId = null,
         onGhostTaskCreated,
-        parentTaskCursors,
+        parents,
         titlePlaceholder,
-        indentation,
+        getNextIndentation,
         areChildTasksExpandedStore,
         onAreChildTasksExpandedToggle,
         withoutPaddingLeft,
         withPaddingBottom,
         getMoveTaskToQueryActions,
+        getMoveTaskToRootQueryActions,
+        getMaybeRemoveTaskFromQueryActions,
         nestWithPreviousTaskRowIfExistsAndExpand,
         unnestTaskIfNestedRow,
         deleteTaskAndAllChildren,
@@ -147,12 +97,12 @@ function TaskRowView(
         focusFirstVisibleTaskTitleStart,
         focusLastVisibleTaskTitleEnd,
     }: {
-        query: TaskClientQuery;
         capabilities: TaskGridViewCapabilities;
-        taskId: TaskId | null;
+        query: TaskClientQuery;
+        cursor: TaskQuerySortCursor | null;
         ghostTaskId?: TaskId | null;
         onGhostTaskCreated?: () => void;
-        parentTaskCursors: ReadonlyArray<TaskQuerySortCursor>;
+        parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>;
         titlePlaceholder?: string;
         // NOCOMMIT:
         // capabilities: TaskGridViewCapabilities;
@@ -179,13 +129,12 @@ function TaskRowView(
         // editingCollectionsContainerRef: RefCallback<HTMLElement> | null;
         // parentTaskTitle: TaskTitle | null;
         // onExpand: (() => Promise<void>) | null;
-        indentation: number;
+        getNextIndentation: () => number;
         areChildTasksExpandedStore: Store<boolean | undefined>;
         onAreChildTasksExpandedToggle: () => void;
         withoutPaddingLeft?: boolean;
         withPaddingBottom?: boolean;
         // NOCOMMIT:
-        // droppableIndentations: ReadonlyArray<number>;
         // createTaskAbove: () => void;
         // createTaskBelowAndFocus: () => void;
         // createTaskChildAtStartAndFocus: () => void;
@@ -196,6 +145,14 @@ function TaskRowView(
                 | {type: "Above"; taskId: TaskId}
                 | {type: "Below"; taskId: TaskId},
         ) => Array<TaskAction>;
+        getMoveTaskToRootQueryActions: (
+            taskId: TaskId,
+            position:
+                | {type: "End"}
+                | {type: "Above"; taskId: TaskId}
+                | {type: "Below"; taskId: TaskId},
+        ) => Array<TaskAction>;
+        getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskAction>;
         nestWithPreviousTaskRowIfExistsAndExpand: (titleSelection: Selection) => void;
         unnestTaskIfNestedRow: (titleSelection: Selection) => void;
         deleteTaskAndAllChildren: (options: {withConfirmation: boolean}) => void;
@@ -209,14 +166,15 @@ function TaskRowView(
     },
     ref: Ref<TaskRowViewRef>,
 ) {
-    // Either `taskId` or `ghostTaskId` should be provided. This component
+    // Either `cursor` or `ghostTaskId` should be provided. This component
     // transitions from a ghost task to a regular task when the user enters data.
-    assert(taskId !== null ? ghostTaskId === null : ghostTaskId !== null);
+    assert(cursor !== null ? ghostTaskId === null : ghostTaskId !== null);
 
     const context = useAppContext();
     const {timeZone} = useClientInfo();
     const {currentAccount} = useSpaceContext();
 
+    const taskId = cursor !== null ? getTaskQuerySortCursorTaskId(cursor) : null;
     const taskEntry = useStore(taskId !== null ? query.getLoadedTaskEntryStore(taskId) : null);
     const task = taskEntry?.task ?? null;
 
@@ -224,11 +182,15 @@ function TaskRowView(
     const parentTaskEntryStore =
         parentTaskId !== null ? query.getReferencedTaskEntryStore(parentTaskId) : null;
 
-    // If `taskId` is non-null then we expect `task` to also be non-null and
+    // If `cursor` is non-null then we expect `task` to also be non-null and
     // authorized. This component should only be rendered with `TaskId`s in the
     // query's loaded range and if the task is in the query's loaded range we
     // expect that it exists on the client and is authorized.
-    assert(taskId !== null ? task !== null && taskEntry?.isAuthorized : task === null);
+    assert(cursor !== null ? task !== null && taskEntry?.isAuthorized : task === null);
+
+    // Always false if we have no child tasks.
+    const areChildTasksExpanded =
+        useStore((task?.getChildTaskCount() ?? 0) > 0 ? areChildTasksExpandedStore : null) ?? false;
 
     const titleCommitStateRef = useRef<{
         pendingActionTransactionBuilder: {
@@ -383,18 +345,21 @@ function TaskRowView(
 
     const [isHovered, hoverRef] = useHoverWithOverlaySupport();
 
-    // NOCOMMIT:
-    // const {
-    //     attributes: draggableAttributes,
-    //     listeners: draggableListeners,
-    //     setNodeRef: setDraggableNodeRef,
-    // } = useDraggable({
-    //     id: useId(),
-    //     data: taskRow
-    //         ? ({type: "Row", taskRow} satisfies TaskGridViewDraggableData<TaskRow>)
-    //         : undefined,
-    //     disabled: !taskRow,
-    // });
+    const {
+        attributes: draggableAttributes,
+        listeners: draggableListeners,
+        setNodeRef: setDraggableNodeRef,
+    } = useDraggable({
+        id: useId(),
+        data: task
+            ? cast<TaskGridViewDraggableData>({
+                  type: "Row",
+                  task,
+                  getDropActions: getMaybeRemoveTaskFromQueryActions,
+              })
+            : undefined,
+        disabled: !task,
+    });
 
     const [isDragHandlePressed, setIsDragHandlePressed] = useState(false);
 
@@ -493,7 +458,7 @@ function TaskRowView(
         //
         // Otherwise we fall down to the branch below and create a task below ours in
         // our query.
-        if (task && task.getChildTaskCount() > 0 && areChildTasksExpandedStore.getSnapshot()) {
+        if (task && task.getChildTaskCount() > 0 && areChildTasksExpanded) {
             const childrenQuery = query.store.getTaskChildrenQueryStore(task.id).getSnapshot();
             if (childrenQuery && childrenQuery.loadedStateStore.getSnapshot() !== "Unloaded") {
                 const time1 = query.store.clock.now();
@@ -554,11 +519,11 @@ function TaskRowView(
                 // Store updates are rendered by React immediately. So focus our task before
                 // the next paint.
                 requestAnimationFrame(() => {
-                    if (parentTaskCursors.length === 0) {
+                    if (parents.length === 0) {
                         focusTaskTitleStart(`${task.id}-${newTaskId}`);
                     } else {
                         focusTaskTitleStart(
-                            `${getTaskQuerySortCursorTaskId(parentTaskCursors[0]!)}-${newTaskId}`,
+                            `${getTaskQuerySortCursorTaskId(parents[0]!.cursor)}-${newTaskId}`,
                         );
                     }
                 });
@@ -586,11 +551,11 @@ function TaskRowView(
         // Store updates are rendered by React immediately. So focus our task before
         // the next paint.
         requestAnimationFrame(() => {
-            if (parentTaskCursors.length === 0) {
+            if (parents.length === 0) {
                 focusTaskTitleStart(newTaskId);
             } else {
                 focusTaskTitleStart(
-                    `${getTaskQuerySortCursorTaskId(parentTaskCursors[0]!)}-${newTaskId}`,
+                    `${getTaskQuerySortCursorTaskId(parents[0]!.cursor)}-${newTaskId}`,
                 );
             }
         });
@@ -601,7 +566,7 @@ function TaskRowView(
         (!withoutPaddingLeft
             ? parseRemLengthNumber(spacing["5"]) +
               parseRemLengthNumber(spacing["6"]) +
-              parseRemLengthNumber(contentSchemaStyles.listItemIndentation) * indentation
+              parseRemLengthNumber(contentSchemaStyles.listItemIndentation) * parents.length
             : 0)
     }rem`;
 
@@ -673,38 +638,40 @@ function TaskRowView(
                                             tasksStyles.pointerEventsNoneNotInheritedClassName
                                         }
                                     >
-                                        {/* NOCOMMIT: {isHovered && taskRow && (
-                                        <button
-                                            {...mergeProps(
-                                                draggableAttributes,
-                                                draggableListeners ?? {},
-                                                {
-                                                    onPointerDown: () =>
-                                                        setIsDragHandlePressed(true),
-                                                    onPointerUp: () =>
-                                                        setIsDragHandlePressed(false),
-                                                    onPointerOut: () =>
-                                                        setIsDragHandlePressed(false),
-                                                },
-                                            )}
-                                            ref={setDraggableNodeRef}
-                                            className={sprinkles({
-                                                display: "block",
-                                                width: "4",
-                                                height: "4",
-                                                padding: "0.5",
-                                                borderRadius: "full",
-                                                // Dragging doesn't activate until the mouse moves. Set the grabbing cursor
-                                                // immediately on press.
-                                                cursor: isDragHandlePressed ? "grabbing" : "grab",
-                                            })}
-                                            // Drag handle is not tab focusable. Keyboard navigation within a task grid is
-                                            // not done with tab navigation.
-                                            tabIndex={-1}
-                                        >
-                                            <DotsSixVertical size={spacing["3"]} />
-                                        </button>
-                                    )} */}
+                                        {isHovered && task && (
+                                            <button
+                                                {...mergeProps(
+                                                    draggableAttributes,
+                                                    draggableListeners ?? {},
+                                                    {
+                                                        onPointerDown: () =>
+                                                            setIsDragHandlePressed(true),
+                                                        onPointerUp: () =>
+                                                            setIsDragHandlePressed(false),
+                                                        onPointerOut: () =>
+                                                            setIsDragHandlePressed(false),
+                                                    },
+                                                )}
+                                                ref={setDraggableNodeRef}
+                                                className={sprinkles({
+                                                    display: "block",
+                                                    width: "4",
+                                                    height: "4",
+                                                    padding: "0.5",
+                                                    borderRadius: "full",
+                                                    // Dragging doesn't activate until the mouse moves. Set the grabbing cursor
+                                                    // immediately on press.
+                                                    cursor: isDragHandlePressed
+                                                        ? "grabbing"
+                                                        : "grab",
+                                                })}
+                                                // Drag handle is not tab focusable. Keyboard navigation within a task grid is
+                                                // not done with tab navigation.
+                                                tabIndex={-1}
+                                            >
+                                                <DotsSixVertical size={spacing["3"]} />
+                                            </button>
+                                        )}
                                     </Box>
                                     <Box
                                         width="5"
@@ -760,11 +727,11 @@ function TaskRowView(
                                 title={task?.getTitle() ?? emptyTaskTitleModel.get()}
                                 onTitleChange={onTitleChange}
                                 placeholder={titlePlaceholder}
-                                indentation={indentation}
+                                indentation={parents.length}
                                 parentTaskEntryStore={parentTaskEntryStore}
                                 childTaskCount={task?.getChildTaskCount() ?? 0}
                                 closedChildTaskCount={task?.getClosedChildTaskCount() ?? 0}
-                                areChildTasksExpandedStore={areChildTasksExpandedStore}
+                                areChildTasksExpanded={areChildTasksExpanded}
                                 onAreChildTasksExpandedToggle={onAreChildTasksExpandedToggle}
                                 createTaskAbove={createTaskAbove}
                                 createTaskBelowAndFocus={createTaskBelowAndFocus}
@@ -886,25 +853,163 @@ function TaskRowView(
                         focusTitleAll={focusTitleAll}
                     />
                 )} */}
-                    {/* NOCOMMIT: {droppableIndentations
-                    .slice()
-                    .sort((a, b) => a - b)
-                    .map((droppableIndentation, index, sortedDroppableIndentations) => (
-                        <TaskRowViewDroppable
-                            key={droppableIndentation}
-                            taskRow={taskRow}
-                            indentation={droppableIndentation}
-                            nextAdjacentIndentation={sortedDroppableIndentations[index + 1] ?? null}
-                            previousAdjacentIndentation={
-                                sortedDroppableIndentations[index - 1] ?? null
-                            }
-                            isVerticallyFlipped={droppableIndentation > indentation}
+                    {cursor && task && (
+                        <TaskRowViewDroppableIndentations
+                            query={query}
+                            cursor={cursor}
+                            task={task}
+                            parents={parents}
+                            getNextIndentation={getNextIndentation}
+                            areChildTasksExpanded={areChildTasksExpanded}
+                            getMoveTaskToRootQueryActions={getMoveTaskToRootQueryActions}
                         />
-                    ))} */}
+                    )}
                 </Box>
             </ContextMenuActions>
             {/* NOCOMMIT: Test that we can click here to select */}
             {withPaddingBottom && <Box width="full" height="5" pointerEvents="none" />}
+        </>
+    );
+}
+
+function TaskRowViewDroppableIndentations({
+    query,
+    cursor,
+    task,
+    parents,
+    getNextIndentation,
+    areChildTasksExpanded,
+    getMoveTaskToRootQueryActions,
+}: {
+    query: TaskClientQuery;
+    cursor: TaskQuerySortCursor;
+    task: TaskModel;
+    parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>;
+    getNextIndentation: () => number;
+    areChildTasksExpanded: boolean;
+    getMoveTaskToRootQueryActions: (
+        taskId: TaskId,
+        position: {type: "End"} | {type: "Above"; taskId: TaskId} | {type: "Below"; taskId: TaskId},
+    ) => Array<TaskAction>;
+}) {
+    if (areChildTasksExpanded && task.getChildTaskCount() > 0) {
+        return (
+            <TaskRowViewDroppable
+                indentation={parents.length + 1}
+                nextAdjacentIndentation={null}
+                previousAdjacentIndentation={null}
+                isVerticallyFlipped={true}
+                getDropActions={(taskId): Array<TaskAction> => {
+                    const time1 = query.store.clock.now();
+                    const time2 = query.store.clock.now();
+
+                    const childrenQuery = query.store
+                        .getTaskChildrenQueryStore(task.id)
+                        .getSnapshot();
+
+                    return [
+                        {
+                            type: "UpdateTask",
+                            time: time1,
+                            taskId: taskId,
+                            taskAction: {
+                                type: "UpdateParentTaskId",
+                                parentTaskId: task.id,
+                            },
+                        },
+                        ...(childrenQuery
+                            ? cast<Array<TaskAction>>([
+                                  {
+                                      type: "UpdateTask",
+                                      time: time2,
+                                      taskId: taskId,
+                                      taskAction: {
+                                          type: "UpdateParentPosition",
+                                          parentPosition:
+                                              getNewTaskPositionForQuerySortedByPosition(
+                                                  time2,
+                                                  childrenQuery,
+                                                  {type: "Start"},
+                                              ),
+                                      },
+                                  },
+                              ])
+                            : []),
+                    ];
+                }}
+            />
+        );
+    }
+
+    const nextIndentation = getNextIndentation();
+    const droppableIndentations = [parents.length];
+
+    for (
+        let droppableIndentation = parents.length - 1;
+        droppableIndentation >= nextIndentation;
+        droppableIndentation--
+    ) {
+        droppableIndentations.push(droppableIndentation);
+    }
+
+    droppableIndentations.reverse();
+
+    return (
+        <>
+            {droppableIndentations.map((droppableIndentation, index) => (
+                <TaskRowViewDroppable
+                    key={droppableIndentation}
+                    indentation={droppableIndentation}
+                    nextAdjacentIndentation={droppableIndentations[index + 1] ?? null}
+                    previousAdjacentIndentation={droppableIndentations[index - 1] ?? null}
+                    getDropActions={taskId => {
+                        const time1 = query.store.clock.now();
+                        const time2 = query.store.clock.now();
+
+                        const {query: parentQuery, cursor: parentCursor} =
+                            parents.length === droppableIndentation
+                                ? {query, cursor}
+                                : parents[droppableIndentation]!;
+
+                        if (droppableIndentation === 0) {
+                            return getMoveTaskToRootQueryActions(taskId, {
+                                type: "Below",
+                                taskId: getTaskQuerySortCursorTaskId(parentCursor),
+                            });
+                        }
+
+                        const {cursor: grandParentCursor} = parents[droppableIndentation - 1]!;
+
+                        return [
+                            {
+                                type: "UpdateTask",
+                                time: time1,
+                                taskId: taskId,
+                                taskAction: {
+                                    type: "UpdateParentTaskId",
+                                    parentTaskId: getTaskQuerySortCursorTaskId(grandParentCursor),
+                                },
+                            },
+                            {
+                                type: "UpdateTask",
+                                time: time2,
+                                taskId: taskId,
+                                taskAction: {
+                                    type: "UpdateParentPosition",
+                                    parentPosition: getNewTaskPositionForQuerySortedByPosition(
+                                        time2,
+                                        parentQuery,
+                                        {
+                                            type: "Below",
+                                            taskId: getTaskQuerySortCursorTaskId(parentCursor),
+                                        },
+                                    ),
+                                },
+                            },
+                        ];
+                    }}
+                />
+            ))}
         </>
     );
 }
