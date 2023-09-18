@@ -1,7 +1,11 @@
 import {Clock} from "~/shared/helpers/clock/clock.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+
+// Can only use the test clock in tests.
+assert(process.env.NODE_ENV === "test");
 
 const clock = new HybridLogicalClock(unsynchronizedSystemClock);
 

@@ -39,10 +39,13 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {stringifyForDeepEqualCheck} from "~/shared/helpers/control/stringify_for_deep_equal_check.js";
+import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {decodeIdInto, encodeId, generateId, getMinId, idByteLength} from "~/shared/id/id.js";
 import {
@@ -632,12 +635,10 @@ class TaskActionTransactionCommitState {
                 // the authoritative child counts so all other clients have the correct
                 // children count.
                 if (transactionEntry.shouldCommitExtraUpdateChildrenCountAction) {
-                    // For our extra action's time, add a tick to the max action time.
-                    maxActionTime = [maxActionTime[0], maxActionTime[1] + 1];
-
                     extraActions.push({
                         type: "UpdateTask",
-                        time: maxActionTime,
+                        // For our extra action's time, add a tick to the max action time.
+                        time: [maxActionTime[0], maxActionTime[1] + 1],
                         taskId: transactionEntry.taskItem.taskId,
                         taskAction: {
                             type: "UpdateChildrenCounts",
@@ -1177,6 +1178,24 @@ async function actuallyCommitTaskActionTransaction(
                             ...taskItem,
                             deletedTime: null,
                         });
+
+                        if (taskItem.parentTaskId.value !== null) {
+                            // May be cached from authorization...
+                            const parentTaskItem = await state.getTaskItem(
+                                taskItem.parentTaskId.value,
+                            );
+
+                            state.updateTaskItem(
+                                {
+                                    ...parentTaskItem,
+                                    addedChildTaskCount: parentTaskItem.addedChildTaskCount + 1,
+                                    addedClosedChildTaskCount:
+                                        parentTaskItem.addedClosedChildTaskCount +
+                                        (taskItem.statusType.value === "Closed" ? 1 : 0),
+                                },
+                                {shouldCommitExtraUpdateChildrenCountAction: true},
+                            );
+                        }
                         break;
                     }
                     default: {
@@ -1202,6 +1221,25 @@ async function actuallyCommitTaskActionTransaction(
                                     ...taskItem,
                                     deletedTime: action.time,
                                 });
+
+                                if (taskItem.parentTaskId.value !== null) {
+                                    // May be cached from authorization...
+                                    const parentTaskItem = await state.getTaskItem(
+                                        taskItem.parentTaskId.value,
+                                    );
+
+                                    state.updateTaskItem(
+                                        {
+                                            ...parentTaskItem,
+                                            removedChildTaskCount:
+                                                parentTaskItem.removedChildTaskCount + 1,
+                                            removedClosedChildTaskCount:
+                                                parentTaskItem.removedClosedChildTaskCount +
+                                                (taskItem.statusType.value === "Closed" ? 1 : 0),
+                                        },
+                                        {shouldCommitExtraUpdateChildrenCountAction: true},
+                                    );
+                                }
                                 break;
                             }
                             case "UpdateParentTaskId": {
@@ -1567,15 +1605,15 @@ async function actuallyCommitTaskActionTransaction(
                                         newStatusType.value === "Closed"
                                     ) {
                                         // May be cached from authorization...
-                                        const newParentTask = await state.getTaskItem(
+                                        const parentTaskItem = await state.getTaskItem(
                                             taskItem.parentTaskId.value,
                                         );
 
                                         state.updateTaskItem(
                                             {
-                                                ...newParentTask,
+                                                ...parentTaskItem,
                                                 addedClosedChildTaskCount:
-                                                    newParentTask.addedClosedChildTaskCount + 1,
+                                                    parentTaskItem.addedClosedChildTaskCount + 1,
                                             },
                                             {shouldCommitExtraUpdateChildrenCountAction: true},
                                         );
@@ -1586,15 +1624,15 @@ async function actuallyCommitTaskActionTransaction(
                                         newStatusType.value !== "Closed"
                                     ) {
                                         // May be cached from authorization...
-                                        const newParentTask = await state.getTaskItem(
+                                        const parentTaskItem = await state.getTaskItem(
                                             taskItem.parentTaskId.value,
                                         );
 
                                         state.updateTaskItem(
                                             {
-                                                ...newParentTask,
+                                                ...parentTaskItem,
                                                 removedClosedChildTaskCount:
-                                                    newParentTask.removedClosedChildTaskCount + 1,
+                                                    parentTaskItem.removedClosedChildTaskCount + 1,
                                             },
                                             {shouldCommitExtraUpdateChildrenCountAction: true},
                                         );
@@ -1865,7 +1903,10 @@ export function deleteTaskAndAllChildren(
     context: Context<ServerSessionActionContextModules & {tasks: TaskContextModuleBase}>,
     taskId: TaskId,
     actionTime: HybridLogicalTime,
-): Promise<{actions: ReadonlyArray<TaskAction>}> {
+): Promise<{
+    spaceId: SpaceId;
+    actions: ReadonlyArray<TaskAction>;
+}> {
     let hasAlreadyAttempted = false;
 
     return context.dynamo.retryTransaction(async context => {
@@ -1880,28 +1921,46 @@ export function deleteTaskAndAllChildren(
 
         await authorizeTaskItemAccess(context, taskItem, "Edit", null);
 
-        let rootParentTaskItem: Omit<TaskEssentialAttributesItem, "childTaskIds"> = taskItem;
+        let rootParentTaskItem: TaskEssentialAttributesItem = taskItem;
+        let parentTaskItem: TaskEssentialAttributesItem | null = null;
         while (rootParentTaskItem.parentTaskId.value) {
+            const parentTaskId = rootParentTaskItem.parentTaskId.value;
+
             // Use `getTaskItemForAuthorization` since it will cache tasks seen during
-            // our `authorizeTaskItemAccess` call.
+            // our `authorizeTaskItemAccess` call. If we are retrying then we need to load
+            // the latest version.
             rootParentTaskItem = isInitialAttempt
-                ? await getTaskItemForAuthorization(
-                      context,
-                      rootParentTaskItem.parentTaskId.value,
-                      null,
+                ? await TaskItemAuthorizationCache.get(context, parentTaskId, () =>
+                      TaskTable.getItem(context, {
+                          partitionType: "Task",
+                          sortRangeType: "EssentialAttributes",
+                          taskId: parentTaskId,
+                      }),
                   )
                 : await TaskTable.getItem(context, {
                       partitionType: "Task",
                       sortRangeType: "EssentialAttributes",
-                      taskId: rootParentTaskItem.parentTaskId.value,
+                      taskId: parentTaskId,
                   });
+
+            // We want to keep track of both the root parent task and the first
+            // parent task.
+            if (parentTaskItem === null) {
+                parentTaskItem = rootParentTaskItem;
+            }
         }
 
         const seenTaskIds = new Set([taskItem.taskId]);
-        const transitiveChildTaskItems: Array<TaskEssentialAttributesItem> = [];
+        const updatedTaskItems: Array<{
+            oldTaskItem: TaskEssentialAttributesItem;
+            newTaskItem: TaskEssentialAttributesItem;
+        }> = [];
 
         // Note that child tasks inherit the parent task's authorization.
-        const getChildTaskItems = async (taskItem: TaskEssentialAttributesItem) => {
+        const addTaskItem = async (taskItem: TaskEssentialAttributesItem) => {
+            const childTaskCount = taskItem.childTaskIds.size;
+            let closedChildTaskCount = 0;
+
             await runAllPromises(
                 Array.from(taskItem.childTaskIds, async childTaskId => {
                     const childTaskItem = await TaskTable.getItem(context, {
@@ -1910,18 +1969,32 @@ export function deleteTaskAndAllChildren(
                         taskId: childTaskId,
                     });
 
+                    if (childTaskItem.statusType.value === "Closed") {
+                        closedChildTaskCount++;
+                    }
+
                     // Keep track of `seenTaskIds` since while child tasks child be an acyclic tree
                     // where each node is unique, there may be concurrent task updates which cause
                     // us to observe something different.
                     if (seenTaskIds.has(childTaskItem.taskId)) return;
-                    transitiveChildTaskItems.push(childTaskItem);
 
-                    await getChildTaskItems(childTaskItem);
+                    await addTaskItem(childTaskItem);
                 }),
             );
+
+            updatedTaskItems.push({
+                oldTaskItem: taskItem,
+                newTaskItem: {
+                    ...taskItem,
+                    deletedTime: actionTime,
+                    removedChildTaskCount: taskItem.removedChildTaskCount + childTaskCount,
+                    removedClosedChildTaskCount:
+                        taskItem.removedClosedChildTaskCount + closedChildTaskCount,
+                },
+            });
         };
 
-        await getChildTaskItems(taskItem);
+        await addTaskItem(taskItem);
 
         const transactionEntries: Array<DynamoTransactionEntry> = [];
 
@@ -1930,7 +2003,12 @@ export function deleteTaskAndAllChildren(
         // structure to happen in sequence so we can validate there are no cycles.
         //
         // Force our recursive task deletion to be a part of this update sequence.
-        if (rootParentTaskItem.taskId !== taskItem.taskId) {
+        if (
+            rootParentTaskItem.taskId !== taskItem.taskId &&
+            // We'll update `parentTaskItem` below so if it's the same as
+            // `rootParentTaskItem` then we don't need to update `rootParentTaskItem`.
+            rootParentTaskItem.taskId !== parentTaskItem?.taskId
+        ) {
             transactionEntries.push(
                 TaskTable.transactionDirectlyUpdateItemLockVersion(
                     rootParentTaskItem,
@@ -1939,20 +2017,22 @@ export function deleteTaskAndAllChildren(
             );
         }
 
-        transactionEntries.push(
-            TaskTable.transactionDirectlyUpdateItem({
-                ...taskItem,
-                deletedTime: actionTime,
-            }),
-        );
-
-        for (const childTaskItem of transitiveChildTaskItems) {
+        if (parentTaskItem) {
             transactionEntries.push(
                 TaskTable.transactionDirectlyUpdateItem({
-                    ...childTaskItem,
-                    deletedTime: actionTime,
+                    ...parentTaskItem,
+                    addedChildTaskCount: parentTaskItem.addedChildTaskCount,
+                    removedChildTaskCount: parentTaskItem.removedChildTaskCount + 1,
+                    addedClosedChildTaskCount: parentTaskItem.addedClosedChildTaskCount,
+                    removedClosedChildTaskCount:
+                        parentTaskItem.removedClosedChildTaskCount +
+                        (taskItem.statusType.value === "Closed" ? 1 : 0),
                 }),
             );
+        }
+
+        for (const {newTaskItem} of updatedTaskItems) {
+            transactionEntries.push(TaskTable.transactionDirectlyUpdateItem(newTaskItem));
         }
 
         const actionTransactionItem: TaskActionTransactionItem = {
@@ -1962,20 +2042,63 @@ export function deleteTaskAndAllChildren(
             committedTime: new Date(),
             actionTransactionId: generateId<TaskActionTransactionId>(),
             actions: [
-                {
-                    type: "UpdateTask",
-                    time: actionTime,
-                    taskId: taskItem.taskId,
-                    taskAction: {type: "Delete"},
-                },
-                ...transitiveChildTaskItems.map(
-                    (childTaskItem): TaskAction => ({
+                ...updatedTaskItems.map(
+                    ({newTaskItem}): TaskAction => ({
                         type: "UpdateTask",
                         time: actionTime,
-                        taskId: childTaskItem.taskId,
+                        taskId: newTaskItem.taskId,
                         taskAction: {type: "Delete"},
                     }),
                 ),
+                ...filterMapArray(
+                    updatedTaskItems,
+                    ({oldTaskItem, newTaskItem}): TaskAction | null => {
+                        const countKeys = [
+                            "addedChildTaskCount",
+                            "removedChildTaskCount",
+                            "addedClosedChildTaskCount",
+                            "removedClosedChildTaskCount",
+                        ] as const;
+
+                        const oldTaskCounts = pickObject(oldTaskItem, countKeys);
+                        const newTaskCounts = pickObject(newTaskItem, countKeys);
+
+                        if (isDeepEqual(oldTaskCounts, newTaskCounts)) return null;
+
+                        return {
+                            type: "UpdateTask",
+                            // Match `commitTaskActionTransaction()`. Each extra action has +1 tick above
+                            // the action time.
+                            time: [actionTime[0], actionTime[1] + 1],
+                            taskId: newTaskItem.taskId,
+                            taskAction: {
+                                type: "UpdateChildrenCounts",
+                                ...newTaskCounts,
+                            },
+                        };
+                    },
+                ),
+                ...(parentTaskItem
+                    ? cast<Array<TaskAction>>([
+                          {
+                              type: "UpdateTask",
+                              // Match `commitTaskActionTransaction()`. Each extra action has +1 tick above
+                              // the action time.
+                              time: [actionTime[0], actionTime[1] + 1],
+                              taskId: parentTaskItem.taskId,
+                              taskAction: {
+                                  type: "UpdateChildrenCounts",
+                                  addedChildTaskCount: parentTaskItem.addedChildTaskCount,
+                                  removedChildTaskCount: parentTaskItem.removedChildTaskCount + 1,
+                                  addedClosedChildTaskCount:
+                                      parentTaskItem.addedClosedChildTaskCount,
+                                  removedClosedChildTaskCount:
+                                      parentTaskItem.removedClosedChildTaskCount +
+                                      (taskItem.statusType.value === "Closed" ? 1 : 0),
+                              },
+                          },
+                      ])
+                    : []),
             ],
             wasProcessed: false,
         };
@@ -1992,7 +2115,10 @@ export function deleteTaskAndAllChildren(
 
         afterCommitTaskActionTransaction(context, actionTransactionItem);
 
-        return {actions: actionTransactionItem.actions};
+        return {
+            spaceId: actionTransactionItem.spaceId,
+            actions: actionTransactionItem.actions,
+        };
     });
 }
 

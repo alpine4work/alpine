@@ -8,16 +8,23 @@ import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_cl
 import {Context} from "~/shared/context/context.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {Clock} from "~/shared/helpers/clock/clock.js";
-import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {
+    HybridLogicalClock,
+    maxHybridLogicalTime,
+} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {AdvancedWeakValuesMap} from "~/shared/helpers/map/advanced_weak_values_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
-import {commitTaskActionTransaction} from "~/shared/rpc/tasks_rpc_definitions.js";
+import {
+    commitTaskActionTransaction,
+    deleteTaskAndAllChildren,
+} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {
     TaskAction,
     TaskUpdateCollectionAction,
@@ -27,6 +34,7 @@ import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
+import {getTaskQuerySortCursorTaskId} from "~/shared/tasks/task_query_sort_cursor.js";
 import {
     TaskRealtimeQueryLoadedState,
     TaskRealtimeUpdateEvent,
@@ -206,6 +214,13 @@ export class TaskClientStore {
         );
     }
 
+    public deleteTaskAndAllChildren(
+        context: Context<{rpc: RpcContextModuleBase}>,
+        taskId: TaskId,
+    ): {finally: (callback: () => void) => void} {
+        return this._internal.deleteTaskAndAllChildren(context, taskId);
+    }
+
     public createAndRetainQuery(options: {
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
@@ -361,12 +376,14 @@ export class TaskClientStoreInternal {
         return this._queriesStore;
     }
 
-    public getTaskEntryStoreIfExists(taskId: TaskId) {
-        return this._taskEntryStoreById.get(taskId);
+    public getTaskEntryStoreIfExists(taskId: TaskId): Store<TaskClientStoreTaskEntry> | null {
+        return this._taskEntryStoreById.get(taskId) ?? null;
     }
 
-    public getCollectionEntryStoreIfExists(collectionId: TaskCollectionId) {
-        return this._collectionEntryStoreById.get(collectionId);
+    public getCollectionEntryStoreIfExists(
+        collectionId: TaskCollectionId,
+    ): Store<TaskClientStoreCollectionEntry> | null {
+        return this._collectionEntryStoreById.get(collectionId) ?? null;
     }
 
     /**
@@ -899,7 +916,7 @@ export class TaskClientStoreInternal {
         );
 
         commitPromise.then(
-            ({extraActions, extraActionsReferencedAccounts}) => {
+            ({extraActions, referencedAccounts}) => {
                 // Between applying an update event and committing our optimistic actions we
                 // have a lot of store updates we want to batch together.
                 batchStoreUpdates(() => {
@@ -934,7 +951,7 @@ export class TaskClientStoreInternal {
                             backfillUnauthorizedTaskIds: [],
                             backfillAuthorizedCollections: [],
                             backfillUnauthorizedCollectionIds: [],
-                            referencedAccounts: extraActionsReferencedAccounts,
+                            referencedAccounts,
                         });
                     }
 
@@ -1165,6 +1182,149 @@ export class TaskClientStoreInternal {
         };
     }
 
+    /**
+     * Deletes a task and all of its children. We will optimistically delete the
+     * task and any children of the task we've loaded. However, the task may have
+     * more children that we haven't loaded. The server will send us the full list
+     * of actions to commit.
+     */
+    public deleteTaskAndAllChildren(
+        context: Context<{rpc: RpcContextModuleBase}>,
+        taskId: TaskId,
+    ): {finally: (callback: () => void) => void} {
+        const actionTime = this.clock.now();
+
+        // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
+        // close the page if we haven't finished committing their task action. It will
+        // look committed on their machine but might not be on the server.
+        const deletePromise = this._commitTaskActionTransactionMutex.withLock(() =>
+            deleteTaskAndAllChildren(context, {
+                taskId,
+                actionTime,
+            }),
+        );
+
+        const optimisticDeleteActions: Array<TaskUpdateTaskAction> = [];
+
+        const addOptimisticDeleteActions = (taskId: TaskId) => {
+            optimisticDeleteActions.push({
+                type: "UpdateTask",
+                time: actionTime,
+                taskId,
+                taskAction: {type: "Delete"},
+            });
+
+            const childrenQuery = this.getTaskChildrenQueryStore(taskId).getSnapshot();
+            if (!childrenQuery) return;
+
+            const childrenQueryIterator = childrenQuery.taskOrderStore.getSnapshot().begin;
+            while (childrenQueryIterator.valid) {
+                const childCursor = childrenQueryIterator.key!;
+                addOptimisticDeleteActions(getTaskQuerySortCursorTaskId(childCursor));
+                childrenQueryIterator.next();
+            }
+        };
+
+        addOptimisticDeleteActions(taskId);
+
+        // Get any extra actions from our delete (e.g. changing child task counts).
+        const optimisticExtraActions = this._getOptimisticExtraActions(optimisticDeleteActions);
+
+        const optimisticActions = [...optimisticDeleteActions, ...optimisticExtraActions];
+
+        // All of our actions are associated with a task. Make our optimistic actions
+        // easier to search by putting them in a map keyed by `TaskId`.
+        const optimisticActionsByTaskId = new Map<TaskId, Array<TaskAction>>();
+        for (const action of optimisticActions) {
+            getOrSetDefaultMapValue(optimisticActionsByTaskId, action.taskId, () => []).push(
+                action,
+            );
+        }
+
+        this._applyOptimisticTaskActions(optimisticActions);
+
+        deletePromise.then(
+            ({actions, referencedAccounts}) => {
+                // Batch committing optimistic actions and apply any other actions we did not
+                // see optimistically.
+                batchStoreUpdates(() => {
+                    const newActions: Array<TaskAction> = [];
+                    const matchedOptimisticActions = new Set<TaskAction>();
+
+                    // For all the actions we ended up committing, look for an exact match with a
+                    // corresponding optimistic action with `isDeepEqual()`.
+                    //
+                    // - If the action doesn't have an exact match with an optimistic action we'll
+                    //   have to apply it
+                    // - Otherwise if the action does have an exact match with an optimistic task we
+                    //   should mark the optimistic task as committed
+                    // - If we have optimistic tasks without an exact match then those optimistic
+                    //   tasks were incorrect and need to be reverted
+                    for (const action of actions) {
+                        if (action.type !== "UpdateTask") {
+                            newActions.push(action);
+                            continue;
+                        }
+
+                        const optimisticActions = optimisticActionsByTaskId.get(action.taskId);
+                        const matchedOptimisticAction = optimisticActions?.find(optimisticAction =>
+                            isDeepEqual(action, optimisticAction),
+                        );
+
+                        if (matchedOptimisticAction) {
+                            matchedOptimisticActions.add(matchedOptimisticAction);
+                        } else {
+                            newActions.push(action);
+                        }
+                    }
+
+                    const unmatchedOptimisticActions: Array<TaskAction> = [];
+                    for (const optimisticAction of optimisticActions) {
+                        if (!matchedOptimisticActions.has(optimisticAction)) {
+                            unmatchedOptimisticActions.push(optimisticAction);
+                        }
+                    }
+
+                    if (matchedOptimisticActions.size > 0) {
+                        this._commitOptimisticTaskActions(matchedOptimisticActions);
+                    }
+
+                    if (unmatchedOptimisticActions.length > 0) {
+                        this._revertOptimisticTaskActions(unmatchedOptimisticActions);
+                    }
+
+                    if (newActions.length > 0) {
+                        this.applyUpdateEvent({
+                            type: "Update",
+                            // NOCOMMIT: Proper event number?
+                            number: 0,
+                            actions,
+                            backfillAuthorizedTasks: [],
+                            backfillUnauthorizedTaskIds: [],
+                            backfillAuthorizedCollections: [],
+                            backfillUnauthorizedCollectionIds: [],
+                            referencedAccounts,
+                        });
+                    }
+                });
+            },
+            error => {
+                this._onDisplayError({
+                    title: "Couldn’t delete task",
+                    error,
+                });
+
+                this._revertOptimisticTaskActions(optimisticActions);
+            },
+        );
+
+        return {
+            finally: callback => {
+                deletePromise.finally(callback);
+            },
+        };
+    }
+
     private _applyOptimisticTaskActions(actions: ReadonlyArray<TaskAction>) {
         const newTaskEntryById = new Map<TaskId, TaskClientStoreTaskEntry>();
         const newCollectionEntryById = new Map<TaskCollectionId, TaskClientStoreCollectionEntry>();
@@ -1324,7 +1484,7 @@ export class TaskClientStoreInternal {
         this._updateStore(newTaskEntryById, newCollectionEntryById);
     }
 
-    private _commitOptimisticTaskActions(actions: ReadonlyArray<TaskAction>) {
+    private _commitOptimisticTaskActions(actions: Iterable<TaskAction>) {
         const newTaskEntryById = new Map<TaskId, TaskClientStoreTaskEntry>();
         const newCollectionEntryById = new Map<TaskCollectionId, TaskClientStoreCollectionEntry>();
 
@@ -1751,24 +1911,31 @@ export class TaskClientStoreInternal {
             // Update all our task stores and create new ones when necessary. Listeners
             // will be called at the end of the batch.
             for (const [taskId, newTaskEntry] of newTaskEntryById) {
-                const taskEntryStore = this._taskEntryStoreById.get(taskId);
+                let taskEntryStore = this._taskEntryStoreById.get(taskId);
+                const oldTaskEntry = taskEntryStore?.getSnapshot() ?? null;
+
                 if (taskEntryStore === undefined) {
-                    const newTaskEntryStore = new ValueStore(newTaskEntry);
-                    this._taskEntryStoreById.set(taskId, newTaskEntryStore);
-
-                    taskEntryUpdateById.set(taskId, {
-                        taskEntryStore: newTaskEntryStore,
-                        oldTaskEntry: null,
-                        newTaskEntry,
-                    });
+                    taskEntryStore = new ValueStore(newTaskEntry);
+                    this._taskEntryStoreById.set(taskId, taskEntryStore);
                 } else {
-                    taskEntryUpdateById.set(taskId, {
-                        taskEntryStore,
-                        oldTaskEntry: taskEntryStore.getSnapshot(),
-                        newTaskEntry,
-                    });
-
                     taskEntryStore.set(newTaskEntry);
+                }
+
+                taskEntryUpdateById.set(taskId, {
+                    taskEntryStore: taskEntryStore,
+                    oldTaskEntry,
+                    newTaskEntry,
+                });
+
+                // If the old task entry was not deleted but the new task entry is then if we
+                // have a query for this task's children, delete the reference to that query.
+                //
+                // NOCOMMIT: Test this
+                if (
+                    !(oldTaskEntry?.task?.isDeleted() ?? true) &&
+                    (newTaskEntry.task?.isDeleted() ?? true)
+                ) {
+                    this._taskChildrenQueryByParentTaskId.delete(taskId);
                 }
             }
 
@@ -1847,7 +2014,22 @@ export class TaskClientStoreInternal {
     private _getOptimisticExtraActions(
         actions: ReadonlyArray<TaskAction>,
     ): Array<TaskUpdateTaskAction> {
-        const extraActions: Array<TaskUpdateTaskAction> = [];
+        if (actions.length === 0) return [];
+
+        let maxActionTime = actions[0]!.time;
+        for (let i = 1; i < actions.length; i++) {
+            maxActionTime = maxHybridLogicalTime(maxActionTime, actions[i]!.time);
+        }
+
+        const childTaskCountsByParentTaskId = new Map<
+            TaskId,
+            {
+                addedChildTaskCount: number;
+                removedChildTaskCount: number;
+                addedClosedChildTaskCount: number;
+                removedClosedChildTaskCount: number;
+            }
+        >();
 
         for (const action of actions) {
             // If the parent tasks involved are available in our client store then we
@@ -1866,22 +2048,22 @@ export class TaskClientStoreInternal {
                     const oldParentTask = oldParentTaskEntryStore?.getSnapshot().task;
 
                     if (oldParentTask) {
-                        extraActions.push({
-                            type: "UpdateTask",
-                            time: this.clock.now(),
-                            taskId: oldParentTaskId,
-                            taskAction: {
-                                type: "UpdateChildrenCounts",
+                        const childTaskCounts = getOrSetDefaultMapValue(
+                            childTaskCountsByParentTaskId,
+                            oldParentTaskId,
+                            () => ({
                                 addedChildTaskCount: oldParentTask.rawData.addedChildTaskCount,
-                                removedChildTaskCount:
-                                    oldParentTask.rawData.removedChildTaskCount + 1,
+                                removedChildTaskCount: oldParentTask.rawData.removedChildTaskCount,
                                 addedClosedChildTaskCount:
                                     oldParentTask.rawData.addedClosedChildTaskCount,
                                 removedClosedChildTaskCount:
-                                    oldParentTask.rawData.removedClosedChildTaskCount +
-                                    (task.rawData.status.value.type === "Closed" ? 1 : 0),
-                            },
-                        });
+                                    oldParentTask.rawData.removedClosedChildTaskCount,
+                            }),
+                        );
+
+                        childTaskCounts.removedChildTaskCount += 1;
+                        childTaskCounts.removedClosedChildTaskCount +=
+                            task.rawData.status.value.type === "Closed" ? 1 : 0;
                     }
                 }
 
@@ -1890,21 +2072,22 @@ export class TaskClientStoreInternal {
                     const newParentTask = newParentTaskEntryStore?.getSnapshot().task;
 
                     if (newParentTask) {
-                        extraActions.push({
-                            type: "UpdateTask",
-                            time: this.clock.now(),
-                            taskId: newParentTaskId,
-                            taskAction: {
-                                type: "UpdateChildrenCounts",
-                                addedChildTaskCount: newParentTask.rawData.addedChildTaskCount + 1,
+                        const childTaskCounts = getOrSetDefaultMapValue(
+                            childTaskCountsByParentTaskId,
+                            oldParentTaskId,
+                            () => ({
+                                addedChildTaskCount: newParentTask.rawData.addedChildTaskCount,
                                 removedChildTaskCount: newParentTask.rawData.removedChildTaskCount,
                                 addedClosedChildTaskCount:
-                                    newParentTask.rawData.addedClosedChildTaskCount +
-                                    (task.rawData.status.value.type === "Closed" ? 1 : 0),
+                                    newParentTask.rawData.addedClosedChildTaskCount,
                                 removedClosedChildTaskCount:
                                     newParentTask.rawData.removedClosedChildTaskCount,
-                            },
-                        });
+                            }),
+                        );
+
+                        childTaskCounts.addedChildTaskCount += 1;
+                        childTaskCounts.addedClosedChildTaskCount +=
+                            task.rawData.status.value.type === "Closed" ? 1 : 0;
                     }
                 }
             }
@@ -1927,23 +2110,99 @@ export class TaskClientStoreInternal {
                 const parentTask = parentTaskEntryStore?.getSnapshot().task;
                 if (!parentTask) continue;
 
-                extraActions.push({
-                    type: "UpdateTask",
-                    time: this.clock.now(),
-                    taskId: parentTaskId,
-                    taskAction: {
-                        type: "UpdateChildrenCounts",
+                const childTaskCounts = getOrSetDefaultMapValue(
+                    childTaskCountsByParentTaskId,
+                    parentTaskId,
+                    () => ({
                         addedChildTaskCount: parentTask.rawData.addedChildTaskCount,
                         removedChildTaskCount: parentTask.rawData.removedChildTaskCount,
-                        addedClosedChildTaskCount:
-                            parentTask.rawData.addedClosedChildTaskCount +
-                            (oldStatusType !== "Closed" && newStatusType === "Closed" ? 1 : 0),
-                        removedClosedChildTaskCount:
-                            parentTask.rawData.removedClosedChildTaskCount +
-                            (oldStatusType === "Closed" && newStatusType !== "Closed" ? 1 : 0),
-                    },
-                });
+                        addedClosedChildTaskCount: parentTask.rawData.addedClosedChildTaskCount,
+                        removedClosedChildTaskCount: parentTask.rawData.removedClosedChildTaskCount,
+                    }),
+                );
+
+                childTaskCounts.addedClosedChildTaskCount +=
+                    oldStatusType !== "Closed" && newStatusType === "Closed" ? 1 : 0;
+                childTaskCounts.removedClosedChildTaskCount +=
+                    oldStatusType === "Closed" && newStatusType !== "Closed" ? 1 : 0;
             }
+
+            // When a task is deleted, we change the task's children count since deleted
+            // tasks don't show up in child task queries.
+            if (action.type === "UpdateTask" && action.taskAction.type === "Delete") {
+                const taskEntryStore = this._taskEntryStoreById.get(action.taskId);
+                const task = taskEntryStore?.getSnapshot().task;
+                if (!task) continue;
+
+                const parentTaskId = task.getParent()?.taskId;
+                if (!parentTaskId) continue;
+
+                const parentTaskEntryStore = this._taskEntryStoreById.get(parentTaskId);
+                const parentTask = parentTaskEntryStore?.getSnapshot().task;
+
+                if (!parentTask) continue;
+
+                const childTaskCounts = getOrSetDefaultMapValue(
+                    childTaskCountsByParentTaskId,
+                    parentTaskId,
+                    () => ({
+                        addedChildTaskCount: parentTask.rawData.addedChildTaskCount,
+                        removedChildTaskCount: parentTask.rawData.removedChildTaskCount,
+                        addedClosedChildTaskCount: parentTask.rawData.addedClosedChildTaskCount,
+                        removedClosedChildTaskCount: parentTask.rawData.removedClosedChildTaskCount,
+                    }),
+                );
+
+                childTaskCounts.removedChildTaskCount += 1;
+                childTaskCounts.removedClosedChildTaskCount +=
+                    task.rawData.status.value.type === "Closed" ? 1 : 0;
+            }
+
+            // When a task is undeleted, we change the task's children count since deleted
+            // tasks don't show up in child task queries.
+            if (action.type === "UpdateTask" && action.taskAction.type === "Undelete") {
+                const taskEntryStore = this._taskEntryStoreById.get(action.taskId);
+                const task = taskEntryStore?.getSnapshot().task;
+                if (!task) continue;
+
+                const parentTaskId = task.getParent()?.taskId;
+                if (!parentTaskId) continue;
+
+                const parentTaskEntryStore = this._taskEntryStoreById.get(parentTaskId);
+                const parentTask = parentTaskEntryStore?.getSnapshot().task;
+
+                if (!parentTask) continue;
+
+                const childTaskCounts = getOrSetDefaultMapValue(
+                    childTaskCountsByParentTaskId,
+                    parentTaskId,
+                    () => ({
+                        addedChildTaskCount: parentTask.rawData.addedChildTaskCount,
+                        removedChildTaskCount: parentTask.rawData.removedChildTaskCount,
+                        addedClosedChildTaskCount: parentTask.rawData.addedClosedChildTaskCount,
+                        removedClosedChildTaskCount: parentTask.rawData.removedClosedChildTaskCount,
+                    }),
+                );
+
+                childTaskCounts.addedChildTaskCount += 1;
+                childTaskCounts.addedClosedChildTaskCount +=
+                    task.rawData.status.value.type === "Closed" ? 1 : 0;
+            }
+        }
+
+        const extraActions: Array<TaskUpdateTaskAction> = [];
+
+        for (const [parentTaskId, childTaskCounts] of childTaskCountsByParentTaskId) {
+            extraActions.push({
+                type: "UpdateTask",
+                // For our extra action's time, add a tick to the max action time.
+                time: [maxActionTime[0], maxActionTime[1] + 1],
+                taskId: parentTaskId,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    ...childTaskCounts,
+                },
+            });
         }
 
         return extraActions;

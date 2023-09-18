@@ -35,13 +35,16 @@ export class TestTask {
         this.id = id;
     }
 
-    public static async create(session: TestSpaceSession) {
+    public static async create(
+        session: TestSpaceSession,
+        {time = testClock.nowLogical()}: {time?: HybridLogicalTime} = {},
+    ) {
         const id = generateId<TaskId>();
 
         await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
             {
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time,
                 taskId: id,
                 taskAction: {
                     type: "Create",
@@ -115,9 +118,11 @@ export class TestTask {
         ]);
     }
 
-    public async updateStatus(session: TestSpaceSession, statusType: TaskStatus["type"]) {
-        const time = testClock.nowLogical();
-
+    public async updateStatus(
+        session: TestSpaceSession,
+        statusType: TaskStatus["type"],
+        {time = testClock.nowLogical()}: {time?: HybridLogicalTime} = {},
+    ) {
         const status: TaskStatus =
             statusType === "Open"
                 ? {type: "Open"}

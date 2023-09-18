@@ -1,27 +1,29 @@
+import {useAppContext} from "~/client/context/app_context.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
-import {LocalTasksAction, LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state.js";
-import {LocalTaskId} from "~/shared/id/types/id_types.js";
+import {useStore} from "~/client/helpers/store/use_store.js";
+import {TaskClientStore} from "~/client/tasks/task_client_store.js";
+import {TaskId} from "~/shared/id/types/id_types.js";
 
 export function TaskDeleteConfirmationModalDialog({
-    state,
-    dispatch,
+    store,
     taskId,
     onClose,
     onAfterDelete,
 }: {
-    state: LocalTasksState;
-    dispatch: (action: LocalTasksAction) => void;
-    taskId: LocalTaskId;
+    store: TaskClientStore;
+    taskId: TaskId;
     onClose: () => void;
     onAfterDelete?: () => void;
 }) {
-    const task = state.database.getTask(taskId);
-    const childTaskCount = task.childTaskIdByOrderKey.size;
+    const context = useAppContext();
+    const taskEntryStore = store.getTaskEntryStoreIfExists(taskId);
+    const taskEntry = useStore(taskEntryStore);
+    const childTaskCount = taskEntry?.task?.getChildTaskCount() ?? 0;
 
     return (
         <ModalDialog
-            title="Delete task"
+            title="Delete task?"
             description={
                 <>
                     {childTaskCount === 0 ? (
@@ -36,11 +38,11 @@ export function TaskDeleteConfirmationModalDialog({
                 </>
             }
             primaryButtonLabel="Delete"
-            primaryButtonPressErrorTitle="Couldn’t delete task"
             onPrimaryButtonPress={() => {
-                // TODO(calebmer): There seems to be a bug here where the modal dialog
-                // re-renders with a bad `state` before the `onClose` render.
-                dispatch({type: "DeleteTaskAndAllChildren", taskId});
+                // Task is deleted optimistically. If there's an error we will show a
+                // toast later.
+                store.deleteTaskAndAllChildren(context, taskId);
+
                 onAfterDelete?.();
             }}
             onClose={onClose}

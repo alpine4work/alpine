@@ -124,6 +124,7 @@ function TaskRowTitleInput(
         createTaskBelowAndFocus,
         nestWithPreviousTaskRowIfExistsAndExpand,
         unnestTaskIfNestedRow,
+        deleteTaskAndAllChildrenAndFocusPreviousRow,
         focusNextTaskTitleCoord,
         focusPreviousTaskTitleCoord,
         preserveLastTaskTitleArrowNavigationCoord,
@@ -144,8 +145,7 @@ function TaskRowTitleInput(
         createTaskBelowAndFocus: () => void;
         nestWithPreviousTaskRowIfExistsAndExpand: (selection: Selection) => void;
         unnestTaskIfNestedRow: (selection: Selection) => void;
-        // NOCOMMIT:
-        // deleteTaskAndAllChildrenAndFocusPreviousRow: () => void;
+        deleteTaskAndAllChildrenAndFocusPreviousRow: (options: {withConfirmation: boolean}) => void;
         focusNextTaskTitleCoord: (coord: number) => void;
         focusPreviousTaskTitleCoord: (coord: number) => void;
         preserveLastTaskTitleArrowNavigationCoord: () => void;
@@ -185,25 +185,16 @@ function TaskRowTitleInput(
                 break;
             }
             case "Backspace": {
-                // NOCOMMIT:
-                // if (
-                //     view.state.doc.childCount === 0 &&
-                //     // Cmd-backspace always deletes the task when its title is empty regardless of
-                //     // what other content it contains.
-                //     ((isMac ? event.metaKey : event.ctrlKey) || childTaskCount === 0)
-                // ) {
-                //     event.preventDefault();
-                //     event.stopPropagation();
+                if (view.state.doc.childCount === 0) {
+                    event.preventDefault();
+                    event.stopPropagation();
 
-                //     // TODO(calebmer): If the task we're deleting has other fields (like comments
-                //     // and notes) we should probably popup a warning and ask "are you sure you want
-                //     // to delete"? The join behavior is great for quickly iterating on tasks but
-                //     // can be dangerous.
-                //     //
-                //     // TODO(calebmer): Should we actually delete subtasks? Maybe we should give
-                //     // users an option to leave subtasks?
-                //     deleteTaskAndAllChildrenAndFocusPreviousRow();
-                // }
+                    deleteTaskAndAllChildrenAndFocusPreviousRow({
+                        // If the task has some children make sure the user confirms that deleting
+                        // subtasks is ok.
+                        withConfirmation: childTaskCount > 0,
+                    });
+                }
                 break;
             }
             case "ArrowUp": {

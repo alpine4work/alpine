@@ -1,6 +1,7 @@
 import {AccountModel} from "~/shared/accounts/account_model.js";
-import {BrowserId, SpaceId} from "~/shared/id/types/id_types.js";
+import {BrowserId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
+import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TaskActionSchema} from "~/shared/tasks/actions/task_action.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
@@ -15,7 +16,19 @@ export const commitTaskActionTransaction = defineRpc({
     },
     output: {
         extraActions: Schema.array(TaskActionSchema),
-        extraActionsReferencedAccounts: Schema.array(AccountModel.schema()),
+        referencedAccounts: Schema.array(AccountModel.schema()),
+    },
+});
+
+export const deleteTaskAndAllChildren = defineRpc({
+    name: "deleteTaskAndAllChildren",
+    input: {
+        taskId: Schema.id<TaskId>(),
+        actionTime: HybridLogicalTimeSchema,
+    },
+    output: {
+        actions: Schema.array(TaskActionSchema),
+        referencedAccounts: Schema.array(AccountModel.schema()),
     },
 });
 

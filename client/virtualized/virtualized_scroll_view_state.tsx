@@ -1941,6 +1941,10 @@ export class VirtualizedScrollViewState {
     /**
      * Get the index of an item with the provided key. Returns null if an item
      * with the provided key does not exist.
+     *
+     * The index may be out-of-date if we've scrolled away. The item may be in a
+     * new position but our scroll view state won't know until the item or the old
+     * index is re-rendered.
      */
     public getIndexByKeyIfExists(key: Key): number | null {
         const iterator1 = this._orderKeyByItemKey.find(key);

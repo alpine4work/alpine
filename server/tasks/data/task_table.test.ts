@@ -40,6 +40,7 @@ import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_str
 import {generateId} from "~/shared/id/id.js";
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
@@ -13828,6 +13829,7 @@ test("can delete a task and all its children when it has no children", async () 
     const actionTime = testClock.nowLogical();
 
     expect(await deleteTaskAndAllChildren(TestTask.action(session), task.id, actionTime)).toEqual({
+        spaceId: space.id,
         actions: [
             {
                 type: "UpdateTask",
@@ -13899,6 +13901,7 @@ test("can delete a task and all its children when you have access to the task th
     expect((await task.getItem()).deletedTime).toEqual(null);
 
     expect(await deleteTaskAndAllChildren(TestTask.action(session3), task.id, actionTime)).toEqual({
+        spaceId: space.id,
         actions: [
             {
                 type: "UpdateTask",
@@ -13939,6 +13942,7 @@ test("can delete a task and all its children", async () => {
         task7.updateParentTask(session, task5),
         task8.updateParentTask(session, task4),
         task1.updateParentTask(session, task9),
+        task7.updateStatus(session, "Closed"),
     ]);
 
     expect((await task1.getItem()).deletedTime).toEqual(null);
@@ -14009,6 +14013,66 @@ test("can delete a task and all its children", async () => {
                 time: actionTime,
                 taskId: task8.id,
                 taskAction: {type: "Delete"},
+            },
+            {
+                type: "UpdateTask",
+                time: [actionTime[0], actionTime[1] + 1],
+                taskId: task9.id,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 1,
+                    removedChildTaskCount: 1,
+                    addedClosedChildTaskCount: 0,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+            {
+                type: "UpdateTask",
+                time: [actionTime[0], actionTime[1] + 1],
+                taskId: task1.id,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 3,
+                    removedChildTaskCount: 3,
+                    addedClosedChildTaskCount: 0,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+            {
+                type: "UpdateTask",
+                time: [actionTime[0], actionTime[1] + 1],
+                taskId: task3.id,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 1,
+                    removedChildTaskCount: 1,
+                    addedClosedChildTaskCount: 0,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+            {
+                type: "UpdateTask",
+                time: [actionTime[0], actionTime[1] + 1],
+                taskId: task5.id,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 2,
+                    removedChildTaskCount: 2,
+                    addedClosedChildTaskCount: 1,
+                    removedClosedChildTaskCount: 1,
+                },
+            },
+            {
+                type: "UpdateTask",
+                time: [actionTime[0], actionTime[1] + 1],
+                taskId: task4.id,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 1,
+                    removedChildTaskCount: 1,
+                    addedClosedChildTaskCount: 0,
+                    removedClosedChildTaskCount: 0,
+                },
             },
         ].sort((action1, action2) =>
             defaultCompareStrings(JSON.stringify(action1), JSON.stringify(action2)),
@@ -14115,6 +14179,18 @@ test("can handle race conditions when deleting a task and all of it's children",
                 time: actionTime,
                 taskId: task4.id,
                 taskAction: {type: "Delete"},
+            },
+            {
+                type: "UpdateTask",
+                time: [actionTime[0], actionTime[1] + 1],
+                taskId: parentTask1.id,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 5,
+                    removedChildTaskCount: 5,
+                    addedClosedChildTaskCount: 0,
+                    removedClosedChildTaskCount: 0,
+                },
             },
         ].sort((action1, action2) =>
             defaultCompareStrings(JSON.stringify(action1), JSON.stringify(action2)),
@@ -14224,6 +14300,30 @@ test("can handle race conditions when deleting a task with parent and all of it'
                 taskId: task4.id,
                 taskAction: {type: "Delete"},
             },
+            {
+                type: "UpdateTask",
+                time: [actionTime[0], actionTime[1] + 1],
+                taskId: parentTask1.id,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 5,
+                    removedChildTaskCount: 5,
+                    addedClosedChildTaskCount: 0,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+            {
+                type: "UpdateTask",
+                time: [actionTime[0], actionTime[1] + 1],
+                taskId: grandParentTask.id,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 1,
+                    removedChildTaskCount: 1,
+                    addedClosedChildTaskCount: 0,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
         ].sort((action1, action2) =>
             defaultCompareStrings(JSON.stringify(action1), JSON.stringify(action2)),
         ),
@@ -14237,4 +14337,400 @@ test("can handle race conditions when deleting a task with parent and all of it'
     expect((await task3.getItem()).deletedTime).toEqual(actionTime);
     expect((await task4.getItem()).deletedTime).toEqual(actionTime);
     expect((await task5.getItem()).deletedTime).toEqual(null);
+});
+
+test("the delete a task with all its children function has the same effect as committing a delete action", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const createdTime = testClock.nowLogical();
+
+    const task1 = await TestTask.create(session, {time: createdTime});
+    const task2 = await TestTask.create(session, {time: createdTime});
+
+    const replaceTaskIds = (object: any) => {
+        if (object.taskId === task1.id) return {...object, taskId: task2.id};
+        return object;
+    };
+
+    expect(replaceTaskIds(await task1.getItem())).toEqual(await task2.getItem());
+
+    const deletedTime = testClock.nowLogical();
+
+    const actions1: Array<TaskAction> = [
+        {
+            type: "UpdateTask",
+            time: deletedTime,
+            taskId: task1.id,
+            taskAction: {type: "Delete"},
+        },
+    ];
+
+    const {extraActions: extraActions1} = await commitTaskActionTransaction(
+        TestTask.action(session),
+        space.id,
+        actions1,
+    );
+
+    expect(replaceTaskIds(await task1.getItem())).not.toEqual(await task2.getItem());
+
+    const {actions: actions2} = await deleteTaskAndAllChildren(
+        TestTask.action(session),
+        task2.id,
+        deletedTime,
+    );
+
+    expect([...actions1, ...extraActions1].map(replaceTaskIds)).toEqual(actions2);
+
+    expect(replaceTaskIds(await task1.getItem())).toEqual(await task2.getItem());
+});
+
+test("the delete a task with all its children function has the same effect as committing a delete action when task has a parent", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const createdTime = testClock.nowLogical();
+    const parentUpdatedTime = testClock.nowLogical();
+
+    const parentTask1 = await TestTask.create(session, {time: createdTime});
+    const parentTask2 = await TestTask.create(session, {time: createdTime});
+    const task1 = await TestTask.create(session, {time: createdTime});
+    const task2 = await TestTask.create(session, {time: createdTime});
+
+    await task1.updateParentTask(session, parentTask1, {time: parentUpdatedTime});
+    await task2.updateParentTask(session, parentTask2, {time: parentUpdatedTime});
+
+    const replaceTaskIds = (object: any) => {
+        if (object.taskId === parentTask1.id) object = {...object, taskId: parentTask2.id};
+        if (object.taskId === task1.id) object = {...object, taskId: task2.id};
+
+        if (object.childTaskIds) {
+            object = {
+                ...object,
+                childTaskIds: new Set(
+                    Array.from(object.childTaskIds, (id: TaskId) => {
+                        if (id === parentTask1.id) return parentTask2.id;
+                        if (id === task1.id) return task2.id;
+                        return id;
+                    }),
+                ),
+            };
+        }
+
+        if (object.parentTaskId?.value === parentTask1.id) {
+            object = {
+                ...object,
+                parentTaskId: new TaskParentTaskIdRegister(
+                    parentTask2.id,
+                    object.parentTaskId.version,
+                ),
+            };
+        }
+
+        if (object.parentTaskId?.value === task1.id) {
+            object = {
+                ...object,
+                parentTaskId: new TaskParentTaskIdRegister(task2.id, object.parentTaskId.version),
+            };
+        }
+
+        return object;
+    };
+
+    expect(replaceTaskIds(await parentTask1.getItem())).toEqual(await parentTask2.getItem());
+    expect(replaceTaskIds(await task1.getItem())).toEqual(await task2.getItem());
+
+    const deletedTime = testClock.nowLogical();
+
+    const actions1: Array<TaskAction> = [
+        {
+            type: "UpdateTask",
+            time: deletedTime,
+            taskId: task1.id,
+            taskAction: {type: "Delete"},
+        },
+    ];
+
+    const {extraActions: extraActions1} = await commitTaskActionTransaction(
+        TestTask.action(session),
+        space.id,
+        actions1,
+    );
+
+    expect(replaceTaskIds(await task1.getItem())).not.toEqual(await task2.getItem());
+
+    const {actions: actions2} = await deleteTaskAndAllChildren(
+        TestTask.action(session),
+        task2.id,
+        deletedTime,
+    );
+
+    expect([...actions1, ...extraActions1].map(replaceTaskIds)).toEqual(actions2);
+
+    expect(replaceTaskIds(await parentTask1.getItem())).toEqual(await parentTask2.getItem());
+    expect(replaceTaskIds(await task1.getItem())).toEqual(await task2.getItem());
+});
+
+test("the delete a task with all its children function has the same effect as committing delete actions when task has children", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const createdTime = testClock.nowLogical();
+    const parentUpdatedTime = testClock.nowLogical();
+
+    const task1 = await TestTask.create(session, {time: createdTime});
+    const task1a = await TestTask.create(session, {time: createdTime});
+    const task1b = await TestTask.create(session, {time: createdTime});
+    const task2 = await TestTask.create(session, {time: createdTime});
+    const task2a = await TestTask.create(session, {time: createdTime});
+    const task2b = await TestTask.create(session, {time: createdTime});
+
+    await task1a.updateParentTask(session, task1, {time: parentUpdatedTime});
+    await task1b.updateParentTask(session, task1, {time: parentUpdatedTime});
+    await task2a.updateParentTask(session, task2, {time: parentUpdatedTime});
+    await task2b.updateParentTask(session, task2, {time: parentUpdatedTime});
+
+    await task1b.updateStatus(session, "Closed", {time: parentUpdatedTime});
+    await task2b.updateStatus(session, "Closed", {time: parentUpdatedTime});
+
+    const replaceTaskIds = (object: any) => {
+        if (object.taskId === task1.id) object = {...object, taskId: task2.id};
+        if (object.taskId === task1a.id) object = {...object, taskId: task2a.id};
+        if (object.taskId === task1b.id) object = {...object, taskId: task2b.id};
+
+        if (object.childTaskIds) {
+            object = {
+                ...object,
+                childTaskIds: new Set(
+                    Array.from(object.childTaskIds, (id: TaskId) => {
+                        if (id === task1.id) return task2.id;
+                        if (id === task1a.id) return task2a.id;
+                        if (id === task1b.id) return task2b.id;
+                        return id;
+                    }),
+                ),
+            };
+        }
+
+        if (object.parentTaskId?.value === task1.id) {
+            object = {
+                ...object,
+                parentTaskId: new TaskParentTaskIdRegister(task2.id, object.parentTaskId.version),
+            };
+        }
+
+        if (object.parentTaskId?.value === task1a.id) {
+            object = {
+                ...object,
+                parentTaskId: new TaskParentTaskIdRegister(task2a.id, object.parentTaskId.version),
+            };
+        }
+
+        if (object.parentTaskId?.value === task1b.id) {
+            object = {
+                ...object,
+                parentTaskId: new TaskParentTaskIdRegister(task2b.id, object.parentTaskId.version),
+            };
+        }
+
+        return object;
+    };
+
+    expect(replaceTaskIds(await task1.getItem())).toEqual(await task2.getItem());
+    expect(replaceTaskIds(await task1a.getItem())).toEqual(await task2a.getItem());
+    expect(replaceTaskIds(await task1b.getItem())).toEqual(await task2b.getItem());
+
+    const deletedTime = testClock.nowLogical();
+
+    const actions1: Array<TaskAction> = [
+        {
+            type: "UpdateTask",
+            time: deletedTime,
+            taskId: task1.id,
+            taskAction: {type: "Delete"},
+        },
+        {
+            type: "UpdateTask",
+            time: deletedTime,
+            taskId: task1a.id,
+            taskAction: {type: "Delete"},
+        },
+        {
+            type: "UpdateTask",
+            time: deletedTime,
+            taskId: task1b.id,
+            taskAction: {type: "Delete"},
+        },
+    ];
+
+    const {extraActions: extraActions1} = await commitTaskActionTransaction(
+        TestTask.action(session),
+        space.id,
+        actions1,
+    );
+
+    expect(replaceTaskIds(await task1.getItem())).not.toEqual(await task2.getItem());
+    expect(replaceTaskIds(await task1a.getItem())).not.toEqual(await task2a.getItem());
+    expect(replaceTaskIds(await task1b.getItem())).not.toEqual(await task2b.getItem());
+
+    const {actions: actions2} = await deleteTaskAndAllChildren(
+        TestTask.action(session),
+        task2.id,
+        deletedTime,
+    );
+
+    expect(
+        [...actions1, ...extraActions1]
+            .map(replaceTaskIds)
+            .sort((a, b) => defaultCompareStrings(JSON.stringify(a), JSON.stringify(b))),
+    ).toEqual(
+        actions2
+            .slice()
+            .sort((a, b) => defaultCompareStrings(JSON.stringify(a), JSON.stringify(b))),
+    );
+
+    expect(replaceTaskIds(await task1.getItem())).toEqual(await task2.getItem());
+    expect(replaceTaskIds(await task1a.getItem())).toEqual(await task2a.getItem());
+    expect(replaceTaskIds(await task1b.getItem())).toEqual(await task2b.getItem());
+});
+
+test("the delete a task with all its children function has the same effect as committing delete actions when task has a parent and children", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const createdTime = testClock.nowLogical();
+    const parentUpdatedTime = testClock.nowLogical();
+
+    const parentTask1 = await TestTask.create(session, {time: createdTime});
+    const parentTask2 = await TestTask.create(session, {time: createdTime});
+    const task1 = await TestTask.create(session, {time: createdTime});
+    const task1a = await TestTask.create(session, {time: createdTime});
+    const task1b = await TestTask.create(session, {time: createdTime});
+    const task2 = await TestTask.create(session, {time: createdTime});
+    const task2a = await TestTask.create(session, {time: createdTime});
+    const task2b = await TestTask.create(session, {time: createdTime});
+
+    await task1.updateParentTask(session, parentTask1, {time: parentUpdatedTime});
+    await task2.updateParentTask(session, parentTask2, {time: parentUpdatedTime});
+    await task1a.updateParentTask(session, task1, {time: parentUpdatedTime});
+    await task1b.updateParentTask(session, task1, {time: parentUpdatedTime});
+    await task2a.updateParentTask(session, task2, {time: parentUpdatedTime});
+    await task2b.updateParentTask(session, task2, {time: parentUpdatedTime});
+
+    await task1b.updateStatus(session, "Closed", {time: parentUpdatedTime});
+    await task2b.updateStatus(session, "Closed", {time: parentUpdatedTime});
+
+    const replaceTaskIds = (object: any) => {
+        if (object.taskId === parentTask1.id) object = {...object, taskId: parentTask2.id};
+        if (object.taskId === task1.id) object = {...object, taskId: task2.id};
+        if (object.taskId === task1a.id) object = {...object, taskId: task2a.id};
+        if (object.taskId === task1b.id) object = {...object, taskId: task2b.id};
+
+        if (object.childTaskIds) {
+            object = {
+                ...object,
+                childTaskIds: new Set(
+                    Array.from(object.childTaskIds, (id: TaskId) => {
+                        if (id === parentTask1.id) return parentTask2.id;
+                        if (id === task1.id) return task2.id;
+                        if (id === task1a.id) return task2a.id;
+                        if (id === task1b.id) return task2b.id;
+                        return id;
+                    }),
+                ),
+            };
+        }
+
+        if (object.parentTaskId?.value === parentTask1.id) {
+            object = {
+                ...object,
+                parentTaskId: new TaskParentTaskIdRegister(
+                    parentTask2.id,
+                    object.parentTaskId.version,
+                ),
+            };
+        }
+
+        if (object.parentTaskId?.value === task1.id) {
+            object = {
+                ...object,
+                parentTaskId: new TaskParentTaskIdRegister(task2.id, object.parentTaskId.version),
+            };
+        }
+
+        if (object.parentTaskId?.value === task1a.id) {
+            object = {
+                ...object,
+                parentTaskId: new TaskParentTaskIdRegister(task2a.id, object.parentTaskId.version),
+            };
+        }
+
+        if (object.parentTaskId?.value === task1b.id) {
+            object = {
+                ...object,
+                parentTaskId: new TaskParentTaskIdRegister(task2b.id, object.parentTaskId.version),
+            };
+        }
+
+        return object;
+    };
+
+    expect(replaceTaskIds(await parentTask1.getItem())).toEqual(await parentTask2.getItem());
+    expect(replaceTaskIds(await task1.getItem())).toEqual(await task2.getItem());
+    expect(replaceTaskIds(await task1a.getItem())).toEqual(await task2a.getItem());
+    expect(replaceTaskIds(await task1b.getItem())).toEqual(await task2b.getItem());
+
+    const deletedTime = testClock.nowLogical();
+
+    const actions1: Array<TaskAction> = [
+        {
+            type: "UpdateTask",
+            time: deletedTime,
+            taskId: task1.id,
+            taskAction: {type: "Delete"},
+        },
+        {
+            type: "UpdateTask",
+            time: deletedTime,
+            taskId: task1a.id,
+            taskAction: {type: "Delete"},
+        },
+        {
+            type: "UpdateTask",
+            time: deletedTime,
+            taskId: task1b.id,
+            taskAction: {type: "Delete"},
+        },
+    ];
+
+    const {extraActions: extraActions1} = await commitTaskActionTransaction(
+        TestTask.action(session),
+        space.id,
+        actions1,
+    );
+
+    expect(replaceTaskIds(await task1.getItem())).not.toEqual(await task2.getItem());
+    expect(replaceTaskIds(await task1a.getItem())).not.toEqual(await task2a.getItem());
+    expect(replaceTaskIds(await task1b.getItem())).not.toEqual(await task2b.getItem());
+
+    const {actions: actions2} = await deleteTaskAndAllChildren(
+        TestTask.action(session),
+        task2.id,
+        deletedTime,
+    );
+
+    expect(
+        [...actions1, ...extraActions1]
+            .map(replaceTaskIds)
+            .sort((a, b) => defaultCompareStrings(JSON.stringify(a), JSON.stringify(b))),
+    ).toEqual(
+        actions2
+            .slice()
+            .sort((a, b) => defaultCompareStrings(JSON.stringify(a), JSON.stringify(b))),
+    );
+
+    expect(replaceTaskIds(await parentTask1.getItem())).toEqual(await parentTask2.getItem());
+    expect(replaceTaskIds(await task1.getItem())).toEqual(await task2.getItem());
+    expect(replaceTaskIds(await task1a.getItem())).toEqual(await task2a.getItem());
+    expect(replaceTaskIds(await task1b.getItem())).toEqual(await task2b.getItem());
 });

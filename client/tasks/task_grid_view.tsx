@@ -94,7 +94,7 @@ export function TaskGridView({
 }) {
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
-    const {itemCount, renderItem, onRenderedRangeChange} = useTaskGridViewVirtualizedList({
+    const {modals, itemCount, renderItem, onRenderedRangeChange} = useTaskGridViewVirtualizedList({
         capabilities,
         query,
         initialExpandedState,
@@ -105,13 +105,16 @@ export function TaskGridView({
     });
 
     return (
-        <VirtualizedScrollView
-            ref={viewRef}
-            itemCount={itemCount}
-            bufferedItemHeight={spacing[taskRowViewMinHeight]}
-            renderItem={renderItem}
-            onRenderedRangeChange={onRenderedRangeChange}
-        />
+        <>
+            {modals}
+            <VirtualizedScrollView
+                ref={viewRef}
+                itemCount={itemCount}
+                bufferedItemHeight={spacing[taskRowViewMinHeight]}
+                renderItem={renderItem}
+                onRenderedRangeChange={onRenderedRangeChange}
+            />
+        </>
     );
 }
 

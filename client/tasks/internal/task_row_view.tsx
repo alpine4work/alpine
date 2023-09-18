@@ -138,6 +138,8 @@ function TaskRowView(
         getMoveTaskToQueryActions,
         nestWithPreviousTaskRowIfExistsAndExpand,
         unnestTaskIfNestedRow,
+        deleteTaskAndAllChildren,
+        deleteTaskAndAllChildrenAndFocusPreviousRow,
         focusTaskTitleStart,
         focusNextTaskTitleCoord,
         focusPreviousTaskTitleCoord,
@@ -196,9 +198,8 @@ function TaskRowView(
         ) => Array<TaskAction>;
         nestWithPreviousTaskRowIfExistsAndExpand: (titleSelection: Selection) => void;
         unnestTaskIfNestedRow: (titleSelection: Selection) => void;
-        // NOCOMMIT:
-        // deleteTaskAndAllChildrenAndFocusPreviousRow: () => void;
-        // deleteTaskAndAllChildrenMaybeWithConfirmation: () => void;
+        deleteTaskAndAllChildren: (options: {withConfirmation: boolean}) => void;
+        deleteTaskAndAllChildrenAndFocusPreviousRow: (options: {withConfirmation: boolean}) => void;
         focusTaskTitleStart: (taskKey: TaskGridViewTaskKey) => void;
         focusNextTaskTitleCoord: (coord: number) => void;
         focusPreviousTaskTitleCoord: (coord: number) => void;
@@ -450,15 +451,14 @@ function TaskRowView(
         //     ]);
         // }
 
-        // NOCOMMIT:
-        // if (status) {
-        //     contextMenuActions.push([
-        //         {
-        //             label: "Delete",
-        //             onPress: deleteTaskAndAllChildrenMaybeWithConfirmation,
-        //         },
-        //     ]);
-        // }
+        if (taskId !== null) {
+            contextMenuActions.push([
+                {
+                    label: "Delete",
+                    onPress: () => deleteTaskAndAllChildren({withConfirmation: true}),
+                },
+            ]);
+        }
 
         return contextMenuActions;
     })();
@@ -772,6 +772,9 @@ function TaskRowView(
                                     nestWithPreviousTaskRowIfExistsAndExpand
                                 }
                                 unnestTaskIfNestedRow={unnestTaskIfNestedRow}
+                                deleteTaskAndAllChildrenAndFocusPreviousRow={
+                                    deleteTaskAndAllChildrenAndFocusPreviousRow
+                                }
                                 focusNextTaskTitleCoord={focusNextTaskTitleCoord}
                                 focusPreviousTaskTitleCoord={focusPreviousTaskTitleCoord}
                                 preserveLastTaskTitleArrowNavigationCoord={

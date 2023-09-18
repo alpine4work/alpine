@@ -218,6 +218,16 @@ export type VirtualizedScrollViewRef = {
     getKeyByIndexIfExists(index: number): Key | null;
 
     /**
+     * Get the index of an item with the provided key. Returns null if an item
+     * with the provided key does not exist.
+     *
+     * The index may be out-of-date if we've scrolled away. The item may be in a
+     * new position but our scroll view state won't know until the item or the old
+     * index is re-rendered.
+     */
+    getIndexByKeyIfExists(key: Key): number | null;
+
+    /**
      * Get the position of an item at the provided index. Throws an error if the
      * index is out-of-bounds.
      */
@@ -1250,6 +1260,10 @@ function VirtualizedScrollView(
                 getKeyByIndexIfExists: index => {
                     const state = stateRef.current.state;
                     return state.getKeyByIndexIfExists(index);
+                },
+                getIndexByKeyIfExists: key => {
+                    const state = stateRef.current.state;
+                    return state.getIndexByKeyIfExists(key);
                 },
                 getPositionByIndex: index => {
                     const state = stateRef.current.state;

@@ -1,6 +1,6 @@
 import {SpinnerGap} from "phosphor-react";
 import {Selection} from "prosemirror-state";
-import {Key, RefObject, useEffect, useMemo, useRef, useState} from "react";
+import {Key, Memo, ReactNode, RefObject, useEffect, useMemo, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
@@ -11,6 +11,7 @@ import {useStore} from "~/client/helpers/store/use_store.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/get_new_task_position_for_query_sorted_by_position.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
+import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/internal/task_delete_confirmation_modal_dialog.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_key.js";
 import {TaskGridViewVirtualizedTaskList} from "~/client/tasks/internal/task_grid_view_virtualized_task_list.js";
@@ -58,6 +59,7 @@ type TaskGridViewVirtualizedListViewRef = {
     setScrollOffset: (scrollOffset: number) => void;
     getRenderedRange: () => {startIndex: number; endIndex: number} | null;
     getKeyByIndexIfExists: (index: number) => Key | null;
+    getIndexByKeyIfExists: (key: Key) => number | null;
     getPositionByIndex: (index: number) => {offset: number; height: number};
     peekRenderedRangeAfterSetScrollOffset: (
         scrollOffset: number,
@@ -88,7 +90,12 @@ export function useTaskGridViewVirtualizedList({
         position: {type: "End"} | {type: "Above"; taskId: TaskId} | {type: "Below"; taskId: TaskId},
     ) => Array<TaskAction>;
     getMaybeRemoveTaskFromQueryWhenNestingActions: (taskId: TaskId) => Array<TaskAction>;
-}) {
+}): {
+    itemCount: number;
+    renderItem: Memo<(index: number) => VirtualizedScrollViewItem>;
+    onRenderedRangeChange: (renderedRange: {startIndex: number; endIndex: number} | null) => void;
+    modals: ReactNode;
+} {
     const context = useAppContext();
 
     const [bottomGhostTaskId, setBottomGhostTaskId] = useState(initialBottomGhostTaskId);
@@ -110,6 +117,11 @@ export function useTaskGridViewVirtualizedList({
     const list = useStore(listStore);
     const loadedState = useStore(query.loadedStateStore);
 
+    const [taskDeleteConfirmationState, setTaskDeleteConfirmationState] = useState<{
+        taskId: TaskId;
+        onAfterDelete?: () => void;
+    } | null>(null);
+
     const events = useEvents({
         getMoveTaskToQueryActions: _getMoveTaskToQueryActions,
         getMaybeRemoveTaskFromQueryWhenNestingActions:
@@ -122,6 +134,18 @@ export function useTaskGridViewVirtualizedList({
     const onRenderedRangeChangeCallbacksRef = useRef<
         Array<(renderedRange: {startIndex: number; endIndex: number} | null) => void>
     >([]);
+    const onTaskDeleteConfirmationModalDialogClosedCallbacksRef = useRef<Array<() => void>>([]);
+
+    useEffect(() => {
+        if (!taskDeleteConfirmationState) {
+            const callbacks = onTaskDeleteConfirmationModalDialogClosedCallbacksRef.current;
+            onTaskDeleteConfirmationModalDialogClosedCallbacksRef.current = [];
+
+            for (const callback of callbacks) {
+                callback();
+            }
+        }
+    }, [taskDeleteConfirmationState]);
 
     const lastArrowNavigationCoordRef = useRef<{setTime: Date; coord: number} | null>(null);
 
@@ -546,6 +570,16 @@ export function useTaskGridViewVirtualizedList({
                 }
 
                 if (relativeItemIndex === 0) {
+                    const focusPreviousTaskTitleEnd = () => {
+                        for (let index = itemIndex - 1; index >= 0; index--) {
+                            const taskRow = taskRowByItemIndexRef.current.get(index);
+                            if (!taskRow) continue;
+
+                            taskRow.focusTitleEnd();
+                            break;
+                        }
+                    };
+
                     return {
                         // We want to use the same key and component as a regular task so we can turn a
                         // ghost task into a regular task without losing focus.
@@ -582,6 +616,10 @@ export function useTaskGridViewVirtualizedList({
                                 getMoveTaskToQueryActions={events.getMoveTaskToQueryActions}
                                 nestWithPreviousTaskRowIfExistsAndExpand={noop}
                                 unnestTaskIfNestedRow={noop}
+                                deleteTaskAndAllChildren={noop}
+                                deleteTaskAndAllChildrenAndFocusPreviousRow={
+                                    focusPreviousTaskTitleEnd
+                                }
                                 focusTaskTitleStart={focusTaskTitleStart}
                                 focusNextTaskTitleCoord={focusNextTaskTitleCoord}
                                 focusPreviousTaskTitleCoord={focusPreviousTaskTitleCoord}
@@ -857,6 +895,65 @@ export function useTaskGridViewVirtualizedList({
                     });
                 };
 
+                const deleteTaskAndAllChildren = ({
+                    withConfirmation,
+                }: {
+                    withConfirmation: boolean;
+                }) => {
+                    if (!withConfirmation) {
+                        query.store.deleteTaskAndAllChildren(context, taskId);
+                    } else {
+                        setTaskDeleteConfirmationState({taskId});
+                    }
+                };
+
+                const deleteTaskAndAllChildrenAndFocusPreviousRow = ({
+                    withConfirmation,
+                }: {
+                    withConfirmation: boolean;
+                }) => {
+                    if (!withConfirmation) {
+                        query.store.deleteTaskAndAllChildren(context, taskId);
+
+                        for (let index = itemIndex - 1; index >= 0; index--) {
+                            const taskRow = taskRowByItemIndexRef.current.get(index);
+                            if (!taskRow) continue;
+
+                            taskRow.focusTitleEnd();
+                            break;
+                        }
+                    } else {
+                        setTaskDeleteConfirmationState({
+                            taskId,
+                            onAfterDelete: () => {
+                                const view = viewRef.current;
+                                if (!view) return;
+
+                                // The item may have moved since we opened the modal (e.g. it shifted down one
+                                // place since a task was added above). Focus the title before the task's new
+                                // position.
+                                const itemIndex = view.getIndexByKeyIfExists(`Task:${taskKey}`);
+                                if (itemIndex === null) return;
+
+                                // Once React has closed the modal dialog, focus the previous task. Until the
+                                // modal dialog is closed, focus is trapped inside it.
+                                onTaskDeleteConfirmationModalDialogClosedCallbacksRef.current.push(
+                                    () => {
+                                        for (let index = itemIndex - 1; index >= 0; index--) {
+                                            const taskRow =
+                                                taskRowByItemIndexRef.current.get(index);
+                                            if (!taskRow) continue;
+
+                                            taskRow.focusTitleEnd();
+                                            break;
+                                        }
+                                    },
+                                );
+                            },
+                        });
+                    }
+                };
+
                 const node = (
                     <TaskRowView
                         ref={taskRow => {
@@ -884,6 +981,10 @@ export function useTaskGridViewVirtualizedList({
                             nestWithPreviousTaskRowIfExistsAndExpand
                         }
                         unnestTaskIfNestedRow={unnestTaskIfNestedRow}
+                        deleteTaskAndAllChildren={deleteTaskAndAllChildren}
+                        deleteTaskAndAllChildrenAndFocusPreviousRow={
+                            deleteTaskAndAllChildrenAndFocusPreviousRow
+                        }
                         focusTaskTitleStart={focusTaskTitleStart}
                         focusNextTaskTitleCoord={focusNextTaskTitleCoord}
                         focusPreviousTaskTitleCoord={focusPreviousTaskTitleCoord}
@@ -979,5 +1080,13 @@ export function useTaskGridViewVirtualizedList({
                 callback(renderedRange);
             }
         },
+        modals: taskDeleteConfirmationState && (
+            <TaskDeleteConfirmationModalDialog
+                store={query.store}
+                taskId={taskDeleteConfirmationState.taskId}
+                onClose={() => setTaskDeleteConfirmationState(null)}
+                onAfterDelete={taskDeleteConfirmationState.onAfterDelete}
+            />
+        ),
     };
 }

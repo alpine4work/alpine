@@ -3,6 +3,7 @@ import {getAccount} from "~/server/spaces/spaces_table.js";
 import {collectReferencedAccountIdsFromTaskAction} from "~/server/tasks/data/task_realtime_protocol_helpers.js";
 import {
     commitTaskActionTransaction,
+    deleteTaskAndAllChildren,
     updateTaskGridViewExpansionState,
 } from "~/server/tasks/data/task_table.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -31,7 +32,34 @@ implementRpc(
 
         return {
             extraActions,
-            extraActionsReferencedAccounts: referencedAccounts,
+            referencedAccounts,
+        };
+    },
+);
+
+implementRpc(
+    definition.deleteTaskAndAllChildren,
+    {visibility: ["AppClient"]},
+    async (context, input) => {
+        const {spaceId, actions} = await deleteTaskAndAllChildren(
+            context.actor.authorizeSession(),
+            input.taskId,
+            input.actionTime,
+        );
+
+        const accountIds = new Set<AccountId>();
+
+        for (const action of actions) {
+            collectReferencedAccountIdsFromTaskAction(accountIds, action);
+        }
+
+        const referencedAccounts = await runAllPromises(
+            Array.from(accountIds, accountId => getAccount(context, spaceId, accountId)),
+        );
+
+        return {
+            actions,
+            referencedAccounts,
         };
     },
 );
