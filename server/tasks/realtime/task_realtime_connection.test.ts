@@ -18,13 +18,18 @@ import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {ForkActionContextModule} from "~/shared/context/fork_action_context_module.js";
-import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.js";
+import {
+    FailedPreconditionError,
+    NotFoundError,
+    PermissionDeniedError,
+} from "~/shared/error/error.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
@@ -12277,4 +12282,1169 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
         committedTime: testClock.nowDate(),
         actions: actions2,
     });
+});
+
+test("can subscribe to task", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const server = createWebSocketServer(space);
+
+    const [task1, task2] = await runAllPromises([
+        TestTask.create(session),
+        TestTask.create(session),
+    ]);
+
+    await server.wait();
+
+    const connection = await server.connectForTest(session.action());
+
+    expect(connection.takeEvents()).toEqual([]);
+
+    const {taskSubscriptionId} = await connection.procedures.subscribeToTask({taskId: task1.id});
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [],
+            backfillAuthorizedTasks: [expect.objectContaining({id: task1.id})],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [await session.get()],
+        },
+    ]);
+
+    await task1.updatePriority(session, "High");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: task1.id,
+                    taskAction: {
+                        type: "UpdatePriority",
+                        priority: "High",
+                    },
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    await task2.updatePriority(session, "Medium");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([]);
+
+    await connection.procedures.unsubscribeFromTask({taskSubscriptionId});
+
+    await task1.updatePriority(session, "Low");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([]);
+});
+
+test("can't subscribe to task that doesn't exist", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const server = createWebSocketServer(space);
+    await server.wait();
+
+    const connection = await server.connectForTest(session.action());
+
+    expect(connection.takeEvents()).toEqual([]);
+
+    await expect(connection.procedures.subscribeToTask({taskId: generateId()})).rejects.toThrow(
+        NotFoundError,
+    );
+
+    expect(connection.takeEvents()).toEqual([]);
+});
+
+test("can't subscribe to task that you don't have access to", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const server = createWebSocketServer(space);
+
+    const task1 = await TestTask.create(session1);
+
+    await server.wait();
+
+    const connection = await server.connectForTest(session2.action());
+
+    expect(connection.takeEvents()).toEqual([]);
+
+    await expect(connection.procedures.subscribeToTask({taskId: task1.id})).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    expect(connection.takeEvents()).toEqual([]);
+});
+
+test("will lose access to subscribed task upon reauthorization", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const server = createWebSocketServer(space);
+
+    const task1 = await TestTask.create(session1);
+    const collection1 = await TestTaskCollection.createPublic(session1);
+    await task1.addCollection(session1, collection1);
+
+    await server.wait();
+
+    const connection = await server.connectForTest(session2.action());
+
+    expect(connection.takeEvents()).toEqual([]);
+
+    await connection.procedures.subscribeToTask({taskId: task1.id});
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [],
+            backfillAuthorizedTasks: [expect.objectContaining({id: task1.id})],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [expect.objectContaining({id: collection1.id})],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [await session1.get()],
+        },
+    ]);
+
+    await task1.updatePriority(session1, "High");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: task1.id,
+                    taskAction: {
+                        type: "UpdatePriority",
+                        priority: "High",
+                    },
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    await connection.authorize();
+
+    expect(connection.takeEvents()).toEqual([]);
+
+    await collection1.setPrivateAccessPolicy(session1);
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateCollection",
+                    time: expect.any(Array),
+                    collectionId: collection1.id,
+                    collectionAction: {
+                        type: "UpdateAccessPolicy",
+                        accessPolicy: expect.any(Object),
+                    },
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    await task1.updatePriority(session1, "Medium");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: task1.id,
+                    taskAction: {
+                        type: "UpdatePriority",
+                        priority: "Medium",
+                    },
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    expect(connection.isClosed()).toEqual(false);
+    await expect(connection.authorize()).rejects.toThrow(PermissionDeniedError);
+    expect(connection.isClosed()).toEqual(true);
+
+    await task1.updatePriority(session1, "Low");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([]);
+});
+
+test("subscribing to task subscribes to parent tasks and collections", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const server = createWebSocketServer(space);
+
+    const [task1, task2, task3, task4, collection1, collection2, collection3] =
+        await runAllPromises([
+            TestTask.create(session),
+            TestTask.create(session),
+            TestTask.create(session),
+            TestTask.create(session),
+            TestTaskCollection.createPrivate(session),
+            TestTaskCollection.createPrivate(session),
+            TestTaskCollection.createPrivate(session),
+        ]);
+
+    await runAllPromises([
+        task1.updateParentTask(session, task2),
+        task2.updateParentTask(session, task3),
+        task3.updateParentTask(session, task4),
+        task2.addCollection(session, collection1),
+        task2.addCollection(session, collection2),
+        task4.addCollection(session, collection2),
+        task4.addCollection(session, collection3),
+    ]);
+
+    await server.wait();
+
+    const connection = await server.connectForTest(session.action());
+
+    expect(connection.takeEvents()).toEqual([]);
+
+    await connection.procedures.subscribeToTask({taskId: task2.id});
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [],
+            backfillAuthorizedTasks: [
+                expect.objectContaining({id: task2.id}),
+                expect.objectContaining({id: task3.id}),
+                expect.objectContaining({id: task4.id}),
+            ],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [
+                expect.objectContaining({id: collection1.id}),
+                expect.objectContaining({id: collection2.id}),
+                expect.objectContaining({id: collection3.id}),
+            ],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [await session.get()],
+        },
+    ]);
+
+    await task2.updatePriority(session, "Low");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: task2.id,
+                    taskAction: {
+                        type: "UpdatePriority",
+                        priority: "Low",
+                    },
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    await task1.updatePriority(session, "Medium");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([]);
+
+    await task4.updatePriority(session, "Medium");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: task4.id,
+                    taskAction: {
+                        type: "UpdatePriority",
+                        priority: "Medium",
+                    },
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    await collection1.updateName(session, "Collection 1a");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateCollection",
+                    time: expect.any(Array),
+                    collectionId: collection1.id,
+                    collectionAction: {
+                        type: "UpdateName",
+                        name: "Collection 1a",
+                    },
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    await collection2.updateName(session, "Collection 2a");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateCollection",
+                    time: expect.any(Array),
+                    collectionId: collection2.id,
+                    collectionAction: {
+                        type: "UpdateName",
+                        name: "Collection 2a",
+                    },
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    await collection3.updateName(session, "Collection 3a");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateCollection",
+                    time: expect.any(Array),
+                    collectionId: collection3.id,
+                    collectionAction: {
+                        type: "UpdateName",
+                        name: "Collection 3a",
+                    },
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    await task3.updateParentTask(session, null);
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: task4.id,
+                    taskAction: expect.objectContaining({
+                        type: "UpdateChildrenCounts",
+                    }),
+                },
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: task3.id,
+                    taskAction: {
+                        type: "UpdateParentTaskId",
+                        parentTaskId: null,
+                    },
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    await task4.updatePriority(session, "High");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([]);
+
+    await collection1.updateName(session, "Collection 1b");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateCollection",
+                    time: expect.any(Array),
+                    collectionId: collection1.id,
+                    collectionAction: {
+                        type: "UpdateName",
+                        name: "Collection 1b",
+                    },
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    await collection2.updateName(session, "Collection 2b");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateCollection",
+                    time: expect.any(Array),
+                    collectionId: collection2.id,
+                    collectionAction: {
+                        type: "UpdateName",
+                        name: "Collection 2b",
+                    },
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    await collection3.updateName(session, "Collection 3b");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([]);
+
+    await task2.removeCollection(session, collection2);
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: task2.id,
+                    taskAction: {
+                        type: "RemoveCollection",
+                        collectionId: collection2.id,
+                    },
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    await collection1.updateName(session, "Collection 1c");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateCollection",
+                    time: expect.any(Array),
+                    collectionId: collection1.id,
+                    collectionAction: {
+                        type: "UpdateName",
+                        name: "Collection 1c",
+                    },
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    await collection2.updateName(session, "Collection 2c");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([]);
+
+    await collection3.updateName(session, "Collection 3c");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([]);
+
+    await task3.updateParentTask(session, task4);
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: task3.id,
+                    taskAction: {
+                        type: "UpdateParentTaskId",
+                        parentTaskId: task4.id,
+                    },
+                },
+            ],
+            backfillAuthorizedTasks: [expect.objectContaining({id: task4.id})],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [
+                expect.objectContaining({id: collection2.id}),
+                expect.objectContaining({id: collection3.id}),
+            ],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [await session.get()],
+        },
+    ]);
+
+    await task4.updatePriority(session, "Low");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: task4.id,
+                    taskAction: {
+                        type: "UpdatePriority",
+                        priority: "Low",
+                    },
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    await collection1.updateName(session, "Collection 1d");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateCollection",
+                    time: expect.any(Array),
+                    collectionId: collection1.id,
+                    collectionAction: {
+                        type: "UpdateName",
+                        name: "Collection 1d",
+                    },
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    await collection2.updateName(session, "Collection 2d");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateCollection",
+                    time: expect.any(Array),
+                    collectionId: collection2.id,
+                    collectionAction: {
+                        type: "UpdateName",
+                        name: "Collection 2d",
+                    },
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    await collection3.updateName(session, "Collection 3d");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateCollection",
+                    time: expect.any(Array),
+                    collectionId: collection3.id,
+                    collectionAction: {
+                        type: "UpdateName",
+                        name: "Collection 3d",
+                    },
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+});
+
+test("subscribed task will become unauthorized after unsubscribed", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const server = createWebSocketServer(space);
+
+    const [task1, task2, collection1] = await runAllPromises([
+        TestTask.create(session1),
+        TestTask.create(session1),
+        TestTaskCollection.createPublic(session1),
+    ]);
+
+    await runAllPromises([
+        task2.updateParentTask(session1, task1),
+        task1.addCollection(session1, collection1),
+        task2.addCollection(session1, collection1),
+    ]);
+
+    await server.wait();
+
+    const connection = await server.connectForTest(session2.action());
+
+    expect(connection.takeEvents()).toEqual([]);
+
+    const {taskSubscriptionId: taskSubscription1Id} = await connection.procedures.subscribeToTask({
+        taskId: task1.id,
+    });
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [],
+            backfillAuthorizedTasks: [expect.objectContaining({id: task1.id})],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [expect.objectContaining({id: collection1.id})],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [await session1.get()],
+        },
+    ]);
+
+    await task1.removeCollection(session1, collection1);
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: task1.id,
+                    taskAction: {
+                        type: "RemoveCollection",
+                        collectionId: collection1.id,
+                    },
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    await connection.procedures.subscribeToTask({
+        taskId: task2.id,
+    });
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [],
+            backfillAuthorizedTasks: [expect.objectContaining({id: task2.id})],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [expect.objectContaining({id: collection1.id})],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [await session1.get()],
+        },
+    ]);
+
+    await connection.procedures.unsubscribeFromTask({
+        taskSubscriptionId: taskSubscription1Id,
+    });
+
+    expect(connection.takeEvents()).toEqual([]);
+
+    await connection.authorize();
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [task1.id],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+});
+
+test("can subscribe to collection", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const server = createWebSocketServer(space);
+
+    const [collection1, collection2] = await runAllPromises([
+        TestTaskCollection.createPrivate(session),
+        TestTaskCollection.createPrivate(session),
+    ]);
+
+    await server.wait();
+
+    const connection = await server.connectForTest(session.action());
+
+    expect(connection.takeEvents()).toEqual([]);
+
+    const {collectionSubscriptionId} = await connection.procedures.subscribeToCollection({
+        collectionId: collection1.id,
+    });
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [expect.objectContaining({id: collection1.id})],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    await collection1.updateName(session, "Test Test 1");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateCollection",
+                    time: expect.any(Array),
+                    collectionId: collection1.id,
+                    collectionAction: {
+                        type: "UpdateName",
+                        name: "Test Test 1",
+                    },
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    await collection2.updateName(session, "Test Test 2");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([]);
+
+    await connection.procedures.unsubscribeFromCollection({collectionSubscriptionId});
+
+    await collection1.updateName(session, "Test Test 3");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([]);
+});
+
+test("can't subscribe to collection that doesn't exist", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const server = createWebSocketServer(space);
+    await server.wait();
+
+    const connection = await server.connectForTest(session.action());
+
+    expect(connection.takeEvents()).toEqual([]);
+
+    await expect(
+        connection.procedures.subscribeToCollection({collectionId: generateId()}),
+    ).rejects.toThrow(NotFoundError);
+
+    expect(connection.takeEvents()).toEqual([]);
+});
+
+test("can't subscribe to collection that you don't have access to", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const server = createWebSocketServer(space);
+
+    const collection1 = await TestTaskCollection.createPrivate(session1);
+
+    await server.wait();
+
+    const connection = await server.connectForTest(session2.action());
+
+    expect(connection.takeEvents()).toEqual([]);
+
+    await expect(
+        connection.procedures.subscribeToCollection({collectionId: collection1.id}),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    expect(connection.takeEvents()).toEqual([]);
+});
+
+test("will lose access to subscribed collection upon reauthorization", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const server = createWebSocketServer(space);
+
+    const collection1 = await TestTaskCollection.createPublic(session1);
+
+    await server.wait();
+
+    const connection = await server.connectForTest(session2.action());
+
+    expect(connection.takeEvents()).toEqual([]);
+
+    await connection.procedures.subscribeToCollection({collectionId: collection1.id});
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [expect.objectContaining({id: collection1.id})],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    await collection1.updateName(session1, "Test Test 1");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateCollection",
+                    time: expect.any(Array),
+                    collectionId: collection1.id,
+                    collectionAction: {
+                        type: "UpdateName",
+                        name: "Test Test 1",
+                    },
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    await connection.authorize();
+
+    expect(connection.takeEvents()).toEqual([]);
+
+    await collection1.setPrivateAccessPolicy(session1);
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateCollection",
+                    time: expect.any(Array),
+                    collectionId: collection1.id,
+                    collectionAction: {
+                        type: "UpdateAccessPolicy",
+                        accessPolicy: expect.any(Object),
+                    },
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    await collection1.updateName(session1, "Test Test 2");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateCollection",
+                    time: expect.any(Array),
+                    collectionId: collection1.id,
+                    collectionAction: {
+                        type: "UpdateName",
+                        name: "Test Test 2",
+                    },
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    expect(connection.isClosed()).toEqual(false);
+    await expect(connection.authorize()).rejects.toThrow(PermissionDeniedError);
+    expect(connection.isClosed()).toEqual(true);
+
+    await collection1.updateName(session1, "Test Test 3");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([]);
+});
+
+test("subscribed collection will become unauthorized after unsubscribed", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const server = createWebSocketServer(space);
+
+    const [task1, collection1, collection2] = await runAllPromises([
+        TestTask.create(session1),
+        TestTaskCollection.createPublic(session1),
+        TestTaskCollection.createPublic(session2),
+    ]);
+
+    await runAllPromises([
+        task1.addCollection(session1, collection1),
+        task1.addCollection(session1, collection2),
+    ]);
+
+    await server.wait();
+
+    const connection = await server.connectForTest(session1.action());
+
+    expect(connection.takeEvents()).toEqual([]);
+
+    const {collectionSubscriptionId} = await connection.procedures.subscribeToCollection({
+        collectionId: collection2.id,
+    });
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [expect.objectContaining({id: collection2.id})],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    await connection.procedures.subscribeToTask({
+        taskId: task1.id,
+    });
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [],
+            backfillAuthorizedTasks: [expect.objectContaining({id: task1.id})],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [expect.objectContaining({id: collection1.id})],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [await session1.get()],
+        },
+    ]);
+
+    await collection2.setPrivateAccessPolicy(session2);
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [
+                {
+                    type: "UpdateCollection",
+                    time: expect.any(Array),
+                    collectionId: collection2.id,
+                    collectionAction: expect.objectContaining({
+                        type: "UpdateAccessPolicy",
+                    }),
+                },
+            ],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    await connection.procedures.unsubscribeFromCollection({
+        collectionSubscriptionId,
+    });
+
+    expect(connection.takeEvents()).toEqual([]);
+
+    await connection.authorize();
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [],
+            backfillAuthorizedTasks: [],
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [],
+            backfillUnauthorizedCollectionIds: [collection2.id],
+            referencedAccounts: [],
+        },
+    ]);
 });

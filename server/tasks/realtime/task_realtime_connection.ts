@@ -20,11 +20,19 @@ import {
     isTaskIndexDocAccessAuthorized,
 } from "~/server/tasks/data/task_table.js";
 import {
+    TaskRealtimeCollectionSubscription,
+    TaskRealtimeCollectionSubscriptionCallbacks,
+} from "~/server/tasks/realtime/task_realtime_collection_subscription.js";
+import {
     TaskRealtimeQuerySubscription,
     TaskRealtimeQuerySubscriptionCallbacks,
 } from "~/server/tasks/realtime/task_realtime_query_subscription.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
+import {
+    TaskRealtimeTaskSubscription,
+    TaskRealtimeTaskSubscriptionCallbacks,
+} from "~/server/tasks/realtime/task_realtime_task_subscription.js";
 import {
     TaskRealtimeUpdateEventBuilder,
     TaskRealtimeUpdateEventSender,
@@ -34,6 +42,7 @@ import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {NotFoundError} from "~/shared/error/error.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
@@ -45,9 +54,17 @@ import {
     SpaceId,
     TaskCollectionId,
     TaskId,
+    TaskRealtimeCollectionSubscriptionId,
     TaskRealtimeQuerySubscriptionId,
+    TaskRealtimeTaskSubscriptionId,
 } from "~/shared/id/types/id_types.js";
-import {TaskRealtimeEvent, TaskRealtimeProtocol} from "~/shared/tasks/task_realtime_protocol.js";
+import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
+import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
+import {
+    TaskRealtimeEvent,
+    TaskRealtimeProtocol,
+    TaskRealtimeQueryLoadedState,
+} from "~/shared/tasks/task_realtime_protocol.js";
 
 /**
  * Manages a client's WebSocket connection with `TaskRealtimeService`. A client
@@ -74,6 +91,16 @@ export class TaskRealtimeConnection {
     private readonly _querySubscriptionById = new Map<
         TaskRealtimeQuerySubscriptionId,
         TaskRealtimeQuerySubscription
+    >();
+
+    private readonly _taskSubscriptionById = new Map<
+        TaskRealtimeTaskSubscriptionId,
+        TaskRealtimeTaskSubscription
+    >();
+
+    private readonly _collectionSubscriptionById = new Map<
+        TaskRealtimeCollectionSubscriptionId,
+        TaskRealtimeCollectionSubscription
     >();
 
     constructor({
@@ -109,18 +136,28 @@ export class TaskRealtimeConnection {
 
     public async handleClose() {
         await runAllPromises(
-            Array.from(this._querySubscriptionById.values(), querySubscription =>
-                querySubscription.unsubscribe(),
+            mapIterable(
+                concatIterables<{unsubscribe: () => Promise<void>}>(
+                    this._querySubscriptionById.values(),
+                    this._taskSubscriptionById.values(),
+                    this._collectionSubscriptionById.values(),
+                ),
+                subscription => subscription.unsubscribe(),
             ),
         );
     }
 
     public async authorize(context: ServerSessionActionContext) {
-        await runAllPromises([
-            // 1. Authorize that we still have access to the space:
+        const [eventBuilder] = await runAllPromises([
+            // 1. Reauthorize the referenced tasks within a query subscription:
+            this._dangerouslyEscalateToSystemContext(context, this._spaceId, context =>
+                this._authorizeReferencedTasksAndCollections(context),
+            ),
+
+            // 2. Authorize that we still have access to the space:
             authorizeSpaceAccess(context, this._spaceId),
 
-            // 2. Authorize that we still have access to each query subscription:
+            // 3. Authorize that we still have access to each query subscription:
             runAllPromises(
                 Array.from(this._querySubscriptionById.values(), querySubscription =>
                     this._server.authorizeQueryAccess(context, {
@@ -131,52 +168,86 @@ export class TaskRealtimeConnection {
                 ),
             ),
 
-            // 3. Reauthorize the referenced tasks within a query subscription:
-            this._dangerouslyEscalateToSystemContext(context, this._spaceId, context =>
-                this._authorizeReferencedTasksAndCollections(context),
+            // 4. Authorize that we still have access to each task subscription:
+            runAllPromises(
+                Array.from(this._taskSubscriptionById.values(), taskSubscription =>
+                    this._server.authorizeTaskAccess(
+                        context,
+                        this._spaceId,
+                        taskSubscription.getTaskId(),
+                        "View",
+                    ),
+                ),
+            ),
+
+            // 5. Authorize that we still have access to each collection subscription:
+            runAllPromises(
+                Array.from(this._collectionSubscriptionById.values(), collectionSubscription =>
+                    this._server.authorizeCollectionAccess(
+                        context,
+                        this._spaceId,
+                        collectionSubscription.getCollectionId(),
+                        "View",
+                    ),
+                ),
             ),
         ]);
+
+        // If authorization changed then we'll have a realtime event to send.
+        await eventBuilder.send(context, this._spaceId);
     }
 
-    public readonly procedures: WebSocketConnectionProcedures<
-        ServerSessionActionContextModules,
-        typeof TaskRealtimeProtocol
-    > = {
-        subscribeToQuery: async (context, input) => {
-            await this._server.authorizeQueryAccess(context, {
+    private async _authorizeSubscribeToQuery(
+        context: ServerSessionActionContext,
+        {
+            limit,
+            filters,
+            sorts,
+        }: {
+            limit: number;
+            filters: TaskQueryNormalizedFilters;
+            sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+        },
+    ): Promise<
+        (
+            context: TaskRealtimeSystemActionContext,
+            eventBuilder: TaskRealtimeUpdateEventBuilder,
+        ) => Promise<{
+            querySubscriptionId: TaskRealtimeQuerySubscriptionId;
+            loadedState: TaskRealtimeQueryLoadedState;
+            getPreviouslyBackfilledTaskIds: () => ReadonlyArray<TaskId>;
+        }>
+    > {
+        await this._server.authorizeQueryAccess(context, {
+            spaceId: this._spaceId,
+            filters,
+            sorts,
+        });
+
+        return async (context, eventBuilder) => {
+            const querySubscription = await this._server.subscribeToQuery(context, {
                 spaceId: this._spaceId,
-                filters: input.filters,
-                sorts: input.sorts,
+                filters,
+                sorts,
+                callbacks: this._subscriptionCallbacks,
             });
 
-            // It's safe to escalate because we authorize the query is valid above.
-            return this._dangerouslyEscalateToSystemContext(
-                context,
-                this._spaceId,
-                async context => {
-                    const querySubscription = await this._server.subscribeToQuery(context, {
-                        spaceId: this._spaceId,
-                        filters: input.filters,
-                        sorts: input.sorts,
-                        callbacks: this._createQuerySubscriptionCallbacks(),
-                    });
+            const querySubscriptionId = generateId<TaskRealtimeQuerySubscriptionId>();
 
-                    const querySubscriptionId = generateId<TaskRealtimeQuerySubscriptionId>();
+            assert(!this._querySubscriptionById.has(querySubscriptionId));
+            this._querySubscriptionById.set(querySubscriptionId, querySubscription);
 
-                    assert(!this._querySubscriptionById.has(querySubscriptionId));
-                    this._querySubscriptionById.set(querySubscriptionId, querySubscription);
+            try {
+                const {loadedState, tasks} = await querySubscription.loadMoreTasks(
+                    context,
+                    eventBuilder,
+                    limit,
+                );
 
-                    try {
-                        const eventBuilder = new TaskRealtimeUpdateEventBuilder();
-
-                        const {loadedState, tasks} = await querySubscription.loadMoreTasks(
-                            context,
-                            eventBuilder,
-                            input.limit,
-                        );
-
-                        await eventBuilder.send(context, this._spaceId);
-
+                return {
+                    querySubscriptionId,
+                    loadedState,
+                    getPreviouslyBackfilledTaskIds: () => {
                         // All the tasks we loaded that weren't backfilled we send in a
                         // `previouslyBackfilledTaskIds` array so the client can add them to its local
                         // query model.
@@ -190,30 +261,209 @@ export class TaskRealtimeConnection {
                             previouslyBackfilledTaskIds.push(task.id);
                         }
 
+                        return previouslyBackfilledTaskIds;
+                    },
+                };
+            } catch (error) {
+                await this._unsubscribeFromQuery(querySubscriptionId);
+                throw error;
+            }
+        };
+    }
+
+    private async _unsubscribeFromQuery(querySubscriptionId: TaskRealtimeQuerySubscriptionId) {
+        const querySubscription = this._querySubscriptionById.get(querySubscriptionId);
+        if (!querySubscription) throw new NotFoundError("Query subscription not found");
+
+        this._querySubscriptionById.delete(querySubscriptionId);
+
+        await querySubscription.unsubscribe();
+    }
+
+    private async _authorizeSubscribeToTask(
+        context: ServerSessionActionContext,
+        taskId: TaskId,
+    ): Promise<
+        (
+            context: TaskRealtimeSystemActionContext,
+            eventBuilder: TaskRealtimeUpdateEventBuilder,
+        ) => Promise<{
+            taskSubscriptionId: TaskRealtimeTaskSubscriptionId;
+        }>
+    > {
+        await this._server.authorizeTaskAccess(context, this._spaceId, taskId, "View");
+
+        return async (context, eventBuilder) => {
+            const taskSubscription = await this._server.subscribeToTask(context, eventBuilder, {
+                spaceId: this._spaceId,
+                taskId,
+                callbacks: this._subscriptionCallbacks,
+            });
+
+            const taskSubscriptionId = generateId<TaskRealtimeTaskSubscriptionId>();
+
+            assert(!this._taskSubscriptionById.has(taskSubscriptionId));
+            this._taskSubscriptionById.set(taskSubscriptionId, taskSubscription);
+
+            return {
+                taskSubscriptionId,
+            };
+        };
+    }
+
+    private async _unsubscribeFromTask(taskSubscriptionId: TaskRealtimeTaskSubscriptionId) {
+        const taskSubscription = this._taskSubscriptionById.get(taskSubscriptionId);
+        if (!taskSubscription) throw new NotFoundError("Task subscription not found");
+
+        this._taskSubscriptionById.delete(taskSubscriptionId);
+
+        await taskSubscription.unsubscribe();
+    }
+
+    private async _authorizeSubscribeToCollection(
+        context: ServerSessionActionContext,
+        collectionId: TaskCollectionId,
+    ): Promise<
+        (
+            context: TaskRealtimeSystemActionContext,
+            eventBuilder: TaskRealtimeUpdateEventBuilder,
+        ) => Promise<{
+            collectionSubscriptionId: TaskRealtimeCollectionSubscriptionId;
+        }>
+    > {
+        await this._server.authorizeCollectionAccess(context, this._spaceId, collectionId, "View");
+
+        return async (context, eventBuilder) => {
+            const collectionSubscription = await this._server.subscribeToCollection(
+                context,
+                eventBuilder,
+                {
+                    spaceId: this._spaceId,
+                    collectionId,
+                    callbacks: this._subscriptionCallbacks,
+                },
+            );
+
+            const collectionSubscriptionId = generateId<TaskRealtimeCollectionSubscriptionId>();
+
+            assert(!this._collectionSubscriptionById.has(collectionSubscriptionId));
+            this._collectionSubscriptionById.set(collectionSubscriptionId, collectionSubscription);
+
+            return {
+                collectionSubscriptionId,
+            };
+        };
+    }
+
+    private async _unsubscribeFromCollection(
+        collectionSubscriptionId: TaskRealtimeCollectionSubscriptionId,
+    ) {
+        const collectionSubscription =
+            this._collectionSubscriptionById.get(collectionSubscriptionId);
+        if (!collectionSubscription) throw new NotFoundError("Collection subscription not found");
+
+        this._collectionSubscriptionById.delete(collectionSubscriptionId);
+
+        await collectionSubscription.unsubscribe();
+    }
+
+    public readonly procedures: WebSocketConnectionProcedures<
+        ServerSessionActionContextModules,
+        typeof TaskRealtimeProtocol
+    > = {
+        subscribeToQuery: async (context, input) => {
+            const subscribe = await this._authorizeSubscribeToQuery(context, input);
+
+            const eventBuilder = new TaskRealtimeUpdateEventBuilder();
+
+            // It's safe to escalate because we authorize the query is valid above.
+            return this._dangerouslyEscalateToSystemContext(
+                context,
+                this._spaceId,
+                async context => {
+                    const {querySubscriptionId, loadedState, getPreviouslyBackfilledTaskIds} =
+                        await subscribe(context, eventBuilder);
+
+                    try {
+                        await eventBuilder.send(context, this._spaceId);
+
                         return {
                             querySubscriptionId,
                             loadedState,
-                            previouslyBackfilledTaskIds,
+                            previouslyBackfilledTaskIds: getPreviouslyBackfilledTaskIds(),
                         };
                     } catch (error) {
-                        // If there's an error, unsubscribe so we don't have a dangling subscription.
-                        this._querySubscriptionById.delete(querySubscriptionId);
-
-                        await querySubscription.unsubscribe();
-
+                        await this._unsubscribeFromQuery(querySubscriptionId);
                         throw error;
                     }
                 },
             );
         },
+        unsubscribeFromQuery: async (context, {querySubscriptionId}) => {
+            await this._unsubscribeFromQuery(querySubscriptionId);
+            return {};
+        },
+        subscribeToTask: async (context, input) => {
+            const subscribe = await this._authorizeSubscribeToTask(context, input.taskId);
+
+            const eventBuilder = new TaskRealtimeUpdateEventBuilder();
+
+            // It's safe to escalate because we authorize the query is valid above.
+            return this._dangerouslyEscalateToSystemContext(
+                context,
+                this._spaceId,
+                async context => {
+                    const {taskSubscriptionId} = await subscribe(context, eventBuilder);
+
+                    try {
+                        await eventBuilder.send(context, this._spaceId);
+
+                        return {taskSubscriptionId};
+                    } catch (error) {
+                        await this._unsubscribeFromTask(taskSubscriptionId);
+                        throw error;
+                    }
+                },
+            );
+        },
+        unsubscribeFromTask: async (context, {taskSubscriptionId}) => {
+            await this._unsubscribeFromTask(taskSubscriptionId);
+            return {};
+        },
+        subscribeToCollection: async (context, input) => {
+            const subscribe = await this._authorizeSubscribeToCollection(
+                context,
+                input.collectionId,
+            );
+
+            const eventBuilder = new TaskRealtimeUpdateEventBuilder();
+
+            // It's safe to escalate because we authorize the query is valid above.
+            return this._dangerouslyEscalateToSystemContext(
+                context,
+                this._spaceId,
+                async context => {
+                    const {collectionSubscriptionId} = await subscribe(context, eventBuilder);
+
+                    try {
+                        await eventBuilder.send(context, this._spaceId);
+
+                        return {collectionSubscriptionId};
+                    } catch (error) {
+                        await this._unsubscribeFromCollection(collectionSubscriptionId);
+                        throw error;
+                    }
+                },
+            );
+        },
+        unsubscribeFromCollection: async (context, {collectionSubscriptionId}) => {
+            await this._unsubscribeFromCollection(collectionSubscriptionId);
+            return {};
+        },
         subscribeToQueries: async (context, input) => {
-            await runAllPromises(
+            const subscribes = await runAllPromises(
                 input.queries.map(inputQuery =>
-                    this._server.authorizeQueryAccess(context, {
-                        spaceId: this._spaceId,
-                        filters: inputQuery.filters,
-                        sorts: inputQuery.sorts,
-                    }),
+                    this._authorizeSubscribeToQuery(context, inputQuery),
                 ),
             );
 
@@ -224,81 +474,77 @@ export class TaskRealtimeConnection {
                 async context => {
                     const eventBuilder = new TaskRealtimeUpdateEventBuilder();
 
-                    const querySubscriptions = await runAllPromises(
-                        input.queries.map(async inputQuery => {
-                            const querySubscription = await this._server.subscribeToQuery(context, {
-                                spaceId: this._spaceId,
-                                filters: inputQuery.filters,
-                                sorts: inputQuery.sorts,
-                                callbacks: this._createQuerySubscriptionCallbacks(),
-                            });
-
-                            const querySubscriptionId =
-                                generateId<TaskRealtimeQuerySubscriptionId>();
-
-                            assert(!this._querySubscriptionById.has(querySubscriptionId));
-                            this._querySubscriptionById.set(querySubscriptionId, querySubscription);
-
-                            try {
-                                const {loadedState, tasks} = await querySubscription.loadMoreTasks(
-                                    context,
-                                    eventBuilder,
-                                    inputQuery.limit,
-                                );
-
-                                return {
-                                    querySubscription,
-                                    querySubscriptionId,
-                                    loadedState,
-                                    tasks,
-                                };
-                            } catch (error) {
-                                // If there's an error, unsubscribe so we don't have a dangling subscription.
-                                this._querySubscriptionById.delete(querySubscriptionId);
-
-                                await querySubscription.unsubscribe();
-
-                                throw error;
-                            }
-                        }),
+                    const results = await Promise.allSettled(
+                        subscribes.map(subscribe => subscribe(context, eventBuilder)),
                     );
+
+                    const values = [];
+
+                    for (const result of results) {
+                        // If we rejected while subscribing to anything, unsubscribe all our successful
+                        // subscriptions and throw.
+                        if (result.status === "rejected") {
+                            let error = result.reason;
+
+                            // If we rejected, we still want to send an event for the subscriptions that
+                            // succeeded. In case another query thinks some tasks were already backfilled
+                            // and sends a `previouslyBackfilledTaskIds`.
+                            try {
+                                await eventBuilder.send(context, this._spaceId);
+                            } catch (sendError) {
+                                if (isSystemError(sendError) && !isSystemError(error)) {
+                                    error = sendError;
+                                }
+                            }
+
+                            await runAllPromises(
+                                results.map(async result => {
+                                    if (result.status === "rejected") {
+                                        // If this error is a system error and our first error wasn't then prefer
+                                        // throwing the system error.
+                                        //
+                                        // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
+                                        // just the first one. Probably by using an `AggregateError`.
+                                        if (isSystemError(result.reason) && !isSystemError(error)) {
+                                            error = result.reason;
+                                        }
+                                    } else {
+                                        await this._unsubscribeFromQuery(
+                                            result.value.querySubscriptionId,
+                                        );
+                                    }
+                                }),
+                            );
+
+                            throw error;
+                        }
+
+                        values.push(result.value);
+                    }
 
                     try {
                         // Send the combined event to our clients...
                         await eventBuilder.send(context, this._spaceId);
 
                         return {
-                            queries: querySubscriptions.map(
-                                ({querySubscriptionId, loadedState, tasks}) => {
-                                    // All the tasks we loaded that weren't backfilled we send in a
-                                    // `previouslyBackfilledTaskIds` array so the client can add them to its local
-                                    // query model.
-                                    const backfillAuthorizedTaskIds =
-                                        eventBuilder.getBackfillAuthorizedTaskIds(this._sender);
-                                    const previouslyBackfilledTaskIds: Array<TaskId> = [];
-
-                                    for (const task of tasks) {
-                                        if (backfillAuthorizedTaskIds.has(task.id)) continue;
-                                        previouslyBackfilledTaskIds.push(task.id);
-                                    }
-
-                                    return {
-                                        querySubscriptionId,
-                                        loadedState,
-                                        previouslyBackfilledTaskIds,
-                                    };
-                                },
+                            queries: values.map(
+                                ({
+                                    querySubscriptionId,
+                                    loadedState,
+                                    getPreviouslyBackfilledTaskIds,
+                                }) => ({
+                                    querySubscriptionId,
+                                    loadedState,
+                                    previouslyBackfilledTaskIds: getPreviouslyBackfilledTaskIds(),
+                                }),
                             ),
                         };
                     } catch (error) {
+                        // If we failed to send our `querySubscriptionId`s to the client, then
+                        // unsubscribe from all our queries so we don't have a memory leak.
                         await runAllPromises(
-                            querySubscriptions.map(
-                                async ({querySubscription, querySubscriptionId}) => {
-                                    // If there's an error, unsubscribe so we don't have a dangling subscription.
-                                    this._querySubscriptionById.delete(querySubscriptionId);
-
-                                    await querySubscription.unsubscribe();
-                                },
+                            values.map(({querySubscriptionId}) =>
+                                this._unsubscribeFromQuery(querySubscriptionId),
                             ),
                         );
 
@@ -307,26 +553,11 @@ export class TaskRealtimeConnection {
                 },
             );
         },
-        unsubscribeFromQuery: async (context, {querySubscriptionId}) => {
-            const querySubscription = this._querySubscriptionById.get(querySubscriptionId);
-            if (!querySubscription) throw new NotFoundError("Query subscription not found");
-
-            this._querySubscriptionById.delete(querySubscriptionId);
-
-            await querySubscription.unsubscribe();
-
-            return {};
-        },
         unsubscribeFromQueries: async (context, {querySubscriptionIds}) => {
             await runAllPromises(
-                querySubscriptionIds.map(async querySubscriptionId => {
-                    const querySubscription = this._querySubscriptionById.get(querySubscriptionId);
-                    if (!querySubscription) throw new NotFoundError("Query subscription not found");
-
-                    this._querySubscriptionById.delete(querySubscriptionId);
-
-                    await querySubscription.unsubscribe();
-                }),
+                querySubscriptionIds.map(querySubscriptionId =>
+                    this._unsubscribeFromQuery(querySubscriptionId),
+                ),
             );
 
             return {};
@@ -421,12 +652,31 @@ export class TaskRealtimeConnection {
     };
 
     /**
-     * All tasks loaded by a query in our connection with a reference count
-     * specifying how many subscriptions have loaded the task. The reference count
-     * is always a non-zero positive integer. If a task is in this map that implies
-     * it has a non-zero positive reference count.
+     * All tasks loaded by a query subscription or a task subscription in our
+     * connection. If a task is loaded by a query or task subscription then it is
+     * considered authorized.
+     *
+     * Also has a reference count for the number of query subscriptions or task
+     * subscriptions reference this task. The reference count is always a non-zero
+     * positive integer. If a task is in this map that implies it has a non-zero
+     * positive reference count.
      */
-    private readonly _loadedTaskReferenceCountById = new Map<TaskId, number>();
+    private readonly _directlySubscribedTaskReferenceCountById = new Map<TaskId, number>();
+
+    /**
+     * All collections loaded by a collection subscription in our connection. If a
+     * task is directly loaded by a collection subscription then it is considered
+     * authorized.
+     *
+     * Also has a reference count for the number of collection subscriptions
+     * reference this task. The reference count is always a non-zero positive
+     * integer. If a task is in this map that implies it has a non-zero positive
+     * reference count.
+     */
+    private readonly _directlySubscribedCollectionReferenceCountById = new Map<
+        TaskCollectionId,
+        number
+    >();
 
     private readonly _referencedTaskStateById = new Map<
         TaskId,
@@ -457,213 +707,335 @@ export class TaskRealtimeConnection {
         }
     >();
 
-    private _createQuerySubscriptionCallbacks(): TaskRealtimeQuerySubscriptionCallbacks {
-        return {
-            // If there was an error with our subscription, close the connection. The
-            // client can reconnect if necessary.
-            onFatalError: (context, error) => {
-                this._closeWithError(context, error);
-            },
-            onLoadedTaskAdd: (context, eventBuilder, newTask) => {
-                const loadedTaskReferenceCount = this._loadedTaskReferenceCountById.get(newTask.id);
-                const referencedTaskState = this._referencedTaskStateById.get(newTask.id);
+    private _onDirectlySubscribedTaskAdd(
+        context: TaskRealtimeSystemActionContext,
+        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        newTask: TaskIndexDoc,
+    ) {
+        const directlySubscribedTaskReferenceCount =
+            this._directlySubscribedTaskReferenceCountById.get(newTask.id);
+        const referencedTaskState = this._referencedTaskStateById.get(newTask.id);
 
-                if (loadedTaskReferenceCount !== undefined) {
-                    this._loadedTaskReferenceCountById.set(
-                        newTask.id,
-                        loadedTaskReferenceCount + 1,
-                    );
-                } else {
-                    // This is the first time our connection has seen the task, backfill it.
-                    if (referencedTaskState === undefined) {
+        if (directlySubscribedTaskReferenceCount !== undefined) {
+            this._directlySubscribedTaskReferenceCountById.set(
+                newTask.id,
+                directlySubscribedTaskReferenceCount + 1,
+            );
+        } else {
+            // This is the first time our connection has seen the task, backfill it.
+            if (referencedTaskState === undefined) {
+                eventBuilder.addAuthorizedTaskBackfill(this._sender, newTask);
+                this._directlySubscribedTaskReferenceCountById.set(newTask.id, 1);
+            }
+            // Query subscription and task subscription tasks are always authorized because
+            // we authorized the subscription. If the task is referenced but was not
+            // directly subscribed then mark the task as authorized.
+            //
+            // If the task was previously unauthorized then we need to backfill it.
+            else {
+                const promise = referencedTaskState.isAccessAuthorizedPromise.then(
+                    isAccessAuthorized => {
+                        if (isAccessAuthorized) return isAccessAuthorized;
+
                         eventBuilder.addAuthorizedTaskBackfill(this._sender, newTask);
-                        this._loadedTaskReferenceCountById.set(newTask.id, 1);
-                    }
-                    // Loaded tasks are always authorized because we authorized the query the task
-                    // is in. If the task is referenced but was not loaded then mark the task as
-                    // authorized.
-                    //
-                    // If the task was previously unauthorized then we need to backfill it.
-                    else {
-                        const promise = referencedTaskState.isAccessAuthorizedPromise.then(
-                            isAccessAuthorized => {
-                                if (isAccessAuthorized) return isAccessAuthorized;
-
-                                eventBuilder.addAuthorizedTaskBackfill(this._sender, newTask);
-                                return true;
-                            },
-                        );
-
-                        eventBuilder.waitUntil(promise);
-
-                        referencedTaskState.isAccessAuthorizedPromise = promise;
-                        this._loadedTaskReferenceCountById.set(newTask.id, 1);
-                    }
-                }
-            },
-            onLoadedTaskUpdate: (context, eventBuilder, taskId, oldTask, newTask, actions) => {
-                // Since the query is authorized, all loaded tasks are also authorized.
-                // Clients should see all actions on loaded tasks.
-                eventBuilder.addActions(this._sender, actions);
-            },
-            onLoadedTaskRemove: (eventBuilder, oldTask, actions) => {
-                const loadedTaskReferenceCount = this._loadedTaskReferenceCountById.get(oldTask.id);
-                assert(loadedTaskReferenceCount !== undefined);
-
-                if (loadedTaskReferenceCount > 1) {
-                    this._loadedTaskReferenceCountById.set(
-                        oldTask.id,
-                        loadedTaskReferenceCount - 1,
-                    );
-                } else {
-                    this._loadedTaskReferenceCountById.delete(oldTask.id);
-
-                    // If a loaded task is removed from our connection that means the client may
-                    // have lost authorization access as well. When we reauthorize referenced tasks
-                    // we'll check this. Access is maintained until reauthorization.
-                }
-
-                // Since the query is authorized, all loaded tasks are also authorized.
-                // Clients should see all actions that remove a task from a query. That way the
-                // client can apply the actions locally and remove the task from its own local
-                // query representation.
-                eventBuilder.addActions(this._sender, actions);
-            },
-            onReferencedTaskAdd: (context, eventBuilder, newTask) => {
-                const loadedTaskReferenceCount = this._loadedTaskReferenceCountById.get(newTask.id);
-                const referencedTaskState = this._referencedTaskStateById.get(newTask.id);
-
-                if (referencedTaskState !== undefined) {
-                    referencedTaskState.referenceCount++;
-
-                    // If this task is already referenced then we should have seen `newTask` before.
-                    if (process.env.NODE_ENV !== "production") {
-                        assert(
-                            referencedTaskState.task === newTask,
-                            "Connection must observe all updates to a referenced task through `onReferencedTaskAdd()`",
-                        );
-                    }
-
-                    referencedTaskState.task = newTask;
-                } else {
-                    // If the task is loaded then it is also automatically authorized since the
-                    // query the task is in is authorized.
-                    if (loadedTaskReferenceCount !== undefined) {
-                        this._referencedTaskStateById.set(newTask.id, {
-                            referenceCount: 1,
-                            task: newTask,
-                            isAccessAuthorizedPromise: Promise.resolve(true),
-                            previousTaskForTest: null,
-                        });
-                    } else {
-                        const promise = isTaskIndexDocAccessAuthorized(
-                            context,
-                            this._accountId,
-                            newTask,
-                            "View",
-                            {
-                                getTaskIndexDoc: taskId =>
-                                    this._server.getTask(context, this._spaceId, taskId),
-                                getCollectionIndexDoc: collectionId =>
-                                    this._server.getCollection(
-                                        context,
-                                        this._spaceId,
-                                        collectionId,
-                                    ),
-                            },
-                        ).then(isAccessAuthorized => {
-                            if (!isAccessAuthorized) {
-                                eventBuilder.addUnauthorizedTaskBackfill(this._sender, newTask.id);
-                            } else {
-                                eventBuilder.addAuthorizedTaskBackfill(this._sender, newTask);
-                            }
-
-                            return isAccessAuthorized;
-                        });
-
-                        eventBuilder.waitUntil(promise);
-
-                        this._referencedTaskStateById.set(newTask.id, {
-                            referenceCount: 1,
-                            task: newTask,
-                            isAccessAuthorizedPromise: promise,
-                            previousTaskForTest: null,
-                        });
-                    }
-                }
-            },
-            onReferencedTaskUpdate: (context, eventBuilder, taskId, oldTask, newTask, actions) => {
-                const referencedTaskState = this._referencedTaskStateById.get(newTask.id);
-                assert(referencedTaskState !== undefined);
-
-                if (referencedTaskState.task === newTask && oldTask !== newTask) {
-                    // If we've already seen this update then our previous task should be `oldTask`.
-                    if (process.env.NODE_ENV !== "production") {
-                        assert(
-                            referencedTaskState.previousTaskForTest === oldTask,
-                            "Connection must observe all updates to a referenced task through `onReferencedTaskUpdate()`",
-                        );
-                    }
-                } else {
-                    // If we have not seen this update before then our referenced task object should
-                    // be `oldTask`.
-                    if (process.env.NODE_ENV !== "production") {
-                        assert(
-                            referencedTaskState.task === oldTask,
-                            "Connection must observe all updates to a referenced task through `onReferencedTaskUpdate()`",
-                        );
-                        referencedTaskState.previousTaskForTest = oldTask;
-                    }
-
-                    referencedTaskState.task = newTask;
-                }
-
-                // Only add update actions for this referenced task if the referenced task
-                // is authorized.
-                eventBuilder.waitUntil(
-                    referencedTaskState.isAccessAuthorizedPromise.then(isAccessAuthorized => {
-                        if (!isAccessAuthorized) return;
-                        eventBuilder.addActions(this._sender, actions);
-                    }),
+                        return true;
+                    },
                 );
-            },
-            onReferencedTaskRemove: (eventBuilder, oldTask) => {
-                const referencedTaskState = this._referencedTaskStateById.get(oldTask.id);
-                assert(referencedTaskState !== undefined);
 
-                // If we are removing a referenced task we should have seen it before and it
-                // should be our old task object.
+                eventBuilder.waitUntil(promise);
+
+                referencedTaskState.isAccessAuthorizedPromise = promise;
+                this._directlySubscribedTaskReferenceCountById.set(newTask.id, 1);
+            }
+        }
+    }
+
+    private _onDirectlySubscribedTaskRemove(
+        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        oldTask: TaskIndexDoc,
+    ) {
+        const directlySubscribedTaskReferenceCount =
+            this._directlySubscribedTaskReferenceCountById.get(oldTask.id);
+        assert(directlySubscribedTaskReferenceCount !== undefined);
+
+        if (directlySubscribedTaskReferenceCount > 1) {
+            this._directlySubscribedTaskReferenceCountById.set(
+                oldTask.id,
+                directlySubscribedTaskReferenceCount - 1,
+            );
+        } else {
+            this._directlySubscribedTaskReferenceCountById.delete(oldTask.id);
+
+            // If a loaded task is removed from our connection that means the client may
+            // have lost authorization access as well. When we reauthorize referenced tasks
+            // we'll check this. Access is maintained until reauthorization.
+        }
+    }
+
+    private _onDirectlySubscribedCollectionAdd(
+        context: TaskRealtimeSystemActionContext,
+        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        newCollection: TaskCollectionIndexDoc,
+    ) {
+        const directlySubscribedCollectionReferenceCount =
+            this._directlySubscribedCollectionReferenceCountById.get(newCollection.id);
+        const referencedCollectionState = this._referencedCollectionStateById.get(newCollection.id);
+
+        if (directlySubscribedCollectionReferenceCount !== undefined) {
+            this._directlySubscribedCollectionReferenceCountById.set(
+                newCollection.id,
+                directlySubscribedCollectionReferenceCount + 1,
+            );
+        } else {
+            // This is the first time our connection has seen the collection, backfill it.
+            if (referencedCollectionState === undefined) {
+                eventBuilder.addAuthorizedCollectionBackfill(this._sender, newCollection);
+                this._directlySubscribedCollectionReferenceCountById.set(newCollection.id, 1);
+            }
+            // Collections from subscriptions are always authorized because we authorized
+            // the subscription. If the collection is referenced but was not directly
+            // subscribed then mark the collection as authorized.
+            //
+            // If the collection was previously unauthorized then we need to backfill it.
+            else {
+                const promise = referencedCollectionState.isAccessAuthorizedPromise.then(
+                    isAccessAuthorized => {
+                        if (isAccessAuthorized) return isAccessAuthorized;
+
+                        eventBuilder.addAuthorizedCollectionBackfill(this._sender, newCollection);
+                        return true;
+                    },
+                );
+
+                eventBuilder.waitUntil(promise);
+
+                referencedCollectionState.isAccessAuthorizedPromise = promise;
+                this._directlySubscribedCollectionReferenceCountById.set(newCollection.id, 1);
+            }
+        }
+    }
+
+    private _onDirectlySubscribedCollectionRemove(
+        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        oldCollection: TaskCollectionIndexDoc,
+    ) {
+        const directlySubscribedCollectionReferenceCount =
+            this._directlySubscribedCollectionReferenceCountById.get(oldCollection.id);
+        assert(directlySubscribedCollectionReferenceCount !== undefined);
+
+        if (directlySubscribedCollectionReferenceCount > 1) {
+            this._directlySubscribedCollectionReferenceCountById.set(
+                oldCollection.id,
+                directlySubscribedCollectionReferenceCount - 1,
+            );
+        } else {
+            this._directlySubscribedCollectionReferenceCountById.delete(oldCollection.id);
+
+            // If a loaded collection is removed from our connection that means the client
+            // may have lost authorization access as well. When we reauthorize referenced
+            // collections we'll check this. Access is maintained until reauthorization.
+        }
+    }
+
+    private readonly _subscriptionCallbacks: TaskRealtimeQuerySubscriptionCallbacks &
+        TaskRealtimeTaskSubscriptionCallbacks &
+        TaskRealtimeCollectionSubscriptionCallbacks = {
+        // If there was an error with our subscription, close the connection. The
+        // client can reconnect if necessary.
+        onFatalError: (context, error) => {
+            this._closeWithError(context, error);
+        },
+        onTaskSubscribe: (context, eventBuilder, newTask) => {
+            this._onDirectlySubscribedTaskAdd(context, eventBuilder, newTask);
+        },
+        onTaskUpdate: (context, eventBuilder, taskId, oldTask, newTask, actions) => {
+            // Task subscriptions are authorized when executed and periodically
+            // reauthorized so its safe to send the actions for this task to the client.
+            eventBuilder.addActions(this._sender, actions);
+        },
+        onTaskUnsubscribe: (eventBuilder, oldTask) => {
+            this._onDirectlySubscribedTaskRemove(eventBuilder, oldTask);
+        },
+        onCollectionSubscribe: (context, eventBuilder, newCollection) => {
+            this._onDirectlySubscribedCollectionAdd(context, eventBuilder, newCollection);
+        },
+        onCollectionUpdate: (
+            context,
+            eventBuilder,
+            collectionId,
+            oldCollection,
+            newCollection,
+            actions,
+        ) => {
+            // Collection subscriptions are authorized when executed and periodically
+            // reauthorized so its safe to send the actions for this collection to the
+            // client.
+            eventBuilder.addActions(this._sender, actions);
+        },
+        onCollectionUnsubscribe: (eventBuilder, oldCollection) => {
+            this._onDirectlySubscribedCollectionRemove(eventBuilder, oldCollection);
+        },
+        onLoadedTaskAdd: (context, eventBuilder, newTask) => {
+            this._onDirectlySubscribedTaskAdd(context, eventBuilder, newTask);
+        },
+        onLoadedTaskUpdate: (context, eventBuilder, taskId, oldTask, newTask, actions) => {
+            // Since the query is authorized, all loaded tasks are also authorized.
+            // Clients should see all actions on loaded tasks.
+            eventBuilder.addActions(this._sender, actions);
+        },
+        onLoadedTaskRemove: (eventBuilder, oldTask, actions) => {
+            this._onDirectlySubscribedTaskRemove(eventBuilder, oldTask);
+
+            // Since the query is authorized, all loaded tasks are also authorized.
+            // Clients should see all actions that remove a task from a query. That way the
+            // client can apply the actions locally and remove the task from its own local
+            // query representation.
+            eventBuilder.addActions(this._sender, actions);
+        },
+        onReferencedTaskAdd: (context, eventBuilder, newTask) => {
+            const directlySubscribedTaskReferenceCount =
+                this._directlySubscribedTaskReferenceCountById.get(newTask.id);
+            const referencedTaskState = this._referencedTaskStateById.get(newTask.id);
+
+            if (referencedTaskState !== undefined) {
+                referencedTaskState.referenceCount++;
+
+                // If this task is already referenced then we should have seen `newTask` before.
+                if (process.env.NODE_ENV !== "production") {
+                    assert(
+                        referencedTaskState.task === newTask,
+                        "Connection must observe all updates to a referenced task through `onReferencedTaskAdd()`",
+                    );
+                }
+
+                referencedTaskState.task = newTask;
+            } else {
+                // If the task is directly subscribed then it is also automatically authorized
+                // since the subscription the task is in is authorized.
+                if (directlySubscribedTaskReferenceCount !== undefined) {
+                    this._referencedTaskStateById.set(newTask.id, {
+                        referenceCount: 1,
+                        task: newTask,
+                        isAccessAuthorizedPromise: Promise.resolve(true),
+                        previousTaskForTest: null,
+                    });
+                } else {
+                    const promise = isTaskIndexDocAccessAuthorized(
+                        context,
+                        this._accountId,
+                        newTask,
+                        "View",
+                        {
+                            getTaskIndexDoc: taskId =>
+                                this._server.getTask(context, this._spaceId, taskId),
+                            getCollectionIndexDoc: collectionId =>
+                                this._server.getCollection(context, this._spaceId, collectionId),
+                        },
+                    ).then(isAccessAuthorized => {
+                        if (!isAccessAuthorized) {
+                            eventBuilder.addUnauthorizedTaskBackfill(this._sender, newTask.id);
+                        } else {
+                            eventBuilder.addAuthorizedTaskBackfill(this._sender, newTask);
+                        }
+
+                        return isAccessAuthorized;
+                    });
+
+                    eventBuilder.waitUntil(promise);
+
+                    this._referencedTaskStateById.set(newTask.id, {
+                        referenceCount: 1,
+                        task: newTask,
+                        isAccessAuthorizedPromise: promise,
+                        previousTaskForTest: null,
+                    });
+                }
+            }
+        },
+        onReferencedTaskUpdate: (context, eventBuilder, taskId, oldTask, newTask, actions) => {
+            const referencedTaskState = this._referencedTaskStateById.get(newTask.id);
+            assert(referencedTaskState !== undefined);
+
+            if (referencedTaskState.task === newTask && oldTask !== newTask) {
+                // If we've already seen this update then our previous task should be `oldTask`.
+                if (process.env.NODE_ENV !== "production") {
+                    assert(
+                        referencedTaskState.previousTaskForTest === oldTask,
+                        "Connection must observe all updates to a referenced task through `onReferencedTaskUpdate()`",
+                    );
+                }
+            } else {
+                // If we have not seen this update before then our referenced task object should
+                // be `oldTask`.
                 if (process.env.NODE_ENV !== "production") {
                     assert(
                         referencedTaskState.task === oldTask,
-                        "Connection must observe all updates to a referenced task through `onReferencedTaskRemove()`",
+                        "Connection must observe all updates to a referenced task through `onReferencedTaskUpdate()`",
+                    );
+                    referencedTaskState.previousTaskForTest = oldTask;
+                }
+
+                referencedTaskState.task = newTask;
+            }
+
+            // Only add update actions for this referenced task if the referenced task
+            // is authorized.
+            eventBuilder.waitUntil(
+                referencedTaskState.isAccessAuthorizedPromise.then(isAccessAuthorized => {
+                    if (!isAccessAuthorized) return;
+                    eventBuilder.addActions(this._sender, actions);
+                }),
+            );
+        },
+        onReferencedTaskRemove: (eventBuilder, oldTask) => {
+            const referencedTaskState = this._referencedTaskStateById.get(oldTask.id);
+            assert(referencedTaskState !== undefined);
+
+            // If we are removing a referenced task we should have seen it before and it
+            // should be our old task object.
+            if (process.env.NODE_ENV !== "production") {
+                assert(
+                    referencedTaskState.task === oldTask,
+                    "Connection must observe all updates to a referenced task through `onReferencedTaskRemove()`",
+                );
+            }
+
+            if (referencedTaskState.referenceCount > 1) {
+                referencedTaskState.referenceCount--;
+            } else {
+                this._referencedTaskStateById.delete(oldTask.id);
+            }
+        },
+        onReferencedCollectionAdd: (context, eventBuilder, newCollection) => {
+            const directlySubscribedCollectionReferenceCount =
+                this._directlySubscribedCollectionReferenceCountById.get(newCollection.id);
+            const referencedCollectionState = this._referencedCollectionStateById.get(
+                newCollection.id,
+            );
+
+            if (referencedCollectionState !== undefined) {
+                referencedCollectionState.referenceCount++;
+
+                // If this task is already referenced then we should have seen `newCollection`
+                // before.
+                if (process.env.NODE_ENV !== "production") {
+                    assert(
+                        referencedCollectionState.collection === newCollection,
+                        "Connection must observe all updates to a referenced collection through `onReferencedCollectionAdd()`",
                     );
                 }
 
-                if (referencedTaskState.referenceCount > 1) {
-                    referencedTaskState.referenceCount--;
-                } else {
-                    this._referencedTaskStateById.delete(oldTask.id);
-                }
-            },
-            onReferencedCollectionAdd: (context, eventBuilder, newCollection) => {
-                const referencedCollectionState = this._referencedCollectionStateById.get(
-                    newCollection.id,
-                );
-
-                if (referencedCollectionState !== undefined) {
-                    referencedCollectionState.referenceCount++;
-
-                    // If this task is already referenced then we should have seen `newCollection`
-                    // before.
-                    if (process.env.NODE_ENV !== "production") {
-                        assert(
-                            referencedCollectionState.collection === newCollection,
-                            "Connection must observe all updates to a referenced collection through `onReferencedCollectionAdd()`",
-                        );
-                    }
-
-                    referencedCollectionState.collection = newCollection;
+                referencedCollectionState.collection = newCollection;
+            } else {
+                // If the collection is directly subscribed then it is also automatically
+                // authorized since the subscription the collection is in is authorized.
+                if (directlySubscribedCollectionReferenceCount !== undefined) {
+                    this._referencedCollectionStateById.set(newCollection.id, {
+                        referenceCount: 1,
+                        collection: newCollection,
+                        isAccessAuthorizedPromise: Promise.resolve(true),
+                        previousCollectionForTest: null,
+                    });
                 } else {
                     const promise = isTaskCollectionIndexDocAccessAuthorized(
                         context,
@@ -695,75 +1067,75 @@ export class TaskRealtimeConnection {
                         previousCollectionForTest: null,
                     });
                 }
-            },
-            onReferencedCollectionUpdate: (
-                context,
-                eventBuilder,
-                collectionId,
-                oldCollection,
-                newCollection,
-                actions,
-            ) => {
-                const referencedCollectionState = this._referencedCollectionStateById.get(
-                    newCollection.id,
-                );
-                assert(referencedCollectionState !== undefined);
+            }
+        },
+        onReferencedCollectionUpdate: (
+            context,
+            eventBuilder,
+            collectionId,
+            oldCollection,
+            newCollection,
+            actions,
+        ) => {
+            const referencedCollectionState = this._referencedCollectionStateById.get(
+                newCollection.id,
+            );
+            assert(referencedCollectionState !== undefined);
 
-                if (referencedCollectionState.collection === newCollection) {
-                    // If we've already seen this update then our previous collection should be
-                    // `oldCollection`.
-                    if (process.env.NODE_ENV !== "production") {
-                        assert(
-                            referencedCollectionState.previousCollectionForTest === oldCollection,
-                            "Connection must observe all updates to a referenced collection through `onReferencedCollectionUpdate()`",
-                        );
-                    }
-                } else {
-                    // If we have not seen this update before then our referenced collection object
-                    // should be `oldCollection`.
-                    if (process.env.NODE_ENV !== "production") {
-                        assert(
-                            referencedCollectionState.collection === oldCollection,
-                            "Connection must observe all updates to a referenced collection through `onReferencedCollectionUpdate()`",
-                        );
-                        referencedCollectionState.previousCollectionForTest = oldCollection;
-                    }
-
-                    referencedCollectionState.collection = newCollection;
+            if (referencedCollectionState.collection === newCollection) {
+                // If we've already seen this update then our previous collection should be
+                // `oldCollection`.
+                if (process.env.NODE_ENV !== "production") {
+                    assert(
+                        referencedCollectionState.previousCollectionForTest === oldCollection,
+                        "Connection must observe all updates to a referenced collection through `onReferencedCollectionUpdate()`",
+                    );
                 }
-
-                // Only add update actions for this referenced collection if the referenced
-                // collection is authorized.
-                eventBuilder.waitUntil(
-                    referencedCollectionState.isAccessAuthorizedPromise.then(isAccessAuthorized => {
-                        if (!isAccessAuthorized) return;
-                        eventBuilder.addActions(this._sender, actions);
-                    }),
-                );
-            },
-            onReferencedCollectionRemove: (eventBuilder, oldCollection) => {
-                const referencedCollectionState = this._referencedCollectionStateById.get(
-                    oldCollection.id,
-                );
-                assert(referencedCollectionState !== undefined);
-
-                // If we are removing a referenced collection we should have seen it before and
-                // it should be our old task object.
+            } else {
+                // If we have not seen this update before then our referenced collection object
+                // should be `oldCollection`.
                 if (process.env.NODE_ENV !== "production") {
                     assert(
                         referencedCollectionState.collection === oldCollection,
-                        "Connection must observe all updates to a referenced collection through `onReferencedCollectionRemove()`",
+                        "Connection must observe all updates to a referenced collection through `onReferencedCollectionUpdate()`",
                     );
+                    referencedCollectionState.previousCollectionForTest = oldCollection;
                 }
 
-                if (referencedCollectionState.referenceCount > 1) {
-                    referencedCollectionState.referenceCount--;
-                } else {
-                    this._referencedCollectionStateById.delete(oldCollection.id);
-                }
-            },
-        };
-    }
+                referencedCollectionState.collection = newCollection;
+            }
+
+            // Only add update actions for this referenced collection if the referenced
+            // collection is authorized.
+            eventBuilder.waitUntil(
+                referencedCollectionState.isAccessAuthorizedPromise.then(isAccessAuthorized => {
+                    if (!isAccessAuthorized) return;
+                    eventBuilder.addActions(this._sender, actions);
+                }),
+            );
+        },
+        onReferencedCollectionRemove: (eventBuilder, oldCollection) => {
+            const referencedCollectionState = this._referencedCollectionStateById.get(
+                oldCollection.id,
+            );
+            assert(referencedCollectionState !== undefined);
+
+            // If we are removing a referenced collection we should have seen it before and
+            // it should be our old task object.
+            if (process.env.NODE_ENV !== "production") {
+                assert(
+                    referencedCollectionState.collection === oldCollection,
+                    "Connection must observe all updates to a referenced collection through `onReferencedCollectionRemove()`",
+                );
+            }
+
+            if (referencedCollectionState.referenceCount > 1) {
+                referencedCollectionState.referenceCount--;
+            } else {
+                this._referencedCollectionStateById.delete(oldCollection.id);
+            }
+        },
+    };
 
     private async _authorizeReferencedTasksAndCollections(
         context: TaskRealtimeSystemActionContext,
@@ -784,6 +1156,10 @@ export class TaskRealtimeConnection {
                     // It is important we capture a synchronous reference to `task` here at
                     // the start since `task` may update concurrently.
                     const {task} = referencedTask;
+
+                    // If the task is directly referenced then it's considered authorized. This
+                    // should have already been handled when we added/removed the direct reference.
+                    if (this._directlySubscribedTaskReferenceCountById.has(task.id)) return;
 
                     const newIsAccessAuthorizedPromise = isTaskIndexDocAccessAuthorized(
                         context,
@@ -820,6 +1196,12 @@ export class TaskRealtimeConnection {
                     // the start since `collection` may update concurrently.
                     const {collection} = referencedCollection;
 
+                    // If the collection is directly referenced then it's considered authorized.
+                    // This should have already been handled when we added/removed the direct
+                    // reference.
+                    if (this._directlySubscribedCollectionReferenceCountById.has(collection.id))
+                        return;
+
                     const newIsAccessAuthorizedPromise = isTaskCollectionIndexDocAccessAuthorized(
                         context,
                         this._accountId,
@@ -851,7 +1233,6 @@ export class TaskRealtimeConnection {
             ),
         );
 
-        // If authorization changed then we'll have a realtime event to send.
-        await eventBuilder.send(context, this._spaceId);
+        return eventBuilder;
     }
 }

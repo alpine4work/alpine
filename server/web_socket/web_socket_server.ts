@@ -10,6 +10,7 @@ import {
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {
+    CancelledError,
     FailedPreconditionError,
     InvalidArgumentError,
     UnavailableError,
@@ -656,6 +657,7 @@ export class WebSocketServer<
             takeEvents: () => connection.takeEvents(),
             subscribeToEvents: listener => connection.subscribeToEvents(listener),
             authorize: () => connection.authorize(),
+            isClosed: () => connection.isClosed(),
             close: () => connection.close(),
         };
     }
@@ -1401,6 +1403,11 @@ export interface WebSocketServerTestConnection<
     authorize(): Promise<void>;
 
     /**
+     * Is the connection closed?
+     */
+    isClosed(): boolean;
+
+    /**
      * Close the connection. Does nothing if the connection is already closed.
      */
     close(): void;
@@ -1466,11 +1473,14 @@ class WebSocketServerTestConnectionWrapper<
 
         // In tests, authorize every connection after the current test completes to
         // make sure we didn't lose access while the test was executing.
-        assertExists(afterNextCallbacksForTest).push(() =>
-            this._actionContext.fork.withFork(webSocketConnectionAuthorizationSpanName, context =>
-                this.connection.authorize(context),
-            ),
-        );
+        assertExists(afterNextCallbacksForTest).push(async () => {
+            if (this._isClosed) return;
+
+            await this._actionContext.fork.withFork(
+                webSocketConnectionAuthorizationSpanName,
+                context => this.connection.authorize(context),
+            );
+        });
     }
 
     public async executeProcedure<
@@ -1479,6 +1489,8 @@ class WebSocketServerTestConnectionWrapper<
         name: Name,
         input: WebSocketProtocolProceduresType<Protocol>[Name]["input"],
     ): Promise<WebSocketProtocolProceduresType<Protocol>[Name]["output"]> {
+        if (this._isClosed) throw new CancelledError("WebSocket connection closed");
+
         const output = await this._actionContext.fork.withFork(
             "Received test WebSocket message",
             async (context, span) => {

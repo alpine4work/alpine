@@ -4,16 +4,27 @@ import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {
+    authorizeTaskAccess,
+    authorizeTaskCollectionAccess,
     authorizeTaskQueryAccess,
     backfillTaskActionTransactionHistory,
 } from "~/server/tasks/data/task_table.js";
 import {TaskRealtimeActionHistory} from "~/server/tasks/realtime/task_realtime_action_history.js";
+import {
+    TaskRealtimeCollectionSubscription,
+    TaskRealtimeCollectionSubscriptionCallbacks,
+} from "~/server/tasks/realtime/task_realtime_collection_subscription.js";
 import {
     TaskRealtimeQuerySubscription,
     TaskRealtimeQuerySubscriptionCallbacks,
 } from "~/server/tasks/realtime/task_realtime_query_subscription.js";
 import {TaskRealtimeStore} from "~/server/tasks/realtime/task_realtime_store.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
+import {
+    TaskRealtimeTaskSubscription,
+    TaskRealtimeTaskSubscriptionCallbacks,
+} from "~/server/tasks/realtime/task_realtime_task_subscription.js";
+import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -21,6 +32,7 @@ import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskRealtimeQueryLoadedState} from "~/shared/tasks/task_realtime_protocol.js";
@@ -331,6 +343,44 @@ export class TaskRealtimeServer {
         return store.subscribeToQuery(options);
     }
 
+    public async subscribeToTask(
+        context: TaskRealtimeSystemActionContext,
+        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        options: {
+            spaceId: SpaceId;
+            taskId: TaskId;
+            callbacks: TaskRealtimeTaskSubscriptionCallbacks;
+        },
+    ): Promise<TaskRealtimeTaskSubscription> {
+        // Must be a system actor because we do no authorization to check whether you
+        // are allowed to see the task.
+        context.actor.authorizeSystem();
+
+        await authorizeSpaceAccess(context, options.spaceId);
+
+        const store = this._storeBySpaceId.getOrSetDefault(options.spaceId);
+        return store.subscribeToTask(context, eventBuilder, options);
+    }
+
+    public async subscribeToCollection(
+        context: TaskRealtimeSystemActionContext,
+        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        options: {
+            spaceId: SpaceId;
+            collectionId: TaskCollectionId;
+            callbacks: TaskRealtimeCollectionSubscriptionCallbacks;
+        },
+    ): Promise<TaskRealtimeCollectionSubscription> {
+        // Must be a system actor because we do no authorization to check whether you
+        // are allowed to see the collection.
+        context.actor.authorizeSystem();
+
+        await authorizeSpaceAccess(context, options.spaceId);
+
+        const store = this._storeBySpaceId.getOrSetDefault(options.spaceId);
+        return store.subscribeToCollection(context, eventBuilder, options);
+    }
+
     public async applyActionTransaction(
         context: TaskRealtimeSystemActionContext,
         actionTransaction: {
@@ -437,6 +487,56 @@ export class TaskRealtimeServer {
                         this._storeBySpaceId.get(spaceId)?.getCollectionIfLoaded(collectionId),
                 },
             ),
+        ]);
+    }
+
+    /**
+     * Authorizes that an account actor has access to a task. Throws an error if
+     * we're unauthorized.
+     *
+     * Will use in-memory tasks/collections when available and otherwise will load
+     * from DynamoDB.
+     */
+    public authorizeTaskAccess(
+        context: ServerSessionActionContext,
+        spaceId: SpaceId,
+        taskId: TaskId,
+        expectedAccessLevel: TaskCollectionAccessLevel,
+    ) {
+        return runAllPromises([
+            // Authorize space access in parallel...
+            authorizeSpaceAccess(context, spaceId),
+
+            authorizeTaskAccess(context, taskId, expectedAccessLevel, {
+                getTaskIndexDocIfExists: taskId =>
+                    this._storeBySpaceId.get(spaceId)?.getTaskIfLoaded(taskId),
+                getCollectionIndexDocIfExists: collectionId =>
+                    this._storeBySpaceId.get(spaceId)?.getCollectionIfLoaded(collectionId),
+            }),
+        ]);
+    }
+
+    /**
+     * Authorizes that an account actor has access to a collection. Throws an error
+     * if we're unauthorized.
+     *
+     * Will use in-memory tasks/collections when available and otherwise will load
+     * from DynamoDB.
+     */
+    public authorizeCollectionAccess(
+        context: ServerSessionActionContext,
+        spaceId: SpaceId,
+        collectionId: TaskCollectionId,
+        expectedAccessLevel: TaskCollectionAccessLevel,
+    ) {
+        return runAllPromises([
+            // Authorize space access in parallel...
+            authorizeSpaceAccess(context, spaceId),
+
+            authorizeTaskCollectionAccess(context, collectionId, expectedAccessLevel, {
+                getCollectionIndexDocIfExists: collectionId =>
+                    this._storeBySpaceId.get(spaceId)?.getCollectionIfLoaded(collectionId),
+            }),
         ]);
     }
 }

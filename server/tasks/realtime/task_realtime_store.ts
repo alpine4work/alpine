@@ -11,13 +11,23 @@ import {
 } from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {ReadonlyTaskRealtimeActionHistory} from "~/server/tasks/realtime/task_realtime_action_history.js";
+import {
+    TaskRealtimeCollectionSubscription,
+    TaskRealtimeCollectionSubscriptionCallbacks,
+    TaskRealtimeCollectionSubscriptionInternal,
+} from "~/server/tasks/realtime/task_realtime_collection_subscription.js";
 import {TaskRealtimeQuery} from "~/server/tasks/realtime/task_realtime_query.js";
 import {
     TaskRealtimeQuerySubscription,
     TaskRealtimeQuerySubscriptionCallbacks,
-    TaskRealtimeQuerySubscriptionInternal,
 } from "~/server/tasks/realtime/task_realtime_query_subscription.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
+import {TaskRealtimeTaskReferencesSubscriptionBase} from "~/server/tasks/realtime/task_realtime_task_references_subscription_base.js";
+import {
+    TaskRealtimeTaskSubscription,
+    TaskRealtimeTaskSubscriptionCallbacks,
+    TaskRealtimeTaskSubscriptionInternal,
+} from "~/server/tasks/realtime/task_realtime_task_subscription.js";
 import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
 import {InternalError} from "~/shared/error/error.js";
 import {isNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
@@ -169,6 +179,41 @@ export class TaskRealtimeStore {
         return new TaskRealtimeQuerySubscription(query, callbacks, this._withFatalErrorHandling);
     }
 
+    public subscribeToTask(
+        context: TaskRealtimeSystemActionContext,
+        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        {taskId, callbacks}: {taskId: TaskId; callbacks: TaskRealtimeTaskSubscriptionCallbacks},
+    ): Promise<TaskRealtimeTaskSubscription> {
+        return this._withFatalErrorHandling(context, async () => {
+            const taskEntry = await this._internal.loadTaskEntry(context, taskId);
+
+            return new TaskRealtimeTaskSubscription(context, eventBuilder, taskEntry, callbacks);
+        });
+    }
+
+    public subscribeToCollection(
+        context: TaskRealtimeSystemActionContext,
+        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        {
+            collectionId,
+            callbacks,
+        }: {
+            collectionId: TaskCollectionId;
+            callbacks: TaskRealtimeCollectionSubscriptionCallbacks;
+        },
+    ): Promise<TaskRealtimeCollectionSubscription> {
+        return this._withFatalErrorHandling(context, async () => {
+            const collectionEntry = await this._internal.loadCollectionEntry(context, collectionId);
+
+            return new TaskRealtimeCollectionSubscription(
+                context,
+                eventBuilder,
+                collectionEntry,
+                callbacks,
+            );
+        });
+    }
+
     public applyActionTransaction(
         context: TaskRealtimeSystemActionContext,
         actions: ReadonlyArray<TaskAction>,
@@ -188,6 +233,7 @@ export class TaskRealtimeStore {
         // handle errors gracefully on its own without putting the store class in
         // partially failed state.
         const taskEntry = await this._internal.loadTaskEntry(context, taskId);
+
         return taskEntry.task;
     }
 
@@ -201,6 +247,7 @@ export class TaskRealtimeStore {
         // handle errors gracefully on its own without putting the store class in
         // partially failed state.
         const collectionEntry = await this._internal.loadCollectionEntry(context, collectionId);
+
         return collectionEntry.collection;
     }
 
@@ -416,7 +463,7 @@ export class TaskRealtimeStoreInternal {
 
         assert(
             this._collectionEntryById.size === 0,
-            `Expected store to have 0 collections but instead it has ${this._taskEntryById.size}`,
+            `Expected store to have 0 collections but instead it has ${this._collectionEntryById.size}`,
         );
     }
 
@@ -595,7 +642,7 @@ export class TaskRealtimeStoreInternal {
                 //
                 // We only want to update subscriptions that were subscribed at the start of
                 // this function call.
-                querySubscriptions: Array<TaskRealtimeQuerySubscriptionInternal>;
+                taskReferencesSubscriptions: Array<TaskRealtimeTaskReferencesSubscriptionBase>;
             }
         >();
 
@@ -605,7 +652,7 @@ export class TaskRealtimeStoreInternal {
                 collectionEntry: TaskRealtimeStoreCollectionEntry;
                 oldCollection: TaskCollectionIndexDoc | null;
                 actions: Array<TaskAction>;
-                querySubscriptions: Array<TaskRealtimeQuerySubscriptionInternal>;
+                taskReferencesSubscriptions: Array<TaskRealtimeTaskReferencesSubscriptionBase>;
             }
         >();
 
@@ -637,8 +684,8 @@ export class TaskRealtimeStoreInternal {
                             taskEntry,
                             oldTask,
                             actions: [],
-                            querySubscriptions: Array.from(
-                                taskEntry.iterateQuerySubscriptionDependents(),
+                            taskReferencesSubscriptions: Array.from(
+                                taskEntry.iterateTaskReferencesSubscriptionDependents(),
                             ),
                         })).actions.push(action);
                     }
@@ -659,8 +706,8 @@ export class TaskRealtimeStoreInternal {
                             taskEntry,
                             oldTask: null,
                             actions: [],
-                            querySubscriptions: Array.from(
-                                taskEntry.iterateQuerySubscriptionDependents(),
+                            taskReferencesSubscriptions: Array.from(
+                                taskEntry.iterateTaskReferencesSubscriptionDependents(),
                             ),
                         })).actions.push(action);
                     }
@@ -704,8 +751,8 @@ export class TaskRealtimeStoreInternal {
                                 collectionEntry,
                                 oldCollection,
                                 actions: [],
-                                querySubscriptions: Array.from(
-                                    collectionEntry.iterateQuerySubscriptionDependents(),
+                                taskReferencesSubscriptions: Array.from(
+                                    collectionEntry.iterateTaskReferencesSubscriptionDependents(),
                                 ),
                             }),
                         ).actions.push(action);
@@ -729,8 +776,8 @@ export class TaskRealtimeStoreInternal {
                                 collectionEntry,
                                 oldCollection: null,
                                 actions: [],
-                                querySubscriptions: Array.from(
-                                    collectionEntry.iterateQuerySubscriptionDependents(),
+                                taskReferencesSubscriptions: Array.from(
+                                    collectionEntry.iterateTaskReferencesSubscriptionDependents(),
                                 ),
                             }),
                         ).actions.push(action);
@@ -751,13 +798,24 @@ export class TaskRealtimeStoreInternal {
             collectionEntry,
             oldCollection,
             actions,
-            querySubscriptions,
+            taskReferencesSubscriptions,
         } of updatedCollectionEntriesById.values()) {
             assert(isNonEmptyReadonlyArray(actions));
 
             if (oldCollection !== null) {
-                for (const querySubscription of querySubscriptions) {
-                    querySubscription.onReferencedCollectionUpdate(
+                for (const subscription of taskReferencesSubscriptions) {
+                    subscription.onReferencedCollectionUpdate(
+                        context,
+                        eventBuilder,
+                        collectionEntry.collection.id,
+                        oldCollection,
+                        collectionEntry.collection,
+                        actions,
+                    );
+                }
+
+                for (const subscription of collectionEntry.iterateCollectionSubscriptionDependents()) {
+                    subscription.onCollectionUpdate(
                         context,
                         eventBuilder,
                         collectionEntry.collection.id,
@@ -822,7 +880,12 @@ export class TaskRealtimeStoreInternal {
             },
         );
 
-        for (const {taskEntry, oldTask, actions, querySubscriptions} of updatedTaskEntries) {
+        for (const {
+            taskEntry,
+            oldTask,
+            actions,
+            taskReferencesSubscriptions,
+        } of updatedTaskEntries) {
             assert(isNonEmptyReadonlyArray(actions));
 
             const addedQueryDependencies = new Set();
@@ -845,8 +908,19 @@ export class TaskRealtimeStoreInternal {
             // If this task is referenced as a parent task in any query subscriptions then
             // send updates to those subscriptions.
             if (oldTask !== null) {
-                for (const querySubscription of querySubscriptions) {
-                    querySubscription.onReferencedTaskUpdate(
+                for (const subscription of taskReferencesSubscriptions) {
+                    subscription.onReferencedTaskUpdate(
+                        context,
+                        eventBuilder,
+                        taskEntry.task.id,
+                        oldTask,
+                        taskEntry.task,
+                        actions,
+                    );
+                }
+
+                for (const subscription of taskEntry.iterateTaskSubscriptionDependents()) {
+                    subscription.onTaskUpdate(
                         context,
                         eventBuilder,
                         taskEntry.task.id,
@@ -1381,6 +1455,18 @@ export class TaskRealtimeStoreInternal {
         for (const query of this._queries.values()) {
             query.onFatalError(context, error);
         }
+
+        for (const taskEntry of this._taskEntryById.values()) {
+            for (const subscription of taskEntry.iterateTaskSubscriptionDependents()) {
+                subscription.onFatalError(context, error);
+            }
+        }
+
+        for (const collectionEntry of this._collectionEntryById.values()) {
+            for (const subscription of collectionEntry.iterateCollectionSubscriptionDependents()) {
+                subscription.onFatalError(context, error);
+            }
+        }
     }
 }
 
@@ -1388,7 +1474,7 @@ export class TaskRealtimeStoreInternal {
  * The representation of a task in our store.
  */
 export class TaskRealtimeStoreTaskEntry {
-    private readonly _store: TaskRealtimeStoreInternal;
+    public readonly store: TaskRealtimeStoreInternal;
 
     /** The current task object. */
     public task: TaskIndexDoc;
@@ -1400,17 +1486,21 @@ export class TaskRealtimeStoreTaskEntry {
     private readonly _queryDependents = new Set<TaskRealtimeQuery>();
 
     /**
-     * Query subscriptions that depend on this task. Query subscriptions reference
-     * all parents, recursively, of loaded tasks.
+     * Direct subscriptions to this task (not through references).
      */
-    private readonly _querySubscriptionDependents =
-        new Set<TaskRealtimeQuerySubscriptionInternal>();
+    private readonly _taskSubscriptionDependents = new Set<TaskRealtimeTaskSubscriptionInternal>();
+
+    /**
+     * Tasks reference all their parent tasks, recursively.
+     */
+    private readonly _taskReferencesSubscriptionDependents =
+        new Set<TaskRealtimeTaskReferencesSubscriptionBase>();
 
     constructor(store: TaskRealtimeStoreInternal, initialTask: TaskIndexDoc) {
-        this._store = store;
+        this.store = store;
         this.task = initialTask;
 
-        this._store.addEvictableTaskId(this.task.id);
+        this.store.addEvictableTaskId(this.task.id);
 
         // In test and development environments make sure `this.task = newTask` never
         // changes the `TaskId`. In production this is a simple property getter/setter.
@@ -1427,7 +1517,11 @@ export class TaskRealtimeStoreTaskEntry {
     }
 
     private _getDependentCount() {
-        return this._queryDependents.size + this._querySubscriptionDependents.size;
+        return (
+            this._queryDependents.size +
+            this._taskSubscriptionDependents.size +
+            this._taskReferencesSubscriptionDependents.size
+        );
     }
 
     public iterateQueryDependents() {
@@ -1441,7 +1535,7 @@ export class TaskRealtimeStoreTaskEntry {
     public addQueryDependent(query: TaskRealtimeQuery) {
         const wasEvictable = this._getDependentCount() === 0;
         this._queryDependents.add(query);
-        if (wasEvictable) this._store.removeEvictableTaskId(this.task.id);
+        if (wasEvictable) this.store.removeEvictableTaskId(this.task.id);
     }
 
     public removeQueryDependent(query: TaskRealtimeQuery) {
@@ -1451,44 +1545,68 @@ export class TaskRealtimeStoreTaskEntry {
 
         this._queryDependents.delete(query);
         const isEvictable = this._getDependentCount() === 0;
-        if (isEvictable) this._store.addEvictableTaskId(this.task.id);
+        if (isEvictable) this.store.addEvictableTaskId(this.task.id);
     }
 
-    public iterateQuerySubscriptionDependents() {
-        return this._querySubscriptionDependents.values();
+    public iterateTaskSubscriptionDependents() {
+        return this._taskSubscriptionDependents.values();
     }
 
-    public addQuerySubscriptionDependent(querySubscription: TaskRealtimeQuerySubscriptionInternal) {
+    public addTaskSubscriptionDependent(subscription: TaskRealtimeTaskSubscriptionInternal) {
         const wasEvictable = this._getDependentCount() === 0;
-        this._querySubscriptionDependents.add(querySubscription);
-        if (wasEvictable) this._store.removeEvictableTaskId(this.task.id);
+        this._taskSubscriptionDependents.add(subscription);
+        if (wasEvictable) this.store.removeEvictableTaskId(this.task.id);
     }
 
-    public removeQuerySubscriptionDependent(
-        querySubscription: TaskRealtimeQuerySubscriptionInternal,
-    ) {
-        this._querySubscriptionDependents.delete(querySubscription);
+    public removeTaskSubscriptionDependent(subscription: TaskRealtimeTaskSubscriptionInternal) {
+        this._taskSubscriptionDependents.delete(subscription);
         const isEvictable = this._getDependentCount() === 0;
-        if (isEvictable) this._store.addEvictableTaskId(this.task.id);
+        if (isEvictable) this.store.addEvictableTaskId(this.task.id);
+    }
+
+    public iterateTaskReferencesSubscriptionDependents() {
+        return this._taskReferencesSubscriptionDependents.values();
+    }
+
+    public addTaskReferencesSubscriptionDependent(
+        subscription: TaskRealtimeTaskReferencesSubscriptionBase,
+    ) {
+        const wasEvictable = this._getDependentCount() === 0;
+        this._taskReferencesSubscriptionDependents.add(subscription);
+        if (wasEvictable) this.store.removeEvictableTaskId(this.task.id);
+    }
+
+    public removeTaskReferencesSubscriptionDependent(
+        subscription: TaskRealtimeTaskReferencesSubscriptionBase,
+    ) {
+        this._taskReferencesSubscriptionDependents.delete(subscription);
+        const isEvictable = this._getDependentCount() === 0;
+        if (isEvictable) this.store.addEvictableTaskId(this.task.id);
     }
 }
 
 export class TaskRealtimeStoreCollectionEntry {
-    private readonly _store: TaskRealtimeStoreInternal;
+    public readonly store: TaskRealtimeStoreInternal;
     public collection: TaskCollectionIndexDoc;
 
     /**
-     * Query subscriptions that depend on this task. Query subscriptions reference
-     * all parents, recursively, of loaded tasks.
+     * Direct subscriptions to this collection (not through references).
      */
-    private readonly _querySubscriptionDependents =
-        new Set<TaskRealtimeQuerySubscriptionInternal>();
+    private readonly _collectionSubscriptionDependents =
+        new Set<TaskRealtimeCollectionSubscriptionInternal>();
+
+    /**
+     * A task references all of its collections and all collections of task
+     * parents, recursively.
+     */
+    private readonly _taskReferencesSubscriptionDependents =
+        new Set<TaskRealtimeTaskReferencesSubscriptionBase>();
 
     constructor(store: TaskRealtimeStoreInternal, initialCollection: TaskCollectionIndexDoc) {
-        this._store = store;
+        this.store = store;
         this.collection = initialCollection;
 
-        this._store.addEvictableCollectionId(this.collection.id);
+        this.store.addEvictableCollectionId(this.collection.id);
 
         // In test and development environments make sure
         // `this.collection = newCollection` never changes the `TaskCollectionId`. In
@@ -1506,24 +1624,49 @@ export class TaskRealtimeStoreCollectionEntry {
     }
 
     private _getDependentCount() {
-        return this._querySubscriptionDependents.size;
+        return (
+            this._collectionSubscriptionDependents.size +
+            this._taskReferencesSubscriptionDependents.size
+        );
     }
 
-    public iterateQuerySubscriptionDependents() {
-        return this._querySubscriptionDependents.values();
+    public iterateCollectionSubscriptionDependents() {
+        return this._collectionSubscriptionDependents.values();
     }
 
-    public addQuerySubscriptionDependent(querySubscription: TaskRealtimeQuerySubscriptionInternal) {
-        const wasEvictable = this._getDependentCount() === 0;
-        this._querySubscriptionDependents.add(querySubscription);
-        if (wasEvictable) this._store.removeEvictableCollectionId(this.collection.id);
-    }
-
-    public removeQuerySubscriptionDependent(
-        querySubscription: TaskRealtimeQuerySubscriptionInternal,
+    public addCollectionSubscriptionDependent(
+        subscription: TaskRealtimeCollectionSubscriptionInternal,
     ) {
-        this._querySubscriptionDependents.delete(querySubscription);
+        const wasEvictable = this._getDependentCount() === 0;
+        this._collectionSubscriptionDependents.add(subscription);
+        if (wasEvictable) this.store.removeEvictableCollectionId(this.collection.id);
+    }
+
+    public removeCollectionSubscriptionDependent(
+        subscription: TaskRealtimeCollectionSubscriptionInternal,
+    ) {
+        this._collectionSubscriptionDependents.delete(subscription);
         const isEvictable = this._getDependentCount() === 0;
-        if (isEvictable) this._store.addEvictableCollectionId(this.collection.id);
+        if (isEvictable) this.store.addEvictableCollectionId(this.collection.id);
+    }
+
+    public iterateTaskReferencesSubscriptionDependents() {
+        return this._taskReferencesSubscriptionDependents.values();
+    }
+
+    public addTaskReferencesSubscriptionDependent(
+        subscription: TaskRealtimeTaskReferencesSubscriptionBase,
+    ) {
+        const wasEvictable = this._getDependentCount() === 0;
+        this._taskReferencesSubscriptionDependents.add(subscription);
+        if (wasEvictable) this.store.removeEvictableCollectionId(this.collection.id);
+    }
+
+    public removeTaskReferencesSubscriptionDependent(
+        subscription: TaskRealtimeTaskReferencesSubscriptionBase,
+    ) {
+        this._taskReferencesSubscriptionDependents.delete(subscription);
+        const isEvictable = this._getDependentCount() === 0;
+        if (isEvictable) this.store.addEvictableCollectionId(this.collection.id);
     }
 }

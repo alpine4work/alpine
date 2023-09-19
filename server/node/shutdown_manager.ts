@@ -1,3 +1,4 @@
+import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -38,9 +39,28 @@ function handleShutdown(signal: "SIGINT" | "SIGTERM") {
             // promises.
             .catch(() => {})
             .then(async () => {
+                let hasError = false;
+                let error: unknown;
+
+                // Wait for all promises to resolve. If there's an error, don't throw it until
+                // all promises have resolved.
                 while (waitUntilPromises.size > 0) {
-                    await runAllPromises(waitUntilPromises);
+                    try {
+                        await runAllPromises(waitUntilPromises);
+                    } catch (newError) {
+                        if (!hasError) {
+                            hasError = true;
+                            error = newError;
+                        }
+                        // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
+                        // just the first one. Probably by using an `AggregateError`.
+                        else if (!isSystemError(error) && isSystemError(newError)) {
+                            error = newError;
+                        }
+                    }
                 }
+
+                if (hasError) throw error;
             });
 
         const fullShutdownPromise = runAllPromises([

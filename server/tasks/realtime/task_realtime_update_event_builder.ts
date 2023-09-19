@@ -5,6 +5,7 @@ import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
@@ -111,13 +112,33 @@ export class TaskRealtimeUpdateEventBuilder {
 
         await taskRealtimeStoreBeforeSendEventTestCheckpoint.waitForTest(spaceId);
 
+        let hasError = false;
+        let error: unknown;
+
         // Wait for all our `waitUntil()` promises to resolve before building the
         // final event.
+        //
+        // Even if there's an error. Only throw our error at the very end.
         while (this._promises.length > 0) {
             const promises = this._promises;
             this._promises = [];
-            await runAllPromises(promises);
+
+            try {
+                await runAllPromises(promises);
+            } catch (newError) {
+                if (!hasError) {
+                    hasError = true;
+                    error = newError;
+                }
+                // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
+                // just the first one. Probably by using an `AggregateError`.
+                else if (!isSystemError(error) && isSystemError(newError)) {
+                    error = newError;
+                }
+            }
         }
+
+        if (hasError) throw error;
 
         assert(this._isBuilding);
         this._isBuilding = false;
@@ -162,13 +183,33 @@ export class TaskRealtimeUpdateEventBuilder {
         assert(!this._isSending);
         this._isSending = true;
 
+        let hasError = false;
+        let error: unknown;
+
         // Wait for all our `waitUntil()` promises to resolve before building the
         // final event.
+        //
+        // Even if there's an error. Only throw our error at the very end.
         while (this._promises.length > 0) {
             const promises = this._promises;
             this._promises = [];
-            await runAllPromises(promises);
+
+            try {
+                await runAllPromises(promises);
+            } catch (newError) {
+                if (!hasError) {
+                    hasError = true;
+                    error = newError;
+                }
+                // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
+                // just the first one. Probably by using an `AggregateError`.
+                else if (!isSystemError(error) && isSystemError(newError)) {
+                    error = newError;
+                }
+            }
         }
+
+        if (hasError) throw error;
 
         assert(this._isBuilding);
         this._isBuilding = false;
@@ -270,6 +311,9 @@ export class TaskRealtimeUpdateEventBuilder {
      * provided sender.
      */
     public getBackfillAuthorizedTaskIds(sender: TaskRealtimeUpdateEventSender): Set<TaskId> {
+        // Can't get the backfilled `TaskId`s while we're building the event.
+        assert(!this._isBuilding);
+
         const event = this._eventBySender.get(sender);
         if (!event) return new Set();
 

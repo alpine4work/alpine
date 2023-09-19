@@ -2340,7 +2340,16 @@ async function isTaskCollectionItemAccessAuthorizedAllowingDeletedTasks(
     );
 }
 
-async function authorizeTaskCollectionAccess(
+/**
+ * Tests if the context's actor is allowed to access the provided collection
+ * with the provided access level. Throws an error if access is unauthorized.
+ *
+ * Loads data from DynamoDB but if you are in `TaskRealtimeService` and have
+ * up-to-date in-memory you may pass in a `loaders` object to use your
+ * in-memory task instead. See the disclaimers on `authorizeTaskQueryAccess()`
+ * before using the `loaders` object.
+ */
+export async function authorizeTaskCollectionAccess(
     context: ServerSessionActionContext,
     collectionId: TaskCollectionId,
     expectedAccessLevel: TaskCollectionAccessLevel,
@@ -2572,7 +2581,7 @@ async function isTaskAccessAuthorized(
  * in-memory task instead. See the disclaimers on `authorizeTaskQueryAccess()`
  * before using the `loaders` object.
  */
-async function authorizeTaskAccess(
+export async function authorizeTaskAccess(
     context: ServerSessionActionContext,
     taskId: TaskId,
     expectedAccessLevel: TaskCollectionAccessLevel,

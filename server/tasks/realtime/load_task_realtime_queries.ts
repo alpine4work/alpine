@@ -22,6 +22,7 @@ import {generateTaskRealtimeUpdateEventNumber} from "~/server/tasks/realtime/tas
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {
     AccountId,
@@ -377,12 +378,32 @@ export async function loadTaskRealtimeQueries(
 
     const extraQueries = await runAllPromises(extraQueryPromises);
 
+    let hasError = false;
+    let error: unknown;
+
     // Wait for all discovered promises to resolve before returning.
+    //
+    // Even if there's an error. Only throw our error at the very end.
     while (promises.length > 0) {
         const currentPromises = promises;
         promises = [];
-        await runAllPromises(currentPromises);
+
+        try {
+            await runAllPromises(currentPromises);
+        } catch (newError) {
+            if (!hasError) {
+                hasError = true;
+                error = newError;
+            }
+            // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
+            // just the first one. Probably by using an `AggregateError`.
+            else if (!isSystemError(error) && isSystemError(newError)) {
+                error = newError;
+            }
+        }
     }
+
+    if (hasError) throw error;
 
     const backfillAuthorizedTasks = Array.from(backfillAuthorizedTaskSet, task =>
         prepareTaskForClient(accountId, task),
