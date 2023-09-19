@@ -2,7 +2,9 @@ import {AccountModel} from "~/shared/accounts/account_model.js";
 import {
     TaskCollectionId,
     TaskId,
+    TaskRealtimeCollectionSubscriptionId,
     TaskRealtimeQuerySubscriptionId,
+    TaskRealtimeTaskSubscriptionId,
 } from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskActionSchema} from "~/shared/tasks/actions/task_action.js";
@@ -70,35 +72,37 @@ export const TaskRealtimeProtocol = defineWebSocketProtocol({
                 previouslyBackfilledTaskIds: Schema.array(Schema.id<TaskId>()),
             },
         },
-        subscribeToQueries: {
-            input: {
-                queries: Schema.array(
-                    Schema.object({
-                        filters: TaskQueryNormalizedFiltersSchema,
-                        sorts: Schema.array(TaskQueryNormalizedSortSchema),
-                        limit: Schema.integer,
-                    }),
-                ),
-            },
-            output: {
-                queries: Schema.array(
-                    Schema.object({
-                        querySubscriptionId: Schema.id<TaskRealtimeQuerySubscriptionId>(),
-                        loadedState: TaskRealtimeQueryLoadedStateSchema,
-                        previouslyBackfilledTaskIds: Schema.array(Schema.id<TaskId>()),
-                    }),
-                ),
-            },
-        },
         unsubscribeFromQuery: {
             input: {
                 querySubscriptionId: Schema.id<TaskRealtimeQuerySubscriptionId>(),
             },
             output: {},
         },
-        unsubscribeFromQueries: {
+        subscribeToTask: {
             input: {
-                querySubscriptionIds: Schema.array(Schema.id<TaskRealtimeQuerySubscriptionId>()),
+                taskId: Schema.id<TaskId>(),
+            },
+            output: {
+                taskSubscriptionId: Schema.id<TaskRealtimeTaskSubscriptionId>(),
+            },
+        },
+        unsubscribeFromTask: {
+            input: {
+                taskSubscriptionId: Schema.id<TaskRealtimeTaskSubscriptionId>(),
+            },
+            output: {},
+        },
+        subscribeToCollection: {
+            input: {
+                collectionId: Schema.id<TaskCollectionId>(),
+            },
+            output: {
+                collectionSubscriptionId: Schema.id<TaskRealtimeCollectionSubscriptionId>(),
+            },
+        },
+        unsubscribeFromCollection: {
+            input: {
+                collectionSubscriptionId: Schema.id<TaskRealtimeCollectionSubscriptionId>(),
             },
             output: {},
         },
@@ -111,6 +115,56 @@ export const TaskRealtimeProtocol = defineWebSocketProtocol({
                 loadedState: TaskRealtimeQueryLoadedStateSchema,
                 previouslyBackfilledTaskIds: Schema.array(Schema.id<TaskId>()),
             },
+        },
+        subscribe: {
+            input: {
+                queries: Schema.array(
+                    Schema.object({
+                        filters: TaskQueryNormalizedFiltersSchema,
+                        sorts: Schema.array(TaskQueryNormalizedSortSchema),
+                        limit: Schema.integer,
+                    }),
+                ),
+                tasks: Schema.array(
+                    Schema.object({
+                        taskId: Schema.id<TaskId>(),
+                    }),
+                ),
+                collections: Schema.array(
+                    Schema.object({
+                        collectionId: Schema.id<TaskCollectionId>(),
+                    }),
+                ),
+            },
+            output: {
+                queries: Schema.array(
+                    Schema.object({
+                        querySubscriptionId: Schema.id<TaskRealtimeQuerySubscriptionId>(),
+                        loadedState: TaskRealtimeQueryLoadedStateSchema,
+                        previouslyBackfilledTaskIds: Schema.array(Schema.id<TaskId>()),
+                    }),
+                ),
+                tasks: Schema.array(
+                    Schema.object({
+                        taskSubscriptionId: Schema.id<TaskRealtimeTaskSubscriptionId>(),
+                    }),
+                ),
+                collections: Schema.array(
+                    Schema.object({
+                        collectionSubscriptionId: Schema.id<TaskRealtimeCollectionSubscriptionId>(),
+                    }),
+                ),
+            },
+        },
+        unsubscribe: {
+            input: {
+                querySubscriptionIds: Schema.array(Schema.id<TaskRealtimeQuerySubscriptionId>()),
+                taskSubscriptionIds: Schema.array(Schema.id<TaskRealtimeTaskSubscriptionId>()),
+                collectionSubscriptionIds: Schema.array(
+                    Schema.id<TaskRealtimeCollectionSubscriptionId>(),
+                ),
+            },
+            output: {},
         },
     },
     events: {

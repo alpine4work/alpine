@@ -129,7 +129,7 @@ export class TaskRealtimeClient {
                 // backfill any realtime changes we've missed while the WebSocket was not
                 // connected.
                 //
-                // TODO(calebmer): Currently calling `subscribeToQueries` sends the entire
+                // TODO(calebmer): Currently calling `subscribe` sends the entire
                 // query response to the client a second time. It would be nice if we only sent
                 // changes between the last time the client was up-to-date and now. But given
                 // our CRDT everything-is-unordered backend design it's hard to know what
@@ -139,12 +139,14 @@ export class TaskRealtimeClient {
                 // for syncing? A dumb optimization like a `lastModified` timestamp that noops
                 // if the query was not modified since then could also work.
                 const subscribePromise = this._client.procedures
-                    .subscribeToQueries({
+                    .subscribe({
                         queries: newQueriesArray.map((query, i) => ({
                             limit: newQueryLimits[i]!,
                             filters: query.filters,
                             sorts: query.sorts,
                         })),
+                        tasks: [],
+                        collections: [],
                     })
                     .then(output => {
                         batchStoreUpdates(() => {
@@ -273,8 +275,10 @@ export class TaskRealtimeClient {
                         // unsubscribed and we don't need to send a message.
                         if (unsubscribeFromConnectionId !== connectionId) return;
 
-                        return this._client.procedures.unsubscribeFromQueries({
+                        return this._client.procedures.unsubscribe({
                             querySubscriptionIds,
+                            taskSubscriptionIds: [],
+                            collectionSubscriptionIds: [],
                         });
                     })
                     .catch(error => {

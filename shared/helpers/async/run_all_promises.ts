@@ -36,8 +36,8 @@ export async function runAllPromises<Value>(
     const values: Array<Awaited<Value>> = [];
 
     for (const result of results) {
-        // TODO(calebmer): Log all rejections in our telemetry, not just the first one.
-        // Probably by using an `AggregateError`.
+        // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
+        // just the first one. Probably by using an `AggregateError`.
         if (result.status === "rejected") {
             if (!hasRejection) firstRejectionReason = result.reason;
             hasRejection = true;

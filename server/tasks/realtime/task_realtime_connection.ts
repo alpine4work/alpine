@@ -403,6 +403,44 @@ export class TaskRealtimeConnection {
             await this._unsubscribeFromQuery(querySubscriptionId);
             return {};
         },
+        loadMoreQueryTasks: (context, {querySubscriptionId, limit}) => {
+            const querySubscription = this._querySubscriptionById.get(querySubscriptionId);
+            if (!querySubscription) throw new NotFoundError("Query subscription not found");
+
+            // It's safe to escalate because in order to create a subscription we authorize
+            // the query and we continually reauthorize the subscription through the
+            // connection's `authorize()` method which is called every three minutes.
+            return this._dangerouslyEscalateToSystemContext(
+                context,
+                this._spaceId,
+                async context => {
+                    const eventBuilder = new TaskRealtimeUpdateEventBuilder();
+
+                    const {loadedState, tasks} = await querySubscription.loadMoreTasks(
+                        context,
+                        eventBuilder,
+                        limit,
+                    );
+
+                    await eventBuilder.send(context, this._spaceId);
+
+                    // All the tasks we loaded that weren't backfilled we send in a
+                    // `previouslyBackfilledTaskIds` array so the client can add them to its local
+                    // query model.
+                    const backfillAuthorizedTaskIds = eventBuilder.getBackfillAuthorizedTaskIds(
+                        this._sender,
+                    );
+                    const previouslyBackfilledTaskIds: Array<TaskId> = [];
+
+                    for (const task of tasks) {
+                        if (backfillAuthorizedTaskIds.has(task.id)) continue;
+                        previouslyBackfilledTaskIds.push(task.id);
+                    }
+
+                    return {loadedState, previouslyBackfilledTaskIds};
+                },
+            );
+        },
         subscribeToTask: async (context, input) => {
             const subscribe = await this._authorizeSubscribeToTask(context, input.taskId);
 
@@ -460,12 +498,20 @@ export class TaskRealtimeConnection {
             await this._unsubscribeFromCollection(collectionSubscriptionId);
             return {};
         },
-        subscribeToQueries: async (context, input) => {
-            const subscribes = await runAllPromises(
-                input.queries.map(inputQuery =>
-                    this._authorizeSubscribeToQuery(context, inputQuery),
+        subscribe: async (context, input) => {
+            const [querySubscribes, taskSubscribes, collectionSubscribes] = await runAllPromises([
+                runAllPromises(
+                    input.queries.map(input => this._authorizeSubscribeToQuery(context, input)),
                 ),
-            );
+                runAllPromises(
+                    input.tasks.map(({taskId}) => this._authorizeSubscribeToTask(context, taskId)),
+                ),
+                runAllPromises(
+                    input.collections.map(({collectionId}) =>
+                        this._authorizeSubscribeToCollection(context, collectionId),
+                    ),
+                ),
+            ]);
 
             // It's safe to escalate because we authorize the query is valid above.
             return this._dangerouslyEscalateToSystemContext(
@@ -474,52 +520,107 @@ export class TaskRealtimeConnection {
                 async context => {
                     const eventBuilder = new TaskRealtimeUpdateEventBuilder();
 
-                    const results = await Promise.allSettled(
-                        subscribes.map(subscribe => subscribe(context, eventBuilder)),
-                    );
+                    const [queryResults, taskResults, collectionResults] = await runAllPromises([
+                        Promise.allSettled(
+                            querySubscribes.map(subscribe => subscribe(context, eventBuilder)),
+                        ),
+                        Promise.allSettled(
+                            taskSubscribes.map(subscribe => subscribe(context, eventBuilder)),
+                        ),
+                        Promise.allSettled(
+                            collectionSubscribes.map(subscribe => subscribe(context, eventBuilder)),
+                        ),
+                    ]);
 
-                    const values = [];
+                    // If some subscriptions were successful and others unsuccessful then
+                    // unsubscribe our successful subscriptions and throw.
+                    const handlePartialError = async (error: unknown): Promise<never> => {
+                        const errors = [error];
 
-                    for (const result of results) {
-                        // If we rejected while subscribing to anything, unsubscribe all our successful
-                        // subscriptions and throw.
-                        if (result.status === "rejected") {
-                            let error = result.reason;
+                        // If we rejected, we still want to send an event for the subscriptions that
+                        // succeeded. In case another query thinks some tasks were already backfilled
+                        // and sends a `previouslyBackfilledTaskIds`.
+                        try {
+                            await eventBuilder.send(context, this._spaceId);
+                        } catch (error) {
+                            errors.push(error);
+                        }
 
-                            // If we rejected, we still want to send an event for the subscriptions that
-                            // succeeded. In case another query thinks some tasks were already backfilled
-                            // and sends a `previouslyBackfilledTaskIds`.
-                            try {
-                                await eventBuilder.send(context, this._spaceId);
-                            } catch (sendError) {
-                                if (isSystemError(sendError) && !isSystemError(error)) {
-                                    error = sendError;
-                                }
-                            }
-
-                            await runAllPromises(
-                                results.map(async result => {
+                        await runAllPromises([
+                            runAllPromises(
+                                queryResults.map(async result => {
                                     if (result.status === "rejected") {
-                                        // If this error is a system error and our first error wasn't then prefer
-                                        // throwing the system error.
-                                        //
-                                        // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
-                                        // just the first one. Probably by using an `AggregateError`.
-                                        if (isSystemError(result.reason) && !isSystemError(error)) {
-                                            error = result.reason;
-                                        }
+                                        errors.push(result.reason);
                                     } else {
                                         await this._unsubscribeFromQuery(
                                             result.value.querySubscriptionId,
                                         );
                                     }
                                 }),
-                            );
+                            ),
+                            runAllPromises(
+                                taskResults.map(async result => {
+                                    if (result.status === "rejected") {
+                                        errors.push(result.reason);
+                                    } else {
+                                        await this._unsubscribeFromTask(
+                                            result.value.taskSubscriptionId,
+                                        );
+                                    }
+                                }),
+                            ),
+                            runAllPromises(
+                                collectionResults.map(async result => {
+                                    if (result.status === "rejected") {
+                                        errors.push(result.reason);
+                                    } else {
+                                        await this._unsubscribeFromCollection(
+                                            result.value.collectionSubscriptionId,
+                                        );
+                                    }
+                                }),
+                            ),
+                        ]);
 
-                            throw error;
+                        // Throw the first system error. Otherwise, throw the first error.
+                        //
+                        // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
+                        // just the first one. Probably by using an `AggregateError`.
+                        for (const error of errors) {
+                            if (isSystemError(error)) {
+                                throw error;
+                            }
                         }
 
-                        values.push(result.value);
+                        throw errors[0];
+                    };
+
+                    const queryValues = [];
+                    const taskValues = [];
+                    const collectionValues = [];
+
+                    for (const result of queryResults) {
+                        if (result.status === "rejected") {
+                            await handlePartialError(result.reason);
+                        } else {
+                            queryValues.push(result.value);
+                        }
+                    }
+
+                    for (const result of taskResults) {
+                        if (result.status === "rejected") {
+                            await handlePartialError(result.reason);
+                        } else {
+                            taskValues.push(result.value);
+                        }
+                    }
+
+                    for (const result of collectionResults) {
+                        if (result.status === "rejected") {
+                            await handlePartialError(result.reason);
+                        } else {
+                            collectionValues.push(result.value);
+                        }
                     }
 
                     try {
@@ -527,7 +628,7 @@ export class TaskRealtimeConnection {
                         await eventBuilder.send(context, this._spaceId);
 
                         return {
-                            queries: values.map(
+                            queries: queryValues.map(
                                 ({
                                     querySubscriptionId,
                                     loadedState,
@@ -538,22 +639,36 @@ export class TaskRealtimeConnection {
                                     previouslyBackfilledTaskIds: getPreviouslyBackfilledTaskIds(),
                                 }),
                             ),
+                            tasks: taskValues,
+                            collections: collectionValues,
                         };
                     } catch (error) {
-                        // If we failed to send our `querySubscriptionId`s to the client, then
+                        // If we failed to send our subscription ids to the client, then
                         // unsubscribe from all our queries so we don't have a memory leak.
-                        await runAllPromises(
-                            values.map(({querySubscriptionId}) =>
-                                this._unsubscribeFromQuery(querySubscriptionId),
+                        await runAllPromises([
+                            runAllPromises(
+                                queryValues.map(({querySubscriptionId}) =>
+                                    this._unsubscribeFromQuery(querySubscriptionId),
+                                ),
                             ),
-                        );
+                            runAllPromises(
+                                taskValues.map(({taskSubscriptionId}) =>
+                                    this._unsubscribeFromTask(taskSubscriptionId),
+                                ),
+                            ),
+                            runAllPromises(
+                                collectionValues.map(({collectionSubscriptionId}) =>
+                                    this._unsubscribeFromCollection(collectionSubscriptionId),
+                                ),
+                            ),
+                        ]);
 
                         throw error;
                     }
                 },
             );
         },
-        unsubscribeFromQueries: async (context, {querySubscriptionIds}) => {
+        unsubscribe: async (context, {querySubscriptionIds}) => {
             await runAllPromises(
                 querySubscriptionIds.map(querySubscriptionId =>
                     this._unsubscribeFromQuery(querySubscriptionId),
@@ -561,44 +676,6 @@ export class TaskRealtimeConnection {
             );
 
             return {};
-        },
-        loadMoreQueryTasks: (context, {querySubscriptionId, limit}) => {
-            const querySubscription = this._querySubscriptionById.get(querySubscriptionId);
-            if (!querySubscription) throw new NotFoundError("Query subscription not found");
-
-            // It's safe to escalate because in order to create a subscription we authorize
-            // the query and we continually reauthorize the subscription through the
-            // connection's `authorize()` method which is called every three minutes.
-            return this._dangerouslyEscalateToSystemContext(
-                context,
-                this._spaceId,
-                async context => {
-                    const eventBuilder = new TaskRealtimeUpdateEventBuilder();
-
-                    const {loadedState, tasks} = await querySubscription.loadMoreTasks(
-                        context,
-                        eventBuilder,
-                        limit,
-                    );
-
-                    await eventBuilder.send(context, this._spaceId);
-
-                    // All the tasks we loaded that weren't backfilled we send in a
-                    // `previouslyBackfilledTaskIds` array so the client can add them to its local
-                    // query model.
-                    const backfillAuthorizedTaskIds = eventBuilder.getBackfillAuthorizedTaskIds(
-                        this._sender,
-                    );
-                    const previouslyBackfilledTaskIds: Array<TaskId> = [];
-
-                    for (const task of tasks) {
-                        if (backfillAuthorizedTaskIds.has(task.id)) continue;
-                        previouslyBackfilledTaskIds.push(task.id);
-                    }
-
-                    return {loadedState, previouslyBackfilledTaskIds};
-                },
-            );
         },
     };
 

@@ -1,5 +1,6 @@
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -67,11 +68,31 @@ export class ProcessContextModule extends ContextModuleBase implements ForkableC
 
         if (!this._waitForTestTasksPromise) {
             this._waitForTestTasksPromise = (async () => {
+                let hasError = false;
+                let error: unknown;
+
+                // Wait for all promises to resolve. If there's an error, don't throw it until
+                // all promises have resolved.
                 while (afterEachPromisesForTest.length > 0) {
                     const promises = afterEachPromisesForTest;
                     afterEachPromisesForTest = [];
-                    await runAllPromises(promises);
+
+                    try {
+                        await runAllPromises(promises);
+                    } catch (newError) {
+                        if (!hasError) {
+                            hasError = true;
+                            error = newError;
+                        }
+                        // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
+                        // just the first one. Probably by using an `AggregateError`.
+                        else if (!isSystemError(error) && isSystemError(newError)) {
+                            error = newError;
+                        }
+                    }
                 }
+
+                if (hasError) throw error;
             })().finally(() => {
                 this._waitForTestTasksPromise = undefined;
             });
