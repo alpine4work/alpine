@@ -1,3 +1,4 @@
+import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskQueryNormalizedFiltersSchema} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSortSchema} from "~/shared/tasks/task_query_normalized_sort.js";
@@ -17,5 +18,7 @@ export const TaskStoreLoaderDataSchema = Schema.object({
             loadedState: TaskRealtimeQueryLoadedStateSchema,
         }),
     ),
+    taskIds: Schema.array(Schema.id<TaskId>()),
+    collectionIds: Schema.array(Schema.id<TaskCollectionId>()),
     updateEvent: TaskRealtimeUpdateEventSchema,
 });

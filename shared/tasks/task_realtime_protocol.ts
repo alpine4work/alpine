@@ -125,16 +125,8 @@ export const TaskRealtimeProtocol = defineWebSocketProtocol({
                         limit: Schema.integer,
                     }),
                 ),
-                tasks: Schema.array(
-                    Schema.object({
-                        taskId: Schema.id<TaskId>(),
-                    }),
-                ),
-                collections: Schema.array(
-                    Schema.object({
-                        collectionId: Schema.id<TaskCollectionId>(),
-                    }),
-                ),
+                taskIds: Schema.array(Schema.id<TaskId>()),
+                collectionIds: Schema.array(Schema.id<TaskCollectionId>()),
             },
             output: {
                 queries: Schema.array(
@@ -144,15 +136,9 @@ export const TaskRealtimeProtocol = defineWebSocketProtocol({
                         previouslyBackfilledTaskIds: Schema.array(Schema.id<TaskId>()),
                     }),
                 ),
-                tasks: Schema.array(
-                    Schema.object({
-                        taskSubscriptionId: Schema.id<TaskRealtimeTaskSubscriptionId>(),
-                    }),
-                ),
-                collections: Schema.array(
-                    Schema.object({
-                        collectionSubscriptionId: Schema.id<TaskRealtimeCollectionSubscriptionId>(),
-                    }),
+                taskSubscriptionIds: Schema.array(Schema.id<TaskRealtimeTaskSubscriptionId>()),
+                collectionSubscriptionIds: Schema.array(
+                    Schema.id<TaskRealtimeCollectionSubscriptionId>(),
                 ),
             },
         },

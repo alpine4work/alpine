@@ -4,8 +4,8 @@ import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 import {BlockInference} from "~/shared/helpers/types/block_inference.js";
 import {
     deserializedValueSymbol,
-    loadTaskQueryDataKey,
     propagateEventDataKey,
+    taskStoreLoaderDataKey,
 } from "~/shared/remix/json_with_schema_shared.js";
 import {
     TaskStoreLoaderData,
@@ -22,7 +22,7 @@ export function jsonWithSchema<Value>(
     value: BlockInference<Value>,
     {
         propagateEventData,
-        loadTaskQueryData,
+        taskStoreLoaderData,
         ...responseInit
     }: ResponseInit & {
         /**
@@ -46,7 +46,7 @@ export function jsonWithSchema<Value>(
          * want normalized task data to be accessible everywhere throughout the
          * product.
          */
-        loadTaskQueryData?: TaskStoreLoaderData;
+        taskStoreLoaderData?: TaskStoreLoaderData;
     } = {},
 ): Response {
     const serializedValue = schema.serialize(value as Value);
@@ -69,12 +69,12 @@ export function jsonWithSchema<Value>(
     // If we have task data to load in our shared store, stash it on the serialized
     // result. Our `/s/:spaceId` route knows to look for this property and will add
     // the data to our shared store.
-    if (loadTaskQueryData) {
-        const loadTaskQueryDataSerializedValue =
-            TaskStoreLoaderDataSchema.serialize(loadTaskQueryData);
-        (loadTaskQueryDataSerializedValue as any)[deserializedValueSymbol] = loadTaskQueryData;
+    if (taskStoreLoaderData) {
+        const taskStoreLoaderDataSerializedValue =
+            TaskStoreLoaderDataSchema.serialize(taskStoreLoaderData);
+        (taskStoreLoaderDataSerializedValue as any)[deserializedValueSymbol] = taskStoreLoaderData;
 
-        (serializedValue as any)[loadTaskQueryDataKey] = loadTaskQueryDataSerializedValue;
+        (serializedValue as any)[taskStoreLoaderDataKey] = taskStoreLoaderDataSerializedValue;
     }
 
     return json(serializedValue, responseInit);

@@ -2,14 +2,22 @@ import {AppContext} from "~/client/context/app_context.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
+import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
+import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
 import {WebSocketClient} from "~/client/web_socket/web_socket_client.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
 import {Id, generateId} from "~/shared/id/id.js";
-import {SpaceId, TaskRealtimeQuerySubscriptionId} from "~/shared/id/types/id_types.js";
+import {
+    SpaceId,
+    TaskRealtimeCollectionSubscriptionId,
+    TaskRealtimeQuerySubscriptionId,
+    TaskRealtimeTaskSubscriptionId,
+} from "~/shared/id/types/id_types.js";
 import {TaskRealtimeProtocol} from "~/shared/tasks/task_realtime_protocol.js";
 
 /**
@@ -55,11 +63,20 @@ export class TaskRealtimeClient {
 
         this._client.connect();
 
-        const queriesStore = this.store.getQueriesStore();
+        const subscriptionsStore = this.store.getSubscriptionsStore();
+
         const subscribedQueries = new Set<{
             query: TaskClientQuery;
             querySubscriptionIdPromise: Promise<TaskRealtimeQuerySubscriptionId>;
             unsubscribeFromLoadMoreTaskCount: () => void;
+        }>();
+        const subscribedTasks = new Set<{
+            taskSubscription: TaskClientTaskSubscription;
+            taskSubscriptionIdPromise: Promise<TaskRealtimeTaskSubscriptionId>;
+        }>();
+        const subscribedCollections = new Set<{
+            collectionSubscription: TaskClientCollectionSubscription;
+            collectionSubscriptionIdPromise: Promise<TaskRealtimeCollectionSubscriptionId>;
         }>();
 
         const unsubscribeFromState = this._client.state.subscribe(() => {
@@ -91,11 +108,24 @@ export class TaskRealtimeClient {
                 return;
             }
 
-            const newQueries = new Set<TaskClientQuery>(queriesStore.getSnapshot());
+            const subscriptions = subscriptionsStore.getSnapshot();
+
+            const newQueries = new Set(subscriptions.queries);
+            const newTaskSubscriptions = new Set(subscriptions.taskSubscriptions);
+            const newCollectionSubscriptions = new Set(subscriptions.collectionSubscriptions);
+
             const oldSubscribedQueries = new Set<{
                 query: TaskClientQuery;
                 querySubscriptionIdPromise: Promise<TaskRealtimeQuerySubscriptionId>;
                 unsubscribeFromLoadMoreTaskCount: () => void;
+            }>();
+            const oldSubscribedTasks = new Set<{
+                taskSubscription: TaskClientTaskSubscription;
+                taskSubscriptionIdPromise: Promise<TaskRealtimeTaskSubscriptionId>;
+            }>();
+            const oldSubscribedCollections = new Set<{
+                collectionSubscription: TaskClientCollectionSubscription;
+                collectionSubscriptionIdPromise: Promise<TaskRealtimeCollectionSubscriptionId>;
             }>();
 
             for (const subscribedQuery of subscribedQueries) {
@@ -103,8 +133,23 @@ export class TaskRealtimeClient {
                 oldSubscribedQueries.add(subscribedQuery);
             }
 
-            // Subscribe to new queries:
-            if (newQueries.size > 0) {
+            for (const subscribedTask of subscribedTasks) {
+                if (newTaskSubscriptions.delete(subscribedTask.taskSubscription)) continue;
+                oldSubscribedTasks.add(subscribedTask);
+            }
+
+            for (const subscribedCollection of subscribedCollections) {
+                if (newCollectionSubscriptions.delete(subscribedCollection.collectionSubscription))
+                    continue;
+                oldSubscribedCollections.add(subscribedCollection);
+            }
+
+            // Subscribe to new queries, tasks, and collections:
+            if (
+                newQueries.size > 0 ||
+                newTaskSubscriptions.size > 0 ||
+                newCollectionSubscriptions.size > 0
+            ) {
                 const newQueriesArray = Array.from(newQueries);
 
                 const newQueryLimits = newQueriesArray.map(query =>
@@ -145,8 +190,14 @@ export class TaskRealtimeClient {
                             filters: query.filters,
                             sorts: query.sorts,
                         })),
-                        tasks: [],
-                        collections: [],
+                        taskIds: Array.from(
+                            newTaskSubscriptions,
+                            taskSubscription => taskSubscription.taskId,
+                        ),
+                        collectionIds: Array.from(
+                            newCollectionSubscriptions,
+                            collectionSubscription => collectionSubscription.collectionId,
+                        ),
                     })
                     .then(output => {
                         batchStoreUpdates(() => {
@@ -180,7 +231,7 @@ export class TaskRealtimeClient {
                         // previous `loadMoreQueryTasks` call may fulfill the next one.
                         const loadMoreTasksPromise = loadMoreTasksMutex.withLock(async () => {
                             // If a query was unsubscribed then don't load more tasks.
-                            if (!queriesStore.getSnapshot().has(query)) return;
+                            if (!subscriptionsStore.getSnapshot().queries.has(query)) return;
 
                             const querySubscriptionId = await querySubscriptionIdPromise;
 
@@ -205,10 +256,10 @@ export class TaskRealtimeClient {
 
                         loadMoreTasksPromise.catch(error => {
                             // If this promise fails after the query unsubscribes then that's expected! Not
-                            // a glitch, don't present to the user. `unsubscribeFromQueries` will cause any
-                            // pending loads to fail with `CancelledError`. Still log the exception for
-                            // tracking though. Maybe it was a system error?
-                            if (!queriesStore.getSnapshot().has(query)) {
+                            // a glitch, don't present to the user. `unsubscribe` will cause any pending
+                            // loads to fail with `CancelledError`. Still log the exception for tracking
+                            // though. Maybe it was a system error?
+                            if (!subscriptionsStore.getSnapshot().queries.has(query)) {
                                 this._getContext()
                                     .tracer.getRoot()
                                     .logUncaughtException(
@@ -241,46 +292,103 @@ export class TaskRealtimeClient {
                 });
             }
 
-            // Unsubscribe from old queries:
-            if (oldSubscribedQueries.size > 0) {
+            // Unsubscribe from old queries, tasks, and collections:
+            if (
+                oldSubscribedQueries.size > 0 ||
+                oldSubscribedTasks.size > 0 ||
+                oldSubscribedCollections.size > 0
+            ) {
                 for (const subscribedQuery of oldSubscribedQueries) {
                     subscribedQuery.unsubscribeFromLoadMoreTaskCount();
                     subscribedQueries.delete(subscribedQuery);
                 }
 
+                for (const subscribedTask of oldSubscribedTasks) {
+                    subscribedTasks.delete(subscribedTask);
+                }
+
+                for (const subscribedCollection of oldSubscribedCollections) {
+                    subscribedCollections.delete(subscribedCollection);
+                }
+
                 const unsubscribeFromConnectionId = connectionId;
 
-                Promise.allSettled(
-                    Array.from(
-                        oldSubscribedQueries,
-                        subscribedQuery => subscribedQuery.querySubscriptionIdPromise,
+                runAllPromises([
+                    Promise.allSettled(
+                        Array.from(
+                            oldSubscribedQueries,
+                            subscribedQuery => subscribedQuery.querySubscriptionIdPromise,
+                        ),
                     ),
-                )
-                    .then(querySubscriptionIdResults => {
-                        // Ignore any errors when resolving `querySubscriptionIdPromise`s. Those
-                        // errors should have been handled above. If a `querySubscriptionIdPromise`
-                        // erred it is not subscribed on the server.
-                        const querySubscriptionIds = filterMapArray(
+                    Promise.allSettled(
+                        Array.from(
+                            oldSubscribedTasks,
+                            subscribedTask => subscribedTask.taskSubscriptionIdPromise,
+                        ),
+                    ),
+                    Promise.allSettled(
+                        Array.from(
+                            oldSubscribedCollections,
+                            subscribedCollection =>
+                                subscribedCollection.collectionSubscriptionIdPromise,
+                        ),
+                    ),
+                ])
+                    .then(
+                        ([
                             querySubscriptionIdResults,
-                            querySubscriptionIdResult =>
-                                querySubscriptionIdResult.status === "fulfilled"
-                                    ? querySubscriptionIdResult.value
-                                    : null,
-                        );
+                            taskSubscriptionIdResults,
+                            collectionSubscriptionIdResults,
+                        ]) => {
+                            // Ignore any errors when resolving `querySubscriptionIdPromise`s. Those
+                            // errors should have been handled above. If a `querySubscriptionIdPromise`
+                            // erred it is not subscribed on the server.
+                            //
+                            // Same for `taskSubscriptionIds` and `collectionSubscriptionIds` below.
+                            const querySubscriptionIds = filterMapArray(
+                                querySubscriptionIdResults,
+                                querySubscriptionIdResult =>
+                                    querySubscriptionIdResult.status === "fulfilled"
+                                        ? querySubscriptionIdResult.value
+                                        : null,
+                            );
 
-                        if (querySubscriptionIds.length === 0) return;
+                            const taskSubscriptionIds = filterMapArray(
+                                taskSubscriptionIdResults,
+                                taskSubscriptionIdResult =>
+                                    taskSubscriptionIdResult.status === "fulfilled"
+                                        ? taskSubscriptionIdResult.value
+                                        : null,
+                            );
 
-                        // If our connection changed while waiting on `querySubscriptionId`s (maybe the
-                        // connection closed unexpectedly) then these queries are automatically
-                        // unsubscribed and we don't need to send a message.
-                        if (unsubscribeFromConnectionId !== connectionId) return;
+                            const collectionSubscriptionIds = filterMapArray(
+                                collectionSubscriptionIdResults,
+                                collectionSubscriptionIdResult =>
+                                    collectionSubscriptionIdResult.status === "fulfilled"
+                                        ? collectionSubscriptionIdResult.value
+                                        : null,
+                            );
 
-                        return this._client.procedures.unsubscribe({
-                            querySubscriptionIds,
-                            taskSubscriptionIds: [],
-                            collectionSubscriptionIds: [],
-                        });
-                    })
+                            if (
+                                querySubscriptionIds.length === 0 &&
+                                taskSubscriptionIds.length === 0 &&
+                                collectionSubscriptionIds.length === 0
+                            ) {
+                                return;
+                            }
+
+                            // If our connection changed while waiting on `querySubscriptionId`s (maybe the
+                            // connection closed unexpectedly) then these queries are automatically
+                            // unsubscribed and we don't need to send a message.
+                            if (unsubscribeFromConnectionId !== connectionId) return;
+
+                            return this._client.procedures.unsubscribe({
+                                querySubscriptionIds,
+                                taskSubscriptionIds,
+                                collectionSubscriptionIds,
+                            });
+                        },
+                    )
                     .catch(error => {
                         // NOCOMMIT: How do we present errors??
                         console.error(error);
@@ -288,7 +396,7 @@ export class TaskRealtimeClient {
             }
         };
 
-        const unsubscribeFromQueriesStore = queriesStore.subscribe(updateSubscribedQueries);
+        const unsubscribeFromQueriesStore = subscriptionsStore.subscribe(updateSubscribedQueries);
 
         this._disconnect = () => {
             // Clear the `connectionId` since our state listener won't be called after

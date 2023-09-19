@@ -4,15 +4,15 @@ import {Store} from "~/client/helpers/store/store.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {
     TaskClientStore,
-    TaskClientStoreCollectionEntry,
     TaskClientStoreInternal,
     TaskClientStoreTaskEntry,
 } from "~/client/tasks/task_client_store.js";
+import {TaskClientTaskReferencesSubscriptionBase} from "~/client/tasks/task_client_task_references_subscription_base.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {TaskId} from "~/shared/id/types/id_types.js";
 import {evaluateTaskQueryNormalizedFiltersForModel} from "~/shared/tasks/model/evaluate_task_query_normalized_filters_for_model.js";
 import {getTaskQueryNormalizedSortCursorForModel} from "~/shared/tasks/model/get_task_query_normalized_sort_cursor_for_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
@@ -190,7 +190,7 @@ export class TaskClientQuery {
     }
 }
 
-export class TaskClientQueryInternal {
+export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptionBase {
     public readonly store: TaskClientStoreInternal;
     public readonly filters: TaskQueryNormalizedFilters;
     public readonly sorts: ReadonlyArray<TaskQueryNormalizedSort>;
@@ -210,15 +210,6 @@ export class TaskClientQueryInternal {
         readonly taskOrder: Tree<TaskQuerySortCursor, null>;
     }>;
     private readonly _taskEntryStoreById = new Map<TaskId, Store<TaskClientStoreTaskEntry>>();
-
-    private readonly _referencedTaskEntryStoreById = new Map<
-        TaskId,
-        {referenceCount: number; taskEntryStore: Store<TaskClientStoreTaskEntry>}
-    >();
-    private readonly _referencedCollectionEntryStoreById = new Map<
-        TaskCollectionId,
-        {referenceCount: number; taskEntryStore: Store<TaskClientStoreCollectionEntry>}
-    >();
 
     /**
      * The current loaded state of the query.
@@ -252,6 +243,7 @@ export class TaskClientQueryInternal {
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
     }) {
+        super();
         this.store = store;
         this.filters = filters;
         this.sorts = sorts;
@@ -300,6 +292,10 @@ export class TaskClientQueryInternal {
         });
 
         this.external = new TaskClientQuery(this);
+    }
+
+    protected override _getStore() {
+        return this.store;
     }
 
     public assertCorrectForTest() {
@@ -392,7 +388,7 @@ export class TaskClientQueryInternal {
         if (this._referenceCount === 0) {
             batchStoreUpdates(() => {
                 // Delete the query from our store.
-                this.store.onQueryFinallyRelease(this);
+                this.store.onQueryFinallyReleased(this);
 
                 // Clear our query's task data.
                 this._taskEntryStoreById.clear();
@@ -665,248 +661,4 @@ export class TaskClientQueryInternal {
     private _onLoadedTaskRemove(oldTaskEntry: TaskClientStoreTaskEntry) {
         this._trackTaskDependenciesFromRemove(oldTaskEntry);
     }
-
-    private _onReferencedTaskAdd(newTaskEntry: TaskClientStoreTaskEntry) {
-        this._trackTaskDependenciesFromAdd(newTaskEntry);
-    }
-
-    private _onReferencedTaskUpdate(
-        oldTaskEntry: TaskClientStoreTaskEntry,
-        newTaskEntry: TaskClientStoreTaskEntry,
-    ) {
-        this._trackTaskDependenciesFromUpdate(oldTaskEntry, newTaskEntry);
-    }
-
-    private _onReferencedTaskRemove(oldTaskEntry: TaskClientStoreTaskEntry) {
-        this._trackTaskDependenciesFromRemove(oldTaskEntry);
-    }
-
-    private _trackTaskDependenciesFromAdd(newTaskEntry: TaskClientStoreTaskEntry) {
-        // Get a reference to the parent tasks of loaded tasks
-        const newParentTaskId = newTaskEntry.task?.getParent()?.taskId;
-        if (newParentTaskId) {
-            this._trackNewParentTaskDependency(newParentTaskId);
-        }
-
-        // Get a reference to the collections of loaded tasks
-        const newCollectionIds = new Set(
-            newTaskEntry.task
-                ?.getCollections()
-                .getArray()
-                .map(({collectionId}) => collectionId),
-        );
-        for (const newCollectionId of newCollectionIds) {
-            const referencedCollectionEntryStore =
-                this._referencedCollectionEntryStoreById.get(newCollectionId);
-
-            if (referencedCollectionEntryStore !== undefined) {
-                referencedCollectionEntryStore.referenceCount++;
-            } else {
-                // The server makes sure all referenced collections are available so it's safe
-                // to assert. If a parent task is not available that means the server has
-                // failed to send us some data or we didn't hold a reference to the task and it
-                // was garbage collected.
-                const collectionEntryStore = assertExists(
-                    this.store.getCollectionEntryStoreIfExists(newCollectionId),
-                );
-
-                this._referencedCollectionEntryStoreById.set(newCollectionId, {
-                    referenceCount: 1,
-                    taskEntryStore: collectionEntryStore,
-                });
-            }
-        }
-    }
-
-    private _trackTaskDependenciesFromUpdate(
-        oldTaskEntry: TaskClientStoreTaskEntry,
-        newTaskEntry: TaskClientStoreTaskEntry,
-    ) {
-        // If parent task updated then update our references
-        const oldParentTaskId = oldTaskEntry.task?.getParent()?.taskId;
-        const newParentTaskId = newTaskEntry.task?.getParent()?.taskId;
-
-        if (oldParentTaskId !== newParentTaskId) {
-            // Track references for the new parent first so if the old parent indirectly
-            // references stuff in the new parent we don't remove those references and add
-            // them immediately back.
-            if (newParentTaskId) {
-                this._trackNewParentTaskDependency(newParentTaskId);
-            }
-
-            if (oldParentTaskId) {
-                this._trackOldParentTaskDependency(oldParentTaskId);
-            }
-        }
-
-        // If collections updated then update our references
-        if (oldTaskEntry.task?.getCollections() !== newTaskEntry.task?.getCollections()) {
-            const newCollectionIds = new Set(
-                newTaskEntry.task
-                    ?.getCollections()
-                    .getArray()
-                    .map(({collectionId}) => collectionId),
-            );
-            const oldCollectionIds = new Set(
-                oldTaskEntry.task
-                    ?.getCollections()
-                    .getArray()
-                    .map(({collectionId}) => collectionId),
-            );
-
-            const addedCollectionIds = diffSets(newCollectionIds, oldCollectionIds);
-            const removedCollectionIds = diffSets(oldCollectionIds, newCollectionIds);
-
-            for (const addedCollectionId of addedCollectionIds) {
-                const referencedCollectionEntryStore =
-                    this._referencedCollectionEntryStoreById.get(addedCollectionId);
-
-                if (referencedCollectionEntryStore !== undefined) {
-                    referencedCollectionEntryStore.referenceCount++;
-                } else {
-                    // The server makes sure all referenced collections are available so it's safe
-                    // to assert. If a parent task is not available that means the server has
-                    // failed to send us some data or we didn't hold a reference to the task and it
-                    // was garbage collected.
-                    const collectionEntryStore = assertExists(
-                        this.store.getCollectionEntryStoreIfExists(addedCollectionId),
-                    );
-
-                    this._referencedCollectionEntryStoreById.set(addedCollectionId, {
-                        referenceCount: 1,
-                        taskEntryStore: collectionEntryStore,
-                    });
-                }
-            }
-
-            for (const removedCollectionId of removedCollectionIds) {
-                const referencedCollectionEntryStore = assertExists(
-                    this._referencedCollectionEntryStoreById.get(removedCollectionId),
-                );
-
-                referencedCollectionEntryStore.referenceCount--;
-
-                if (referencedCollectionEntryStore.referenceCount === 0) {
-                    this._referencedCollectionEntryStoreById.delete(removedCollectionId);
-                }
-            }
-        }
-    }
-
-    private _trackTaskDependenciesFromRemove(oldTaskEntry: TaskClientStoreTaskEntry) {
-        // Remove the reference to the parent task of this loaded task
-        const oldParentTaskId = oldTaskEntry.task?.getParent()?.taskId;
-        if (oldParentTaskId) {
-            this._trackOldParentTaskDependency(oldParentTaskId);
-        }
-
-        // Remove the references to the collections of this loaded task
-        const oldCollectionIds = new Set(
-            oldTaskEntry.task
-                ?.getCollections()
-                .getArray()
-                .map(({collectionId}) => collectionId),
-        );
-        for (const oldCollectionId of oldCollectionIds) {
-            const referencedCollectionEntryStore = assertExists(
-                this._referencedCollectionEntryStoreById.get(oldCollectionId),
-            );
-
-            referencedCollectionEntryStore.referenceCount--;
-
-            if (referencedCollectionEntryStore.referenceCount === 0) {
-                this._referencedCollectionEntryStoreById.delete(oldCollectionId);
-            }
-        }
-    }
-
-    private _trackNewParentTaskDependency(newParentTaskId: TaskId) {
-        const referencedTaskEntryStore = this._referencedTaskEntryStoreById.get(newParentTaskId);
-
-        if (referencedTaskEntryStore !== undefined) {
-            referencedTaskEntryStore.referenceCount++;
-        } else {
-            // The server makes sure all parent tasks are available so it's safe to assert.
-            // If a parent task is not available that means the server has failed to send
-            // us some data or we didn't hold a reference to the task and it was garbage
-            // collected.
-            const taskEntryStore = assertExists(
-                this.store.getTaskEntryStoreIfExists(newParentTaskId),
-            );
-
-            this._referencedTaskEntryStoreById.set(newParentTaskId, {
-                referenceCount: 1,
-                taskEntryStore,
-            });
-
-            this._onReferencedTaskAdd(taskEntryStore.getSnapshot());
-        }
-    }
-
-    private _trackOldParentTaskDependency(oldParentTaskId: TaskId) {
-        // If we are removing a cycle then we should recursively visit this function
-        // but the task has already been removed so we don't need to remove it again
-        // (we'll get an assertion error if we try).
-        if (removingCycleStartingWithTaskId === oldParentTaskId) return;
-
-        const referencedTaskEntryStore = assertExists(
-            this._referencedTaskEntryStoreById.get(oldParentTaskId),
-        );
-
-        referencedTaskEntryStore.referenceCount--;
-
-        if (referencedTaskEntryStore.referenceCount === 0) {
-            this._referencedTaskEntryStoreById.delete(oldParentTaskId);
-            this._onReferencedTaskRemove(referencedTaskEntryStore.taskEntryStore.getSnapshot());
-        }
-        // If we have a cycle then a task entry's one remaining reference might be a
-        // reference to itself! Loop through the task's parents to see if we have a
-        // cycle and if we find a cycle remove the entire thing.
-        else if (referencedTaskEntryStore.referenceCount === 1) {
-            const seenTaskIds = new Set<TaskId>([]);
-            let currentReferencedTaskEntryStore = referencedTaskEntryStore;
-            while (true) {
-                // If a parent has more than one reference the cycle isn't dead even if we have
-                // a cycle.
-                if (currentReferencedTaskEntryStore.referenceCount !== 1) break;
-
-                const taskEntry = currentReferencedTaskEntryStore.taskEntryStore.getSnapshot();
-                if (!taskEntry.task) break;
-                const parentTaskId = taskEntry.task.getParent()?.taskId;
-                if (!parentTaskId) break;
-
-                // If we find a parent we've already seen before, this is a cycle! Remove the
-                // entire cycle as dependencies. `_onReferencedTaskRemove` will recursively
-                // visit the other cycle members.
-                if (seenTaskIds.has(taskEntry.task.id)) {
-                    const previousRemovingCycleFromInitialTaskId = removingCycleStartingWithTaskId;
-                    removingCycleStartingWithTaskId = taskEntry.task.id;
-                    try {
-                        this._referencedTaskEntryStoreById.delete(taskEntry.task.id);
-                        this._onReferencedTaskRemove(taskEntry);
-                    } finally {
-                        removingCycleStartingWithTaskId = previousRemovingCycleFromInitialTaskId;
-                    }
-                    break;
-                }
-                seenTaskIds.add(taskEntry.task.id);
-
-                currentReferencedTaskEntryStore = assertExists(
-                    this._referencedTaskEntryStoreById.get(parentTaskId),
-                );
-            }
-        }
-    }
-}
-
-let removingCycleStartingWithTaskId: TaskId | null = null;
-
-function diffSets<T>(set1: ReadonlySet<T>, set2: ReadonlySet<T>): Set<T> {
-    const newSet = new Set<T>(set1);
-
-    for (const item of set2) {
-        newSet.delete(item);
-    }
-
-    return newSet;
 }

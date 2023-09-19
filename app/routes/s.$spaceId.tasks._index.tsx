@@ -2,14 +2,15 @@ import {useEffect, useMemo} from "react";
 import {Params} from "react-router";
 import {Box} from "~/client/design/box.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
+import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/get_new_task_position_for_query_sorted_by_position.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {TaskGridView} from "~/client/tasks/task_grid_view.js";
 import {
-    clientLoaderLoadTaskQueryData,
-    useLoaderTaskQueriesWithoutRetaining,
+    clientLoaderTaskStoreLoaderData,
+    useTaskStoreLoaderDataWithoutRetaining,
 } from "~/client/tasks/task_realtime_client_context_provider.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -38,6 +39,8 @@ const LoaderSchema = Schema.object({
     notepadPageViewExpandedState: TaskGridViewExpansionStateSchema,
     initialBottomGhostTaskId: Schema.id<TaskId>(),
 });
+
+export const meta = createMetaFunction(LoaderSchema, () => [{title: "Notepad"}]);
 
 export async function loader({params, context: _context}: LoaderArgs) {
     const context = (await _context.actor.authenticate()).actor.authorizeSession();
@@ -126,13 +129,16 @@ export async function loader({params, context: _context}: LoaderArgs) {
         shouldLoadGridViewExpandedChildTasksForBrowserId: context.loader.getBrowserId(),
     };
 
-    const {loadedStates, gridViewExpansionStates, extraQueries, updateEvent} =
-        await context.tasks.loadQueries(spaceId, [assigneeActiveQuery, notepadPageQuery]);
+    const {queries, extraQueries, updateEvent} = await context.tasks.loadQueries(spaceId, {
+        queries: [assigneeActiveQuery, notepadPageQuery],
+        taskIds: [],
+        collectionIds: [],
+    });
 
-    const assigneeActiveQueryLoadedState = assertExists(loadedStates[0]);
-    const notepadPageQueryLoadedState = assertExists(loadedStates[1]);
+    const assigneeActiveQueryLoadedState = assertExists(queries[0]).loadedState;
+    const notepadPageQueryLoadedState = assertExists(queries[1]).loadedState;
 
-    const notepadPageViewExpandedState = gridViewExpansionStates[1] ?? null;
+    const notepadPageViewExpandedState = queries[1]?.gridViewExpansionState ?? null;
 
     return jsonWithSchema(
         LoaderSchema,
@@ -148,7 +154,7 @@ export async function loader({params, context: _context}: LoaderArgs) {
                     taskNotepadPageId: notepadPageId,
                 },
             },
-            loadTaskQueryData: {
+            taskStoreLoaderData: {
                 queries: [
                     {
                         limit: assigneeActiveQuery.limit,
@@ -164,6 +170,8 @@ export async function loader({params, context: _context}: LoaderArgs) {
                     },
                     ...extraQueries,
                 ],
+                taskIds: [],
+                collectionIds: [],
                 updateEvent,
             },
         },
@@ -179,13 +187,15 @@ export async function clientLoader({
 }) {
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
 
-    clientLoaderLoadTaskQueryData(spaceId, data);
+    clientLoaderTaskStoreLoaderData(spaceId, data);
 }
 
 export default function TasksRoute() {
     const {notepadPageId, notepadPageViewExpandedState, initialBottomGhostTaskId} =
         useLoaderDataWithSchema(LoaderSchema);
-    const [assigneeActiveQuery, notepadPageQuery] = useLoaderTaskQueriesWithoutRetaining();
+    const {
+        queries: [assigneeActiveQuery, notepadPageQuery],
+    } = useTaskStoreLoaderDataWithoutRetaining();
     assert(assigneeActiveQuery && notepadPageQuery);
 
     // Retain our queries so they aren't destroyed after

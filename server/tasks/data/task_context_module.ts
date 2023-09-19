@@ -24,12 +24,6 @@ import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {SpaceId, TaskActionTransactionId} from "~/shared/id/types/id_types.js";
 import {SchemaSerializedValue, SchemaType} from "~/shared/schema/schema.js";
 import {TaskAction, getTaskActionLabel} from "~/shared/tasks/actions/task_action.js";
-import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
-import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
-import {
-    TaskRealtimeQueryLoadedState,
-    TaskRealtimeUpdateEvent,
-} from "~/shared/tasks/task_realtime_protocol.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
 export abstract class TaskContextModuleBase extends ContextModuleBase<{
@@ -245,11 +239,7 @@ export class TaskContextModule extends TaskContextModuleBase {
                 actor: DynamoSessionActorContextModule;
             }>,
         spaceId: SpaceId,
-        queries: Array<{
-            filters: TaskQueryNormalizedFilters;
-            sorts: ReadonlyArray<TaskQueryNormalizedSort>;
-            limit: number;
-        }>,
+        input: SchemaType<typeof TaskRealtimeLoadQueriesInputSchema>,
     ): Promise<SchemaType<typeof TaskRealtimeLoadQueriesOutputSchema>> {
         const [hosts, token] = await runAllPromises([
             this.router.getHosts(this._context, spaceId),
@@ -276,7 +266,7 @@ export class TaskContextModule extends TaskContextModuleBase {
                     authorization: `bearer ${token}`,
                     "content-type": "application/json",
                 },
-                body: JSON.stringify(TaskRealtimeLoadQueriesInputSchema.serialize({queries})),
+                body: JSON.stringify(TaskRealtimeLoadQueriesInputSchema.serialize(input)),
             },
         );
 

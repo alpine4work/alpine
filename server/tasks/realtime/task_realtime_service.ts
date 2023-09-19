@@ -356,28 +356,25 @@ runService({
                             notifications: notificationsContextModule,
                         },
                         async (context: ServerSessionActionContext) => {
-                            const {queries} = TaskRealtimeLoadQueriesInputSchema.deserialize(
+                            const input = TaskRealtimeLoadQueriesInputSchema.deserialize(
                                 await request.json(),
                             );
 
-                            const {
-                                loadedStates,
-                                gridViewExpansionStates,
-                                extraQueries,
-                                updateEvent,
-                            } = await loadTaskRealtimeQueries(context, {
-                                server,
-                                dangerouslyEscalateToSystemContext,
-                                spaceId,
-                                queries,
-                            });
+                            const {queries, extraQueries, updateEvent} =
+                                await loadTaskRealtimeQueries(context, {
+                                    server,
+                                    dangerouslyEscalateToSystemContext,
+                                    spaceId,
+                                    queries: input.queries,
+                                    taskIds: input.taskIds,
+                                    collectionIds: input.collectionIds,
+                                });
 
                             return new Response(
                                 JSON.stringify(
                                     TaskRealtimeLoadQueriesOutputSchema.serialize({
                                         ok: true,
-                                        loadedStates,
-                                        gridViewExpansionStates,
+                                        queries,
                                         extraQueries,
                                         updateEvent,
                                     }),

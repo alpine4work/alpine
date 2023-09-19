@@ -1,4 +1,4 @@
-import {BrowserId} from "~/shared/id/types/id_types.js";
+import {BrowserId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TaskActionSchema} from "~/shared/tasks/actions/task_action.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
@@ -23,12 +23,18 @@ export const TaskRealtimeLoadQueriesInputSchema = Schema.object({
             shouldLoadGridViewExpandedChildTasksForBrowserId: Schema.id<BrowserId>().optional(),
         }),
     ),
+    taskIds: Schema.array(Schema.id<TaskId>()),
+    collectionIds: Schema.array(Schema.id<TaskCollectionId>()),
 });
 
 export const TaskRealtimeLoadQueriesOutputSchema = Schema.object({
     ok: Schema.value(true),
-    loadedStates: Schema.array(TaskRealtimeQueryLoadedStateSchema),
-    gridViewExpansionStates: Schema.array(TaskGridViewExpansionStateSchema),
+    queries: Schema.array(
+        Schema.object({
+            loadedState: TaskRealtimeQueryLoadedStateSchema,
+            gridViewExpansionState: TaskGridViewExpansionStateSchema,
+        }),
+    ),
     extraQueries: Schema.array(
         Schema.object({
             filters: TaskQueryNormalizedFiltersSchema,

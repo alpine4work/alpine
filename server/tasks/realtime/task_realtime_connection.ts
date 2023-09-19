@@ -504,10 +504,10 @@ export class TaskRealtimeConnection {
                     input.queries.map(input => this._authorizeSubscribeToQuery(context, input)),
                 ),
                 runAllPromises(
-                    input.tasks.map(({taskId}) => this._authorizeSubscribeToTask(context, taskId)),
+                    input.taskIds.map(taskId => this._authorizeSubscribeToTask(context, taskId)),
                 ),
                 runAllPromises(
-                    input.collections.map(({collectionId}) =>
+                    input.collectionIds.map(collectionId =>
                         this._authorizeSubscribeToCollection(context, collectionId),
                     ),
                 ),
@@ -639,8 +639,12 @@ export class TaskRealtimeConnection {
                                     previouslyBackfilledTaskIds: getPreviouslyBackfilledTaskIds(),
                                 }),
                             ),
-                            tasks: taskValues,
-                            collections: collectionValues,
+                            taskSubscriptionIds: taskValues.map(
+                                ({taskSubscriptionId}) => taskSubscriptionId,
+                            ),
+                            collectionSubscriptionIds: collectionValues.map(
+                                ({collectionSubscriptionId}) => collectionSubscriptionId,
+                            ),
                         };
                     } catch (error) {
                         // If we failed to send our subscription ids to the client, then

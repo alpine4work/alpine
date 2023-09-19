@@ -48,6 +48,9 @@ import {
  * client is expected to establish a realtime WebSocket connection to receive
  * ongoing updates.
  *
+ * In addition to loading queries you may load individual `TaskId`s and
+ * `TaskCollectionId`s.
+ *
  * Different from `server.loadQuery()` because we run authorization checks so
  * the data is safe to return to an end user.
  *
@@ -66,6 +69,8 @@ export async function loadTaskRealtimeQueries(
         dangerouslyEscalateToSystemContext,
         spaceId,
         queries,
+        taskIds,
+        collectionIds,
     }: {
         server: TaskRealtimeServer;
         dangerouslyEscalateToSystemContext: <Value>(
@@ -84,10 +89,14 @@ export async function loadTaskRealtimeQueries(
             limit: number;
             shouldLoadGridViewExpandedChildTasksForBrowserId?: BrowserId;
         }>;
+        taskIds: ReadonlyArray<TaskId>;
+        collectionIds: ReadonlyArray<TaskCollectionId>;
     },
 ): Promise<{
-    loadedStates: Array<TaskRealtimeQueryLoadedState>;
-    gridViewExpansionStates: Array<TaskGridViewExpansionState>;
+    queries: Array<{
+        loadedState: TaskRealtimeQueryLoadedState;
+        gridViewExpansionState: TaskGridViewExpansionState | null;
+    }>;
     extraQueries: Array<{
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
@@ -362,19 +371,62 @@ export async function loadTaskRealtimeQueries(
     // the query before using the escalated context.
     //
     // We escalate at this level to share an action cache across all query loads.
-    const loadedStatesAndGridViewExpansionStates = await dangerouslyEscalateToSystemContext(
-        context,
-        spaceId,
-        context => runAllPromises(queries.map(query => loadQuery(context, query))),
+    const [queryOutputs] = await dangerouslyEscalateToSystemContext(context, spaceId, context =>
+        runAllPromises([
+            runAllPromises(queries.map(query => loadQuery(context, query))),
+            runAllPromises(
+                taskIds.map(taskId => {
+                    const promise = (async () => {
+                        await server.authorizeTaskAccess(sessionContext, spaceId, taskId, "View");
+
+                        const task = await server.getTask(context, spaceId, taskId);
+
+                        trackTaskDependencies(context, task);
+
+                        backfillAuthorizedTaskSet.add(task);
+                        backfillUnauthorizedTaskIds.delete(task.id);
+                    })();
+
+                    // If someone else references this task we don't have to authorize it because
+                    // it's directly loaded.
+                    if (loadTaskPromiseById.has(taskId)) {
+                        loadTaskPromiseById.set(taskId, promise);
+                    }
+
+                    return promise;
+                }),
+            ),
+            runAllPromises(
+                collectionIds.map(collectionId => {
+                    const promise = (async () => {
+                        await server.authorizeCollectionAccess(
+                            sessionContext,
+                            spaceId,
+                            collectionId,
+                            "View",
+                        );
+
+                        const collection = await server.getCollection(
+                            context,
+                            spaceId,
+                            collectionId,
+                        );
+
+                        backfillAuthorizedCollectionSet.add(collection);
+                        backfillUnauthorizedCollectionIds.delete(collection.id);
+                    })();
+
+                    // If someone else references this collection we don't have to authorize it
+                    // because it's directly loaded.
+                    if (loadCollectionPromiseById.has(collectionId)) {
+                        loadCollectionPromiseById.set(collectionId, promise);
+                    }
+
+                    return promise;
+                }),
+            ),
+        ]),
     );
-
-    const loadedStates = [];
-    const gridViewExpansionStates = [];
-
-    for (const {loadedState, gridViewExpansionState} of loadedStatesAndGridViewExpansionStates) {
-        loadedStates.push(loadedState);
-        gridViewExpansionStates.push(gridViewExpansionState);
-    }
 
     const extraQueries = await runAllPromises(extraQueryPromises);
 
@@ -424,8 +476,7 @@ export async function loadTaskRealtimeQueries(
     );
 
     return {
-        loadedStates,
-        gridViewExpansionStates,
+        queries: queryOutputs,
         extraQueries,
         updateEvent: {
             type: "Update",

@@ -30,4 +30,4 @@ export const propagateEventDataKey = "_propagateEventData";
  * variable. That makes code related to shared task store data loading with
  * `jsonWithSchema()` easier to track.
  */
-export const loadTaskQueryDataKey = "_loadTaskQueryData";
+export const taskStoreLoaderDataKey = "_taskStoreLoaderData";

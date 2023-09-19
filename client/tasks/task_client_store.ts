@@ -3,7 +3,9 @@ import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {StoreMap} from "~/client/helpers/store/store_map.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
+import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {TaskClientQuery, TaskClientQueryInternal} from "~/client/tasks/task_client_query.js";
+import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
 import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_clock.js";
 import {Context} from "~/shared/context/context.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
@@ -169,8 +171,8 @@ export class TaskClientStore {
         return this._internal.getCollectionEntryStoreIfExists(collectionId);
     }
 
-    public getQueriesStore(): Store<ReadonlySet<TaskClientQuery>> {
-        return this._internal.getQueriesStore();
+    public getSubscriptionsStore() {
+        return this._internal.getSubscriptionsStore();
     }
 
     public applyUpdateEvent(event: TaskRealtimeUpdateEvent): void {
@@ -255,6 +257,16 @@ export class TaskClientStore {
     public getTaskChildrenQueryStore(parentTaskId: TaskId): Store<TaskClientQuery | undefined> {
         return this._internal.getTaskChildrenQueryStore(parentTaskId);
     }
+
+    public createAndRetainTaskSubscription(taskId: TaskId): TaskClientTaskSubscription {
+        return this._internal.createAndRetainTaskSubscription(taskId);
+    }
+
+    public createAndRetainCollectionSubscription(
+        collectionId: TaskCollectionId,
+    ): TaskClientCollectionSubscription {
+        return this._internal.createAndRetainCollectionSubscription(collectionId);
+    }
 }
 
 export class TaskClientStoreInternal {
@@ -303,9 +315,17 @@ export class TaskClientStoreInternal {
     >();
 
     /**
-     * The queries our client is currently subscribed to.
+     * The various subscriptions our client is currently holding on to.
      */
-    private readonly _queriesStore = new ValueStore<ReadonlySet<TaskClientQuery>>(new Set());
+    private readonly _subscriptionsStore = new ValueStore<{
+        readonly queries: ReadonlySet<TaskClientQuery>;
+        readonly taskSubscriptions: ReadonlySet<TaskClientTaskSubscription>;
+        readonly collectionSubscriptions: ReadonlySet<TaskClientCollectionSubscription>;
+    }>({
+        queries: new Set(),
+        taskSubscriptions: new Set(),
+        collectionSubscriptions: new Set(),
+    });
 
     /**
      * Queries for the child tasks of a given parent task.
@@ -370,10 +390,14 @@ export class TaskClientStoreInternal {
         return this._collectionEntryStoreById.getSizeForTest();
     }
 
-    public getQueriesStore(): Store<ReadonlySet<TaskClientQuery>> {
+    public getSubscriptionsStore(): Store<{
+        readonly queries: ReadonlySet<TaskClientQuery>;
+        readonly taskSubscriptions: ReadonlySet<TaskClientTaskSubscription>;
+        readonly collectionSubscriptions: ReadonlySet<TaskClientCollectionSubscription>;
+    }> {
         // Importantly our return type returns a `Store` not a `ValueStore`. Callers
         // shouldn't be able to access `set()`.
-        return this._queriesStore;
+        return this._subscriptionsStore;
     }
 
     public getTaskEntryStoreIfExists(taskId: TaskId): Store<TaskClientStoreTaskEntry> | null {
@@ -1955,7 +1979,7 @@ export class TaskClientStoreInternal {
 
             // Apply task updates to all our queries. This will also update stores within
             // the query which will call listeners at the end of the batch.
-            for (const query of this._queriesStore.getSnapshot()) {
+            for (const query of this._subscriptionsStore.getSnapshot().queries) {
                 query._getInternal(this).onTasksUpdated(taskEntryUpdateById);
             }
 
@@ -2288,10 +2312,10 @@ export class TaskClientStoreInternal {
                 sorts,
             });
 
-            this._queriesStore.set(oldQueries => {
-                const newQueries = new Set(oldQueries);
+            this._subscriptionsStore.set(subscriptions => {
+                const newQueries = new Set(subscriptions.queries);
                 newQueries.add(query.external);
-                return newQueries;
+                return {...subscriptions, queries: newQueries};
             });
 
             // Detect if this is a child task query (filters for all child tasks, sorted by
@@ -2337,26 +2361,26 @@ export class TaskClientStoreInternal {
                 return query.external;
             });
 
-            this._queriesStore.set(oldQueries => {
-                const newQueries = new Set(oldQueries);
+            this._subscriptionsStore.set(subscriptions => {
+                const newQueries = new Set(subscriptions.queries);
 
                 for (const query of createdQueries) {
                     newQueries.add(query);
                 }
 
-                return newQueries;
+                return {...subscriptions, queries: newQueries};
             });
 
             return createdQueries;
         });
     }
 
-    public onQueryFinallyRelease(query: TaskClientQueryInternal) {
+    public onQueryFinallyReleased(query: TaskClientQueryInternal) {
         batchStoreUpdates(() => {
-            this._queriesStore.set(queries => {
-                const newQueries = new Set(queries);
+            this._subscriptionsStore.set(subscriptions => {
+                const newQueries = new Set(subscriptions.queries);
                 newQueries.delete(query.external);
-                return newQueries;
+                return {...subscriptions, queries: newQueries};
             });
 
             // If this is a child task query then remove our query from the child task map.
@@ -2433,7 +2457,6 @@ export class TaskClientStoreInternal {
     public ensureAndRetainTaskChildrenQuery(taskId: TaskId): TaskClientQuery {
         const existingChildrenQuery = this._taskChildrenQueryByParentTaskId.getSnapshot(taskId);
         if (existingChildrenQuery) {
-            // NOCOMMIT: Do a `Math.max()` of `desiredCount` to force more tasks to load
             existingChildrenQuery.retain();
             return existingChildrenQuery;
         }
@@ -2475,6 +2498,98 @@ export class TaskClientStoreInternal {
      */
     public getTaskChildrenQueryStore(parentTaskId: TaskId): Store<TaskClientQuery | undefined> {
         return this._taskChildrenQueryByParentTaskId.get(parentTaskId);
+    }
+
+    /**
+     * Create and retain a new task subscription. You must call `release()` on the
+     * subscription when you're done with it to free up resources.
+     *
+     * If the `TaskId` is not currently loaded in the store, `TaskRealtimeClient`
+     * listens to our subscribed tasks and will subscribe to the task on the server.
+     */
+    public createAndRetainTaskSubscription(taskId: TaskId): TaskClientTaskSubscription {
+        const taskEntryStore = getOrSetDefaultMapValue(
+            this._taskEntryStoreById,
+            taskId,
+            () =>
+                new ValueStore<TaskClientStoreTaskEntry>({
+                    task: null,
+                    actions: [],
+                    optimisticState: null,
+                    isAuthorized: null,
+                    authorizationEventNumber: null,
+                }),
+        );
+
+        const taskSubscription = new TaskClientTaskSubscription(this, taskId, taskEntryStore);
+
+        this._subscriptionsStore.set(subscriptions => {
+            const newTaskSubscriptions = new Set(subscriptions.taskSubscriptions);
+            newTaskSubscriptions.add(taskSubscription);
+            return {...subscriptions, taskSubscriptions: newTaskSubscriptions};
+        });
+
+        return taskSubscription;
+    }
+
+    public onTaskSubscriptionFinallyReleased(taskSubscription: TaskClientTaskSubscription) {
+        batchStoreUpdates(() => {
+            this._subscriptionsStore.set(subscriptions => {
+                const newTaskSubscriptions = new Set(subscriptions.taskSubscriptions);
+                newTaskSubscriptions.delete(taskSubscription);
+                return {...subscriptions, taskSubscriptions: newTaskSubscriptions};
+            });
+        });
+    }
+
+    /**
+     * Create and retain a new collection subscription. You must call `release()`
+     * on the subscription when you're done with it to free up resources.
+     *
+     * If the `TaskCollectionId` is not currently loaded in the store,
+     * `TaskRealtimeClient` listens to our subscribed collections and will
+     * subscribe to the task on the server.
+     */
+    public createAndRetainCollectionSubscription(
+        collectionId: TaskCollectionId,
+    ): TaskClientCollectionSubscription {
+        const collectionEntryStore = getOrSetDefaultMapValue(
+            this._collectionEntryStoreById,
+            collectionId,
+            () =>
+                new ValueStore<TaskClientStoreCollectionEntry>({
+                    collection: null,
+                    actions: [],
+                    isAuthorized: null,
+                    authorizationEventNumber: null,
+                }),
+        );
+
+        const collectionSubscription = new TaskClientCollectionSubscription(
+            this,
+            collectionId,
+            collectionEntryStore,
+        );
+
+        this._subscriptionsStore.set(subscriptions => {
+            const newCollectionSubscriptions = new Set(subscriptions.collectionSubscriptions);
+            newCollectionSubscriptions.add(collectionSubscription);
+            return {...subscriptions, collectionSubscriptions: newCollectionSubscriptions};
+        });
+
+        return collectionSubscription;
+    }
+
+    public onCollectionSubscriptionFinallyReleased(
+        collectionSubscription: TaskClientCollectionSubscription,
+    ) {
+        batchStoreUpdates(() => {
+            this._subscriptionsStore.set(subscriptions => {
+                const newCollectionSubscriptions = new Set(subscriptions.collectionSubscriptions);
+                newCollectionSubscriptions.delete(collectionSubscription);
+                return {...subscriptions, collectionSubscriptions: newCollectionSubscriptions};
+            });
+        });
     }
 }
 

@@ -124,6 +124,16 @@ export type TaskRealtimeTaskReferencesSubscriptionCallbacks = {
     ): void;
 };
 
+/**
+ * Base class for `TaskRealtimeQuerySubscriptionInternal` and
+ * `TaskRealtimeTaskSubscriptionInternal`. Both of these classes maintain a
+ * subscription to some tasks. They also need to maintain subscriptions to all
+ * data referenced by the tasks including parent tasks (recursively) and
+ * collections.
+ *
+ * This base class shares the bookkeeping logic for maintaining task
+ * references in realtime.
+ */
 export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
     protected abstract _isSubscribed: boolean;
     protected abstract readonly _callbacks: TaskRealtimeTaskReferencesSubscriptionCallbacks;

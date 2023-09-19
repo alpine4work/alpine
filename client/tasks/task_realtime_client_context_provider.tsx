@@ -7,14 +7,16 @@ import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
+import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
+import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
 import {TaskRealtimeClient} from "~/client/tasks/task_realtime_client.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
-import {loadTaskQueryDataKey} from "~/shared/remix/json_with_schema_shared.js";
+import {taskStoreLoaderDataKey} from "~/shared/remix/json_with_schema_shared.js";
 import {TaskStoreLoaderDataSchema} from "~/shared/remix/task_store_loader_data.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
@@ -39,30 +41,34 @@ function getTaskRealtimeClientIfExistsForClient(spaceId: SpaceId): TaskRealtimeC
     return taskRealtimeClientBySpaceIdForClient.get(spaceId)?.client ?? null;
 }
 
-const loaderTaskQueriesSymbol = Symbol("loaderTaskQueries");
+const taskStoreLoaderDataSymbol = Symbol("taskStoreLoaderData");
 
-function loadTaskQueryDataIntoClient(
-    client: TaskRealtimeClient,
-    loaderData: SchemaSerializedValue,
-) {
+function loadTaskDataIntoClient(client: TaskRealtimeClient, loaderData: SchemaSerializedValue) {
     if (!isPlainObject(loaderData)) return;
 
-    const loadTaskQueryDataSerializedValue = loaderData[loadTaskQueryDataKey];
-    if (!loadTaskQueryDataSerializedValue) return;
+    const taskStoreLoaderDataSerializedValue = loaderData[taskStoreLoaderDataKey];
+    if (!taskStoreLoaderDataSerializedValue) return;
 
-    const loadTaskQueryData = getLoaderDataWithSchema(
+    const taskStoreLoaderData = getLoaderDataWithSchema(
         TaskStoreLoaderDataSchema,
-        loadTaskQueryDataSerializedValue,
+        taskStoreLoaderDataSerializedValue,
     );
 
     batchStoreUpdates(() => {
-        const queries = client.store.createAndRetainQueries(loadTaskQueryData.queries);
+        const queries = client.store.createAndRetainQueries(taskStoreLoaderData.queries);
 
-        client.store.applyUpdateEvent(loadTaskQueryData.updateEvent);
+        const taskSubscriptions = taskStoreLoaderData.taskIds.map(taskId =>
+            client.store.createAndRetainTaskSubscription(taskId),
+        );
+        const collectionSubscriptions = taskStoreLoaderData.collectionIds.map(collectionId =>
+            client.store.createAndRetainCollectionSubscription(collectionId),
+        );
 
-        for (let i = 0; i < loadTaskQueryData.queries.length; i++) {
+        client.store.applyUpdateEvent(taskStoreLoaderData.updateEvent);
+
+        for (let i = 0; i < taskStoreLoaderData.queries.length; i++) {
             const query = queries[i]!;
-            const {limit, loadedState} = loadTaskQueryData.queries[i]!;
+            const {limit, loadedState} = taskStoreLoaderData.queries[i]!;
 
             client.store.loadTasksIntoQuery(query, {
                 limit,
@@ -71,7 +77,11 @@ function loadTaskQueryDataIntoClient(
             });
         }
 
-        (loaderData as any)[loaderTaskQueriesSymbol] = queries;
+        (loaderData as any)[taskStoreLoaderDataSymbol] = {
+            queries,
+            taskSubscriptions,
+            collectionSubscriptions,
+        };
 
         // After 5s, release our reference to all the queries we loaded. If the UI
         // cares about a query it must call `retain()` on the query to keep it around.
@@ -79,6 +89,14 @@ function loadTaskQueryDataIntoClient(
             batchStoreUpdates(() => {
                 for (const query of queries) {
                     query.release();
+                }
+
+                for (const taskSubscription of taskSubscriptions) {
+                    taskSubscription.release();
+                }
+
+                for (const collectionSubscription of collectionSubscriptions) {
+                    collectionSubscription.release();
                 }
             });
         }, 1000 * 5);
@@ -103,9 +121,9 @@ function loadTaskQueryDataIntoClient(
  * `TaskRealtimeClient` in their `clientLoader`. You can perform this update
  * with this function.
  */
-export function clientLoaderLoadTaskQueryData(spaceId: SpaceId, data: SchemaSerializedValue) {
+export function clientLoaderTaskStoreLoaderData(spaceId: SpaceId, data: SchemaSerializedValue) {
     const client = getTaskRealtimeClientIfExistsForClient(spaceId);
-    if (client) loadTaskQueryDataIntoClient(client, data);
+    if (client) loadTaskDataIntoClient(client, data);
 }
 
 /**
@@ -113,9 +131,19 @@ export function clientLoaderLoadTaskQueryData(spaceId: SpaceId, data: SchemaSeri
  * queries. They will be in the same order as you passed your queries into
  * `loadTaskQueryData`.
  */
-export function useLoaderTaskQueriesWithoutRetaining(): Array<TaskClientQuery> {
+export function useTaskStoreLoaderDataWithoutRetaining(): {
+    queries: Array<TaskClientQuery>;
+    taskSubscriptions: Array<TaskClientTaskSubscription>;
+    collectionSubscriptions: Array<TaskClientCollectionSubscription>;
+} {
     const loaderData = useLoaderData();
-    return loaderData[loaderTaskQueriesSymbol] ?? [];
+    return (
+        loaderData[taskStoreLoaderDataSymbol] ?? {
+            queries: [],
+            taskSubscriptions: [],
+            collectionSubscriptions: [],
+        }
+    );
 }
 
 /**
@@ -148,7 +176,7 @@ export function TaskRealtimeClientContextProvider({
             });
 
             for (const loaderData of Object.values(dataRouterStateContext.loaderData)) {
-                loadTaskQueryDataIntoClient(client, loaderData);
+                loadTaskDataIntoClient(client, loaderData);
             }
 
             return client;
@@ -203,30 +231,40 @@ export function TaskRealtimeClientContextProvider({
     // Connect the client when our store has some queries and disconnect the client
     // if the store has no remaining queries.
     useEffect(() => {
-        const queriesStore = client.store.getQueriesStore();
-        let queryCount = queriesStore.getSnapshot().size;
+        const subscriptionsStore = client.store.getSubscriptionsStore();
 
-        if (queryCount > 0) {
+        const getSubscriptionCount = () => {
+            const subscriptions = subscriptionsStore.getSnapshot();
+            return (
+                subscriptions.queries.size +
+                subscriptions.taskSubscriptions.size +
+                subscriptions.collectionSubscriptions.size
+            );
+        };
+
+        let subscriptionCount = getSubscriptionCount();
+
+        if (subscriptionCount > 0) {
             client.connect();
         }
 
-        const unsubscribe = queriesStore.subscribe(() => {
-            const oldQueryCount = queryCount;
-            queryCount = queriesStore.getSnapshot().size;
-            const newQueryCount = queryCount;
+        const unsubscribe = subscriptionsStore.subscribe(() => {
+            const oldSubscriptionCount = subscriptionCount;
+            subscriptionCount = getSubscriptionCount();
+            const newSubscriptionCount = subscriptionCount;
 
-            if (oldQueryCount === 0 && newQueryCount > 0) {
+            if (oldSubscriptionCount === 0 && newSubscriptionCount > 0) {
                 client.connect();
             }
 
-            if (oldQueryCount > 0 && newQueryCount === 0) {
+            if (oldSubscriptionCount > 0 && newSubscriptionCount === 0) {
                 client.disconnect();
             }
         });
 
         return () => {
             unsubscribe();
-            if (queryCount === 0) {
+            if (subscriptionCount === 0) {
                 client.disconnect();
             }
         };
