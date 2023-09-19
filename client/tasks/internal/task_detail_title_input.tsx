@@ -1,21 +1,28 @@
-import classNames from "classnames";
 import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
-import {useCallback, useRef, useState} from "react";
+import {useCallback, useRef} from "react";
+import {ySyncPlugin} from "y-prosemirror";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
+import {useTaskTitleModelYDoc} from "~/client/tasks/internal/use_task_title_model_y_doc.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {fontSizes, sprinkles, tasksStyles} from "~/shared/styles/styles.js";
-import {TaskTitle, assertTaskTitle} from "~/shared/tasks/task_title_schema_old.js";
+import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
+import {
+    TaskTitleProsemirrorSchema,
+    TaskTitleUpdate,
+    getTaskTitleProsemirrorNode,
+} from "~/shared/tasks/task_title.js";
 
 const taskDetailTitleInputAriaLabel = "Title";
 
 const taskDetailTitleInputClassName = `ProseMirror ${sprinkles({
     fontSize: "300",
     fontStyle: "semi-bold",
+    userSelect: "text",
 })} ${tasksStyles.detailTitleInputPlaceholderClassName}`;
 
 export function TaskDetailTitleInput({
@@ -23,8 +30,8 @@ export function TaskDetailTitleInput({
     onTitleChange,
     placeholder,
 }: {
-    title: TaskTitle;
-    onTitleChange: (title: TaskTitle) => void;
+    title: TaskTitleModel;
+    onTitleChange: (titleUpdate: TaskTitleUpdate) => void;
     placeholder?: string;
 }) {
     const isInitialAppRender = useIsInitialAppRender();
@@ -35,20 +42,11 @@ export function TaskDetailTitleInput({
         | {isReady: true; view: EditorView}
     >({isReady: false, callbacks: []});
 
-    const [titleState, setTitleState] = useState(() => EditorState.create({doc: title}));
+    const titleYDoc = useTaskTitleModelYDoc(title, onTitleChange);
 
-    // If our title in state changed out-of-step with our editor state then reset
-    // the editor state. Maybe a parent component didn't accept our title update?
-    // Or a parent component push a new update down.
-    if (title !== titleState.doc) {
-        setTitleState(EditorState.create({doc: title}));
-    }
-
-    const titleStateRef = useRef(titleState);
-    const onTitleChangeRef = useRef(onTitleChange);
+    const titleRef = useRef(title);
     useLayoutEffectWithoutServerSideWarning(() => {
-        titleStateRef.current = titleState;
-        onTitleChangeRef.current = onTitleChange;
+        titleRef.current = title;
     });
 
     useLayoutEffectWithoutServerSideWarning(() => {
@@ -56,10 +54,15 @@ export function TaskDetailTitleInput({
         if (isInitialAppRender) return;
 
         const containerElement = assertExists(containerRef.current);
-        const initialTitleState = titleStateRef.current;
 
         const view = new EditorView(containerElement, {
-            state: initialTitleState,
+            state: EditorState.create({
+                schema: TaskTitleProsemirrorSchema,
+                // Make sure we start with the correct initial document. After this the
+                // `ySyncPlugin` manages document state.
+                doc: getTaskTitleProsemirrorNode(titleRef.current.raw),
+                plugins: [ySyncPlugin(titleYDoc.getXmlFragment("doc"))],
+            }),
 
             attributes: {
                 // Native spellcheck is often more distracting then it's worth. It puts a red
@@ -78,26 +81,9 @@ export function TaskDetailTitleInput({
                 const oldTitleState = view.state;
                 const newTitleState = oldTitleState.apply(transaction);
 
-                // We need to run this with immediate priority so that we call
-                // `view.updateState()` synchronously.
-                //
-                // See the "Efficient updating" section in the [editor view guide][1].
-                // If we don't synchronously apply the transaction it is considered
-                // cancelled. A quote from the guide:
-                //
-                // > When such a transaction is canceled or modified somehow, the view
-                // > will undo the DOM change...
-                //
-                // [1]: https://prosemirror.net/docs/guide/#view
-                runWithImmediatePriority(() => {
-                    setTitleState(newTitleState);
+                updateEditorEmptyClass(newTitleState);
 
-                    // We only need to send this update to our parent if the doc changed. Otherwise
-                    // we have a selection change.
-                    if (oldTitleState.doc !== newTitleState.doc) {
-                        onTitleChangeRef.current(assertTaskTitle(newTitleState.doc));
-                    }
-                });
+                view.updateState(newTitleState);
             },
         });
 
@@ -116,6 +102,8 @@ export function TaskDetailTitleInput({
             }
         }
 
+        updateEditorEmptyClass(view.state);
+
         return () => {
             viewRef.current = {isReady: false, callbacks: []};
             view.destroy();
@@ -124,13 +112,28 @@ export function TaskDetailTitleInput({
         // IMPORTANT: We want to maintain the `EditorView` instance during updates. Be
         // careful about what you put in here. Ideally we never destroy the
         // `EditorView` while this component is mounted.
-    }, [isInitialAppRender]);
+    }, [isInitialAppRender, titleYDoc]);
 
-    // Update our `EditorView`'s `EditorState` whenever it changes.
-    useLayoutEffectWithoutServerSideWarning(() => {
-        if (!viewRef.current.isReady) return;
-        viewRef.current.view.updateState(titleState);
-    }, [isInitialAppRender, titleState]);
+    function updateEditorEmptyClass(state: EditorState) {
+        assert(viewRef.current.isReady);
+        const containerElement = assertExists(viewRef.current.view.dom.parentElement);
+
+        const addEmptyClassName = state.doc.childCount === 0;
+        if (
+            addEmptyClassName &&
+            !containerElement.classList.contains(
+                tasksStyles.detailTitleInputEmptyContainerClassName,
+            )
+        ) {
+            containerElement.classList.add(tasksStyles.detailTitleInputEmptyContainerClassName);
+        }
+        if (
+            !addEmptyClassName &&
+            containerElement.classList.contains(tasksStyles.detailTitleInputEmptyContainerClassName)
+        ) {
+            containerElement.classList.remove(tasksStyles.detailTitleInputEmptyContainerClassName);
+        }
+    }
 
     const runWhenViewIsReady = useCallback((run: (view: EditorView) => void) => {
         if (viewRef.current.isReady) {
@@ -154,15 +157,11 @@ export function TaskDetailTitleInput({
         <FocusRing isVisibleWhenFocusWithin>
             <div
                 ref={containerRef}
-                className={classNames(
-                    sprinkles({
-                        position: "relative",
-                        zIndex: "0",
-                        color: "grey-text",
-                    }),
-                    titleState.doc.childCount === 0 &&
-                        tasksStyles.detailTitleInputEmptyContainerClassName,
-                )}
+                className={sprinkles({
+                    position: "relative",
+                    zIndex: "0",
+                    color: "grey-text",
+                })}
                 style={{minHeight: fontSizes["300"].lineHeight}}
             >
                 {isInitialAppRender && (
@@ -173,7 +172,9 @@ export function TaskDetailTitleInput({
                         aria-label={taskDetailTitleInputAriaLabel}
                         aria-placeholder={placeholder}
                         dangerouslySetInnerHTML={{
-                            __html: serializeProsemirrorFragmentToHtml(titleState.doc.content),
+                            __html: serializeProsemirrorFragmentToHtml(
+                                getTaskTitleProsemirrorNode(title.raw).content,
+                            ),
                         }}
                     />
                 )}

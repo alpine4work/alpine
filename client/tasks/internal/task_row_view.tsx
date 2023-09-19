@@ -33,7 +33,6 @@ import {RemLength, parseRemLengthNumber, spacing} from "~/shared/design/spacing.
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
@@ -46,14 +45,14 @@ import {
 } from "~/shared/styles/styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
-import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
+import {emptyTaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {
     TaskQuerySortCursor,
     getTaskQuerySortCursorTaskId,
 } from "~/shared/tasks/task_query_sort_cursor.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
-import {TaskTitleUpdate, emptyTaskTitle} from "~/shared/tasks/task_title.js";
+import {TaskTitleUpdate} from "~/shared/tasks/task_title.js";
 
 export type TaskRowViewRef = {
     isTitleFocused(): boolean;
@@ -66,8 +65,6 @@ export type TaskRowViewRef = {
 
 const TaskRowViewForwardRef = forwardRef(TaskRowView);
 export {TaskRowViewForwardRef as TaskRowView};
-
-const emptyTaskTitleModel = new Lazy(() => TaskTitleModel.new(emptyTaskTitle.get()));
 
 function TaskRowView(
     {

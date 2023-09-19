@@ -1,11 +1,25 @@
 import {areUint8ArraysEqual} from "~/shared/helpers/binary/are_uint8_arrays_equal.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {
     TaskTitle,
     TaskTitleSchema,
     TaskTitleUpdate,
     applyTaskTitleUpdate,
+    emptyTaskTitle,
     getTaskTitleText,
 } from "~/shared/tasks/task_title.js";
+
+export const emptyTaskTitleModel = new Lazy(() => TaskTitleModel.new(emptyTaskTitle.get()));
+
+export const taskFallbackTitle = "Untitled task";
+
+/**
+ * Return the title string and if the title is empty then return a fallback
+ * name like "Untitled".
+ */
+export function addFallbackToTaskTitle(title: string): string {
+    return title.trim().length > 0 ? title : taskFallbackTitle;
+}
 
 /**
  * Model object representing a task's title.

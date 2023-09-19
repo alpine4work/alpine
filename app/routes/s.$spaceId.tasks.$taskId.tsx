@@ -1,8 +1,10 @@
 import {useEffect} from "react";
+import {Box} from "~/client/design/box.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
+import {TaskDetailView, taskDetailViewMaxWidth} from "~/client/tasks/task_detail_view.js";
 import {
     clientLoaderTaskStoreLoaderData,
     useTaskStoreLoaderDataWithoutRetaining,
@@ -14,6 +16,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {BrowserId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
+import {addFallbackToTaskTitle} from "~/shared/tasks/model/task_title_model.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
@@ -26,10 +29,6 @@ const LoaderSchema = Schema.object({
 export const meta = createMetaFunction(LoaderSchema, ({data: {initialTitleText}}) => [
     {title: addFallbackToTaskTitle(initialTitleText)},
 ]);
-
-function addFallbackToTaskTitle(title: string): string {
-    return title.trim().length > 0 ? title : "Untitled task";
-}
 
 export async function loader({params, context: _context}: LoaderArgs) {
     const context = (await _context.actor.authenticate()).actor.authorizeSession();
@@ -120,7 +119,7 @@ export async function clientLoader({
     clientLoaderTaskStoreLoaderData(spaceId, data);
 }
 
-export default function TaskRoute() {
+export default function TaskRoute({withMobileLayout}: {withMobileLayout?: boolean}) {
     const {
         queries: [childrenQuery],
         taskSubscriptions: [taskSubscription],
@@ -160,5 +159,31 @@ export default function TaskRoute() {
         return taskSubscription.taskEntryStore.subscribe(update);
     }, [taskSubscription.taskEntryStore, updateMetaTitle]);
 
-    return <>Hello, world!</>;
+    return (
+        <Box
+            flexGrow="1"
+            overflow="hidden"
+            position="relative"
+            zIndex="0"
+            display="flex"
+            justifyContent="center"
+            padding={!withMobileLayout ? {desktop: "4"} : undefined}
+        >
+            <Box
+                width="full"
+                maxWidth={taskDetailViewMaxWidth}
+                overflow="hidden"
+                borderRadius={!withMobileLayout ? {desktop: "md"} : undefined}
+                boxShadow={!withMobileLayout ? {desktop: "elevation-5"} : undefined}
+                backgroundColor="grey-0"
+            >
+                <TaskDetailView
+                    // Remount when the `TaskId` changes.
+                    key={taskSubscription.taskId}
+                    taskSubscription={taskSubscription}
+                    childrenQuery={childrenQuery}
+                />
+            </Box>
+        </Box>
+    );
 }

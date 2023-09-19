@@ -1,5 +1,6 @@
 import {Store} from "~/client/helpers/store/store.js";
 import {
+    TaskClientStore,
     TaskClientStoreInternal,
     TaskClientStoreTaskEntry,
 } from "~/client/tasks/task_client_store.js";
@@ -13,6 +14,7 @@ import {TaskId} from "~/shared/id/types/id_types.js";
  * task visible in the detail view.
  */
 export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscriptionBase {
+    public readonly store: TaskClientStore;
     private readonly _store: TaskClientStoreInternal;
     public readonly taskId: TaskId;
 
@@ -26,6 +28,7 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
         taskEntryStore: Store<TaskClientStoreTaskEntry>,
     ) {
         super();
+        this.store = store.external;
         this._store = store;
         this.taskId = taskId;
         this.taskEntryStore = taskEntryStore;
