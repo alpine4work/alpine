@@ -13,7 +13,7 @@ export function TaskPriorityIcon({
     priority: TaskPriority | null;
     shouldHighlightUrgent: boolean;
 }) {
-    const filledBarColor = colorSchemeVars["grey-70"];
+    const filledBarColor = colorSchemeVars["grey-80"];
     const notFilledBarColor = colorSchemeVars["grey-20"];
 
     let fillBar1: boolean;
@@ -119,7 +119,6 @@ export function TaskPriorityIcon({
                 y="5"
                 width="4"
                 height="22"
-                rx="1"
                 fill={fillBar3 ? filledBarColor : notFilledBarColor}
             />
             <rect
@@ -127,7 +126,6 @@ export function TaskPriorityIcon({
                 y="10.5"
                 width="4"
                 height="16.5"
-                rx="1"
                 fill={fillBar2 ? filledBarColor : notFilledBarColor}
             />
             <rect
@@ -135,7 +133,6 @@ export function TaskPriorityIcon({
                 y="16"
                 width="4"
                 height="11"
-                rx="1"
                 fill={fillBar1 ? filledBarColor : notFilledBarColor}
             />
         </svg>
