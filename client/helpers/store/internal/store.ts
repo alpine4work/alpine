@@ -1,10 +1,10 @@
-// To defend against cyclic import issues we initialize these variables in
-
 import {cast} from "~/shared/helpers/control/cast.js";
 
+// To defend against cyclic import issues we initialize these variables in
 // their respective modules instead of importing them here.
 let FlattenedMappedStore: typeof import("~/client/helpers/store/internal/flattened_mapped_store.js").FlattenedMappedStore;
 let MappedStore: typeof import("~/client/helpers/store/internal/mapped_store.js").MappedStore;
+let MappedManyStore: typeof import("~/client/helpers/store/internal/mapped_many_store.js").MappedManyStore;
 
 export function setFlattenedMappedStore(value: typeof FlattenedMappedStore) {
     FlattenedMappedStore = value;
@@ -13,6 +13,12 @@ export function setFlattenedMappedStore(value: typeof FlattenedMappedStore) {
 export function setMappedStore(value: typeof MappedStore) {
     MappedStore = value;
 }
+
+export function setMappedManyStore(value: typeof MappedManyStore) {
+    MappedManyStore = value;
+}
+
+type StoreType<T extends Store<any>> = T extends Store<infer U> ? U : never;
 
 /**
  * A simple immutable value store object designed for use with React's
@@ -32,6 +38,17 @@ export abstract class Store<Value> {
      * We name this function `getSnapshot()` instead of the cleaner `get()` to
      * force the user to account for only getting the current value and not future
      * values. This name also aligns with the `useSyncExternalStore()` API.
+     *
+     * ## Error handling
+     *
+     * This function may throw an error. If you're using a combinator like
+     * `store.map(mapper)` and your `mapper` function throws an error then that
+     * error is re-thrown when `getSnapshot()` is called.
+     *
+     * This error will be "memorized" just like any other computation and will
+     * be thrown whenever you call `getSnapshot()` until the underlying store
+     * changes. Store implementations generally behave this way, errors are caught
+     * so the store's internal state isn't corrupted, then the error is re-thrown.
      */
     // NOTE: This is an arrow function so you can dereference the function like
     // `useSyncExternalStore(store.subscribe, store.getSnapshot)` without losing
@@ -129,6 +146,28 @@ export abstract class Store<Value> {
      */
     public map<NewValue>(map: (value: Value) => NewValue): Store<NewValue> {
         return new MappedStore(this, map);
+    }
+
+    /**
+     * Create a new store with the value of the provided stores transformed with
+     * the provided function. `Store.map(store, value => { ... })` is the same as
+     * `store.map(value => { ... })` but this form has the ability for you to map
+     * multiple stores at once whereas the class method form does not.
+     */
+    public static map<Stores extends ReadonlyArray<Store<any>>, NewValue>(
+        ...args: [
+            ...Stores,
+            (
+                ...values: {
+                    [K in keyof Stores]: StoreType<Stores[K]>;
+                } & ReadonlyArray<unknown>
+            ) => NewValue,
+        ]
+    ): Store<NewValue> {
+        return new MappedManyStore(
+            args.slice(0, args.length - 1) as any,
+            args[args.length - 1] as any,
+        );
     }
 
     /**

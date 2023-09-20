@@ -32,6 +32,10 @@ export class ReducedTreeStore<TreeKey, TreeValue, Value> extends Store<Value> {
     public readonly getSnapshot = () => {
         const tree = this._store.getSnapshot();
 
+        // It's ok if `reduce()` throws an error since our store won't be left
+        // in a broken state. We will end up re-evaluating changes to the tree next
+        // time `getSnapshot` is called unlike other utilities which memorize the error
+        // and rethrow it until the underlying store changes.
         if (this._previousTree === null) {
             const reduce = this._reduce;
             let value = this._value;

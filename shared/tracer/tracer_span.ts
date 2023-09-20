@@ -63,7 +63,7 @@ export class TracerSpan extends TracerBase {
      * Has the span finished? Once the span is finished it will be sent so you
      * can't add more data.
      */
-    private _finished = false;
+    private _isFinished = false;
 
     /**
      * We collect span data in a linked list that we merge into a single document
@@ -175,7 +175,7 @@ export class TracerSpan extends TracerBase {
      * Has the span finished?
      */
     public isFinished() {
-        return this._finished;
+        return this._isFinished;
     }
 
     /**
@@ -194,7 +194,7 @@ export class TracerSpan extends TracerBase {
      * Nested objects are recursively merged in.
      */
     public addData(data: TracerEventData) {
-        assert(!this._finished);
+        assert(!this._isFinished);
 
         this._eventData = {
             value: data,
@@ -220,7 +220,7 @@ export class TracerSpan extends TracerBase {
      * function call.
      */
     public addPropagatedData(data: TracerEventData) {
-        assert(!this._finished);
+        assert(!this._isFinished);
 
         this._eventData = {
             value: data,
@@ -280,7 +280,8 @@ export class TracerSpan extends TracerBase {
      * Finishes the span. Finished spans will be sent to our observability service.
      */
     private _finish() {
-        assert(!this._finished);
+        assert(!this._isFinished);
+        this._isFinished = true;
 
         const endTime = this._clock.now();
         const durationMs = endTime - this._startTime;

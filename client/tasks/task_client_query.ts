@@ -113,6 +113,25 @@ export class TaskClientQuery {
     }
 
     /**
+     * If there was an error in our `TaskRealtimeService` subscription for this
+     * query then this function is called to transition the query to an error
+     * state. The error will be re-thrown in UI components when trying to access
+     * the query's data.
+     */
+    public setError(error: unknown) {
+        this._internal.setError(error);
+    }
+
+    /**
+     * If this query is in an erred state because `setError()` was previously
+     * called then this function clears the error and allows normal operation to
+     * resume.
+     */
+    public clearError() {
+        this._internal.clearError();
+    }
+
+    /**
      * Get the store associated with the provided `TaskId` if it's loaded in the
      * query. If it's not loaded in the query you'll get null.
      */
@@ -211,6 +230,10 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
     }>;
     private readonly _taskEntryStoreById = new Map<TaskId, Store<TaskClientStoreTaskEntry>>();
 
+    private readonly _errorStateStore = new ValueStore<
+        {hasError: false} | {hasError: true; error: unknown}
+    >({hasError: false});
+
     /**
      * The current loaded state of the query.
      */
@@ -257,39 +280,55 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
             ),
         });
 
-        this.loadedStateStore = this._taskOrderAndLoadedStateStore.map(({loadedState}) => {
-            if (loadedState === null) return "Unloaded";
-            if (loadedState.type === "Full") return "FullyLoaded";
-            return "PartiallyLoaded";
-        });
+        this.loadedStateStore = Store.map(
+            this._taskOrderAndLoadedStateStore,
+            this._errorStateStore,
+            ({loadedState}, errorState) => {
+                if (errorState.hasError) throw errorState.error;
 
-        this.taskOrderStore = this._taskOrderAndLoadedStateStore.map(({loadedState, taskOrder}) => {
-            if (loadedState?.type === "Full") return taskOrder;
+                if (loadedState === null) return "Unloaded";
+                if (loadedState.type === "Full") return "FullyLoaded";
+                return "PartiallyLoaded";
+            },
+        );
 
-            if (loadedState === null || loadedState.endCursor === null) {
-                return taskOrder.length === 0 ? taskOrder : createTree(taskOrder._compare);
-            } else {
-                let loadedTaskOrder = taskOrder;
-                let iterator = loadedTaskOrder.end;
+        this.taskOrderStore = Store.map(
+            this._taskOrderAndLoadedStateStore,
+            this._errorStateStore,
+            ({loadedState, taskOrder}, errorState) => {
+                if (errorState.hasError) throw errorState.error;
 
-                // Remove tasks that are out of the loaded range until we find the last task in
-                // the loaded range.
-                while (iterator.valid) {
-                    const cursor = iterator.key!;
+                if (loadedState?.type === "Full") return taskOrder;
 
-                    if (
-                        compareTaskQuerySortCursors(this.sorts, cursor, loadedState.endCursor) <= 0
-                    ) {
-                        break;
+                if (loadedState === null || loadedState.endCursor === null) {
+                    return taskOrder.length === 0 ? taskOrder : createTree(taskOrder._compare);
+                } else {
+                    let loadedTaskOrder = taskOrder;
+                    let iterator = loadedTaskOrder.end;
+
+                    // Remove tasks that are out of the loaded range until we find the last task in
+                    // the loaded range.
+                    while (iterator.valid) {
+                        const cursor = iterator.key!;
+
+                        if (
+                            compareTaskQuerySortCursors(
+                                this.sorts,
+                                cursor,
+                                loadedState.endCursor,
+                            ) <= 0
+                        ) {
+                            break;
+                        }
+
+                        loadedTaskOrder = iterator.remove();
+                        iterator = loadedTaskOrder.end;
                     }
 
-                    loadedTaskOrder = iterator.remove();
-                    iterator = loadedTaskOrder.end;
+                    return loadedTaskOrder;
                 }
-
-                return loadedTaskOrder;
-            }
-        });
+            },
+        );
 
         this.external = new TaskClientQuery(this);
     }
@@ -403,6 +442,16 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
                 this.loadMoreTaskCountStore.set(0);
             });
         }
+    }
+
+    public setError(error: unknown) {
+        this._errorStateStore.set({hasError: true, error});
+    }
+
+    public clearError() {
+        this._errorStateStore.set(errorState =>
+            errorState.hasError ? {hasError: false} : errorState,
+        );
     }
 
     public getLoadedTaskEntryStoreIfExists(taskId: TaskId): Store<TaskClientStoreTaskEntry> | null {

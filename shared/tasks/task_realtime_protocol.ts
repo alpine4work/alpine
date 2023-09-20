@@ -1,4 +1,5 @@
 import {AccountModel} from "~/shared/accounts/account_model.js";
+import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {
     TaskCollectionId,
     TaskId,
@@ -129,16 +130,44 @@ export const TaskRealtimeProtocol = defineWebSocketProtocol({
                 collectionIds: Schema.array(Schema.id<TaskCollectionId>()),
             },
             output: {
-                queries: Schema.array(
-                    Schema.object({
-                        querySubscriptionId: Schema.id<TaskRealtimeQuerySubscriptionId>(),
-                        loadedState: TaskRealtimeQueryLoadedStateSchema,
-                        previouslyBackfilledTaskIds: Schema.array(Schema.id<TaskId>()),
-                    }),
+                querySubscriptionResults: Schema.array(
+                    Schema.result(
+                        Schema.object({
+                            ok: Schema.value(true),
+                            querySubscriptionId: Schema.id<TaskRealtimeQuerySubscriptionId>(),
+                            loadedState: TaskRealtimeQueryLoadedStateSchema,
+                            previouslyBackfilledTaskIds: Schema.array(Schema.id<TaskId>()),
+                        }),
+                        Schema.object({
+                            ok: Schema.value(false),
+                            error: ErrorSchema,
+                        }),
+                    ),
                 ),
-                taskSubscriptionIds: Schema.array(Schema.id<TaskRealtimeTaskSubscriptionId>()),
-                collectionSubscriptionIds: Schema.array(
-                    Schema.id<TaskRealtimeCollectionSubscriptionId>(),
+                taskSubscriptionResults: Schema.array(
+                    Schema.result(
+                        Schema.object({
+                            ok: Schema.value(true),
+                            taskSubscriptionId: Schema.id<TaskRealtimeTaskSubscriptionId>(),
+                        }),
+                        Schema.object({
+                            ok: Schema.value(false),
+                            error: ErrorSchema,
+                        }),
+                    ),
+                ),
+                collectionSubscriptionResults: Schema.array(
+                    Schema.result(
+                        Schema.object({
+                            ok: Schema.value(true),
+                            collectionSubscriptionId:
+                                Schema.id<TaskRealtimeCollectionSubscriptionId>(),
+                        }),
+                        Schema.object({
+                            ok: Schema.value(false),
+                            error: ErrorSchema,
+                        }),
+                    ),
                 ),
             },
         },

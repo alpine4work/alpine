@@ -1,4 +1,5 @@
 import {Store} from "~/client/helpers/store/store.js";
+import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {
     TaskClientStore,
     TaskClientStoreInternal,
@@ -20,6 +21,20 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
 
     // It's important we keep a reference to the task entry store so it's not
     // garbage collected from our `TaskClientStore`.
+    private readonly _taskEntryStore: Store<TaskClientStoreTaskEntry>;
+
+    private readonly _errorStateStore = new ValueStore<
+        {hasError: false} | {hasError: true; error: unknown}
+    >({hasError: false});
+
+    /**
+     * The task associated with this subscription. The task might be `null` if
+     * our store hasn't seen it yet. `TaskRealtimeClient` is responsible for
+     * subscribing to the task on the server.
+     *
+     * If the underlying subscription has an error then calling `getSnapshot()`
+     * will throw the error.
+     */
     public readonly taskEntryStore: Store<TaskClientStoreTaskEntry>;
 
     constructor(
@@ -31,7 +46,16 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
         this.store = store.external;
         this._store = store;
         this.taskId = taskId;
-        this.taskEntryStore = taskEntryStore;
+        this._taskEntryStore = taskEntryStore;
+
+        this.taskEntryStore = Store.map(
+            this._taskEntryStore,
+            this._errorStateStore,
+            (taskEntry, errorState) => {
+                if (errorState.hasError) throw errorState.error;
+                return taskEntry;
+            },
+        );
     }
 
     protected override _getStore() {
@@ -69,5 +93,26 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
             // Delete the subscription from our store.
             this._store.onTaskSubscriptionFinallyReleased(this);
         }
+    }
+
+    /**
+     * If there was an error in our `TaskRealtimeService` subscription for this
+     * task then this function is called to transition the task to an error
+     * state. The error will be re-thrown in UI components when trying to access
+     * the tasks's data.
+     */
+    public setError(error: unknown) {
+        this._errorStateStore.set({hasError: true, error});
+    }
+
+    /**
+     * If this task is in an erred state because `setError()` was previously
+     * called then this function clears the error and allows normal operation to
+     * resume.
+     */
+    public clearError() {
+        this._errorStateStore.set(errorState =>
+            errorState.hasError ? {hasError: false} : errorState,
+        );
     }
 }

@@ -1,6 +1,8 @@
 import {Store} from "~/client/helpers/store/internal/store.js";
 import {StoreWeakImmediateListeners} from "~/client/helpers/store/internal/store_weak_immediate_listeners.js";
 import {InternalError} from "~/shared/error/error.js";
+import {captureResult, unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {Result} from "~/shared/helpers/control/result.js";
 
 /**
  * A combinator for `Store` which turns `Store<Store<Value>>` into
@@ -15,8 +17,8 @@ import {InternalError} from "~/shared/error/error.js";
 export class FlattenedMappedStore<OldValue, NewValue> extends Store<NewValue> {
     private readonly _store: Store<OldValue>;
     private readonly _map: (oldValue: OldValue) => Store<NewValue>;
-    private _oldValue: OldValue;
-    private _nestedStore: Store<NewValue>;
+    private _oldValue: OldValue | null = null;
+    private _nestedStoreResult: Result<Store<NewValue>> | null = null;
     private readonly _listeners = new Map<() => void, number>();
     private _weakImmediateListeners: StoreWeakImmediateListeners | null = null;
 
@@ -24,32 +26,55 @@ export class FlattenedMappedStore<OldValue, NewValue> extends Store<NewValue> {
         super();
         this._store = store;
         this._map = map;
-        this._oldValue = store.getSnapshot();
-        this._nestedStore = map(this._oldValue);
     }
 
     public readonly getSnapshot = () => {
-        const oldNestedStore = this._nestedStore;
-        const oldOldValue = this._oldValue;
-        const newOldValue = (this._oldValue = this._store.getSnapshot());
-        const newNestedStore = !Object.is(oldOldValue, newOldValue)
-            ? (this._nestedStore = this._map(newOldValue))
-            : this._nestedStore;
+        if (this._nestedStoreResult === null) {
+            // If `getSnapshot()` throws, it's fine. We don't leave our store in a bad
+            // partial state.
+            this._oldValue = this._store.getSnapshot();
+            this._nestedStoreResult = captureResult(() => this._map(this._oldValue!));
 
-        // If the nested store changed then move our listeners from the old nested
-        // store to the new nested store.
-        if (oldNestedStore !== newNestedStore) {
-            this._weakImmediateListeners?.moveListeners(oldNestedStore, newNestedStore);
+            this._weakImmediateListeners?.moveListeners(
+                null,
+                this._nestedStoreResult.value ?? null,
+            );
 
             for (const [listener, listenerCount] of this._listeners) {
                 for (let i = 0; i < listenerCount; i++) {
-                    oldNestedStore.removeListener(listener);
-                    newNestedStore.addListener(listener);
+                    this._nestedStoreResult.value?.addListener(listener);
+                }
+            }
+
+            return unwrapResult(this._nestedStoreResult).getSnapshot();
+        }
+
+        const oldNestedStoreResult = this._nestedStoreResult;
+        const oldOldValue = this._oldValue;
+        // If `getSnapshot()` throws, it's fine. We don't leave our store in a bad
+        // partial state.
+        const newOldValue = (this._oldValue = this._store.getSnapshot());
+        const newNestedStoreResult = !Object.is(oldOldValue, newOldValue)
+            ? (this._nestedStoreResult = captureResult(() => this._map(newOldValue)))
+            : this._nestedStoreResult;
+
+        // If the nested store changed then move our listeners from the old nested
+        // store to the new nested store.
+        if (oldNestedStoreResult.value !== newNestedStoreResult.value) {
+            this._weakImmediateListeners?.moveListeners(
+                oldNestedStoreResult.value ?? null,
+                newNestedStoreResult.value ?? null,
+            );
+
+            for (const [listener, listenerCount] of this._listeners) {
+                for (let i = 0; i < listenerCount; i++) {
+                    oldNestedStoreResult.value?.removeListener(listener);
+                    newNestedStoreResult.value?.addListener(listener);
                 }
             }
         }
 
-        return this._nestedStore.getSnapshot();
+        return unwrapResult(this._nestedStoreResult).getSnapshot();
     };
 
     public addListener(listener: () => void) {
@@ -57,7 +82,7 @@ export class FlattenedMappedStore<OldValue, NewValue> extends Store<NewValue> {
         this._listeners.set(listener, listenerCount);
 
         this._store.addListener(listener);
-        this._nestedStore.addListener(listener);
+        this._nestedStoreResult?.value?.addListener(listener);
     }
 
     public removeListener(listener: () => void) {
@@ -71,7 +96,7 @@ export class FlattenedMappedStore<OldValue, NewValue> extends Store<NewValue> {
         }
 
         this._store.removeListener(listener);
-        this._nestedStore.removeListener(listener);
+        this._nestedStoreResult?.value?.removeListener(listener);
     }
 
     public _addWeakImmediateListener(listener: () => void): void {
@@ -79,7 +104,7 @@ export class FlattenedMappedStore<OldValue, NewValue> extends Store<NewValue> {
         this._weakImmediateListeners.addListener(listener);
 
         this._store._addWeakImmediateListener(listener);
-        this._nestedStore._addWeakImmediateListener(listener);
+        this._nestedStoreResult?.value?._addWeakImmediateListener(listener);
     }
 
     public _removeWeakImmediateListener(listener: () => void): void {
@@ -87,6 +112,6 @@ export class FlattenedMappedStore<OldValue, NewValue> extends Store<NewValue> {
         this._weakImmediateListeners.removeListener(listener);
 
         this._store._removeWeakImmediateListener(listener);
-        this._nestedStore._removeWeakImmediateListener(listener);
+        this._nestedStoreResult?.value?._removeWeakImmediateListener(listener);
     }
 }

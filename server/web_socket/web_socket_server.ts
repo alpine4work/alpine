@@ -1010,8 +1010,6 @@ class WebSocketServerConnectionWrapper<
                             // If we got an unexpected error while handling the message close the socket
                             // connection.
                             this.close(context, isSystemError(error) ? 1011 : 1008);
-                        } finally {
-                            finishSpan();
                         }
                     },
                 );

@@ -42,7 +42,6 @@ import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {NotFoundError} from "~/shared/error/error.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
@@ -197,8 +196,10 @@ export class TaskRealtimeConnection {
         await eventBuilder.send(context, this._spaceId);
     }
 
-    private async _authorizeSubscribeToQuery(
-        context: ServerSessionActionContext,
+    private _subscribeToQuery(
+        sessionContext: ServerSessionActionContext,
+        systemContext: TaskRealtimeSystemActionContext,
+        eventBuilder: TaskRealtimeUpdateEventBuilder,
         {
             limit,
             filters,
@@ -208,67 +209,72 @@ export class TaskRealtimeConnection {
             filters: TaskQueryNormalizedFilters;
             sorts: ReadonlyArray<TaskQueryNormalizedSort>;
         },
-    ): Promise<
-        (
-            context: TaskRealtimeSystemActionContext,
-            eventBuilder: TaskRealtimeUpdateEventBuilder,
-        ) => Promise<{
-            querySubscriptionId: TaskRealtimeQuerySubscriptionId;
-            loadedState: TaskRealtimeQueryLoadedState;
-            getPreviouslyBackfilledTaskIds: () => ReadonlyArray<TaskId>;
-        }>
-    > {
-        await this._server.authorizeQueryAccess(context, {
-            spaceId: this._spaceId,
-            filters,
-            sorts,
-        });
+    ): Promise<{
+        querySubscriptionId: TaskRealtimeQuerySubscriptionId;
+        loadedState: TaskRealtimeQueryLoadedState;
+        getPreviouslyBackfilledTaskIds: () => ReadonlyArray<TaskId>;
+    }> {
+        return systemContext.tracer.withSpan(
+            "Subscribe to task query",
+            async (systemContext, span) => {
+                sessionContext = sessionContext.clone({tracer: new TracerContextModule(span)});
 
-        return async (context, eventBuilder) => {
-            const querySubscription = await this._server.subscribeToQuery(context, {
-                spaceId: this._spaceId,
-                filters,
-                sorts,
-                callbacks: this._subscriptionCallbacks,
-            });
+                // Must authorize before using system context.
+                await this._server.authorizeQueryAccess(sessionContext, {
+                    spaceId: this._spaceId,
+                    filters,
+                    sorts,
+                });
 
-            const querySubscriptionId = generateId<TaskRealtimeQuerySubscriptionId>();
+                const querySubscription = await this._server.subscribeToQuery(systemContext, {
+                    spaceId: this._spaceId,
+                    filters,
+                    sorts,
+                    callbacks: this._subscriptionCallbacks,
+                });
 
-            assert(!this._querySubscriptionById.has(querySubscriptionId));
-            this._querySubscriptionById.set(querySubscriptionId, querySubscription);
+                const querySubscriptionId = generateId<TaskRealtimeQuerySubscriptionId>();
 
-            try {
-                const {loadedState, tasks} = await querySubscription.loadMoreTasks(
-                    context,
-                    eventBuilder,
-                    limit,
-                );
+                assert(!this._querySubscriptionById.has(querySubscriptionId));
+                this._querySubscriptionById.set(querySubscriptionId, querySubscription);
 
-                return {
-                    querySubscriptionId,
-                    loadedState,
-                    getPreviouslyBackfilledTaskIds: () => {
-                        // All the tasks we loaded that weren't backfilled we send in a
-                        // `previouslyBackfilledTaskIds` array so the client can add them to its local
-                        // query model.
-                        const backfillAuthorizedTaskIds = eventBuilder.getBackfillAuthorizedTaskIds(
-                            this._sender,
-                        );
-                        const previouslyBackfilledTaskIds: Array<TaskId> = [];
+                try {
+                    const {loadedState, tasks} = await querySubscription.loadMoreTasks(
+                        systemContext,
+                        eventBuilder,
+                        limit,
+                    );
 
-                        for (const task of tasks) {
-                            if (backfillAuthorizedTaskIds.has(task.id)) continue;
-                            previouslyBackfilledTaskIds.push(task.id);
-                        }
+                    return {
+                        querySubscriptionId,
+                        loadedState,
+                        // This property can only be computed after `eventBuilder.send()` which is why
+                        // it's in a function.
+                        getPreviouslyBackfilledTaskIds: () => {
+                            // All the tasks we loaded that weren't backfilled we send in a
+                            // `previouslyBackfilledTaskIds` array so the client can add them to its local
+                            // query model.
+                            const backfillAuthorizedTaskIds =
+                                eventBuilder.getBackfillAuthorizedTaskIds(this._sender);
+                            const previouslyBackfilledTaskIds: Array<TaskId> = [];
 
-                        return previouslyBackfilledTaskIds;
-                    },
-                };
-            } catch (error) {
-                await this._unsubscribeFromQuery(querySubscriptionId);
-                throw error;
-            }
-        };
+                            for (const task of tasks) {
+                                if (backfillAuthorizedTaskIds.has(task.id)) continue;
+                                previouslyBackfilledTaskIds.push(task.id);
+                            }
+
+                            return previouslyBackfilledTaskIds;
+                        },
+                    };
+                } catch (error) {
+                    this._querySubscriptionById.delete(querySubscriptionId);
+
+                    await querySubscription.unsubscribe();
+
+                    throw error;
+                }
+            },
+        );
     }
 
     private async _unsubscribeFromQuery(querySubscriptionId: TaskRealtimeQuerySubscriptionId) {
@@ -280,35 +286,47 @@ export class TaskRealtimeConnection {
         await querySubscription.unsubscribe();
     }
 
-    private async _authorizeSubscribeToTask(
-        context: ServerSessionActionContext,
+    private _subscribeToTask(
+        sessionContext: ServerSessionActionContext,
+        systemContext: TaskRealtimeSystemActionContext,
+        eventBuilder: TaskRealtimeUpdateEventBuilder,
         taskId: TaskId,
-    ): Promise<
-        (
-            context: TaskRealtimeSystemActionContext,
-            eventBuilder: TaskRealtimeUpdateEventBuilder,
-        ) => Promise<{
-            taskSubscriptionId: TaskRealtimeTaskSubscriptionId;
-        }>
-    > {
-        await this._server.authorizeTaskAccess(context, this._spaceId, taskId, "View");
+    ): Promise<{
+        taskSubscriptionId: TaskRealtimeTaskSubscriptionId;
+    }> {
+        return systemContext.tracer.withSpan(
+            "Subscribe to individual task",
+            async (systemContext, span) => {
+                sessionContext = sessionContext.clone({tracer: new TracerContextModule(span)});
 
-        return async (context, eventBuilder) => {
-            const taskSubscription = await this._server.subscribeToTask(context, eventBuilder, {
-                spaceId: this._spaceId,
-                taskId,
-                callbacks: this._subscriptionCallbacks,
-            });
+                // Must authorize before using system context.
+                await this._server.authorizeTaskAccess(
+                    sessionContext,
+                    this._spaceId,
+                    taskId,
+                    "View",
+                );
 
-            const taskSubscriptionId = generateId<TaskRealtimeTaskSubscriptionId>();
+                const taskSubscription = await this._server.subscribeToTask(
+                    systemContext,
+                    eventBuilder,
+                    {
+                        spaceId: this._spaceId,
+                        taskId,
+                        callbacks: this._subscriptionCallbacks,
+                    },
+                );
 
-            assert(!this._taskSubscriptionById.has(taskSubscriptionId));
-            this._taskSubscriptionById.set(taskSubscriptionId, taskSubscription);
+                const taskSubscriptionId = generateId<TaskRealtimeTaskSubscriptionId>();
 
-            return {
-                taskSubscriptionId,
-            };
-        };
+                assert(!this._taskSubscriptionById.has(taskSubscriptionId));
+                this._taskSubscriptionById.set(taskSubscriptionId, taskSubscription);
+
+                return {
+                    taskSubscriptionId,
+                };
+            },
+        );
     }
 
     private async _unsubscribeFromTask(taskSubscriptionId: TaskRealtimeTaskSubscriptionId) {
@@ -320,39 +338,50 @@ export class TaskRealtimeConnection {
         await taskSubscription.unsubscribe();
     }
 
-    private async _authorizeSubscribeToCollection(
-        context: ServerSessionActionContext,
+    private _subscribeToCollection(
+        sessionContext: ServerSessionActionContext,
+        systemContext: TaskRealtimeSystemActionContext,
+        eventBuilder: TaskRealtimeUpdateEventBuilder,
         collectionId: TaskCollectionId,
-    ): Promise<
-        (
-            context: TaskRealtimeSystemActionContext,
-            eventBuilder: TaskRealtimeUpdateEventBuilder,
-        ) => Promise<{
-            collectionSubscriptionId: TaskRealtimeCollectionSubscriptionId;
-        }>
-    > {
-        await this._server.authorizeCollectionAccess(context, this._spaceId, collectionId, "View");
+    ): Promise<{
+        collectionSubscriptionId: TaskRealtimeCollectionSubscriptionId;
+    }> {
+        return systemContext.tracer.withSpan(
+            "Subscribe to task collection",
+            async (systemContext, span) => {
+                sessionContext = sessionContext.clone({tracer: new TracerContextModule(span)});
 
-        return async (context, eventBuilder) => {
-            const collectionSubscription = await this._server.subscribeToCollection(
-                context,
-                eventBuilder,
-                {
-                    spaceId: this._spaceId,
+                // Must authorize before using system context.
+                await this._server.authorizeCollectionAccess(
+                    sessionContext,
+                    this._spaceId,
                     collectionId,
-                    callbacks: this._subscriptionCallbacks,
-                },
-            );
+                    "View",
+                );
 
-            const collectionSubscriptionId = generateId<TaskRealtimeCollectionSubscriptionId>();
+                const collectionSubscription = await this._server.subscribeToCollection(
+                    systemContext,
+                    eventBuilder,
+                    {
+                        spaceId: this._spaceId,
+                        collectionId,
+                        callbacks: this._subscriptionCallbacks,
+                    },
+                );
 
-            assert(!this._collectionSubscriptionById.has(collectionSubscriptionId));
-            this._collectionSubscriptionById.set(collectionSubscriptionId, collectionSubscription);
+                const collectionSubscriptionId = generateId<TaskRealtimeCollectionSubscriptionId>();
 
-            return {
-                collectionSubscriptionId,
-            };
-        };
+                assert(!this._collectionSubscriptionById.has(collectionSubscriptionId));
+                this._collectionSubscriptionById.set(
+                    collectionSubscriptionId,
+                    collectionSubscription,
+                );
+
+                return {
+                    collectionSubscriptionId,
+                };
+            },
+        );
     }
 
     private async _unsubscribeFromCollection(
@@ -371,18 +400,15 @@ export class TaskRealtimeConnection {
         ServerSessionActionContextModules,
         typeof TaskRealtimeProtocol
     > = {
-        subscribeToQuery: async (context, input) => {
-            const subscribe = await this._authorizeSubscribeToQuery(context, input);
-
-            const eventBuilder = new TaskRealtimeUpdateEventBuilder();
-
-            // It's safe to escalate because we authorize the query is valid above.
+        subscribeToQuery: (sessionContext, input) => {
             return this._dangerouslyEscalateToSystemContext(
-                context,
+                sessionContext,
                 this._spaceId,
                 async context => {
+                    const eventBuilder = new TaskRealtimeUpdateEventBuilder();
+
                     const {querySubscriptionId, loadedState, getPreviouslyBackfilledTaskIds} =
-                        await subscribe(context, eventBuilder);
+                        await this._subscribeToQuery(sessionContext, context, eventBuilder, input);
 
                     try {
                         await eventBuilder.send(context, this._spaceId);
@@ -441,17 +467,19 @@ export class TaskRealtimeConnection {
                 },
             );
         },
-        subscribeToTask: async (context, input) => {
-            const subscribe = await this._authorizeSubscribeToTask(context, input.taskId);
-
-            const eventBuilder = new TaskRealtimeUpdateEventBuilder();
-
-            // It's safe to escalate because we authorize the query is valid above.
+        subscribeToTask: (sessionContext, input) => {
             return this._dangerouslyEscalateToSystemContext(
-                context,
+                sessionContext,
                 this._spaceId,
                 async context => {
-                    const {taskSubscriptionId} = await subscribe(context, eventBuilder);
+                    const eventBuilder = new TaskRealtimeUpdateEventBuilder();
+
+                    const {taskSubscriptionId} = await this._subscribeToTask(
+                        sessionContext,
+                        context,
+                        eventBuilder,
+                        input.taskId,
+                    );
 
                     try {
                         await eventBuilder.send(context, this._spaceId);
@@ -468,20 +496,19 @@ export class TaskRealtimeConnection {
             await this._unsubscribeFromTask(taskSubscriptionId);
             return {};
         },
-        subscribeToCollection: async (context, input) => {
-            const subscribe = await this._authorizeSubscribeToCollection(
-                context,
-                input.collectionId,
-            );
-
-            const eventBuilder = new TaskRealtimeUpdateEventBuilder();
-
-            // It's safe to escalate because we authorize the query is valid above.
+        subscribeToCollection: (sessionContext, input) => {
             return this._dangerouslyEscalateToSystemContext(
-                context,
+                sessionContext,
                 this._spaceId,
                 async context => {
-                    const {collectionSubscriptionId} = await subscribe(context, eventBuilder);
+                    const eventBuilder = new TaskRealtimeUpdateEventBuilder();
+
+                    const {collectionSubscriptionId} = await this._subscribeToCollection(
+                        sessionContext,
+                        context,
+                        eventBuilder,
+                        input.collectionId,
+                    );
 
                     try {
                         await eventBuilder.send(context, this._spaceId);
@@ -498,152 +525,93 @@ export class TaskRealtimeConnection {
             await this._unsubscribeFromCollection(collectionSubscriptionId);
             return {};
         },
-        subscribe: async (context, input) => {
-            const [querySubscribes, taskSubscribes, collectionSubscribes] = await runAllPromises([
-                runAllPromises(
-                    input.queries.map(input => this._authorizeSubscribeToQuery(context, input)),
-                ),
-                runAllPromises(
-                    input.taskIds.map(taskId => this._authorizeSubscribeToTask(context, taskId)),
-                ),
-                runAllPromises(
-                    input.collectionIds.map(collectionId =>
-                        this._authorizeSubscribeToCollection(context, collectionId),
-                    ),
-                ),
-            ]);
-
-            // It's safe to escalate because we authorize the query is valid above.
+        subscribe: (sessionContext, input) => {
             return this._dangerouslyEscalateToSystemContext(
-                context,
+                sessionContext,
                 this._spaceId,
-                async context => {
+                async systemContext => {
                     const eventBuilder = new TaskRealtimeUpdateEventBuilder();
 
-                    const [queryResults, taskResults, collectionResults] = await runAllPromises([
+                    const [
+                        querySubscriptionResults,
+                        taskSubscriptionResults,
+                        collectionSubscriptionResults,
+                    ] = await runAllPromises([
                         Promise.allSettled(
-                            querySubscribes.map(subscribe => subscribe(context, eventBuilder)),
+                            input.queries.map(input =>
+                                this._subscribeToQuery(
+                                    sessionContext,
+                                    systemContext,
+                                    eventBuilder,
+                                    input,
+                                ),
+                            ),
                         ),
                         Promise.allSettled(
-                            taskSubscribes.map(subscribe => subscribe(context, eventBuilder)),
+                            input.taskIds.map(taskId =>
+                                this._subscribeToTask(
+                                    sessionContext,
+                                    systemContext,
+                                    eventBuilder,
+                                    taskId,
+                                ),
+                            ),
                         ),
                         Promise.allSettled(
-                            collectionSubscribes.map(subscribe => subscribe(context, eventBuilder)),
+                            input.collectionIds.map(collectionId =>
+                                this._subscribeToCollection(
+                                    sessionContext,
+                                    systemContext,
+                                    eventBuilder,
+                                    collectionId,
+                                ),
+                            ),
                         ),
                     ]);
 
-                    // If some subscriptions were successful and others unsuccessful then
-                    // unsubscribe our successful subscriptions and throw.
-                    const handlePartialError = async (error: unknown): Promise<never> => {
-                        const errors = [error];
-
-                        // If we rejected, we still want to send an event for the subscriptions that
-                        // succeeded. In case another query thinks some tasks were already backfilled
-                        // and sends a `previouslyBackfilledTaskIds`.
-                        try {
-                            await eventBuilder.send(context, this._spaceId);
-                        } catch (error) {
-                            errors.push(error);
-                        }
-
-                        await runAllPromises([
-                            runAllPromises(
-                                queryResults.map(async result => {
-                                    if (result.status === "rejected") {
-                                        errors.push(result.reason);
-                                    } else {
-                                        await this._unsubscribeFromQuery(
-                                            result.value.querySubscriptionId,
-                                        );
-                                    }
-                                }),
-                            ),
-                            runAllPromises(
-                                taskResults.map(async result => {
-                                    if (result.status === "rejected") {
-                                        errors.push(result.reason);
-                                    } else {
-                                        await this._unsubscribeFromTask(
-                                            result.value.taskSubscriptionId,
-                                        );
-                                    }
-                                }),
-                            ),
-                            runAllPromises(
-                                collectionResults.map(async result => {
-                                    if (result.status === "rejected") {
-                                        errors.push(result.reason);
-                                    } else {
-                                        await this._unsubscribeFromCollection(
-                                            result.value.collectionSubscriptionId,
-                                        );
-                                    }
-                                }),
-                            ),
-                        ]);
-
-                        // Throw the first system error. Otherwise, throw the first error.
-                        //
-                        // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
-                        // just the first one. Probably by using an `AggregateError`.
-                        for (const error of errors) {
-                            if (isSystemError(error)) {
-                                throw error;
-                            }
-                        }
-
-                        throw errors[0];
-                    };
-
-                    const queryValues = [];
-                    const taskValues = [];
-                    const collectionValues = [];
-
-                    for (const result of queryResults) {
-                        if (result.status === "rejected") {
-                            await handlePartialError(result.reason);
-                        } else {
-                            queryValues.push(result.value);
-                        }
-                    }
-
-                    for (const result of taskResults) {
-                        if (result.status === "rejected") {
-                            await handlePartialError(result.reason);
-                        } else {
-                            taskValues.push(result.value);
-                        }
-                    }
-
-                    for (const result of collectionResults) {
-                        if (result.status === "rejected") {
-                            await handlePartialError(result.reason);
-                        } else {
-                            collectionValues.push(result.value);
-                        }
-                    }
-
                     try {
                         // Send the combined event to our clients...
-                        await eventBuilder.send(context, this._spaceId);
+                        await eventBuilder.send(systemContext, this._spaceId);
 
                         return {
-                            queries: queryValues.map(
-                                ({
-                                    querySubscriptionId,
-                                    loadedState,
-                                    getPreviouslyBackfilledTaskIds,
-                                }) => ({
-                                    querySubscriptionId,
-                                    loadedState,
-                                    previouslyBackfilledTaskIds: getPreviouslyBackfilledTaskIds(),
-                                }),
-                            ),
-                            taskSubscriptionIds: taskValues.map(
-                                ({taskSubscriptionId}) => taskSubscriptionId,
-                            ),
-                            collectionSubscriptionIds: collectionValues.map(
-                                ({collectionSubscriptionId}) => collectionSubscriptionId,
+                            querySubscriptionResults: querySubscriptionResults.map(result => {
+                                if (result.status === "rejected") {
+                                    return {ok: false, error: result.reason};
+                                } else {
+                                    return {
+                                        ok: true,
+                                        querySubscriptionId: result.value.querySubscriptionId,
+                                        loadedState: result.value.loadedState,
+                                        previouslyBackfilledTaskIds:
+                                            result.value.getPreviouslyBackfilledTaskIds(),
+                                    };
+                                }
+                            }),
+                            taskSubscriptionResults: taskSubscriptionResults.map(result => {
+                                if (result.status === "rejected") {
+                                    return {ok: false, error: result.reason};
+                                } else {
+                                    return {
+                                        ok: true,
+                                        taskSubscriptionId: result.value.taskSubscriptionId,
+                                    };
+                                }
+                            }),
+                            collectionSubscriptionResults: collectionSubscriptionResults.map(
+                                result => {
+                                    if (result.status === "rejected") {
+                                        return {
+                                            ok: false,
+                                            error: result.reason,
+                                        };
+                                    } else {
+                                        return {
+                                            ok: true,
+                                            collectionSubscriptionId:
+                                                result.value.collectionSubscriptionId,
+                                        };
+                                    }
+                                },
                             ),
                         };
                     } catch (error) {
@@ -651,18 +619,33 @@ export class TaskRealtimeConnection {
                         // unsubscribe from all our queries so we don't have a memory leak.
                         await runAllPromises([
                             runAllPromises(
-                                queryValues.map(({querySubscriptionId}) =>
-                                    this._unsubscribeFromQuery(querySubscriptionId),
-                                ),
+                                querySubscriptionResults.map(async queryResult => {
+                                    if (queryResult.status === "fulfilled") {
+                                        await this._unsubscribeFromQuery(
+                                            queryResult.value.querySubscriptionId,
+                                        );
+                                    }
+                                }),
                             ),
                             runAllPromises(
-                                taskValues.map(({taskSubscriptionId}) =>
-                                    this._unsubscribeFromTask(taskSubscriptionId),
-                                ),
+                                taskSubscriptionResults.map(async taskSubscriptionResult => {
+                                    if (taskSubscriptionResult.status === "fulfilled") {
+                                        await this._unsubscribeFromTask(
+                                            taskSubscriptionResult.value.taskSubscriptionId,
+                                        );
+                                    }
+                                }),
                             ),
                             runAllPromises(
-                                collectionValues.map(({collectionSubscriptionId}) =>
-                                    this._unsubscribeFromCollection(collectionSubscriptionId),
+                                collectionSubscriptionResults.map(
+                                    async collectionSubscriptionResult => {
+                                        if (collectionSubscriptionResult.status === "fulfilled") {
+                                            await this._unsubscribeFromCollection(
+                                                collectionSubscriptionResult.value
+                                                    .collectionSubscriptionId,
+                                            );
+                                        }
+                                    },
                                 ),
                             ),
                         ]);

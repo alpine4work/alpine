@@ -1,4 +1,5 @@
 import {Store} from "~/client/helpers/store/store.js";
+import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {
     TaskClientStoreCollectionEntry,
     TaskClientStoreInternal,
@@ -19,6 +20,20 @@ export class TaskClientCollectionSubscription extends TaskClientTaskReferencesSu
 
     // It's important we keep a reference to the collection entry store so it's not
     // garbage collected from our `TaskClientStore`.
+    private readonly _collectionEntryStore: Store<TaskClientStoreCollectionEntry>;
+
+    private readonly _errorStateStore = new ValueStore<
+        {hasError: false} | {hasError: true; error: unknown}
+    >({hasError: false});
+
+    /**
+     * The collection associated with this subscription. The collection might be
+     * `null` if our store hasn't seen it yet. `TaskRealtimeClient` is responsible
+     * for subscribing to the task on the server.
+     *
+     * If the underlying subscription has an error then calling `getSnapshot()`
+     * will throw the error.
+     */
     public readonly collectionEntryStore: Store<TaskClientStoreCollectionEntry>;
 
     constructor(
@@ -29,7 +44,16 @@ export class TaskClientCollectionSubscription extends TaskClientTaskReferencesSu
         super();
         this._store = store;
         this.collectionId = collectionId;
-        this.collectionEntryStore = collectionEntryStore;
+        this._collectionEntryStore = collectionEntryStore;
+
+        this.collectionEntryStore = Store.map(
+            this._collectionEntryStore,
+            this._errorStateStore,
+            (collectionEntry, errorState) => {
+                if (errorState.hasError) throw errorState.error;
+                return collectionEntry;
+            },
+        );
     }
 
     protected override _getStore() {
@@ -67,5 +91,26 @@ export class TaskClientCollectionSubscription extends TaskClientTaskReferencesSu
             // Delete the subscription from our store.
             this._store.onCollectionSubscriptionFinallyReleased(this);
         }
+    }
+
+    /**
+     * If there was an error in our `TaskRealtimeService` subscription for this
+     * collection then this function is called to transition the collection to an
+     * error state. The error will be re-thrown in UI components when trying to
+     * access the collection's data.
+     */
+    public setError(error: unknown) {
+        this._errorStateStore.set({hasError: true, error});
+    }
+
+    /**
+     * If this collection is in an erred state because `setError()` was previously
+     * called then this function clears the error and allows normal operation to
+     * resume.
+     */
+    public clearError() {
+        this._errorStateStore.set(errorState =>
+            errorState.hasError ? {hasError: false} : errorState,
+        );
     }
 }

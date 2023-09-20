@@ -1,4 +1,6 @@
 import {Store} from "~/client/helpers/store/internal/store.js";
+import {captureResult, unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {Result} from "~/shared/helpers/control/result.js";
 
 /**
  * A combinator for `Store` where we can transform the underlying value.
@@ -6,9 +8,8 @@ import {Store} from "~/client/helpers/store/internal/store.js";
 export class MappedStore<OldValue, NewValue> extends Store<NewValue> {
     private readonly _store: Store<OldValue>;
     private readonly _map: (value: OldValue) => NewValue;
-    private _hasValues = false;
     private _oldValue: OldValue | null = null;
-    private _newValue: NewValue | null = null;
+    private _newValueResult: Result<NewValue> | null = null;
 
     constructor(store: Store<OldValue>, map: (value: OldValue) => NewValue) {
         super();
@@ -17,18 +18,19 @@ export class MappedStore<OldValue, NewValue> extends Store<NewValue> {
     }
 
     public readonly getSnapshot = () => {
+        // If `getSnapshot()` throws, it's fine. We don't leave our store in a bad
+        // partial state.
         const oldValue = this._store.getSnapshot();
 
-        if (this._hasValues === false) {
-            this._hasValues = true;
+        if (this._newValueResult === null) {
             this._oldValue = oldValue;
-            this._newValue = this._map(oldValue);
+            this._newValueResult = captureResult(() => this._map(oldValue));
         } else if (!Object.is(this._oldValue, oldValue)) {
             this._oldValue = oldValue;
-            this._newValue = this._map(oldValue);
+            this._newValueResult = captureResult(() => this._map(oldValue));
         }
 
-        return this._newValue!;
+        return unwrapResult(this._newValueResult);
     };
 
     public addListener(listener: () => void): void {

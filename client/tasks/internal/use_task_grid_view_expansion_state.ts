@@ -433,7 +433,17 @@ export function useTaskGridViewExpansionState({
                             queries.map(query => {
                                 return new Promise<void>(resolve => {
                                     const unsubscribe = query.loadedStateStore.subscribe(() => {
-                                        if (query.loadedStateStore.getSnapshot() !== "Unloaded") {
+                                        let loadedState;
+                                        try {
+                                            loadedState = query.loadedStateStore.getSnapshot();
+                                        } catch {
+                                            // If our query is in an error state then `getSnapshot()` will throw (maybe the
+                                            // user lost access to the query we're trying to subscribe to, grid expansion
+                                            // state may be stale). That's enough progress for us to resolve this promise.
+                                            // We don't want to throw an uncaught error here.
+                                        }
+
+                                        if (loadedState !== "Unloaded") {
                                             unsubscribe();
                                             resolve();
                                         }

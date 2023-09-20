@@ -151,6 +151,8 @@ export class TaskRealtimeClient {
                 newCollectionSubscriptions.size > 0
             ) {
                 const newQueriesArray = Array.from(newQueries);
+                const newTaskSubscriptionsArray = Array.from(newTaskSubscriptions);
+                const newCollectionSubscriptionsArray = Array.from(newCollectionSubscriptions);
 
                 const newQueryLimits = newQueriesArray.map(query =>
                     // When subscribing to a query, load at least the grid view limit.
@@ -190,27 +192,53 @@ export class TaskRealtimeClient {
                             filters: query.filters,
                             sorts: query.sorts,
                         })),
-                        taskIds: Array.from(
-                            newTaskSubscriptions,
+                        taskIds: newTaskSubscriptionsArray.map(
                             taskSubscription => taskSubscription.taskId,
                         ),
-                        collectionIds: Array.from(
-                            newCollectionSubscriptions,
+                        collectionIds: newCollectionSubscriptionsArray.map(
                             collectionSubscription => collectionSubscription.collectionId,
                         ),
                     })
                     .then(output => {
                         batchStoreUpdates(() => {
-                            for (let i = 0; i < output.queries.length; i++) {
+                            for (let i = 0; i < output.querySubscriptionResults.length; i++) {
                                 const query = newQueriesArray[i]!;
-                                const {loadedState, previouslyBackfilledTaskIds} =
-                                    output.queries[i]!;
+                                const result = output.querySubscriptionResults[i]!;
 
-                                this.store.loadTasksIntoQuery(query, {
-                                    limit: newQueryLimits[i]!,
-                                    loadedState,
-                                    previouslyBackfilledTaskIds,
-                                });
+                                if (!result.ok) {
+                                    query.setError(result.error);
+                                } else {
+                                    query.clearError();
+
+                                    this.store.loadTasksIntoQuery(query, {
+                                        limit: newQueryLimits[i]!,
+                                        loadedState: result.loadedState,
+                                        previouslyBackfilledTaskIds:
+                                            result.previouslyBackfilledTaskIds,
+                                    });
+                                }
+                            }
+
+                            for (let i = 0; i < output.taskSubscriptionResults.length; i++) {
+                                const taskSubscription = newTaskSubscriptionsArray[i]!;
+                                const result = output.taskSubscriptionResults[i]!;
+
+                                if (!result.ok) {
+                                    taskSubscription.setError(result.error);
+                                } else {
+                                    taskSubscription.clearError();
+                                }
+                            }
+
+                            for (let i = 0; i < output.collectionSubscriptionResults.length; i++) {
+                                const collectionSubscription = newCollectionSubscriptionsArray[i]!;
+                                const result = output.collectionSubscriptionResults[i]!;
+
+                                if (!result.ok) {
+                                    collectionSubscription.setError(result.error);
+                                } else {
+                                    collectionSubscription.clearError();
+                                }
                             }
                         });
 
@@ -220,9 +248,16 @@ export class TaskRealtimeClient {
                 for (let i = 0; i < newQueriesArray.length; i++) {
                     const query = newQueriesArray[i]!;
 
-                    const querySubscriptionIdPromise = subscribePromise.then(
-                        output => output.queries[i]!.querySubscriptionId,
-                    );
+                    const querySubscriptionIdPromise = subscribePromise.then(output => {
+                        const result = output.querySubscriptionResults[i]!;
+                        if (!result.ok) throw result.error;
+                        return result.querySubscriptionId;
+                    });
+
+                    // Suppress uncaught promise errors. Safe to ignore errors since they're set on
+                    // subscription objects. Errors will be re-thrown and presented to the user if
+                    // they matter.
+                    querySubscriptionIdPromise.catch(() => {});
 
                     const loadMoreTasksMutex = new Mutex();
 
@@ -283,6 +318,46 @@ export class TaskRealtimeClient {
                         query,
                         querySubscriptionIdPromise,
                         unsubscribeFromLoadMoreTaskCount,
+                    });
+                }
+
+                for (let i = 0; i < newTaskSubscriptionsArray.length; i++) {
+                    const newTaskSubscription = newTaskSubscriptionsArray[i]!;
+
+                    const taskSubscriptionIdPromise = subscribePromise.then(output => {
+                        const result = output.taskSubscriptionResults[i]!;
+                        if (!result.ok) throw result.error;
+                        return result.taskSubscriptionId;
+                    });
+
+                    // Suppress uncaught promise errors. Safe to ignore errors since they're set on
+                    // subscription objects. Errors will be re-thrown and presented to the user if
+                    // they matter.
+                    taskSubscriptionIdPromise.catch(() => {});
+
+                    subscribedTasks.add({
+                        taskSubscription: newTaskSubscription,
+                        taskSubscriptionIdPromise,
+                    });
+                }
+
+                for (let i = 0; i < newCollectionSubscriptionsArray.length; i++) {
+                    const newCollectionSubscription = newCollectionSubscriptionsArray[i]!;
+
+                    const collectionSubscriptionIdPromise = subscribePromise.then(output => {
+                        const result = output.collectionSubscriptionResults[i]!;
+                        if (!result.ok) throw result.error;
+                        return result.collectionSubscriptionId;
+                    });
+
+                    // Suppress uncaught promise errors. Safe to ignore errors since they're set on
+                    // subscription objects. Errors will be re-thrown and presented to the user if
+                    // they matter.
+                    collectionSubscriptionIdPromise.catch(() => {});
+
+                    subscribedCollections.add({
+                        collectionSubscription: newCollectionSubscription,
+                        collectionSubscriptionIdPromise,
                     });
                 }
 

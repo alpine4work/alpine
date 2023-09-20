@@ -9,4 +9,5 @@ export type Result<T, E = unknown> =
     | {
           readonly ok: false;
           readonly error: E;
+          readonly value?: undefined;
       };

@@ -24,6 +24,7 @@ import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {
     AccountId,
     BrowserId,
@@ -202,7 +203,7 @@ export async function loadTaskRealtimeQueries(
             sorts: ReadonlyArray<TaskQueryNormalizedSort>;
             limit: number;
             loadedState: TaskRealtimeQueryLoadedState;
-        }>
+        } | null>
     > = [];
 
     const loadQuery = async (
@@ -249,7 +250,7 @@ export async function loadTaskRealtimeQueries(
                 sorts: ReadonlyArray<TaskQueryNormalizedSort>;
                 limit: number;
                 loadedState: TaskRealtimeQueryLoadedState;
-            }>
+            } | null>
         > = [];
 
         // All loaded tasks are authorized because we authorized query access.
@@ -328,21 +329,46 @@ export async function loadTaskRealtimeQueries(
                         },
                     ];
 
-                    const loadedStatePromise = loadQuery(context, {
-                        filters,
-                        sorts,
-                        limit,
-                    });
+                    const queryPromise = (async () => {
+                        const task = await server.getTask(context, spaceId, taskId);
 
-                    context.process.waitUntil(loadedStatePromise);
+                        const isAccessAuthorized = await isTaskIndexDocAccessAuthorized(
+                            context,
+                            accountId,
+                            task,
+                            "View",
+                            {
+                                getTaskIndexDoc: taskId => server.getTask(context, spaceId, taskId),
+                                getCollectionIndexDoc: collectionId =>
+                                    server.getCollection(context, spaceId, collectionId),
+                            },
+                        );
 
-                    taskChildrenQueryPromises.push(
-                        loadedStatePromise.then(({loadedState}) => ({
+                        // We may have tasks in our expansion state that the user lost access too (e.g.
+                        // the task was deleted or it moved collections). Since we preload child query
+                        // tasks as an optimization, ignore tasks we no longer have access to.
+                        if (!isAccessAuthorized) return null;
+
+                        return loadQuery(context, {
                             filters,
                             sorts,
                             limit,
-                            loadedState,
-                        })),
+                        });
+                    })();
+
+                    context.process.waitUntil(queryPromise);
+
+                    taskChildrenQueryPromises.push(
+                        queryPromise.then(queryOutput => {
+                            if (!queryOutput) return null;
+
+                            return {
+                                filters,
+                                sorts,
+                                limit,
+                                loadedState: queryOutput.loadedState,
+                            };
+                        }),
                     );
 
                     if (taskState.childTasks) {
@@ -477,7 +503,7 @@ export async function loadTaskRealtimeQueries(
 
     return {
         queries: queryOutputs,
-        extraQueries,
+        extraQueries: extraQueries.filter(isNonNullable),
         updateEvent: {
             type: "Update",
             number: eventNumber,
