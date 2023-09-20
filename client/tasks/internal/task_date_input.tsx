@@ -8,11 +8,12 @@ import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
-import {formatTaskDate} from "~/client/tasks/demo_2/internal/format_task_date.js";
-import {TaskDateInputCalendar} from "~/client/tasks/demo_2/internal/task_date_input_calendar.js";
-import {TaskDateInputText} from "~/client/tasks/demo_2/internal/task_date_input_text.js";
+import {formatTaskDate} from "~/client/tasks/internal/format_task_date.js";
+import {TaskDateInputCalendar} from "~/client/tasks/internal/task_date_input_calendar.js";
+import {TaskDateInputText} from "~/client/tasks/internal/task_date_input_text.js";
 import {RemLength, Spacing, spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {greyElevated2ClassName} from "~/shared/styles/styles.js";
 
 /**
  * The date field displays the formatted date we show everywhere but when
@@ -174,9 +175,9 @@ export function TaskDateInput({
                 offset={overlayOffset}
                 overlay={
                     <Box
+                        className={greyElevated2ClassName}
                         borderRadius="md"
-                        // NOCOMMIT: Overlay colors changed
-                        backgroundColor={{light: "grey-0", dark: "grey-5"}}
+                        backgroundColor="grey-0"
                         boxShadow="elevation-20"
                         // Focusable so that if you click on the calendar without clicking a date, we
                         // consider the calendar focused and won't close the overlay.

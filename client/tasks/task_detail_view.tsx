@@ -16,6 +16,7 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/get_new_task_position_for_query_sorted_by_position.js";
 import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
+import {TaskDateInput} from "~/client/tasks/internal/task_date_input.js";
 import {TaskDetailTitleInput} from "~/client/tasks/internal/task_detail_title_input.js";
 import {
     TaskGridViewVirtualizedListViewRef,
@@ -219,6 +220,7 @@ function TaskDetailViewMain({taskSubscription}: {taskSubscription: TaskClientTas
 
     const {task} = useStore(taskSubscription.taskEntryStore);
     const priority = task?.getPriority() ?? null;
+    const dueDate = task?.getDueDate() ?? null;
 
     const titleCommitStateRef = useRef<{
         pendingActionTransactionBuilder: {
@@ -290,9 +292,7 @@ function TaskDetailViewMain({taskSubscription}: {taskSubscription: TaskClientTas
     const padding: Spacing = isMobile ? "3" : "5";
 
     const priorityInputRef = useRef<HTMLDivElement>(null);
-    // NOCOMMIT:
-    // const dueDateInputRef = useRef<HTMLDivElement>(null);
-    // const childTasksGridViewRef = useRef<TaskGridPresentationalViewRef>(null);
+    const dueDateInputRef = useRef<HTMLDivElement>(null);
 
     const [priorityInputState, setPriorityInputState] = useState<
         {isVisible: false} | {isVisible: true; shouldFocus: boolean; isFocused: boolean}
@@ -328,40 +328,39 @@ function TaskDetailViewMain({taskSubscription}: {taskSubscription: TaskClientTas
         }
     }, [priorityInputState]);
 
-    // NOCOMMIT:
-    // const [dueDateInputState, setDueDateInputState] = useState<
-    //     {isVisible: false} | {isVisible: true; shouldFocus: boolean; isFocused: boolean}
-    // >(dueDate ? {isVisible: true, shouldFocus: false, isFocused: false} : {isVisible: false});
-    //
-    // if (
-    //     dueDateInputState.isVisible &&
-    //     !dueDateInputState.isFocused &&
-    //     !dueDateInputState.shouldFocus &&
-    //     !dueDate
-    // ) {
-    //     // In task row dense fields we hide the due date field when the value is set to
-    //     // null. But since the user may actively be editing the field in detail view,
-    //     // keep it around.
-    // }
-    //
-    // if (!dueDateInputState.isVisible && dueDate) {
-    //     setDueDateInputState({isVisible: true, shouldFocus: false, isFocused: false});
-    // }
-    //
-    // useLayoutEffectWithoutServerSideWarning(() => {
-    //     if (dueDateInputState.isVisible && dueDateInputState.shouldFocus) {
-    //         assertExists(
-    //             getNextFocusableElementIfExists(null, {
-    //                 withinElement: assertExists(dueDateInputRef.current),
-    //             }),
-    //         ).focus({preventScroll: true});
-    //
-    //         setDueDateInputState(dueDateInputState => {
-    //             if (!dueDateInputState.isVisible) return dueDateInputState;
-    //             return {...dueDateInputState, shouldFocus: false};
-    //         });
-    //     }
-    // }, [dueDateInputState]);
+    const [dueDateInputState, setDueDateInputState] = useState<
+        {isVisible: false} | {isVisible: true; shouldFocus: boolean; isFocused: boolean}
+    >(dueDate ? {isVisible: true, shouldFocus: false, isFocused: false} : {isVisible: false});
+
+    if (
+        dueDateInputState.isVisible &&
+        !dueDateInputState.isFocused &&
+        !dueDateInputState.shouldFocus &&
+        !dueDate
+    ) {
+        // In task row dense fields we hide the due date field when the value is set to
+        // null. But since the user may actively be editing the field in detail view,
+        // keep it around.
+    }
+
+    if (!dueDateInputState.isVisible && dueDate) {
+        setDueDateInputState({isVisible: true, shouldFocus: false, isFocused: false});
+    }
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (dueDateInputState.isVisible && dueDateInputState.shouldFocus) {
+            assertExists(
+                getNextFocusableElementIfExists(null, {
+                    withinElement: assertExists(dueDateInputRef.current),
+                }),
+            ).focus({preventScroll: true});
+
+            setDueDateInputState(dueDateInputState => {
+                if (!dueDateInputState.isVisible) return dueDateInputState;
+                return {...dueDateInputState, shouldFocus: false};
+            });
+        }
+    }, [dueDateInputState]);
 
     const contextMenuActions = (() => {
         const contextMenuActions: Array<ReadonlyArray<MenuAction>> = [];
@@ -411,25 +410,24 @@ function TaskDetailViewMain({taskSubscription}: {taskSubscription: TaskClientTas
                     }
                 },
             },
-            // NOCOMMIT:
-            // {
-            //     label: dueDateInputState.isVisible ? "Edit due date" : "Add due date",
-            //     onPress: () => {
-            //         if (dueDateInputState.isVisible) {
-            //             assertExists(
-            //                 getNextFocusableElementIfExists(null, {
-            //                     withinElement: assertExists(dueDateInputRef.current),
-            //                 }),
-            //             ).focus({preventScroll: true});
-            //         } else {
-            //             setDueDateInputState({
-            //                 isVisible: true,
-            //                 shouldFocus: true,
-            //                 isFocused: false,
-            //             });
-            //         }
-            //     },
-            // },
+            {
+                label: dueDateInputState.isVisible ? "Edit due date" : "Add due date",
+                onPress: () => {
+                    if (dueDateInputState.isVisible) {
+                        assertExists(
+                            getNextFocusableElementIfExists(null, {
+                                withinElement: assertExists(dueDateInputRef.current),
+                            }),
+                        ).focus({preventScroll: true});
+                    } else {
+                        setDueDateInputState({
+                            isVisible: true,
+                            shouldFocus: true,
+                            isFocused: false,
+                        });
+                    }
+                },
+            },
         ]);
 
         // NOCOMMIT:
@@ -596,7 +594,7 @@ function TaskDetailViewMain({taskSubscription}: {taskSubscription: TaskClientTas
                         )}
                     </TaskDetailViewDenseField>
                 )}
-                {/* NOCOMMIT: {dueDateInputState.isVisible && (
+                {dueDateInputState.isVisible && (
                     <TaskDetailViewDenseField label="Due date">
                         {({"aria-labelledby": ariaLabelledBy}) => (
                             <Box
@@ -621,16 +619,31 @@ function TaskDetailViewMain({taskSubscription}: {taskSubscription: TaskClientTas
                             >
                                 <TaskDateInput
                                     date={dueDate}
-                                    onDateChange={onDueDateChange}
+                                    onDateChange={dueDate => {
+                                        taskSubscription.store.commitTaskActionTransaction(
+                                            context,
+                                            [
+                                                {
+                                                    type: "UpdateTask",
+                                                    time: taskSubscription.store.clock.now(),
+                                                    taskId: taskSubscription.taskId,
+                                                    taskAction: {
+                                                        type: "UpdateDueDate",
+                                                        dueDate,
+                                                    },
+                                                },
+                                            ],
+                                        );
+                                    }}
                                     shouldIncludeCalendarIcon={true}
-                                    shouldWarnIfAfterDate={status.type === "Open"}
+                                    shouldWarnIfAfterDate={task?.getDisplayStatus() !== "Closed"}
                                     shouldFormatAroundToday={true}
                                     aria-labelledby={ariaLabelledBy}
                                 />
                             </Box>
                         )}
                     </TaskDetailViewDenseField>
-                )} */}
+                )}
             </Box>
             <Spacer space="9" />
             {/* NOCOMMIT: <TaskDetailNotesField

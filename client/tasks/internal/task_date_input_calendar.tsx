@@ -187,7 +187,7 @@ export function TaskDateInputCalendar({
             <Box
                 marginTop="3"
                 paddingTop="2"
-                borderTop={{light: "grey-5", dark: "grey-10"}}
+                borderTop="grey-5"
                 display="flex"
                 justifyContent="flex-end"
             >
@@ -241,7 +241,8 @@ function TaskDateInputCalendarGrid({
                                     alignItems: "center",
                                     fontSize: "75",
                                     fontStyle: "semi-bold",
-                                    color: "grey-60",
+                                    // A darker color looks a little better in dark mode.
+                                    color: {light: "grey-60", dark: "grey-50"},
                                 })}
                             >
                                 {day}
@@ -337,18 +338,18 @@ function TaskDateInputCalendarCell({
                         fontStyle: isCurrentDate && !isDimmed ? "ultra-bold" : undefined,
                         borderRadius: "full",
                         backgroundColor: isSelected
-                            ? {light: "grey-10", dark: "grey-20"}
+                            ? "grey-10"
                             : // We use a hover state here since picking the right date requires some motor
                             // precision. So hovering helps reduce the mental load as your mouse tracks to
                             // the right position.
                             isHovered
-                            ? {light: "grey-5", dark: "grey-10"}
+                            ? "grey-5"
                             : undefined,
                         color:
                             isCurrentDate && !isDimmed
                                 ? {light: "theme-60", dark: "theme-70"}
                                 : isDimmed && !isSelected
-                                ? {light: "grey-40", dark: "grey-50"}
+                                ? "grey-40"
                                 : undefined,
                         display: "flex",
                         justifyContent: "center",
