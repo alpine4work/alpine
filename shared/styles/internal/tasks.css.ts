@@ -103,3 +103,11 @@ export const rowTitleInputOverflowGradientRightContainerClassName = style({
         },
     },
 });
+
+export const taskDateInputTextSegmentClassName = style({});
+
+globalStyle(`${taskDateInputTextSegmentClassName}::selection`, {
+    // When a text segment is selected we already apply the selection background
+    // color. Don't apply it again with the proper text selection highlight.
+    background: "none",
+});

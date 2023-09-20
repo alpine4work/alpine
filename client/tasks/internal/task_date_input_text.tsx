@@ -15,7 +15,7 @@ import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles.js";
+import {inputPlaceholderStyles, sprinkles, tasksStyles} from "~/shared/styles/styles.js";
 
 export function TaskDateInputText({
     date,
@@ -306,12 +306,13 @@ function TaskDateInputTextSegment({
             <Box
                 {...mergedSegmentProps}
                 ref={ref}
+                className={tasksStyles.taskDateInputTextSegmentClassName}
                 backgroundColor={isFocused ? "theme-selection" : undefined}
                 // `react-aria`s click support for non-editable segments isn't super reliable.
                 // So use our parent's `onClick` handler instead.
                 pointerEvents={!segment.isEditable ? "none" : undefined}
                 style={{
-                    ...segmentProps.style,
+                    ...mergedSegmentProps.style,
                     fontVariantNumeric: "tabular-nums",
                     ...(areAllSegmentsPlaceholders || segment.isPlaceholder
                         ? inputPlaceholderStyles
