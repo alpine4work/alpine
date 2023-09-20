@@ -2593,7 +2593,7 @@ export class TaskClientStoreInternal {
     }
 }
 
-function getParentTaskIdIfChildrenQuery({
+export function getParentTaskIdIfChildrenQuery({
     filters,
     sorts,
 }: {

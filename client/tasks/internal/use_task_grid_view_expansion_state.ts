@@ -8,7 +8,7 @@ import {Store} from "~/client/helpers/store/store.js";
 import {StoreMap} from "~/client/helpers/store/store_map.js";
 import {useBrowserId} from "~/client/remix/client_info_context.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {TaskClientStore} from "~/client/tasks/task_client_store.js";
+import {TaskClientStore, getParentTaskIdIfChildrenQuery} from "~/client/tasks/task_client_store.js";
 import {createInterval} from "~/shared/helpers/async/interval.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -524,6 +524,8 @@ export function useTaskGridViewExpansionState({
     // around. This is acceptable. When the user returns some tasks may be
     // unexpectedly collapsed but it's unlikely they'll notice or care.
     useEffect(() => {
+        const queryParentTaskId = getParentTaskIdIfChildrenQuery(query);
+
         return store.subscribeToBatchUpdate(taskEntryUpdateById => {
             for (const {oldTaskEntry, newTaskEntry} of taskEntryUpdateById.values()) {
                 if (!oldTaskEntry?.task || !newTaskEntry.task) continue;
@@ -536,7 +538,10 @@ export function useTaskGridViewExpansionState({
                 const oldTaskPath: Array<TaskId> = [];
                 {
                     let oldGrandParentTaskId = oldParentTaskId;
-                    while (oldGrandParentTaskId !== null) {
+                    while (
+                        oldGrandParentTaskId !== null &&
+                        oldGrandParentTaskId !== queryParentTaskId
+                    ) {
                         oldTaskPath.push(oldGrandParentTaskId);
                         oldGrandParentTaskId =
                             store
@@ -553,7 +558,10 @@ export function useTaskGridViewExpansionState({
                 const newTaskPath: Array<TaskId> = [];
                 {
                     let newGrandParentTaskId = newParentTaskId;
-                    while (newGrandParentTaskId !== null) {
+                    while (
+                        newGrandParentTaskId !== null &&
+                        newGrandParentTaskId !== queryParentTaskId
+                    ) {
                         newTaskPath.push(newGrandParentTaskId);
                         newGrandParentTaskId =
                             store
@@ -624,7 +632,7 @@ export function useTaskGridViewExpansionState({
                 }
             }
         });
-    }, [stateManager, store]);
+    }, [query, stateManager, store]);
 
     // After we mount and then every ~3 minutes after that, remove incorrect
     // expansion state paths. You see when the user changes the parentage of a task
