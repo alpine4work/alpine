@@ -78,14 +78,14 @@ const minTaskCountToShowTopGhostTask = 7;
 export function TaskGridView({
     capabilities,
     query,
-    initialExpandedState,
+    initialExpansionState,
     initialBottomGhostTaskId,
     getMoveTaskToQueryActions,
     getMaybeRemoveTaskFromQueryActions,
 }: {
     capabilities: TaskGridViewCapabilities;
     query: TaskClientQuery;
-    initialExpandedState: TaskGridViewExpansionState;
+    initialExpansionState: TaskGridViewExpansionState;
     initialBottomGhostTaskId: TaskId;
     getMoveTaskToQueryActions: (
         taskId: TaskId,
@@ -98,7 +98,7 @@ export function TaskGridView({
     const {modals, itemCount, renderItem, onRenderedRangeChange} = useTaskGridViewVirtualizedList({
         capabilities,
         query,
-        initialExpandedState,
+        initialExpansionState,
         initialBottomGhostTaskId,
         viewRef,
         getMoveTaskToQueryActions,

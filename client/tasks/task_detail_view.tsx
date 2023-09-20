@@ -1,5 +1,5 @@
 import {DotsThree} from "phosphor-react";
-import {ReactNode, Ref, forwardRef, useId, useImperativeHandle, useRef} from "react";
+import {ReactNode, useCallback, useId, useImperativeHandle, useMemo, useRef} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
@@ -13,45 +13,207 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/get_new_task_position_for_query_sorted_by_position.js";
 import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
 import {TaskDetailTitleInput} from "~/client/tasks/internal/task_detail_title_input.js";
+import {
+    TaskGridViewVirtualizedListViewRef,
+    useTaskGridViewVirtualizedList,
+} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {TaskStatusButton} from "~/client/tasks/internal/task_status_button.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
+import {taskRowViewMinHeight} from "~/client/tasks/task_row_shared_styles.js";
+import {
+    VirtualizedScrollView,
+    VirtualizedScrollViewRef,
+} from "~/client/virtualized/virtualized_scroll_view.js";
 import {Context} from "~/shared/context/context.js";
-import {Spacing, assertSpacing} from "~/shared/design/spacing.js";
+import {Spacing, assertSpacing, spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {TaskId} from "~/shared/id/types/id_types.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 import {emptyTaskTitleModel, taskFallbackTitle} from "~/shared/tasks/model/task_title_model.js";
+import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskTitleUpdate} from "~/shared/tasks/task_title.js";
 
 export const taskDetailViewMaxWidth: Spacing = "160";
 
-export type TaskDetailViewRef = {
-    // NOCOMMIT:
-    // getChildTasksGridView(): TaskGridPresentationalViewRef;
-};
+export function TaskDetailView({
+    taskSubscription,
+    childrenQuery,
+    initialChildrenGridViewExpansionState,
+    initialBottomGhostTaskId,
+}: {
+    taskSubscription: TaskClientTaskSubscription;
+    childrenQuery: TaskClientQuery;
+    initialChildrenGridViewExpansionState: TaskGridViewExpansionState;
+    initialBottomGhostTaskId: TaskId;
+}) {
+    const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
-const TaskDetailViewForwardRef = forwardRef(TaskDetailView);
-export {TaskDetailViewForwardRef as TaskDetailView};
+    const childrenGridViewRef = useRef<TaskGridViewVirtualizedListViewRef>(null);
 
-function TaskDetailView(
-    {
-        taskSubscription,
-        childrenQuery,
-    }: {
-        taskSubscription: TaskClientTaskSubscription;
-        childrenQuery: TaskClientQuery;
-    },
-    ref: Ref<TaskDetailViewRef>,
-) {
+    const shiftRenderedRangeForChildrenGridView = useCallback(
+        (range: {startIndex: number; endIndex: number} | null) => {
+            if (!range) {
+                return null;
+            } else {
+                const startIndex = range.startIndex - 1;
+                const endIndex = range.endIndex - 1;
+                if (endIndex < 0) {
+                    return null;
+                } else {
+                    return {
+                        startIndex: Math.max(0, startIndex),
+                        endIndex,
+                    };
+                }
+            }
+        },
+        [],
+    );
+
+    // Offset all the methods on our `VirtualizedScrollViewRef` by the number of
+    // items which precede our children grid view.
+    useImperativeHandle(
+        childrenGridViewRef,
+        () => ({
+            getHeight: () => assertExists(viewRef.current).getHeight(),
+            getContentHeight: () => assertExists(viewRef.current).getContentHeight(),
+            getScrollOffset: () => assertExists(viewRef.current).getScrollOffset(),
+            setScrollOffset: scrollOffset =>
+                assertExists(viewRef.current).setScrollOffset(scrollOffset),
+            getRenderedRange: () =>
+                shiftRenderedRangeForChildrenGridView(
+                    assertExists(viewRef.current).getRenderedRange(),
+                ),
+            getKeyByIndexIfExists: index =>
+                assertExists(viewRef.current).getKeyByIndexIfExists(index + 1),
+            getIndexByKeyIfExists: key => {
+                const index = assertExists(viewRef.current).getIndexByKeyIfExists(key);
+                if (index === null) return index;
+                return index - 1;
+            },
+            getPositionByIndex: index =>
+                assertExists(viewRef.current).getPositionByIndex(index + 1),
+            peekRenderedRangeAfterSetScrollOffset: scrollOffset =>
+                shiftRenderedRangeForChildrenGridView(
+                    assertExists(viewRef.current).peekRenderedRangeAfterSetScrollOffset(
+                        scrollOffset,
+                    ),
+                ),
+        }),
+        [shiftRenderedRangeForChildrenGridView],
+    );
+
+    const {
+        modals: childrenGridViewModals,
+        itemCount: childrenGridViewItemCount,
+        renderItem: renderChildrenGridViewItem,
+        onRenderedRangeChange: onChildrenGridViewRenderedRangeChange,
+    } = useTaskGridViewVirtualizedList({
+        capabilities: useMemo(
+            () => ({
+                hasParentTaskTitle: false,
+                hasMultilineTitle: true,
+                hasDenseFields: true,
+                hasColumns: false,
+            }),
+            [],
+        ),
+        query: childrenQuery,
+        initialExpansionState: initialChildrenGridViewExpansionState,
+        initialBottomGhostTaskId,
+        viewRef: childrenGridViewRef,
+        getMoveTaskToQueryActions: (taskId, position) => {
+            const time1 = taskSubscription.store.clock.now();
+            const time2 = taskSubscription.store.clock.now();
+
+            return [
+                {
+                    type: "UpdateTask",
+                    time: time1,
+                    taskId,
+                    taskAction: {type: "UpdateParentTaskId", parentTaskId: taskSubscription.taskId},
+                },
+                {
+                    type: "UpdateTask",
+                    time: time2,
+                    taskId,
+                    taskAction: {
+                        type: "UpdateParentPosition",
+                        parentPosition: getNewTaskPositionForQuerySortedByPosition(
+                            time2,
+                            childrenQuery,
+                            position,
+                        ),
+                    },
+                },
+            ];
+        },
+        getMaybeRemoveTaskFromQueryActions: taskId => [
+            {
+                type: "UpdateTask",
+                time: taskSubscription.store.clock.now(),
+                taskId,
+                taskAction: {type: "UpdateParentTaskId", parentTaskId: null},
+            },
+        ],
+    });
+
+    return (
+        <>
+            {childrenGridViewModals}
+            <VirtualizedScrollView
+                ref={viewRef}
+                bufferedItemHeight={spacing[taskRowViewMinHeight]}
+                itemCount={childrenGridViewItemCount + 1}
+                renderItem={useCallback(
+                    index => {
+                        if (index === 0) {
+                            return {
+                                key: "TaskDetailViewMain",
+                                // Initial height of:
+                                //
+                                // - Header (status button and more dropdown)
+                                // - One line of title text
+                                // - Assignee field
+                                // - Collections field
+                                // - Notes field
+                                // - Subtasks header
+                                //
+                                // Often the height is larger but never smaller.
+                                //
+                                // NOCOMMIT: Check to make sure this value is accurate when all our UI is
+                                // in place!
+                                minHeight: "18.75rem",
+                                node: <TaskDetailViewMain taskSubscription={taskSubscription} />,
+                            };
+                        }
+
+                        return renderChildrenGridViewItem(index - 1);
+                    },
+                    [renderChildrenGridViewItem, taskSubscription],
+                )}
+                onRenderedRangeChange={range => {
+                    onChildrenGridViewRenderedRangeChange(
+                        shiftRenderedRangeForChildrenGridView(range),
+                    );
+                }}
+            />
+        </>
+    );
+}
+
+function TaskDetailViewMain({taskSubscription}: {taskSubscription: TaskClientTaskSubscription}) {
     const context = useAppContext();
     const navigate = useNavigate();
     const isMobile = useIsMobile();
     const {timeZone} = useClientInfo();
-    const {space, currentAccount} = useSpaceContext();
+    const {currentAccount} = useSpaceContext();
 
     const {task} = useStore(taskSubscription.taskEntryStore);
 
@@ -128,15 +290,6 @@ function TaskDetailView(
     // const priorityInputRef = useRef<HTMLDivElement>(null);
     // const dueDateInputRef = useRef<HTMLDivElement>(null);
     // const childTasksGridViewRef = useRef<TaskGridPresentationalViewRef>(null);
-
-    useImperativeHandle(
-        ref,
-        () => ({
-            // NOCOMMIT:
-            // getChildTasksGridView: () => assertExists(childTasksGridViewRef.current),
-        }),
-        [],
-    );
 
     // NOCOMMIT:
     // const [priorityInputState, setPriorityInputState] = useState<

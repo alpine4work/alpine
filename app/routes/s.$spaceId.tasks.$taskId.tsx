@@ -2,6 +2,7 @@ import {useEffect} from "react";
 import {Box} from "~/client/design/box.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
+import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {TaskDetailView, taskDetailViewMaxWidth} from "~/client/tasks/task_detail_view.js";
@@ -14,6 +15,7 @@ import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {generateId} from "~/shared/id/id.js";
 import {BrowserId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
 import {addFallbackToTaskTitle} from "~/shared/tasks/model/task_title_model.js";
@@ -23,7 +25,8 @@ import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort
 
 const LoaderSchema = Schema.object({
     initialTitleText: Schema.string,
-    childrenGridViewExpandedState: TaskGridViewExpansionStateSchema,
+    childrenGridViewExpansionState: TaskGridViewExpansionStateSchema,
+    initialBottomGhostTaskId: Schema.id<TaskId>(),
 });
 
 export const meta = createMetaFunction(LoaderSchema, ({data: {initialTitleText}}) => [
@@ -57,7 +60,7 @@ export async function loader({params, context: _context}: LoaderArgs) {
         sorts: [
             {
                 type: "ParentPosition",
-                direction: "Descending",
+                direction: "Ascending",
                 missing: "Last",
             },
             {
@@ -83,7 +86,8 @@ export async function loader({params, context: _context}: LoaderArgs) {
         LoaderSchema,
         {
             initialTitleText: task?.getTitle().getText() ?? "",
-            childrenGridViewExpandedState: childrenQueryOutput.gridViewExpansionState,
+            childrenGridViewExpansionState: childrenQueryOutput.gridViewExpansionState,
+            initialBottomGhostTaskId: generateId<TaskId>(),
         },
         {
             propagateEventData: {
@@ -120,6 +124,8 @@ export async function clientLoader({
 }
 
 export default function TaskRoute({withMobileLayout}: {withMobileLayout?: boolean}) {
+    const {childrenGridViewExpansionState, initialBottomGhostTaskId} =
+        useLoaderDataWithSchema(LoaderSchema);
     const {
         queries: [childrenQuery],
         taskSubscriptions: [taskSubscription],
@@ -182,6 +188,8 @@ export default function TaskRoute({withMobileLayout}: {withMobileLayout?: boolea
                     key={taskSubscription.taskId}
                     taskSubscription={taskSubscription}
                     childrenQuery={childrenQuery}
+                    initialChildrenGridViewExpansionState={childrenGridViewExpansionState}
+                    initialBottomGhostTaskId={initialBottomGhostTaskId}
                 />
             </Box>
         </Box>

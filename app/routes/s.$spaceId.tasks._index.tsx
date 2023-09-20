@@ -36,7 +36,7 @@ import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort
 const LoaderSchema = Schema.object({
     allNotepadPageIds: TaskNotepadPageIdCompressedSetSchema,
     notepadPageId: TaskNotepadPageIdSchema,
-    notepadPageViewExpandedState: TaskGridViewExpansionStateSchema,
+    notepadPageGridViewExpansionState: TaskGridViewExpansionStateSchema,
     initialBottomGhostTaskId: Schema.id<TaskId>(),
 });
 
@@ -138,14 +138,14 @@ export async function loader({params, context: _context}: LoaderArgs) {
     const assigneeActiveQueryLoadedState = assertExists(queries[0]).loadedState;
     const notepadPageQueryLoadedState = assertExists(queries[1]).loadedState;
 
-    const notepadPageViewExpandedState = queries[1]?.gridViewExpansionState ?? null;
+    const notepadPageGridViewExpansionState = queries[1]?.gridViewExpansionState ?? null;
 
     return jsonWithSchema(
         LoaderSchema,
         {
             allNotepadPageIds,
             notepadPageId,
-            notepadPageViewExpandedState,
+            notepadPageGridViewExpansionState,
             initialBottomGhostTaskId: generateId<TaskId>(),
         },
         {
@@ -191,7 +191,7 @@ export async function clientLoader({
 }
 
 export default function TasksRoute() {
-    const {notepadPageId, notepadPageViewExpandedState, initialBottomGhostTaskId} =
+    const {notepadPageId, notepadPageGridViewExpansionState, initialBottomGhostTaskId} =
         useLoaderDataWithSchema(LoaderSchema);
     const {
         queries: [assigneeActiveQuery, notepadPageQuery],
@@ -230,7 +230,7 @@ export default function TasksRoute() {
                     [],
                 )}
                 query={notepadPageQuery}
-                initialExpandedState={notepadPageViewExpandedState}
+                initialExpansionState={notepadPageGridViewExpansionState}
                 initialBottomGhostTaskId={initialBottomGhostTaskId}
                 getMoveTaskToQueryActions={(taskId, position) => {
                     const time = notepadPageQuery.store.clock.now();

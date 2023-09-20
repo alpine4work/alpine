@@ -72,7 +72,7 @@ const properties = defineProperties({
             none: "none",
             // When `user-select` is `"text"` we need to override our global default
             // `cursor: "default"`.
-            text: {userSelect: "text", cursor: "text"},
+            text: {userSelect: "text", cursor: "auto"},
         },
         textAlign: {left: "left", center: "center", right: "right", justify: "justify"},
         fontSize: fontSizes,

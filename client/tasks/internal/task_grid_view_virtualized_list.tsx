@@ -17,6 +17,7 @@ import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_k
 import {TaskGridViewVirtualizedTaskList} from "~/client/tasks/internal/task_grid_view_virtualized_task_list.js";
 import {TaskRowShimmer} from "~/client/tasks/internal/task_row_shimmer.js";
 import {TaskRowView, TaskRowViewRef} from "~/client/tasks/internal/task_row_view.js";
+import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {useTaskGridViewExpansionState} from "~/client/tasks/internal/use_task_grid_view_expansion_state.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {taskRowViewMinHeight} from "~/client/tasks/task_row_shared_styles.js";
@@ -52,7 +53,7 @@ const taskGridViewMoreUnloadedTasksSpinnerHeight = addRemLengths(
     spacing["4"],
 );
 
-type TaskGridViewVirtualizedListViewRef = {
+export type TaskGridViewVirtualizedListViewRef = {
     getHeight: () => number;
     getContentHeight: () => number;
     getScrollOffset: () => number;
@@ -74,7 +75,7 @@ assertAssignableTypes<VirtualizedScrollViewRef, TaskGridViewVirtualizedListViewR
 export function useTaskGridViewVirtualizedList({
     capabilities,
     query,
-    initialExpandedState,
+    initialExpansionState,
     initialBottomGhostTaskId,
     viewRef,
     getMoveTaskToQueryActions: _getMoveTaskToQueryActions,
@@ -82,7 +83,7 @@ export function useTaskGridViewVirtualizedList({
 }: {
     capabilities: TaskGridViewCapabilities;
     query: TaskClientQuery;
-    initialExpandedState: TaskGridViewExpansionState;
+    initialExpansionState: TaskGridViewExpansionState;
     initialBottomGhostTaskId: TaskId;
     viewRef: RefObject<TaskGridViewVirtualizedListViewRef | null>;
     getMoveTaskToQueryActions: (
@@ -106,7 +107,7 @@ export function useTaskGridViewVirtualizedList({
         iterateExpandedTaskIdsUnderPath,
     } = useTaskGridViewExpansionState({
         query,
-        initialState: initialExpandedState,
+        initialState: initialExpansionState,
     });
 
     const listStore = useMemo(
@@ -498,32 +499,32 @@ export function useTaskGridViewVirtualizedList({
                 };
             };
 
+            const focusPreviousTaskTitleEnd = () => {
+                for (let index = itemIndex - 1; index >= 0; index--) {
+                    const taskRow = taskRowByItemIndexRef.current.get(index);
+                    if (!taskRow) continue;
+
+                    taskRow.focusTitleEnd();
+                    break;
+                }
+            };
+
+            const focusPreviousTaskTitleAll = () => {
+                for (let index = itemIndex - 1; index >= 0; index--) {
+                    const taskRow = taskRowByItemIndexRef.current.get(index);
+                    if (!taskRow) continue;
+
+                    taskRow.focusTitleAll();
+                    break;
+                }
+            };
+
             // If this item is below our task list then render either a ghost row or empty
             // decorative rows.
             if (itemIndex >= listItemCount) {
                 let relativeItemIndex = itemIndex - listItemCount;
 
                 if (loadedState !== "FullyLoaded") {
-                    const focusPreviousTaskTitleEnd = () => {
-                        for (let index = itemIndex - 1; index >= 0; index--) {
-                            const taskRow = taskRowByItemIndexRef.current.get(index);
-                            if (!taskRow) continue;
-
-                            taskRow.focusTitleEnd();
-                            break;
-                        }
-                    };
-
-                    const focusPreviousTaskTitleAll = () => {
-                        for (let index = itemIndex - 1; index >= 0; index--) {
-                            const taskRow = taskRowByItemIndexRef.current.get(index);
-                            if (!taskRow) continue;
-
-                            taskRow.focusTitleAll();
-                            break;
-                        }
-                    };
-
                     return {
                         key: "MoreUnloadedTasks",
                         minHeight: taskGridViewMoreUnloadedTasksSpinnerHeight,
@@ -642,38 +643,12 @@ export function useTaskGridViewVirtualizedList({
                     key: `DecorativeGhostTask:${relativeItemIndex}`,
                     minHeight: spacing[taskRowViewMinHeight],
                     node: (
-                        <Box
-                            paddingX="5"
-                            height={taskRowViewMinHeight}
-                            // Create an illusion that the text editor extends into the margins by giving
-                            // the margin a text cursor and making it clickable putting focus in the task.
-                            // A double click selects the task text.
-                            //
-                            // This is an affordance for mouse users, does not need to be usable
-                            // by keyboard.
-                            cursor="text"
-                            // NOCOMMIT:
-                            // {...useOutOfBoundsClickSelection({
-                            //     onSelect: () => bottomGhostTaskRowRef.current?.focusTitleEnd(),
-                            //     onSelectAll: () => bottomGhostTaskRowRef.current?.focusTitleEnd(),
-                            // })}
-                        >
-                            <Box
-                                width="full"
-                                height="full"
-                                pointerEvents="none"
-                                style={{
-                                    // Draw the top and bottom border with a shadow so it:
-                                    //
-                                    // 1. Doesn't add 2px to layout
-                                    // 2. Adjacent borders share the same space so we don't get 2px dividers
-                                    boxShadow: `0 -1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 -1px 0 0 ${colorSchemeVars["grey-5"]}`,
-                                }}
-                            />
-                            {itemIndex === itemCount - 1 && (
-                                <Box width="full" height="2" pointerEvents="none" />
-                            )}
-                        </Box>
+                        <TaskGridViewDecorativeGhostTask
+                            itemIndex={itemIndex}
+                            itemCount={itemCount}
+                            focusPreviousTaskTitleEnd={focusPreviousTaskTitleEnd}
+                            focusPreviousTaskTitleAll={focusPreviousTaskTitleAll}
+                        />
                     ),
                 };
             }
@@ -769,6 +744,15 @@ export function useTaskGridViewVirtualizedList({
 
                         const nest = () => {
                             query.store.commitTaskActionTransaction(context, [
+                                // If we are indenting at the root of our query then we want to remove the task
+                                // from the query root since it lives in its parent task now.
+                                //
+                                // Must come first since if we're removing a task from its parent then our
+                                // following action needs to set the parent again.
+                                ...(item.query === query
+                                    ? events.getMaybeRemoveTaskFromQueryActions(taskId)
+                                    : []),
+
                                 {
                                     type: "UpdateTask",
                                     time: query.store.clock.now(),
@@ -778,11 +762,6 @@ export function useTaskGridViewVirtualizedList({
                                         parentTaskId: previousTaskId,
                                     },
                                 },
-                                // If we are indenting at the root of our query then we want to remove the task
-                                // from the query root since it lives in its parent task now.
-                                ...(item.query === query
-                                    ? events.getMaybeRemoveTaskFromQueryActions(taskId)
-                                    : []),
                             ]);
 
                             // Store updates are rendered by React immediately. So focus our task before
@@ -929,16 +908,34 @@ export function useTaskGridViewVirtualizedList({
                 }: {
                     withConfirmation: boolean;
                 }) => {
-                    if (!withConfirmation) {
-                        query.store.deleteTaskAndAllChildren(context, taskId);
+                    const focusPreviousRow = (itemIndex: number) => {
+                        let hasFoundPreviousRow = false;
 
                         for (let index = itemIndex - 1; index >= 0; index--) {
                             const taskRow = taskRowByItemIndexRef.current.get(index);
                             if (!taskRow) continue;
 
                             taskRow.focusTitleEnd();
+                            hasFoundPreviousRow = true;
                             break;
                         }
+
+                        // If there is no previous row (we're the first row) then we want to focus the
+                        // start of the next row instead.
+                        if (!hasFoundPreviousRow) {
+                            for (let index = itemIndex + 1; index < itemCount; index++) {
+                                const taskRow = taskRowByItemIndexRef.current.get(index);
+                                if (!taskRow) continue;
+
+                                taskRow.focusTitleStart();
+                                break;
+                            }
+                        }
+                    };
+
+                    if (!withConfirmation) {
+                        query.store.deleteTaskAndAllChildren(context, taskId);
+                        focusPreviousRow(itemIndex);
                     } else {
                         setTaskDeleteConfirmationState({
                             taskId,
@@ -955,16 +952,7 @@ export function useTaskGridViewVirtualizedList({
                                 // Once React has closed the modal dialog, focus the previous task. Until the
                                 // modal dialog is closed, focus is trapped inside it.
                                 onTaskDeleteConfirmationModalDialogClosedCallbacksRef.current.push(
-                                    () => {
-                                        for (let index = itemIndex - 1; index >= 0; index--) {
-                                            const taskRow =
-                                                taskRowByItemIndexRef.current.get(index);
-                                            if (!taskRow) continue;
-
-                                            taskRow.focusTitleEnd();
-                                            break;
-                                        }
-                                    },
+                                    () => focusPreviousRow(itemIndex),
                                 );
                             },
                         });
@@ -1040,26 +1028,6 @@ export function useTaskGridViewVirtualizedList({
                         ? `${getTaskQuerySortCursorTaskId(item.parents[0]!.cursor)}-${parentTaskId}`
                         : parentTaskId;
 
-                const focusPreviousTaskTitleEnd = () => {
-                    for (let index = itemIndex - 1; index >= 0; index--) {
-                        const taskRow = taskRowByItemIndexRef.current.get(index);
-                        if (!taskRow) continue;
-
-                        taskRow.focusTitleEnd();
-                        break;
-                    }
-                };
-
-                const focusPreviousTaskTitleAll = () => {
-                    for (let index = itemIndex - 1; index >= 0; index--) {
-                        const taskRow = taskRowByItemIndexRef.current.get(index);
-                        if (!taskRow) continue;
-
-                        taskRow.focusTitleAll();
-                        break;
-                    }
-                };
-
                 return {
                     key: `UnloadedChildTask:${parentTaskKey}-${item.unloadedChildTaskIndex}`,
                     minHeight: spacing[taskRowViewMinHeight],
@@ -1112,4 +1080,48 @@ export function useTaskGridViewVirtualizedList({
             />
         ),
     };
+}
+
+function TaskGridViewDecorativeGhostTask({
+    itemIndex,
+    itemCount,
+    focusPreviousTaskTitleEnd,
+    focusPreviousTaskTitleAll,
+}: {
+    itemIndex: number;
+    itemCount: number;
+    focusPreviousTaskTitleEnd: () => void;
+    focusPreviousTaskTitleAll: () => void;
+}) {
+    return (
+        <Box
+            paddingX="5"
+            height={taskRowViewMinHeight}
+            // Create an illusion that the text editor extends into the margins by giving
+            // the margin a text cursor and making it clickable putting focus in the task.
+            // A double click selects the task text.
+            //
+            // This is an affordance for mouse users, does not need to be usable
+            // by keyboard.
+            cursor="text"
+            {...useOutOfBoundsClickSelection({
+                onSelect: focusPreviousTaskTitleEnd,
+                onSelectAll: focusPreviousTaskTitleAll,
+            })}
+        >
+            <Box
+                width="full"
+                height="full"
+                pointerEvents="none"
+                style={{
+                    // Draw the top and bottom border with a shadow so it:
+                    //
+                    // 1. Doesn't add 2px to layout
+                    // 2. Adjacent borders share the same space so we don't get 2px dividers
+                    boxShadow: `0 -1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 -1px 0 0 ${colorSchemeVars["grey-5"]}`,
+                }}
+            />
+            {itemIndex === itemCount - 1 && <Box width="full" height="2" pointerEvents="none" />}
+        </Box>
+    );
 }
