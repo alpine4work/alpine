@@ -537,12 +537,19 @@ export function useTaskGridViewExpansionState({
 
                 const oldTaskPath: Array<TaskId> = [];
                 {
+                    const seenTaskIds = new Set<TaskId>([oldTaskEntry.task.id]);
                     let oldGrandParentTaskId = oldParentTaskId;
                     while (
                         oldGrandParentTaskId !== null &&
                         oldGrandParentTaskId !== queryParentTaskId
                     ) {
+                        // Don't loop forever if our client encounters a cycle. Cycles are possible if
+                        // events are applied out-of-order.
+                        if (seenTaskIds.has(oldGrandParentTaskId)) break;
+                        seenTaskIds.add(oldGrandParentTaskId);
+
                         oldTaskPath.push(oldGrandParentTaskId);
+
                         oldGrandParentTaskId =
                             store
                                 .getTaskEntryStoreIfExists(oldGrandParentTaskId)
@@ -557,12 +564,19 @@ export function useTaskGridViewExpansionState({
 
                 const newTaskPath: Array<TaskId> = [];
                 {
+                    const seenTaskIds = new Set<TaskId>([newTaskEntry.task.id]);
                     let newGrandParentTaskId = newParentTaskId;
                     while (
                         newGrandParentTaskId !== null &&
                         newGrandParentTaskId !== queryParentTaskId
                     ) {
+                        // Don't loop forever if our client encounters a cycle. Cycles are possible if
+                        // events are applied out-of-order.
+                        if (seenTaskIds.has(newGrandParentTaskId)) break;
+                        seenTaskIds.add(newGrandParentTaskId);
+
                         newTaskPath.push(newGrandParentTaskId);
+
                         newGrandParentTaskId =
                             store
                                 .getTaskEntryStoreIfExists(newGrandParentTaskId)

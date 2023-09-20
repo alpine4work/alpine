@@ -105,6 +105,238 @@ export function TaskGridViewDndContext({
     // another one. This allows us to "hoist" up drag-and-drop functionality.
     if (useContext(TaskGridViewHasDndContext)) return <>{children}</>;
 
+    const onDragEnd = (
+        activeData: TaskGridViewDraggableData,
+        overData: TaskGridViewDroppableData,
+    ) => {
+        switch (overData.type) {
+            case "Row": {
+                switch (activeData.type) {
+                    case "Row": {
+                        const actions = [
+                            ...activeData.getDropActions(activeData.task.id),
+                            ...overData.getDropActions(activeData.task.id),
+                        ];
+
+                        // Some drag operations may introduce a circular dependency. For example
+                        // dragging a task inside itself. We want to ignore these drops entirely!
+                        // So look at the tasks in our store after `actions` are applied and if we
+                        // find out that the action would introduce a circular dependency we don't
+                        // commit the actions.
+                        //
+                        // We may not have all the parent tasks loaded. In that case it's up to the
+                        // server to reject a drag that would create a circular dependency.
+                        let wouldCreateCircularDependency = false;
+                        {
+                            const newTaskById = new Map<TaskId, TaskModel>();
+
+                            for (const action of actions) {
+                                if (action.type !== "UpdateTask") continue;
+
+                                const task =
+                                    newTaskById.get(action.taskId) ??
+                                    store.getTaskEntryStoreIfExists(action.taskId)?.getSnapshot()
+                                        .task;
+                                if (!task) continue;
+
+                                newTaskById.set(task.id, task.apply(action));
+                            }
+
+                            for (const task of newTaskById.values()) {
+                                const seenTaskIds = new Set<TaskId>([task.id]);
+
+                                let parentTaskId = task.getParent()?.taskId;
+                                while (parentTaskId) {
+                                    if (seenTaskIds.has(parentTaskId)) {
+                                        wouldCreateCircularDependency = true;
+                                        break;
+                                    }
+                                    seenTaskIds.add(parentTaskId);
+
+                                    const parentTask =
+                                        newTaskById.get(parentTaskId) ??
+                                        store.getTaskEntryStoreIfExists(parentTaskId)?.getSnapshot()
+                                            .task;
+                                    if (!parentTask) break;
+
+                                    parentTaskId = parentTask.getParent()?.taskId;
+                                }
+
+                                if (wouldCreateCircularDependency) break;
+                            }
+                        }
+
+                        if (!wouldCreateCircularDependency) {
+                            store.commitTaskActionTransaction(context, actions);
+                        }
+                        break;
+                    }
+                    case "Card": {
+                        // Can not drop cards into row positions...
+                        break;
+                    }
+                    default:
+                        throw exhaustive(activeData);
+                }
+                break;
+            }
+            case "ActiveCard": {
+                // NOCOMMIT:
+                // let taskRow: TaskRow;
+                // let beforeAssigneeActiveStatus: TaskAssigneeActiveStatus | null = null;
+                // let afterAssigneeActiveStatus: TaskAssigneeActiveStatus | null = null;
+                // switch (activeData.type) {
+                //     case "Row": {
+                //         taskRow = activeData.taskRow;
+                //         beforeAssigneeActiveStatus =
+                //             overData.previousAssigneeActiveStatus;
+                //         afterAssigneeActiveStatus = overData.assigneeActiveStatus;
+                //         break;
+                //     }
+                //     case "Card": {
+                //         // @ts-expect-error: Hack. This should get cleaned up in a production
+                //         // implementation.
+                //         taskRow = {task: {id: activeData.id}};
+                //         if (
+                //             activeData.assignee?.status.type === "Active" &&
+                //             overData.assigneeActiveStatus &&
+                //             compareTaskAssigneeActiveStatus(
+                //                 activeData.assignee.status,
+                //                 overData.assigneeActiveStatus,
+                //             ) < 0
+                //         ) {
+                //             beforeAssigneeActiveStatus = overData.assigneeActiveStatus;
+                //             afterAssigneeActiveStatus =
+                //                 overData.nextAssigneeActiveStatus;
+                //         } else {
+                //             beforeAssigneeActiveStatus =
+                //                 overData.previousAssigneeActiveStatus;
+                //             afterAssigneeActiveStatus = overData.assigneeActiveStatus;
+                //         }
+                //         break;
+                //     }
+                //     default:
+                //         throw exhaustive(activeData);
+                // }
+                // const assignedTime = new Date();
+                // const assignedDate = toCalendarDate(
+                //     parseAbsolute(assignedTime.toISOString(), timeZone),
+                // );
+                // if (afterAssigneeActiveStatus && beforeAssigneeActiveStatus) {
+                //     if (
+                //         afterAssigneeActiveStatus.orderTime.toString() ===
+                //         beforeAssigneeActiveStatus.orderTime.toString()
+                //     ) {
+                //         onTaskAssigneeChange(taskRow, {
+                //             account: currentAccount,
+                //             // TODO(calebmer): This probably should be a new assigned time...
+                //             assignerId: currentAccount.id,
+                //             assignedTime,
+                //             assignerTimeZone: timeZone,
+                //             assignedDate,
+                //             status: {
+                //                 type: "Active",
+                //                 orderTime: afterAssigneeActiveStatus.orderTime,
+                //                 orderKey: generateOrderKeyBetween(
+                //                     beforeAssigneeActiveStatus.orderKey,
+                //                     afterAssigneeActiveStatus.orderKey,
+                //                 ),
+                //                 activatorId: currentAccount.id,
+                //                 activatedTime: assignedTime,
+                //                 activatorTimeZone: timeZone,
+                //                 activatedDate: assignedDate,
+                //             },
+                //         });
+                //     } else {
+                //         onTaskAssigneeChange(taskRow, {
+                //             account: currentAccount,
+                //             // TODO(calebmer): This probably should be a new assigned time...
+                //             assignerId: currentAccount.id,
+                //             assignedTime,
+                //             assignerTimeZone: timeZone,
+                //             assignedDate,
+                //             status: {
+                //                 type: "Active",
+                //                 orderTime: beforeAssigneeActiveStatus.orderTime,
+                //                 orderKey: generateOrderKeyBetween(
+                //                     beforeAssigneeActiveStatus.orderKey,
+                //                     null,
+                //                 ),
+                //                 activatorId: currentAccount.id,
+                //                 activatedTime: assignedTime,
+                //                 activatorTimeZone: timeZone,
+                //                 activatedDate: assignedDate,
+                //             },
+                //         });
+                //     }
+                // } else if (beforeAssigneeActiveStatus) {
+                //     onTaskAssigneeChange(taskRow, {
+                //         account: currentAccount,
+                //         // TODO(calebmer): This probably should be a new assigned time...
+                //         assignerId: currentAccount.id,
+                //         assignedTime,
+                //         assignerTimeZone: timeZone,
+                //         assignedDate,
+                //         status: {
+                //             type: "Active",
+                //             orderTime: beforeAssigneeActiveStatus.orderTime,
+                //             orderKey: generateOrderKeyBetween(
+                //                 beforeAssigneeActiveStatus.orderKey,
+                //                 null,
+                //             ),
+                //             activatorId: currentAccount.id,
+                //             activatedTime: assignedTime,
+                //             activatorTimeZone: timeZone,
+                //             activatedDate: assignedDate,
+                //         },
+                //     });
+                // } else if (afterAssigneeActiveStatus) {
+                //     onTaskAssigneeChange(taskRow, {
+                //         account: currentAccount,
+                //         // TODO(calebmer): This probably should be a new assigned time...
+                //         assignerId: currentAccount.id,
+                //         assignedTime,
+                //         assignerTimeZone: timeZone,
+                //         assignedDate,
+                //         status: {
+                //             type: "Active",
+                //             orderTime: afterAssigneeActiveStatus.orderTime,
+                //             orderKey: generateOrderKeyBetween(
+                //                 null,
+                //                 afterAssigneeActiveStatus.orderKey,
+                //             ),
+                //             activatorId: currentAccount.id,
+                //             activatedTime: assignedTime,
+                //             activatorTimeZone: timeZone,
+                //             activatedDate: assignedDate,
+                //         },
+                //     });
+                // } else {
+                //     onTaskAssigneeChange(taskRow, {
+                //         account: currentAccount,
+                //         // TODO(calebmer): This probably should be a new assigned time...
+                //         assignerId: currentAccount.id,
+                //         assignedTime,
+                //         assignerTimeZone: timeZone,
+                //         assignedDate,
+                //         status: {
+                //             type: "Active",
+                //             orderTime: new Date(),
+                //             orderKey: initialOrderKey,
+                //             activatorId: currentAccount.id,
+                //             activatedTime: assignedTime,
+                //             activatorTimeZone: timeZone,
+                //             activatedDate: assignedDate,
+                //         },
+                //     });
+                // }
+                break;
+            }
+            default:
+                throw exhaustive(overData);
+        }
+    };
+
     return (
         <TaskGridViewHasDndContext.Provider value={true}>
             <DndContext
@@ -118,180 +350,7 @@ export function TaskGridViewDndContext({
                     ) as TaskGridViewDraggableData;
                     const overData = assertExists(over.data.current) as TaskGridViewDroppableData;
 
-                    switch (overData.type) {
-                        case "Row": {
-                            switch (activeData.type) {
-                                case "Row": {
-                                    store.commitTaskActionTransaction(context, [
-                                        ...activeData.getDropActions(activeData.task.id),
-                                        ...overData.getDropActions(activeData.task.id),
-                                    ]);
-                                    break;
-                                }
-                                case "Card": {
-                                    // Can not drop cards into row positions...
-                                    break;
-                                }
-                                default:
-                                    throw exhaustive(activeData);
-                            }
-                            break;
-                        }
-                        case "ActiveCard": {
-                            // NOCOMMIT:
-                            // let taskRow: TaskRow;
-                            // let beforeAssigneeActiveStatus: TaskAssigneeActiveStatus | null = null;
-                            // let afterAssigneeActiveStatus: TaskAssigneeActiveStatus | null = null;
-                            // switch (activeData.type) {
-                            //     case "Row": {
-                            //         taskRow = activeData.taskRow;
-                            //         beforeAssigneeActiveStatus =
-                            //             overData.previousAssigneeActiveStatus;
-                            //         afterAssigneeActiveStatus = overData.assigneeActiveStatus;
-                            //         break;
-                            //     }
-                            //     case "Card": {
-                            //         // @ts-expect-error: Hack. This should get cleaned up in a production
-                            //         // implementation.
-                            //         taskRow = {task: {id: activeData.id}};
-                            //         if (
-                            //             activeData.assignee?.status.type === "Active" &&
-                            //             overData.assigneeActiveStatus &&
-                            //             compareTaskAssigneeActiveStatus(
-                            //                 activeData.assignee.status,
-                            //                 overData.assigneeActiveStatus,
-                            //             ) < 0
-                            //         ) {
-                            //             beforeAssigneeActiveStatus = overData.assigneeActiveStatus;
-                            //             afterAssigneeActiveStatus =
-                            //                 overData.nextAssigneeActiveStatus;
-                            //         } else {
-                            //             beforeAssigneeActiveStatus =
-                            //                 overData.previousAssigneeActiveStatus;
-                            //             afterAssigneeActiveStatus = overData.assigneeActiveStatus;
-                            //         }
-                            //         break;
-                            //     }
-                            //     default:
-                            //         throw exhaustive(activeData);
-                            // }
-                            // const assignedTime = new Date();
-                            // const assignedDate = toCalendarDate(
-                            //     parseAbsolute(assignedTime.toISOString(), timeZone),
-                            // );
-                            // if (afterAssigneeActiveStatus && beforeAssigneeActiveStatus) {
-                            //     if (
-                            //         afterAssigneeActiveStatus.orderTime.toString() ===
-                            //         beforeAssigneeActiveStatus.orderTime.toString()
-                            //     ) {
-                            //         onTaskAssigneeChange(taskRow, {
-                            //             account: currentAccount,
-                            //             // TODO(calebmer): This probably should be a new assigned time...
-                            //             assignerId: currentAccount.id,
-                            //             assignedTime,
-                            //             assignerTimeZone: timeZone,
-                            //             assignedDate,
-                            //             status: {
-                            //                 type: "Active",
-                            //                 orderTime: afterAssigneeActiveStatus.orderTime,
-                            //                 orderKey: generateOrderKeyBetween(
-                            //                     beforeAssigneeActiveStatus.orderKey,
-                            //                     afterAssigneeActiveStatus.orderKey,
-                            //                 ),
-                            //                 activatorId: currentAccount.id,
-                            //                 activatedTime: assignedTime,
-                            //                 activatorTimeZone: timeZone,
-                            //                 activatedDate: assignedDate,
-                            //             },
-                            //         });
-                            //     } else {
-                            //         onTaskAssigneeChange(taskRow, {
-                            //             account: currentAccount,
-                            //             // TODO(calebmer): This probably should be a new assigned time...
-                            //             assignerId: currentAccount.id,
-                            //             assignedTime,
-                            //             assignerTimeZone: timeZone,
-                            //             assignedDate,
-                            //             status: {
-                            //                 type: "Active",
-                            //                 orderTime: beforeAssigneeActiveStatus.orderTime,
-                            //                 orderKey: generateOrderKeyBetween(
-                            //                     beforeAssigneeActiveStatus.orderKey,
-                            //                     null,
-                            //                 ),
-                            //                 activatorId: currentAccount.id,
-                            //                 activatedTime: assignedTime,
-                            //                 activatorTimeZone: timeZone,
-                            //                 activatedDate: assignedDate,
-                            //             },
-                            //         });
-                            //     }
-                            // } else if (beforeAssigneeActiveStatus) {
-                            //     onTaskAssigneeChange(taskRow, {
-                            //         account: currentAccount,
-                            //         // TODO(calebmer): This probably should be a new assigned time...
-                            //         assignerId: currentAccount.id,
-                            //         assignedTime,
-                            //         assignerTimeZone: timeZone,
-                            //         assignedDate,
-                            //         status: {
-                            //             type: "Active",
-                            //             orderTime: beforeAssigneeActiveStatus.orderTime,
-                            //             orderKey: generateOrderKeyBetween(
-                            //                 beforeAssigneeActiveStatus.orderKey,
-                            //                 null,
-                            //             ),
-                            //             activatorId: currentAccount.id,
-                            //             activatedTime: assignedTime,
-                            //             activatorTimeZone: timeZone,
-                            //             activatedDate: assignedDate,
-                            //         },
-                            //     });
-                            // } else if (afterAssigneeActiveStatus) {
-                            //     onTaskAssigneeChange(taskRow, {
-                            //         account: currentAccount,
-                            //         // TODO(calebmer): This probably should be a new assigned time...
-                            //         assignerId: currentAccount.id,
-                            //         assignedTime,
-                            //         assignerTimeZone: timeZone,
-                            //         assignedDate,
-                            //         status: {
-                            //             type: "Active",
-                            //             orderTime: afterAssigneeActiveStatus.orderTime,
-                            //             orderKey: generateOrderKeyBetween(
-                            //                 null,
-                            //                 afterAssigneeActiveStatus.orderKey,
-                            //             ),
-                            //             activatorId: currentAccount.id,
-                            //             activatedTime: assignedTime,
-                            //             activatorTimeZone: timeZone,
-                            //             activatedDate: assignedDate,
-                            //         },
-                            //     });
-                            // } else {
-                            //     onTaskAssigneeChange(taskRow, {
-                            //         account: currentAccount,
-                            //         // TODO(calebmer): This probably should be a new assigned time...
-                            //         assignerId: currentAccount.id,
-                            //         assignedTime,
-                            //         assignerTimeZone: timeZone,
-                            //         assignedDate,
-                            //         status: {
-                            //             type: "Active",
-                            //             orderTime: new Date(),
-                            //             orderKey: initialOrderKey,
-                            //             activatorId: currentAccount.id,
-                            //             activatedTime: assignedTime,
-                            //             activatorTimeZone: timeZone,
-                            //             activatedDate: assignedDate,
-                            //         },
-                            //     });
-                            // }
-                            break;
-                        }
-                        default:
-                            throw exhaustive(overData);
-                    }
+                    onDragEnd(activeData, overData);
                 }}
             >
                 {children}
