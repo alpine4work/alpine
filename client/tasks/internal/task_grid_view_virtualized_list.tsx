@@ -1,6 +1,16 @@
 import {SpinnerGap} from "phosphor-react";
 import {Selection} from "prosemirror-state";
-import {Key, Memo, ReactNode, RefObject, useEffect, useMemo, useRef, useState} from "react";
+import {
+    Key,
+    Memo,
+    ReactNode,
+    RefObject,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
@@ -96,6 +106,7 @@ export function useTaskGridViewVirtualizedList({
     renderItem: Memo<(index: number) => VirtualizedScrollViewItem>;
     onRenderedRangeChange: (renderedRange: {startIndex: number; endIndex: number} | null) => void;
     modals: ReactNode;
+    focusStart: Memo<() => void>;
 } {
     const context = useAppContext();
 
@@ -126,6 +137,16 @@ export function useTaskGridViewVirtualizedList({
     const events = useEvents({
         getMoveTaskToQueryActions: _getMoveTaskToQueryActions,
         getMaybeRemoveTaskFromQueryActions: _getMaybeRemoveTaskFromQueryActions,
+
+        focusStart: () => {
+            for (let index = 0; index < itemCount; index++) {
+                const taskRow = taskRowByItemIndexRef.current.get(index);
+                if (!taskRow) continue;
+
+                taskRow.focusTitleStart();
+                break;
+            }
+        },
     });
 
     const taskRowByTaskKeyRef = useRef(new Map<TaskGridViewTaskKey, TaskRowViewRef>());
@@ -1079,6 +1100,7 @@ export function useTaskGridViewVirtualizedList({
                 onAfterDelete={taskDeleteConfirmationState.onAfterDelete}
             />
         ),
+        focusStart: events.focusStart,
     };
 }
 

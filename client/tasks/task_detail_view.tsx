@@ -16,6 +16,7 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/get_new_task_position_for_query_sorted_by_position.js";
 import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
+import {TaskChildTasksProgressWheel} from "~/client/tasks/internal/task_child_tasks_progress_wheel.js";
 import {TaskDateInput} from "~/client/tasks/internal/task_date_input.js";
 import {TaskDetailTitleInput} from "~/client/tasks/internal/task_detail_title_input.js";
 import {
@@ -117,6 +118,7 @@ export function TaskDetailView({
         itemCount: childrenGridViewItemCount,
         renderItem: renderChildrenGridViewItem,
         onRenderedRangeChange: onChildrenGridViewRenderedRangeChange,
+        focusStart: focusChildrenGridViewStart,
     } = useTaskGridViewVirtualizedList({
         capabilities: useMemo(
             () => ({
@@ -193,13 +195,18 @@ export function TaskDetailView({
                                 // NOCOMMIT: Check to make sure this value is accurate when all our UI is
                                 // in place!
                                 minHeight: "18.75rem",
-                                node: <TaskDetailViewMain taskSubscription={taskSubscription} />,
+                                node: (
+                                    <TaskDetailViewMain
+                                        taskSubscription={taskSubscription}
+                                        focusChildrenGridViewStart={focusChildrenGridViewStart}
+                                    />
+                                ),
                             };
                         }
 
                         return renderChildrenGridViewItem(index - 1);
                     },
-                    [renderChildrenGridViewItem, taskSubscription],
+                    [focusChildrenGridViewStart, renderChildrenGridViewItem, taskSubscription],
                 )}
                 onRenderedRangeChange={range => {
                     onChildrenGridViewRenderedRangeChange(
@@ -211,7 +218,13 @@ export function TaskDetailView({
     );
 }
 
-function TaskDetailViewMain({taskSubscription}: {taskSubscription: TaskClientTaskSubscription}) {
+function TaskDetailViewMain({
+    taskSubscription,
+    focusChildrenGridViewStart,
+}: {
+    taskSubscription: TaskClientTaskSubscription;
+    focusChildrenGridViewStart: () => void;
+}) {
     const context = useAppContext();
     const navigate = useNavigate();
     const isMobile = useIsMobile();
@@ -663,25 +676,21 @@ function TaskDetailViewMain({taskSubscription}: {taskSubscription: TaskClientTas
                         color: "grey-60",
                     })}
                     // Affordance for mouse users. Clicking on a label focuses child tasks.
-                    onClick={() => {
-                        // NOCOMMIT:
-                        // assertExists(childTasksGridViewRef.current).focusStart();
-                    }}
+                    onClick={focusChildrenGridViewStart}
                 >
                     <Box>Subtasks</Box>
-                    {/* NOCOMMIT: {childTaskCount > 0 && (
+                    {task && task.getChildTaskCount() > 0 && (
                         <Box display="flex" alignItems="center" gap="1">
                             <TaskChildTasksProgressWheel
-                                childTaskCount={childTaskCount}
-                                closedChildTaskCount={closedChildTaskCount}
+                                childTaskCount={task.getChildTaskCount()}
+                                closedChildTaskCount={task.getClosedChildTaskCount()}
                             />
                             <Box color="grey-70">
-                                {closedChildTaskCount}/{childTaskCount}
+                                {task.getClosedChildTaskCount()}/{task.getChildTaskCount()}
                             </Box>
                         </Box>
-                    )} */}
+                    )}
                 </label>
-                {/* NOCOMMIT: {useElementWithRef(childTasksGridView, childTasksGridViewRef)} */}
             </Box>
         </Box>
     );
