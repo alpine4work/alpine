@@ -17,6 +17,72 @@ index da399bb5e415585520698623cbf261bec20ecd65..3eb8a36a85c30a382564e40d0dd9a3b6
          state: HydrationState;
          future: FutureConfig;
          a?: number;
+diff --git a/dist/components.js b/dist/components.js
+index d818dad4ce6f197c0b122816cee59bfe4f493986..f06a54320cd6e1675f1b57dcbf00042aad50de1c 100644
+--- a/dist/components.js
++++ b/dist/components.js
+@@ -67,6 +67,9 @@ function useRemixContext() {
+ ////////////////////////////////////////////////////////////////////////////////
+ // RemixRoute
+ 
++// NOTE(calebmer): Merge `RemixRouteError` and `RemixRoute` into one component
++// so that when switching between the two if we use the same child component we
++// don't end up remounting and resetting state.
+ function RemixRoute({
+   id
+ }) {
+@@ -75,34 +78,22 @@ function RemixRoute({
+     future
+   } = useRemixContext();
+   invariant(routeModules, "Cannot initialize 'routeModules'. This normally occurs when you have server code in your client modules.\n" + "Check this link for more details:\nhttps://remix.run/pages/gotchas#server-code-in-client-bundles");
++  let error = reactRouterDom.useRouteError();
+   let {
+     default: Component,
+     ErrorBoundary,
+     CatchBoundary
+   } = routeModules[id];
+ 
+-  // Default Component to Outlet if we expose boundary UI components
+-  if (!Component && (ErrorBoundary || !future.v2_errorBoundary && CatchBoundary)) {
+-    Component = reactRouterDom.Outlet;
++  if (!error) {
++    // Default Component to Outlet if we expose boundary UI components
++    if (!Component && (ErrorBoundary || !future.v2_errorBoundary && CatchBoundary)) {
++      Component = reactRouterDom.Outlet;
++    }
++    invariant(Component, `Route "${id}" has no component! Please go add a \`default\` export in the route module file.\n` + "If you were trying to navigate or submit to a resource route, use `<a>` instead of `<Link>` or `<Form reloadDocument>`.");
++    return /*#__PURE__*/React__namespace.createElement(Component, null);
+   }
+-  invariant(Component, `Route "${id}" has no component! Please go add a \`default\` export in the route module file.\n` + "If you were trying to navigate or submit to a resource route, use `<a>` instead of `<Link>` or `<Form reloadDocument>`.");
+-  return /*#__PURE__*/React__namespace.createElement(Component, null);
+-}
+-function RemixRouteError({
+-  id
+-}) {
+-  let {
+-    future,
+-    routeModules
+-  } = useRemixContext();
+ 
+-  // This checks prevent cryptic error messages such as: 'Cannot read properties of undefined (reading 'root')'
+-  invariant(routeModules, "Cannot initialize 'routeModules'. This normally occurs when you have server code in your client modules.\n" + "Check this link for more details:\nhttps://remix.run/pages/gotchas#server-code-in-client-bundles");
+-  let error = reactRouterDom.useRouteError();
+-  let {
+-    CatchBoundary,
+-    ErrorBoundary
+-  } = routeModules[id];
+   if (future.v2_errorBoundary) {
+     // Provide defaults for the root route if they are not present
+     if (id === "root") {
+@@ -1421,7 +1412,7 @@ exports.NavLink = NavLink;
+ exports.PrefetchPageLinks = PrefetchPageLinks;
+ exports.RemixContext = RemixContext;
+ exports.RemixRoute = RemixRoute;
+-exports.RemixRouteError = RemixRouteError;
++exports.RemixRouteError = RemixRoute;
+ exports.Scripts = Scripts;
+ exports.composeEventHandlers = composeEventHandlers;
+ exports.useActionData = useActionData;
 diff --git a/dist/data.js b/dist/data.js
 index b3b935f5b72a1b1d9aa71247f791389c4fc9a918..a49504d9c484d778684823b8fea2fb3ba244dc23 100644
 --- a/dist/data.js
@@ -60,6 +126,69 @@ index f4dd34fae394d3bfb43f4ad2c03f431c4fb4e680..f3c344a8d46c8de44385d2e00bdf69f5
      } else {
        serialized[key] = val;
      }
+diff --git a/dist/esm/components.js b/dist/esm/components.js
+index f2a540d17fafb27efc0145f1a1f8458bd316d31b..a28bf70660dd01ffcd2d271b143477d3c17b69f3 100644
+--- a/dist/esm/components.js
++++ b/dist/esm/components.js
+@@ -43,6 +43,9 @@ function useRemixContext() {
+ ////////////////////////////////////////////////////////////////////////////////
+ // RemixRoute
+ 
++// NOTE(calebmer): Merge `RemixRouteError` and `RemixRoute` into one component
++// so that when switching between the two if we use the same child component we
++// don't end up remounting and resetting state.
+ function RemixRoute({
+   id
+ }) {
+@@ -51,34 +54,22 @@ function RemixRoute({
+     future
+   } = useRemixContext();
+   invariant(routeModules, "Cannot initialize 'routeModules'. This normally occurs when you have server code in your client modules.\n" + "Check this link for more details:\nhttps://remix.run/pages/gotchas#server-code-in-client-bundles");
++  let error = useRouteError();
+   let {
+     default: Component,
+     ErrorBoundary,
+     CatchBoundary
+   } = routeModules[id];
+ 
+-  // Default Component to Outlet if we expose boundary UI components
+-  if (!Component && (ErrorBoundary || !future.v2_errorBoundary && CatchBoundary)) {
+-    Component = Outlet;
++  if (!error) {
++    // Default Component to Outlet if we expose boundary UI components
++    if (!Component && (ErrorBoundary || !future.v2_errorBoundary && CatchBoundary)) {
++      Component = Outlet;
++    }
++    invariant(Component, `Route "${id}" has no component! Please go add a \`default\` export in the route module file.\n` + "If you were trying to navigate or submit to a resource route, use `<a>` instead of `<Link>` or `<Form reloadDocument>`.");
++    return /*#__PURE__*/React.createElement(Component, null);
+   }
+-  invariant(Component, `Route "${id}" has no component! Please go add a \`default\` export in the route module file.\n` + "If you were trying to navigate or submit to a resource route, use `<a>` instead of `<Link>` or `<Form reloadDocument>`.");
+-  return /*#__PURE__*/React.createElement(Component, null);
+-}
+-function RemixRouteError({
+-  id
+-}) {
+-  let {
+-    future,
+-    routeModules
+-  } = useRemixContext();
+ 
+-  // This checks prevent cryptic error messages such as: 'Cannot read properties of undefined (reading 'root')'
+-  invariant(routeModules, "Cannot initialize 'routeModules'. This normally occurs when you have server code in your client modules.\n" + "Check this link for more details:\nhttps://remix.run/pages/gotchas#server-code-in-client-bundles");
+-  let error = useRouteError();
+-  let {
+-    CatchBoundary,
+-    ErrorBoundary
+-  } = routeModules[id];
+   if (future.v2_errorBoundary) {
+     // Provide defaults for the root route if they are not present
+     if (id === "root") {
+@@ -1388,4 +1379,4 @@ function mergeRefs(...refs) {
+   };
+ }
+ 
+-export { Await, Link, Links, LiveReload, Meta, NavLink, PrefetchPageLinks, RemixContext, RemixRoute, RemixRouteError, Scripts, composeEventHandlers, useActionData, useFetcher, useFetchers, useLoaderData, useMatches, useTransition };
++export { Await, Link, Links, LiveReload, Meta, NavLink, PrefetchPageLinks, RemixContext, RemixRoute, RemixRoute as RemixRouteError, Scripts, composeEventHandlers, useActionData, useFetcher, useFetchers, useLoaderData, useMatches, useTransition };
 diff --git a/dist/esm/data.js b/dist/esm/data.js
 index 2727874a01c5ec6fb5cb032fad9b4bed5344dbfd..91e0c4d65ca2a16fe5d295bc5a572c22d3fb161b 100644
 --- a/dist/esm/data.js

@@ -38,7 +38,7 @@ patchedDependencies:
     hash: rinjp45mpbrt6gc3siziif7zkm
     path: admin/patches/@remix-run__dev@1.18.0.patch
   '@remix-run/react@1.18.0':
-    hash: pw5e6dzt5sof7sjabrlpqi3ory
+    hash: jjglha5utcogf5q2swbngyl42q
     path: admin/patches/@remix-run__react@1.18.0.patch
   '@remix-run/router@1.7.0':
     hash: vytmvafzhwlog3q2vg6d2kv4pu
@@ -83,7 +83,7 @@ patchedDependencies:
     hash: kvpk374ql5erre4wvvaotuluya
     path: admin/patches/react-router-dom@6.14.0.patch
   react-router@6.14.0:
-    hash: w54s5d5k7cvvme4saaikvwvaim
+    hash: 7mgs4cb3kjuu4mvyc3m7w3zr2m
     path: admin/patches/react-router@6.14.0.patch
   swr@2.1.0:
     hash: fjssuecdvmfeujlug2i3x2lofe
@@ -161,7 +161,7 @@ dependencies:
     version: 1.18.0
   '@remix-run/react':
     specifier: 1.18.0
-    version: 1.18.0(patch_hash=pw5e6dzt5sof7sjabrlpqi3ory)(react-dom@18.2.0)(react@18.2.0)
+    version: 1.18.0(patch_hash=jjglha5utcogf5q2swbngyl42q)(react-dom@18.2.0)(react@18.2.0)
   '@remix-run/router':
     specifier: 1.7.0
     version: 1.7.0(patch_hash=vytmvafzhwlog3q2vg6d2kv4pu)
@@ -539,7 +539,7 @@ dependencies:
     version: 18.2.0(react@18.2.0)
   react-router:
     specifier: 6.14.0
-    version: 6.14.0(patch_hash=w54s5d5k7cvvme4saaikvwvaim)(react@18.2.0)
+    version: 6.14.0(patch_hash=7mgs4cb3kjuu4mvyc3m7w3zr2m)(react@18.2.0)
   react-router-dom:
     specifier: 6.14.0
     version: 6.14.0(patch_hash=kvpk374ql5erre4wvvaotuluya)(react-dom@18.2.0)(react@18.2.0)
@@ -5217,7 +5217,7 @@ packages:
       stream-slice: 0.1.2
     dev: false
 
-  /@remix-run/react@1.18.0(patch_hash=pw5e6dzt5sof7sjabrlpqi3ory)(react-dom@18.2.0)(react@18.2.0):
+  /@remix-run/react@1.18.0(patch_hash=jjglha5utcogf5q2swbngyl42q)(react-dom@18.2.0)(react@18.2.0):
     resolution: {integrity: sha512-Xx8O059eSsa/zAFqGKnei9sOBQLXGpbKOA19kRH7HbtnNm3V/kRbTSbfZmNh2LVNXCpcaWBRtai7C01fCJay0Q==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
@@ -13065,11 +13065,11 @@ packages:
       '@remix-run/router': 1.7.0(patch_hash=vytmvafzhwlog3q2vg6d2kv4pu)
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
-      react-router: 6.14.0(patch_hash=w54s5d5k7cvvme4saaikvwvaim)(react@18.2.0)
+      react-router: 6.14.0(patch_hash=7mgs4cb3kjuu4mvyc3m7w3zr2m)(react@18.2.0)
     dev: false
     patched: true
 
-  /react-router@6.14.0(patch_hash=w54s5d5k7cvvme4saaikvwvaim)(react@18.2.0):
+  /react-router@6.14.0(patch_hash=7mgs4cb3kjuu4mvyc3m7w3zr2m)(react@18.2.0):
     resolution: {integrity: sha512-OD+vkrcGbvlwkspUFDgMzsu1RXwdjNh83YgG/28lBnDzgslhCgxIqoExLlxsfTpIygp7fc+Hd3esloNwzkm2xA==}
     engines: {node: '>=14'}
     peerDependencies:

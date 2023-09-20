@@ -6,10 +6,12 @@ import {fontSizes, sprinkles} from "~/shared/styles/styles.js";
 /**
  * Renders an error with a title at body content size.
  */
+// TODO(calebmer): This error rendered is so lame. Come up with a
+// better design.
 export function ErrorBodyRenderer({title, error}: {title: string; error: unknown}) {
     return (
         <>
-            <Box display="flex" gap="2" paddingBottom="2">
+            <Box display="flex" gap="2" paddingBottom="2.5">
                 <Box
                     flexShrink="0"
                     color="red-40"
@@ -35,6 +37,7 @@ export function ErrorBodyRenderer({title, error}: {title: string; error: unknown
                         flexGrow: "1",
                         fontSize: "400",
                         fontStyle: "semi-bold",
+                        userSelect: "text",
                     })}
                 >
                     {title}

@@ -1,11 +1,14 @@
 import {Outlet, ShouldRevalidateFunction} from "@remix-run/react";
 import {LinkDescriptor} from "@remix-run/server-runtime";
-import {useEffect} from "react";
+import {useContext, useEffect, useMemo} from "react";
+import {UNSAFE_DataRouterStateContext as DataRouterStateContext, useRouteError} from "react-router";
 import {Box} from "~/client/design/box.js";
 import {ContextMenuManager} from "~/client/design/context_menu.js";
+import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
 import {attachDevConsoleForAccountInProduction} from "~/client/dev/dev_console.js";
+import {useStableValue} from "~/client/helpers/use_stable_value.js";
 import {PeekStackContextProvider} from "~/client/peek/peek_stack.js";
-import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
+import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
 import {SpaceLayoutTopBar} from "~/client/spaces/layout/space_layout_top_bar.js";
 import {SpaceContextProvider} from "~/client/spaces/space_context.js";
 import {TaskRealtimeClientContextProvider} from "~/client/tasks/task_realtime_client_context_provider.js";
@@ -15,11 +18,14 @@ import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getSpace} from "~/server/spaces/spaces_table.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 export const LoaderSchema = Schema.object({
@@ -78,7 +84,26 @@ export async function loader({context: loaderContext, params}: LoaderArgs) {
  * (e.g. virtualized lists).
  */
 export default function SpaceLayout() {
-    const {space, currentAccount, inbox} = useLoaderDataWithSchema(LoaderSchema);
+    const dataRouterStateContext = assertExists(useContext(DataRouterStateContext));
+
+    const rawLoaderData = dataRouterStateContext.loaderData["routes/s.$spaceId"];
+
+    // `useLoaderData()` doesn't work in an error boundary. We use this exact
+    // component for error and catch boundaries to avoid remounting when navigating
+    // between errors and non-errors. So manually deserialize the data for this
+    // route.
+    const loaderData = useMemo(
+        () => (rawLoaderData ? getLoaderDataWithSchema(LoaderSchema, rawLoaderData) : null),
+        [rawLoaderData],
+    );
+
+    const error = useRouteError();
+
+    // If it's our `/s/:spaceId` route throwing then we won't be able to render the
+    // state chrome so let a parent error boundary handle it.
+    if (!loaderData) throw error;
+
+    const {space, currentAccount, inbox} = loaderData;
 
     useEffect(() => {
         attachDevConsoleForAccountInProduction(currentAccount);
@@ -103,10 +128,42 @@ export default function SpaceLayout() {
                 <PeekStackContextProvider>
                     <TaskRealtimeClientContextProvider spaceId={space.id}>
                         <SpaceLayoutTopBar space={space} initialInbox={inbox} />
-                        <Outlet />
+                        {error !== undefined ? <SpaceErrorRenderer error={error} /> : <Outlet />}
                     </TaskRealtimeClientContextProvider>
                 </PeekStackContextProvider>
             </Box>
         </SpaceContextProvider>
+    );
+}
+
+export const ErrorBoundary = SpaceLayout;
+
+function SpaceErrorRenderer({error: _error}: {error: unknown}) {
+    // It appears that Remix does not `useMemo()` its error object. So stabilize
+    // the object reference here. Our error rendering components use referential
+    // identity to determine whether we need to log the error.
+    const error = useStableValue(ErrorSchema, _error);
+
+    return (
+        <Box display="flex" justifyContent="center">
+            <Box
+                className={sprinkles({
+                    width: "full",
+                    maxWidth: "128",
+                    paddingX: "4",
+                    paddingY: {desktop: "32", mobile: "16"},
+                })}
+            >
+                <ErrorBodyRenderer
+                    // TODO(calebmer): "Couldn't show content" is way too generic. Can I write a
+                    // route pattern matcher so we can be more specific like "Couldn't open task"
+                    // or "Couldn't open document" for initial page loads. Ideally we'd have a more
+                    // specific error if the error was thrown after page load like "Task broke" or
+                    // something but I don't know what that message is.
+                    title="Couldn’t show content"
+                    error={error}
+                />
+            </Box>
+        </Box>
     );
 }
