@@ -19,6 +19,7 @@ import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_
 import {TaskChildTasksProgressWheel} from "~/client/tasks/internal/task_child_tasks_progress_wheel.js";
 import {TaskDateInput} from "~/client/tasks/internal/task_date_input.js";
 import {TaskDetailTitleInput} from "~/client/tasks/internal/task_detail_title_input.js";
+import {TaskGridViewDndContext} from "~/client/tasks/internal/task_grid_view_dnd_context.js";
 import {
     TaskGridViewVirtualizedListViewRef,
     useTaskGridViewVirtualizedList,
@@ -170,7 +171,7 @@ export function TaskDetailView({
     });
 
     return (
-        <>
+        <TaskGridViewDndContext store={taskSubscription.store}>
             {childrenGridViewModals}
             <VirtualizedScrollView
                 ref={viewRef}
@@ -214,7 +215,7 @@ export function TaskDetailView({
                     );
                 }}
             />
-        </>
+        </TaskGridViewDndContext>
     );
 }
 
