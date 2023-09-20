@@ -260,6 +260,7 @@ const colorProperties = defineProperties({
             backgroundColor: colorSchemeVar,
             vars: {[backgroundColorVar]: colorSchemeVar},
         })),
+        fill: colorSchemeVars,
 
         // Default to thin 1px borders over chunky borders.
         border: {

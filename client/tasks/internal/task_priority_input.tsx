@@ -1,5 +1,6 @@
 import {getInteractionModality, isFocusVisible} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
+import classNames from "classnames";
 import _Fuse from "fuse.js";
 import {Check, MagnifyingGlass} from "phosphor-react";
 import {
@@ -28,12 +29,17 @@ import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growing_width.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {getTaskPriorityName} from "~/client/tasks/demo_2/internal/get_task_priority_name.js";
-import {TaskPriorityIcon} from "~/client/tasks/demo_2/internal/task_priority_icon.js";
+import {getTaskPriorityName} from "~/client/tasks/internal/get_task_priority_name.js";
+import {TaskPriorityIcon} from "~/client/tasks/internal/task_priority_icon.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {colorSchemeVars, sprinkles, tasksStyles} from "~/shared/styles/styles.js";
+import {
+    colorSchemeVars,
+    greyElevated2ClassName,
+    sprinkles,
+    tasksStyles,
+} from "~/shared/styles/styles.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 
 // Node.js ESM interop (#node-esm-migration)
@@ -348,17 +354,19 @@ function TaskPriorityInputListBox({
         <ul
             {...listBoxProps}
             ref={listBoxRef}
-            className={sprinkles({
-                borderRadius: "md",
-                padding: "1",
-                // NOCOMMIT: Overlay colors changed
-                backgroundColor: {light: "grey-0", dark: "grey-5"},
-                boxShadow: "elevation-20",
-                width: "48",
-                maxHeight: "64",
-                overflowX: "hidden",
-                overflowY: "scroll",
-            })}
+            className={classNames(
+                greyElevated2ClassName,
+                sprinkles({
+                    borderRadius: "md",
+                    padding: "1",
+                    backgroundColor: "grey-0",
+                    boxShadow: "elevation-20",
+                    width: "48",
+                    maxHeight: "64",
+                    overflowX: "hidden",
+                    overflowY: "auto",
+                }),
+            )}
         >
             {comboBoxState.collection.size === 0 ? (
                 <Box padding="1.5" display="flex" alignItems="center" gap="1.5" color="grey-70">
@@ -415,11 +423,7 @@ function TaskPriorityInputListBoxOption({
                     padding: "1.5",
                     borderRadius: "base",
                     color: "grey-text",
-                    backgroundColor: isPressed
-                        ? {light: "grey-10", dark: "grey-20"}
-                        : isHovered
-                        ? {light: "grey-5", dark: "grey-10"}
-                        : undefined,
+                    backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
                 })}
             >
                 {cloneElement(item.rendered, {

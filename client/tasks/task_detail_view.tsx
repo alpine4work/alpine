@@ -1,5 +1,5 @@
 import {DotsThree} from "phosphor-react";
-import {ReactNode, useCallback, useId, useImperativeHandle, useMemo, useRef} from "react";
+import {ReactNode, useCallback, useId, useImperativeHandle, useMemo, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
@@ -7,6 +7,7 @@ import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
 import {Spacer} from "~/client/design/spacer.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
@@ -20,6 +21,7 @@ import {
     TaskGridViewVirtualizedListViewRef,
     useTaskGridViewVirtualizedList,
 } from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
+import {TaskPriorityInput} from "~/client/tasks/internal/task_priority_input.js";
 import {TaskStatusButton} from "~/client/tasks/internal/task_status_button.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
@@ -216,6 +218,7 @@ function TaskDetailViewMain({taskSubscription}: {taskSubscription: TaskClientTas
     const {currentAccount} = useSpaceContext();
 
     const {task} = useStore(taskSubscription.taskEntryStore);
+    const priority = task?.getPriority() ?? null;
 
     const titleCommitStateRef = useRef<{
         pendingActionTransactionBuilder: {
@@ -286,45 +289,44 @@ function TaskDetailViewMain({taskSubscription}: {taskSubscription: TaskClientTas
 
     const padding: Spacing = isMobile ? "3" : "5";
 
+    const priorityInputRef = useRef<HTMLDivElement>(null);
     // NOCOMMIT:
-    // const priorityInputRef = useRef<HTMLDivElement>(null);
     // const dueDateInputRef = useRef<HTMLDivElement>(null);
     // const childTasksGridViewRef = useRef<TaskGridPresentationalViewRef>(null);
 
-    // NOCOMMIT:
-    // const [priorityInputState, setPriorityInputState] = useState<
-    //     {isVisible: false} | {isVisible: true; shouldFocus: boolean; isFocused: boolean}
-    // >(priority ? {isVisible: true, shouldFocus: false, isFocused: false} : {isVisible: false});
-    //
-    // if (
-    //     priorityInputState.isVisible &&
-    //     !priorityInputState.isFocused &&
-    //     !priorityInputState.shouldFocus &&
-    //     !priority
-    // ) {
-    //     // In task row dense fields we hide the priority field when the value is set to
-    //     // null. But since the user may actively be editing the field in detail view,
-    //     // keep it around.
-    // }
-    //
-    // if (!priorityInputState.isVisible && priority) {
-    //     setPriorityInputState({isVisible: true, shouldFocus: false, isFocused: false});
-    // }
-    //
-    // useLayoutEffectWithoutServerSideWarning(() => {
-    //     if (priorityInputState.isVisible && priorityInputState.shouldFocus) {
-    //         assertExists(
-    //             getNextFocusableElementIfExists(null, {
-    //                 withinElement: assertExists(priorityInputRef.current),
-    //             }),
-    //         ).focus({preventScroll: true});
-    //
-    //         setPriorityInputState(priorityInputState => {
-    //             if (!priorityInputState.isVisible) return priorityInputState;
-    //             return {...priorityInputState, shouldFocus: false};
-    //         });
-    //     }
-    // }, [priorityInputState]);
+    const [priorityInputState, setPriorityInputState] = useState<
+        {isVisible: false} | {isVisible: true; shouldFocus: boolean; isFocused: boolean}
+    >(priority ? {isVisible: true, shouldFocus: false, isFocused: false} : {isVisible: false});
+
+    if (
+        priorityInputState.isVisible &&
+        !priorityInputState.isFocused &&
+        !priorityInputState.shouldFocus &&
+        !priority
+    ) {
+        // In task row dense fields we hide the priority field when the value is set to
+        // null. But since the user may actively be editing the field in detail view,
+        // keep it around.
+    }
+
+    if (!priorityInputState.isVisible && priority) {
+        setPriorityInputState({isVisible: true, shouldFocus: false, isFocused: false});
+    }
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (priorityInputState.isVisible && priorityInputState.shouldFocus) {
+            assertExists(
+                getNextFocusableElementIfExists(null, {
+                    withinElement: assertExists(priorityInputRef.current),
+                }),
+            ).focus({preventScroll: true});
+
+            setPriorityInputState(priorityInputState => {
+                if (!priorityInputState.isVisible) return priorityInputState;
+                return {...priorityInputState, shouldFocus: false};
+            });
+        }
+    }, [priorityInputState]);
 
     // NOCOMMIT:
     // const [dueDateInputState, setDueDateInputState] = useState<
@@ -390,45 +392,46 @@ function TaskDetailViewMain({taskSubscription}: {taskSubscription: TaskClientTas
             );
         }
 
-        // NOCOMMIT:
-        // [
-        //     {
-        //         label: priorityInputState.isVisible ? "Edit priority" : "Add priority",
-        //         onPress: () => {
-        //             if (priorityInputState.isVisible) {
-        //                 assertExists(
-        //                     getNextFocusableElementIfExists(null, {
-        //                         withinElement: assertExists(priorityInputRef.current),
-        //                     }),
-        //                 ).focus({preventScroll: true});
-        //             } else {
-        //                 setPriorityInputState({
-        //                     isVisible: true,
-        //                     shouldFocus: true,
-        //                     isFocused: false,
-        //                 });
-        //             }
-        //         },
-        //     },
-        //     {
-        //         label: dueDateInputState.isVisible ? "Edit due date" : "Add due date",
-        //         onPress: () => {
-        //             if (dueDateInputState.isVisible) {
-        //                 assertExists(
-        //                     getNextFocusableElementIfExists(null, {
-        //                         withinElement: assertExists(dueDateInputRef.current),
-        //                     }),
-        //                 ).focus({preventScroll: true});
-        //             } else {
-        //                 setDueDateInputState({
-        //                     isVisible: true,
-        //                     shouldFocus: true,
-        //                     isFocused: false,
-        //                 });
-        //             }
-        //         },
-        //     },
-        // ],
+        contextMenuActions.push([
+            {
+                label: priorityInputState.isVisible ? "Edit priority" : "Add priority",
+                onPress: () => {
+                    if (priorityInputState.isVisible) {
+                        assertExists(
+                            getNextFocusableElementIfExists(null, {
+                                withinElement: assertExists(priorityInputRef.current),
+                            }),
+                        ).focus({preventScroll: true});
+                    } else {
+                        setPriorityInputState({
+                            isVisible: true,
+                            shouldFocus: true,
+                            isFocused: false,
+                        });
+                    }
+                },
+            },
+            // NOCOMMIT:
+            // {
+            //     label: dueDateInputState.isVisible ? "Edit due date" : "Add due date",
+            //     onPress: () => {
+            //         if (dueDateInputState.isVisible) {
+            //             assertExists(
+            //                 getNextFocusableElementIfExists(null, {
+            //                     withinElement: assertExists(dueDateInputRef.current),
+            //                 }),
+            //             ).focus({preventScroll: true});
+            //         } else {
+            //             setDueDateInputState({
+            //                 isVisible: true,
+            //                 shouldFocus: true,
+            //                 isFocused: false,
+            //             });
+            //         }
+            //     },
+            // },
+        ]);
+
         // NOCOMMIT:
         // [
         //     {
@@ -543,7 +546,7 @@ function TaskDetailViewMain({taskSubscription}: {taskSubscription: TaskClientTas
                         />
                     )}
                 </TaskDetailViewDenseField> */}
-                {/* NOCOMMIT: {priorityInputState.isVisible && (
+                {priorityInputState.isVisible && (
                     <TaskDetailViewDenseField label="Priority">
                         {({"aria-labelledby": ariaLabelledBy}) => (
                             <Box
@@ -571,13 +574,28 @@ function TaskDetailViewMain({taskSubscription}: {taskSubscription: TaskClientTas
                             >
                                 <TaskPriorityInput
                                     priority={priority}
-                                    onPriorityChange={onPriorityChange}
+                                    onPriorityChange={priority => {
+                                        taskSubscription.store.commitTaskActionTransaction(
+                                            context,
+                                            [
+                                                {
+                                                    type: "UpdateTask",
+                                                    time: taskSubscription.store.clock.now(),
+                                                    taskId: taskSubscription.taskId,
+                                                    taskAction: {
+                                                        type: "UpdatePriority",
+                                                        priority,
+                                                    },
+                                                },
+                                            ],
+                                        );
+                                    }}
                                     aria-labelledby={ariaLabelledBy}
                                 />
                             </Box>
                         )}
                     </TaskDetailViewDenseField>
-                )} */}
+                )}
                 {/* NOCOMMIT: {dueDateInputState.isVisible && (
                     <TaskDetailViewDenseField label="Due date">
                         {({"aria-labelledby": ariaLabelledBy}) => (

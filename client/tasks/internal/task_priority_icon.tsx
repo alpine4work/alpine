@@ -1,7 +1,7 @@
 import {Box} from "~/client/design/box.js";
 import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {colorSchemeVars, pingAnimationClassName} from "~/shared/styles/styles.js";
+import {colorSchemeVars, pingAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 
 export function TaskPriorityIcon({
@@ -80,11 +80,11 @@ export function TaskPriorityIcon({
                             cx="16"
                             cy="16"
                             r="13"
-                            fill={
-                                shouldHighlightUrgent
-                                    ? colorSchemeVars["red-50-const"]
-                                    : filledBarColor
-                            }
+                            className={sprinkles({
+                                fill: shouldHighlightUrgent
+                                    ? "red-50-const"
+                                    : {light: "grey-70", dark: "grey-20"},
+                            })}
                         />
                         <rect
                             x="15"
@@ -119,7 +119,7 @@ export function TaskPriorityIcon({
                 y="5"
                 width="4"
                 height="22"
-                rx="2"
+                rx="1"
                 fill={fillBar3 ? filledBarColor : notFilledBarColor}
             />
             <rect
@@ -127,7 +127,7 @@ export function TaskPriorityIcon({
                 y="10.5"
                 width="4"
                 height="16.5"
-                rx="2"
+                rx="1"
                 fill={fillBar2 ? filledBarColor : notFilledBarColor}
             />
             <rect
@@ -135,7 +135,7 @@ export function TaskPriorityIcon({
                 y="16"
                 width="4"
                 height="11"
-                rx="2"
+                rx="1"
                 fill={fillBar1 ? filledBarColor : notFilledBarColor}
             />
         </svg>
