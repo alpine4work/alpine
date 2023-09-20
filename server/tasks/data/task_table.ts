@@ -1012,6 +1012,10 @@ class TaskActionTransactionCommitState {
         if (!hasAccess) {
             throw new PermissionDeniedError(
                 quote`Actor does not have ${expectedAccessLevel} access level to task collection`,
+                {
+                    displayMessage:
+                        getTaskCollectionItemPermissionDeniedErrorDisplayMessage(collectionItem),
+                },
             );
         }
     }
@@ -1032,6 +1036,10 @@ class TaskActionTransactionCommitState {
         if (!hasAccess) {
             throw new PermissionDeniedError(
                 quote`Actor does not have ${expectedAccessLevel} access level to task collection`,
+                {
+                    displayMessage:
+                        getTaskCollectionItemPermissionDeniedErrorDisplayMessage(collectionItem),
+                },
             );
         }
     }
@@ -1051,6 +1059,7 @@ class TaskActionTransactionCommitState {
         if (!hasAccess) {
             throw new PermissionDeniedError(
                 quote`Actor does not have ${expectedAccessLevel} access level to task`,
+                {displayMessage: getTaskItemPermissionDeniedErrorDisplayMessage(taskItem)},
             );
         }
     }
@@ -1070,6 +1079,7 @@ class TaskActionTransactionCommitState {
         if (!hasAccess) {
             throw new PermissionDeniedError(
                 quote`Actor does not have ${expectedAccessLevel} access level to task`,
+                {displayMessage: getTaskItemPermissionDeniedErrorDisplayMessage(taskItem)},
             );
         }
     }
@@ -2375,6 +2385,10 @@ export async function authorizeTaskCollectionAccess(
     if (!hasAccess) {
         throw new PermissionDeniedError(
             quote`Actor does not have ${expectedAccessLevel} access level to task collection`,
+            {
+                displayMessage:
+                    getTaskCollectionItemPermissionDeniedErrorDisplayMessage(collectionItem),
+            },
         );
     }
 }
@@ -2597,6 +2611,11 @@ export async function authorizeTaskAccess(
     if (!hasAccess) {
         throw new PermissionDeniedError(
             quote`Actor does not have ${expectedAccessLevel} access level to task`,
+            {
+                displayMessage: getTaskItemPermissionDeniedErrorDisplayMessage(
+                    await getTaskItemForAuthorization(context, taskId, loaders),
+                ),
+            },
         );
     }
 }
@@ -2636,8 +2655,35 @@ async function authorizeTaskItemAccess(
     if (!hasAccess) {
         throw new PermissionDeniedError(
             quote`Actor does not have ${expectedAccessLevel} access level to task`,
+            {displayMessage: getTaskItemPermissionDeniedErrorDisplayMessage(taskItem)},
         );
     }
+}
+
+function getTaskItemPermissionDeniedErrorDisplayMessage(
+    taskItem: Omit<TaskEssentialAttributesItem, "childTaskIds">,
+) {
+    if (taskItem.deletedTime) {
+        // TODO(calebmer): In the future we should have some kind of task trash
+        // feature. When we add trash we should direct the user to restore tasks from
+        // their trash in the "hint" part of the error message.
+        return errorDisplayMessage`This task was deleted.`;
+    }
+
+    return errorDisplayMessage`You aren’t allowed to access this task. Ask someone with access share it with you.`;
+}
+
+function getTaskCollectionItemPermissionDeniedErrorDisplayMessage(
+    collectionItem: TaskCollectionEssentialAttributesItem,
+) {
+    if (collectionItem.deletedTime) {
+        // TODO(calebmer): In the future we should have some kind of task trash
+        // feature. When we add trash we should direct the user to restore tasks from
+        // their trash in the "hint" part of the error message.
+        return errorDisplayMessage`This collection was deleted.`;
+    }
+
+    return errorDisplayMessage`You aren’t allowed to access this collection. Ask someone with access to share it with you.`;
 }
 
 /**

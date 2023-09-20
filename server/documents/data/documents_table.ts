@@ -1538,9 +1538,6 @@ export const updateDocumentContentBeforeExecuteTransactionTestCheckpoint = new T
  * - Only saving the full content back to the database every 20-100 steps. For
  *   the majority of updates we only save the steps.
  */
-// TODO(calebmer): If this is being called outside our collaboration durable
-// object we should throw an error or restart the durable object or something.
-// Because the durable object's internal state will be wrong.
 export async function updateDocumentContent(
     context: ServerSessionActionContext,
     {

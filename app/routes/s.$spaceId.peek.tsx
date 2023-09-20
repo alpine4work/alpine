@@ -108,7 +108,7 @@ export function ErrorBoundary({error: _error}: {error: unknown}) {
     return (
         <Box display="flex" justifyContent="center">
             <Box width="full" maxWidth="128" paddingX="5" paddingTop="10" paddingBottom="8">
-                <ErrorBodyRenderer title="Could not show content" error={error} />
+                <ErrorBodyRenderer title="Couldn’t show content" error={error} />
             </Box>
         </Box>
     );

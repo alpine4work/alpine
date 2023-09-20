@@ -303,7 +303,15 @@ function RootErrorRenderer({error: _error, title}: {error: unknown; title?: stri
                     paddingY: {desktop: "32", mobile: "16"},
                 })}
             >
-                <ErrorBodyRenderer title={title ?? "Could not show content"} error={error} />
+                <ErrorBodyRenderer
+                    // TODO(calebmer): "Couldn't show content" is way too generic. Can I write a
+                    // route pattern matcher so we can be more specific like "Couldn't open task"
+                    // or "Couldn't open document" for initial page loads. Ideally we'd have a more
+                    // specific error if the error was thrown after page load like "Task broke" or
+                    // something but I don't know what that message is.
+                    title={title ?? "Couldn’t show content"}
+                    error={error}
+                />
             </main>
         </Box>
     );
