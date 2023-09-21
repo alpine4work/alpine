@@ -684,7 +684,7 @@ function TaskDetailViewMain({
                 initialNotesContent={initialNotesContent}
                 padding={padding}
             />
-            <Box style={{height: "3.5rem"}} />
+            <Spacer space="10" />
             <Box>
                 <label
                     className={sprinkles({
