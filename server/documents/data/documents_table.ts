@@ -26,6 +26,7 @@ import {
     getAccount,
     getAccountIfExists,
 } from "~/server/spaces/spaces_table.js";
+import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
 import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {
     DocumentContent,
@@ -40,7 +41,6 @@ import {
     DocumentPreviewModel,
     getDocumentContentTitleWithoutFallback,
 } from "~/shared/documents/document_model.js";
-import {getUpdateDocumentContentResult} from "~/shared/documents/get_update_document_content_result.js";
 import {
     DataLossError,
     FailedPreconditionError,
@@ -1562,14 +1562,6 @@ export async function updateDocumentContent(
              */
             createdTime?: Date;
         }>;
-        // NOTE(calebmer): Do we really need the cache anymore now that we're using
-        // Durable Objects for updating documents? For now, probably yes? Each Durable
-        // Object should only have one document cached in memory and the document being
-        // cached means we don't need to reload it from the database every update which
-        // is nice.
-        //
-        // Maybe instead of a global cache we have a cache in the durable object class?
-        // This cache logic was written before Durable Objects.
         cacheOverrideForTest?: DocumentContentCacheForUpdate;
     },
 ): Promise<{
@@ -1608,6 +1600,15 @@ export async function updateDocumentContent(
         if (!Number.isSafeInteger(clientVersion) || clientVersion < 0)
             throw new InvalidArgumentError("Expected a positive integer version number");
 
+        // NOTE(calebmer): Do we really need the cache anymore now that we're using
+        // Durable Objects for updating documents? For now, probably yes? The Durable
+        // Object sends updates to `AppService` so in theory the cache helps persist
+        // updates faster. The problem is `AppService` is behind a load balancer so
+        // Durable Objects would need [sticky sessions][1] to make sure it goes to the
+        // same `AppService` with the right cache. Though who knows, maybe the cache
+        // only helps a marginal amount even when configured properly.
+        //
+        // [1]: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/sticky-sessions.html
         const cache = cacheOverrideForTest ?? globalDocumentContentCacheForUpdate;
         assert(
             cache === globalDocumentContentCacheForUpdate || import.meta.jest,
@@ -1659,7 +1660,7 @@ export async function updateDocumentContent(
         await authorizeSpaceAccess(context, internalDocument.spaceId);
 
         const {newContent, steps, invertedSteps, conflictingSteps} =
-            await getUpdateDocumentContentResult({
+            await getCollaborativelyUpdateContentResult({
                 currentVersion: internalDocument.version,
                 currentContent: internalDocument.content,
                 clientVersion,
@@ -1705,6 +1706,8 @@ export async function updateDocumentContent(
                 },
             });
 
+        assert(isDocumentContent(newContent));
+
         // This checkpoint allows us to write a test against our transaction's
         // condition.
         await updateDocumentContentBeforeExecuteTransactionTestCheckpoint.waitForTest({
@@ -1739,7 +1742,7 @@ export async function updateDocumentContent(
                     documentId: id,
                     sortRangeType: "StepTransactionsAfterSnapshot",
                     startVersion: internalDocument.version,
-                    steps: steps,
+                    steps,
                     invertedSteps,
                     clientId,
                     createdTime: currentTime,

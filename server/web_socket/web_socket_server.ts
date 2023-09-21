@@ -273,31 +273,6 @@ export class WebSocketServer<
             webSocket: clientSocket as any as globalThis.WebSocket,
         });
 
-        const sendEvent = (
-            context: Context<ProcessContextModules>,
-            event: WebSocketProtocolEventType<Protocol>,
-        ) => {
-            connection.sendMessage(context, {
-                type: "Event",
-                event,
-            });
-        };
-
-        const sendEventToOthers = (
-            context: Context<ProcessContextModules>,
-            event: WebSocketProtocolEventType<Protocol>,
-        ) => {
-            this._sendEventToOthers(context, connection.id, event);
-        };
-
-        const iterateOtherConnections = (): Iterable<Connection> => {
-            return filterMapIterable(this._connections.values(), otherConnection =>
-                otherConnection.id !== connection.id && !otherConnection.isSoftClosed()
-                    ? otherConnection.connection
-                    : null,
-            );
-        };
-
         const accountId = _connectActionContext.actor.getAccountId();
         const connectionId = generateId<WebSocketConnectionId>();
 
@@ -315,22 +290,28 @@ export class WebSocketServer<
             },
         }) as Context<SessionActionContextModules>;
 
-        const closeWithError = (context: Context<ProcessContextModules>, error: unknown) => {
-            connection.sendMessage(context, {
-                type: "ClosingWithError",
-                error,
-            });
-
-            connection.close(context, isSystemError(error) ? 1011 : 1008);
-        };
-
         const actualConnection = this._createConnection({
             accountId,
             connectionId,
-            sendEvent,
-            sendEventToOthers,
-            iterateOtherConnections,
-            closeWithError,
+            sendEvent: (context, event) => {
+                connection.sendMessage(context, {
+                    type: "Event",
+                    event,
+                });
+            },
+            sendEventToOthers: (context, event) => {
+                this._sendEventToOthers(context, connection.id, event);
+            },
+            iterateOtherConnections: () => {
+                return filterMapIterable(this._connections.values(), otherConnection =>
+                    otherConnection.id !== connection.id && !otherConnection.isSoftClosed()
+                        ? otherConnection.connection
+                        : null,
+                );
+            },
+            closeWithError: (context, error) => {
+                connection.closeWithError(context, error);
+            },
         });
 
         const connection = new WebSocketServerConnectionWrapper<
@@ -507,7 +488,32 @@ export class WebSocketServer<
 
         context.tracer.withSpanSync("Closing all WebSocket connections", context => {
             for (const connection of this._connections.values()) {
-                connection.close(context, 1001, "Closing all WebSocket connections");
+                connection.close(context, 1001);
+
+                // NOTE(calebmer): In case the `close` event wasn't fired manually call our
+                // event handler. Since I've seen the close event not fire before in response
+                // to calling `close()` I'm paranoid and adding a second call here.
+                this._handleConnectionClose(context as Context<ProcessContextModules>, connection);
+            }
+        });
+    }
+
+    /**
+     * Sends all connected clients an error message then closes them.
+     *
+     * Closes the server as well so that you can't make new WebSocket connections.
+     *
+     * This is a hard shutdown. We do not keep connections open until procedure
+     * requests finish. If you want to perform a graceful shutdown you should use
+     * `softCloseAll()` which keeps connections open until procedures finish while
+     * still instructing clients to reconnect.
+     */
+    public closeAllWithError(context: Context<ProcessContextModules>, error: unknown) {
+        this._isClosed = true;
+
+        context.tracer.withSpanSync("Closing all WebSocket connections", context => {
+            for (const connection of this._connections.values()) {
+                connection.closeWithError(context, error);
 
                 // NOTE(calebmer): In case the `close` event wasn't fired manually call our
                 // event handler. Since I've seen the close event not fire before in response
@@ -555,28 +561,6 @@ export class WebSocketServer<
     > {
         assert(import.meta.jest);
 
-        const sendEvent = (
-            context: Context<ProcessContextModules>,
-            event: WebSocketProtocolEventType<Protocol>,
-        ) => {
-            connection._sendEvent(event);
-        };
-
-        const sendEventToOthers = (
-            context: Context<ProcessContextModules>,
-            event: WebSocketProtocolEventType<Protocol>,
-        ) => {
-            this._sendEventToOthers(context, connection.id, event);
-        };
-
-        const iterateOtherConnections = (): Iterable<Connection> => {
-            return filterMapIterable(this._connections.values(), otherConnection =>
-                otherConnection.id !== connection.id && !otherConnection.isSoftClosed()
-                    ? otherConnection.connection
-                    : null,
-            );
-        };
-
         const accountId = _connectActionContext.actor.getAccountId();
         const connectionId = generateId<WebSocketConnectionId>();
 
@@ -594,28 +578,25 @@ export class WebSocketServer<
             },
         }) as Context<SessionActionContextModules>;
 
-        const closeWithError = (context: Context<ProcessContextModules>, error: unknown) => {
-            connection.dangerouslySendRawMessageEvenWhenSoftClosed(
-                context,
-                "ClosingWithError",
-                JSON.stringify(
-                    this._messageFromServerSchema.serialize({
-                        type: "ClosingWithError",
-                        error,
-                    }),
-                ),
-            );
-
-            connection.close();
-        };
-
         const actualConnection = this._createConnection({
             accountId,
             connectionId,
-            sendEvent,
-            sendEventToOthers,
-            iterateOtherConnections,
-            closeWithError,
+            sendEvent: (context, event) => {
+                connection._sendEvent(event);
+            },
+            sendEventToOthers: (context, event) => {
+                this._sendEventToOthers(context, connection.id, event);
+            },
+            iterateOtherConnections: () => {
+                return filterMapIterable(this._connections.values(), otherConnection =>
+                    otherConnection.id !== connection.id && !otherConnection.isSoftClosed()
+                        ? otherConnection.connection
+                        : null,
+                );
+            },
+            closeWithError: (context, error) => {
+                connection.closeWithError(context, error);
+            },
         });
 
         // In tests, block establishing the connection on authorization.
@@ -687,6 +668,12 @@ interface WebSocketServerConnectionWrapperBase<ProcessContextModules extends {},
      * Closes the connection. Does nothing if the connection is already closed.
      */
     close(context: Context<{}>, code?: number, reason?: string): void;
+
+    /**
+     * Sends an error as the last message then closes the connection. Does nothing
+     * if the connection is already closed.
+     */
+    closeWithError(context: Context<{}>, error: unknown): void;
 
     /**
      * Is the connection soft closed? While soft closed we stop sending the
@@ -1293,6 +1280,28 @@ class WebSocketServerConnectionWrapper<
     }
 
     /**
+     * Sends an error message then closes the underlying WebSocket. Useful for
+     * communicating to the client why we're closing so the client can show an
+     * error message to the user (if it was a user error not a system error).
+     *
+     * If the WebSocket is already closed this does nothing.
+     */
+    public closeWithError(context: Context<ProcessContextModules>, error: unknown) {
+        this._dangerouslySendRawMessageEvenWhenSoftClosedWithoutAuthorization(
+            context,
+            "ClosingWithError",
+            JSON.stringify(
+                this._messageFromServerSchema.serialize({
+                    type: "ClosingWithError",
+                    error,
+                }),
+            ),
+        );
+
+        this.close(context, isSystemError(error) ? 1011 : 1008);
+    }
+
+    /**
      * Wait for any pending procedure requests to finish then close the underlying
      * WebSocket. This is a peaceful way to close a WebSocket connection since any
      * work started by the client is completed. (e.g. Database writes.)
@@ -1512,14 +1521,14 @@ class WebSocketServerTestConnectionWrapper<
     }
 
     public authorize() {
-        return this._actionContext.fork
-            .withFork(webSocketConnectionAuthorizationSpanName, context =>
-                this.connection.authorize(context),
-            )
-            .catch(error => {
-                this.close();
-                throw error;
-            });
+        return this._actionContext.fork.withFork(
+            webSocketConnectionAuthorizationSpanName,
+            context =>
+                this.connection.authorize(context).catch(error => {
+                    this.closeWithError(context, error);
+                    throw error;
+                }),
+        );
     }
 
     public isClosed() {
@@ -1530,6 +1539,21 @@ class WebSocketServerTestConnectionWrapper<
         if (this._isClosed) return;
         this._isClosed = true;
         this._closeEvent.emit();
+    }
+
+    public closeWithError(context: Context<{}>, error: unknown) {
+        this.dangerouslySendRawMessageEvenWhenSoftClosed(
+            context,
+            "ClosingWithError",
+            JSON.stringify(
+                this._messageFromServerSchema.serialize({
+                    type: "ClosingWithError",
+                    error,
+                }),
+            ),
+        );
+
+        this.close();
     }
 
     public subscribeToClose(listener: () => void) {
@@ -1549,12 +1573,14 @@ class WebSocketServerTestConnectionWrapper<
     // Public so it can be called from `connectForTest()` but should not be called
     // outside of this file.
     public _sendEvent(message: WebSocketProtocolEventType<Protocol>) {
+        if (this._isClosed) return;
+
         this._bufferedEvents.push(message);
         this._events.emit(message);
     }
 
     public dangerouslySendRawMessageEvenWhenSoftClosed(
-        context: Context<{tracer: TracerContextModule}>,
+        context: Context<{}>,
         messageType: string,
         rawMessage: string,
     ) {

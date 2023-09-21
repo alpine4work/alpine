@@ -40,6 +40,8 @@ ts_project(
         "//:node_modules/@internationalized/date",
         "//:node_modules/date-fns",
         "//:node_modules/murmurhash",
+        "//:node_modules/prosemirror-model",
+        "//:node_modules/prosemirror-transform",
         "//server/dynamo/core",
         "//server/helpers",
         "//server/opensearch",

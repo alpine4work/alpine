@@ -1,10 +1,17 @@
 import {AccountModel} from "~/shared/accounts/account_model.js";
+import {ContentReferencedIdsSchema} from "~/shared/content/content_referenced_ids.js";
+import {ContentReferencesSchema} from "~/shared/content/content_references.js";
+import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {BrowserId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TaskActionSchema} from "~/shared/tasks/actions/task_action.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
+import {
+    TaskNotesContentSchema,
+    TaskNotesContentStepSchema,
+} from "~/shared/tasks/task_notes_content_schema.js";
 import {TaskQueryNormalizedFiltersSchema} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSortSchema} from "~/shared/tasks/task_query_normalized_sort.js";
 
@@ -42,4 +49,57 @@ export const updateTaskGridViewExpansionState = defineRpc({
         state: TaskGridViewExpansionStateSchema,
     },
     output: {},
+});
+
+export const getTaskNotesContent = defineRpc({
+    name: "getTaskNotesContent",
+    input: {
+        taskId: Schema.id<TaskId>(),
+    },
+    output: {
+        spaceId: Schema.id<SpaceId>(),
+        version: Schema.integer,
+        content: TaskNotesContentSchema,
+    },
+});
+
+export const updateTaskNotesContent = defineRpc({
+    name: "updateTaskNotesContent",
+    input: {
+        taskId: Schema.id<TaskId>(),
+        version: Schema.integer,
+        steps: Schema.array(TaskNotesContentStepSchema),
+    },
+    output: {},
+});
+
+export const getTaskNotesContentReferences = defineRpc({
+    name: "getTaskNotesContentReferences",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        referenceIds: ContentReferencedIdsSchema,
+    },
+    output: {
+        references: ContentReferencesSchema,
+    },
+});
+
+/**
+ * Authorizes whether you have view access to a task. Throws an error if you
+ * don't have view access. Also authorizes whether you have edit access to a
+ * task. Returns an `editResult` with an error if you have view access to a
+ * task but not edit access.
+ */
+export const authorizeTaskAccess = defineRpc({
+    name: "authorizeTaskAccess",
+    input: {
+        taskId: Schema.id<TaskId>(),
+    },
+    output: {
+        spaceId: Schema.id<SpaceId>(),
+        editResult: Schema.result(
+            Schema.object({ok: Schema.value(true)}),
+            Schema.object({ok: Schema.value(false), error: ErrorSchema}),
+        ),
+    },
 });

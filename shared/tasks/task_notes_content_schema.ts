@@ -22,7 +22,7 @@ const taskNotesContentProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
     },
 });
 
-export type TaskNotesContent = Node & {_TaskNotesContent: never};
+export type TaskNotesContent = Node & {readonly _TaskNotesContent: never};
 
 export function isTaskNotesContent(node: Node): node is TaskNotesContent {
     return node.type.schema === TaskNotesContentProsemirrorSchema && node.type.name === "doc";
@@ -51,6 +51,8 @@ const taskNotesContentSchemas = createSchemaForProsemirrorSchema(TaskNotesConten
 
 export const TaskNotesContentSchema =
     taskNotesContentSchemas.TopNodeType as Schema<any> as Schema<TaskNotesContent>;
+
+export const TaskNotesContentStepSchema = taskNotesContentSchemas.createStepSchema();
 
 export const emptyTaskNotesContent = TaskNotesContentProsemirrorSchema.node("doc", {}, [
     TaskNotesContentProsemirrorSchema.node("paragraph"),

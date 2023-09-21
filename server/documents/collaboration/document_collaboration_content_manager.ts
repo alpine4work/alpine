@@ -7,6 +7,7 @@ import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_c
 import {DocumentCollaborationStepCache} from "~/server/documents/collaboration/document_collaboration_step_cache.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
+import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
 import {
     DocumentCollaborationEvent,
     DocumentCollaborationPresenceState,
@@ -20,7 +21,6 @@ import {
     emptyDocumentContentReferences,
 } from "~/shared/documents/document_content_references.js";
 import {DocumentContent, isDocumentContent} from "~/shared/documents/document_content_schema.js";
-import {getUpdateDocumentContentResult} from "~/shared/documents/get_update_document_content_result.js";
 import {
     FailedPreconditionError,
     InternalError,
@@ -227,9 +227,6 @@ export class DocumentCollaborationContentManager {
     /**
      * Update our document's content. Holds a lock on the document content while
      * updating so writes from two concurrent writers will be serialized.
-     *
-     * The action callback returns both `newContent` and `newSteps`. We assume that
-     * `newSteps` applied to `content` produces `newContent`.
      */
     public async update(
         context: WorkerSessionActionContext,
@@ -273,7 +270,7 @@ export class DocumentCollaborationContentManager {
             const oldVersion = stateRef.current.version;
 
             const {newContent, steps, invertedSteps, clientContent, mapping} =
-                await getUpdateDocumentContentResult({
+                await getCollaborativelyUpdateContentResult({
                     currentVersion: stateRef.current.version,
                     currentContent: stateRef.current.content,
                     clientVersion: update.version,
@@ -281,6 +278,8 @@ export class DocumentCollaborationContentManager {
                     getSteps: (startVersion, endVersion) =>
                         this.stepCache.getSteps(context, startVersion, endVersion),
                 });
+
+            assert(isDocumentContent(newContent));
 
             // Validate the presence state selection based on the document as the client
             // sees it, then map the selection to the correct position.
@@ -372,8 +371,9 @@ export class DocumentCollaborationContentManager {
                         createCommentThreads: nextCreateCommentThreads,
                     },
                     // NOTE(calebmer): We're careful to spawn the promise which updates content from
-                    // this `update()` method so the DynamoDB network calls count against the
-                    // request limit for the WebSocket message that triggered the `update()`.
+                    // this `update()` method so the `AppService` network calls count against the
+                    // Durable Object request limit for the WebSocket message that triggered the
+                    // `update()`.
                     promise: (async () => {
                         // While we wait, steps may be added to `nextSteps` if it's from the same
                         // client so we can save in a single batch.

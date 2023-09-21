@@ -1,5 +1,6 @@
 import {addMonths, differenceInMonths} from "date-fns";
 import murmurhash from "murmurhash";
+import {Step} from "prosemirror-transform";
 import {
     ServerSessionActionContext,
     ServerSessionActionContextModules,
@@ -80,6 +81,11 @@ import {
     TaskNotepadPageIdCompressedSetSchema,
     generateTaskNotepadPageId,
 } from "~/shared/tasks/task_notepad_page_id.js";
+import {
+    TaskNotesContentSchema,
+    emptyTaskNotesContent,
+    isTaskNotesContent,
+} from "~/shared/tasks/task_notes_content_schema.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskStatus} from "~/shared/tasks/task_status.js";
@@ -175,7 +181,7 @@ const TaskAssigneeAccountIdRegister = createCrdtRegister(Schema.id<AccountId>().
  * `EssentialAttributes` items) and some data unrelated to task fields which
  * don't participate in querying (like notes, comments, revision history).
  */
-export const TaskTable = DynamoTableSchema.new({
+const TaskTable = DynamoTableSchema.new({
     name: "Tasks",
     partitions: [
         {
@@ -292,7 +298,6 @@ export const TaskTable = DynamoTableSchema.new({
 
                         // See the documentation of `TaskUpdateChildrenCountsAction` for more
                         // information.
-                        // NOCOMMIT: Should update these with delete/undelete?
                         addedChildTaskCount: Schema.integer,
                         removedChildTaskCount: Schema.integer,
                         addedClosedChildTaskCount: Schema.integer,
@@ -345,6 +350,55 @@ export const TaskTable = DynamoTableSchema.new({
                          * The account which was assigned this task.
                          */
                         assigneeId: TaskAssigneeAccountIdRegister.schema,
+                    }),
+                },
+
+                /**
+                 * All queryable task data is updated through `TaskAction`s and indexed in
+                 * OpenSearch. Task notes are a freeform, collaborative, text area that's not
+                 * queryable. We store task notes in DynamoDB which is a completely separate
+                 * read/write path for task notes to avoid paying the storage cost of putting
+                 * notes in OpenSearch and the load cost of frequent writes on
+                 * `TaskRealtimeService`.
+                 *
+                 * Reading and writing task notes needs basically the same implementation as
+                 * document content. However, since we expect task notes to be shorter, less
+                 * collaborative, and unlikely to be edited after they're initially written
+                 * we're going for a simpler implementation of realtime content editing.
+                 *
+                 * A notable difference between this collaborative content implementation and
+                 * our document collaborative content implementation is we don't keep track of
+                 * all steps ever applied to the task. Since we don't care about showing a full
+                 * content version history for task notes (like we want to show for documents).
+                 * We do want to have a task activity feed but that's a separate system.
+                 *
+                 * Using Y.js would be nice. However, Y.js replaces the whole document whenever
+                 * a change occurs which doesn't play nice with [ProseMirror decorations and
+                 * other plugins][1]. Having a single collaborative framework to deal with for
+                 * `<ContentEditor>` simplifies developing out our editor.
+                 *
+                 * [1]: https://discuss.prosemirror.net/t/offline-peer-to-peer-collaborative-editing-using-yjs/2488/5
+                 */
+                {
+                    name: "Notes",
+                    sortKeyAttributes: {},
+                    attributes: Schema.object({
+                        /**
+                         * The space the task is in. Copied from our `EssentialAttributes` item to
+                         * avoid an extra fetch when we just need the `SpaceId`.
+                         */
+                        spaceId: Schema.id<SpaceId>(),
+
+                        /**
+                         * The current content version. Keeps track of the number of steps taken
+                         * against this content.
+                         */
+                        version: Schema.integer,
+
+                        /**
+                         * The current notes content.
+                         */
+                        content: TaskNotesContentSchema,
                     }),
                 },
             ],
@@ -2570,20 +2624,23 @@ async function isTaskAccessAuthorized(
             collectionId: TaskCollectionId,
         ) => TaskCollectionIndexDoc | undefined;
     } | null,
-): Promise<boolean> {
+): Promise<{spaceId: SpaceId; hasAccess: boolean}> {
     const taskItem = await getTaskItemForAuthorization(context, taskId, loaders);
 
-    return isTaskItemAccessAuthorized(
-        context,
-        context.actor.getAccountId(),
-        taskItem,
-        expectedAccessLevel,
-        {
-            getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, loaders),
-            getCollectionItem: collectionId =>
-                getTaskCollectionItemForAuthorization(context, collectionId, loaders),
-        },
-    );
+    return {
+        spaceId: taskItem.spaceId,
+        hasAccess: await isTaskItemAccessAuthorized(
+            context,
+            context.actor.getAccountId(),
+            taskItem,
+            expectedAccessLevel,
+            {
+                getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, loaders),
+                getCollectionItem: collectionId =>
+                    getTaskCollectionItemForAuthorization(context, collectionId, loaders),
+            },
+        ),
+    };
 }
 
 /**
@@ -2606,7 +2663,12 @@ export async function authorizeTaskAccess(
         ) => TaskCollectionIndexDoc | undefined;
     } | null,
 ) {
-    const hasAccess = await isTaskAccessAuthorized(context, taskId, expectedAccessLevel, loaders);
+    const {spaceId, hasAccess} = await isTaskAccessAuthorized(
+        context,
+        taskId,
+        expectedAccessLevel,
+        loaders,
+    );
 
     if (!hasAccess) {
         throw new PermissionDeniedError(
@@ -2618,6 +2680,8 @@ export async function authorizeTaskAccess(
             },
         );
     }
+
+    return {spaceId};
 }
 
 /**
@@ -3037,6 +3101,97 @@ export function getTaskNotepadPageIds(
         }
 
         return notepadItem.pageIds;
+    });
+}
+
+/**
+ * Get the current notes content for some task.
+ */
+export async function getTaskNotesContent(context: ServerSessionActionContext, taskId: TaskId) {
+    const [{spaceId}, taskItem] = await runAllPromises([
+        authorizeTaskAccess(context, taskId, "View", null),
+        TaskTable.getItemIfExists(context, {
+            partitionType: "Task",
+            sortRangeType: "Notes",
+            taskId,
+        }),
+    ]);
+
+    return {
+        spaceId,
+        version: taskItem?.version ?? 0,
+        content: taskItem?.content ?? emptyTaskNotesContent,
+    };
+}
+
+/**
+ * Updates the task's notes with the provided steps. Uses optimistic
+ * concurrency control so rejects any updates that have `version` set to the
+ * wrong value.
+ *
+ * It's important that task note updating should be solely managed by the
+ * `TaskNotesCollaborationService` Durable Object. If you get an incorrect
+ * version error, we don't know what steps you're missing since we don't keep
+ * track of old steps (unlike document content). There's no way to recover!
+ */
+export function updateTaskNotesContent(
+    context: ServerSessionActionContext,
+    {taskId, version, steps}: {taskId: TaskId; version: number; steps: ReadonlyArray<Step>},
+) {
+    return context.dynamo.retryTransaction(async context => {
+        const [{spaceId}, notesItem] = await runAllPromises([
+            authorizeTaskAccess(context, taskId, "Edit", null),
+            TaskTable.getItemIfExists(context, {
+                partitionType: "Task",
+                sortRangeType: "Notes",
+                taskId,
+            }),
+        ]);
+
+        // If the notes item doesn't exist yet then create it.
+        if (!notesItem) {
+            if (version !== 0) throw new FailedPreconditionError("Incorrect version");
+
+            let content = emptyTaskNotesContent;
+
+            for (const step of steps) {
+                const stepResult = step.apply(content);
+                if (!stepResult.doc)
+                    throw new FailedPreconditionError("Couldn't apply step to content");
+
+                assert(isTaskNotesContent(stepResult.doc));
+                content = stepResult.doc;
+            }
+
+            await TaskTable.createItem(context, {
+                partitionType: "Task",
+                sortRangeType: "Notes",
+                spaceId,
+                taskId,
+                version: steps.length,
+                content,
+            });
+            return;
+        }
+
+        if (version !== notesItem.version) throw new FailedPreconditionError("Incorrect version");
+
+        let content = notesItem.content;
+
+        for (const step of steps) {
+            const stepResult = step.apply(content);
+            if (!stepResult.doc)
+                throw new FailedPreconditionError("Couldn't apply step to content");
+
+            assert(isTaskNotesContent(stepResult.doc));
+            content = stepResult.doc;
+        }
+
+        await TaskTable.directlyUpdateItem(context, {
+            ...notesItem,
+            version: notesItem.version + steps.length,
+            content,
+        });
     });
 }
 

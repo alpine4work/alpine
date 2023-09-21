@@ -21,6 +21,7 @@ type EdgeServiceEnv = {
     PostRealtimeDurableObjectNamespace: DurableObjectNamespace;
     ChatRealtimeDurableObjectNamespace: DurableObjectNamespace;
     MyAccountDurableObjectNamespace: DurableObjectNamespace;
+    TaskNotesCollaborationDurableObjectNamespace: DurableObjectNamespace;
     APP_SERVICE_PUBLIC_KEY?: string;
     EDGE_SERVICE_FAMILY_PUBLIC_KEY?: string;
     TASK_REALTIME_SERVICE_PUBLIC_KEY?: string;
@@ -195,6 +196,21 @@ function handleFetch(request: Request, env: EdgeServiceEnv, executionContext: Ex
                             request,
                             pathname,
                             idName: accountId,
+                            span,
+                        });
+                    }
+                    case "task-notes": {
+                        const taskId = Schema.id().deserialize(pathSegments[1] ?? null);
+                        const pathname = `/${pathSegments.slice(2).join("/")}`;
+
+                        return fetchFromDurableObjectStub({
+                            durableObjectNamespace:
+                                env.TaskNotesCollaborationDurableObjectNamespace,
+                            serviceName: "TaskNotesCollaborationService",
+                            tokenAgent,
+                            request,
+                            pathname,
+                            idName: taskId,
                             span,
                         });
                     }

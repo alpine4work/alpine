@@ -50,6 +50,7 @@ const tokenEdgeServiceFamilyNames = [
     "PostRealtimeService",
     "ChatRealtimeService",
     "MyAccountService",
+    "TaskNotesCollaborationService",
 ] as const;
 
 const tokenServiceNames = [
@@ -118,6 +119,7 @@ export abstract class TokenAgentBase {
             case "PostRealtimeService":
             case "ChatRealtimeService":
             case "MyAccountService":
+            case "TaskNotesCollaborationService":
                 return this._edgeServiceFamilyPublicKeyForRs256;
             case "TaskRealtimeService":
                 return this._taskRealtimeServicePublicKeyForRs256;
@@ -135,6 +137,7 @@ export abstract class TokenAgentBase {
             case "PostRealtimeService":
             case "ChatRealtimeService":
             case "MyAccountService":
+            case "TaskNotesCollaborationService":
                 return this._edgeServiceFamilyPublicKeyForRsaOaep;
             case "TaskRealtimeService":
                 return this._taskRealtimeServicePublicKeyForRsaOaep;

@@ -1,6 +1,5 @@
 import {Node} from "prosemirror-model";
 import {Mapping, Step} from "prosemirror-transform";
-import {DocumentContent, isDocumentContent} from "~/shared/documents/document_content_schema.js";
 import {DataLossError, FailedPreconditionError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -20,10 +19,10 @@ declare module "prosemirror-transform" {
 }
 
 /**
- * Gets the result of applying an update to some document content.
+ * Gets the result of applying a collaborative update to some content.
  *
  * If an update is for an old version then we rebase the update steps with
- * conflicting steps in the document.
+ * conflicting steps against the content.
  *
  * We return the rebased steps. It's possible the rebased steps array will be
  * empty! This happens if while rebasing, the ranges edited by the update steps
@@ -33,7 +32,7 @@ declare module "prosemirror-transform" {
  * array of steps in that range. You can assume the range passed into this
  * function is a valid range of steps.
  */
-export async function getUpdateDocumentContentResult({
+export async function getCollaborativelyUpdateContentResult({
     currentVersion,
     currentContent,
     clientVersion,
@@ -41,15 +40,15 @@ export async function getUpdateDocumentContentResult({
     getSteps,
 }: {
     currentVersion: number;
-    currentContent: DocumentContent;
+    currentContent: Node;
     clientVersion: number;
     clientSteps: ReadonlyArray<Step>;
     getSteps: (
         startVersion: number,
         endVersion: number,
-    ) => Promise<Array<{step: Step; invertedStep: Step; clientId: ContentEditorClientId}>>;
+    ) => Promise<ReadonlyArray<{step: Step; invertedStep: Step; clientId: ContentEditorClientId}>>;
 }): Promise<{
-    newContent: DocumentContent;
+    newContent: Node;
     steps: ReadonlyArray<Step>;
     invertedSteps: ReadonlyArray<Step>;
     conflictingSteps: ReadonlyArray<{
@@ -57,8 +56,8 @@ export async function getUpdateDocumentContentResult({
         invertedStep: Step;
         clientId: ContentEditorClientId;
     }>;
-    clientContent: DocumentContent;
-    // Mapping from client positions to positions in the final document. Will
+    clientContent: Node;
+    // Mapping from client positions to positions in the final content. Will
     // not map anything if there were no conflicting steps.
     mapping: Mapping;
 }> {
@@ -66,7 +65,7 @@ export async function getUpdateDocumentContentResult({
 
     if (clientVersion > currentVersion)
         throw new FailedPreconditionError(
-            "Can not update document with steps at version ahead of the document's current version",
+            "Can not update content with steps at version ahead of the content's current version",
         );
 
     let content = currentContent;
@@ -77,7 +76,7 @@ export async function getUpdateDocumentContentResult({
         invertedStep: Step;
         clientId: ContentEditorClientId;
     }>;
-    let clientContent: DocumentContent;
+    let clientContent: Node;
 
     const mapping = new Mapping();
 
@@ -90,12 +89,11 @@ export async function getUpdateDocumentContentResult({
             const stepResult = step.apply(content);
             if (!stepResult.doc)
                 throw new FailedPreconditionError(
-                    `Could not apply step to document: ${stepResult.failed!}`,
+                    `Could not apply step to content: ${stepResult.failed!}`,
                 );
 
             invertedSteps.push(step.invert(content));
 
-            assert(isDocumentContent(stepResult.doc));
             content = stepResult.doc;
         }
 
@@ -104,7 +102,7 @@ export async function getUpdateDocumentContentResult({
         clientContent = content;
     }
 
-    // If the client is trying to update an older document version then we need to
+    // If the client is trying to update an older content version then we need to
     // rebase the client steps against steps which were applied before it.
     else {
         assert(clientVersion < currentVersion);
@@ -114,7 +112,7 @@ export async function getUpdateDocumentContentResult({
 
         const invertedClientSteps: Array<Step> = [];
 
-        // Make sure all steps from the client were valid against the document at
+        // Make sure all steps from the client were valid against the content at
         // `clientVersion`. So revert back to to that version and try applying our
         // client steps.
         //
@@ -128,10 +126,9 @@ export async function getUpdateDocumentContentResult({
                 const invertedStepResult = invertedStep.apply(clientContent);
                 if (!invertedStepResult.doc)
                     throw new DataLossError(
-                        `Could not apply inverse of saved document step: ${invertedStepResult.failed!}`,
+                        `Could not apply inverse of saved content step: ${invertedStepResult.failed!}`,
                     );
 
-                assert(isDocumentContent(invertedStepResult.doc));
                 clientContent = invertedStepResult.doc;
             }
 
@@ -139,12 +136,11 @@ export async function getUpdateDocumentContentResult({
                 const stepResult = step.apply(clientContent);
                 if (!stepResult.doc)
                     throw new FailedPreconditionError(
-                        `Could not apply step to document: ${stepResult.failed!}`,
+                        `Could not apply step to content: ${stepResult.failed!}`,
                     );
 
                 invertedClientSteps.push(step.invert(clientContent));
 
-                assert(isDocumentContent(stepResult.doc));
                 clientContent = stepResult.doc;
             }
         }
@@ -183,7 +179,6 @@ export async function getUpdateDocumentContentResult({
 
             invertedSteps.push(rebasedStep.invert(content));
 
-            assert(isDocumentContent(rebasedStepResult.doc));
             content = rebasedStepResult.doc;
             rebasedSteps.push(rebasedStep);
             mapping.appendMap(rebasedStep.getMap());
@@ -193,7 +188,7 @@ export async function getUpdateDocumentContentResult({
         steps = rebasedSteps;
     }
 
-    // Validate that our steps left the document in a good state.
+    // Validate that our steps left the content in a good state.
     //
     // We collect all ranges touched by a step and we validate the content of
     // the nodes in those ranges.
@@ -248,7 +243,7 @@ export async function getUpdateDocumentContentResult({
                     break;
                 }
                 case "removeAllMarks": {
-                    // Remove valid marks does not affect the validity of the document's structure.
+                    // Remove valid marks does not affect the validity of the content's structure.
                     break;
                 }
                 case "addMarksAfterRemoveAll": {

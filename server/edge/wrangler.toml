@@ -38,6 +38,10 @@ class_name = "ChatRealtimeDurableObject"
 name = "MyAccountDurableObjectNamespace"
 class_name = "MyAccountDurableObject"
 
+[[durable_objects.bindings]]
+name = "TaskNotesCollaborationDurableObjectNamespace"
+class_name = "TaskNotesCollaborationDurableObject"
+
 [[migrations]]
 tag = "v1"
 new_classes = ["DocumentCollaborationDurableObject"]
@@ -53,3 +57,7 @@ new_classes = ["ChatRealtimeDurableObject"]
 [[migrations]]
 tag = "v4"
 new_classes = ["MyAccountDurableObject"]
+
+[[migrations]]
+tag = "v5"
+new_classes = ["TaskNotesCollaborationDurableObject"]

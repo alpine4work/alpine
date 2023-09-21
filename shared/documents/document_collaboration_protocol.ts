@@ -1,7 +1,3 @@
-import {
-    WebSocketProtocolEventType,
-    defineWebSocketProtocol,
-} from "~/shared/web_socket/web_socket_protocol.js";
 import {DocumentContentReferencesSchema} from "~/shared/documents/document_content_references.js";
 import {DocumentContentStepSchema} from "~/shared/documents/document_content_schema.js";
 import {
@@ -22,6 +18,10 @@ import {
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {ProsemirrorSelectionSchema} from "~/shared/prosemirror/prosemirror_selection_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {
+    WebSocketProtocolEventType,
+    defineWebSocketProtocol,
+} from "~/shared/web_socket/web_socket_protocol.js";
 
 export type DocumentCollaborationPresenceState = SchemaType<
     typeof DocumentCollaborationPresenceStateSchema
@@ -291,6 +291,10 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
             state: DocumentCollaborationPresenceStateSchema.nullable(),
         }),
 
+        // TODO(calebmer): This is a leftover artifact from before I introduced the
+        // `ClosingWithError` message to our WebSocket server protocol. I think we
+        // could refactor this to remove this event and call `closeWithError()`
+        // instead.
         Error: Schema.object({
             type: Schema.value("Error"),
             error: ErrorSchema,
@@ -298,12 +302,12 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
 
         // NOTE(calebmer): Code-style note. We want top-level procedure/event names to
         // use the correct nomenclature for posts. We call "messages" "comments" in a
-        // post context. We are ok nesting an event with "message" nomenclature in an
-        // event with the name `Comments` but we can't nest procedures hence why we
+        // document context. We are ok nesting an event with "message" nomenclature in
+        // an event with the name `Comments` but we can't nest procedures hence why we
         // need to write them out from scratch.
         //
-        // Was it correct to "comment" as the name in code for post comments? Probably
-        // not. All the boilerplate is pretty unnecessary.
+        // Was it correct to "comment" as the name in code for document comments?
+        // Probably not. All the boilerplate is pretty unnecessary.
         Comments: Schema.object({
             type: Schema.value("Comments"),
             commentThreadId: Schema.id<DocumentCommentThreadId>(),
