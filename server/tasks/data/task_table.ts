@@ -1,6 +1,7 @@
 import {addMonths, differenceInMonths} from "date-fns";
 import murmurhash from "murmurhash";
 import {Step} from "prosemirror-transform";
+import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {
     ServerSessionActionContext,
     ServerSessionActionContextModules,
@@ -82,7 +83,9 @@ import {
     generateTaskNotepadPageId,
 } from "~/shared/tasks/task_notepad_page_id.js";
 import {
+    TaskNotesContent,
     TaskNotesContentSchema,
+    TaskNotesContentWithReferences,
     emptyTaskNotesContent,
     isTaskNotesContent,
 } from "~/shared/tasks/task_notes_content_schema.js";
@@ -3105,9 +3108,17 @@ export function getTaskNotepadPageIds(
 }
 
 /**
- * Get the current notes content for some task.
+ * Get the current notes content for some task without the `ContentReferences`
+ * needed to render.
  */
-export async function getTaskNotesContent(context: ServerSessionActionContext, taskId: TaskId) {
+export async function getTaskNotesContentWithoutReferences(
+    context: ServerSessionActionContext,
+    taskId: TaskId,
+): Promise<{
+    spaceId: SpaceId;
+    version: number;
+    content: TaskNotesContent;
+}> {
     const [{spaceId}, taskItem] = await runAllPromises([
         authorizeTaskAccess(context, taskId, "View", null),
         TaskTable.getItemIfExists(context, {
@@ -3121,6 +3132,31 @@ export async function getTaskNotesContent(context: ServerSessionActionContext, t
         spaceId,
         version: taskItem?.version ?? 0,
         content: taskItem?.content ?? emptyTaskNotesContent,
+    };
+}
+
+/**
+ * Get the current notes content for some task.
+ */
+export async function getTaskNotesContent(
+    context: ServerSessionActionContext,
+    taskId: TaskId,
+): Promise<{
+    spaceId: SpaceId;
+    version: number;
+    content: TaskNotesContentWithReferences;
+}> {
+    const {spaceId, version, content} = await getTaskNotesContentWithoutReferences(context, taskId);
+
+    const contentReferences = await getContentReferencesForNode(context, spaceId, content);
+
+    return {
+        spaceId,
+        version,
+        content: {
+            doc: content,
+            references: contentReferences,
+        },
     };
 }
 

@@ -12,6 +12,7 @@ ts_project(
         "//server/documents/collaboration",
         "//server/forum/realtime",
         "//server/notifications/my_account",
+        "//server/tasks/notes_collaboration",
         "//server/tasks/router",
         "//server/tracer",
         "//shared/helpers",

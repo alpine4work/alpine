@@ -24,6 +24,7 @@ import {
 } from "~/server/tasks/data/task_table.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {
     FailedPreconditionError,
     InvalidArgumentError,
@@ -14757,7 +14758,10 @@ test("gets notes for task without notes", async () => {
     expect(await getTaskNotesContent(session.action(), task.id)).toEqual({
         spaceId: space.id,
         version: 0,
-        content: emptyTaskNotesContent,
+        content: {
+            doc: emptyTaskNotesContent,
+            references: emptyContentReferences,
+        },
     });
 });
 
@@ -14797,7 +14801,10 @@ test("can get notes for task in public collection", async () => {
     expect(await getTaskNotesContent(session2.action(), task.id)).toEqual({
         spaceId: space.id,
         version: 0,
-        content: emptyTaskNotesContent,
+        content: {
+            doc: emptyTaskNotesContent,
+            references: emptyContentReferences,
+        },
     });
 });
 
@@ -14824,7 +14831,10 @@ test("can update task notes", async () => {
     expect(await getTaskNotesContent(session.action(), task.id)).toEqual({
         spaceId: space.id,
         version: 0,
-        content: emptyTaskNotesContent,
+        content: {
+            doc: emptyTaskNotesContent,
+            references: emptyContentReferences,
+        },
     });
 
     await updateTaskNotesContent(session.action(), {
@@ -14836,7 +14846,10 @@ test("can update task notes", async () => {
     expect(await getTaskNotesContent(session.action(), task.id)).toEqual({
         spaceId: space.id,
         version: 2,
-        content: schema.node("doc", null, schema.node("paragraph", null, [schema.text("ab")])),
+        content: {
+            doc: schema.node("doc", null, schema.node("paragraph", null, [schema.text("ab")])),
+            references: emptyContentReferences,
+        },
     });
 
     await updateTaskNotesContent(session.action(), {
@@ -14848,7 +14861,10 @@ test("can update task notes", async () => {
     expect(await getTaskNotesContent(session.action(), task.id)).toEqual({
         spaceId: space.id,
         version: 3,
-        content: schema.node("doc", null, schema.node("paragraph", null, [schema.text("abc")])),
+        content: {
+            doc: schema.node("doc", null, schema.node("paragraph", null, [schema.text("abc")])),
+            references: emptyContentReferences,
+        },
     });
 });
 
@@ -14878,7 +14894,10 @@ test("can't update task notes in a different space", async () => {
     expect(await getTaskNotesContent(session.action(), task.id)).toEqual({
         spaceId: space.id,
         version: 0,
-        content: emptyTaskNotesContent,
+        content: {
+            doc: emptyTaskNotesContent,
+            references: emptyContentReferences,
+        },
     });
 
     await expect(
@@ -14892,7 +14911,10 @@ test("can't update task notes in a different space", async () => {
     expect(await getTaskNotesContent(session.action(), task.id)).toEqual({
         spaceId: space.id,
         version: 0,
-        content: emptyTaskNotesContent,
+        content: {
+            doc: emptyTaskNotesContent,
+            references: emptyContentReferences,
+        },
     });
 });
 
@@ -14908,7 +14930,10 @@ test("can update task notes in a public collection", async () => {
     expect(await getTaskNotesContent(session1.action(), task.id)).toEqual({
         spaceId: space.id,
         version: 0,
-        content: emptyTaskNotesContent,
+        content: {
+            doc: emptyTaskNotesContent,
+            references: emptyContentReferences,
+        },
     });
 
     await updateTaskNotesContent(session2.action(), {
@@ -14920,7 +14945,10 @@ test("can update task notes in a public collection", async () => {
     expect(await getTaskNotesContent(session1.action(), task.id)).toEqual({
         spaceId: space.id,
         version: 2,
-        content: schema.node("doc", null, schema.node("paragraph", null, [schema.text("ab")])),
+        content: {
+            doc: schema.node("doc", null, schema.node("paragraph", null, [schema.text("ab")])),
+            references: emptyContentReferences,
+        },
     });
 });
 
@@ -14936,7 +14964,10 @@ test("can't update task notes in a private collection", async () => {
     expect(await getTaskNotesContent(session1.action(), task.id)).toEqual({
         spaceId: space.id,
         version: 0,
-        content: emptyTaskNotesContent,
+        content: {
+            doc: emptyTaskNotesContent,
+            references: emptyContentReferences,
+        },
     });
 
     await expect(
@@ -14950,7 +14981,10 @@ test("can't update task notes in a private collection", async () => {
     expect(await getTaskNotesContent(session1.action(), task.id)).toEqual({
         spaceId: space.id,
         version: 0,
-        content: emptyTaskNotesContent,
+        content: {
+            doc: emptyTaskNotesContent,
+            references: emptyContentReferences,
+        },
     });
 });
 
@@ -14963,7 +14997,10 @@ test("can't update task notes with the wrong version", async () => {
     expect(await getTaskNotesContent(session.action(), task.id)).toEqual({
         spaceId: space.id,
         version: 0,
-        content: emptyTaskNotesContent,
+        content: {
+            doc: emptyTaskNotesContent,
+            references: emptyContentReferences,
+        },
     });
 
     await updateTaskNotesContent(session.action(), {
@@ -14975,7 +15012,10 @@ test("can't update task notes with the wrong version", async () => {
     expect(await getTaskNotesContent(session.action(), task.id)).toEqual({
         spaceId: space.id,
         version: 2,
-        content: schema.node("doc", null, schema.node("paragraph", null, [schema.text("ab")])),
+        content: {
+            doc: schema.node("doc", null, schema.node("paragraph", null, [schema.text("ab")])),
+            references: emptyContentReferences,
+        },
     });
 
     await expect(
@@ -14989,7 +15029,10 @@ test("can't update task notes with the wrong version", async () => {
     expect(await getTaskNotesContent(session.action(), task.id)).toEqual({
         spaceId: space.id,
         version: 2,
-        content: schema.node("doc", null, schema.node("paragraph", null, [schema.text("ab")])),
+        content: {
+            doc: schema.node("doc", null, schema.node("paragraph", null, [schema.text("ab")])),
+            references: emptyContentReferences,
+        },
     });
 });
 
@@ -15002,7 +15045,10 @@ test("can't update task notes with the wrong version when notes are not initiali
     expect(await getTaskNotesContent(session.action(), task.id)).toEqual({
         spaceId: space.id,
         version: 0,
-        content: emptyTaskNotesContent,
+        content: {
+            doc: emptyTaskNotesContent,
+            references: emptyContentReferences,
+        },
     });
 
     await expect(
@@ -15016,6 +15062,9 @@ test("can't update task notes with the wrong version when notes are not initiali
     expect(await getTaskNotesContent(session.action(), task.id)).toEqual({
         spaceId: space.id,
         version: 0,
-        content: emptyTaskNotesContent,
+        content: {
+            doc: emptyTaskNotesContent,
+            references: emptyContentReferences,
+        },
     });
 });

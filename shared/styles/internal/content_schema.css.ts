@@ -72,6 +72,8 @@ export const docClassName = style({
     // Create a new z-index stacking context.
     position: "relative",
     zIndex: 0,
+    userSelect: "text",
+    cursor: "auto",
     // Apply the same [CSS styles on the `ProseMirror` class][1] to all content.
     // That way when we render content in read-only mode it appears the same as if
     // we rendered it in an editor.
@@ -116,8 +118,6 @@ export const titleClassName = style({
     // when we are rendering placeholders in `<ContentView>`.
     minHeight: `calc(${titleFontSize.lineHeight} + ${desktopTitlePaddingTop})`,
     marginBottom: paragraphMargin,
-    userSelect: "text",
-    cursor: "text",
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
     "@media": {
@@ -153,8 +153,6 @@ export const paragraphClassName = style({
     minHeight: paragraphFontSize.lineHeight,
     marginTop: paragraphMargin,
     marginBottom: paragraphMargin,
-    userSelect: "text",
-    cursor: "text",
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
 });
@@ -167,8 +165,6 @@ export const headingLevel1ClassName = style({
     ...headingLevel1FontSize,
     marginTop: headerTopMargin,
     marginBottom: paragraphMargin,
-    userSelect: "text",
-    cursor: "text",
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
 });
@@ -181,8 +177,6 @@ export const headingLevel2ClassName = style({
     ...headingLevel2FontSize,
     marginTop: headerTopMargin,
     marginBottom: paragraphMargin,
-    userSelect: "text",
-    cursor: "text",
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
 });
@@ -195,8 +189,6 @@ export const headingLevel3ClassName = style({
     ...headingLevel3FontSize,
     marginTop: headerTopMargin,
     marginBottom: paragraphMargin,
-    userSelect: "text",
-    cursor: "text",
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
 });

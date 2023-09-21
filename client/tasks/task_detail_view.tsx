@@ -18,6 +18,7 @@ import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/get_new
 import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
 import {TaskChildTasksProgressWheel} from "~/client/tasks/internal/task_child_tasks_progress_wheel.js";
 import {TaskDateInput} from "~/client/tasks/internal/task_date_input.js";
+import {TaskDetailNotesField} from "~/client/tasks/internal/task_detail_notes_field.js";
 import {TaskDetailTitleInput} from "~/client/tasks/internal/task_detail_title_input.js";
 import {TaskGridViewDndContext} from "~/client/tasks/internal/task_grid_view_dnd_context.js";
 import {
@@ -42,6 +43,7 @@ import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 import {emptyTaskTitleModel, taskFallbackTitle} from "~/shared/tasks/model/task_title_model.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
+import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
 import {TaskTitleUpdate} from "~/shared/tasks/task_title.js";
 
 export const taskDetailViewMaxWidth: Spacing = "160";
@@ -51,11 +53,15 @@ export function TaskDetailView({
     childrenQuery,
     initialChildrenGridViewExpansionState,
     initialBottomGhostTaskId,
+    initialNotesVersion,
+    initialNotesContent,
 }: {
     taskSubscription: TaskClientTaskSubscription;
     childrenQuery: TaskClientQuery;
     initialChildrenGridViewExpansionState: TaskGridViewExpansionState;
     initialBottomGhostTaskId: TaskId;
+    initialNotesVersion: number;
+    initialNotesContent: TaskNotesContentWithReferences;
 }) {
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
@@ -199,6 +205,8 @@ export function TaskDetailView({
                                 node: (
                                     <TaskDetailViewMain
                                         taskSubscription={taskSubscription}
+                                        initialNotesVersion={initialNotesVersion}
+                                        initialNotesContent={initialNotesContent}
                                         focusChildrenGridViewStart={focusChildrenGridViewStart}
                                     />
                                 ),
@@ -207,7 +215,13 @@ export function TaskDetailView({
 
                         return renderChildrenGridViewItem(index - 1);
                     },
-                    [focusChildrenGridViewStart, renderChildrenGridViewItem, taskSubscription],
+                    [
+                        focusChildrenGridViewStart,
+                        initialNotesContent,
+                        initialNotesVersion,
+                        renderChildrenGridViewItem,
+                        taskSubscription,
+                    ],
                 )}
                 onRenderedRangeChange={range => {
                     onChildrenGridViewRenderedRangeChange(
@@ -221,9 +235,13 @@ export function TaskDetailView({
 
 function TaskDetailViewMain({
     taskSubscription,
+    initialNotesVersion,
+    initialNotesContent,
     focusChildrenGridViewStart,
 }: {
     taskSubscription: TaskClientTaskSubscription;
+    initialNotesVersion: number;
+    initialNotesContent: TaskNotesContentWithReferences;
     focusChildrenGridViewStart: () => void;
 }) {
     const context = useAppContext();
@@ -660,12 +678,13 @@ function TaskDetailViewMain({
                 )}
             </Box>
             <Spacer space="9" />
-            {/* NOCOMMIT: <TaskDetailNotesField
-                notesContent={notesContent}
-                onNotesContentChange={onNotesContentChange}
+            <TaskDetailNotesField
+                taskId={taskSubscription.taskId}
+                initialNotesVersion={initialNotesVersion}
+                initialNotesContent={initialNotesContent}
                 padding={padding}
             />
-            <Spacer space="10" /> */}
+            <Box style={{height: "3.5rem"}} />
             <Box>
                 <label
                     className={sprinkles({

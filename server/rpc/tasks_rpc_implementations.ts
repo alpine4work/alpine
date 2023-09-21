@@ -6,7 +6,7 @@ import {
     authorizeTaskAccess,
     commitTaskActionTransaction,
     deleteTaskAndAllChildren,
-    getTaskNotesContent,
+    getTaskNotesContentWithoutReferences,
     updateTaskGridViewExpansionState,
     updateTaskNotesContent,
 } from "~/server/tasks/data/task_table.js";
@@ -82,7 +82,7 @@ implementRpc(
     definition.getTaskNotesContent,
     {visibility: ["TaskNotesCollaborationService"]},
     async (context, input) => {
-        return getTaskNotesContent(context.actor.authorizeSession(), input.taskId);
+        return getTaskNotesContentWithoutReferences(context.actor.authorizeSession(), input.taskId);
     },
 );
 

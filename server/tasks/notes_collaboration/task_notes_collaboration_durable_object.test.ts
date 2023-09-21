@@ -457,8 +457,45 @@ test("can't backfill task notes steps our durable object doesn't remember", asyn
         result: {
             type: "Unavailable",
             newVersion: 2,
-            content: schema.node("doc", null, schema.node("paragraph", null, [schema.text("ab")])),
-            contentReferences: emptyContentReferences,
+            content: {
+                doc: schema.node("doc", null, schema.node("paragraph", null, [schema.text("ab")])),
+                references: emptyContentReferences,
+            },
+        },
+    });
+
+    expect(connection2.takeEvents()).toEqual([]);
+});
+
+test("can current task notes version", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const task = await TestTask.create(session1);
+    const collection = await TestTaskCollection.createPublic(session1);
+    await task.addCollection(session1, collection);
+
+    await updateTaskNotesContent(session1.action(), {
+        taskId: task.id,
+        version: 0,
+        steps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],
+    });
+
+    const connection2 = await connectForTest(context.action(session2), task.id);
+
+    expect(connection2.takeEvents()).toEqual([]);
+
+    expect(
+        await connection2.procedures.backfill({
+            version: 2,
+        }),
+    ).toEqual({
+        result: {
+            type: "Available",
+            newVersion: 2,
+            steps: [],
+            stepsContentReferences: emptyContentReferences,
         },
     });
 

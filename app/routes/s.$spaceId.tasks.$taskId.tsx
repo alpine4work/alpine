@@ -12,6 +12,8 @@ import {
 } from "~/client/tasks/task_realtime_client_context_provider.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {getTaskNotesContent} from "~/server/tasks/data/task_table.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -20,6 +22,7 @@ import {BrowserId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
 import {addFallbackToTaskTitle} from "~/shared/tasks/model/task_title_model.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
+import {TaskNotesContentWithReferencesSchema} from "~/shared/tasks/task_notes_content_schema.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 
@@ -27,6 +30,8 @@ const LoaderSchema = Schema.object({
     initialTitleText: Schema.string,
     childrenGridViewExpansionState: TaskGridViewExpansionStateSchema,
     initialBottomGhostTaskId: Schema.id<TaskId>(),
+    notesVersion: Schema.integer,
+    notesContent: TaskNotesContentWithReferencesSchema,
 });
 
 export const meta = createMetaFunction(LoaderSchema, ({data: {initialTitleText}}) => [
@@ -73,11 +78,15 @@ export async function loader({params, context: _context}: LoaderArgs) {
         shouldLoadGridViewExpandedChildTasksForBrowserId: context.loader.getBrowserId(),
     };
 
-    const {queries, extraQueries, updateEvent} = await context.tasks.loadQueries(spaceId, {
-        queries: [childrenQuery],
-        taskIds: [taskId],
-        collectionIds: [],
-    });
+    const [{queries, extraQueries, updateEvent}, {version: notesVersion, content: notesContent}] =
+        await runAllPromises([
+            context.tasks.loadQueries(spaceId, {
+                queries: [childrenQuery],
+                taskIds: [taskId],
+                collectionIds: [],
+            }),
+            getTaskNotesContent(context, taskId),
+        ]);
 
     const task = updateEvent.backfillAuthorizedTasks.find(task => task.id === taskId);
     const childrenQueryOutput = assertExists(queries[0]);
@@ -88,6 +97,8 @@ export async function loader({params, context: _context}: LoaderArgs) {
             initialTitleText: task?.getTitle().getText() ?? "",
             childrenGridViewExpansionState: childrenQueryOutput.gridViewExpansionState,
             initialBottomGhostTaskId: generateId<TaskId>(),
+            notesVersion,
+            notesContent,
         },
         {
             propagateEventData: {
@@ -124,8 +135,12 @@ export async function clientLoader({
 }
 
 export default function TaskRoute({withMobileLayout}: {withMobileLayout?: boolean}) {
-    const {childrenGridViewExpansionState, initialBottomGhostTaskId} =
-        useLoaderDataWithSchema(LoaderSchema);
+    const {
+        childrenGridViewExpansionState,
+        initialBottomGhostTaskId,
+        notesVersion: initialNotesVersion,
+        notesContent: initialNotesContent,
+    } = useLoaderDataWithSchema(LoaderSchema);
     const {
         queries: [childrenQuery],
         taskSubscriptions: [taskSubscription],
@@ -190,6 +205,8 @@ export default function TaskRoute({withMobileLayout}: {withMobileLayout?: boolea
                     childrenQuery={childrenQuery}
                     initialChildrenGridViewExpansionState={childrenGridViewExpansionState}
                     initialBottomGhostTaskId={initialBottomGhostTaskId}
+                    initialNotesVersion={initialNotesVersion}
+                    initialNotesContent={initialNotesContent}
                 />
             </Box>
         </Box>

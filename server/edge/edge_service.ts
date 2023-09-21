@@ -345,3 +345,4 @@ export {DocumentCollaborationDurableObject} from "~/server/documents/collaborati
 export {PostRealtimeDurableObject} from "~/server/forum/realtime/post_realtime_durable_object.js";
 export {ChatRealtimeDurableObject} from "~/server/chat/realtime/chat_realtime_durable_object.js";
 export {MyAccountDurableObject} from "~/server/notifications/my_account/my_account_durable_object.js";
+export {TaskNotesCollaborationDurableObject} from "~/server/tasks/notes_collaboration/task_notes_collaboration_durable_object.js";

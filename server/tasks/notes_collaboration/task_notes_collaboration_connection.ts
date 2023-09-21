@@ -7,7 +7,9 @@ import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_serv
 import {
     getContentReferencedIdsForNode,
     getContentReferencedIdsForSteps,
+    isEmptyContentReferencedIds,
 } from "~/shared/content/content_referenced_ids.js";
+import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
@@ -84,30 +86,46 @@ export class TaskNotesCollaborationConnection {
                 if (stepsResult.type === "Unavailable") {
                     const content = this._contentManager.getCurrentContent();
 
-                    const {references: contentReferences} = await getTaskNotesContentReferences(
-                        context,
-                        {
-                            spaceId: this._contentManager.spaceId,
-                            referenceIds: getContentReferencedIdsForNode(content),
-                        },
-                    );
+                    const contentReferenceIds = getContentReferencedIdsForNode(content);
+
+                    // Optimization: If there's no referenced content then we don't need to make a
+                    // network request.
+                    const contentReferences = isEmptyContentReferencedIds(contentReferenceIds)
+                        ? emptyContentReferences
+                        : (
+                              await getTaskNotesContentReferences(context, {
+                                  spaceId: this._contentManager.spaceId,
+                                  referenceIds: contentReferenceIds,
+                              })
+                          ).references;
 
                     return {
                         result: {
                             type: "Unavailable",
                             newVersion: version,
-                            content,
-                            contentReferences,
+                            content: {
+                                doc: content,
+                                references: contentReferences,
+                            },
                         },
                     };
                 } else {
-                    const {references: stepsContentReferences} =
-                        await getTaskNotesContentReferences(context, {
-                            spaceId: this._contentManager.spaceId,
-                            referenceIds: getContentReferencedIdsForSteps(
-                                stepsResult.steps.map(({step}) => step),
-                            ),
-                        });
+                    const stepsContentReferenceIds = getContentReferencedIdsForSteps(
+                        stepsResult.steps.map(({step}) => step),
+                    );
+
+                    // Optimization: If there's no referenced content then we don't need to make a
+                    // network request.
+                    const stepsContentReferences = isEmptyContentReferencedIds(
+                        stepsContentReferenceIds,
+                    )
+                        ? emptyContentReferences
+                        : (
+                              await getTaskNotesContentReferences(context, {
+                                  spaceId: this._contentManager.spaceId,
+                                  referenceIds: stepsContentReferenceIds,
+                              })
+                          ).references;
 
                     return {
                         result: {

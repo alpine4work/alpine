@@ -2,8 +2,8 @@ import {ContentReferencesSchema} from "~/shared/content/content_references.js";
 import {ContentEditorClientId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {
-    TaskNotesContentSchema,
     TaskNotesContentStepSchema,
+    TaskNotesContentWithReferencesSchema,
 } from "~/shared/tasks/task_notes_content_schema.js";
 import {
     WebSocketProtocolEventType,
@@ -48,8 +48,7 @@ export const TaskNotesCollaborationProtocol = defineWebSocketProtocol({
                     Unavailable: Schema.object({
                         type: Schema.value("Unavailable"),
                         newVersion: Schema.integer,
-                        content: TaskNotesContentSchema,
-                        contentReferences: ContentReferencesSchema,
+                        content: TaskNotesContentWithReferencesSchema,
                     }),
                 }),
             },

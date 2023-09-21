@@ -190,11 +190,6 @@ export function TaskRealtimeClientContextProvider({
 
             const existingClientEntry = taskRealtimeClientBySpaceIdForClient.get(spaceId);
 
-            // Only one `<TaskStoreContextProvider>` should be mounted at a time per-space
-            // on the client. Error if another client exists and is mounted. Ok if another
-            // client exists but is not mounted.
-            assert(!existingClientEntry?.isMounted);
-
             // Reuse the existing client. Otherwise we need to create a new client.
             if (existingClientEntry?.client) return existingClientEntry.client;
 
@@ -215,22 +210,19 @@ export function TaskRealtimeClientContextProvider({
         );
     }
 
-    // Mark our client entry as mounted and error if another entry was added. This
-    // means two `<TaskStoreContextProvider>` are mounting at the same time.
+    // Connect the client when our store has some queries and disconnect the client
+    // if the store has no remaining queries.
     useEffect(() => {
         const clientEntry = assertExists(taskRealtimeClientBySpaceIdForClient?.get(spaceId));
 
         assert(clientEntry.client === client);
+
+        // Only one `<TaskStoreContextProvider>` should be mounted at a time per-space
+        // on the client. Error if another client exists and is mounted. Ok if another
+        // client exists but is not mounted.
+        assert(!clientEntry.isMounted);
         clientEntry.isMounted = true;
 
-        return () => {
-            clientEntry.isMounted = false;
-        };
-    }, [client, spaceId]);
-
-    // Connect the client when our store has some queries and disconnect the client
-    // if the store has no remaining queries.
-    useEffect(() => {
         const subscriptionsStore = client.store.getSubscriptionsStore();
 
         const getSubscriptionCount = () => {
@@ -263,12 +255,15 @@ export function TaskRealtimeClientContextProvider({
         });
 
         return () => {
+            clientEntry.isMounted = false;
+
             unsubscribe();
-            if (subscriptionCount === 0) {
+
+            if (subscriptionCount > 0) {
                 client.disconnect();
             }
         };
-    }, [client]);
+    }, [client, spaceId]);
 
     useDevConsoleTool("tasks", () => ({store: client.store}));
 

@@ -1,7 +1,11 @@
 import {Step} from "prosemirror-transform";
 import {WorkerSessionActionContext} from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
-import {getContentReferencedIdsForSteps} from "~/shared/content/content_referenced_ids.js";
+import {
+    getContentReferencedIdsForSteps,
+    isEmptyContentReferencedIds,
+} from "~/shared/content/content_referenced_ids.js";
+import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
@@ -241,10 +245,18 @@ export class TaskNotesCollaborationContentManager {
 
         if (steps.length === 0) return;
 
-        const {references: stepsContentReferences} = await getTaskNotesContentReferences(context, {
-            spaceId: this.spaceId,
-            referenceIds: getContentReferencedIdsForSteps(steps),
-        });
+        const stepsContentReferenceIds = getContentReferencedIdsForSteps(steps);
+
+        // Optimization: If there's no referenced content then we don't need to make a
+        // network request.
+        const stepsContentReferences = isEmptyContentReferencedIds(stepsContentReferenceIds)
+            ? emptyContentReferences
+            : (
+                  await getTaskNotesContentReferences(context, {
+                      spaceId: this.spaceId,
+                      referenceIds: stepsContentReferenceIds,
+                  })
+              ).references;
 
         // We have to wait for some async data dependencies to send
         // `UpdateContentWithoutPersistence`. We load our data without:
@@ -286,7 +298,7 @@ export class TaskNotesCollaborationContentManager {
           } {
         const state = this._state.getWithoutLock();
 
-        assert(startVersion < endVersion);
+        assert(startVersion <= endVersion);
         assert(endVersion <= state.version);
 
         // We don't save every step to update task notes in the database. We only save

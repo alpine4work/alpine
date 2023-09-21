@@ -23,6 +23,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
+import {Id, generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema.js";
@@ -128,75 +129,87 @@ export class DocumentContentEditorWebSocketClient {
     public connect() {
         assert(this._disconnect === null, "WebSocket is already connected");
 
-        let isConnected = false;
+        let connectionId: Id | null = null;
 
         this._client.connect();
 
         const unsubscribeFromClientState = this._client.state.subscribe(() => {
             const clientState = this._client.state.getSnapshot();
 
-            if (isConnected !== clientState.isConnected) {
-                isConnected = clientState.isConnected;
+            if (connectionId !== null && !clientState.isConnected) {
+                connectionId = null;
 
-                // Whenever we successfully connect to the WebSocket, send a backfill request
-                // so we can get any steps we missed while disconnected from the WebSocket.
-                if (isConnected) {
-                    this._client.procedures
-                        .backfill({
-                            version: this._state.getSnapshot().editorState.getVersion(),
-                        })
-                        .then(
-                            output => {
-                                if (!isConnected) return;
+                maybeSendUpdatesToServer();
+            }
 
-                                // One dispatch call just to make sure React applies these actions atomically
-                                // and doesn't do any scheduling weirdness.
-                                this._dispatchBatch([
-                                    {
-                                        type: "Extra",
-                                        extra: {
-                                            type: "SetAllOtherPresenceStates",
-                                            stateByConnectionId: ImmutableMap.from(
-                                                mapIterable(
-                                                    output.presenceStates,
-                                                    presenceState => [
-                                                        presenceState.connectionId,
-                                                        presenceState.state,
-                                                    ],
-                                                ),
-                                            ),
-                                        },
+            // Whenever we successfully connect to the WebSocket, send a backfill request
+            // so we can get any steps we missed while disconnected from the WebSocket.
+            if (connectionId === null && clientState.isConnected) {
+                const ourConnectionId = generateId();
+                connectionId = ourConnectionId;
+
+                this._client.procedures
+                    .backfill({
+                        version: this._state.getSnapshot().editorState.getVersion(),
+                    })
+                    .then(
+                        output => {
+                            // If while waiting on our backfill we disconnected then don't update
+                            // our state. We use an `Id` to make sure if we connect/reconnect quickly we
+                            // still ignore the backfill result.
+                            if (connectionId !== ourConnectionId) return;
+
+                            // One dispatch call just to make sure React applies these actions atomically
+                            // and doesn't do any scheduling weirdness.
+                            this._dispatchBatch([
+                                {
+                                    type: "Extra",
+                                    extra: {
+                                        type: "SetAllOtherPresenceStates",
+                                        stateByConnectionId: ImmutableMap.from(
+                                            mapIterable(output.presenceStates, presenceState => [
+                                                presenceState.connectionId,
+                                                presenceState.state,
+                                            ]),
+                                        ),
                                     },
-                                    {
-                                        type: "ReceiveSteps",
-                                        newVersion: output.newVersion,
-                                        steps: output.steps,
-                                        stepsContentReferences: output.stepsContentReferences,
-                                    },
+                                },
+                                {
+                                    type: "ReceiveSteps",
+                                    newVersion: output.newVersion,
+                                    steps: output.steps,
+                                    stepsContentReferences: output.stepsContentReferences,
+                                },
 
-                                    // Unconditionally run this action even if we have no new remembered steps
-                                    // because it will throw if the editor version in state is not
-                                    // `expectedVersion`. This is a nice way to double check that our previous
-                                    // action actually caught us up.
-                                    {
-                                        type: "Extra",
-                                        extra: {
-                                            type: "AugmentRememberedSteps",
-                                            expectedVersion: output.newVersion,
-                                            startVersion:
-                                                output.newVersion -
-                                                output.steps.length -
-                                                output.rememberInvertedSteps.length,
-                                            invertedSteps: output.rememberInvertedSteps,
-                                        },
+                                // Unconditionally run this action even if we have no new remembered steps
+                                // because it will throw if the editor version in state is not
+                                // `expectedVersion`. This is a nice way to double check that our previous
+                                // action actually caught us up.
+                                {
+                                    type: "Extra",
+                                    extra: {
+                                        type: "AugmentRememberedSteps",
+                                        expectedVersion: output.newVersion,
+                                        startVersion:
+                                            output.newVersion -
+                                            output.steps.length -
+                                            output.rememberInvertedSteps.length,
+                                        invertedSteps: output.rememberInvertedSteps,
                                     },
-                                ]);
-                            },
-                            error => this._dispatch({type: "Error", error}),
-                        );
+                                },
+                            ]);
+                        },
+                        error => {
+                            // If while waiting on our backfill we disconnected then don't update
+                            // our state. We use an `Id` to make sure if we connect/reconnect quickly we
+                            // still ignore the backfill result.
+                            if (connectionId !== ourConnectionId) return;
 
-                    maybeSendUpdatesToServer();
-                }
+                            this._dispatch({type: "Error", error});
+                        },
+                    );
+
+                maybeSendUpdatesToServer();
             }
         });
 
@@ -309,7 +322,7 @@ export class DocumentContentEditorWebSocketClient {
         const maybeSendUpdatesToServer = () => {
             const state = this._state.getSnapshot();
 
-            if (!isConnected) {
+            if (connectionId === null) {
                 cursorDisappearTimeout?.clear();
                 cursorDisappearTimeout = null;
                 return;
