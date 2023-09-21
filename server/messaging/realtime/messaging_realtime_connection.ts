@@ -202,6 +202,7 @@ export class MessagingRealtimeConnection<
         fromConnection: MessagingRealtimeConnection<RoomKey, Message>,
         toConnection: MessagingRealtimeConnection<RoomKey, Message>,
         message: Message,
+        oldFromConnectionTypingState: MessagingTypingState | null,
     ) {
         // If the connection is backfilling or we received this message out of order,
         // queue it for later. If we have not received a message yet then we want to
@@ -220,7 +221,7 @@ export class MessagingRealtimeConnection<
                 // update happens later we don't want to clobber the update from this function.
                 if (
                     fromConnection._connectionId !== toConnection._connectionId &&
-                    fromConnection._typingState.getWithoutLock() !== null
+                    oldFromConnectionTypingState !== null
                 ) {
                     toConnection._sendEvent(context, {
                         type: "UpdateOtherTypingState",
@@ -239,7 +240,7 @@ export class MessagingRealtimeConnection<
             message,
             updateOtherTypingState:
                 fromConnection._connectionId !== toConnection._connectionId &&
-                fromConnection._typingState.getWithoutLock() !== null
+                oldFromConnectionTypingState !== null
                     ? {
                           connectionId: fromConnection._connectionId,
                           typingState: null,
@@ -429,6 +430,7 @@ export class MessagingRealtimeConnection<
 
         await this._typingState.withLock(async typingStateRef => {
             // We clear the connection's typing state after they send a message.
+            const oldTypingState = typingStateRef.current;
             typingStateRef.current = null;
 
             MessagingRealtimeConnection._sendNewMessageAndClearTypingState(
@@ -436,6 +438,7 @@ export class MessagingRealtimeConnection<
                 this,
                 this,
                 newMessage,
+                oldTypingState,
             );
 
             for (const connection of this._iterateOtherConnections()) {
@@ -444,6 +447,7 @@ export class MessagingRealtimeConnection<
                     this,
                     connection,
                     newMessage,
+                    oldTypingState,
                 );
             }
         });
