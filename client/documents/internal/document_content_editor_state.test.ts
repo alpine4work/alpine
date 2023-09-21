@@ -3,7 +3,7 @@ import {ReplaceStep} from "prosemirror-transform";
 import {
     getInitialDocumentContentEditorState,
     reduceDocumentContentEditorState,
-} from "~/client/documents/internal/document_content_editor_web_socket_client.js";
+} from "~/client/documents/internal/document_content_editor_state.js";
 import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {
     assertDocumentContent,
