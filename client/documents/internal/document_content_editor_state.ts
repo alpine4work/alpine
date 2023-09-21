@@ -1,8 +1,13 @@
 import {Selection} from "prosemirror-state";
 import {Step, StepMap} from "prosemirror-transform";
 import {
+    CollaborativeContentEditorAction,
+    CollaborativeContentEditorState,
+    createCollaborativeContentEditorStateReducer,
+    getInitialCollaborativeContentEditorState,
+} from "~/client/content/collaborative_content_editor_state.js";
+import {
     ContentEditorReferencesAction,
-    ContentEditorState,
     createCommentThreadMetaKey,
 } from "~/client/content/content_editor_state.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
@@ -19,29 +24,28 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {
-    ContentEditorClientId,
-    DocumentCommentThreadId,
-    WebSocketConnectionId,
-} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {
     MessageContent,
     MessageContentWithReferences,
 } from "~/shared/messaging/message_content_schema.js";
 
-export type DocumentContentEditorState = {
-    /**
-     * We may get `ReceiveSteps` actions out of order (e.g. the server sends an
-     * `UpdateContent` message before a backfill response). If we
-     * see an action for a future version we put it in this array and re-apply the
-     * action when older steps are applied.
-     */
-    readonly pendingActions: ReadonlyArray<DocumentContentEditorReceiveStepsAction>;
+export type DocumentContentEditorState = CollaborativeContentEditorState<
+    DocumentContentWithReferences,
+    DocumentContentEditorExtraState
+>;
 
+type DocumentContentEditorExtraState = {
     /**
-     * The current state of the editor.
+     * Comment threads we have sent to the server that we're waiting on
+     * acknowledgement for.
+     *
+     * Should be non-null when `pendingSendableSteps` is non-null.
      */
-    readonly editorState: ContentEditorState<DocumentContentWithReferences>;
+    readonly pendingCreateCommentThreads: ReadonlyArray<{
+        readonly commentThreadId: DocumentCommentThreadId;
+        readonly initialCommentContent: MessageContent;
+    }> | null;
 
     /**
      * Remember some number of steps in our state to map phantom selections from
@@ -55,20 +59,6 @@ export type DocumentContentEditorState = {
         readonly contentBeforeStep: Lazy<DocumentContent>;
         readonly contentAfterStep: Lazy<DocumentContent>;
     }>;
-
-    /**
-     * Steps we have sent to the server which we are waiting on
-     * acknowledgement for.
-     */
-    readonly pendingSendableSteps: {
-        readonly steps: ReadonlyArray<Step>;
-        readonly version: number;
-        readonly clientId: ContentEditorClientId;
-        readonly createCommentThreads: ReadonlyArray<{
-            readonly commentThreadId: DocumentCommentThreadId;
-            readonly initialCommentContent: MessageContent;
-        }>;
-    } | null;
 
     /**
      * The current text selection to broadcast over presence and the version at
@@ -93,55 +83,34 @@ export type DocumentContentEditorState = {
         WebSocketConnectionId,
         DocumentCollaborationPresenceState
     >;
-
-    /**
-     * Is there an error from our WebSocket?
-     */
-    readonly errorState:
-        | {readonly hasError: false}
-        | {readonly hasError: true; readonly error: unknown};
 };
 
 export function getInitialDocumentContentEditorState(
     initialDocument: DocumentModel,
 ): DocumentContentEditorState {
-    const editorState = ContentEditorState.createCollaborative<DocumentContentWithReferences>({
-        version: initialDocument.version,
-        content: initialDocument.content,
+    return getInitialCollaborativeContentEditorState({
+        initialVersion: initialDocument.version,
+        initialContent: initialDocument.content,
         reduceReferences: reduceDocumentContentReferences,
+        extra: {
+            pendingCreateCommentThreads: null,
+            rememberedSteps: [],
+            ourPresenceState: null,
+            otherPresenceStateByConnectionId: ImmutableMap.empty(),
+        },
     });
-
-    return {
-        pendingActions: [],
-        editorState,
-        rememberedSteps: [],
-        pendingSendableSteps: null,
-        ourPresenceState: null,
-        otherPresenceStateByConnectionId: ImmutableMap.empty(),
-        errorState: {hasError: false},
-    };
 }
 
-export type DocumentContentEditorAction =
-    | DocumentContentEditorEditAction
-    | DocumentContentEditorReceiveStepsAction
+export type DocumentContentEditorAction = CollaborativeContentEditorAction<
+    DocumentContentWithReferences,
+    DocumentContentEditorExtraAction
+>;
+
+type DocumentContentEditorExtraAction =
     | DocumentContentEditorAugmentRememberedStepsAction
     | DocumentContentEditorSetAllOtherPresenceStatesAction
     | DocumentContentEditorUpdateOtherPresenceStateAction
-    | DocumentContentEditorErrorAction
     | DocumentContentEditorUpdateCommentThreadAction;
-
-type DocumentContentEditorEditAction = {
-    readonly type: "Edit";
-    readonly editorState: ContentEditorState<DocumentContentWithReferences>;
-};
-
-type DocumentContentEditorReceiveStepsAction = {
-    readonly type: "ReceiveSteps";
-    readonly newVersion: number;
-    readonly steps: ReadonlyArray<{readonly step: Step; readonly clientId: ContentEditorClientId}>;
-    readonly stepsContentReferences: DocumentContentReferences;
-};
 
 type DocumentContentEditorAugmentRememberedStepsAction = {
     readonly type: "AugmentRememberedSteps";
@@ -164,11 +133,6 @@ type DocumentContentEditorUpdateOtherPresenceStateAction = {
     readonly state: DocumentCollaborationPresenceState | null;
 };
 
-type DocumentContentEditorErrorAction = {
-    readonly type: "Error";
-    readonly error: unknown;
-};
-
 type DocumentContentEditorUpdateCommentThreadAction = {
     readonly type: "UpdateCommentThread";
     readonly commentThreadId: DocumentCommentThreadId;
@@ -180,30 +144,29 @@ export function reduceDocumentContentEditorState(
     state: DocumentContentEditorState,
     actions: ReadonlyArray<DocumentContentEditorAction>,
 ): DocumentContentEditorState {
-    const oldRememberedSteps = state.rememberedSteps;
-    const oldOtherPresenceStateByConnectionId = state.otherPresenceStateByConnectionId;
+    const oldPendingSendableSteps = state.pendingSendableSteps;
+    const oldRememberedSteps = state.extra.rememberedSteps;
+    const oldOtherPresenceStateByConnectionId = state.extra.otherPresenceStateByConnectionId;
 
-    const oldVersion = state.editorState.getVersion();
-    state = actions.reduce(
-        (state, action) => actuallyReduceDocumentContentEditorState(state, action),
-        state,
-    );
-    const newVersion = state.editorState.getVersion();
+    state = baseReduceDocumentContentEditorState(state, actions);
 
-    // If we are not currently sending steps to the server but we have some
-    // sendable steps, then populate the `pendingSendableSteps` action.
-    //
-    // Most often this runs after an `Edit` action as we're typing. But may also
-    // happen after a `ReceiveSteps` action where we've acknowledged our last
-    // pending sendable steps.
-    if (!state.pendingSendableSteps) {
-        const sendableSteps = state.editorState.sendableSteps();
-        if (sendableSteps) {
+    // If `pendingSendableSteps` changed then there's some extra state we need
+    // to update...
+    if (oldPendingSendableSteps !== state.pendingSendableSteps) {
+        if (!state.pendingSendableSteps) {
+            state = {
+                ...state,
+                extra: {
+                    ...state.extra,
+                    pendingCreateCommentThreads: null,
+                },
+            };
+        } else {
             // We can have multiple steps from the same origin transaction. So uniquify our
             // new comment thread objects.
             const createCommentThreads = Array.from(
                 new Set(
-                    filterMapIterable(sendableSteps.origins, transaction => {
+                    filterMapIterable(state.pendingSendableSteps.origins, transaction => {
                         const createCommentThread: {
                             commentThreadId: DocumentCommentThreadId;
                             initialCommentContent: MessageContentWithReferences;
@@ -221,19 +184,15 @@ export function reduceDocumentContentEditorState(
 
             state = {
                 ...state,
-                pendingSendableSteps: sendableSteps
-                    ? {
-                          steps: sendableSteps.steps,
-                          version: sendableSteps.version,
-                          clientId: sendableSteps.clientId,
-                          createCommentThreads,
-                      }
-                    : null,
-                // Make sure our presence state is up-to-date as well since we will send it to
-                // the server along with our sendable steps.
-                ourPresenceState: {
-                    version: state.editorState.getVersion(),
-                    selection: state.editorState.getSelection(),
+                extra: {
+                    ...state.extra,
+                    pendingCreateCommentThreads: createCommentThreads,
+                    // Make sure our presence state is up-to-date as well since we will send it to
+                    // the server along with our sendable steps.
+                    ourPresenceState: {
+                        version: state.editorState.getVersion(),
+                        selection: state.editorState.getSelection(),
+                    },
                 },
             };
         }
@@ -243,167 +202,114 @@ export function reduceDocumentContentEditorState(
     // discard any `rememberedSteps` we don't need anymore for rebasing
     // presence state selections.
     if (
-        state.rememberedSteps !== oldRememberedSteps ||
-        state.otherPresenceStateByConnectionId !== oldOtherPresenceStateByConnectionId
+        state.extra.rememberedSteps !== oldRememberedSteps ||
+        state.extra.otherPresenceStateByConnectionId !== oldOtherPresenceStateByConnectionId
     ) {
         let discardRememberedStepsBeforeVersion = state.editorState.getVersion();
 
-        for (const presenceState of state.otherPresenceStateByConnectionId.values()) {
+        for (const presenceState of state.extra.otherPresenceStateByConnectionId.values()) {
             if (presenceState.version < discardRememberedStepsBeforeVersion)
                 discardRememberedStepsBeforeVersion = presenceState.version;
         }
 
-        const newRememberedSteps = state.rememberedSteps.slice(
-            state.rememberedSteps.length -
+        const newRememberedSteps = state.extra.rememberedSteps.slice(
+            state.extra.rememberedSteps.length -
                 (state.editorState.getVersion() - discardRememberedStepsBeforeVersion),
         );
 
-        state = {...state, rememberedSteps: newRememberedSteps};
+        state = {...state, extra: {...state.extra, rememberedSteps: newRememberedSteps}};
     }
 
-    // If the version changed then we want to retry our pending actions since they
-    // may be ok to run now.
-    if (oldVersion === newVersion) return state;
-
-    // We may receive actions out of order, but make sure we run them in order
-    // now.
-    const pendingActions = [...state.pendingActions].sort((pendingAction1, pendingAction2) => {
-        const baseVersion1 = pendingAction1.newVersion - pendingAction1.steps.length;
-        const baseVersion2 = pendingAction2.newVersion - pendingAction2.steps.length;
-        return baseVersion1 - baseVersion2;
-    });
-
-    // We are going to try and run all pending actions. If actions are still
-    // pending they will be put back into this array.
-    state = {...state, pendingActions: []};
-
-    return pendingActions.reduce(actuallyReduceDocumentContentEditorState, state);
+    return state;
 }
 
-function actuallyReduceDocumentContentEditorState(
-    oldState: DocumentContentEditorState,
-    action: DocumentContentEditorAction,
-): DocumentContentEditorState {
-    switch (action.type) {
-        case "Edit": {
-            // If an edit was made on top of a version of `editorState` that's different
-            // from what's in state that means we may have some data loss!
-            //
-            // We've observed this happen when React cancels a low priority render in
-            // response to a user keyboard event. So we wrap `dispatch()` so that it always
-            // runs at a high priority.
-            assert(
-                action.editorState.getVersion() === oldState.editorState.getVersion(),
-                "Edit was made on top of an editor state with a different base version than what is actually in our state",
-            );
+const baseReduceDocumentContentEditorState = createCollaborativeContentEditorStateReducer<
+    DocumentContentWithReferences,
+    DocumentContentEditorExtraState,
+    DocumentContentEditorExtraAction
+>((oldState, action) => {
+    if (action.type === "Edit") {
+        // Don't update our `presenceState` when there are steps we are sending to the
+        // server. Other clients would not know how to interpret our state until they
+        // see our steps.
+        if (oldState.pendingSendableSteps) {
+            return oldState;
+        }
 
-            // Don't update our `presenceState` when there are steps we are sending to the
-            // server. Other clients would not know how to interpret our state until they
-            // see our steps.
-            if (oldState.pendingSendableSteps) {
-                return {
-                    ...oldState,
-                    editorState: action.editorState,
-                };
-            }
-
-            return {
-                ...oldState,
-                editorState: action.editorState,
+        return {
+            ...oldState,
+            extra: {
+                ...oldState.extra,
                 ourPresenceState: {
                     version: action.editorState.getVersion(),
                     selection: action.editorState.getSelection(),
                 },
-            };
-        }
-        case "ReceiveSteps": {
-            const oldVersion = oldState.editorState.getVersion();
-            if (action.newVersion <= oldVersion) return oldState;
+            },
+        };
+    }
 
-            // If we received an action that's applied on a future version of our content,
-            // we can't commit it until our local state has caught up. So stick it in
-            // pending actions and we'll come back to it.
-            if (oldVersion < action.newVersion - action.steps.length) {
-                return {
-                    ...oldState,
-                    pendingActions: [...oldState.pendingActions, action],
-                };
-            }
+    if (action.type === "ReceiveSteps") {
+        // While the base reducer may receive `ReceiveSteps` actions out-of-order, it
+        // should call our custom reducer with `ReceiveSteps` actions in-order.
+        assert(action.newVersion === oldState.editorState.getVersion());
 
-            // We may dispatch this action multiple times with the same steps. Remove any
-            // steps we've already seen.
-            const steps = action.steps.slice(
-                action.steps.length - (action.newVersion - oldVersion),
-            );
-            assert(oldVersion + steps.length === action.newVersion);
+        // Whenever we receive steps, we add them to our `rememberedSteps` array.
+        // We discard steps when we don't need them to rebase presence states.
+        let content = new Lazy(() => oldState.editorState.getDocWithoutSendableSteps());
 
-            // If we've already seen all the steps, no change is needed.
-            if (steps.length === 0) return oldState;
+        const newRememberedSteps = action.steps.map(({step}) => {
+            const previousContent = content;
 
-            const editorState = oldState.editorState.receiveSteps(
-                steps,
-                action.stepsContentReferences,
-            );
-
-            // Whenever we receive steps, we add them to our `rememberedSteps` array.
-            // We discard steps when we don't need them to rebase presence states.
-            let rememberedSteps;
-            {
-                let content = new Lazy(() => oldState.editorState.getDocWithoutSendableSteps());
-
-                const newRememberedSteps = steps.map(({step}) => {
-                    const previousContent = content;
-
-                    content = new Lazy(() => {
-                        const stepResult = step.apply(previousContent.get());
-                        assert(stepResult.doc);
-                        assert(isDocumentContent(stepResult.doc));
-                        return stepResult.doc;
-                    });
-
-                    return {
-                        stepMap: step.getMap(),
-                        contentBeforeStep: previousContent,
-                        contentAfterStep: content,
-                    };
-                });
-
-                rememberedSteps = [...oldState.rememberedSteps, ...newRememberedSteps];
-            }
+            content = new Lazy(() => {
+                const stepResult = step.apply(previousContent.get());
+                assert(stepResult.doc);
+                assert(isDocumentContent(stepResult.doc));
+                return stepResult.doc;
+            });
 
             return {
-                ...oldState,
-                editorState,
-                rememberedSteps,
-                pendingSendableSteps:
-                    oldState.pendingSendableSteps &&
-                    action.steps.some(({clientId}) => clientId === editorState.getClientId()) &&
-                    action.newVersion >= oldState.pendingSendableSteps.version
-                        ? null
-                        : oldState.pendingSendableSteps,
+                stepMap: step.getMap(),
+                contentBeforeStep: previousContent,
+                contentAfterStep: content,
             };
-        }
+        });
+
+        const rememberedSteps = [...oldState.extra.rememberedSteps, ...newRememberedSteps];
+
+        return {
+            ...oldState,
+            extra: {
+                ...oldState.extra,
+                rememberedSteps,
+            },
+        };
+    }
+
+    if (action.type === "Error") return oldState;
+
+    switch (action.extra.type) {
         // If we are missing some remembered steps for fast-forwarding presence states
         // then we have an effect which fetches those steps from the server. This
         // action integrates the old steps into our state.
         case "AugmentRememberedSteps": {
             assert(
-                action.expectedVersion === oldState.editorState?.getVersion(),
+                action.extra.expectedVersion === oldState.editorState?.getVersion(),
                 "Failed to augment remembered steps because editor version does not match expected version",
             );
 
             // Drop steps we're trying to remember that we already have.
-            const rememberInvertedSteps = action.invertedSteps.slice(
+            const rememberInvertedSteps = action.extra.invertedSteps.slice(
                 0,
                 oldState.editorState.getVersion() -
-                    oldState.rememberedSteps.length -
-                    action.startVersion,
+                    oldState.extra.rememberedSteps.length -
+                    action.extra.startVersion,
             );
             if (rememberInvertedSteps.length === 0) return oldState;
 
             const oldEditorState = oldState.editorState;
             let content =
-                oldState.rememberedSteps[oldState.rememberedSteps.length - 1]?.contentBeforeStep ??
+                oldState.extra.rememberedSteps[oldState.extra.rememberedSteps.length - 1]
+                    ?.contentBeforeStep ??
                 new Lazy(() => oldEditorState.getDocWithoutSendableSteps());
 
             const newRememberedSteps = [...rememberInvertedSteps].reverse().map(invertedStep => {
@@ -427,30 +333,35 @@ function actuallyReduceDocumentContentEditorState(
 
             return {
                 ...oldState,
-                rememberedSteps: [...newRememberedSteps, ...oldState.rememberedSteps],
+                extra: {
+                    ...oldState.extra,
+                    rememberedSteps: [...newRememberedSteps, ...oldState.extra.rememberedSteps],
+                },
             };
         }
         case "SetAllOtherPresenceStates": {
             return {
                 ...oldState,
-                otherPresenceStateByConnectionId: action.stateByConnectionId,
+                extra: {
+                    ...oldState.extra,
+                    otherPresenceStateByConnectionId: action.extra.stateByConnectionId,
+                },
             };
         }
         case "UpdateOtherPresenceState": {
             return {
                 ...oldState,
-                otherPresenceStateByConnectionId: action.state
-                    ? oldState.otherPresenceStateByConnectionId.set(
-                          action.connectionId,
-                          action.state,
-                      )
-                    : oldState.otherPresenceStateByConnectionId.delete(action.connectionId),
-            };
-        }
-        case "Error": {
-            return {
-                ...oldState,
-                errorState: {hasError: true, error: action.error},
+                extra: {
+                    ...oldState.extra,
+                    otherPresenceStateByConnectionId: action.extra.state
+                        ? oldState.extra.otherPresenceStateByConnectionId.set(
+                              action.extra.connectionId,
+                              action.extra.state,
+                          )
+                        : oldState.extra.otherPresenceStateByConnectionId.delete(
+                              action.extra.connectionId,
+                          ),
+                },
             };
         }
         case "UpdateCommentThread": {
@@ -458,16 +369,16 @@ function actuallyReduceDocumentContentEditorState(
                 ...oldState,
                 editorState: oldState.editorState.updateReferences({
                     type: "UpdateDocumentCommentThread",
-                    commentThreadId: action.commentThreadId,
-                    commentCount: action.commentCount,
-                    addCommentAuthor: action.addCommentAuthor,
+                    commentThreadId: action.extra.commentThreadId,
+                    commentCount: action.extra.commentCount,
+                    addCommentAuthor: action.extra.addCommentAuthor,
                 }),
             };
         }
         default:
-            throw exhaustive(action);
+            throw exhaustive(action.extra);
     }
-}
+});
 
 export function reduceDocumentContentReferences(
     references: DocumentContentReferences,

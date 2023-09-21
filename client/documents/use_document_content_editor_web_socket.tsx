@@ -100,8 +100,8 @@ export function useDocumentContentEditorWebSocket(initialDocument: DocumentModel
             editorState => client.changeEditorState(editorState),
             [client],
         ),
-        otherPresenceStateByConnectionId: state.otherPresenceStateByConnectionId,
-        rememberedSteps: state.rememberedSteps,
+        otherPresenceStateByConnectionId: state.extra.otherPresenceStateByConnectionId,
+        rememberedSteps: state.extra.rememberedSteps,
         toggleShouldConnect,
         procedures: client.procedures as MemoObject<DocumentContentEditorWebSocketClientProcedures>,
         subscribeToCommentThreadEvents: useCallback(

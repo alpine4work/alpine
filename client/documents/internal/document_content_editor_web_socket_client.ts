@@ -153,13 +153,19 @@ export class DocumentContentEditorWebSocketClient {
                                 // and doesn't do any scheduling weirdness.
                                 this._dispatchBatch([
                                     {
-                                        type: "SetAllOtherPresenceStates",
-                                        stateByConnectionId: ImmutableMap.from(
-                                            mapIterable(output.presenceStates, presenceState => [
-                                                presenceState.connectionId,
-                                                presenceState.state,
-                                            ]),
-                                        ),
+                                        type: "Extra",
+                                        extra: {
+                                            type: "SetAllOtherPresenceStates",
+                                            stateByConnectionId: ImmutableMap.from(
+                                                mapIterable(
+                                                    output.presenceStates,
+                                                    presenceState => [
+                                                        presenceState.connectionId,
+                                                        presenceState.state,
+                                                    ],
+                                                ),
+                                            ),
+                                        },
                                     },
                                     {
                                         type: "ReceiveSteps",
@@ -173,13 +179,16 @@ export class DocumentContentEditorWebSocketClient {
                                     // `expectedVersion`. This is a nice way to double check that our previous
                                     // action actually caught us up.
                                     {
-                                        type: "AugmentRememberedSteps",
-                                        expectedVersion: output.newVersion,
-                                        startVersion:
-                                            output.newVersion -
-                                            output.steps.length -
-                                            output.rememberInvertedSteps.length,
-                                        invertedSteps: output.rememberInvertedSteps,
+                                        type: "Extra",
+                                        extra: {
+                                            type: "AugmentRememberedSteps",
+                                            expectedVersion: output.newVersion,
+                                            startVersion:
+                                                output.newVersion -
+                                                output.steps.length -
+                                                output.rememberInvertedSteps.length,
+                                            invertedSteps: output.rememberInvertedSteps,
+                                        },
                                     },
                                 ]);
                             },
@@ -214,9 +223,12 @@ export class DocumentContentEditorWebSocketClient {
                     // state.
                     if (event.clientId !== this._state.getSnapshot().editorState.getClientId()) {
                         actions.push({
-                            type: "UpdateOtherPresenceState",
-                            connectionId: event.updateOtherPresenceState.connectionId,
-                            state: event.updateOtherPresenceState.state,
+                            type: "Extra",
+                            extra: {
+                                type: "UpdateOtherPresenceState",
+                                connectionId: event.updateOtherPresenceState.connectionId,
+                                state: event.updateOtherPresenceState.state,
+                            },
                         });
                     }
 
@@ -234,9 +246,12 @@ export class DocumentContentEditorWebSocketClient {
                 }
                 case "UpdateOtherPresenceState": {
                     this._dispatch({
-                        type: "UpdateOtherPresenceState",
-                        connectionId: event.connectionId,
-                        state: event.state,
+                        type: "Extra",
+                        extra: {
+                            type: "UpdateOtherPresenceState",
+                            connectionId: event.connectionId,
+                            state: event.state,
+                        },
                     });
                     break;
                 }
@@ -259,10 +274,13 @@ export class DocumentContentEditorWebSocketClient {
                     // this acceptable.
                     if (event.event.type === "NewMessage") {
                         this._dispatch({
-                            type: "UpdateCommentThread",
-                            commentThreadId: event.commentThreadId,
-                            commentCount: event.event.message.index + 1,
-                            addCommentAuthor: event.event.message.author,
+                            type: "Extra",
+                            extra: {
+                                type: "UpdateCommentThread",
+                                commentThreadId: event.commentThreadId,
+                                commentCount: event.event.message.index + 1,
+                                addCommentAuthor: event.event.message.author,
+                            },
                         });
                     }
                     break;
@@ -309,13 +327,13 @@ export class DocumentContentEditorWebSocketClient {
                         version: state.pendingSendableSteps.version,
                         steps: state.pendingSendableSteps.steps,
                         clientId: state.pendingSendableSteps.clientId,
-                        createCommentThreads: state.pendingSendableSteps.createCommentThreads,
+                        createCommentThreads: state.extra.pendingCreateCommentThreads ?? [],
                         updateOurPresenceState: {
-                            state: state.ourPresenceState
+                            state: state.extra.ourPresenceState
                                 ? {
-                                      version: state.ourPresenceState.version,
+                                      version: state.extra.ourPresenceState.version,
                                       selection: ProsemirrorSelectionWrapper.new(
-                                          state.ourPresenceState.selection,
+                                          state.extra.ourPresenceState.selection,
                                       ),
                                   }
                                 : null,
@@ -324,44 +342,46 @@ export class DocumentContentEditorWebSocketClient {
                     .catch(error => this._dispatch({type: "Error", error}));
 
                 lastPendingSendableStepsVersionSentToServer = state.pendingSendableSteps.version;
-                lastOurPresenceStateSentToServer = state.ourPresenceState;
+                lastOurPresenceStateSentToServer = state.extra.ourPresenceState;
             }
 
             if (
-                (lastOurPresenceStateSentToServer === null) !== (state.ourPresenceState === null) ||
+                (lastOurPresenceStateSentToServer === null) !==
+                    (state.extra.ourPresenceState === null) ||
                 (lastOurPresenceStateSentToServer !== null &&
-                    state.ourPresenceState !== null &&
-                    (lastOurPresenceStateSentToServer.version !== state.ourPresenceState.version ||
+                    state.extra.ourPresenceState !== null &&
+                    (lastOurPresenceStateSentToServer.version !==
+                        state.extra.ourPresenceState.version ||
                         lastOurPresenceStateSentToServer.selection !==
-                            state.ourPresenceState.selection))
+                            state.extra.ourPresenceState.selection))
             ) {
                 cursorDisappearTimeout?.clear();
                 cursorDisappearTimeout = null;
 
                 this._client.procedures
                     .updateOurPresenceState({
-                        state: state.ourPresenceState
+                        state: state.extra.ourPresenceState
                             ? {
-                                  version: state.ourPresenceState.version,
+                                  version: state.extra.ourPresenceState.version,
                                   selection: ProsemirrorSelectionWrapper.new(
-                                      state.ourPresenceState.selection,
+                                      state.extra.ourPresenceState.selection,
                                   ),
                               }
                             : null,
                     })
                     .catch(error => this._dispatch({type: "Error", error}));
 
-                lastOurPresenceStateSentToServer = state.ourPresenceState;
+                lastOurPresenceStateSentToServer = state.extra.ourPresenceState;
 
                 // Clear our presence state after some period of inactivity so you don't have a
                 // bunch of cursors laying around the document.
-                if (state.ourPresenceState) {
+                if (state.extra.ourPresenceState) {
                     // We have a much shorter timeout if our presence state is just a cursor. If
                     // the user has selected some text, we take longer to clear that timeout since
                     // maybe the user was intentionally trying to highlight text to show someone?
                     const cursorDisappearTimeoutMs =
-                        state.ourPresenceState.selection.from ===
-                        state.ourPresenceState.selection.to
+                        state.extra.ourPresenceState.selection.from ===
+                        state.extra.ourPresenceState.selection.to
                             ? 15 * 1000
                             : 15 * 60 * 1000;
 
