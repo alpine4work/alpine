@@ -46,6 +46,17 @@ const AccountsTable = DynamoTableSchema.new({
                         name: LabelStringSchema,
 
                         /**
+                         * Whenever we update the account's name we also increment this version number.
+                         * Unlike `updateLockVersion` this only tracks name updates.
+                         *
+                         * Useful for the task system which updates a bunch of data in OpenSearch when
+                         * an account name changes to only update old names.
+                         *
+                         * If not present the default value is 0.
+                         */
+                        nameVersion: Schema.integer.optional(),
+
+                        /**
                          * When was this account created?
                          */
                         createdTime: Schema.date,
@@ -711,6 +722,7 @@ function createAccountModelFromItem(accountItem: AccountItem) {
     return new AccountModel({
         id: accountItem.accountId,
         name: accountItem.name,
+        nameVersion: accountItem.nameVersion ?? 0,
         createdTime: accountItem.createdTime,
         hasInternalAccess: accountItem.hasInternalAccess,
         version: accountItem.updateLockVersion ?? 0,

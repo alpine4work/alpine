@@ -37,6 +37,7 @@ const store = new TaskClientStore({
 const account1 = new AccountModel({
     id: generateId(),
     name: "Test Account 1",
+    nameVersion: 0,
     createdTime: new Date(),
     version: 0,
 });
@@ -44,6 +45,7 @@ const account1 = new AccountModel({
 const account2 = new AccountModel({
     id: generateId(),
     name: "Test Account 2",
+    nameVersion: 0,
     createdTime: new Date(),
     version: 0,
 });

@@ -234,6 +234,7 @@ export async function createNotificationsScenario(context: TestContext) {
             account: new AccountModel({
                 id: account1Id,
                 name: "Account 1",
+                nameVersion: 0,
                 createdTime,
                 hasInternalAccess: undefined,
                 version: 0,
@@ -244,6 +245,7 @@ export async function createNotificationsScenario(context: TestContext) {
             account: new AccountModel({
                 id: account2Id,
                 name: "Account 2",
+                nameVersion: 0,
                 createdTime,
                 hasInternalAccess: undefined,
                 version: 0,
@@ -254,6 +256,7 @@ export async function createNotificationsScenario(context: TestContext) {
             account: new AccountModel({
                 id: account3Id,
                 name: "Account 3",
+                nameVersion: 0,
                 createdTime,
                 hasInternalAccess: undefined,
                 version: 0,
@@ -264,6 +267,7 @@ export async function createNotificationsScenario(context: TestContext) {
             account: new AccountModel({
                 id: otherAccountId,
                 name: "Account 4",
+                nameVersion: 0,
                 createdTime,
                 hasInternalAccess: undefined,
                 version: 0,
@@ -274,6 +278,7 @@ export async function createNotificationsScenario(context: TestContext) {
             account: new AccountModel({
                 id: sharedAccountId,
                 name: "Account 5",
+                nameVersion: 0,
                 createdTime,
                 hasInternalAccess: undefined,
                 version: 0,

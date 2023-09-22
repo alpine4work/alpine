@@ -19,6 +19,7 @@ const accountStore = getAccountClientStoreForClient();
 const account1 = new AccountModel({
     id: generateId(),
     name: "Test Account 1",
+    nameVersion: 0,
     createdTime: new Date(),
     version: 0,
 });

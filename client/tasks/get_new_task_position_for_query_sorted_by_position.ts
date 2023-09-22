@@ -77,23 +77,16 @@ export function getNewTaskPositionForQuerySortedByPosition(
                     ? query.taskOrderStore.getSnapshot().lt(cursor1).key
                     : query.taskOrderStore.getSnapshot().gt(cursor1).key;
 
-            const cursorPositionStartIndex =
-                firstQuerySort.type === "ParentPosition" ||
-                firstQuerySort.type === "AssigneeActivePosition"
-                    ? 1
-                    : 0;
-
             const cursor1PositionValue = cursor1[0]!;
             assert(isReadonlyArray(cursor1PositionValue));
 
-            const cursor1PositionOrderTimeTime = cursor1PositionValue[cursorPositionStartIndex];
+            const cursor1PositionOrderTimeTime = cursor1PositionValue[0];
             assert(typeof cursor1PositionOrderTimeTime === "number");
 
-            const cursor1PositionOrderTimeTicks =
-                cursor1PositionValue[cursorPositionStartIndex + 1];
+            const cursor1PositionOrderTimeTicks = cursor1PositionValue[1];
             assert(typeof cursor1PositionOrderTimeTicks === "number");
 
-            const cursor1PositionOrderKey = cursor1PositionValue[cursorPositionStartIndex + 2];
+            const cursor1PositionOrderKey = cursor1PositionValue[2];
             assert(
                 typeof cursor1PositionOrderKey === "string" && isOrderKey(cursor1PositionOrderKey),
             );
@@ -108,14 +101,13 @@ export function getNewTaskPositionForQuerySortedByPosition(
                 const cursor2PositionValue = cursor2[0]!;
                 assert(isReadonlyArray(cursor2PositionValue));
 
-                const cursor2PositionOrderTimeTime = cursor2PositionValue[cursorPositionStartIndex];
+                const cursor2PositionOrderTimeTime = cursor2PositionValue[0];
                 assert(typeof cursor2PositionOrderTimeTime === "number");
 
-                const cursor2PositionOrderTimeTicks =
-                    cursor2PositionValue[cursorPositionStartIndex + 1];
+                const cursor2PositionOrderTimeTicks = cursor2PositionValue[1];
                 assert(typeof cursor2PositionOrderTimeTicks === "number");
 
-                const cursor2PositionOrderKey = cursor2PositionValue[cursorPositionStartIndex + 2];
+                const cursor2PositionOrderKey = cursor2PositionValue[2];
                 assert(
                     typeof cursor2PositionOrderKey === "string" &&
                         isOrderKey(cursor2PositionOrderKey),

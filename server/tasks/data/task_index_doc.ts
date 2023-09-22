@@ -84,6 +84,7 @@ const TaskIndexSortableAccountType = OpensearchIndexObjectType.new({
     fields: {
         accountId: new OpensearchIndexKeywordType({isFilterable: true}).validate<AccountId>(isId),
         workingAccountName: new OpensearchIndexKeywordType({isSortable: true}),
+        workingAccountNameVersion: new OpensearchIndexIntegerType({isFilterable: true}),
     },
 }).transform<TaskSortableAccount>({
     serialize: account => account,
@@ -143,9 +144,7 @@ const TaskIndexParentType = OpensearchIndexObjectType.new({
     fields: {
         taskId: createCrdtRegisterOpensearchType(
             TaskParentTaskIdRegister,
-            new OpensearchIndexKeywordType({isFilterable: true, isSortable: true})
-                .validate<TaskId>(isId)
-                .nullable(),
+            new OpensearchIndexKeywordType({isFilterable: true}).validate<TaskId>(isId).nullable(),
         ),
         rawPosition: new OpensearchIndexIgnoredObjectType(
             Schema.object({
@@ -327,18 +326,7 @@ const TaskIndexAssigneeType = createCrdtRegisterOpensearchType(
     TaskAssigneeRegister,
     OpensearchIndexObjectType.new({
         fields: {
-            assignee: OpensearchIndexObjectType.new({
-                fields: {
-                    accountId: new OpensearchIndexKeywordType({
-                        isFilterable: true,
-                        isSortable: true,
-                    }).validate<AccountId>(isId),
-                    workingAccountName: new OpensearchIndexKeywordType({isSortable: true}),
-                },
-            }).transform<TaskSortableAccount>({
-                serialize: account => account,
-                deserialize: account => new TaskSortableAccount(account),
-            }),
+            assignee: TaskIndexSortableAccountType,
             assigner: TaskIndexSortableAccountType,
             assignedTime: TaskIndexFilterableTimeType,
         },

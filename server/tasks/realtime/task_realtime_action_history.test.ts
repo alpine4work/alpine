@@ -49,6 +49,7 @@ test("ignores actions before start is called", () => {
                     creator: new TaskSortableAccount({
                         accountId: generateId(),
                         workingAccountName: "Test",
+                        workingAccountNameVersion: 0,
                     }),
                     creatorTimeZone: defaultTimeZone,
                 },
@@ -94,6 +95,7 @@ test("records actions after start is called", () => {
                     creator: new TaskSortableAccount({
                         accountId: generateId(),
                         workingAccountName: "Test",
+                        workingAccountNameVersion: 0,
                     }),
                     creatorTimeZone: defaultTimeZone,
                 },
@@ -118,6 +120,7 @@ test("records actions after start is called", () => {
                     creator: new TaskSortableAccount({
                         accountId: generateId(),
                         workingAccountName: "Test",
+                        workingAccountNameVersion: 0,
                     }),
                     creatorTimeZone: defaultTimeZone,
                 },
@@ -142,6 +145,7 @@ test("records actions after start is called", () => {
                     creator: new TaskSortableAccount({
                         accountId: generateId(),
                         workingAccountName: "Test",
+                        workingAccountNameVersion: 0,
                     }),
                     creatorTimeZone: defaultTimeZone,
                 },
@@ -166,6 +170,7 @@ test("records actions after start is called", () => {
                     creator: new TaskSortableAccount({
                         accountId: generateId(),
                         workingAccountName: "Test",
+                        workingAccountNameVersion: 0,
                     }),
                     creatorTimeZone: defaultTimeZone,
                 },
@@ -214,6 +219,7 @@ test("will expire some actions whenever the timer runs", () => {
                         creator: new TaskSortableAccount({
                             accountId: generateId(),
                             workingAccountName: "Test",
+                            workingAccountNameVersion: 0,
                         }),
                         creatorTimeZone: defaultTimeZone,
                     },
@@ -237,6 +243,7 @@ test("will expire some actions whenever the timer runs", () => {
                         creator: new TaskSortableAccount({
                             accountId: generateId(),
                             workingAccountName: "Test",
+                            workingAccountNameVersion: 0,
                         }),
                         creatorTimeZone: defaultTimeZone,
                     },
@@ -260,6 +267,7 @@ test("will expire some actions whenever the timer runs", () => {
                         creator: new TaskSortableAccount({
                             accountId: generateId(),
                             workingAccountName: "Test",
+                            workingAccountNameVersion: 0,
                         }),
                         creatorTimeZone: defaultTimeZone,
                     },
@@ -283,6 +291,7 @@ test("will expire some actions whenever the timer runs", () => {
                         creator: new TaskSortableAccount({
                             accountId: generateId(),
                             workingAccountName: "Test",
+                            workingAccountNameVersion: 0,
                         }),
                         creatorTimeZone: defaultTimeZone,
                     },
@@ -306,6 +315,7 @@ test("will expire some actions whenever the timer runs", () => {
                         creator: new TaskSortableAccount({
                             accountId: generateId(),
                             workingAccountName: "Test",
+                            workingAccountNameVersion: 0,
                         }),
                         creatorTimeZone: defaultTimeZone,
                     },
@@ -392,6 +402,7 @@ test("will clear entire history", () => {
                     creator: new TaskSortableAccount({
                         accountId: generateId(),
                         workingAccountName: "Test",
+                        workingAccountNameVersion: 0,
                     }),
                     creatorTimeZone: defaultTimeZone,
                 },
@@ -415,6 +426,7 @@ test("will clear entire history", () => {
                     creator: new TaskSortableAccount({
                         accountId: generateId(),
                         workingAccountName: "Test",
+                        workingAccountNameVersion: 0,
                     }),
                     creatorTimeZone: defaultTimeZone,
                 },
@@ -438,6 +450,7 @@ test("will clear entire history", () => {
                     creator: new TaskSortableAccount({
                         accountId: generateId(),
                         workingAccountName: "Test",
+                        workingAccountNameVersion: 0,
                     }),
                     creatorTimeZone: defaultTimeZone,
                 },
@@ -466,6 +479,7 @@ test("will clear entire history", () => {
                     creator: new TaskSortableAccount({
                         accountId: generateId(),
                         workingAccountName: "Test",
+                        workingAccountNameVersion: 0,
                     }),
                     creatorTimeZone: defaultTimeZone,
                 },

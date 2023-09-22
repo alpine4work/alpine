@@ -50,7 +50,6 @@ export function getTaskQueryNormalizedSortsOpensearchSortClause(
                     return [{"assigneeStatus.value.activatedTime.absoluteTime": item}];
                 case "ParentPosition": {
                     return [
-                        {"parent.taskId.value": item},
                         {"parent.position.value.orderTime": item},
                         {"parent.position.value.orderKey": item},
                     ];
@@ -129,7 +128,6 @@ export function getTaskQueryNormalizedSortsOpensearchSortClause(
                 }
                 case "AssigneeActivePosition": {
                     return [
-                        {"assignee.value.assignee.accountId": item},
                         {"assigneeActivePosition.orderTime": item},
                         {"assigneeActivePosition.orderKey": item},
                     ];
@@ -271,7 +269,6 @@ export function convertTaskQuerySortCursorToOpensearchCursor(
             }
             case "ParentPosition": {
                 if (sortValue === null) {
-                    newCursor.push(null);
                     // OpenSearch returns the max/min value for a numeric type in the cursor when
                     // it's missing instead of null.
                     newCursor.push(
@@ -284,16 +281,14 @@ export function convertTaskQuerySortCursorToOpensearchCursor(
                 } else {
                     assert(Array.isArray(sortValue));
                     assert(
-                        typeof sortValue[0] === "string" &&
+                        typeof sortValue[0] === "number" &&
                             typeof sortValue[1] === "number" &&
-                            typeof sortValue[2] === "number" &&
-                            typeof sortValue[3] === "string",
+                            typeof sortValue[2] === "string",
                     );
-                    newCursor.push(sortValue[0]);
                     // When sending this to OpenSearch we'll need to use a special JSON stringifier
                     // that works with bigints.
-                    newCursor.push(serializeHybridLogicalTime([sortValue[1], sortValue[2]]));
-                    newCursor.push(sortValue[3]);
+                    newCursor.push(serializeHybridLogicalTime([sortValue[0], sortValue[1]]));
+                    newCursor.push(sortValue[2]);
                 }
                 break;
             }
@@ -336,7 +331,6 @@ export function convertTaskQuerySortCursorToOpensearchCursor(
             }
             case "AssigneeActivePosition": {
                 if (sortValue === null) {
-                    newCursor.push(null);
                     // OpenSearch returns the max/min value for a numeric type in the cursor when
                     // it's missing instead of null.
                     newCursor.push(
@@ -348,30 +342,15 @@ export function convertTaskQuerySortCursorToOpensearchCursor(
                     newCursor.push(null);
                 } else {
                     assert(Array.isArray(sortValue));
-                    assert(typeof sortValue[0] === "string");
-                    if (sortValue.length === 1) {
-                        newCursor.push(sortValue[0]);
-                        // OpenSearch returns the max/min value for a numeric type in the cursor when
-                        // it's missing instead of null.
-                        newCursor.push(
-                            (sort.direction === "Descending" && sort.missing === "Last") ||
-                                (sort.direction === "Ascending" && sort.missing === "First")
-                                ? minInt64
-                                : maxInt64,
-                        );
-                        newCursor.push(null);
-                    } else {
-                        assert(
+                    assert(
+                        typeof sortValue[0] === "number" &&
                             typeof sortValue[1] === "number" &&
-                                typeof sortValue[2] === "number" &&
-                                typeof sortValue[3] === "string",
-                        );
-                        newCursor.push(sortValue[0]);
-                        // When sending this to OpenSearch we'll need to use a special JSON stringifier
-                        // that works with bigints.
-                        newCursor.push(serializeHybridLogicalTime([sortValue[1], sortValue[2]]));
-                        newCursor.push(sortValue[3]);
-                    }
+                            typeof sortValue[2] === "string",
+                    );
+                    // When sending this to OpenSearch we'll need to use a special JSON stringifier
+                    // that works with bigints.
+                    newCursor.push(serializeHybridLogicalTime([sortValue[0], sortValue[1]]));
+                    newCursor.push(sortValue[2]);
                 }
                 break;
             }

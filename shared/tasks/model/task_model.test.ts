@@ -9,7 +9,11 @@ import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 test("merging identical tasks returns a referentially equal value to the first one", () => {
     const spaceId = generateId<SpaceId>();
     const taskId = generateId<TaskId>();
-    const creator = new TaskSortableAccount({accountId: generateId(), workingAccountName: "Test"});
+    const creator = new TaskSortableAccount({
+        accountId: generateId(),
+        workingAccountName: "Test",
+        workingAccountNameVersion: 0,
+    });
     const createdTime: HybridLogicalTime = [Date.now(), 0];
 
     const task1 = TaskModel.createFromAction(spaceId, taskId, createdTime, {
@@ -32,7 +36,11 @@ test("merging identical tasks returns a referentially equal value to the first o
 test("merging tasks returns a referentially equal value to the first one if the first task didn't change", () => {
     const spaceId = generateId<SpaceId>();
     const taskId = generateId<TaskId>();
-    const creator = new TaskSortableAccount({accountId: generateId(), workingAccountName: "Test"});
+    const creator = new TaskSortableAccount({
+        accountId: generateId(),
+        workingAccountName: "Test",
+        workingAccountNameVersion: 0,
+    });
     const createdTime: HybridLogicalTime = [Date.now(), 0];
 
     const task1a = TaskModel.createFromAction(spaceId, taskId, createdTime, {

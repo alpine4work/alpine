@@ -71,12 +71,7 @@ function getTaskQueryNormalizedSortCursorValueForIndexDoc(
             if (task.parent.taskId.value === null) return null;
 
             const position = task.parent.rawPosition.value;
-            return [
-                task.parent.taskId.value,
-                position.orderTime[0],
-                position.orderTime[1],
-                position.orderKey,
-            ];
+            return [position.orderTime[0], position.orderTime[1], position.orderKey];
         }
         case "CollectionPosition": {
             const position = task.collections.raw.positionById.get(sort.collectionId);
@@ -105,7 +100,7 @@ function getTaskQueryNormalizedSortCursorValueForIndexDoc(
                 !task.assignee.value ||
                 task.rawAssigneeStatus.value.type !== "Active"
             ) {
-                return task.assignee.value ? [task.assignee.value.assignee.accountId] : null;
+                return null;
             } else {
                 const assigneeActivePosition = (task.rawAssigneeActivePosition.value?.accountId ===
                 task.assignee.value.assignee.accountId
@@ -116,7 +111,6 @@ function getTaskQueryNormalizedSortCursorValueForIndexDoc(
                 };
 
                 return [
-                    task.assignee.value.assignee.accountId,
                     assigneeActivePosition.orderTime[0],
                     assigneeActivePosition.orderTime[1],
                     assigneeActivePosition.orderKey,

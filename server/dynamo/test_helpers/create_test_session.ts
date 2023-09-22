@@ -48,6 +48,7 @@ export function createTestSession(
     const account = new AccountModel({
         id: accountId,
         name,
+        nameVersion: 0,
         createdTime,
         hasInternalAccess,
         version: 0,

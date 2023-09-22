@@ -6,9 +6,9 @@ import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js"
 import {Schema} from "~/shared/schema/schema.js";
 
 type _TestAccountOptions =
-    | {id: AccountId; name: string}
+    | {id: AccountId; name: string; nameVersion?: number}
     | {id: AccountId; initialName: string}
-    | {id: AccountId; initialData: {name: string}};
+    | {id: AccountId; initialData: {name: string; nameVersion?: number}};
 
 type TestAccountOptions = _TestAccountOptions | {account: _TestAccountOptions};
 
@@ -40,30 +40,38 @@ type TestAccountOptions = _TestAccountOptions | {account: _TestAccountOptions};
 export class TaskSortableAccount {
     public readonly accountId: AccountId;
     public readonly workingAccountName: string;
+    public readonly workingAccountNameVersion: number;
 
     constructor({
         accountId,
         workingAccountName,
+        workingAccountNameVersion,
     }: {
         accountId: AccountId;
         workingAccountName: string;
+        workingAccountNameVersion: number;
     }) {
         this.accountId = accountId;
         this.workingAccountName = workingAccountName;
+        this.workingAccountNameVersion = workingAccountNameVersion;
     }
 
     public static readonly schema = Schema.object({
         accountId: Schema.id<AccountId>(),
         workingAccountName: LabelStringSchema,
+        workingAccountNameVersion: Schema.integer.default(0),
     }).transform<TaskSortableAccount>({
         serialize: account => account,
         deserialize: account => new TaskSortableAccount(account),
     });
 
     public static from(accountStore: AccountClientStore, account: AccountModel) {
+        const accountData = accountStore.getAccountStore(account).getSnapshot();
+
         return new TaskSortableAccount({
             accountId: account.id,
-            workingAccountName: accountStore.getAccountStore(account).getSnapshot().name,
+            workingAccountName: accountData.name,
+            workingAccountNameVersion: accountData.version,
         });
     }
 
@@ -84,6 +92,7 @@ export class TaskSortableAccount {
                     : "initialData" in account
                     ? account.initialData.name
                     : account.name,
+            workingAccountNameVersion: "nameVersion" in account ? account.nameVersion ?? 0 : 0,
         });
     }
 

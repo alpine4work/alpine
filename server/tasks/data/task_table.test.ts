@@ -154,16 +154,19 @@ describe("old style", () => {
     const taskAccount1 = new TaskSortableAccount({
         accountId: session1.accountId,
         workingAccountName: session1.account.initialData.name,
+        workingAccountNameVersion: session1.account.initialData.nameVersion,
     });
 
     const taskAccount2 = new TaskSortableAccount({
         accountId: session2.accountId,
         workingAccountName: session2.account.initialData.name,
+        workingAccountNameVersion: session2.account.initialData.nameVersion,
     });
 
     const otherTaskAccount = new TaskSortableAccount({
         accountId: otherSession.accountId,
         workingAccountName: otherSession.account.initialData.name,
+        workingAccountNameVersion: otherSession.account.initialData.nameVersion,
     });
 
     const clock = new HybridLogicalClock(unsynchronizedSystemClock);

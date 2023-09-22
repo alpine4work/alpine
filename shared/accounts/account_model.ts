@@ -8,6 +8,7 @@ export const AccountModelDataSchema = Schema.object({
     id: Schema.id<AccountId>(),
     version: Schema.integer,
     name: LabelStringSchema,
+    nameVersion: Schema.integer,
     createdTime: Schema.date,
     hasInternalAccess: Schema.boolean.optional(),
 });

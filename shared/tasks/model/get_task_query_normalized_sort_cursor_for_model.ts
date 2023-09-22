@@ -74,7 +74,6 @@ function getTaskQueryNormalizedSortCursorValueForModel(
             if (parent === null) return null;
 
             return [
-                parent.taskId,
                 parent.position.orderTime[0],
                 parent.position.orderTime[1],
                 parent.position.orderKey,
@@ -106,7 +105,7 @@ function getTaskQueryNormalizedSortCursorValueForModel(
             const assignee = task.getAssignee();
 
             if (status.type !== "Open" || !assignee || task.getAssigneeStatus().type !== "Active") {
-                return assignee ? [assignee.assignee.accountId] : null;
+                return null;
             } else {
                 const assigneeActivePosition = (task.rawData.assigneeActivePosition.value
                     ?.accountId === assignee.assignee.accountId
@@ -117,7 +116,6 @@ function getTaskQueryNormalizedSortCursorValueForModel(
                 };
 
                 return [
-                    assignee.assignee.accountId,
                     assigneeActivePosition.orderTime[0],
                     assigneeActivePosition.orderTime[1],
                     assigneeActivePosition.orderKey,
