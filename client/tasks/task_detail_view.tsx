@@ -12,10 +12,10 @@ import {useStore} from "~/client/helpers/store/use_store.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
-import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/get_new_task_position_for_query_sorted_by_position.js";
 import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
+import {TaskAssigneeInput} from "~/client/tasks/internal/task_assignee_input.js";
 import {TaskChildTasksProgressWheel} from "~/client/tasks/internal/task_child_tasks_progress_wheel.js";
 import {TaskDateInput} from "~/client/tasks/internal/task_date_input.js";
 import {TaskDetailNotesField} from "~/client/tasks/internal/task_detail_notes_field.js";
@@ -245,7 +245,6 @@ function TaskDetailViewMain({
     focusChildrenGridViewStart: () => void;
 }) {
     const context = useAppContext();
-    const navigate = useNavigate();
     const isMobile = useIsMobile();
     const {timeZone} = useClientInfo();
     const {currentAccount} = useSpaceContext();
@@ -537,33 +536,16 @@ function TaskDetailViewMain({
                     gridAutoFlow: "row dense",
                 }}
             >
-                {/* NOCOMMIT: <TaskDetailViewDenseField label="Assignee">
+                <TaskDetailViewDenseField label="Assignee">
                     {({"aria-labelledby": ariaLabelledBy}) => (
                         <TaskAssigneeInput
                             aria-labelledby={ariaLabelledBy}
-                            assigneeAccount={assignee?.account ?? null}
-                            onAssigneeAccountChange={assigneeAccount => {
-                                const assignedTime = new Date();
-                                const assignedDate = toCalendarDate(
-                                    parseAbsolute(assignedTime.toISOString(), timeZone),
-                                );
-
-                                onAssigneeChange(
-                                    assigneeAccount
-                                        ? {
-                                              account: assigneeAccount,
-                                              assignerId: currentAccount.id,
-                                              assignedTime,
-                                              assignerTimeZone: timeZone,
-                                              assignedDate,
-                                              status: {type: "Inactive"},
-                                          }
-                                        : null,
-                                );
-                            }}
+                            // NOCOMMIT
+                            assigneeAccount={null}
+                            onAssigneeAccountChange={assigneeAccount => {}}
                         />
                     )}
-                </TaskDetailViewDenseField> */}
+                </TaskDetailViewDenseField>
                 {/* NOCOMMIT: <TaskDetailViewDenseField label="Collections">
                     {({"aria-labelledby": ariaLabelledBy}) => (
                         <TaskCollectionsInput
