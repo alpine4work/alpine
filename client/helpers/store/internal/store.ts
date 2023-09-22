@@ -159,15 +159,29 @@ export abstract class Store<Value> {
             ...Stores,
             (
                 ...values: {
-                    [K in keyof Stores]: StoreType<Stores[K]>;
+                    readonly [K in keyof Stores]: StoreType<Stores[K]>;
                 } & ReadonlyArray<unknown>
             ) => NewValue,
         ]
     ): Store<NewValue> {
-        return new MappedManyStore(
-            args.slice(0, args.length - 1) as any,
-            args[args.length - 1] as any,
-        );
+        const map = args[args.length - 1] as any;
+        return new MappedManyStore(args.slice(0, args.length - 1) as any, values => map(...values));
+    }
+
+    /**
+     * Create a new store with the value of the provided store array transformed
+     * with the provided function.
+     *
+     * Same as the static `Store.map()` method but you can pass in an array of
+     * dynamic length instead of a static number of store arguments.
+     */
+    public static mapMany<Stores extends ReadonlyArray<Store<any>>, NewValue>(
+        stores: Stores,
+        map: (values: {
+            readonly [K in keyof Stores]: StoreType<Stores[K]>;
+        }) => NewValue,
+    ): Store<NewValue> {
+        return new MappedManyStore(stores, map);
     }
 
     /**

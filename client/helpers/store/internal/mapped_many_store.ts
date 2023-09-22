@@ -11,13 +11,13 @@ export class MappedManyStore<
     NewValue,
 > extends Store<NewValue> {
     private readonly _stores: ReadonlyArray<Store<OldValues[number]>>;
-    private readonly _map: (...values: OldValues) => NewValue;
+    private readonly _map: (values: OldValues) => NewValue;
     private _oldValues: OldValues | null = null;
     private _newValueResult: Result<NewValue> | null = null;
 
     constructor(
         stores: ReadonlyArray<Store<OldValues[number]>>,
-        map: (...value: OldValues) => NewValue,
+        map: (value: OldValues) => NewValue,
     ) {
         super();
         this._stores = stores;
@@ -29,10 +29,10 @@ export class MappedManyStore<
 
         if (this._newValueResult === null) {
             this._oldValues = oldValues;
-            this._newValueResult = captureResult(() => this._map(...oldValues));
+            this._newValueResult = captureResult(() => this._map(oldValues));
         } else if (!oldValues.every((oldValue, i) => Object.is(oldValue, this._oldValues![i]))) {
             this._oldValues = oldValues;
-            this._newValueResult = captureResult(() => this._map(...oldValues));
+            this._newValueResult = captureResult(() => this._map(oldValues));
         }
 
         return unwrapResult(this._newValueResult);
