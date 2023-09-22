@@ -51,41 +51,49 @@ async function testLoadTaskRealtimeQueries(
     loadedStates: Array<TaskRealtimeQueryLoadedState>;
     updateEvent: TaskRealtimeUpdateEvent;
 }> {
-    const {extraQueries, gridViewExpansionStates, ...result} = await loadTaskRealtimeQueries(
-        actionContext,
-        {
-            server: server.server,
-            dangerouslyEscalateToSystemContext: context.escalateToSystemContext,
-            spaceId,
-            queries: queries.map(query => {
-                const evaluationContext: TaskQueryEvaluationContext = {
-                    currentAccountId: actionContext.actor.getAccountId(),
-                    currentDate: toCalendarDate(
-                        parseAbsolute(testClock.nowDate().toISOString(), defaultTimeZone),
-                    ),
-                };
+    const {
+        queries: queriesOutput,
+        extraQueries,
+        updateEvent,
+    } = await loadTaskRealtimeQueries(actionContext, {
+        server: server.server,
+        dangerouslyEscalateToSystemContext: context.escalateToSystemContext,
+        spaceId,
+        queries: queries.map(query => {
+            const evaluationContext: TaskQueryEvaluationContext = {
+                currentAccountId: actionContext.actor.getAccountId(),
+                currentDate: toCalendarDate(
+                    parseAbsolute(testClock.nowDate().toISOString(), defaultTimeZone),
+                ),
+            };
 
-                const filters = query?.filters
-                    ? isReadonlyArray(query.filters)
-                        ? normalizeTaskQueryFilters(query.filters, evaluationContext)
-                        : ({type: "Possible", normalizedFilters: query.filters} as const)
-                    : normalizeTaskQueryFilters([], evaluationContext);
+            const filters = query?.filters
+                ? isReadonlyArray(query.filters)
+                    ? normalizeTaskQueryFilters(query.filters, evaluationContext)
+                    : ({type: "Possible", normalizedFilters: query.filters} as const)
+                : normalizeTaskQueryFilters([], evaluationContext);
 
-                assert(filters.type === "Possible");
+            assert(filters.type === "Possible");
 
-                return {
-                    filters: filters.normalizedFilters,
-                    sorts: normalizeTaskQuerySorts(query?.sorts ?? []),
-                    limit: query?.limit ?? 100,
-                };
-            }),
-        },
-    );
+            return {
+                filters: filters.normalizedFilters,
+                sorts: normalizeTaskQuerySorts(query?.sorts ?? []),
+                limit: query?.limit ?? 100,
+            };
+        }),
+        taskIds: [],
+        collectionIds: [],
+    });
 
     expect(extraQueries).toEqual([]);
-    expect(gridViewExpansionStates).toEqual(createArrayWithLength(queries.length, () => null));
+    expect(queriesOutput.map(({gridViewExpansionState}) => gridViewExpansionState)).toEqual(
+        createArrayWithLength(queries.length, () => null),
+    );
 
-    return result;
+    return {
+        loadedStates: queriesOutput.map(({loadedState}) => loadedState),
+        updateEvent,
+    };
 }
 
 test("loads no queries", async () => {

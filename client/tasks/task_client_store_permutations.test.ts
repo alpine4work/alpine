@@ -1,5 +1,6 @@
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
+import {InternalError} from "~/shared/error/error.js";
 import {waitMacrotask} from "~/shared/helpers/async/wait_macrotask.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
@@ -7,9 +8,24 @@ import {generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {testTaskActionPermutations} from "~/shared/tasks/test_helpers/test_task_action_permutations.js";
 
+let displayErrors: Array<unknown> = [];
+
+const handleDisplayError = ({error}: {error: unknown}) => {
+    displayErrors.push(error);
+};
+
+afterEach(() => {
+    const previousDisplayErrors = displayErrors;
+    displayErrors = [];
+
+    if (previousDisplayErrors.length > 0) {
+        throw InternalError.from(previousDisplayErrors[0]!, "Received display error");
+    }
+});
+
 const spaceId = generateId<SpaceId>();
 let eventNumber = 1;
-const store = new TaskClientStore({spaceId});
+const store = new TaskClientStore({spaceId, onDisplayError: handleDisplayError});
 
 const account1 = new AccountModel({
     id: generateId(),

@@ -1,5 +1,4 @@
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {BlockInference} from "~/shared/helpers/types/block_inference.js";
 
 /**
  * A map where you provide a function to generate default values in the
@@ -34,10 +33,6 @@ export class DefaultMap<Key, Value> extends Map<Key, Value> {
      * default function provided in the constructor.
      */
     public getOrSetDefault(key: Key): Value {
-        return getOrSetDefaultMapValue(
-            this,
-            key,
-            this.getDefault as (key: Key) => BlockInference<Value>,
-        );
+        return getOrSetDefaultMapValue<Map<Key, Value>>(this, key, this.getDefault);
     }
 }
