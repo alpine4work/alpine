@@ -901,8 +901,8 @@ test("can get accounts in the same space as us", async () => {
                 space1.id,
                 space1Session1.accountId,
             )
-        )?.name,
-    ).toEqual(space1Session1.account.name);
+        )?.initialData.name,
+    ).toEqual(space1Session1.account.initialData.name);
 
     expect(
         (
@@ -911,8 +911,8 @@ test("can get accounts in the same space as us", async () => {
                 space1.id,
                 space1Session2.accountId,
             )
-        )?.name,
-    ).toEqual(space1Session2.account.name);
+        )?.initialData.name,
+    ).toEqual(space1Session2.account.initialData.name);
 
     expect(
         (
@@ -921,8 +921,8 @@ test("can get accounts in the same space as us", async () => {
                 space1.id,
                 space1Session3.accountId,
             )
-        )?.name,
-    ).toEqual(space1Session3.account.name);
+        )?.initialData.name,
+    ).toEqual(space1Session3.account.initialData.name);
 });
 
 test("can not get accounts that don't exist", async () => {

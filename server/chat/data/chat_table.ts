@@ -1053,7 +1053,9 @@ export async function getChat(context: ServerActionContext, chatId: ChatId): Pro
         // the current account? That seems like a good default.
         accounts: accounts
             .slice()
-            .sort((account1, account2) => account1.name.localeCompare(account2.name)),
+            .sort((account1, account2) =>
+                account1.initialData.name.localeCompare(account2.initialData.name),
+            ),
     });
 }
 

@@ -1,3 +1,4 @@
+import {getAccountClientStoreForClient} from "~/client/accounts/account_client_store_context_provider.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {Context} from "~/shared/context/context.js";
@@ -19,10 +20,13 @@ import {defaultTaskQueryNormalizedSorts} from "~/shared/tasks/task_query_normali
 import {getTaskQuerySortCursorTaskId} from "~/shared/tasks/task_query_sort_cursor.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 
+const accountStore = getAccountClientStoreForClient();
+
 const account1 = new AccountModel({
     id: generateId(),
     name: "Test Account 1",
     createdTime: new Date(),
+    version: 0,
 });
 
 const context = Context.new({
@@ -49,7 +53,11 @@ afterEach(() => {
 });
 
 test("if optimistic task creation is reverted then queries remove the task", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action1 = {
         type: "UpdateTask",
@@ -180,7 +188,11 @@ test("if optimistic task creation is reverted then queries remove the task", asy
 });
 
 test("task can be added to query through backfill", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -224,7 +236,11 @@ test("task can be added to query through backfill", () => {
 });
 
 test("task can be added to query through previously backfilled tasks", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -268,7 +284,11 @@ test("task can be added to query through previously backfilled tasks", () => {
 });
 
 test("task can be added to query through action", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -342,7 +362,11 @@ test("task can be added to query through action", () => {
 });
 
 test("task can be removed from a query through an action", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -426,7 +450,11 @@ test("task can be removed from a query through an action", () => {
 });
 
 test("task can be moved in query through an action", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task1 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -544,7 +572,11 @@ test("task can be moved in query through an action", () => {
 });
 
 test("task can be left alone through an action", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task1 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -659,7 +691,11 @@ test("task can be left alone through an action", () => {
 });
 
 test("task references can be added to query through backfill", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const collection1 = TaskCollectionModel.createFromAction(
         store.spaceId,
@@ -889,7 +925,11 @@ test("task references can be added to query through backfill", () => {
 });
 
 test("task references can be added to query through previous backfill", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const collection1 = TaskCollectionModel.createFromAction(
         store.spaceId,
@@ -1119,7 +1159,11 @@ test("task references can be added to query through previous backfill", () => {
 });
 
 test("task references can be added to query through action", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const collection1 = TaskCollectionModel.createFromAction(
         store.spaceId,
@@ -1391,7 +1435,11 @@ test("task references can be added to query through action", () => {
 });
 
 test("task references can be removed from query through actions", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const collection1 = TaskCollectionModel.createFromAction(
         store.spaceId,
@@ -1706,7 +1754,11 @@ test("task references can be removed from query through actions", () => {
 });
 
 test("references from optimistic task can be removed", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const collection1 = TaskCollectionModel.createFromAction(
         store.spaceId,
@@ -1980,7 +2032,11 @@ test("references from optimistic task can be removed", async () => {
 });
 
 test("task references can be added and removed through actions", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const collection1 = TaskCollectionModel.createFromAction(
         store.spaceId,
@@ -2266,7 +2322,11 @@ test("task references can be added and removed through actions", () => {
 });
 
 test("task references can be added and removed through actions on a referenced task", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const collection1 = TaskCollectionModel.createFromAction(
         store.spaceId,
@@ -2568,7 +2628,11 @@ test("task references can be added and removed through actions on a referenced t
 });
 
 test("task references can be added and removed through actions on a task that's both loaded and referenced", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const collection1 = TaskCollectionModel.createFromAction(
         store.spaceId,
@@ -2886,7 +2950,11 @@ test("task references can be added and removed through actions on a task that's 
 });
 
 test("can handle a temporary cycle", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     let task1 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -3041,7 +3109,11 @@ test("can handle a temporary cycle", () => {
 });
 
 test("can handle a temporary cycle unrelated to loaded task", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     let task1 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",

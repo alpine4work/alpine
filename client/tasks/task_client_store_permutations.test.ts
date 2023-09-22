@@ -1,3 +1,4 @@
+import {getAccountClientStoreForClient} from "~/client/accounts/account_client_store_context_provider.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -23,20 +24,28 @@ afterEach(() => {
     }
 });
 
+const accountStore = getAccountClientStoreForClient();
+
 const spaceId = generateId<SpaceId>();
 let eventNumber = 1;
-const store = new TaskClientStore({spaceId, onDisplayError: handleDisplayError});
+const store = new TaskClientStore({
+    accountStore,
+    spaceId,
+    onDisplayError: handleDisplayError,
+});
 
 const account1 = new AccountModel({
     id: generateId(),
     name: "Test Account 1",
     createdTime: new Date(),
+    version: 0,
 });
 
 const account2 = new AccountModel({
     id: generateId(),
     name: "Test Account 2",
     createdTime: new Date(),
+    version: 0,
 });
 
 testTaskActionPermutations({

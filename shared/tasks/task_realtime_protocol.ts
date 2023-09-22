@@ -31,7 +31,7 @@ export const TaskRealtimeUpdateEventSchema = Schema.object({
     backfillUnauthorizedTaskIds: Schema.array(Schema.id<TaskId>()),
     backfillAuthorizedCollections: Schema.array(TaskCollectionModel.schema),
     backfillUnauthorizedCollectionIds: Schema.array(Schema.id<TaskCollectionId>()),
-    referencedAccounts: Schema.array(AccountModel.schema()),
+    referencedAccounts: Schema.array(AccountModel.schema),
 });
 
 const TaskQuerySortCursorSchema = Schema.array(

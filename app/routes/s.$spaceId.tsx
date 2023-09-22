@@ -30,7 +30,7 @@ import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 export const LoaderSchema = Schema.object({
     space: SpaceModel.schema(),
-    currentAccount: AccountModel.schema(),
+    currentAccount: AccountModel.schema,
     inbox: createDynamoGeneralRealtimeItemSchema(InboxModel.schema()),
 });
 

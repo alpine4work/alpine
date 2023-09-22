@@ -1,8 +1,9 @@
 import {useMemo} from "react";
+import {useAccountModel} from "~/client/accounts/account_client_store_context_provider.js";
 import {parseAccountName} from "~/client/accounts/internal/parse_account_name.js";
 import {OverlayPlacement} from "~/client/design/overlay.js";
 import {Tooltip} from "~/client/design/tooltip.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
+import {AccountModel, AccountModelData} from "~/shared/accounts/account_model.js";
 
 export function AccountShortName({
     account,
@@ -11,12 +12,17 @@ export function AccountShortName({
     account: AccountModel;
     tooltipPlacement?: OverlayPlacement;
 }) {
-    const shortName = useMemo(() => getAccountShortNameWithoutFullNameTooltip(account), [account]);
+    const accountData = useAccountModel(account);
+
+    const shortName = useMemo(
+        () => getAccountShortNameWithoutFullNameTooltip(accountData),
+        [accountData],
+    );
 
     // NOTE(calebmer): Someday I'd like to have an account card that shows up on
     // hover of avatar or name.
     return (
-        <Tooltip content={account.name} placement={tooltipPlacement}>
+        <Tooltip content={accountData.name} placement={tooltipPlacement}>
             <span>{shortName}</span>
         </Tooltip>
     );
@@ -27,7 +33,7 @@ export function AccountShortName({
  * like most English names this will just be the first name. We may allow this
  * to be configurable in the future.
  */
-export function getAccountShortNameWithoutFullNameTooltip(account: AccountModel): string {
-    const {firstName} = parseAccountName(account);
+export function getAccountShortNameWithoutFullNameTooltip(accountData: AccountModelData): string {
+    const {firstName} = parseAccountName(accountData);
     return firstName;
 }

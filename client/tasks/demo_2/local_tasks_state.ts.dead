@@ -105,7 +105,7 @@ const LocalTaskSchema = Schema.object({
     }),
     title: TaskTitleSchema,
     assignee: Schema.object({
-        account: AccountModel.schema(),
+        account: AccountModel.schema,
         assignerId: Schema.id<AccountId>(),
         assignedTime: Schema.date,
         assignerTimeZone: TimeZoneSchema,

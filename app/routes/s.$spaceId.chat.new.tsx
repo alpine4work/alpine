@@ -22,7 +22,7 @@ import {Schema} from "~/shared/schema/schema.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({
-    selectedAccounts: Schema.array(AccountModel.schema()),
+    selectedAccounts: Schema.array(AccountModel.schema),
     selectedChat: Schema.object({
         chat: ChatModel.schema(),
         initialMessages: Schema.array(ChatMessageModel.schema()),

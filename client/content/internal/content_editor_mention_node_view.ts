@@ -1,6 +1,7 @@
 import classNames from "classnames";
 import {NodeViewConstructor} from "prosemirror-view";
-import {getContentMentionText} from "~/client/accounts/get_content_mention_text.js";
+import {AccountClientStore} from "~/client/accounts/account_client_store.js";
+import {getContentMentionTextStore} from "~/client/accounts/get_content_mention_text_store.js";
 import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
@@ -10,14 +11,22 @@ const {mentionClassName, currentAccountMentionClassName, mentionAtClassName, men
     contentSchemaStyles;
 
 export function createContentEditorMentionNodeViewConstructor({
+    accountStore,
     getCurrentAccountIfExists,
 }: {
+    accountStore: AccountClientStore;
     getCurrentAccountIfExists: () => AccountModel | null;
 }): NodeViewConstructor {
     return (node, view) => {
         const mention: ContentMention = node.attrs.mention;
         const isCurrentAccountMention = getCurrentAccountIfExists()?.id === mention.accountId;
         const contentReferences = getContentEditorReferences(view.state).references;
+
+        const contentMentionTextStore = getContentMentionTextStore(
+            accountStore,
+            contentReferences,
+            mention,
+        );
 
         // We need a container element for highlight styles to be applied to. Our
         // mention element may have a background color when mentioning the
@@ -41,8 +50,18 @@ export function createContentEditorMentionNodeViewConstructor({
         const textElement = document.createElement("span");
         element.appendChild(textElement);
         textElement.className = mentionTextClassName;
-        textElement.textContent = getContentMentionText(contentReferences, mention);
 
-        return {dom: containerElement};
+        // Whenever the content mention text changes, we want to update our mention
+        // node with the right value.
+        const unsubscribe = contentMentionTextStore.subscribe(() => {
+            textElement.textContent = contentMentionTextStore.getSnapshot();
+        });
+
+        textElement.textContent = contentMentionTextStore.getSnapshot();
+
+        return {
+            dom: containerElement,
+            destroy: unsubscribe,
+        };
     };
 }

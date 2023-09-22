@@ -1,4 +1,5 @@
 import {CalendarDate} from "@internationalized/date";
+import {getAccountClientStoreForClient} from "~/client/accounts/account_client_store_context_provider.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {Context} from "~/shared/context/context.js";
@@ -13,10 +14,13 @@ import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 
+const accountStore = getAccountClientStoreForClient();
+
 const account1 = new AccountModel({
     id: generateId(),
     name: "Test Account 1",
     createdTime: new Date(),
+    version: 0,
 });
 
 const context = Context.new({
@@ -43,7 +47,11 @@ afterEach(() => {
 });
 
 test("backfills an authorized task", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -74,7 +82,11 @@ test("backfills an authorized task", () => {
 });
 
 test("backfills authorized tasks", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task1 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -180,7 +192,11 @@ test("backfills authorized tasks", () => {
 });
 
 test("backfill merges with existing authorized task", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task1a = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -242,7 +258,11 @@ test("backfill merges with existing authorized task", () => {
 });
 
 test("backfill merges with existing unauthorized task", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task1a = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -323,7 +343,11 @@ test("backfill merges with existing unauthorized task", () => {
 });
 
 test("backfill merges behind existing unauthorized task", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task1a = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -404,7 +428,11 @@ test("backfill merges behind existing unauthorized task", () => {
 });
 
 test("backfill adds task behind existing unauthorized task", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task1a = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -466,7 +494,11 @@ test("backfill adds task behind existing unauthorized task", () => {
 });
 
 test("action is applied to authorized task", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task1a = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -530,7 +562,11 @@ test("action is applied to authorized task", () => {
 });
 
 test("action is applied to unauthorized task", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task1a = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -611,7 +647,11 @@ test("action is applied to unauthorized task", () => {
 });
 
 test("actions can be applied out of order", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task1a = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -673,7 +713,11 @@ test("actions can be applied out of order", () => {
 });
 
 test("actions can be applied out of order to unauthorized tasks", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task1a = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -754,7 +798,11 @@ test("actions can be applied out of order to unauthorized tasks", () => {
 });
 
 test("if nothing changes in the task entry after action it's left as same reference", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task1a = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -831,7 +879,11 @@ test("if nothing changes in the task entry after action it's left as same refere
 });
 
 test("if nothing changes in the task entry after backfill it's left as same reference", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task1a = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -908,7 +960,11 @@ test("if nothing changes in the task entry after backfill it's left as same refe
 });
 
 test("action can be applied then task can be marked unauthorized", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task1a = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -968,7 +1024,11 @@ test("action can be applied then task can be marked unauthorized", () => {
 });
 
 test("redundant unauthorized action doesn't change task", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task1a = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -1043,7 +1103,11 @@ test("redundant unauthorized action doesn't change task", () => {
 });
 
 test("create action will create a task", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action = {
         type: "UpdateTask",
@@ -1084,7 +1148,11 @@ test("create action will create a task", () => {
 });
 
 test("can receive create action out of order", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action1 = {
         type: "UpdateTask",
@@ -1154,7 +1222,11 @@ test("can receive create action out of order", () => {
 });
 
 test("can receive create action with another action within a transaction", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action1 = {
         type: "UpdateTask",
@@ -1205,7 +1277,11 @@ test("can receive create action with another action within a transaction", () =>
 });
 
 test("can receive create action out of order within a transaction", () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action1 = {
         type: "UpdateTask",
@@ -1256,7 +1332,11 @@ test("can receive create action out of order within a transaction", () => {
 });
 
 test("applies commit action calls optimistically", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -1326,7 +1406,11 @@ test("applies commit action calls optimistically", async () => {
 });
 
 test("can create tasks optimistically", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action1 = {
         type: "UpdateTask",
@@ -1382,7 +1466,11 @@ test("can create tasks optimistically", async () => {
 });
 
 test("can create then update tasks optimistically", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action1 = {
         type: "UpdateTask",
@@ -1501,7 +1589,11 @@ test("can create then update tasks optimistically", async () => {
 });
 
 test("can create then update tasks optimistically and resolve commits out of order", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action1 = {
         type: "UpdateTask",
@@ -1615,7 +1707,11 @@ test("can create then update tasks optimistically and resolve commits out of ord
 });
 
 test("can create then update tasks optimistically after an action from the server", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action2Time = store.clock.now();
 
@@ -1771,7 +1867,11 @@ test("can create then update tasks optimistically after an action from the serve
 });
 
 test("can create then update tasks optimistically our of order", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action1 = {
         type: "UpdateTask",
@@ -1880,7 +1980,11 @@ test("can create then update tasks optimistically our of order", async () => {
 });
 
 test("can create then update tasks optimistically out of order after an action from the server", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action2Time = store.clock.now();
 
@@ -2026,7 +2130,11 @@ test("can create then update tasks optimistically out of order after an action f
 });
 
 test("can create then update tasks optimistically out of order with more non-create tasks", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action2Time = store.clock.now();
 
@@ -2202,7 +2310,11 @@ test("can create then update tasks optimistically out of order with more non-cre
 });
 
 test("resolving optimistic update after garbage collection is ok", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action1 = {
         type: "UpdateTask",
@@ -2315,7 +2427,11 @@ test("resolving optimistic update after garbage collection is ok", async () => {
 });
 
 test("regular actions are added to optimistic state", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -2423,7 +2539,11 @@ test("regular actions are added to optimistic state", async () => {
 });
 
 test("regular actions are added to optimistic state with multiple actions", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -2580,7 +2700,11 @@ test("regular actions are added to optimistic state with multiple actions", asyn
 });
 
 test("regular actions are added to optimistic state with multiple actions that are committed out of order", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -2740,7 +2864,11 @@ test("regular actions are added to optimistic state with multiple actions that a
 });
 
 test("regular actions are added to optimistic state when task is not backfilled", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -2829,7 +2957,11 @@ test("regular actions are added to optimistic state when task is not backfilled"
 });
 
 test("regular actions are added to optimistic state with multiple actions when task is not backfilled", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -2967,7 +3099,11 @@ test("regular actions are added to optimistic state with multiple actions when t
 });
 
 test("regular actions are added to optimistic state with multiple actions that are committed out of order when task is not backfilled", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -3108,7 +3244,11 @@ test("regular actions are added to optimistic state with multiple actions that a
 });
 
 test("regular actions are added to optimistic state when task is created optimistically", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action1 = {
         type: "UpdateTask",
@@ -3251,7 +3391,11 @@ test("regular actions are added to optimistic state when task is created optimis
 });
 
 test("regular actions are added to optimistic state with multiple actions when task is created optimistically", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action1 = {
         type: "UpdateTask",
@@ -3445,7 +3589,11 @@ test("regular actions are added to optimistic state with multiple actions when t
 });
 
 test("regular actions are added to optimistic state with multiple actions that are committed out of order when task is created optimistically", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action1 = {
         type: "UpdateTask",
@@ -3642,7 +3790,11 @@ test("regular actions are added to optimistic state with multiple actions that a
 });
 
 test("three optimistic actions when task is not backfilled", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -3793,7 +3945,11 @@ test("three optimistic actions when task is not backfilled", async () => {
 });
 
 test("backfilling a task when none exists and there are optimistic actions works", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -3910,7 +4066,11 @@ test("backfilling a task when none exists and there are optimistic actions works
 });
 
 test("backfilling a task when one is already backfilled and there are optimistic actions works", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -4015,7 +4175,11 @@ test("backfilling a task when one is already backfilled and there are optimistic
 });
 
 test("backfilling a task when there are optimistic actions but no previously backfilled task works", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action1 = {
         type: "UpdateTask",
@@ -4183,7 +4347,11 @@ test("backfilling a task when there are optimistic actions but no previously bac
 });
 
 test("applies commit action calls optimistically (rejected)", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -4250,7 +4418,11 @@ test("applies commit action calls optimistically (rejected)", async () => {
 });
 
 test("can create tasks optimistically (rejected)", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action1 = {
         type: "UpdateTask",
@@ -4298,7 +4470,11 @@ test("can create tasks optimistically (rejected)", async () => {
 });
 
 test("can create then update tasks optimistically (rejected)", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action1 = {
         type: "UpdateTask",
@@ -4396,7 +4572,11 @@ test("can create then update tasks optimistically (rejected)", async () => {
 });
 
 test("can create then update tasks optimistically and resolve commits out of order (rejected)", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action1 = {
         type: "UpdateTask",
@@ -4499,7 +4679,11 @@ test("can create then update tasks optimistically and resolve commits out of ord
 });
 
 test("can create then update tasks optimistically after an action from the server (rejected)", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action2Time = store.clock.now();
 
@@ -4630,7 +4814,11 @@ test("can create then update tasks optimistically after an action from the serve
 });
 
 test("can create then update tasks optimistically our of order (rejected)", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action1 = {
         type: "UpdateTask",
@@ -4728,7 +4916,11 @@ test("can create then update tasks optimistically our of order (rejected)", asyn
 });
 
 test("can create then update tasks optimistically out of order after an action from the server (rejected)", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action2Time = store.clock.now();
 
@@ -4859,7 +5051,11 @@ test("can create then update tasks optimistically out of order after an action f
 });
 
 test("can create then update tasks optimistically out of order with more non-create tasks (rejected)", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action2Time = store.clock.now();
 
@@ -5015,7 +5211,11 @@ test("can create then update tasks optimistically out of order with more non-cre
 });
 
 test("resolving optimistic update after garbage collection is ok (rejected)", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action1 = {
         type: "UpdateTask",
@@ -5125,7 +5325,11 @@ test("resolving optimistic update after garbage collection is ok (rejected)", as
 });
 
 test("regular actions are added to optimistic state (rejected)", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -5230,7 +5434,11 @@ test("regular actions are added to optimistic state (rejected)", async () => {
 });
 
 test("regular actions are added to optimistic state with multiple actions (rejected)", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -5381,7 +5589,11 @@ test("regular actions are added to optimistic state with multiple actions (rejec
 });
 
 test("regular actions are added to optimistic state with multiple actions that are committed out of order (rejected)", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -5535,7 +5747,11 @@ test("regular actions are added to optimistic state with multiple actions that a
 });
 
 test("regular actions are added to optimistic state when task is not backfilled (rejected)", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -5621,7 +5837,11 @@ test("regular actions are added to optimistic state when task is not backfilled 
 });
 
 test("regular actions are added to optimistic state with multiple actions when task is not backfilled (rejected)", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -5753,7 +5973,11 @@ test("regular actions are added to optimistic state with multiple actions when t
 });
 
 test("regular actions are added to optimistic state with multiple actions that are committed out of order when task is not backfilled (rejected)", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -5888,7 +6112,11 @@ test("regular actions are added to optimistic state with multiple actions that a
 });
 
 test("regular actions are added to optimistic state when task is created optimistically (rejected)", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action1 = {
         type: "UpdateTask",
@@ -6025,7 +6253,11 @@ test("regular actions are added to optimistic state when task is created optimis
 });
 
 test("regular actions are added to optimistic state with multiple actions when task is created optimistically (rejected)", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action1 = {
         type: "UpdateTask",
@@ -6210,7 +6442,11 @@ test("regular actions are added to optimistic state with multiple actions when t
 });
 
 test("regular actions are added to optimistic state with multiple actions that are committed out of order when task is created optimistically (rejected)", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action1 = {
         type: "UpdateTask",
@@ -6398,7 +6634,11 @@ test("regular actions are added to optimistic state with multiple actions that a
 });
 
 test("three optimistic actions when task is not backfilled (rejected)", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -6540,7 +6780,11 @@ test("three optimistic actions when task is not backfilled (rejected)", async ()
 });
 
 test("backfilling a task when none exists and there are optimistic actions works (rejected)", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -6654,7 +6898,11 @@ test("backfilling a task when none exists and there are optimistic actions works
 });
 
 test("backfilling a task when one is already backfilled and there are optimistic actions works (rejected)", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
         type: "Create",
@@ -6756,7 +7004,11 @@ test("backfilling a task when one is already backfilled and there are optimistic
 });
 
 test("backfilling a task when there are optimistic actions but no previously backfilled task works (rejected)", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action1 = {
         type: "UpdateTask",
@@ -6918,7 +7170,11 @@ test("backfilling a task when there are optimistic actions but no previously bac
 });
 
 test("create task applied after optimistic updates", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action1 = {
         type: "UpdateTask",
@@ -7058,7 +7314,11 @@ test("create task applied after optimistic updates", async () => {
 });
 
 test("create task applied after optimistic updates that are resolved out of order", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action1 = {
         type: "UpdateTask",
@@ -7201,7 +7461,11 @@ test("create task applied after optimistic updates that are resolved out of orde
 });
 
 test("create task applied after optimistic updates (rejected)", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action1 = {
         type: "UpdateTask",
@@ -7335,7 +7599,11 @@ test("create task applied after optimistic updates (rejected)", async () => {
 });
 
 test("create task applied after optimistic updates that are resolved out of order (rejected)", async () => {
-    const store = new TaskClientStore({spaceId: generateId(), onDisplayError: handleDisplayError});
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onDisplayError: handleDisplayError,
+    });
 
     const action1 = {
         type: "UpdateTask",

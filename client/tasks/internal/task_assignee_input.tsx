@@ -23,7 +23,8 @@ import {
     useOption,
 } from "react-aria";
 import {ComboBoxState, ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
-import {AccountAvatar} from "~/client/accounts/account_avatar.js";
+import {AccountAvatar, AccountDataAvatar} from "~/client/accounts/account_avatar.js";
+import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
@@ -31,10 +32,12 @@ import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growing_width.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {Store} from "~/client/helpers/store/store.js";
+import {useStore} from "~/client/helpers/store/use_store.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
 import {TaskMissingAccountAvatar} from "~/client/tasks/internal/task_missing_account_avatar.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
+import {AccountModel, AccountModelData} from "~/shared/accounts/account_model.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -58,12 +61,12 @@ type TaskAssigneeInputItem =
     | {
           readonly type: "Account";
           readonly key: `Account:${AccountId}`;
-          readonly account: AccountModel;
+          readonly accountData: AccountModelData;
       }
     | {
           readonly type: "Null";
           readonly key: "Null";
-          readonly account?: undefined;
+          readonly accountData?: undefined;
       };
 
 type TaskAssigneeInputState =
@@ -109,6 +112,7 @@ function TaskAssigneeInput(
     },
     ref: Ref<TaskAssigneeInputRef>,
 ) {
+    const accountStore = useAccountClientStore();
     const {currentAccount} = useSpaceContext();
 
     const [inputState, setInputState] = useState<TaskAssigneeInputState>({
@@ -123,14 +127,17 @@ function TaskAssigneeInput(
         }
     }, [inputState]);
 
-    const getSelectionInputValue = (assigneeAccount: AccountModel | null) =>
-        assigneeAccount
+    const getSelectionInputValue = (assigneeAccountData: AccountModelData | null) =>
+        assigneeAccountData
             ? shouldDisplayShortName
-                ? getAccountShortNameWithoutFullNameTooltip(assigneeAccount)
-                : assigneeAccount.name
+                ? getAccountShortNameWithoutFullNameTooltip(assigneeAccountData)
+                : assigneeAccountData.name
             : "";
 
-    const selectionInputValue = getSelectionInputValue(assigneeAccount);
+    const assigneeAccountData = useStore(
+        assigneeAccount ? accountStore.getAccountStore(assigneeAccount) : null,
+    );
+    const selectionInputValue = getSelectionInputValue(assigneeAccountData);
 
     const inputValue = inputState.type === "Selection" ? selectionInputValue : inputState.value;
 
@@ -142,32 +149,41 @@ function TaskAssigneeInput(
         return accountById;
     }, [allUnsortedAccounts]);
 
-    const allItems = useMemo(() => {
-        const allItems: Array<TaskAssigneeInputItem> = allUnsortedAccounts.map(account => ({
-            type: "Account",
-            key: `Account:${account.id}`,
-            account,
-        }));
+    const allItems = useStore(
+        useMemo(() => {
+            return Store.mapMany(
+                allUnsortedAccounts.map(account => accountStore.getAccountStore(account)),
+                allUnsortedAccountDatas => {
+                    const allItems: Array<TaskAssigneeInputItem> = allUnsortedAccountDatas.map(
+                        accountData => ({
+                            type: "Account",
+                            key: `Account:${accountData.id}`,
+                            accountData,
+                        }),
+                    );
 
-        allItems.push({type: "Null", key: "Null"});
+                    allItems.push({type: "Null", key: "Null"});
 
-        allItems.sort((item1, item2) => {
-            if (item1.type === "Null") return -1;
-            if (item2.type === "Null") return 1;
+                    allItems.sort((item1, item2) => {
+                        if (item1.type === "Null") return -1;
+                        if (item2.type === "Null") return 1;
 
-            if (item1.account.id === currentAccount.id) return -1;
-            if (item2.account.id === currentAccount.id) return 1;
+                        if (item1.accountData.id === currentAccount.id) return -1;
+                        if (item2.accountData.id === currentAccount.id) return 1;
 
-            return item1.account.name.localeCompare(item2.account.name);
-        });
+                        return item1.accountData.name.localeCompare(item2.accountData.name);
+                    });
 
-        return allItems;
-    }, [allUnsortedAccounts, currentAccount.id]);
+                    return allItems;
+                },
+            );
+        }, [accountStore, allUnsortedAccounts, currentAccount.id]),
+    );
 
     const itemsSearchIndex = useMemo(
         () =>
             new Fuse(allItems, {
-                keys: [{name: "name", getFn: item => item.account?.name ?? nullAssigneeLabel}],
+                keys: [{name: "name", getFn: item => item.accountData?.name ?? nullAssigneeLabel}],
             }),
         [allItems],
     );
@@ -260,7 +276,7 @@ function TaskAssigneeInput(
 
         items: searchedItems,
         children: item => (
-            <Item textValue={item.account?.name ?? nullAssigneeLabel}>
+            <Item textValue={item.accountData?.name ?? nullAssigneeLabel}>
                 <TaskAssigneeInputListBoxOptionItem item={item} />
             </Item>
         ),
@@ -293,7 +309,7 @@ function TaskAssigneeInput(
                     if (inputState.type !== "Typing") return inputState;
                     return {
                         type: "Typing",
-                        value: getSelectionInputValue(newAssigneeAccount),
+                        value: getSelectionInputValue(assigneeAccountData),
                         hasChanged: false,
                         shouldSelect: true,
                     };
@@ -532,9 +548,9 @@ function TaskAssigneeInputListBoxOptionItem({
         case "Account": {
             return (
                 <Box display="flex" alignItems="center" gap="1.5">
-                    <AccountAvatar account={item.account} size="5" />
+                    <AccountDataAvatar accountData={item.accountData} size="5" />
                     <Box flexGrow="1" fontStyle="truncate">
-                        {item.account.name}
+                        {item.accountData.name}
                     </Box>
                     {isSelected && (
                         <Box flexShrink="0" marginLeft="2">

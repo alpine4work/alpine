@@ -1,10 +1,12 @@
 import {Slice} from "prosemirror-model";
-import {getContentMentionText} from "~/client/accounts/get_content_mention_text.js";
+import {AccountClientStore} from "~/client/accounts/account_client_store.js";
+import {getContentMentionTextStore} from "~/client/accounts/get_content_mention_text_store.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 
 export function contentEditorTextClipboardSerializer(
     slice: Slice,
+    accountStore: AccountClientStore,
     getContentReferences: () => ContentReferences,
 ): string {
     // Default clipboard text serializer plus extra support for mention nodes:
@@ -13,7 +15,11 @@ export function contentEditorTextClipboardSerializer(
         if (node.type.name === "mention") {
             const contentReferences = getContentReferences();
             const mention: ContentMention = node.attrs.mention;
-            const mentionText = getContentMentionText(contentReferences, mention);
+            const mentionText = getContentMentionTextStore(
+                accountStore,
+                contentReferences,
+                mention,
+            ).getSnapshot();
             return `@${mentionText}`;
         }
 

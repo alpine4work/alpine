@@ -80,11 +80,11 @@ export class InboxChatEntryModel
             chatAccountCount: Schema.integer,
             loudNotificationCount: Schema.integer.min(0),
             latestMessage: Schema.object({
-                author: AccountModel.schema(),
+                author: AccountModel.schema,
                 createdTime: Schema.date,
                 contentSnippet: MessageContentWithReferencesSchema,
             }),
-            otherChatAccount: AccountModel.schema().nullable(),
+            otherChatAccount: AccountModel.schema.nullable(),
         }),
     )
     implements InboxEntryModelInterface
@@ -106,17 +106,17 @@ export class InboxPostCommentsEntryModel
             spaceId: Schema.id<SpaceId>(),
             accountId: Schema.id<AccountId>(),
             postId: Schema.id<PostId>(),
-            postAuthor: AccountModel.schema(),
+            postAuthor: AccountModel.schema,
             channel: ChannelPreviewModel.schema(),
             loudNotificationCount: Schema.integer.min(0),
             postCreatedTime: Schema.date,
             postContentSnippetIfMentioned: PostContentWithReferencesSchema.nullable(),
             latestComment: Schema.object({
-                author: AccountModel.schema(),
+                author: AccountModel.schema,
                 createdTime: Schema.date,
                 contentSnippet: MessageContentWithReferencesSchema,
             }).nullable(),
-            otherCommentAuthor: AccountModel.schema().nullable(),
+            otherCommentAuthor: AccountModel.schema.nullable(),
         }),
     )
     implements InboxEntryModelInterface
@@ -143,11 +143,11 @@ export class InboxChannelPostsEntryModel
             postCount: Schema.integer.min(1),
             postAuthorCount: Schema.integer.min(1),
             latestPost: Schema.object({
-                author: AccountModel.schema(),
+                author: AccountModel.schema,
                 createdTime: Schema.date,
                 contentSnippet: PostContentWithReferencesSchema,
             }),
-            otherPostAuthor: AccountModel.schema().nullable(),
+            otherPostAuthor: AccountModel.schema.nullable(),
         }),
     )
     implements InboxEntryModelInterface
@@ -177,13 +177,13 @@ export class InboxDocumentCommentThreadEntryModel
             loudNotificationCount: Schema.integer.min(0),
             document: DocumentPreviewModel.schema(),
             commentThreadId: Schema.id<DocumentCommentThreadId>(),
-            firstCommentAuthor: AccountModel.schema(),
+            firstCommentAuthor: AccountModel.schema,
             latestComment: Schema.object({
-                author: AccountModel.schema(),
+                author: AccountModel.schema,
                 createdTime: Schema.date,
                 contentSnippet: MessageContentWithReferencesSchema,
             }),
-            otherCommentAuthor: AccountModel.schema().nullable(),
+            otherCommentAuthor: AccountModel.schema.nullable(),
         }),
     )
     implements InboxEntryModelInterface
@@ -216,11 +216,11 @@ export class InboxDocumentNewCommentThreadsEntryModel
             commentThreadCount: Schema.integer.min(1),
             commentThreadAuthorCount: Schema.integer.min(1),
             firstComment: Schema.object({
-                author: AccountModel.schema(),
+                author: AccountModel.schema,
                 createdTime: Schema.date,
                 contentSnippet: MessageContentWithReferencesSchema,
             }),
-            otherCommentThreadAuthor: AccountModel.schema().nullable(),
+            otherCommentThreadAuthor: AccountModel.schema.nullable(),
         }),
     )
     implements InboxEntryModelInterface

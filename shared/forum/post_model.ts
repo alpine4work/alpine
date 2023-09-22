@@ -22,7 +22,7 @@ export class PostModel extends Model(
         spaceId: Schema.id<SpaceId>(),
         channel: ChannelPreviewModel.schema(),
         createdTime: Schema.date,
-        author: AccountModel.schema(),
+        author: AccountModel.schema,
         content: PostContentWithReferencesSchema,
         contentUpdatedTime: Schema.date.nullable(),
         /**
@@ -42,7 +42,7 @@ export class PostModel extends Model(
          * the length of this array is shorter than `commentAuthorCount` then you know
          * there are more authors we aren't including.
          */
-        previewCommentAuthors: Schema.array(AccountModel.schema()),
+        previewCommentAuthors: Schema.array(AccountModel.schema),
     }),
 ) {}
 
@@ -54,7 +54,7 @@ export class PostCommentModel
         Schema.object({
             postId: Schema.id<PostId>(),
             index: Schema.integer,
-            author: AccountModel.schema(),
+            author: AccountModel.schema,
             createdTime: Schema.date,
             payload: MessagePayloadModelSchema,
         }),

@@ -111,7 +111,10 @@ export function TaskStatusButton({
                                 type: "UpdateStatus",
                                 status: {
                                     type: "Closed",
-                                    closer: TaskSortableAccount.from(currentAccount),
+                                    closer: TaskSortableAccount.from(
+                                        store.accountStore,
+                                        currentAccount,
+                                    ),
                                     closedTime: new TaskFilterableTime({
                                         absoluteTime: time,
                                         setterTimeZone: timeZone,

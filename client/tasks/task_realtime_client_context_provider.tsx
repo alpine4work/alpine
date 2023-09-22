@@ -1,6 +1,7 @@
 import {useLoaderData} from "@remix-run/react";
 import {ReactNode, useContext, useEffect, useRef, useState} from "react";
 import {UNSAFE_DataRouterStateContext as DataRouterStateContext} from "react-router";
+import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
@@ -168,9 +169,16 @@ export function TaskRealtimeClientContextProvider({
 
     const showToast = useShowToast();
 
+    const accountStore = useAccountClientStore();
+
     const [client] = useState((): TaskRealtimeClient => {
         const initializeClient = () => {
             const client = new TaskRealtimeClient(() => contextRef.current, {
+                // The account store has a similar lifetime to our `TaskRealtimeClient`. On the
+                // client it's a shared global reference that never changes. So we won't have
+                // to reinitialize `TaskRealtimeClient` when the account store changes since
+                // the account store doesn't change.
+                accountStore,
                 spaceId,
                 onDisplayError: ({title, error}) => showToast({type: "Error", title, error}),
             });

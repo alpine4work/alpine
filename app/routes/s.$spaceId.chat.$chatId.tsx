@@ -63,7 +63,9 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {chat}, getParentDa
                     ? `Chat with yourself${metaTitlePostfix}`
                     : `Chat with ${joinPrettyConjunctionList(
                           otherChatAccounts.map(account =>
-                              getAccountShortNameWithoutFullNameTooltip(account),
+                              // Account name in title won't update when account changes without reload
+                              // because we're using `initialData`.
+                              getAccountShortNameWithoutFullNameTooltip(account.initialData),
                           ),
                       )}${metaTitlePostfix}`,
         },

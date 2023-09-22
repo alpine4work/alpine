@@ -50,7 +50,11 @@ export function attachDevConsoleNotInProduction() {
  * provided account has internal system access.
  */
 export function attachDevConsoleForAccountInProduction(account: AccountModel) {
-    if (process.env.NODE_ENV === "production" && account.hasInternalAccess && !("dev" in window)) {
+    if (
+        process.env.NODE_ENV === "production" &&
+        account.initialData.hasInternalAccess &&
+        !("dev" in window)
+    ) {
         // @ts-expect-error `dev` doesn't exist on windows types
         window.dev = devConsole;
     }

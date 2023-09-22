@@ -37,7 +37,7 @@ export class DocumentCommentThreadModel extends Model(
          * We include all authors instead of a limited preview so the list can update
          * in realtime without needing to load the thread.
          */
-        commentAuthors: Schema.array(AccountModel.schema()),
+        commentAuthors: Schema.array(AccountModel.schema),
     }),
 ) {}
 
@@ -50,7 +50,7 @@ export class DocumentCommentModel
             documentId: Schema.id<DocumentId>(),
             commentThreadId: Schema.id<DocumentCommentThreadId>(),
             index: Schema.integer,
-            author: AccountModel.schema(),
+            author: AccountModel.schema,
             createdTime: Schema.date,
             payload: MessagePayloadModelSchema,
         }),

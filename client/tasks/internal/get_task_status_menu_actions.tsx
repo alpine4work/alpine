@@ -46,8 +46,14 @@ export function getTaskStatusMenuActions({
                                 taskAction: {
                                     type: "UpdateAssignee",
                                     assignee: currentAssignee ?? {
-                                        assignee: TaskSortableAccount.from(currentAccount),
-                                        assigner: TaskSortableAccount.from(currentAccount),
+                                        assignee: TaskSortableAccount.from(
+                                            store.accountStore,
+                                            currentAccount,
+                                        ),
+                                        assigner: TaskSortableAccount.from(
+                                            store.accountStore,
+                                            currentAccount,
+                                        ),
                                         assignedTime: new TaskFilterableTime({
                                             absoluteTime: time1,
                                             setterTimeZone: timeZone,
@@ -89,7 +95,10 @@ export function getTaskStatusMenuActions({
                                     type: "UpdateStatus",
                                     status: {
                                         type: "Closed",
-                                        closer: TaskSortableAccount.from(currentAccount),
+                                        closer: TaskSortableAccount.from(
+                                            store.accountStore,
+                                            currentAccount,
+                                        ),
                                         closedTime: new TaskFilterableTime({
                                             absoluteTime: time,
                                             setterTimeZone: timeZone,
@@ -140,7 +149,10 @@ export function getTaskStatusMenuActions({
                                     type: "UpdateStatus",
                                     status: {
                                         type: "Closed",
-                                        closer: TaskSortableAccount.from(currentAccount),
+                                        closer: TaskSortableAccount.from(
+                                            store.accountStore,
+                                            currentAccount,
+                                        ),
                                         closedTime: new TaskFilterableTime({
                                             absoluteTime: time,
                                             setterTimeZone: timeZone,
@@ -203,8 +215,14 @@ export function getTaskStatusMenuActions({
                                 taskAction: {
                                     type: "UpdateAssignee",
                                     assignee: currentAssignee ?? {
-                                        assignee: TaskSortableAccount.from(currentAccount),
-                                        assigner: TaskSortableAccount.from(currentAccount),
+                                        assignee: TaskSortableAccount.from(
+                                            store.accountStore,
+                                            currentAccount,
+                                        ),
+                                        assigner: TaskSortableAccount.from(
+                                            store.accountStore,
+                                            currentAccount,
+                                        ),
                                         assignedTime: new TaskFilterableTime({
                                             absoluteTime: time1,
                                             setterTimeZone: timeZone,

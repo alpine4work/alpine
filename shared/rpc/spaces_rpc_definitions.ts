@@ -9,6 +9,6 @@ export const expensivelyGetAllSpaceAccounts = defineRpc({
         spaceId: Schema.id<SpaceId>(),
     },
     output: {
-        accounts: Schema.array(AccountModel.schema()),
+        accounts: Schema.array(AccountModel.schema),
     },
 });

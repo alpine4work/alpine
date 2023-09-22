@@ -14,7 +14,7 @@ export type MessagingTypingState = SchemaType<typeof MessagingTypingStateSchema>
 export const MessagingTypingStateSchema = Schema.object({
     isTyping: Schema.value(true),
     startTime: Schema.date,
-    account: AccountModel.schema(),
+    account: AccountModel.schema,
 });
 
 export type BackfillMessagesProcedure<Message extends MessageModel> = (input: {

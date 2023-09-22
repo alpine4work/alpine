@@ -10,7 +10,7 @@ export const getAccount = defineRpc({
         accountId: Schema.id<AccountId>(),
     },
     output: {
-        account: AccountModel.schema(),
+        account: AccountModel.schema,
     },
 });
 
@@ -21,6 +21,6 @@ export const getAccounts = defineRpc({
         accountIds: Schema.set(Schema.id<AccountId>()),
     },
     output: {
-        accounts: Schema.array(AccountModel.schema()),
+        accounts: Schema.array(AccountModel.schema),
     },
 });

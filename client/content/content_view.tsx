@@ -1,10 +1,12 @@
 import classNames from "classnames";
 import {Memo, useEffect, useId, useMemo, useRef, useState} from "react";
+import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
 import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click.js";
-import {renderContentFragmentToHtml} from "~/client/content/render_content_to_html.js";
+import {renderContentFragmentToHtmlStore} from "~/client/content/render_content_to_html.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date.js";
 import {Tooltip} from "~/client/design/tooltip.js";
+import {useStore} from "~/client/helpers/store/use_store.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
@@ -78,6 +80,8 @@ export function ContentView({
      */
     shouldHighlightComment?: Memo<(commentThreadId: DocumentCommentThreadId) => boolean>;
 }) {
+    const accountStore = useAccountClientStore();
+
     // Don't get the current account when running in a unit test so we don't need
     // to render a space context when testing this component.
     const currentAccount =
@@ -93,90 +97,96 @@ export function ContentView({
         null,
     );
 
-    const {html, isTitleEmpty, isBodyEmpty} = useMemo(() => {
-        const decorations: Array<ProsemirrorHtmlSerializationDecoration> = [];
+    const {html, isTitleEmpty, isBodyEmpty} = useStore(
+        useMemo(() => {
+            const decorations: Array<ProsemirrorHtmlSerializationDecoration> = [];
 
-        if (contentUpdatedTime) {
-            let depthToLastTextblockChild = null;
-            let lastTextblockChild = content.doc.lastChild;
-            let depth = 1;
+            if (contentUpdatedTime) {
+                let depthToLastTextblockChild = null;
+                let lastTextblockChild = content.doc.lastChild;
+                let depth = 1;
 
-            while (lastTextblockChild !== null) {
-                if (lastTextblockChild.isTextblock) {
-                    depthToLastTextblockChild = depth;
-                    break;
+                while (lastTextblockChild !== null) {
+                    if (lastTextblockChild.isTextblock) {
+                        depthToLastTextblockChild = depth;
+                        break;
+                    }
+                    lastTextblockChild = lastTextblockChild.lastChild;
+                    depth++;
                 }
-                lastTextblockChild = lastTextblockChild.lastChild;
-                depth++;
-            }
 
-            const depthToLastParagraphChild =
-                lastTextblockChild?.type.name === "paragraph" ? depthToLastTextblockChild : null;
+                const depthToLastParagraphChild =
+                    lastTextblockChild?.type.name === "paragraph"
+                        ? depthToLastTextblockChild
+                        : null;
 
-            let html: HtmlElementGenerator;
-            if (depthToLastParagraphChild !== null) {
-                const updatedNoteHtml = new HtmlElementGenerator("span");
-                updatedNoteHtml.setAttribute("id", contentUpdatedNoteId);
-                updatedNoteHtml.setAttribute("class", contentViewStyles.updatedNoteClassName);
-                updatedNoteHtml.appendChild(new HtmlTextGenerator(" (edited)"));
+                let html: HtmlElementGenerator;
+                if (depthToLastParagraphChild !== null) {
+                    const updatedNoteHtml = new HtmlElementGenerator("span");
+                    updatedNoteHtml.setAttribute("id", contentUpdatedNoteId);
+                    updatedNoteHtml.setAttribute("class", contentViewStyles.updatedNoteClassName);
+                    updatedNoteHtml.appendChild(new HtmlTextGenerator(" (edited)"));
 
-                html = updatedNoteHtml;
-            } else {
-                const updatedNoteContainerHtml = new HtmlElementGenerator("p");
-                updatedNoteContainerHtml.setAttribute("class", paragraphClassName);
+                    html = updatedNoteHtml;
+                } else {
+                    const updatedNoteContainerHtml = new HtmlElementGenerator("p");
+                    updatedNoteContainerHtml.setAttribute("class", paragraphClassName);
 
-                const updatedNoteHtml = new HtmlElementGenerator("span");
-                updatedNoteContainerHtml.appendChild(updatedNoteHtml);
-                updatedNoteHtml.setAttribute("id", contentUpdatedNoteId);
-                updatedNoteHtml.setAttribute("class", contentViewStyles.updatedNoteClassName);
-                updatedNoteHtml.appendChild(new HtmlTextGenerator("(edited)"));
+                    const updatedNoteHtml = new HtmlElementGenerator("span");
+                    updatedNoteContainerHtml.appendChild(updatedNoteHtml);
+                    updatedNoteHtml.setAttribute("id", contentUpdatedNoteId);
+                    updatedNoteHtml.setAttribute("class", contentViewStyles.updatedNoteClassName);
+                    updatedNoteHtml.appendChild(new HtmlTextGenerator("(edited)"));
 
-                html = updatedNoteContainerHtml;
-            }
+                    html = updatedNoteContainerHtml;
+                }
 
-            decorations.push({
-                type: "Widget",
-                pos: content.doc.nodeSize - ((depthToLastParagraphChild ?? 0) + 1),
-                html,
-            });
-        }
-
-        content.doc.descendants((node, pos) => {
-            if (!node.isText) return;
-
-            for (const {index, emoji} of iterateEmojis(node.text!)) {
                 decorations.push({
-                    type: "Inline",
-                    from: pos + index,
-                    to: pos + index + emoji.length,
-                    attrs: {
-                        nodeName: "span",
-                        style: `font-family:${emojiFontFamily}`,
-                    },
+                    type: "Widget",
+                    pos: content.doc.nodeSize - ((depthToLastParagraphChild ?? 0) + 1),
+                    html,
                 });
             }
-        });
 
-        return {
-            html: renderContentFragmentToHtml(content, {
+            content.doc.descendants((node, pos) => {
+                if (!node.isText) return;
+
+                for (const {index, emoji} of iterateEmojis(node.text!)) {
+                    decorations.push({
+                        type: "Inline",
+                        from: pos + index,
+                        to: pos + index + emoji.length,
+                        attrs: {
+                            nodeName: "span",
+                            style: `font-family:${emojiFontFamily}`,
+                        },
+                    });
+                }
+            });
+
+            return renderContentFragmentToHtmlStore(content, {
+                accountStore,
                 currentAccount,
                 placeholder,
                 isInert,
                 decorations,
                 shouldHighlightComment,
-            }),
-            isTitleEmpty: isContentTitleEmpty(content.doc),
-            isBodyEmpty: isContentBodyEmpty(content.doc),
-        };
-    }, [
-        content,
-        contentUpdatedNoteId,
-        contentUpdatedTime,
-        currentAccount,
-        isInert,
-        placeholder,
-        shouldHighlightComment,
-    ]);
+            }).map(html => ({
+                html,
+                isTitleEmpty: isContentTitleEmpty(content.doc),
+                isBodyEmpty: isContentBodyEmpty(content.doc),
+            }));
+        }, [
+            accountStore,
+            content,
+            contentUpdatedNoteId,
+            contentUpdatedTime,
+            currentAccount,
+            isInert,
+            placeholder,
+            shouldHighlightComment,
+        ]),
+    );
 
     const navigate = useNavigate();
 

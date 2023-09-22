@@ -232,7 +232,7 @@ export const getOptimisticDocumentCommentReferences = defineRpc({
         contentReferencedIds: ContentReferencedIdsSchema,
     },
     output: {
-        author: AccountModel.schema(),
+        author: AccountModel.schema,
         contentReferences: ContentReferencesSchema,
     },
 });

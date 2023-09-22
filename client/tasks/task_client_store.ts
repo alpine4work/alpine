@@ -1,3 +1,4 @@
+import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {joinPrettyConjunctionList} from "~/client/design/pretty_conjunction_list.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {Store} from "~/client/helpers/store/store.js";
@@ -140,17 +141,25 @@ export type TaskClientStoreCollectionEntry =
  */
 export class TaskClientStore {
     private readonly _internal: TaskClientStoreInternal;
+    public readonly accountStore: AccountClientStore;
     public readonly spaceId: SpaceId;
     public readonly clock: HybridLogicalClock;
 
     constructor({
+        accountStore,
         spaceId,
         onDisplayError,
     }: {
+        accountStore: AccountClientStore;
         spaceId: SpaceId;
         onDisplayError: (options: {title: string; error: unknown}) => void;
     }) {
-        this._internal = new TaskClientStoreInternal(this, {spaceId, onDisplayError});
+        this._internal = new TaskClientStoreInternal(this, {
+            accountStore,
+            spaceId,
+            onDisplayError,
+        });
+        this.accountStore = this._internal.accountStore;
         this.spaceId = this._internal.spaceId;
         this.clock = this._internal.clock;
     }
@@ -272,6 +281,7 @@ export class TaskClientStore {
 export class TaskClientStoreInternal {
     public readonly external: TaskClientStore;
 
+    public readonly accountStore: AccountClientStore;
     public readonly spaceId: SpaceId;
     private readonly _onDisplayError: (options: {title: string; error: unknown}) => void;
 
@@ -342,14 +352,17 @@ export class TaskClientStoreInternal {
     constructor(
         external: TaskClientStore,
         {
+            accountStore,
             spaceId,
             onDisplayError,
         }: {
+            accountStore: AccountClientStore;
             spaceId: SpaceId;
             onDisplayError: (options: {title: string; error: unknown}) => void;
         },
     ) {
         this.external = external;
+        this.accountStore = accountStore;
         this.spaceId = spaceId;
         this._onDisplayError = onDisplayError;
 

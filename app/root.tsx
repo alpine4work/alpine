@@ -17,6 +17,7 @@ import {
     isRouteErrorResponse,
     useRouteError,
 } from "react-router";
+import {AccountClientStoreContextProvider} from "~/client/accounts/account_client_store_context_provider.js";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
@@ -237,13 +238,15 @@ export default function Root() {
                                     <WaitForNavigationContextProvider>
                                         <RootNavigationContextProvider>
                                             <GlobalKeyDownRootContextProvider>
-                                                <OverlayScopeContextProvider>
-                                                    <TooltipCoordinationContextProvider>
-                                                        <ToastContextProvider>
-                                                            {children}
-                                                        </ToastContextProvider>
-                                                    </TooltipCoordinationContextProvider>
-                                                </OverlayScopeContextProvider>
+                                                <AccountClientStoreContextProvider>
+                                                    <OverlayScopeContextProvider>
+                                                        <TooltipCoordinationContextProvider>
+                                                            <ToastContextProvider>
+                                                                {children}
+                                                            </ToastContextProvider>
+                                                        </TooltipCoordinationContextProvider>
+                                                    </OverlayScopeContextProvider>
+                                                </AccountClientStoreContextProvider>
                                             </GlobalKeyDownRootContextProvider>
                                         </RootNavigationContextProvider>
                                     </WaitForNavigationContextProvider>

@@ -267,7 +267,10 @@ function TaskRowView(
                         taskId: ghostTaskId,
                         taskAction: {
                             type: "Create",
-                            creator: TaskSortableAccount.from(currentAccount),
+                            creator: TaskSortableAccount.from(
+                                query.store.accountStore,
+                                currentAccount,
+                            ),
                             creatorTimeZone: timeZone,
                         },
                     },
@@ -435,7 +438,7 @@ function TaskRowView(
                 taskId: newTaskId,
                 taskAction: {
                     type: "Create",
-                    creator: TaskSortableAccount.from(currentAccount),
+                    creator: TaskSortableAccount.from(query.store.accountStore, currentAccount),
                     creatorTimeZone: timeZone,
                 },
             },
@@ -489,7 +492,10 @@ function TaskRowView(
                         taskId: newTaskId,
                         taskAction: {
                             type: "Create",
-                            creator: TaskSortableAccount.from(currentAccount),
+                            creator: TaskSortableAccount.from(
+                                query.store.accountStore,
+                                currentAccount,
+                            ),
                             creatorTimeZone: timeZone,
                         },
                     },
@@ -535,7 +541,7 @@ function TaskRowView(
                 taskId: newTaskId,
                 taskAction: {
                     type: "Create",
-                    creator: TaskSortableAccount.from(currentAccount),
+                    creator: TaskSortableAccount.from(query.store.accountStore, currentAccount),
                     creatorTimeZone: timeZone,
                 },
             },

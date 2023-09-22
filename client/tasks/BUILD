@@ -35,6 +35,7 @@ ts_project(
         "//:node_modules/scheduler",
         "//:node_modules/y-prosemirror",
         "//:node_modules/yjs",
+        "//client/accounts",
         "//client/content",
         "//client/context",
         "//client/design",

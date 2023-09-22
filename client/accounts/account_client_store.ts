@@ -1,0 +1,98 @@
+import {unstable_LowPriority, unstable_scheduleCallback} from "scheduler";
+import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
+import {Store} from "~/client/helpers/store/store.js";
+import {ValueStore} from "~/client/helpers/store/value_store.js";
+import {AccountModel, AccountModelData} from "~/shared/accounts/account_model.js";
+import {AdvancedWeakValuesMap} from "~/shared/helpers/map/advanced_weak_values_map.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
+
+/**
+ * Normalized store of account model data for the client. When we load data
+ * from the server it includes `AccountModel` objects. There may be many
+ * `AccountModel` objects with different data that represent the same
+ * underlying account. This store will provide one, consistent, view of each
+ * `AccountId` on the client. It makes sure we don't render the same account in
+ * different ways in different parts of the product.
+ *
+ * Written so that stores are garbage collected when there are no more
+ * references to the associated `AccountModel`s in our realm.
+ */
+export class AccountClientStore {
+    private _scheduledAccountUpdates: Set<AccountModel> | null = null;
+
+    private readonly _accountDataStoreById = new AdvancedWeakValuesMap<
+        AccountId,
+        ValueStore<AccountModelData>
+    >();
+
+    private readonly _accountDataStoreByModel = new WeakMap<
+        AccountModel,
+        ValueStore<AccountModelData>
+    >();
+
+    /**
+     * Get the normalized account data store for our `AccountModel`.
+     *
+     * If our store hasn't seen the account yet then we'll initialize a store with
+     * the `AccountModel`'s `initialData`.
+     *
+     * If our store has seen the account but our `AccountModel`'s `initialData` is
+     * newer than what's in the store, we will schedule a render with the account's
+     * new data. Updating everywhere the account is visible in the product.
+     */
+    public getAccountStore(account: AccountModel): Store<AccountModelData> {
+        const accountStore = getOrSetDefaultMapValue(
+            this._accountDataStoreById,
+            account.id,
+            () => new ValueStore(account.initialData),
+        );
+
+        if (accountStore.getSnapshot().version < account.initialData.version) {
+            this._scheduleAccountUpdate(account);
+        }
+
+        // As long as the `AccountModel` lives, hold a reference to
+        // `ValueStore<AccountModelData>`. This prevents a bug where we're in a
+        // virtualized scroll view and a component rendering an `AccountModel` is
+        // scrolled offscreen so it no longer references the store so the store is
+        // garbage collected. If the store held newer `AccountModelData` then when you
+        // scroll and `AccountModel` is back onscreen it will appear like the account
+        // reverted to its original state.
+        //
+        // `AccountModel` will still be referenced by whatever data is backing the
+        // virtualized scroll view. So keep a reference to the store alive while the
+        // `AccountModel` is alive.
+        this._accountDataStoreByModel.set(account, accountStore);
+
+        return accountStore;
+    }
+
+    private _scheduleAccountUpdate(account: AccountModel) {
+        if (this._scheduledAccountUpdates !== null) {
+            this._scheduledAccountUpdates.add(account);
+        } else {
+            this._scheduledAccountUpdates = new Set([account]);
+
+            // Use the React scheduler to schedule a low priority update. If React is
+            // processing user actions then we want that to finish before rendering
+            // new accounts.
+            unstable_scheduleCallback(unstable_LowPriority, () => {
+                const scheduledAccountUpdates = this._scheduledAccountUpdates;
+                this._scheduledAccountUpdates = null;
+                if (scheduledAccountUpdates === null) return;
+
+                batchStoreUpdates(() => {
+                    for (const account of scheduledAccountUpdates) {
+                        this._accountDataStoreById.get(account.id)?.set(accountData => {
+                            if (accountData.version >= account.initialData.version)
+                                return accountData;
+
+                            return account.initialData;
+                        });
+                    }
+                });
+            });
+        }
+    }
+}

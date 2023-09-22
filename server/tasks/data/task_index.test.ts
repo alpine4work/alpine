@@ -19,7 +19,7 @@ const otherSpace = createTestSpace(context);
 
 const taskAccount1 = new TaskSortableAccount({
     accountId: session1.accountId,
-    workingAccountName: session1.account.name,
+    workingAccountName: session1.account.initialData.name,
 });
 
 const clock = new HybridLogicalClock(unsynchronizedSystemClock);

@@ -52,7 +52,9 @@ export async function loader({params, context}: LoaderArgs) {
 
 export const meta = createMetaFunction(LoaderSchema, ({data: {post}}) => [
     {
-        title: `Post by ${getAccountShortNameWithoutFullNameTooltip(post.author)} in ${
+        // Account name in title won't update when account changes without reload
+        // because we're using `initialData`.
+        title: `Post by ${getAccountShortNameWithoutFullNameTooltip(post.author.initialData)} in ${
             post.channel.name
         }${metaTitlePostfix}`,
     },

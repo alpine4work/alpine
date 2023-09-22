@@ -29,7 +29,7 @@ export const DocumentContentReferencesSchema = ContentReferencesSchema.merge(
             // A subset of the full `DocumentCommentThreadModel`.
             Schema.object({
                 commentCount: Schema.integer,
-                commentAuthors: Schema.array(AccountModel.schema()),
+                commentAuthors: Schema.array(AccountModel.schema),
             }),
         ),
     }),

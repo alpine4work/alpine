@@ -1,18 +1,30 @@
 import GraphemeSplitter from "grapheme-splitter";
 import {useMemo} from "react";
+import {useAccountModel} from "~/client/accounts/account_client_store_context_provider.js";
 import {parseAccountName} from "~/client/accounts/internal/parse_account_name.js";
 import {Box} from "~/client/design/box.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
+import {AccountModel, AccountModelData} from "~/shared/accounts/account_model.js";
 import {Spacing} from "~/shared/design/spacing.js";
 
 /**
  * A circular image representing the account.
  */
 export function AccountAvatar({account, size}: {account: AccountModel; size: Spacing}) {
+    const accountData = useAccountModel(account);
+    return <AccountDataAvatar accountData={accountData} size={size} />;
+}
+
+export function AccountDataAvatar({
+    accountData,
+    size,
+}: {
+    accountData: AccountModelData;
+    size: Spacing;
+}) {
     const {firstInitial, lastInitial} = useMemo(() => {
         const splitter = new GraphemeSplitter();
 
-        const {firstName, lastName} = parseAccountName(account);
+        const {firstName, lastName} = parseAccountName(accountData);
 
         // We use iterators instead of indexing into the name because iterators give us
         // full Unicode unicode code points. This means grapheme clusters will be
@@ -25,7 +37,7 @@ export function AccountAvatar({account, size}: {account: AccountModel; size: Spa
             : null;
 
         return {firstInitial, lastInitial};
-    }, [account]);
+    }, [accountData]);
 
     return (
         <Box

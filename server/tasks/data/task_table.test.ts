@@ -153,17 +153,17 @@ describe("old style", () => {
 
     const taskAccount1 = new TaskSortableAccount({
         accountId: session1.accountId,
-        workingAccountName: session1.account.name,
+        workingAccountName: session1.account.initialData.name,
     });
 
     const taskAccount2 = new TaskSortableAccount({
         accountId: session2.accountId,
-        workingAccountName: session2.account.name,
+        workingAccountName: session2.account.initialData.name,
     });
 
     const otherTaskAccount = new TaskSortableAccount({
         accountId: otherSession.accountId,
-        workingAccountName: otherSession.account.name,
+        workingAccountName: otherSession.account.initialData.name,
     });
 
     const clock = new HybridLogicalClock(unsynchronizedSystemClock);
@@ -259,10 +259,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creator: new TaskSortableAccount({
-                        accountId: session.accountId,
-                        workingAccountName: session.account.name,
-                    }),
+                    creator: TaskSortableAccount.test(session),
                     creatorTimeZone: defaultTimeZone,
                 },
             },

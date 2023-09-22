@@ -13,7 +13,8 @@ import {
     useState,
 } from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
-import {AccountAvatar} from "~/client/accounts/account_avatar.js";
+import {AccountDataAvatar} from "~/client/accounts/account_avatar.js";
+import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name.js";
 import {
     setContentEditorQuickUndo,
@@ -27,8 +28,10 @@ import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {Store} from "~/client/helpers/store/store.js";
+import {useStore} from "~/client/helpers/store/use_store.js";
 import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
+import {AccountModel, AccountModelData} from "~/shared/accounts/account_model.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
@@ -86,28 +89,42 @@ export function ContentEditorMentionFloater({
         }
     }, [isClosing, onCloseWithoutAnimation]);
 
-    const _allAccounts = useExpensivelyLoadAllSpaceAccounts();
+    const accountStore = useAccountClientStore();
+    const allAccounts = useExpensivelyLoadAllSpaceAccounts();
 
-    const allAccounts = useMemo(() => {
-        if (!_allAccounts) return null;
+    const allUnsortedAccountDatas = useStore(
+        useMemo(
+            () =>
+                allAccounts
+                    ? Store.mapMany(
+                          allAccounts.map(account => accountStore.getAccountStore(account)),
+                          accounts => accounts,
+                      )
+                    : null,
+            [accountStore, allAccounts],
+        ),
+    );
+
+    const allAccountDatas = useMemo(() => {
+        if (!allUnsortedAccountDatas) return null;
 
         // Sort accounts by name using the user's current locale. Ideally we would sort
         // by relevance to the user but this is the simple thing to do for now.
-        const accounts = Array.from(_allAccounts).sort((account1, account2) =>
+        const accountDatas = Array.from(allUnsortedAccountDatas).sort((account1, account2) =>
             account1.name.localeCompare(account2.name),
         );
 
         // Build Fuse search index...
-        const fuse = new Fuse(accounts, {keys: ["name"], includeScore: true});
+        const fuse = new Fuse(accountDatas, {keys: ["name"], includeScore: true});
 
-        return {accounts, fuse};
-    }, [_allAccounts]);
+        return {accountDatas, fuse};
+    }, [allUnsortedAccountDatas]);
 
-    const searchedAccounts = useMemo(() => {
-        if (!allAccounts) return null;
-        if (searchQuery.length === 0) return allAccounts.accounts;
-        return allAccounts.fuse.search(searchQuery).map(({item}) => item);
-    }, [allAccounts, searchQuery]);
+    const searchedAccountDatas = useMemo(() => {
+        if (!allAccountDatas) return null;
+        if (searchQuery.length === 0) return allAccountDatas.accountDatas;
+        return allAccountDatas.fuse.search(searchQuery).map(({item}) => item);
+    }, [allAccountDatas, searchQuery]);
 
     const [_selectionState, setSelectionState] = useState<{
         searchQuery: string;
@@ -121,26 +138,26 @@ export function ContentEditorMentionFloater({
 
     const selectionState =
         _selectionState.searchQuery !== searchQuery ||
-        !searchedAccounts ||
-        (_selectionState.index !== null && _selectionState.index >= searchedAccounts.length)
+        !searchedAccountDatas ||
+        (_selectionState.index !== null && _selectionState.index >= searchedAccountDatas.length)
             ? {searchQuery, index: null, isFocusVisible: false}
             : _selectionState;
 
-    const saveMention = (account: AccountModel) => {
+    const saveMention = (accountData: AccountModelData) => {
         const view = assertExists(viewRef.current);
 
         // If the account's short name is not ambiguous when searching all account
         // names then we will insert a short mention by default. The user can undo
         // (cmd-z) to get the long version of the mention.
-        const isShortNameAmbiguous = allAccounts
-            ? allAccounts.fuse
-                  .search(getAccountShortNameWithoutFullNameTooltip(account))
+        const isShortNameAmbiguous = allAccountDatas
+            ? allAccountDatas.fuse
+                  .search(getAccountShortNameWithoutFullNameTooltip(accountData))
                   .filter(result => typeof result.score !== "number" || result.score < 0.25)
                   .length > 1
             : true;
 
         const mention: ContentMention = {
-            accountId: account.id,
+            accountId: accountData.id,
             isShort: !isShortNameAmbiguous,
         };
 
@@ -152,7 +169,7 @@ export function ContentEditorMentionFloater({
             ),
             {
                 type: "AddAccount",
-                account,
+                account: new AccountModel(accountData),
             },
         );
 
@@ -184,12 +201,12 @@ export function ContentEditorMentionFloater({
             case "ArrowDown": {
                 event.preventDefault(); // Don't scroll or move cursor
                 event.stopPropagation();
-                if (searchedAccounts && searchedAccounts.length > 0) {
+                if (searchedAccountDatas && searchedAccountDatas.length > 0) {
                     setSelectionState({
                         searchQuery,
                         index:
                             selectionState.index === null ||
-                            selectionState.index === searchedAccounts.length - 1
+                            selectionState.index === searchedAccountDatas.length - 1
                                 ? 0
                                 : selectionState.index + 1,
                         isFocusVisible: getIsFocusVisible(),
@@ -204,12 +221,12 @@ export function ContentEditorMentionFloater({
             case "ArrowUp": {
                 event.preventDefault(); // Don't scroll or move cursor
                 event.stopPropagation();
-                if (searchedAccounts && searchedAccounts.length > 0) {
+                if (searchedAccountDatas && searchedAccountDatas.length > 0) {
                     setSelectionState({
                         searchQuery,
                         index:
                             selectionState.index === null || selectionState.index === 0
-                                ? searchedAccounts.length - 1
+                                ? searchedAccountDatas.length - 1
                                 : selectionState.index - 1,
                         isFocusVisible: getIsFocusVisible(),
                     });
@@ -224,7 +241,7 @@ export function ContentEditorMentionFloater({
             case "Home": {
                 event.preventDefault(); // Don't scroll
                 event.stopPropagation();
-                if (searchedAccounts && searchedAccounts.length > 0) {
+                if (searchedAccountDatas && searchedAccountDatas.length > 0) {
                     setSelectionState({
                         searchQuery,
                         index: 0,
@@ -241,10 +258,10 @@ export function ContentEditorMentionFloater({
             case "End": {
                 event.preventDefault(); // Don't scroll
                 event.stopPropagation();
-                if (searchedAccounts && searchedAccounts.length > 0) {
+                if (searchedAccountDatas && searchedAccountDatas.length > 0) {
                     setSelectionState({
                         searchQuery,
-                        index: searchedAccounts.length - 1,
+                        index: searchedAccountDatas.length - 1,
                         isFocusVisible: getIsFocusVisible(),
                     });
                 }
@@ -271,19 +288,19 @@ export function ContentEditorMentionFloater({
                 event.preventDefault();
                 event.stopPropagation();
                 if (
-                    searchedAccounts &&
+                    searchedAccountDatas &&
                     selectionState.index !== null &&
-                    selectionState.index < searchedAccounts.length
+                    selectionState.index < searchedAccountDatas.length
                 ) {
-                    const account = searchedAccounts[selectionState.index]!;
-                    saveMention(account);
+                    const accountData = searchedAccountDatas[selectionState.index]!;
+                    saveMention(accountData);
                 }
                 break;
             }
         }
     });
 
-    const isLoading = allAccounts === null;
+    const isLoading = allAccountDatas === null;
     const wasInitiallyLoading = useConstant(() => isLoading);
     const [shouldShowLoadingIndicatorIfLoading, setShouldShowLoadingIndicatorIfLoading] =
         useState(false);
@@ -336,7 +353,7 @@ export function ContentEditorMentionFloater({
                         <Box paddingX="1.5" paddingY="1.5" display="flex" justifyContent="center">
                             <SpinnerGap className={spinAnimationClassName} size={spacing["4"]} />
                         </Box>
-                    ) : !searchedAccounts || searchedAccounts.length === 0 ? (
+                    ) : !searchedAccountDatas || searchedAccountDatas.length === 0 ? (
                         <Box
                             paddingX="1.5"
                             paddingY="1.5"
@@ -351,10 +368,10 @@ export function ContentEditorMentionFloater({
                             <Box>No results</Box>
                         </Box>
                     ) : (
-                        searchedAccounts?.map((account, index) => (
+                        searchedAccountDatas?.map((accountData, index) => (
                             <ContentEditorMentionAccountItem
-                                key={account.id}
-                                account={account}
+                                key={accountData.id}
+                                accountData={accountData}
                                 menuRef={menuRef}
                                 isClosing={isClosing}
                                 isFocusVisible={selectionState.isFocusVisible}
@@ -381,7 +398,7 @@ export function ContentEditorMentionFloater({
                                         };
                                     })
                                 }
-                                onPress={() => saveMention(account)}
+                                onPress={() => saveMention(accountData)}
                             />
                         ))
                     )}
@@ -399,7 +416,7 @@ export function ContentEditorMentionFloater({
 }
 
 function ContentEditorMentionAccountItem({
-    account,
+    accountData,
     menuRef,
     isClosing,
     isFocusVisible,
@@ -408,7 +425,7 @@ function ContentEditorMentionAccountItem({
     onDeselect,
     onPress,
 }: {
-    account: AccountModel;
+    accountData: AccountModelData;
     menuRef: RefObject<HTMLDivElement>;
     isClosing: boolean;
     isFocusVisible: boolean;
@@ -494,8 +511,8 @@ function ContentEditorMentionAccountItem({
                 gap="2"
                 backgroundColor={isPressed ? "grey-10" : isHovered ? "grey-5" : undefined}
             >
-                <AccountAvatar account={account} size="6" />
-                <Box fontStyle="truncate">{account.name}</Box>
+                <AccountDataAvatar accountData={accountData} size="6" />
+                <Box fontStyle="truncate">{accountData.name}</Box>
             </Box>
         </FocusRing>
     );

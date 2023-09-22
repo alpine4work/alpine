@@ -159,7 +159,7 @@ export abstract class Store<Value> {
             ...Stores,
             (
                 ...values: {
-                    readonly [K in keyof Stores]: StoreType<Stores[K]>;
+                    [K in keyof Stores]: StoreType<Stores[K]>;
                 } & ReadonlyArray<unknown>
             ) => NewValue,
         ]

@@ -50,6 +50,7 @@ export function createTestSession(
         name,
         createdTime,
         hasInternalAccess,
+        version: 0,
     });
 
     const sessionItem: SessionItem = {
@@ -68,7 +69,7 @@ export function createTestSession(
                 partitionType: "Account",
                 sortRangeType: "Attributes",
                 accountId,
-                name: account.name,
+                name: account.initialData.name,
                 createdTime,
                 hasInternalAccess,
             }),

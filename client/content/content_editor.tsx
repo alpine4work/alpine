@@ -23,6 +23,7 @@ import {
     useRef,
     useState,
 } from "react";
+import {getAccountClientStoreForClient} from "~/client/accounts/account_client_store_context_provider.js";
 import {
     ContentEditorState,
     getContentEditorFloaterState,
@@ -457,6 +458,8 @@ function ContentEditor<Content extends ContentWithReferences>(
     useLayoutEffect(() => {
         assert(elementRef.current);
 
+        const accountStore = getAccountClientStoreForClient();
+
         const initialState = unwrap(propsRef.current.state);
         const schema = initialState.doc.type.schema;
 
@@ -480,11 +483,13 @@ function ContentEditor<Content extends ContentWithReferences>(
             clipboardSerializer:
                 ContentEditorDomClipboardSerializer.fromSchemaWithContentReferences(
                     schema,
+                    accountStore,
                     () => propsRef.current.state.getContent().references,
                 ),
             clipboardTextSerializer: slice =>
                 contentEditorTextClipboardSerializer(
                     slice,
+                    accountStore,
                     () => propsRef.current.state.getContent().references,
                 ),
 
@@ -495,6 +500,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 orderedListItem: createContentEditorOrderedListItemNodeView,
                 checkListItem: createContentEditorCheckListItemNodeView,
                 mention: createContentEditorMentionNodeViewConstructor({
+                    accountStore,
                     getCurrentAccountIfExists: () => currentAccountRef.current,
                 }),
             },

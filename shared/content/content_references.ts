@@ -19,7 +19,7 @@ export const ContentReferencesSchema = Schema.object({
     /**
      * Accounts referenced in mentions.
      */
-    accountById: Schema.map(Schema.id<ContentMentionAccountId>(), AccountModel.schema()),
+    accountById: Schema.map(Schema.id<ContentMentionAccountId>(), AccountModel.schema),
 });
 
 /**

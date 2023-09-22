@@ -1,8 +1,16 @@
+import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
+
+type _TestAccountOptions =
+    | {id: AccountId; name: string}
+    | {id: AccountId; initialName: string}
+    | {id: AccountId; initialData: {name: string}};
+
+type TestAccountOptions = _TestAccountOptions | {account: _TestAccountOptions};
 
 /**
  * The representation of an account in a task that can be sorted. We can't sort by
@@ -52,10 +60,10 @@ export class TaskSortableAccount {
         deserialize: account => new TaskSortableAccount(account),
     });
 
-    public static from(account: AccountModel) {
+    public static from(accountStore: AccountClientStore, account: AccountModel) {
         return new TaskSortableAccount({
             accountId: account.id,
-            workingAccountName: account.name,
+            workingAccountName: accountStore.getAccountStore(account).getSnapshot().name,
         });
     }
 
@@ -63,19 +71,19 @@ export class TaskSortableAccount {
      * Create from a `TestSession` object we use in server tests (see
      * `createTestContext()`).
      */
-    public static test(
-        options:
-            | {account: {id: AccountId; name: string} | {id: AccountId; initialName: string}}
-            | {id: AccountId; name: string}
-            | {id: AccountId; initialName: string},
-    ) {
+    public static test(options: TestAccountOptions) {
         assert(process.env.NODE_ENV === "test");
 
         const account = "account" in options ? options.account : options;
 
         return new TaskSortableAccount({
             accountId: account.id,
-            workingAccountName: "initialName" in account ? account.initialName : account.name,
+            workingAccountName:
+                "initialName" in account
+                    ? account.initialName
+                    : "initialData" in account
+                    ? account.initialData.name
+                    : account.name,
         });
     }
 

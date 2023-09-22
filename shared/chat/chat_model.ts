@@ -14,7 +14,7 @@ export class ChatModel extends Model(
         createdTime: Schema.date,
         messageCount: Schema.integer,
         lastMessageChangeTime: Schema.date.nullable(),
-        accounts: Schema.array(AccountModel.schema()),
+        accounts: Schema.array(AccountModel.schema),
     }),
 ) {}
 
@@ -26,7 +26,7 @@ export class ChatMessageModel
         Schema.object({
             chatId: Schema.id<ChatId>(),
             index: Schema.integer,
-            author: AccountModel.schema(),
+            author: AccountModel.schema,
             createdTime: Schema.date,
             payload: MessagePayloadModelSchema,
         }),

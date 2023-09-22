@@ -1,6 +1,7 @@
 import {Link} from "@remix-run/react";
 import {useHover} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
+import {useAccountModel} from "~/client/accounts/account_client_store_context_provider.js";
 import {Box} from "~/client/design/box.js";
 import {PrettyAbsoluteDate} from "~/client/design/pretty_absolute_date.js";
 import {PostModel} from "~/shared/forum/post_model.js";
@@ -21,7 +22,7 @@ export function PostContentViewHeader({
             <Box flexGrow="1" paddingX="3" overflow="hidden">
                 <Box fontSize="75" fontStyle="truncate" color="grey-70">
                     <span className={sprinkles({color: "grey-text", fontStyle: "semi-bold"})}>
-                        {post.author.name}
+                        {useAccountModel(post.author).name}
                     </span>
                     {shouldShowChannel && (
                         <>

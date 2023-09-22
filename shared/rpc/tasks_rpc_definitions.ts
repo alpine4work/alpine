@@ -23,7 +23,7 @@ export const commitTaskActionTransaction = defineRpc({
     },
     output: {
         extraActions: Schema.array(TaskActionSchema),
-        referencedAccounts: Schema.array(AccountModel.schema()),
+        referencedAccounts: Schema.array(AccountModel.schema),
     },
 });
 
@@ -35,7 +35,7 @@ export const deleteTaskAndAllChildren = defineRpc({
     },
     output: {
         actions: Schema.array(TaskActionSchema),
-        referencedAccounts: Schema.array(AccountModel.schema()),
+        referencedAccounts: Schema.array(AccountModel.schema),
     },
 });
 

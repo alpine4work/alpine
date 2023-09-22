@@ -236,6 +236,7 @@ export async function createNotificationsScenario(context: TestContext) {
                 name: "Account 1",
                 createdTime,
                 hasInternalAccess: undefined,
+                version: 0,
             }),
         },
         session2: {
@@ -245,6 +246,7 @@ export async function createNotificationsScenario(context: TestContext) {
                 name: "Account 2",
                 createdTime,
                 hasInternalAccess: undefined,
+                version: 0,
             }),
         },
         session3: {
@@ -254,6 +256,7 @@ export async function createNotificationsScenario(context: TestContext) {
                 name: "Account 3",
                 createdTime,
                 hasInternalAccess: undefined,
+                version: 0,
             }),
         },
         otherSession: {
@@ -263,6 +266,7 @@ export async function createNotificationsScenario(context: TestContext) {
                 name: "Account 4",
                 createdTime,
                 hasInternalAccess: undefined,
+                version: 0,
             }),
         },
         sharedSession: {
@@ -272,6 +276,7 @@ export async function createNotificationsScenario(context: TestContext) {
                 name: "Account 5",
                 createdTime,
                 hasInternalAccess: undefined,
+                version: 0,
             }),
         },
         mentionAccount1MessageContent,

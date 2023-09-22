@@ -11,7 +11,7 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
 export type TaskQueryFilterReferences = SchemaType<typeof TaskQueryFilterReferencesSchema>;
 
 export const TaskQueryFilterReferencesSchema = Schema.object({
-    accountById: Schema.map(Schema.id<AccountId>(), AccountModel.schema()),
+    accountById: Schema.map(Schema.id<AccountId>(), AccountModel.schema),
 });
 
 /**

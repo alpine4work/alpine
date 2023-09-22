@@ -3,6 +3,7 @@ import {differenceInMinutes} from "date-fns";
 import {SpinnerGap} from "phosphor-react";
 import {ReactNode, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
+import {useAccountModel} from "~/client/accounts/account_client_store_context_provider.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
@@ -113,7 +114,12 @@ export function AccountAvatarPile({
                             for (const account of accounts) {
                                 remainingAccountCount--;
                                 if (previewAccountIds.has(account.id)) continue;
-                                children.push(<div key={account.id}>{account.name}</div>);
+                                children.push(
+                                    <AccountAvatarPileAccountName
+                                        key={account.id}
+                                        account={account}
+                                    />,
+                                );
                             }
 
                             if (remainingAccountCount > 0) {
@@ -269,4 +275,9 @@ function AsyncTooltip({
             }}
         />
     );
+}
+
+function AccountAvatarPileAccountName({account}: {account: AccountModel}) {
+    const {name} = useAccountModel(account);
+    return <div>{name}</div>;
 }

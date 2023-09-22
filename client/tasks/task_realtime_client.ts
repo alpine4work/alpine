@@ -1,3 +1,4 @@
+import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
@@ -37,9 +38,11 @@ export class TaskRealtimeClient {
     constructor(
         getContext: () => AppContext,
         {
+            accountStore,
             spaceId,
             onDisplayError,
         }: {
+            accountStore: AccountClientStore;
             spaceId: SpaceId;
             onDisplayError: (options: {title: string; error: unknown}) => void;
         },
@@ -53,7 +56,11 @@ export class TaskRealtimeClient {
             `/api/task-realtime/${this.spaceId}`,
         );
 
-        this.store = new TaskClientStore({spaceId, onDisplayError});
+        this.store = new TaskClientStore({
+            accountStore,
+            spaceId,
+            onDisplayError,
+        });
     }
 
     public connect() {

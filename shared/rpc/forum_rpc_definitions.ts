@@ -75,7 +75,7 @@ export const getPostCommentAuthors = defineRpc({
         limit: Schema.integer,
     },
     output: {
-        authors: Schema.array(AccountModel.schema()),
+        authors: Schema.array(AccountModel.schema),
     },
 });
 

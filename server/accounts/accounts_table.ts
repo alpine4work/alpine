@@ -713,6 +713,7 @@ function createAccountModelFromItem(accountItem: AccountItem) {
         name: accountItem.name,
         createdTime: accountItem.createdTime,
         hasInternalAccess: accountItem.hasInternalAccess,
+        version: accountItem.updateLockVersion ?? 0,
     });
 }
 
@@ -725,7 +726,7 @@ export async function authorizeInternalAccess(context: Context<{actor: DynamoAct
         case "Session": {
             const account = await context.actor.getAccount();
 
-            if (!account.hasInternalAccess)
+            if (!account.initialData.hasInternalAccess)
                 throw new PermissionDeniedError("Account does not have internal access", {
                     displayMessage: errorDisplayMessage`Only members of our team may access internal tools.`,
                 });

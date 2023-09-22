@@ -23,7 +23,8 @@ import {
     useOption,
 } from "react-aria";
 import {ComboBoxState, ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
-import {AccountAvatar} from "~/client/accounts/account_avatar.js";
+import {AccountDataAvatar} from "~/client/accounts/account_avatar.js";
+import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
@@ -31,9 +32,11 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {joinPrettyConjunctionList} from "~/client/design/pretty_conjunction_list.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {Store} from "~/client/helpers/store/store.js";
+import {useStore} from "~/client/helpers/store/use_store.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
+import {AccountModel, AccountModelData} from "~/shared/accounts/account_model.js";
 import {ChatModel} from "~/shared/chat/chat_model.js";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
@@ -63,14 +66,14 @@ type ChatAccountPickerItem =
           readonly type: "Account";
           readonly key: `Account:${AccountId}`;
           readonly textValue: string;
-          readonly account: AccountModel;
+          readonly accountData: AccountModelData;
       }
     | {
           readonly type: "Chat";
           readonly key: `Chat:${ChatId}`;
           readonly textValue: string;
           readonly chat: ChatModel;
-          readonly otherAccounts: ReadonlyArray<AccountModel>;
+          readonly otherAccountDatas: ReadonlyArray<AccountModelData>;
       };
 
 export function ChatAccountPicker({
@@ -88,22 +91,15 @@ export function ChatAccountPicker({
     suggestedChats: ReadonlyArray<ChatModel>;
     withMobileLayout: boolean;
 }) {
+    const accountStore = useAccountClientStore();
     const {currentAccount} = useSpaceContext();
     const allUnsortedAccounts = useExpensivelyLoadAllSpaceAccounts() ?? emptyArray;
 
-    const allAccounts = useMemo(
-        () =>
-            allUnsortedAccounts
-                .slice()
-                .sort((account1, account2) => account1.name.localeCompare(account2.name)),
-        [allUnsortedAccounts],
-    );
-
     const accountById = useMemo(() => {
         const accountById = new Map<AccountId, AccountModel>();
-        for (const account of allAccounts) accountById.set(account.id, account);
+        for (const account of allUnsortedAccounts) accountById.set(account.id, account);
         return accountById;
-    }, [allAccounts]);
+    }, [allUnsortedAccounts]);
 
     const suggestedChatById = useMemo(() => {
         const suggestedChatById = new Map<ChatId, ChatModel>();
@@ -111,38 +107,60 @@ export function ChatAccountPicker({
         return suggestedChatById;
     }, [suggestedChats]);
 
-    const allItems = useMemo(() => {
-        const items: Array<ChatAccountPickerItem> = [];
+    const allItemsStore = useMemo(() => {
+        const itemStores: Array<Store<ChatAccountPickerItem>> = [];
 
         for (const chat of suggestedChats) {
             assert(chat.accounts.length > 0);
 
             const otherAccounts = chat.accounts.filter(account => account.id !== currentAccount.id);
 
-            const otherAccountNames = joinPrettyConjunctionList(
-                otherAccounts.map(account => getAccountShortNameWithoutFullNameTooltip(account)),
+            itemStores.push(
+                Store.mapMany(
+                    otherAccounts.map(account => accountStore.getAccountStore(account)),
+                    (otherAccountDatas): ChatAccountPickerItem => {
+                        const otherAccountNames = joinPrettyConjunctionList(
+                            otherAccountDatas.map(accountData =>
+                                getAccountShortNameWithoutFullNameTooltip(accountData),
+                            ),
+                        );
+
+                        return {
+                            type: "Chat",
+                            key: `Chat:${chat.id}`,
+                            textValue: otherAccountNames,
+                            chat,
+                            otherAccountDatas,
+                        };
+                    },
+                ),
             );
-
-            items.push({
-                type: "Chat",
-                key: `Chat:${chat.id}`,
-                textValue: otherAccountNames,
-                chat,
-                otherAccounts,
-            });
         }
 
-        for (const account of allAccounts) {
-            items.push({
-                type: "Account",
-                key: `Account:${account.id}`,
-                textValue: account.name,
-                account,
-            });
+        for (const account of allUnsortedAccounts) {
+            itemStores.push(
+                accountStore.getAccountStore(account).map((accountData): ChatAccountPickerItem => {
+                    return {
+                        type: "Account",
+                        key: `Account:${account.id}`,
+                        textValue: accountData.name,
+                        accountData,
+                    };
+                }),
+            );
         }
 
-        return items;
-    }, [allAccounts, currentAccount.id, suggestedChats]);
+        return Store.mapMany(itemStores, items =>
+            items.slice().sort((item1, item2) => {
+                if (item1.type === "Chat" && item2.type === "Chat") return 0;
+                if (item1.type === "Chat") return -1;
+                if (item2.type === "Chat") return 1;
+                return item1.textValue.localeCompare(item2.textValue);
+            }),
+        );
+    }, [accountStore, allUnsortedAccounts, currentAccount.id, suggestedChats]);
+
+    const allItems = useStore(allItemsStore);
 
     // Remove items that match our selection. Items should help the user
     // autocomplete. Items that won't add to their selection are not useful.
@@ -152,14 +170,16 @@ export function ChatAccountPicker({
         return allItems.filter(item => {
             switch (item.type) {
                 // If an account has been selected, don't show it anymore.
-                case "Account":
-                    return !selectedAccountIds.has(item.account.id);
-
+                case "Account": {
+                    return !selectedAccountIds.has(item.accountData.id);
+                }
                 // At least one account in the recommended chat should not already be selected
                 // for it to show up.
-                case "Chat":
-                    return item.otherAccounts.some(account => !selectedAccountIds.has(account.id));
-
+                case "Chat": {
+                    return item.otherAccountDatas.some(
+                        accountData => !selectedAccountIds.has(accountData.id),
+                    );
+                }
                 default:
                     throw exhaustive(item);
             }
@@ -334,11 +354,22 @@ export function ChatAccountPicker({
         [selectedAccountsLength],
     );
 
-    const selectedAccountsChildren = selectedAccounts.map((account, index) => {
+    const selectedAccountDatas = useStore(
+        useMemo(
+            () =>
+                Store.mapMany(
+                    selectedAccounts.map(account => accountStore.getAccountStore(account)),
+                    accounts => accounts,
+                ),
+            [accountStore, selectedAccounts],
+        ),
+    );
+
+    const selectedAccountsChildren = selectedAccountDatas.map((accountData, index) => {
         const deleteAccount = () => {
             onUpdateSelectedAccounts(selectedAccounts => {
                 const newSelectedAccounts = selectedAccounts.filter(
-                    otherAccount => otherAccount.id !== account.id,
+                    otherAccount => otherAccount.id !== accountData.id,
                 );
                 return newSelectedAccounts.length !== selectedAccounts.length
                     ? newSelectedAccounts
@@ -401,7 +432,7 @@ export function ChatAccountPicker({
         };
 
         return (
-            <FocusRing key={account.id}>
+            <FocusRing key={accountData.id}>
                 <Box
                     ref={selectedAccountRefs[index]}
                     cursor="default"
@@ -416,10 +447,10 @@ export function ChatAccountPicker({
                     onKeyDown={handleKeyDown}
                 >
                     <Box paddingLeft="0.5">
-                        <AccountAvatar size="5" account={account} />
+                        <AccountDataAvatar size="5" accountData={accountData} />
                     </Box>
                     <Box paddingLeft="1.5" paddingRight="0.5" fontSize="100">
-                        {account.name}
+                        {accountData.name}
                     </Box>
                     <Box paddingRight="1">
                         <IconButton
@@ -693,20 +724,20 @@ function ChatAccountPickerListBoxOptionItem({
         case "Account": {
             return (
                 <Box display="flex" alignItems="center" gap="2">
-                    <AccountAvatar account={item.account} size="6" />
-                    <Box fontStyle="truncate">{item.account.name}</Box>
+                    <AccountDataAvatar accountData={item.accountData} size="6" />
+                    <Box fontStyle="truncate">{item.accountData.name}</Box>
                 </Box>
             );
         }
         case "Chat": {
-            const {otherAccounts} = item;
-            assert(otherAccounts.length > 0);
+            const {otherAccountDatas} = item;
+            assert(otherAccountDatas.length > 0);
 
             return (
                 <Box display="flex" alignItems="center" gap="2">
                     <Box position="relative" width="6" height="6">
                         <Box position="absolute" top="0" left="-1">
-                            <AccountAvatar account={otherAccounts[0]!} size="5" />
+                            <AccountDataAvatar accountData={otherAccountDatas[0]!} size="5" />
                         </Box>
                         <Box
                             position="absolute"
@@ -731,7 +762,7 @@ function ChatAccountPickerListBoxOptionItem({
                                 alignItems="center"
                             >
                                 <Box style={{transform: "scale(0.8)"}}>
-                                    +{otherAccounts.length - 1}
+                                    +{otherAccountDatas.length - 1}
                                 </Box>
                             </Box>
                         </Box>

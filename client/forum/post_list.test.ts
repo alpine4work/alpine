@@ -23,11 +23,11 @@ const channel = new ChannelPreviewModel({
     name: "Test",
 });
 
-const account1 = new AccountModel({id: generateId(), name: "Test 1", createdTime});
-const account2 = new AccountModel({id: generateId(), name: "Test 2", createdTime});
-const account3 = new AccountModel({id: generateId(), name: "Test 3", createdTime});
-const account4 = new AccountModel({id: generateId(), name: "Test 4", createdTime});
-const account5 = new AccountModel({id: generateId(), name: "Test 5", createdTime});
+const account1 = new AccountModel({id: generateId(), name: "Test 1", createdTime, version: 0});
+const account2 = new AccountModel({id: generateId(), name: "Test 2", createdTime, version: 0});
+const account3 = new AccountModel({id: generateId(), name: "Test 3", createdTime, version: 0});
+const account4 = new AccountModel({id: generateId(), name: "Test 4", createdTime, version: 0});
+const account5 = new AccountModel({id: generateId(), name: "Test 5", createdTime, version: 0});
 
 const testContent1 = createSimplePostContent("test1");
 const testContent2 = createSimplePostContent("test2");

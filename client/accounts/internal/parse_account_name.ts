@@ -1,4 +1,4 @@
-import {AccountModel} from "~/shared/accounts/account_model.js";
+import {AccountModelData} from "~/shared/accounts/account_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
@@ -18,12 +18,12 @@ import {assert} from "~/shared/helpers/control/assert.js";
  * This function is in an `internal` folder to prevent widespread use. Instead
  * use our curated components with specific semantic meaning.
  */
-export function parseAccountName(account: AccountModel): {
+export function parseAccountName(accountData: AccountModelData): {
     firstName: string;
     lastName: string | null;
 } {
-    assert(account.name.length > 0);
-    const nameParts = account.name.split(/\p{White_Space}/u);
+    assert(accountData.name.length > 0);
+    const nameParts = accountData.name.split(/\p{White_Space}/u);
     assert(nameParts.length > 0);
     const firstName = nameParts[0]!;
     const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1]! : null;
