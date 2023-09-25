@@ -147,7 +147,12 @@ export type OpensearchShouldBooleanQueryClause<FlattenedKeys extends string> = {
 };
 
 /**
- * Logical and operator that is applied first to reduce your dataset before applying the queries. A query within a filter clause is a yes or no option. If a document matches the query, it is returned in the results; otherwise, it is not. The results of a filter query are generally cached to allow for a faster return. Use the filter query to filter the results based on exact matches, ranges, dates, or numbers.
+ * Logical and operator that is applied first to reduce your dataset before
+ * applying the queries. A query within a filter clause is a yes or no option.
+ * If a document matches the query, it is returned in the results; otherwise,
+ * it is not. The results of a filter query are generally cached to allow for a
+ * faster return. Use the filter query to filter the results based on exact
+ * matches, ranges, dates, or numbers.
  */
 export type OpensearchFilterBooleanQueryClause<FlattenedKeys extends string> = {
     filter: OpensearchQueryClause<FlattenedKeys> | Array<OpensearchQueryClause<FlattenedKeys>>;
