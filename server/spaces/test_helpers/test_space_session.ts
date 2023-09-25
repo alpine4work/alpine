@@ -1,8 +1,7 @@
-import {getAccountsTableForTest} from "~/server/accounts/accounts_table.js";
+import {createSessionForTest} from "~/server/accounts/accounts_table.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
-import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
@@ -25,31 +24,14 @@ export class TestSpaceSession {
         this.createdTime = createdTime;
     }
 
-    public static _newAssumingExists(
-        space: TestSpace,
-        account: TestAccount,
-        id: SessionId,
-        createdTime: Date,
-    ) {
-        return new TestSpaceSession(space, account, id, createdTime);
-    }
-
     public static async create(space: TestSpace, account: TestAccount) {
         assert(space.context === account.context);
 
-        const AccountsTable = getAccountsTableForTest();
-
         const id = generateId<SessionId>();
-        const createdTime = testClock.nowDate();
 
-        await AccountsTable.createItem(space.context, {
-            partitionType: "Session",
-            sortRangeType: "Attributes",
-            sessionId: id,
+        const {createdTime} = await createSessionForTest(space.context, {
+            id,
             accountId: account.id,
-            createdTime,
-            initialIpAddress: null,
-            initialUserAgent: null,
         });
 
         return new TestSpaceSession(space, account, id, createdTime);

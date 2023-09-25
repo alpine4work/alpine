@@ -91,7 +91,7 @@ test("commenting creates an inbox entry for all subscribers", async () => {
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -119,7 +119,7 @@ test("commenting creates an inbox entry for all subscribers", async () => {
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -150,14 +150,14 @@ test("commenting creates an inbox entry for all subscribers", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment1"),
                     references: emptyContentReferences,
@@ -184,7 +184,7 @@ test("commenting creates an inbox entry for all subscribers", async () => {
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -212,7 +212,7 @@ test("commenting creates an inbox entry for all subscribers", async () => {
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -243,20 +243,20 @@ test("commenting creates an inbox entry for all subscribers", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment2.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment2"),
                     references: emptyContentReferences,
                 },
             },
-            otherCommentAuthor: scenario.session2.account,
+            otherCommentAuthor: await scenario.session2.account.get(),
         }),
     ]);
 
@@ -272,14 +272,14 @@ test("commenting creates an inbox entry for all subscribers", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment2.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment2"),
                     references: emptyContentReferences,
@@ -296,7 +296,7 @@ test("commenting creates an inbox entry for all subscribers", async () => {
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -324,7 +324,7 @@ test("commenting creates an inbox entry for all subscribers", async () => {
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -364,20 +364,20 @@ test("commenting creates an inbox entry for all subscribers", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
                 },
             },
-            otherCommentAuthor: scenario.session3.account,
+            otherCommentAuthor: await scenario.session3.account.get(),
         }),
         new InboxChannelPostsEntryModel({
             spaceId: scenario.space.id,
@@ -388,7 +388,7 @@ test("commenting creates an inbox entry for all subscribers", async () => {
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -411,14 +411,14 @@ test("commenting creates an inbox entry for all subscribers", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session3.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
@@ -435,7 +435,7 @@ test("commenting creates an inbox entry for all subscribers", async () => {
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -495,7 +495,7 @@ test("mentioning someone in a post a creates a loud notification for them whethe
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -523,7 +523,7 @@ test("mentioning someone in a post a creates a loud notification for them whethe
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -554,20 +554,20 @@ test("mentioning someone in a post a creates a loud notification for them whethe
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount3MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session3.account.id, scenario.session3.account],
+                            [scenario.session3.account.id, await scenario.session3.account.get()],
                         ]),
                     },
                 },
@@ -593,7 +593,7 @@ test("mentioning someone in a post a creates a loud notification for them whethe
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -616,20 +616,20 @@ test("mentioning someone in a post a creates a loud notification for them whethe
             spaceId: scenario.space.id,
             accountId: scenario.session3.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount3MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session3.account.id, scenario.session3.account],
+                            [scenario.session3.account.id, await scenario.session3.account.get()],
                         ]),
                     },
                 },
@@ -645,7 +645,7 @@ test("mentioning someone in a post a creates a loud notification for them whethe
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -676,20 +676,20 @@ test("mentioning someone in a post a creates a loud notification for them whethe
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment2.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
@@ -715,7 +715,7 @@ test("mentioning someone in a post a creates a loud notification for them whethe
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -738,20 +738,20 @@ test("mentioning someone in a post a creates a loud notification for them whethe
             spaceId: scenario.space.id,
             accountId: scenario.session3.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment2.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
@@ -767,7 +767,7 @@ test("mentioning someone in a post a creates a loud notification for them whethe
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -798,25 +798,25 @@ test("mentioning someone in a post a creates a loud notification for them whethe
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 2,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
             },
-            otherCommentAuthor: scenario.session2.account,
+            otherCommentAuthor: await scenario.session2.account.get(),
         }),
     ]);
 
@@ -832,20 +832,20 @@ test("mentioning someone in a post a creates a loud notification for them whethe
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
@@ -861,7 +861,7 @@ test("mentioning someone in a post a creates a loud notification for them whethe
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -889,7 +889,7 @@ test("mentioning someone in a post a creates a loud notification for them whethe
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -949,7 +949,7 @@ test("mentioning yourself does not create a loud notification for yourself", asy
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -977,7 +977,7 @@ test("mentioning yourself does not create a loud notification for yourself", asy
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -1008,20 +1008,20 @@ test("mentioning yourself does not create a loud notification for yourself", asy
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -1047,7 +1047,7 @@ test("mentioning yourself does not create a loud notification for yourself", asy
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -1075,7 +1075,7 @@ test("mentioning yourself does not create a loud notification for yourself", asy
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -1115,14 +1115,14 @@ test("mentioning yourself does not create a loud notification for yourself", asy
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment2.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment2"),
                     references: emptyContentReferences,
@@ -1139,7 +1139,7 @@ test("mentioning yourself does not create a loud notification for yourself", asy
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -1167,7 +1167,7 @@ test("mentioning yourself does not create a loud notification for yourself", asy
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -1198,25 +1198,25 @@ test("mentioning yourself does not create a loud notification for yourself", asy
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
             },
-            otherCommentAuthor: scenario.session2.account,
+            otherCommentAuthor: await scenario.session2.account.get(),
         }),
     ]);
 
@@ -1237,7 +1237,7 @@ test("mentioning yourself does not create a loud notification for yourself", asy
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -1265,7 +1265,7 @@ test("mentioning yourself does not create a loud notification for yourself", asy
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -1331,7 +1331,7 @@ test("accounts have separate inboxes for each space", async () => {
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -1359,7 +1359,7 @@ test("accounts have separate inboxes for each space", async () => {
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.otherSession.account,
+                author: await scenario.otherSession.account.get(),
                 createdTime: otherPost.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -1390,20 +1390,23 @@ test("accounts have separate inboxes for each space", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.sharedSession.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionSharedAccountMessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.sharedSession.account.id, scenario.sharedSession.account],
+                            [
+                                scenario.sharedSession.account.id,
+                                await scenario.sharedSession.account.get(),
+                            ],
                         ]),
                     },
                 },
@@ -1419,7 +1422,7 @@ test("accounts have separate inboxes for each space", async () => {
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -1447,7 +1450,7 @@ test("accounts have separate inboxes for each space", async () => {
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.otherSession.account,
+                author: await scenario.otherSession.account.get(),
                 createdTime: otherPost.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -1478,20 +1481,23 @@ test("accounts have separate inboxes for each space", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.sharedSession.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionSharedAccountMessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.sharedSession.account.id, scenario.sharedSession.account],
+                            [
+                                scenario.sharedSession.account.id,
+                                await scenario.sharedSession.account.get(),
+                            ],
                         ]),
                     },
                 },
@@ -1507,7 +1513,7 @@ test("accounts have separate inboxes for each space", async () => {
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -1530,20 +1536,23 @@ test("accounts have separate inboxes for each space", async () => {
             spaceId: scenario.otherSpace.id,
             accountId: scenario.sharedSession.account.id,
             postId: otherPost.id,
-            postAuthor: scenario.otherSession.account,
+            postAuthor: await scenario.otherSession.account.get(),
             channel: otherChannel,
             loudNotificationCount: 1,
             postCreatedTime: otherPost.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment2.createdTime,
-                author: scenario.otherSession.account,
+                author: await scenario.otherSession.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionSharedAccountMessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.sharedSession.account.id, scenario.sharedSession.account],
+                            [
+                                scenario.sharedSession.account.id,
+                                await scenario.sharedSession.account.get(),
+                            ],
                         ]),
                     },
                 },
@@ -1559,7 +1568,7 @@ test("accounts have separate inboxes for each space", async () => {
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.otherSession.account,
+                author: await scenario.otherSession.account.get(),
                 createdTime: otherPost.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -1618,7 +1627,7 @@ test("account can not see mention in a different space", async () => {
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -1658,20 +1667,20 @@ test("account can not see mention in a different space", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session3.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount3MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session3.account.id, scenario.session3.account],
+                            [scenario.session3.account.id, await scenario.session3.account.get()],
                         ]),
                     },
                 },
@@ -1687,7 +1696,7 @@ test("account can not see mention in a different space", async () => {
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -1727,20 +1736,20 @@ test("account can not see mention in a different space", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session3.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount3MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session3.account.id, scenario.session3.account],
+                            [scenario.session3.account.id, await scenario.session3.account.get()],
                         ]),
                     },
                 },
@@ -1756,7 +1765,7 @@ test("account can not see mention in a different space", async () => {
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -1858,14 +1867,14 @@ test("comment notification events processed out of order result in the same late
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post.id,
-            postAuthor: scenario.session2.account,
+            postAuthor: await scenario.session2.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
@@ -1882,7 +1891,7 @@ test("comment notification events processed out of order result in the same late
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -1905,20 +1914,20 @@ test("comment notification events processed out of order result in the same late
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post.id,
-            postAuthor: scenario.session2.account,
+            postAuthor: await scenario.session2.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
                 },
             },
-            otherCommentAuthor: scenario.session1.account,
+            otherCommentAuthor: await scenario.session1.account.get(),
         }),
     ]);
 
@@ -1937,14 +1946,14 @@ test("comment notification events processed out of order result in the same late
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post.id,
-            postAuthor: scenario.session2.account,
+            postAuthor: await scenario.session2.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
@@ -1961,7 +1970,7 @@ test("comment notification events processed out of order result in the same late
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -1984,20 +1993,20 @@ test("comment notification events processed out of order result in the same late
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post.id,
-            postAuthor: scenario.session2.account,
+            postAuthor: await scenario.session2.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
                 },
             },
-            otherCommentAuthor: scenario.session1.account,
+            otherCommentAuthor: await scenario.session1.account.get(),
         }),
     ]);
 });
@@ -2083,14 +2092,14 @@ test("comment notification events processed out of order result in the same late
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post.id,
-            postAuthor: scenario.session2.account,
+            postAuthor: await scenario.session2.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
@@ -2107,7 +2116,7 @@ test("comment notification events processed out of order result in the same late
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -2142,14 +2151,14 @@ test("comment notification events processed out of order result in the same late
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post.id,
-            postAuthor: scenario.session2.account,
+            postAuthor: await scenario.session2.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
@@ -2166,7 +2175,7 @@ test("comment notification events processed out of order result in the same late
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 createdTime: post.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -2248,14 +2257,14 @@ test("loud notifications are always at the top of the inbox", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment1"),
                     references: emptyContentReferences,
@@ -2285,20 +2294,20 @@ test("loud notifications are always at the top of the inbox", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment2.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
@@ -2309,14 +2318,14 @@ test("loud notifications are always at the top of the inbox", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment1"),
                     references: emptyContentReferences,
@@ -2346,20 +2355,20 @@ test("loud notifications are always at the top of the inbox", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment2.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
@@ -2370,14 +2379,14 @@ test("loud notifications are always at the top of the inbox", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post3.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post3.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
@@ -2389,14 +2398,14 @@ test("loud notifications are always at the top of the inbox", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment1"),
                     references: emptyContentReferences,
@@ -2426,20 +2435,20 @@ test("loud notifications are always at the top of the inbox", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment2.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
@@ -2450,14 +2459,14 @@ test("loud notifications are always at the top of the inbox", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post3.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post3.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
@@ -2469,14 +2478,14 @@ test("loud notifications are always at the top of the inbox", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment4.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment4"),
                     references: emptyContentReferences,
@@ -2506,14 +2515,14 @@ test("loud notifications are always at the top of the inbox", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment5.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment5"),
                     references: emptyContentReferences,
@@ -2525,14 +2534,14 @@ test("loud notifications are always at the top of the inbox", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post3.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post3.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
@@ -2544,14 +2553,14 @@ test("loud notifications are always at the top of the inbox", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment4.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment4"),
                     references: emptyContentReferences,
@@ -2581,20 +2590,20 @@ test("loud notifications are always at the top of the inbox", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post3.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post3.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment6.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
@@ -2605,14 +2614,14 @@ test("loud notifications are always at the top of the inbox", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment5.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment5"),
                     references: emptyContentReferences,
@@ -2624,14 +2633,14 @@ test("loud notifications are always at the top of the inbox", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment4.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment4"),
                     references: emptyContentReferences,
@@ -2661,20 +2670,20 @@ test("loud notifications are always at the top of the inbox", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post3.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post3.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment6.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
@@ -2685,14 +2694,14 @@ test("loud notifications are always at the top of the inbox", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment7.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment7"),
                     references: emptyContentReferences,
@@ -2704,14 +2713,14 @@ test("loud notifications are always at the top of the inbox", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment4.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment4"),
                     references: emptyContentReferences,
@@ -2741,20 +2750,20 @@ test("loud notifications are always at the top of the inbox", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 2,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment8.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
@@ -2765,20 +2774,20 @@ test("loud notifications are always at the top of the inbox", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post3.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post3.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment6.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
@@ -2789,14 +2798,14 @@ test("loud notifications are always at the top of the inbox", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment4.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment4"),
                     references: emptyContentReferences,
@@ -2881,14 +2890,14 @@ test("observing an inbox freezes loud notifications in place", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment1"),
                     references: emptyContentReferences,
@@ -2918,20 +2927,20 @@ test("observing an inbox freezes loud notifications in place", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment2.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
@@ -2942,14 +2951,14 @@ test("observing an inbox freezes loud notifications in place", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment1"),
                     references: emptyContentReferences,
@@ -2979,20 +2988,20 @@ test("observing an inbox freezes loud notifications in place", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment2.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
@@ -3003,14 +3012,14 @@ test("observing an inbox freezes loud notifications in place", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post3.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post3.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
@@ -3022,14 +3031,14 @@ test("observing an inbox freezes loud notifications in place", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment1"),
                     references: emptyContentReferences,
@@ -3053,20 +3062,20 @@ test("observing an inbox freezes loud notifications in place", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment2.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
@@ -3077,14 +3086,14 @@ test("observing an inbox freezes loud notifications in place", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post3.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post3.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
@@ -3096,14 +3105,14 @@ test("observing an inbox freezes loud notifications in place", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment1"),
                     references: emptyContentReferences,
@@ -3133,14 +3142,14 @@ test("observing an inbox freezes loud notifications in place", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post4.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post4.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment4.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment4"),
                     references: emptyContentReferences,
@@ -3152,20 +3161,20 @@ test("observing an inbox freezes loud notifications in place", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment2.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
@@ -3176,14 +3185,14 @@ test("observing an inbox freezes loud notifications in place", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post3.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post3.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
@@ -3195,14 +3204,14 @@ test("observing an inbox freezes loud notifications in place", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment1"),
                     references: emptyContentReferences,
@@ -3232,14 +3241,14 @@ test("observing an inbox freezes loud notifications in place", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post4.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post4.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment4.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment4"),
                     references: emptyContentReferences,
@@ -3251,14 +3260,14 @@ test("observing an inbox freezes loud notifications in place", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment5.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment5"),
                     references: emptyContentReferences,
@@ -3270,14 +3279,14 @@ test("observing an inbox freezes loud notifications in place", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post3.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post3.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
@@ -3289,14 +3298,14 @@ test("observing an inbox freezes loud notifications in place", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment1"),
                     references: emptyContentReferences,
@@ -3326,14 +3335,14 @@ test("observing an inbox freezes loud notifications in place", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post4.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post4.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment4.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment4"),
                     references: emptyContentReferences,
@@ -3345,14 +3354,14 @@ test("observing an inbox freezes loud notifications in place", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment5.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment5"),
                     references: emptyContentReferences,
@@ -3364,14 +3373,14 @@ test("observing an inbox freezes loud notifications in place", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post3.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post3.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment6.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment6"),
                     references: emptyContentReferences,
@@ -3383,14 +3392,14 @@ test("observing an inbox freezes loud notifications in place", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment1"),
                     references: emptyContentReferences,
@@ -3420,20 +3429,20 @@ test("observing an inbox freezes loud notifications in place", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post3.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post3.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment7.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
@@ -3444,14 +3453,14 @@ test("observing an inbox freezes loud notifications in place", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post4.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post4.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment4.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment4"),
                     references: emptyContentReferences,
@@ -3463,14 +3472,14 @@ test("observing an inbox freezes loud notifications in place", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment5.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment5"),
                     references: emptyContentReferences,
@@ -3482,14 +3491,14 @@ test("observing an inbox freezes loud notifications in place", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment1"),
                     references: emptyContentReferences,
@@ -3574,20 +3583,20 @@ test("can archive inbox entries", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.sharedSession.account,
+                author: await scenario.sharedSession.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
                 },
             },
-            otherCommentAuthor: scenario.session3.account,
+            otherCommentAuthor: await scenario.session3.account.get(),
         }),
     ]);
 
@@ -3603,20 +3612,20 @@ test("can archive inbox entries", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment4.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -3627,20 +3636,20 @@ test("can archive inbox entries", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.sharedSession.account,
+                author: await scenario.sharedSession.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
                 },
             },
-            otherCommentAuthor: scenario.session3.account,
+            otherCommentAuthor: await scenario.session3.account.get(),
         }),
         new InboxChannelPostsEntryModel({
             spaceId: scenario.space.id,
@@ -3651,7 +3660,7 @@ test("can archive inbox entries", async () => {
             postCount: 2,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post2.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -3674,14 +3683,14 @@ test("can archive inbox entries", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session3.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.sharedSession.account,
+                author: await scenario.sharedSession.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
@@ -3698,7 +3707,7 @@ test("can archive inbox entries", async () => {
             postCount: 2,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post2.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -3726,20 +3735,20 @@ test("can archive inbox entries", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.sharedSession.account,
+                author: await scenario.sharedSession.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
                 },
             },
-            otherCommentAuthor: scenario.session3.account,
+            otherCommentAuthor: await scenario.session3.account.get(),
         }),
     ]);
 
@@ -3755,20 +3764,20 @@ test("can archive inbox entries", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment4.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -3779,20 +3788,20 @@ test("can archive inbox entries", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.sharedSession.account,
+                author: await scenario.sharedSession.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
                 },
             },
-            otherCommentAuthor: scenario.session3.account,
+            otherCommentAuthor: await scenario.session3.account.get(),
         }),
         new InboxChannelPostsEntryModel({
             spaceId: scenario.space.id,
@@ -3803,7 +3812,7 @@ test("can archive inbox entries", async () => {
             postCount: 2,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post2.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -3831,7 +3840,7 @@ test("can archive inbox entries", async () => {
             postCount: 2,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post2.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -3859,20 +3868,20 @@ test("can archive inbox entries", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.sharedSession.account,
+                author: await scenario.sharedSession.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
                 },
             },
-            otherCommentAuthor: scenario.session3.account,
+            otherCommentAuthor: await scenario.session3.account.get(),
         }),
     ]);
 
@@ -3888,20 +3897,20 @@ test("can archive inbox entries", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.sharedSession.account,
+                author: await scenario.sharedSession.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
                 },
             },
-            otherCommentAuthor: scenario.session3.account,
+            otherCommentAuthor: await scenario.session3.account.get(),
         }),
         new InboxChannelPostsEntryModel({
             spaceId: scenario.space.id,
@@ -3912,7 +3921,7 @@ test("can archive inbox entries", async () => {
             postCount: 2,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post2.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -3940,7 +3949,7 @@ test("can archive inbox entries", async () => {
             postCount: 2,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post2.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -3968,20 +3977,20 @@ test("can archive inbox entries", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.sharedSession.account,
+                author: await scenario.sharedSession.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
                 },
             },
-            otherCommentAuthor: scenario.session3.account,
+            otherCommentAuthor: await scenario.session3.account.get(),
         }),
     ]);
 
@@ -4002,7 +4011,7 @@ test("can archive inbox entries", async () => {
             postCount: 2,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post2.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -4030,7 +4039,7 @@ test("can archive inbox entries", async () => {
             postCount: 2,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post2.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -4136,20 +4145,20 @@ test("can unarchive inbox entries", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post3.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post3.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment5.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -4160,20 +4169,20 @@ test("can unarchive inbox entries", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment4.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -4184,20 +4193,20 @@ test("can unarchive inbox entries", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
                 },
             },
-            otherCommentAuthor: scenario.session3.account,
+            otherCommentAuthor: await scenario.session3.account.get(),
         }),
         new InboxChannelPostsEntryModel({
             spaceId: scenario.space.id,
@@ -4208,7 +4217,7 @@ test("can unarchive inbox entries", async () => {
             postCount: 3,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post3.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -4231,14 +4240,14 @@ test("can unarchive inbox entries", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session3.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
@@ -4255,7 +4264,7 @@ test("can unarchive inbox entries", async () => {
             postCount: 3,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post3.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -4302,20 +4311,20 @@ test("can unarchive inbox entries", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post3.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post3.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment5.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -4331,7 +4340,7 @@ test("can unarchive inbox entries", async () => {
             postCount: 3,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post3.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -4359,7 +4368,7 @@ test("can unarchive inbox entries", async () => {
             postCount: 3,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post3.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -4396,20 +4405,20 @@ test("can unarchive inbox entries", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post3.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post3.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment5.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -4425,7 +4434,7 @@ test("can unarchive inbox entries", async () => {
             postCount: 3,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post3.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -4448,14 +4457,14 @@ test("can unarchive inbox entries", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session3.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
@@ -4472,7 +4481,7 @@ test("can unarchive inbox entries", async () => {
             postCount: 3,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post3.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -4509,20 +4518,20 @@ test("can unarchive inbox entries", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment4.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -4533,20 +4542,20 @@ test("can unarchive inbox entries", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post3.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post3.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment5.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -4562,7 +4571,7 @@ test("can unarchive inbox entries", async () => {
             postCount: 3,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post3.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -4585,14 +4594,14 @@ test("can unarchive inbox entries", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session3.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
@@ -4609,7 +4618,7 @@ test("can unarchive inbox entries", async () => {
             postCount: 3,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post3.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -4646,39 +4655,39 @@ test("can unarchive inbox entries", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
                 },
             },
-            otherCommentAuthor: scenario.session3.account,
+            otherCommentAuthor: await scenario.session3.account.get(),
         }),
         new InboxPostCommentsEntryModel({
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment4.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -4689,20 +4698,20 @@ test("can unarchive inbox entries", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post3.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post3.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment5.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -4718,7 +4727,7 @@ test("can unarchive inbox entries", async () => {
             postCount: 3,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post3.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -4741,14 +4750,14 @@ test("can unarchive inbox entries", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session3.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
@@ -4765,7 +4774,7 @@ test("can unarchive inbox entries", async () => {
             postCount: 3,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post3.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -4793,20 +4802,20 @@ test("can unarchive inbox entries", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
                 },
             },
-            otherCommentAuthor: scenario.session3.account,
+            otherCommentAuthor: await scenario.session3.account.get(),
         }),
     ]);
 
@@ -4822,39 +4831,39 @@ test("can unarchive inbox entries", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
                 },
             },
-            otherCommentAuthor: scenario.session3.account,
+            otherCommentAuthor: await scenario.session3.account.get(),
         }),
         new InboxPostCommentsEntryModel({
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment4.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -4865,20 +4874,20 @@ test("can unarchive inbox entries", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post3.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post3.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment5.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -4894,7 +4903,7 @@ test("can unarchive inbox entries", async () => {
             postCount: 3,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post3.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -4917,14 +4926,14 @@ test("can unarchive inbox entries", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session3.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
@@ -4941,7 +4950,7 @@ test("can unarchive inbox entries", async () => {
             postCount: 3,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post3.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -5041,14 +5050,14 @@ test("notification on an archived entry revives it", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment1"),
                     references: emptyContentReferences,
@@ -5092,14 +5101,14 @@ test("notification on an archived entry revives it", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment2.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment2"),
                     references: emptyContentReferences,
@@ -5161,20 +5170,20 @@ test("notification on an archived entry revives it clearing old loud notificatio
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
@@ -5217,14 +5226,14 @@ test("notification on an archived entry revives it clearing old loud notificatio
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment2.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment2"),
                     references: emptyContentReferences,
@@ -5286,14 +5295,14 @@ test("notification on an archived entry from own account does not revive it", as
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment1"),
                     references: emptyContentReferences,
@@ -5351,20 +5360,20 @@ test("notification on an archived entry from own account does not revive it", as
             spaceId: scenario.space.id,
             accountId: scenario.session1.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment2.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment2"),
                     references: emptyContentReferences,
                 },
             },
-            otherCommentAuthor: scenario.session2.account,
+            otherCommentAuthor: await scenario.session2.account.get(),
         }),
     ]);
 });
@@ -6107,13 +6116,13 @@ test("start sort key and end sort key work properly in inclusive/exclusive mode"
                     accountId: scenario.session1.account.id,
                     channel,
                     postId: post6.id,
-                    postAuthor: scenario.session1.account,
+                    postAuthor: await scenario.session1.account.get(),
                     loudNotificationCount: 0,
                     postCreatedTime: post6.createdTime,
                     postContentSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment6.createdTime,
-                        author: scenario.session2.account,
+                        author: await scenario.session2.account.get(),
                         contentSnippet: {
                             doc: createSimpleMessageContent("comment6"),
                             references: emptyContentReferences,
@@ -6131,13 +6140,13 @@ test("start sort key and end sort key work properly in inclusive/exclusive mode"
                     accountId: scenario.session1.account.id,
                     channel,
                     postId: post5.id,
-                    postAuthor: scenario.session1.account,
+                    postAuthor: await scenario.session1.account.get(),
                     loudNotificationCount: 0,
                     postCreatedTime: post5.createdTime,
                     postContentSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment5.createdTime,
-                        author: scenario.session2.account,
+                        author: await scenario.session2.account.get(),
                         contentSnippet: {
                             doc: createSimpleMessageContent("comment5"),
                             references: emptyContentReferences,
@@ -6155,13 +6164,13 @@ test("start sort key and end sort key work properly in inclusive/exclusive mode"
                     accountId: scenario.session1.account.id,
                     channel,
                     postId: post4.id,
-                    postAuthor: scenario.session1.account,
+                    postAuthor: await scenario.session1.account.get(),
                     loudNotificationCount: 0,
                     postCreatedTime: post4.createdTime,
                     postContentSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment4.createdTime,
-                        author: scenario.session2.account,
+                        author: await scenario.session2.account.get(),
                         contentSnippet: {
                             doc: createSimpleMessageContent("comment4"),
                             references: emptyContentReferences,
@@ -6179,13 +6188,13 @@ test("start sort key and end sort key work properly in inclusive/exclusive mode"
                     accountId: scenario.session1.account.id,
                     channel,
                     postId: post3.id,
-                    postAuthor: scenario.session1.account,
+                    postAuthor: await scenario.session1.account.get(),
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: scenario.session2.account,
+                        author: await scenario.session2.account.get(),
                         contentSnippet: {
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
@@ -6203,13 +6212,13 @@ test("start sort key and end sort key work properly in inclusive/exclusive mode"
                     accountId: scenario.session1.account.id,
                     channel,
                     postId: post2.id,
-                    postAuthor: scenario.session1.account,
+                    postAuthor: await scenario.session1.account.get(),
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: scenario.session2.account,
+                        author: await scenario.session2.account.get(),
                         contentSnippet: {
                             doc: createSimpleMessageContent("comment2"),
                             references: emptyContentReferences,
@@ -6227,13 +6236,13 @@ test("start sort key and end sort key work properly in inclusive/exclusive mode"
                     accountId: scenario.session1.account.id,
                     channel,
                     postId: post1.id,
-                    postAuthor: scenario.session1.account,
+                    postAuthor: await scenario.session1.account.get(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: scenario.session2.account,
+                        author: await scenario.session2.account.get(),
                         contentSnippet: {
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
@@ -6278,13 +6287,13 @@ test("start sort key and end sort key work properly in inclusive/exclusive mode"
                     accountId: scenario.session1.account.id,
                     channel,
                     postId: post4.id,
-                    postAuthor: scenario.session1.account,
+                    postAuthor: await scenario.session1.account.get(),
                     loudNotificationCount: 0,
                     postCreatedTime: post4.createdTime,
                     postContentSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment4.createdTime,
-                        author: scenario.session2.account,
+                        author: await scenario.session2.account.get(),
                         contentSnippet: {
                             doc: createSimpleMessageContent("comment4"),
                             references: emptyContentReferences,
@@ -6302,13 +6311,13 @@ test("start sort key and end sort key work properly in inclusive/exclusive mode"
                     accountId: scenario.session1.account.id,
                     channel,
                     postId: post3.id,
-                    postAuthor: scenario.session1.account,
+                    postAuthor: await scenario.session1.account.get(),
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: scenario.session2.account,
+                        author: await scenario.session2.account.get(),
                         contentSnippet: {
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
@@ -6326,13 +6335,13 @@ test("start sort key and end sort key work properly in inclusive/exclusive mode"
                     accountId: scenario.session1.account.id,
                     channel,
                     postId: post2.id,
-                    postAuthor: scenario.session1.account,
+                    postAuthor: await scenario.session1.account.get(),
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: scenario.session2.account,
+                        author: await scenario.session2.account.get(),
                         contentSnippet: {
                             doc: createSimpleMessageContent("comment2"),
                             references: emptyContentReferences,
@@ -6350,13 +6359,13 @@ test("start sort key and end sort key work properly in inclusive/exclusive mode"
                     accountId: scenario.session1.account.id,
                     channel,
                     postId: post1.id,
-                    postAuthor: scenario.session1.account,
+                    postAuthor: await scenario.session1.account.get(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: scenario.session2.account,
+                        author: await scenario.session2.account.get(),
                         contentSnippet: {
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
@@ -6402,13 +6411,13 @@ test("start sort key and end sort key work properly in inclusive/exclusive mode"
                     accountId: scenario.session1.account.id,
                     channel,
                     postId: post3.id,
-                    postAuthor: scenario.session1.account,
+                    postAuthor: await scenario.session1.account.get(),
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: scenario.session2.account,
+                        author: await scenario.session2.account.get(),
                         contentSnippet: {
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
@@ -6426,13 +6435,13 @@ test("start sort key and end sort key work properly in inclusive/exclusive mode"
                     accountId: scenario.session1.account.id,
                     channel,
                     postId: post2.id,
-                    postAuthor: scenario.session1.account,
+                    postAuthor: await scenario.session1.account.get(),
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: scenario.session2.account,
+                        author: await scenario.session2.account.get(),
                         contentSnippet: {
                             doc: createSimpleMessageContent("comment2"),
                             references: emptyContentReferences,
@@ -6450,13 +6459,13 @@ test("start sort key and end sort key work properly in inclusive/exclusive mode"
                     accountId: scenario.session1.account.id,
                     channel,
                     postId: post1.id,
-                    postAuthor: scenario.session1.account,
+                    postAuthor: await scenario.session1.account.get(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: scenario.session2.account,
+                        author: await scenario.session2.account.get(),
                         contentSnippet: {
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
@@ -6501,13 +6510,13 @@ test("start sort key and end sort key work properly in inclusive/exclusive mode"
                     accountId: scenario.session1.account.id,
                     channel,
                     postId: post6.id,
-                    postAuthor: scenario.session1.account,
+                    postAuthor: await scenario.session1.account.get(),
                     loudNotificationCount: 0,
                     postCreatedTime: post6.createdTime,
                     postContentSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment6.createdTime,
-                        author: scenario.session2.account,
+                        author: await scenario.session2.account.get(),
                         contentSnippet: {
                             doc: createSimpleMessageContent("comment6"),
                             references: emptyContentReferences,
@@ -6525,13 +6534,13 @@ test("start sort key and end sort key work properly in inclusive/exclusive mode"
                     accountId: scenario.session1.account.id,
                     channel,
                     postId: post5.id,
-                    postAuthor: scenario.session1.account,
+                    postAuthor: await scenario.session1.account.get(),
                     loudNotificationCount: 0,
                     postCreatedTime: post5.createdTime,
                     postContentSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment5.createdTime,
-                        author: scenario.session2.account,
+                        author: await scenario.session2.account.get(),
                         contentSnippet: {
                             doc: createSimpleMessageContent("comment5"),
                             references: emptyContentReferences,
@@ -6549,13 +6558,13 @@ test("start sort key and end sort key work properly in inclusive/exclusive mode"
                     accountId: scenario.session1.account.id,
                     channel,
                     postId: post4.id,
-                    postAuthor: scenario.session1.account,
+                    postAuthor: await scenario.session1.account.get(),
                     loudNotificationCount: 0,
                     postCreatedTime: post4.createdTime,
                     postContentSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment4.createdTime,
-                        author: scenario.session2.account,
+                        author: await scenario.session2.account.get(),
                         contentSnippet: {
                             doc: createSimpleMessageContent("comment4"),
                             references: emptyContentReferences,
@@ -6573,13 +6582,13 @@ test("start sort key and end sort key work properly in inclusive/exclusive mode"
                     accountId: scenario.session1.account.id,
                     channel,
                     postId: post3.id,
-                    postAuthor: scenario.session1.account,
+                    postAuthor: await scenario.session1.account.get(),
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: scenario.session2.account,
+                        author: await scenario.session2.account.get(),
                         contentSnippet: {
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
@@ -6597,13 +6606,13 @@ test("start sort key and end sort key work properly in inclusive/exclusive mode"
                     accountId: scenario.session1.account.id,
                     channel,
                     postId: post2.id,
-                    postAuthor: scenario.session1.account,
+                    postAuthor: await scenario.session1.account.get(),
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: scenario.session2.account,
+                        author: await scenario.session2.account.get(),
                         contentSnippet: {
                             doc: createSimpleMessageContent("comment2"),
                             references: emptyContentReferences,
@@ -6649,13 +6658,13 @@ test("start sort key and end sort key work properly in inclusive/exclusive mode"
                     accountId: scenario.session1.account.id,
                     channel,
                     postId: post6.id,
-                    postAuthor: scenario.session1.account,
+                    postAuthor: await scenario.session1.account.get(),
                     loudNotificationCount: 0,
                     postCreatedTime: post6.createdTime,
                     postContentSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment6.createdTime,
-                        author: scenario.session2.account,
+                        author: await scenario.session2.account.get(),
                         contentSnippet: {
                             doc: createSimpleMessageContent("comment6"),
                             references: emptyContentReferences,
@@ -6673,13 +6682,13 @@ test("start sort key and end sort key work properly in inclusive/exclusive mode"
                     accountId: scenario.session1.account.id,
                     channel,
                     postId: post5.id,
-                    postAuthor: scenario.session1.account,
+                    postAuthor: await scenario.session1.account.get(),
                     loudNotificationCount: 0,
                     postCreatedTime: post5.createdTime,
                     postContentSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment5.createdTime,
-                        author: scenario.session2.account,
+                        author: await scenario.session2.account.get(),
                         contentSnippet: {
                             doc: createSimpleMessageContent("comment5"),
                             references: emptyContentReferences,
@@ -6697,13 +6706,13 @@ test("start sort key and end sort key work properly in inclusive/exclusive mode"
                     accountId: scenario.session1.account.id,
                     channel,
                     postId: post4.id,
-                    postAuthor: scenario.session1.account,
+                    postAuthor: await scenario.session1.account.get(),
                     loudNotificationCount: 0,
                     postCreatedTime: post4.createdTime,
                     postContentSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment4.createdTime,
-                        author: scenario.session2.account,
+                        author: await scenario.session2.account.get(),
                         contentSnippet: {
                             doc: createSimpleMessageContent("comment4"),
                             references: emptyContentReferences,
@@ -6721,13 +6730,13 @@ test("start sort key and end sort key work properly in inclusive/exclusive mode"
                     accountId: scenario.session1.account.id,
                     channel,
                     postId: post3.id,
-                    postAuthor: scenario.session1.account,
+                    postAuthor: await scenario.session1.account.get(),
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: scenario.session2.account,
+                        author: await scenario.session2.account.get(),
                         contentSnippet: {
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
@@ -6791,20 +6800,20 @@ test("archiving an entry with loud notifications puts it back at the inbox gener
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment2.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -6815,20 +6824,20 @@ test("archiving an entry with loud notifications puts it back at the inbox gener
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -6844,7 +6853,7 @@ test("archiving an entry with loud notifications puts it back at the inbox gener
             postCount: 2,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post2.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -6872,20 +6881,20 @@ test("archiving an entry with loud notifications puts it back at the inbox gener
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -6901,7 +6910,7 @@ test("archiving an entry with loud notifications puts it back at the inbox gener
             postCount: 2,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post2.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -6932,20 +6941,20 @@ test("archiving an entry with loud notifications puts it back at the inbox gener
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -6956,14 +6965,14 @@ test("archiving an entry with loud notifications puts it back at the inbox gener
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
@@ -6980,7 +6989,7 @@ test("archiving an entry with loud notifications puts it back at the inbox gener
             postCount: 2,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post2.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -7043,20 +7052,20 @@ test("implicitly archiving an entry with loud notifications puts it back at the 
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment2.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -7067,20 +7076,20 @@ test("implicitly archiving an entry with loud notifications puts it back at the 
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -7096,7 +7105,7 @@ test("implicitly archiving an entry with loud notifications puts it back at the 
             postCount: 2,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post2.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -7127,20 +7136,20 @@ test("implicitly archiving an entry with loud notifications puts it back at the 
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -7156,7 +7165,7 @@ test("implicitly archiving an entry with loud notifications puts it back at the 
             postCount: 2,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post2.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -7187,20 +7196,20 @@ test("implicitly archiving an entry with loud notifications puts it back at the 
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -7211,20 +7220,20 @@ test("implicitly archiving an entry with loud notifications puts it back at the 
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
                 },
             },
-            otherCommentAuthor: scenario.session1.account,
+            otherCommentAuthor: await scenario.session1.account.get(),
         }),
         new InboxChannelPostsEntryModel({
             spaceId: scenario.space.id,
@@ -7235,7 +7244,7 @@ test("implicitly archiving an entry with loud notifications puts it back at the 
             postCount: 2,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post2.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -7309,20 +7318,20 @@ test("archived entries are in the order they were archived", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post3.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post3.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -7333,20 +7342,20 @@ test("archived entries are in the order they were archived", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment2.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -7357,20 +7366,20 @@ test("archived entries are in the order they were archived", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -7386,7 +7395,7 @@ test("archived entries are in the order they were archived", async () => {
             postCount: 3,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post3.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -7423,20 +7432,20 @@ test("archived entries are in the order they were archived", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment2.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -7447,20 +7456,20 @@ test("archived entries are in the order they were archived", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -7476,7 +7485,7 @@ test("archived entries are in the order they were archived", async () => {
             postCount: 3,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post3.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -7499,20 +7508,20 @@ test("archived entries are in the order they were archived", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post3.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post3.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -7538,20 +7547,20 @@ test("archived entries are in the order they were archived", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment2.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -7567,7 +7576,7 @@ test("archived entries are in the order they were archived", async () => {
             postCount: 3,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post3.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -7590,20 +7599,20 @@ test("archived entries are in the order they were archived", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -7614,20 +7623,20 @@ test("archived entries are in the order they were archived", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post3.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post3.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -7658,7 +7667,7 @@ test("archived entries are in the order they were archived", async () => {
             postCount: 3,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post3.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -7681,20 +7690,20 @@ test("archived entries are in the order they were archived", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment2.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -7705,20 +7714,20 @@ test("archived entries are in the order they were archived", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -7729,20 +7738,20 @@ test("archived entries are in the order they were archived", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post3.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post3.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -7814,20 +7823,20 @@ test("implicitly archived entries are in the order they were archived", async ()
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post3.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post3.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -7838,20 +7847,20 @@ test("implicitly archived entries are in the order they were archived", async ()
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment2.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -7862,20 +7871,20 @@ test("implicitly archived entries are in the order they were archived", async ()
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -7891,7 +7900,7 @@ test("implicitly archived entries are in the order they were archived", async ()
             postCount: 3,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post3.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -7931,20 +7940,20 @@ test("implicitly archived entries are in the order they were archived", async ()
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment2.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -7955,20 +7964,20 @@ test("implicitly archived entries are in the order they were archived", async ()
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -7984,7 +7993,7 @@ test("implicitly archived entries are in the order they were archived", async ()
             postCount: 3,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post3.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -8007,20 +8016,20 @@ test("implicitly archived entries are in the order they were archived", async ()
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post3.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post3.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment4.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("test"),
                     references: emptyContentReferences,
                 },
             },
-            otherCommentAuthor: scenario.session1.account,
+            otherCommentAuthor: await scenario.session1.account.get(),
         }),
     ]);
 
@@ -8044,20 +8053,20 @@ test("implicitly archived entries are in the order they were archived", async ()
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment2.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -8073,7 +8082,7 @@ test("implicitly archived entries are in the order they were archived", async ()
             postCount: 3,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post3.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -8096,39 +8105,39 @@ test("implicitly archived entries are in the order they were archived", async ()
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment5.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("test"),
                     references: emptyContentReferences,
                 },
             },
-            otherCommentAuthor: scenario.session1.account,
+            otherCommentAuthor: await scenario.session1.account.get(),
         }),
         new InboxPostCommentsEntryModel({
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post3.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post3.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment4.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("test"),
                     references: emptyContentReferences,
                 },
             },
-            otherCommentAuthor: scenario.session1.account,
+            otherCommentAuthor: await scenario.session1.account.get(),
         }),
     ]);
 
@@ -8157,7 +8166,7 @@ test("implicitly archived entries are in the order they were archived", async ()
             postCount: 3,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post3.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -8180,58 +8189,58 @@ test("implicitly archived entries are in the order they were archived", async ()
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment6.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("test"),
                     references: emptyContentReferences,
                 },
             },
-            otherCommentAuthor: scenario.session1.account,
+            otherCommentAuthor: await scenario.session1.account.get(),
         }),
         new InboxPostCommentsEntryModel({
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment5.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("test"),
                     references: emptyContentReferences,
                 },
             },
-            otherCommentAuthor: scenario.session1.account,
+            otherCommentAuthor: await scenario.session1.account.get(),
         }),
         new InboxPostCommentsEntryModel({
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post3.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post3.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment4.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("test"),
                     references: emptyContentReferences,
                 },
             },
-            otherCommentAuthor: scenario.session1.account,
+            otherCommentAuthor: await scenario.session1.account.get(),
         }),
     ]);
 });
@@ -8313,20 +8322,20 @@ test("archive entry order does not change when it updates", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment2.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -8337,20 +8346,20 @@ test("archive entry order does not change when it updates", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -8361,20 +8370,20 @@ test("archive entry order does not change when it updates", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post3.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post3.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -8403,20 +8412,20 @@ test("archive entry order does not change when it updates", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment2.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -8427,20 +8436,20 @@ test("archive entry order does not change when it updates", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -8451,20 +8460,20 @@ test("archive entry order does not change when it updates", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post3.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post3.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment4.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment4"),
                     references: emptyContentReferences,
                 },
             },
-            otherCommentAuthor: scenario.session1.account,
+            otherCommentAuthor: await scenario.session1.account.get(),
         }),
     ]);
 
@@ -8488,39 +8497,39 @@ test("archive entry order does not change when it updates", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post2.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment5.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment5"),
                     references: emptyContentReferences,
                 },
             },
-            otherCommentAuthor: scenario.session1.account,
+            otherCommentAuthor: await scenario.session1.account.get(),
         }),
         new InboxPostCommentsEntryModel({
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post1.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post1.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -8531,20 +8540,20 @@ test("archive entry order does not change when it updates", async () => {
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post3.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post3.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment4.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment4"),
                     references: emptyContentReferences,
                 },
             },
-            otherCommentAuthor: scenario.session1.account,
+            otherCommentAuthor: await scenario.session1.account.get(),
         }),
     ]);
 });
@@ -8632,7 +8641,7 @@ test("mentioning in a post creates an entry for the mentioned account", async ()
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post2.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post2.createdTime,
@@ -8654,7 +8663,7 @@ test("mentioning in a post creates an entry for the mentioned account", async ()
                 references: {
                     ...emptyContentReferences,
                     accountById: new Map([
-                        [scenario.session2.account.id, scenario.session2.account],
+                        [scenario.session2.account.id, await scenario.session2.account.get()],
                     ]),
                 },
             },
@@ -8670,7 +8679,7 @@ test("mentioning in a post creates an entry for the mentioned account", async ()
             postCount: 2,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post3.createdTime,
                 contentSnippet: {
                     doc: assertPostContent(
@@ -8690,7 +8699,7 @@ test("mentioning in a post creates an entry for the mentioned account", async ()
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session3.account.id, scenario.session3.account],
+                            [scenario.session3.account.id, await scenario.session3.account.get()],
                         ]),
                     },
                 },
@@ -8711,7 +8720,7 @@ test("mentioning in a post creates an entry for the mentioned account", async ()
             spaceId: scenario.space.id,
             accountId: scenario.session3.account.id,
             postId: post3.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post3.createdTime,
@@ -8733,7 +8742,7 @@ test("mentioning in a post creates an entry for the mentioned account", async ()
                 references: {
                     ...emptyContentReferences,
                     accountById: new Map([
-                        [scenario.session3.account.id, scenario.session3.account],
+                        [scenario.session3.account.id, await scenario.session3.account.get()],
                     ]),
                 },
             },
@@ -8749,7 +8758,7 @@ test("mentioning in a post creates an entry for the mentioned account", async ()
             postCount: 2,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post2.createdTime,
                 contentSnippet: {
                     doc: assertPostContent(
@@ -8769,7 +8778,7 @@ test("mentioning in a post creates an entry for the mentioned account", async ()
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -8823,7 +8832,7 @@ test("commenting on a post someone was mentioned on updates an entry for the men
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post.createdTime,
@@ -8845,7 +8854,7 @@ test("commenting on a post someone was mentioned on updates an entry for the men
                 references: {
                     ...emptyContentReferences,
                     accountById: new Map([
-                        [scenario.session2.account.id, scenario.session2.account],
+                        [scenario.session2.account.id, await scenario.session2.account.get()],
                     ]),
                 },
             },
@@ -8874,7 +8883,7 @@ test("commenting on a post someone was mentioned on updates an entry for the men
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post.createdTime,
@@ -8896,13 +8905,13 @@ test("commenting on a post someone was mentioned on updates an entry for the men
                 references: {
                     ...emptyContentReferences,
                     accountById: new Map([
-                        [scenario.session2.account.id, scenario.session2.account],
+                        [scenario.session2.account.id, await scenario.session2.account.get()],
                     ]),
                 },
             },
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment1"),
                     references: emptyContentReferences,
@@ -8957,7 +8966,7 @@ test("commenting on a post revives an archived entry someone was mentioned on", 
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post.createdTime,
@@ -8979,7 +8988,7 @@ test("commenting on a post revives an archived entry someone was mentioned on", 
                 references: {
                     ...emptyContentReferences,
                     accountById: new Map([
-                        [scenario.session2.account.id, scenario.session2.account],
+                        [scenario.session2.account.id, await scenario.session2.account.get()],
                     ]),
                 },
             },
@@ -9023,7 +9032,7 @@ test("commenting on a post revives an archived entry someone was mentioned on", 
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post.createdTime,
@@ -9045,7 +9054,7 @@ test("commenting on a post revives an archived entry someone was mentioned on", 
                 references: {
                     ...emptyContentReferences,
                     accountById: new Map([
-                        [scenario.session2.account.id, scenario.session2.account],
+                        [scenario.session2.account.id, await scenario.session2.account.get()],
                     ]),
                 },
             },
@@ -9074,14 +9083,14 @@ test("commenting on a post revives an archived entry someone was mentioned on", 
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment1.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("comment1"),
                     references: emptyContentReferences,
@@ -9160,20 +9169,20 @@ test("post with mention create event processed after comment event", async () =>
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -9197,7 +9206,7 @@ test("post with mention create event processed after comment event", async () =>
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 2,
             postCreatedTime: post.createdTime,
@@ -9219,19 +9228,19 @@ test("post with mention create event processed after comment event", async () =>
                 references: {
                     ...emptyContentReferences,
                     accountById: new Map([
-                        [scenario.session2.account.id, scenario.session2.account],
+                        [scenario.session2.account.id, await scenario.session2.account.get()],
                     ]),
                 },
             },
             latestComment: {
                 createdTime: comment.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -9300,20 +9309,20 @@ test("post with mention create event processed after comment event and after ent
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 1,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -9357,20 +9366,20 @@ test("post with mention create event processed after comment event and after ent
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post.createdTime,
             postContentSnippetIfMentioned: null,
             latestComment: {
                 createdTime: comment.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -9403,7 +9412,7 @@ test("post with mention create event processed after comment event and after ent
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             postId: post.id,
-            postAuthor: scenario.session1.account,
+            postAuthor: await scenario.session1.account.get(),
             channel,
             loudNotificationCount: 0,
             postCreatedTime: post.createdTime,
@@ -9425,19 +9434,19 @@ test("post with mention create event processed after comment event and after ent
                 references: {
                     ...emptyContentReferences,
                     accountById: new Map([
-                        [scenario.session2.account.id, scenario.session2.account],
+                        [scenario.session2.account.id, await scenario.session2.account.get()],
                     ]),
                 },
             },
             latestComment: {
                 createdTime: comment.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -9552,7 +9561,7 @@ test("creating posts updates an entry for every member in the space", async () =
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post1.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -9580,7 +9589,7 @@ test("creating posts updates an entry for every member in the space", async () =
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post1.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -9608,7 +9617,7 @@ test("creating posts updates an entry for every member in the space", async () =
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post1.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -9661,7 +9670,7 @@ test("creating posts updates an entry for every member in the space", async () =
             postCount: 2,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post2.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -9689,7 +9698,7 @@ test("creating posts updates an entry for every member in the space", async () =
             postCount: 2,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post2.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -9717,7 +9726,7 @@ test("creating posts updates an entry for every member in the space", async () =
             postCount: 2,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post2.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -9761,7 +9770,7 @@ test("creating posts updates an entry for every member in the space", async () =
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 createdTime: post3.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -9789,7 +9798,7 @@ test("creating posts updates an entry for every member in the space", async () =
             postCount: 2,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post2.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -9817,14 +9826,14 @@ test("creating posts updates an entry for every member in the space", async () =
             postCount: 3,
             postAuthorCount: 2,
             latestPost: {
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 createdTime: post3.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
                     references: emptyContentReferences,
                 },
             },
-            otherPostAuthor: scenario.session1.account,
+            otherPostAuthor: await scenario.session1.account.get(),
         }),
     ]);
 
@@ -9845,14 +9854,14 @@ test("creating posts updates an entry for every member in the space", async () =
             postCount: 3,
             postAuthorCount: 2,
             latestPost: {
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 createdTime: post3.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
                     references: emptyContentReferences,
                 },
             },
-            otherPostAuthor: scenario.session1.account,
+            otherPostAuthor: await scenario.session1.account.get(),
         }),
     ]);
 
@@ -9889,7 +9898,7 @@ test("creating posts updates an entry for every member in the space", async () =
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 createdTime: post4.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -9907,7 +9916,7 @@ test("creating posts updates an entry for every member in the space", async () =
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 createdTime: post3.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -9935,7 +9944,7 @@ test("creating posts updates an entry for every member in the space", async () =
             postCount: 2,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post2.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -9963,7 +9972,7 @@ test("creating posts updates an entry for every member in the space", async () =
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 createdTime: post4.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -9981,14 +9990,14 @@ test("creating posts updates an entry for every member in the space", async () =
             postCount: 3,
             postAuthorCount: 2,
             latestPost: {
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 createdTime: post3.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
                     references: emptyContentReferences,
                 },
             },
-            otherPostAuthor: scenario.session1.account,
+            otherPostAuthor: await scenario.session1.account.get(),
         }),
     ]);
 
@@ -10009,7 +10018,7 @@ test("creating posts updates an entry for every member in the space", async () =
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 createdTime: post4.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
@@ -10027,14 +10036,14 @@ test("creating posts updates an entry for every member in the space", async () =
             postCount: 3,
             postAuthorCount: 2,
             latestPost: {
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 createdTime: post3.createdTime,
                 contentSnippet: {
                     doc: emptyPostContent,
                     references: emptyContentReferences,
                 },
             },
-            otherPostAuthor: scenario.session1.account,
+            otherPostAuthor: await scenario.session1.account.get(),
         }),
     ]);
 
@@ -10127,7 +10136,7 @@ test("getting inbox entry posts freezes the inbox entry", async () => {
             postCount: 2,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post2.createdTime,
                 contentSnippet: emptyPostContentWithReferences,
             },
@@ -10151,7 +10160,7 @@ test("getting inbox entry posts freezes the inbox entry", async () => {
                 spaceId: scenario.space.id,
                 channel,
                 createdTime: post2.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 content: emptyPostContentWithReferences,
                 contentUpdatedTime: null,
                 commentCount: 0,
@@ -10164,7 +10173,7 @@ test("getting inbox entry posts freezes the inbox entry", async () => {
                 spaceId: scenario.space.id,
                 channel,
                 createdTime: post1.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 content: emptyPostContentWithReferences,
                 contentUpdatedTime: null,
                 commentCount: 0,
@@ -10209,7 +10218,7 @@ test("getting inbox entry posts freezes the inbox entry", async () => {
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post3.createdTime,
                 contentSnippet: emptyPostContentWithReferences,
             },
@@ -10224,7 +10233,7 @@ test("getting inbox entry posts freezes the inbox entry", async () => {
             postCount: 2,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post2.createdTime,
                 contentSnippet: emptyPostContentWithReferences,
             },
@@ -10248,7 +10257,7 @@ test("getting inbox entry posts freezes the inbox entry", async () => {
                 spaceId: scenario.space.id,
                 channel,
                 createdTime: post2.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 content: emptyPostContentWithReferences,
                 contentUpdatedTime: null,
                 commentCount: 0,
@@ -10261,7 +10270,7 @@ test("getting inbox entry posts freezes the inbox entry", async () => {
                 spaceId: scenario.space.id,
                 channel,
                 createdTime: post1.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 content: emptyPostContentWithReferences,
                 contentUpdatedTime: null,
                 commentCount: 0,
@@ -10288,7 +10297,7 @@ test("getting inbox entry posts freezes the inbox entry", async () => {
                 spaceId: scenario.space.id,
                 channel,
                 createdTime: post3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 content: emptyPostContentWithReferences,
                 contentUpdatedTime: null,
                 commentCount: 0,
@@ -10323,7 +10332,7 @@ test("getting inbox entry posts freezes the inbox entry", async () => {
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post4.createdTime,
                 contentSnippet: emptyPostContentWithReferences,
             },
@@ -10338,7 +10347,7 @@ test("getting inbox entry posts freezes the inbox entry", async () => {
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post3.createdTime,
                 contentSnippet: emptyPostContentWithReferences,
             },
@@ -10353,7 +10362,7 @@ test("getting inbox entry posts freezes the inbox entry", async () => {
             postCount: 2,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post2.createdTime,
                 contentSnippet: emptyPostContentWithReferences,
             },
@@ -10377,7 +10386,7 @@ test("getting inbox entry posts freezes the inbox entry", async () => {
                 spaceId: scenario.space.id,
                 channel,
                 createdTime: post2.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 content: emptyPostContentWithReferences,
                 contentUpdatedTime: null,
                 commentCount: 0,
@@ -10390,7 +10399,7 @@ test("getting inbox entry posts freezes the inbox entry", async () => {
                 spaceId: scenario.space.id,
                 channel,
                 createdTime: post1.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 content: emptyPostContentWithReferences,
                 contentUpdatedTime: null,
                 commentCount: 0,
@@ -10417,7 +10426,7 @@ test("getting inbox entry posts freezes the inbox entry", async () => {
                 spaceId: scenario.space.id,
                 channel,
                 createdTime: post3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 content: emptyPostContentWithReferences,
                 contentUpdatedTime: null,
                 commentCount: 0,
@@ -10444,7 +10453,7 @@ test("getting inbox entry posts freezes the inbox entry", async () => {
                 spaceId: scenario.space.id,
                 channel,
                 createdTime: post4.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 content: emptyPostContentWithReferences,
                 contentUpdatedTime: null,
                 commentCount: 0,
@@ -10502,7 +10511,7 @@ test("getting inbox entry posts does not observe if inbox was already observed",
             postCount: 2,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post2.createdTime,
                 contentSnippet: emptyPostContentWithReferences,
             },
@@ -10536,7 +10545,7 @@ test("getting inbox entry posts does not observe if inbox was already observed",
             postCount: 1,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post3.createdTime,
                 contentSnippet: emptyPostContentWithReferences,
             },
@@ -10551,7 +10560,7 @@ test("getting inbox entry posts does not observe if inbox was already observed",
             postCount: 2,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post2.createdTime,
                 contentSnippet: emptyPostContentWithReferences,
             },
@@ -10575,7 +10584,7 @@ test("getting inbox entry posts does not observe if inbox was already observed",
                 spaceId: scenario.space.id,
                 channel,
                 createdTime: post2.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 content: emptyPostContentWithReferences,
                 contentUpdatedTime: null,
                 commentCount: 0,
@@ -10588,7 +10597,7 @@ test("getting inbox entry posts does not observe if inbox was already observed",
                 spaceId: scenario.space.id,
                 channel,
                 createdTime: post1.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 content: emptyPostContentWithReferences,
                 contentUpdatedTime: null,
                 commentCount: 0,
@@ -10623,7 +10632,7 @@ test("getting inbox entry posts does not observe if inbox was already observed",
             postCount: 2,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post4.createdTime,
                 contentSnippet: emptyPostContentWithReferences,
             },
@@ -10638,7 +10647,7 @@ test("getting inbox entry posts does not observe if inbox was already observed",
             postCount: 2,
             postAuthorCount: 1,
             latestPost: {
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 createdTime: post2.createdTime,
                 contentSnippet: emptyPostContentWithReferences,
             },
@@ -10662,7 +10671,7 @@ test("getting inbox entry posts does not observe if inbox was already observed",
                 spaceId: scenario.space.id,
                 channel,
                 createdTime: post2.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 content: emptyPostContentWithReferences,
                 contentUpdatedTime: null,
                 commentCount: 0,
@@ -10675,7 +10684,7 @@ test("getting inbox entry posts does not observe if inbox was already observed",
                 spaceId: scenario.space.id,
                 channel,
                 createdTime: post1.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 content: emptyPostContentWithReferences,
                 contentUpdatedTime: null,
                 commentCount: 0,
@@ -10702,7 +10711,7 @@ test("getting inbox entry posts does not observe if inbox was already observed",
                 spaceId: scenario.space.id,
                 channel,
                 createdTime: post4.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 content: emptyPostContentWithReferences,
                 contentUpdatedTime: null,
                 commentCount: 0,
@@ -10715,7 +10724,7 @@ test("getting inbox entry posts does not observe if inbox was already observed",
                 spaceId: scenario.space.id,
                 channel,
                 createdTime: post3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 content: emptyPostContentWithReferences,
                 contentUpdatedTime: null,
                 commentCount: 0,
@@ -10795,7 +10804,7 @@ test("can paginate getting inbox entries", async () => {
         spaceId: scenario.space.id,
         channel,
         createdTime: post1.createdTime,
-        author: scenario.session1.account,
+        author: await scenario.session1.account.get(),
         content: emptyPostContentWithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
@@ -10809,7 +10818,7 @@ test("can paginate getting inbox entries", async () => {
         spaceId: scenario.space.id,
         channel,
         createdTime: post2.createdTime,
-        author: scenario.session1.account,
+        author: await scenario.session1.account.get(),
         content: emptyPostContentWithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
@@ -10823,7 +10832,7 @@ test("can paginate getting inbox entries", async () => {
         spaceId: scenario.space.id,
         channel,
         createdTime: post3.createdTime,
-        author: scenario.session1.account,
+        author: await scenario.session1.account.get(),
         content: emptyPostContentWithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
@@ -10837,7 +10846,7 @@ test("can paginate getting inbox entries", async () => {
         spaceId: scenario.space.id,
         channel,
         createdTime: post4.createdTime,
-        author: scenario.session1.account,
+        author: await scenario.session1.account.get(),
         content: emptyPostContentWithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
@@ -10851,7 +10860,7 @@ test("can paginate getting inbox entries", async () => {
         spaceId: scenario.space.id,
         channel,
         createdTime: post5.createdTime,
-        author: scenario.session1.account,
+        author: await scenario.session1.account.get(),
         content: emptyPostContentWithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
@@ -10865,7 +10874,7 @@ test("can paginate getting inbox entries", async () => {
         spaceId: scenario.space.id,
         channel,
         createdTime: post6.createdTime,
-        author: scenario.session1.account,
+        author: await scenario.session1.account.get(),
         content: emptyPostContentWithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
@@ -10879,7 +10888,7 @@ test("can paginate getting inbox entries", async () => {
         spaceId: scenario.space.id,
         channel,
         createdTime: post7.createdTime,
-        author: scenario.session1.account,
+        author: await scenario.session1.account.get(),
         content: emptyPostContentWithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
@@ -10893,7 +10902,7 @@ test("can paginate getting inbox entries", async () => {
         spaceId: scenario.space.id,
         channel,
         createdTime: post8.createdTime,
-        author: scenario.session1.account,
+        author: await scenario.session1.account.get(),
         content: emptyPostContentWithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
@@ -11096,7 +11105,7 @@ test("account can't backfill in a space it can't access", async () => {
                         postCount: 1,
                         postAuthorCount: 1,
                         latestPost: {
-                            author: scenario.session1.account,
+                            author: await scenario.session1.account.get(),
                             createdTime: post.createdTime,
                             contentSnippet: {
                                 doc: emptyPostContent,
@@ -11164,7 +11173,7 @@ test("won't backfill events that happened far in the past", async () => {
                         postCount: 1,
                         postAuthorCount: 1,
                         latestPost: {
-                            author: scenario.session1.account,
+                            author: await scenario.session1.account.get(),
                             createdTime: post.createdTime,
                             contentSnippet: {
                                 doc: emptyPostContent,

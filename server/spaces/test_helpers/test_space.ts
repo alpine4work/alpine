@@ -1,12 +1,10 @@
-import {getAccountsTableForTest} from "~/server/accounts/accounts_table.js";
-import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {getSpacesTableForTest} from "~/server/spaces/spaces_table.js";
+import {createSpaceAccountForTest, createSpaceForTest} from "~/server/spaces/spaces_table.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
-import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
 
 let testSpaceCount = 1;
 
@@ -47,16 +45,11 @@ export class TestSpace {
             name?: string;
         } = {},
     ) {
-        const SpacesTable = getSpacesTableForTest();
-
         const id = generateId<SpaceId>();
 
-        await SpacesTable.createItem(context, {
-            partitionType: "Space",
-            sortRangeType: "Attributes",
-            spaceId: id,
-            name,
-            createdTime: testClock.nowDate(),
+        await createSpaceForTest(context, {
+            id,
+            name: "Test",
         });
 
         return new TestSpace(context, id);
@@ -67,56 +60,22 @@ export class TestSpace {
     }
 
     public async createSession(account?: TestAccount) {
-        const AccountsTable = getAccountsTableForTest();
-        const SpacesTable = getSpacesTableForTest();
-
-        const transactionEntries = [];
-
-        const accountId = account?.id ?? generateId<AccountId>();
-        const sessionId = generateId<SessionId>();
-
-        const createdTime = testClock.nowDate();
-
         if (!account) {
-            const accountName = TestAccount.getNewName();
-
-            transactionEntries.push(
-                AccountsTable.transactionCreateItem({
-                    partitionType: "Account",
-                    sortRangeType: "Attributes",
-                    accountId,
-                    name: accountName,
-                    createdTime,
-                }),
-            );
-
-            account = TestAccount._newAssumingExists(this.context, accountId, accountName);
+            account = await TestAccount.create(this.context);
         }
 
-        transactionEntries.push(
-            AccountsTable.transactionCreateItem({
-                partitionType: "Session",
-                sortRangeType: "Attributes",
-                sessionId,
-                accountId,
-                createdTime,
-                initialIpAddress: null,
-                initialUserAgent: null,
-            }),
-        );
+        const [session] = await runAllPromises([
+            TestSpaceSession.create(this, account),
+            this.addAccount(account),
+        ]);
 
-        transactionEntries.push(
-            SpacesTable.transactionCreateItem({
-                partitionType: "Space",
-                sortRangeType: "Account",
-                spaceId: this.id,
-                accountId,
-                joinedTime: createdTime,
-            }),
-        );
+        return session;
+    }
 
-        await DynamoTableSchema.executeTransaction(this.context, transactionEntries);
-
-        return TestSpaceSession._newAssumingExists(this, account, sessionId, createdTime);
+    public async addAccount(account: TestAccount) {
+        await createSpaceAccountForTest(this.context, {
+            spaceId: this.id,
+            accountId: account.id,
+        });
     }
 }

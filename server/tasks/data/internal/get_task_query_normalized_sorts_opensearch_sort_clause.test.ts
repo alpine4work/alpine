@@ -1,8 +1,7 @@
 import {parseAbsolute, toCalendarDate} from "@internationalized/date";
 import createJsonBigInt from "json-bigint";
-import {SessionItem, getAccountsTableForTest} from "~/server/accounts/accounts_table.js";
 import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {getSpacesTableForTest} from "~/server/spaces/spaces_table.js";
+import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {getTaskQueryNormalizedSortCursorForIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_for_index_doc.js";
 import {
     convertTaskQuerySortCursorToOpensearchCursor,
@@ -21,7 +20,7 @@ import {
 import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {getTaskQueryNormalizedSortCursorForModel} from "~/shared/tasks/model/get_task_query_normalized_sort_cursor_for_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
@@ -50,124 +49,6 @@ const context = {
         });
     },
 } satisfies TestContext;
-
-// We create a new scenario for every test so we can query all tasks within
-// a space.
-async function createScenario() {
-    const SpacesTable = getSpacesTableForTest();
-    const AccountsTable = getAccountsTableForTest();
-
-    const createdTime = new Date();
-
-    const spaceId = generateId<SpaceId>();
-
-    const account1Id = generateId<AccountId>();
-    const account2Id = generateId<AccountId>();
-    const account3Id = generateId<AccountId>();
-
-    const account1SessionItem: SessionItem = {
-        partitionType: "Session",
-        sortRangeType: "Attributes",
-        sessionId: generateId(),
-        accountId: account1Id,
-        createdTime,
-        initialIpAddress: null,
-        initialUserAgent: null,
-    };
-    const account2SessionItem: SessionItem = {
-        partitionType: "Session",
-        sortRangeType: "Attributes",
-        sessionId: generateId(),
-        accountId: account2Id,
-        createdTime,
-        initialIpAddress: null,
-        initialUserAgent: null,
-    };
-    const account3SessionItem: SessionItem = {
-        partitionType: "Session",
-        sortRangeType: "Attributes",
-        sessionId: generateId(),
-        accountId: account3Id,
-        createdTime,
-        initialIpAddress: null,
-        initialUserAgent: null,
-    };
-
-    const account1Item = {
-        partitionType: "Account",
-        sortRangeType: "Attributes",
-        accountId: account1Id,
-        name: "Account 1",
-        createdTime,
-    } as const;
-    const account2Item = {
-        partitionType: "Account",
-        sortRangeType: "Attributes",
-        accountId: account2Id,
-        name: "Account 2",
-        createdTime,
-    } as const;
-    const account3Item = {
-        partitionType: "Account",
-        sortRangeType: "Attributes",
-        accountId: account3Id,
-        name: "Account 3",
-        createdTime,
-    } as const;
-
-    await runAllPromises([
-        SpacesTable.createItem(context, {
-            partitionType: "Space",
-            sortRangeType: "Attributes",
-            spaceId: spaceId,
-            name: "Space",
-            createdTime,
-        }),
-        SpacesTable.createItem(context, {
-            partitionType: "Space",
-            sortRangeType: "Account",
-            spaceId: spaceId,
-            accountId: account1Id,
-            joinedTime: createdTime,
-        }),
-        SpacesTable.createItem(context, {
-            partitionType: "Space",
-            sortRangeType: "Account",
-            spaceId: spaceId,
-            accountId: account2Id,
-            joinedTime: createdTime,
-        }),
-        SpacesTable.createItem(context, {
-            partitionType: "Space",
-            sortRangeType: "Account",
-            spaceId: spaceId,
-            accountId: account3Id,
-            joinedTime: createdTime,
-        }),
-        AccountsTable.createItem(context, account1Item),
-        AccountsTable.createItem(context, account2Item),
-        AccountsTable.createItem(context, account3Item),
-        AccountsTable.createItem(context, account1SessionItem),
-        AccountsTable.createItem(context, account2SessionItem),
-        AccountsTable.createItem(context, account3SessionItem),
-    ]);
-
-    return {
-        space: {id: spaceId},
-        session1: {
-            ...account1SessionItem,
-            account: {id: account1Id, name: account1Item.name},
-        },
-        session2: {
-            ...account2SessionItem,
-            account: {id: account2Id, name: account2Item.name},
-        },
-        session3: {
-            ...account3SessionItem,
-            account: {id: account3Id, name: account3Item.name},
-        },
-    };
-}
 
 // 16:00 should be noon in `defaultTimeZone`.
 const mockStartTime = new Date("2023-08-07T16:00:00.000Z").getTime();
@@ -364,7 +245,8 @@ function convertTaskIndexDocToModel(task: TaskIndexDoc): TaskModel {
 }
 
 test("sorts by created time by default", async () => {
-    const {space, session1} = await createScenario();
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -447,7 +329,8 @@ test("sorts by created time by default", async () => {
 });
 
 test("sort tiebreaks with task id", async () => {
-    const {space, session1} = await createScenario();
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -516,7 +399,8 @@ test("sort tiebreaks with task id", async () => {
 });
 
 test("sorts by created time", async () => {
-    const {space, session1} = await createScenario();
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -629,7 +513,8 @@ test("sorts by created time", async () => {
 });
 
 test("sorts by display status", async () => {
-    const {space, session1} = await createScenario();
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -745,7 +630,8 @@ test("sorts by display status", async () => {
 });
 
 test("sorts by priority", async () => {
-    const {space, session1} = await createScenario();
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -882,7 +768,13 @@ test("sorts by priority", async () => {
 });
 
 test("sorts by assignee", async () => {
-    const {space, session1, session2, session3} = await createScenario();
+    const space = await TestSpace.create(context);
+
+    const [session1, session2, session3] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+    ]);
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -1013,7 +905,13 @@ test("sorts by assignee", async () => {
 });
 
 test("sorts by creator", async () => {
-    const {space, session1, session2, session3} = await createScenario();
+    const space = await TestSpace.create(context);
+
+    const [session1, session2, session3] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+    ]);
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -1078,7 +976,13 @@ test("sorts by creator", async () => {
 });
 
 test("sorts by assigner", async () => {
-    const {space, session1, session2, session3} = await createScenario();
+    const space = await TestSpace.create(context);
+
+    const [session1, session2, session3] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+    ]);
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -1215,7 +1119,8 @@ test("sorts by assigner", async () => {
 });
 
 test("sorts by due date", async () => {
-    const {space, session1} = await createScenario();
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -1341,7 +1246,13 @@ test("sorts by due date", async () => {
 });
 
 test("sorts by assigned time", async () => {
-    const {space, session1, session2, session3} = await createScenario();
+    const space = await TestSpace.create(context);
+
+    const [session1, session2, session3] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+    ]);
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -1472,7 +1383,8 @@ test("sorts by assigned time", async () => {
 });
 
 test("sorts by closed time", async () => {
-    const {space, session1} = await createScenario();
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -1647,7 +1559,8 @@ test("sorts by closed time", async () => {
 });
 
 test("sorts by activated time", async () => {
-    const {space, session1} = await createScenario();
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -1851,7 +1764,8 @@ test("sorts by activated time", async () => {
 });
 
 test("sorts by collection position", async () => {
-    const {space, session1} = await createScenario();
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -2162,7 +2076,8 @@ test("sorts by collection position", async () => {
 });
 
 test("sorts by parent position", async () => {
-    const {space, session1} = await createScenario();
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -2573,7 +2488,8 @@ test("sorts by parent position", async () => {
 });
 
 test("sorts by notepad page position", async () => {
-    const {space, session1} = await createScenario();
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -2893,17 +2809,18 @@ test("sorts by notepad page position", async () => {
 });
 
 test("sorts by assignee active position", async () => {
-    const scenario = await createScenario();
-    const {space} = scenario;
+    const space = await TestSpace.create(context);
+
+    const sessions = await runAllPromises([space.createSession(), space.createSession()]);
 
     let session1;
     let session2;
-    if (scenario.session1.accountId < scenario.session2.accountId) {
-        session1 = scenario.session1;
-        session2 = scenario.session2;
+    if (sessions[0].account.id < sessions[1].account.id) {
+        session1 = sessions[0];
+        session2 = sessions[1];
     } else {
-        session1 = scenario.session2;
-        session2 = scenario.session1;
+        session1 = sessions[1];
+        session2 = sessions[0];
     }
 
     const task1Id = generateId<TaskId>();
@@ -3121,7 +3038,7 @@ test("sorts by assignee active position", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "UpdateAssigneeActivePosition",
-                accountId: session1.accountId,
+                accountId: session1.account.id,
                 position: {orderTime: time1, orderKey: initialOrderKey},
             },
         },
@@ -3143,7 +3060,7 @@ test("sorts by assignee active position", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "UpdateAssigneeActivePosition",
-                accountId: session1.accountId,
+                accountId: session1.account.id,
                 position: {orderTime: time2, orderKey: initialOrderKey},
             },
         },
@@ -3165,7 +3082,7 @@ test("sorts by assignee active position", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "UpdateAssigneeActivePosition",
-                accountId: session1.accountId,
+                accountId: session1.account.id,
                 position: {orderTime: time3, orderKey: initialOrderKey},
             },
         },
@@ -3187,7 +3104,7 @@ test("sorts by assignee active position", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "UpdateAssigneeActivePosition",
-                accountId: session1.accountId,
+                accountId: session1.account.id,
                 position: {orderTime: time4, orderKey: initialOrderKey},
             },
         },
@@ -3209,7 +3126,7 @@ test("sorts by assignee active position", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "UpdateAssigneeActivePosition",
-                accountId: session1.accountId,
+                accountId: session1.account.id,
                 position: {orderTime: time5, orderKey: initialOrderKey},
             },
         },
@@ -3231,7 +3148,7 @@ test("sorts by assignee active position", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "UpdateAssigneeActivePosition",
-                accountId: session1.accountId,
+                accountId: session1.account.id,
                 position: {orderTime: time2, orderKey: assertOrderKey("Zz")},
             },
         },
@@ -3253,7 +3170,7 @@ test("sorts by assignee active position", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "UpdateAssigneeActivePosition",
-                accountId: session1.accountId,
+                accountId: session1.account.id,
                 position: {orderTime: time7, orderKey: initialOrderKey},
             },
         },
@@ -3275,7 +3192,7 @@ test("sorts by assignee active position", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "UpdateAssigneeActivePosition",
-                accountId: session1.accountId,
+                accountId: session1.account.id,
                 position: {orderTime: time8, orderKey: assertOrderKey("a1")},
             },
         },
@@ -3297,7 +3214,7 @@ test("sorts by assignee active position", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "UpdateAssigneeActivePosition",
-                accountId: session1.accountId,
+                accountId: session1.account.id,
                 position: {orderTime: time8, orderKey: assertOrderKey("a2")},
             },
         },
@@ -3322,7 +3239,7 @@ test("sorts by assignee active position", async () => {
             taskId: task7Id,
             taskAction: {
                 type: "UpdateAssigneeActivePosition",
-                accountId: session2.accountId,
+                accountId: session2.account.id,
                 position: {orderTime: clock.now(), orderKey: initialOrderKey},
             },
         },
@@ -3359,7 +3276,7 @@ test("sorts by assignee active position", async () => {
             taskId: task8Id,
             taskAction: {
                 type: "UpdateAssigneeActivePosition",
-                accountId: session1.accountId,
+                accountId: session1.account.id,
                 position: {orderTime: clock.now(), orderKey: assertOrderKey("a2")},
             },
         },

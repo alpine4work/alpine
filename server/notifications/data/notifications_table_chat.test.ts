@@ -86,13 +86,13 @@ test("messaging creates an inbox entry for all subscribers", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session3.account,
+            otherChatAccount: await scenario.session3.account.get(),
         }),
     ]);
 
@@ -121,13 +121,13 @@ test("messaging creates an inbox entry for all subscribers", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session1.account,
+            otherChatAccount: await scenario.session1.account.get(),
         }),
     ]);
 
@@ -155,13 +155,13 @@ test("messaging creates an inbox entry for all subscribers", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message2.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message2"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session2.account,
+            otherChatAccount: await scenario.session2.account.get(),
         }),
     ]);
 
@@ -181,13 +181,13 @@ test("messaging creates an inbox entry for all subscribers", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message2.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message2"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session1.account,
+            otherChatAccount: await scenario.session1.account.get(),
         }),
     ]);
 
@@ -233,13 +233,13 @@ test("messaging creates an inbox entry for all subscribers", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session3.account,
+            otherChatAccount: await scenario.session3.account.get(),
         }),
     ]);
 
@@ -259,13 +259,13 @@ test("messaging creates an inbox entry for all subscribers", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session2.account,
+            otherChatAccount: await scenario.session2.account.get(),
         }),
     ]);
 });
@@ -329,13 +329,13 @@ test("mentioning someone in a creates a second loud notification for them", asyn
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session3.account,
+            otherChatAccount: await scenario.session3.account.get(),
         }),
     ]);
 
@@ -364,13 +364,13 @@ test("mentioning someone in a creates a second loud notification for them", asyn
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session1.account,
+            otherChatAccount: await scenario.session1.account.get(),
         }),
     ]);
 
@@ -398,18 +398,18 @@ test("mentioning someone in a creates a second loud notification for them", asyn
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message2.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount3MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session3.account.id, scenario.session3.account],
+                            [scenario.session3.account.id, await scenario.session3.account.get()],
                         ]),
                     },
                 },
             },
-            otherChatAccount: scenario.session3.account,
+            otherChatAccount: await scenario.session3.account.get(),
         }),
     ]);
 
@@ -438,18 +438,18 @@ test("mentioning someone in a creates a second loud notification for them", asyn
             loudNotificationCount: 2,
             latestMessage: {
                 createdTime: message2.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount3MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session3.account.id, scenario.session3.account],
+                            [scenario.session3.account.id, await scenario.session3.account.get()],
                         ]),
                     },
                 },
             },
-            otherChatAccount: scenario.session1.account,
+            otherChatAccount: await scenario.session1.account.get(),
         }),
     ]);
 
@@ -477,18 +477,18 @@ test("mentioning someone in a creates a second loud notification for them", asyn
             loudNotificationCount: 2,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
             },
-            otherChatAccount: scenario.session3.account,
+            otherChatAccount: await scenario.session3.account.get(),
         }),
     ]);
 
@@ -517,18 +517,18 @@ test("mentioning someone in a creates a second loud notification for them", asyn
             loudNotificationCount: 2,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
             },
-            otherChatAccount: scenario.session1.account,
+            otherChatAccount: await scenario.session1.account.get(),
         }),
     ]);
 
@@ -556,18 +556,18 @@ test("mentioning someone in a creates a second loud notification for them", asyn
             loudNotificationCount: 3,
             latestMessage: {
                 createdTime: message4.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
             },
-            otherChatAccount: scenario.session2.account,
+            otherChatAccount: await scenario.session2.account.get(),
         }),
     ]);
 
@@ -587,18 +587,18 @@ test("mentioning someone in a creates a second loud notification for them", asyn
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message4.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
             },
-            otherChatAccount: scenario.session1.account,
+            otherChatAccount: await scenario.session1.account.get(),
         }),
     ]);
 
@@ -680,13 +680,13 @@ test("mentioning yourself does not create an extra loud notification for yoursel
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message1.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session3.account,
+            otherChatAccount: await scenario.session3.account.get(),
         }),
     ]);
 
@@ -706,13 +706,13 @@ test("mentioning yourself does not create an extra loud notification for yoursel
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message1.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session2.account,
+            otherChatAccount: await scenario.session2.account.get(),
         }),
     ]);
 
@@ -740,18 +740,18 @@ test("mentioning yourself does not create an extra loud notification for yoursel
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message2.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
             },
-            otherChatAccount: scenario.session3.account,
+            otherChatAccount: await scenario.session3.account.get(),
         }),
     ]);
 
@@ -780,18 +780,18 @@ test("mentioning yourself does not create an extra loud notification for yoursel
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message2.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
             },
-            otherChatAccount: scenario.session1.account,
+            otherChatAccount: await scenario.session1.account.get(),
         }),
     ]);
 
@@ -828,13 +828,13 @@ test("mentioning yourself does not create an extra loud notification for yoursel
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session1.account,
+            otherChatAccount: await scenario.session1.account.get(),
         }),
     ]);
 
@@ -854,13 +854,13 @@ test("mentioning yourself does not create an extra loud notification for yoursel
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session2.account,
+            otherChatAccount: await scenario.session2.account.get(),
         }),
     ]);
 
@@ -888,18 +888,18 @@ test("mentioning yourself does not create an extra loud notification for yoursel
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message4.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
             },
-            otherChatAccount: scenario.session2.account,
+            otherChatAccount: await scenario.session2.account.get(),
         }),
     ]);
 
@@ -928,18 +928,18 @@ test("mentioning yourself does not create an extra loud notification for yoursel
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message4.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
             },
-            otherChatAccount: scenario.session1.account,
+            otherChatAccount: await scenario.session1.account.get(),
         }),
     ]);
 });
@@ -999,7 +999,7 @@ test("accounts have separate inboxes for each space", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message1.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
@@ -1042,7 +1042,7 @@ test("accounts have separate inboxes for each space", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message1.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
@@ -1068,7 +1068,7 @@ test("accounts have separate inboxes for each space", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message2.createdTime,
-                author: scenario.otherSession.account,
+                author: await scenario.otherSession.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message2"),
                     references: emptyContentReferences,
@@ -1139,18 +1139,18 @@ test("account can not see mention in chat they don't have access to", async () =
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount3MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session3.account.id, scenario.session3.account],
+                            [scenario.session3.account.id, await scenario.session3.account.get()],
                         ]),
                     },
                 },
             },
-            otherChatAccount: scenario.session1.account,
+            otherChatAccount: await scenario.session1.account.get(),
         }),
     ]);
 
@@ -1187,18 +1187,18 @@ test("account can not see mention in chat they don't have access to", async () =
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount3MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session3.account.id, scenario.session3.account],
+                            [scenario.session3.account.id, await scenario.session3.account.get()],
                         ]),
                     },
                 },
             },
-            otherChatAccount: scenario.session1.account,
+            otherChatAccount: await scenario.session1.account.get(),
         }),
     ]);
 
@@ -1235,18 +1235,18 @@ test("account can not see mention in chat they don't have access to", async () =
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount3MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session3.account.id, scenario.session3.account],
+                            [scenario.session3.account.id, await scenario.session3.account.get()],
                         ]),
                     },
                 },
             },
-            otherChatAccount: scenario.session1.account,
+            otherChatAccount: await scenario.session1.account.get(),
         }),
     ]);
 
@@ -1333,13 +1333,13 @@ test("message notification events processed out of order result in the same late
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session2.account,
+            otherChatAccount: await scenario.session2.account.get(),
         }),
     ]);
 
@@ -1359,13 +1359,13 @@ test("message notification events processed out of order result in the same late
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session1.account,
+            otherChatAccount: await scenario.session1.account.get(),
         }),
     ]);
 
@@ -1388,13 +1388,13 @@ test("message notification events processed out of order result in the same late
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session2.account,
+            otherChatAccount: await scenario.session2.account.get(),
         }),
     ]);
 
@@ -1414,13 +1414,13 @@ test("message notification events processed out of order result in the same late
             loudNotificationCount: 2,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session1.account,
+            otherChatAccount: await scenario.session1.account.get(),
         }),
     ]);
 });
@@ -1498,7 +1498,7 @@ test("message notification events processed out of order result in the same late
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
@@ -1536,7 +1536,7 @@ test("message notification events processed out of order result in the same late
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
@@ -1609,7 +1609,7 @@ test("loud notifications are always at the top of the inbox", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
@@ -1643,13 +1643,13 @@ test("loud notifications are always at the top of the inbox", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message2.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
@@ -1664,7 +1664,7 @@ test("loud notifications are always at the top of the inbox", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
@@ -1698,13 +1698,13 @@ test("loud notifications are always at the top of the inbox", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session3.account,
+            otherChatAccount: await scenario.session3.account.get(),
         }),
         new InboxChatEntryModel({
             spaceId: scenario.space.id,
@@ -1714,13 +1714,13 @@ test("loud notifications are always at the top of the inbox", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message2.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
@@ -1735,7 +1735,7 @@ test("loud notifications are always at the top of the inbox", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
@@ -1769,13 +1769,13 @@ test("loud notifications are always at the top of the inbox", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session3.account,
+            otherChatAccount: await scenario.session3.account.get(),
         }),
         new InboxChatEntryModel({
             spaceId: scenario.space.id,
@@ -1785,13 +1785,13 @@ test("loud notifications are always at the top of the inbox", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message2.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
@@ -1806,7 +1806,7 @@ test("loud notifications are always at the top of the inbox", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message4.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message4"),
                     references: emptyContentReferences,
@@ -1840,13 +1840,13 @@ test("loud notifications are always at the top of the inbox", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session3.account,
+            otherChatAccount: await scenario.session3.account.get(),
         }),
         new InboxChatEntryModel({
             spaceId: scenario.space.id,
@@ -1856,7 +1856,7 @@ test("loud notifications are always at the top of the inbox", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message5.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message5"),
                     references: emptyContentReferences,
@@ -1872,7 +1872,7 @@ test("loud notifications are always at the top of the inbox", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message4.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message4"),
                     references: emptyContentReferences,
@@ -1906,13 +1906,13 @@ test("loud notifications are always at the top of the inbox", async () => {
             loudNotificationCount: 2,
             latestMessage: {
                 createdTime: message6.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
@@ -1927,13 +1927,13 @@ test("loud notifications are always at the top of the inbox", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session3.account,
+            otherChatAccount: await scenario.session3.account.get(),
         }),
         new InboxChatEntryModel({
             spaceId: scenario.space.id,
@@ -1943,7 +1943,7 @@ test("loud notifications are always at the top of the inbox", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message5.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message5"),
                     references: emptyContentReferences,
@@ -1977,13 +1977,13 @@ test("loud notifications are always at the top of the inbox", async () => {
             loudNotificationCount: 2,
             latestMessage: {
                 createdTime: message6.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
@@ -1998,13 +1998,13 @@ test("loud notifications are always at the top of the inbox", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session3.account,
+            otherChatAccount: await scenario.session3.account.get(),
         }),
         new InboxChatEntryModel({
             spaceId: scenario.space.id,
@@ -2014,7 +2014,7 @@ test("loud notifications are always at the top of the inbox", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message7.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message7"),
                     references: emptyContentReferences,
@@ -2048,13 +2048,13 @@ test("loud notifications are always at the top of the inbox", async () => {
             loudNotificationCount: 2,
             latestMessage: {
                 createdTime: message8.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
@@ -2069,13 +2069,13 @@ test("loud notifications are always at the top of the inbox", async () => {
             loudNotificationCount: 2,
             latestMessage: {
                 createdTime: message6.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
@@ -2090,13 +2090,13 @@ test("loud notifications are always at the top of the inbox", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session3.account,
+            otherChatAccount: await scenario.session3.account.get(),
         }),
     ]);
 });
@@ -2167,7 +2167,7 @@ test("observing an inbox freezes loud notifications in place", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
@@ -2201,13 +2201,13 @@ test("observing an inbox freezes loud notifications in place", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message2.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
@@ -2222,7 +2222,7 @@ test("observing an inbox freezes loud notifications in place", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
@@ -2256,13 +2256,13 @@ test("observing an inbox freezes loud notifications in place", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session3.account,
+            otherChatAccount: await scenario.session3.account.get(),
         }),
         new InboxChatEntryModel({
             spaceId: scenario.space.id,
@@ -2272,13 +2272,13 @@ test("observing an inbox freezes loud notifications in place", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message2.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
@@ -2293,7 +2293,7 @@ test("observing an inbox freezes loud notifications in place", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
@@ -2321,13 +2321,13 @@ test("observing an inbox freezes loud notifications in place", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session3.account,
+            otherChatAccount: await scenario.session3.account.get(),
         }),
         new InboxChatEntryModel({
             spaceId: scenario.space.id,
@@ -2337,13 +2337,13 @@ test("observing an inbox freezes loud notifications in place", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message2.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
@@ -2358,7 +2358,7 @@ test("observing an inbox freezes loud notifications in place", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
@@ -2392,13 +2392,13 @@ test("observing an inbox freezes loud notifications in place", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message4.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message4"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.sharedSession.account,
+            otherChatAccount: await scenario.sharedSession.account.get(),
         }),
         new InboxChatEntryModel({
             spaceId: scenario.space.id,
@@ -2408,13 +2408,13 @@ test("observing an inbox freezes loud notifications in place", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session3.account,
+            otherChatAccount: await scenario.session3.account.get(),
         }),
         new InboxChatEntryModel({
             spaceId: scenario.space.id,
@@ -2424,13 +2424,13 @@ test("observing an inbox freezes loud notifications in place", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message2.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
@@ -2445,7 +2445,7 @@ test("observing an inbox freezes loud notifications in place", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
@@ -2479,13 +2479,13 @@ test("observing an inbox freezes loud notifications in place", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message4.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message4"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.sharedSession.account,
+            otherChatAccount: await scenario.sharedSession.account.get(),
         }),
         new InboxChatEntryModel({
             spaceId: scenario.space.id,
@@ -2495,13 +2495,13 @@ test("observing an inbox freezes loud notifications in place", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session3.account,
+            otherChatAccount: await scenario.session3.account.get(),
         }),
         new InboxChatEntryModel({
             spaceId: scenario.space.id,
@@ -2511,7 +2511,7 @@ test("observing an inbox freezes loud notifications in place", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message5.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message5"),
                     references: emptyContentReferences,
@@ -2527,7 +2527,7 @@ test("observing an inbox freezes loud notifications in place", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
@@ -2561,13 +2561,13 @@ test("observing an inbox freezes loud notifications in place", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message4.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message4"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.sharedSession.account,
+            otherChatAccount: await scenario.sharedSession.account.get(),
         }),
         new InboxChatEntryModel({
             spaceId: scenario.space.id,
@@ -2577,13 +2577,13 @@ test("observing an inbox freezes loud notifications in place", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message6.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message6"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session3.account,
+            otherChatAccount: await scenario.session3.account.get(),
         }),
         new InboxChatEntryModel({
             spaceId: scenario.space.id,
@@ -2593,7 +2593,7 @@ test("observing an inbox freezes loud notifications in place", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message5.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message5"),
                     references: emptyContentReferences,
@@ -2609,7 +2609,7 @@ test("observing an inbox freezes loud notifications in place", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
@@ -2643,18 +2643,18 @@ test("observing an inbox freezes loud notifications in place", async () => {
             loudNotificationCount: 2,
             latestMessage: {
                 createdTime: message8.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session1.account.id, scenario.session1.account],
+                            [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
                 },
             },
-            otherChatAccount: scenario.session3.account,
+            otherChatAccount: await scenario.session3.account.get(),
         }),
         new InboxChatEntryModel({
             spaceId: scenario.space.id,
@@ -2664,13 +2664,13 @@ test("observing an inbox freezes loud notifications in place", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message4.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message4"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.sharedSession.account,
+            otherChatAccount: await scenario.sharedSession.account.get(),
         }),
         new InboxChatEntryModel({
             spaceId: scenario.space.id,
@@ -2680,7 +2680,7 @@ test("observing an inbox freezes loud notifications in place", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message5.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message5"),
                     references: emptyContentReferences,
@@ -2696,7 +2696,7 @@ test("observing an inbox freezes loud notifications in place", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
@@ -2766,13 +2766,13 @@ test("sends a loud notification on any message after some period of time", async
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message1.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session3.account,
+            otherChatAccount: await scenario.session3.account.get(),
         }),
     ]);
 
@@ -2800,13 +2800,13 @@ test("sends a loud notification on any message after some period of time", async
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message2.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message2"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session2.account,
+            otherChatAccount: await scenario.session2.account.get(),
         }),
     ]);
 
@@ -2826,13 +2826,13 @@ test("sends a loud notification on any message after some period of time", async
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message2.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message2"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session1.account,
+            otherChatAccount: await scenario.session1.account.get(),
         }),
     ]);
 
@@ -2860,13 +2860,13 @@ test("sends a loud notification on any message after some period of time", async
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session2.account,
+            otherChatAccount: await scenario.session2.account.get(),
         }),
     ]);
 
@@ -2886,13 +2886,13 @@ test("sends a loud notification on any message after some period of time", async
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session1.account,
+            otherChatAccount: await scenario.session1.account.get(),
         }),
     ]);
 
@@ -2930,13 +2930,13 @@ test("sends a loud notification on any message after some period of time", async
             loudNotificationCount: 2,
             latestMessage: {
                 createdTime: message4.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message4"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session2.account,
+            otherChatAccount: await scenario.session2.account.get(),
         }),
     ]);
 
@@ -2956,13 +2956,13 @@ test("sends a loud notification on any message after some period of time", async
             loudNotificationCount: 2,
             latestMessage: {
                 createdTime: message4.createdTime,
-                author: scenario.session3.account,
+                author: await scenario.session3.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message4"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session1.account,
+            otherChatAccount: await scenario.session1.account.get(),
         }),
     ]);
 });
@@ -3046,13 +3046,13 @@ test("can archive inbox entries", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message4.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -3067,13 +3067,13 @@ test("can archive inbox entries", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session3.account,
+            otherChatAccount: await scenario.session3.account.get(),
         }),
     ]);
 
@@ -3093,13 +3093,13 @@ test("can archive inbox entries", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message4.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -3114,13 +3114,13 @@ test("can archive inbox entries", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session2.account,
+            otherChatAccount: await scenario.session2.account.get(),
         }),
     ]);
 
@@ -3154,13 +3154,13 @@ test("can archive inbox entries", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message4.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -3175,13 +3175,13 @@ test("can archive inbox entries", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session3.account,
+            otherChatAccount: await scenario.session3.account.get(),
         }),
     ]);
 
@@ -3201,13 +3201,13 @@ test("can archive inbox entries", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message4.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -3246,13 +3246,13 @@ test("can archive inbox entries", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session3.account,
+            otherChatAccount: await scenario.session3.account.get(),
         }),
     ]);
 
@@ -3272,13 +3272,13 @@ test("can archive inbox entries", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message4.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -3326,13 +3326,13 @@ test("can archive inbox entries", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message4.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -3432,13 +3432,13 @@ test("can unarchive inbox entries", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message5.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -3453,13 +3453,13 @@ test("can unarchive inbox entries", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message4.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -3474,13 +3474,13 @@ test("can unarchive inbox entries", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session3.account,
+            otherChatAccount: await scenario.session3.account.get(),
         }),
     ]);
 
@@ -3500,13 +3500,13 @@ test("can unarchive inbox entries", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message4.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -3521,13 +3521,13 @@ test("can unarchive inbox entries", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session2.account,
+            otherChatAccount: await scenario.session2.account.get(),
         }),
     ]);
 
@@ -3571,13 +3571,13 @@ test("can unarchive inbox entries", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message5.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -3602,13 +3602,13 @@ test("can unarchive inbox entries", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message4.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -3647,13 +3647,13 @@ test("can unarchive inbox entries", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message5.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -3678,13 +3678,13 @@ test("can unarchive inbox entries", async () => {
             loudNotificationCount: 0,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session2.account,
+            otherChatAccount: await scenario.session2.account.get(),
         }),
         new InboxChatEntryModel({
             spaceId: scenario.space.id,
@@ -3694,13 +3694,13 @@ test("can unarchive inbox entries", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message4.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -3739,13 +3739,13 @@ test("can unarchive inbox entries", async () => {
             loudNotificationCount: 0,
             latestMessage: {
                 createdTime: message4.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -3760,13 +3760,13 @@ test("can unarchive inbox entries", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message5.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -3791,13 +3791,13 @@ test("can unarchive inbox entries", async () => {
             loudNotificationCount: 0,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session2.account,
+            otherChatAccount: await scenario.session2.account.get(),
         }),
         new InboxChatEntryModel({
             spaceId: scenario.space.id,
@@ -3807,13 +3807,13 @@ test("can unarchive inbox entries", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message4.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -3852,13 +3852,13 @@ test("can unarchive inbox entries", async () => {
             loudNotificationCount: 0,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session3.account,
+            otherChatAccount: await scenario.session3.account.get(),
         }),
         new InboxChatEntryModel({
             spaceId: scenario.space.id,
@@ -3868,13 +3868,13 @@ test("can unarchive inbox entries", async () => {
             loudNotificationCount: 0,
             latestMessage: {
                 createdTime: message4.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -3889,13 +3889,13 @@ test("can unarchive inbox entries", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message5.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -3920,13 +3920,13 @@ test("can unarchive inbox entries", async () => {
             loudNotificationCount: 0,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session2.account,
+            otherChatAccount: await scenario.session2.account.get(),
         }),
         new InboxChatEntryModel({
             spaceId: scenario.space.id,
@@ -3936,13 +3936,13 @@ test("can unarchive inbox entries", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message4.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -3972,13 +3972,13 @@ test("can unarchive inbox entries", async () => {
             loudNotificationCount: 0,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session3.account,
+            otherChatAccount: await scenario.session3.account.get(),
         }),
     ]);
 
@@ -3998,13 +3998,13 @@ test("can unarchive inbox entries", async () => {
             loudNotificationCount: 0,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session3.account,
+            otherChatAccount: await scenario.session3.account.get(),
         }),
         new InboxChatEntryModel({
             spaceId: scenario.space.id,
@@ -4014,13 +4014,13 @@ test("can unarchive inbox entries", async () => {
             loudNotificationCount: 0,
             latestMessage: {
                 createdTime: message4.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -4035,13 +4035,13 @@ test("can unarchive inbox entries", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message5.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -4066,13 +4066,13 @@ test("can unarchive inbox entries", async () => {
             loudNotificationCount: 0,
             latestMessage: {
                 createdTime: message3.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session2.account,
+            otherChatAccount: await scenario.session2.account.get(),
         }),
         new InboxChatEntryModel({
             spaceId: scenario.space.id,
@@ -4082,13 +4082,13 @@ test("can unarchive inbox entries", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message4.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
                         accountById: new Map([
-                            [scenario.session2.account.id, scenario.session2.account],
+                            [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
                 },
@@ -4141,7 +4141,7 @@ test("notification on an archived entry revives it", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
@@ -4189,7 +4189,7 @@ test("notification on an archived entry revives it", async () => {
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message2.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message2"),
                     references: emptyContentReferences,
@@ -4243,7 +4243,7 @@ test("notification on an archived entry from own account does not revive it", as
             loudNotificationCount: 1,
             latestMessage: {
                 createdTime: message1.createdTime,
-                author: scenario.session2.account,
+                author: await scenario.session2.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
@@ -4305,13 +4305,13 @@ test("notification on an archived entry from own account does not revive it", as
             loudNotificationCount: 0,
             latestMessage: {
                 createdTime: message2.createdTime,
-                author: scenario.session1.account,
+                author: await scenario.session1.account.get(),
                 contentSnippet: {
                     doc: createSimpleMessageContent("message2"),
                     references: emptyContentReferences,
                 },
             },
-            otherChatAccount: scenario.session2.account,
+            otherChatAccount: await scenario.session2.account.get(),
         }),
     ]);
 });

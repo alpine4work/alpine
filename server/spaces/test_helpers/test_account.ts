@@ -1,6 +1,10 @@
-import {getAccountsTableForTest} from "~/server/accounts/accounts_table.js";
+import {
+    createAccountForTest,
+    dangerouslyGetAccountIfExistsWithoutCaching,
+} from "~/server/accounts/accounts_table.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
@@ -17,10 +21,6 @@ export class TestAccount {
         this.initialName = initialName;
     }
 
-    public static _newAssumingExists(context: TestContext, id: AccountId, initialName: string) {
-        return new TestAccount(context, id, initialName);
-    }
-
     public static async create(
         context: TestContext,
         {
@@ -29,16 +29,11 @@ export class TestAccount {
             name?: string;
         } = {},
     ) {
-        const AccountsTable = getAccountsTableForTest();
-
         const id = generateId<AccountId>();
 
-        await AccountsTable.createItem(context, {
-            partitionType: "Account",
-            sortRangeType: "Attributes",
-            accountId: id,
+        await createAccountForTest(context, {
+            id,
             name,
-            createdTime: testClock.nowDate(),
         });
 
         return new TestAccount(context, id, name);
@@ -46,5 +41,11 @@ export class TestAccount {
 
     public static getNewName() {
         return `Test Account ${testAccountCount++}`;
+    }
+
+    public async get(): Promise<AccountModel> {
+        return assertExists(
+            await dangerouslyGetAccountIfExistsWithoutCaching(this.context, this.id),
+        );
     }
 }

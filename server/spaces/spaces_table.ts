@@ -18,7 +18,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
-import {getMaxId, getMinId} from "~/shared/id/id.js";
+import {generateId, getMaxId, getMinId} from "~/shared/id/id.js";
 import {
     AccountId,
     ChannelId,
@@ -95,12 +95,41 @@ const SpacesTable = DynamoTableSchema.new({
 type SpaceAccountItem = DynamoTableItemType<typeof SpacesTable, "Space", "Account">;
 
 /**
- * We are not allowed to export our DynamoDB tables so instead export a
- * function that can only be used in test environments.
+ * Create a space in a test environment.
  */
-export function getSpacesTableForTest() {
+export async function createSpaceForTest(
+    context: DynamoContext,
+    {id = generateId<SpaceId>(), name}: {id?: SpaceId; name: string},
+) {
     assert(process.env.NODE_ENV === "test");
-    return SpacesTable;
+
+    await SpacesTable.createItem(context, {
+        partitionType: "Space",
+        sortRangeType: "Attributes",
+        spaceId: id,
+        name,
+        createdTime: new Date(),
+    });
+}
+
+/**
+ * Add an account to a space in a test environment.
+ */
+export async function createSpaceAccountForTest(
+    context: DynamoContext,
+    {spaceId, accountId}: {spaceId: SpaceId; accountId: AccountId},
+) {
+    assert(process.env.NODE_ENV === "test");
+
+    // This is a test. We assume the `SpaceId` and `AccountId` exist.
+
+    await SpacesTable.createItem(context, {
+        partitionType: "Space",
+        sortRangeType: "Account",
+        spaceId,
+        accountId,
+        joinedTime: new Date(),
+    });
 }
 
 export async function seedTestSpaces(context: DynamoContext) {

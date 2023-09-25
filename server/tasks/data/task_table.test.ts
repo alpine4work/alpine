@@ -9,7 +9,7 @@ import {
     createTestSession,
 } from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
-import {getSpacesTableForTest} from "~/server/spaces/spaces_table.js";
+import {createSpaceAccountForTest} from "~/server/spaces/spaces_table.js";
 import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js";
@@ -138,17 +138,10 @@ describe("old style", () => {
     const sharedSession = createTestSession(context, space);
 
     beforeAll(async () => {
-        const SpacesTable = getSpacesTableForTest();
-
-        await runAllPromises([
-            SpacesTable.createItem(context, {
-                partitionType: "Space",
-                sortRangeType: "Account",
-                spaceId: otherSpace.id,
-                accountId: sharedSession.accountId,
-                joinedTime: new Date(),
-            }),
-        ]);
+        await createSpaceAccountForTest(context, {
+            spaceId: otherSpace.id,
+            accountId: sharedSession.accountId,
+        });
     });
 
     const taskAccount1 = new TaskSortableAccount({
@@ -194,44 +187,24 @@ describe("old style", () => {
     // We create a new space for some tests for resources that are tied to account
     // + space. So tests don't conflict.
     async function createSeparateSpace() {
-        const SpacesTable = getSpacesTableForTest();
-
-        const spaceId = generateId<SpaceId>();
-
-        const createdTime = new Date();
+        const space = await TestSpace.create(context);
 
         await runAllPromises([
-            SpacesTable.createItem(context, {
-                partitionType: "Space",
-                sortRangeType: "Attributes",
-                spaceId,
-                name: `Space ${spaceCount++}`,
-                createdTime,
-            }),
-            SpacesTable.createItem(context, {
-                partitionType: "Space",
-                sortRangeType: "Account",
-                spaceId,
+            createSpaceAccountForTest(context, {
+                spaceId: space.id,
                 accountId: session1.accountId,
-                joinedTime: createdTime,
             }),
-            SpacesTable.createItem(context, {
-                partitionType: "Space",
-                sortRangeType: "Account",
-                spaceId,
+            createSpaceAccountForTest(context, {
+                spaceId: space.id,
                 accountId: session2.accountId,
-                joinedTime: createdTime,
             }),
-            SpacesTable.createItem(context, {
-                partitionType: "Space",
-                sortRangeType: "Account",
-                spaceId,
+            createSpaceAccountForTest(context, {
+                spaceId: space.id,
                 accountId: session3.accountId,
-                joinedTime: createdTime,
             }),
         ]);
 
-        return {space: {id: spaceId}};
+        return {space};
     }
 
     async function createPublicTask(

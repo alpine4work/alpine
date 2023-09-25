@@ -1,7 +1,6 @@
 import {parseAbsolute, toCalendarDate} from "@internationalized/date";
-import {SessionItem, getAccountsTableForTest} from "~/server/accounts/accounts_table.js";
 import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {getSpacesTableForTest} from "~/server/spaces/spaces_table.js";
+import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {evaluateTaskQueryNormalizedFiltersForIndexDoc} from "~/server/tasks/data/evaluate_task_query_normalized_filters_for_index_doc.js";
 import {getTaskQueryNormalizedFiltersOpensearchQueryClause} from "~/server/tasks/data/internal/get_task_query_normalized_filters_opensearch_query_clause.js";
 import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js";
@@ -47,124 +46,6 @@ const context = {
         });
     },
 } satisfies TestContext;
-
-// We create a new scenario for every test so we can query all tasks within
-// a space.
-async function createScenario() {
-    const SpacesTable = getSpacesTableForTest();
-    const AccountsTable = getAccountsTableForTest();
-
-    const createdTime = new Date();
-
-    const spaceId = generateId<SpaceId>();
-
-    const account1Id = generateId<AccountId>();
-    const account2Id = generateId<AccountId>();
-    const account3Id = generateId<AccountId>();
-
-    const account1SessionItem: SessionItem = {
-        partitionType: "Session",
-        sortRangeType: "Attributes",
-        sessionId: generateId(),
-        accountId: account1Id,
-        createdTime,
-        initialIpAddress: null,
-        initialUserAgent: null,
-    };
-    const account2SessionItem: SessionItem = {
-        partitionType: "Session",
-        sortRangeType: "Attributes",
-        sessionId: generateId(),
-        accountId: account2Id,
-        createdTime,
-        initialIpAddress: null,
-        initialUserAgent: null,
-    };
-    const account3SessionItem: SessionItem = {
-        partitionType: "Session",
-        sortRangeType: "Attributes",
-        sessionId: generateId(),
-        accountId: account3Id,
-        createdTime,
-        initialIpAddress: null,
-        initialUserAgent: null,
-    };
-
-    const account1Item = {
-        partitionType: "Account",
-        sortRangeType: "Attributes",
-        accountId: account1Id,
-        name: "Account 1",
-        createdTime,
-    } as const;
-    const account2Item = {
-        partitionType: "Account",
-        sortRangeType: "Attributes",
-        accountId: account2Id,
-        name: "Account 2",
-        createdTime,
-    } as const;
-    const account3Item = {
-        partitionType: "Account",
-        sortRangeType: "Attributes",
-        accountId: account3Id,
-        name: "Account 3",
-        createdTime,
-    } as const;
-
-    await runAllPromises([
-        SpacesTable.createItem(context, {
-            partitionType: "Space",
-            sortRangeType: "Attributes",
-            spaceId: spaceId,
-            name: "Space",
-            createdTime,
-        }),
-        SpacesTable.createItem(context, {
-            partitionType: "Space",
-            sortRangeType: "Account",
-            spaceId: spaceId,
-            accountId: account1Id,
-            joinedTime: createdTime,
-        }),
-        SpacesTable.createItem(context, {
-            partitionType: "Space",
-            sortRangeType: "Account",
-            spaceId: spaceId,
-            accountId: account2Id,
-            joinedTime: createdTime,
-        }),
-        SpacesTable.createItem(context, {
-            partitionType: "Space",
-            sortRangeType: "Account",
-            spaceId: spaceId,
-            accountId: account3Id,
-            joinedTime: createdTime,
-        }),
-        AccountsTable.createItem(context, account1Item),
-        AccountsTable.createItem(context, account2Item),
-        AccountsTable.createItem(context, account3Item),
-        AccountsTable.createItem(context, account1SessionItem),
-        AccountsTable.createItem(context, account2SessionItem),
-        AccountsTable.createItem(context, account3SessionItem),
-    ]);
-
-    return {
-        space: {id: spaceId},
-        session1: {
-            ...account1SessionItem,
-            account: {id: account1Id, name: account1Item.name},
-        },
-        session2: {
-            ...account2SessionItem,
-            account: {id: account2Id, name: account2Item.name},
-        },
-        session3: {
-            ...account3SessionItem,
-            account: {id: account3Id, name: account3Item.name},
-        },
-    };
-}
 
 // 16:00 should be noon in `defaultTimeZone`.
 const mockStartTime = new Date("2023-08-07T16:00:00.000Z").getTime();
@@ -369,7 +250,8 @@ function convertTaskIndexDocToModel(task: TaskIndexDoc): TaskModel {
 }
 
 test("searches all tasks in a space", async () => {
-    const {space, session1} = await createScenario();
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -417,13 +299,15 @@ test("searches all tasks in a space", async () => {
 });
 
 test("searches a space with no tasks", async () => {
-    const {space, session1} = await createScenario();
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
     expect(await testQuery(session1, space, [])).toEqual([]);
 });
 
 test("deleted tasks are filtered out", async () => {
-    const {space, session1} = await createScenario();
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -513,7 +397,8 @@ test("deleted tasks are filtered out", async () => {
 });
 
 test("closed tasks are filtered out by default", async () => {
-    const {space, session1} = await createScenario();
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -581,7 +466,12 @@ test("closed tasks are filtered out by default", async () => {
 });
 
 test("can filter for closed tasks", async () => {
-    const {space, session1, session2} = await createScenario();
+    const space = await TestSpace.create(context);
+
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -681,7 +571,12 @@ test("can filter for closed tasks", async () => {
 });
 
 test("can filter for open tasks", async () => {
-    const {space, session1, session2} = await createScenario();
+    const space = await TestSpace.create(context);
+
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -781,7 +676,12 @@ test("can filter for open tasks", async () => {
 });
 
 test("can filter for open inactive tasks", async () => {
-    const {space, session1, session2} = await createScenario();
+    const space = await TestSpace.create(context);
+
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -878,7 +778,12 @@ test("can filter for open inactive tasks", async () => {
 });
 
 test("can filter for open active tasks", async () => {
-    const {space, session1, session2} = await createScenario();
+    const space = await TestSpace.create(context);
+
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -975,7 +880,12 @@ test("can filter for open active tasks", async () => {
 });
 
 test("can filter for closed and open inactive tasks", async () => {
-    const {space, session1, session2} = await createScenario();
+    const space = await TestSpace.create(context);
+
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -1072,7 +982,12 @@ test("can filter for closed and open inactive tasks", async () => {
 });
 
 test("can filter for closed and open active tasks", async () => {
-    const {space, session1, session2} = await createScenario();
+    const space = await TestSpace.create(context);
+
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -1169,7 +1084,12 @@ test("can filter for closed and open active tasks", async () => {
 });
 
 test("can filter for no statuses", async () => {
-    const {space, session1, session2} = await createScenario();
+    const space = await TestSpace.create(context);
+
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -1269,7 +1189,12 @@ test("can filter for no statuses", async () => {
 });
 
 test("can filter for all statuses", async () => {
-    const {space, session1, session2} = await createScenario();
+    const space = await TestSpace.create(context);
+
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -1372,7 +1297,12 @@ test("can filter for all statuses", async () => {
 });
 
 test("will merge multiple status filters", async () => {
-    const {space, session1, session2} = await createScenario();
+    const space = await TestSpace.create(context);
+
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -1606,7 +1536,8 @@ test("will merge multiple status filters", async () => {
 });
 
 test("can filter by one of collections", async () => {
-    const {space, session1} = await createScenario();
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -1827,7 +1758,8 @@ test("can filter by one of collections", async () => {
 });
 
 test("can filter by all of collections", async () => {
-    const {space, session1} = await createScenario();
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -2048,7 +1980,8 @@ test("can filter by all of collections", async () => {
 });
 
 test("can filter by excludes all of collections", async () => {
-    const {space, session1} = await createScenario();
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -2281,7 +2214,8 @@ test("can filter by excludes all of collections", async () => {
 });
 
 test("can filter by empty collections", async () => {
-    const {space, session1} = await createScenario();
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -2439,7 +2373,8 @@ test("can filter by empty collections", async () => {
 });
 
 test("can filter against collections without providing collection ids", async () => {
-    const {space, session1} = await createScenario();
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -2615,7 +2550,8 @@ test("can filter against collections without providing collection ids", async ()
 });
 
 test("can merge collection filters in various ways", async () => {
-    const {space, session1} = await createScenario();
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -3418,7 +3354,8 @@ test("can merge collection filters in various ways", async () => {
 });
 
 test("can filter for individual priorities", async () => {
-    const {space, session1} = await createScenario();
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -3586,7 +3523,8 @@ test("can filter for individual priorities", async () => {
 });
 
 test("can filter for three priorities at once", async () => {
-    const {space, session1} = await createScenario();
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -3730,7 +3668,8 @@ test("can filter for three priorities at once", async () => {
 });
 
 test("can negative filter for individual priorities", async () => {
-    const {space, session1} = await createScenario();
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -3898,7 +3837,8 @@ test("can negative filter for individual priorities", async () => {
 });
 
 test("can negative filter for three priorities at once", async () => {
-    const {space, session1} = await createScenario();
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -4042,7 +3982,8 @@ test("can negative filter for three priorities at once", async () => {
 });
 
 test("can filter for all priorities", async () => {
-    const {space, session1} = await createScenario();
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -4162,7 +4103,8 @@ test("can filter for all priorities", async () => {
 });
 
 test("can negative filter for all priorities", async () => {
-    const {space, session1} = await createScenario();
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -4282,7 +4224,8 @@ test("can negative filter for all priorities", async () => {
 });
 
 test("can merge priority filters", async () => {
-    const {space, session1} = await createScenario();
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -4523,7 +4466,12 @@ test("can merge priority filters", async () => {
 });
 
 test("can filter for a single assignee account", async () => {
-    const {space, session1, session2} = await createScenario();
+    const space = await TestSpace.create(context);
+
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -4674,7 +4622,12 @@ test("can filter for a single assignee account", async () => {
 });
 
 test("can filter for multiple assignee accounts", async () => {
-    const {space, session1, session2} = await createScenario();
+    const space = await TestSpace.create(context);
+
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -4792,7 +4745,12 @@ test("can filter for multiple assignee accounts", async () => {
 });
 
 test("can negative filter for a single assignee account", async () => {
-    const {space, session1, session2} = await createScenario();
+    const space = await TestSpace.create(context);
+
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -4943,7 +4901,12 @@ test("can negative filter for a single assignee account", async () => {
 });
 
 test("can negative filter for multiple assignee accounts", async () => {
-    const {space, session1, session2} = await createScenario();
+    const space = await TestSpace.create(context);
+
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -5061,7 +5024,12 @@ test("can negative filter for multiple assignee accounts", async () => {
 });
 
 test("can filter with empty assignee accounts", async () => {
-    const {space, session1, session2} = await createScenario();
+    const space = await TestSpace.create(context);
+
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -5176,7 +5144,12 @@ test("can filter with empty assignee accounts", async () => {
 });
 
 test("can merge assignee filters", async () => {
-    const {space, session1, session2} = await createScenario();
+    const space = await TestSpace.create(context);
+
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -5371,7 +5344,13 @@ test("can merge assignee filters", async () => {
 });
 
 test("can filter for a single creator account", async () => {
-    const {space, session1, session2, session3} = await createScenario();
+    const space = await TestSpace.create(context);
+
+    const [session1, session2, session3] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+    ]);
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -5489,7 +5468,13 @@ test("can filter for a single creator account", async () => {
 });
 
 test("can filter for multiple creator accounts", async () => {
-    const {space, session1, session2, session3} = await createScenario();
+    const space = await TestSpace.create(context);
+
+    const [session1, session2, session3] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+    ]);
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -5574,7 +5559,13 @@ test("can filter for multiple creator accounts", async () => {
 });
 
 test("can negative filter for a single creator account", async () => {
-    const {space, session1, session2, session3} = await createScenario();
+    const space = await TestSpace.create(context);
+
+    const [session1, session2, session3] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+    ]);
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -5692,7 +5683,13 @@ test("can negative filter for a single creator account", async () => {
 });
 
 test("can negative filter for multiple creator accounts", async () => {
-    const {space, session1, session2, session3} = await createScenario();
+    const space = await TestSpace.create(context);
+
+    const [session1, session2, session3] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+    ]);
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -5777,7 +5774,13 @@ test("can negative filter for multiple creator accounts", async () => {
 });
 
 test("can filter with empty creator accounts", async () => {
-    const {space, session1, session2, session3} = await createScenario();
+    const space = await TestSpace.create(context);
+
+    const [session1, session2, session3] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+    ]);
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -5859,7 +5862,13 @@ test("can filter with empty creator accounts", async () => {
 });
 
 test("can merge creator filters", async () => {
-    const {space, session1, session2, session3} = await createScenario();
+    const space = await TestSpace.create(context);
+
+    const [session1, session2, session3] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+    ]);
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -6021,7 +6030,12 @@ test("can merge creator filters", async () => {
 });
 
 test("can filter for a single assigner account", async () => {
-    const {space, session1, session2} = await createScenario();
+    const space = await TestSpace.create(context);
+
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -6233,7 +6247,12 @@ test("can filter for a single assigner account", async () => {
 });
 
 test("can filter for multiple assigner accounts", async () => {
-    const {space, session1, session2} = await createScenario();
+    const space = await TestSpace.create(context);
+
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -6412,7 +6431,12 @@ test("can filter for multiple assigner accounts", async () => {
 });
 
 test("can negative filter for a single assigner account", async () => {
-    const {space, session1, session2} = await createScenario();
+    const space = await TestSpace.create(context);
+
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -6624,7 +6648,12 @@ test("can negative filter for a single assigner account", async () => {
 });
 
 test("can negative filter for multiple assigner accounts", async () => {
-    const {space, session1, session2} = await createScenario();
+    const space = await TestSpace.create(context);
+
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -6803,7 +6832,12 @@ test("can negative filter for multiple assigner accounts", async () => {
 });
 
 test("can filter with empty assigner accounts", async () => {
-    const {space, session1, session2} = await createScenario();
+    const space = await TestSpace.create(context);
+
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -6979,7 +7013,12 @@ test("can filter with empty assigner accounts", async () => {
 });
 
 test("can merge assigner filters", async () => {
-    const {space, session1, session2} = await createScenario();
+    const space = await TestSpace.create(context);
+
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -7253,7 +7292,8 @@ const dueDateFilterTestCase: DateFilterTestCase = {
     name: "due date",
     filter: operation => ({type: "DueDate", operation}),
     setup: async () => {
-        const {session1, space} = await createScenario();
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession();
 
         const task1Id = generateId<TaskId>();
         const task2Id = generateId<TaskId>();
@@ -7376,7 +7416,8 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
         name: "created time",
         filter: operation => ({type: "CreatedDate", operation}),
         setup: async () => {
-            const {session1, space} = await createScenario();
+            const space = await TestSpace.create(context);
+            const session1 = await space.createSession();
 
             const task1Id = generateId<TaskId>();
             const task2Id = generateId<TaskId>();
@@ -7440,7 +7481,12 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
         name: "assigned time",
         filter: operation => ({type: "AssignedDate", operation}),
         setup: async () => {
-            const {session1, session2, space} = await createScenario();
+            const space = await TestSpace.create(context);
+
+            const [session1, session2] = await runAllPromises([
+                space.createSession(),
+                space.createSession(),
+            ]);
 
             const task1Id = generateId<TaskId>();
             const task2Id = generateId<TaskId>();
@@ -7577,7 +7623,8 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
         ],
         filter: operation => ({type: "ClosedDate", operation}),
         setup: async () => {
-            const {session1, space} = await createScenario();
+            const space = await TestSpace.create(context);
+            const session1 = await space.createSession();
 
             const task1Id = generateId<TaskId>();
             const task2Id = generateId<TaskId>();
@@ -7705,7 +7752,12 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
         name: "activated time",
         filter: operation => ({type: "ActivatedDate", operation}),
         setup: async () => {
-            const {session1, session2, space} = await createScenario();
+            const space = await TestSpace.create(context);
+
+            const [session1, session2] = await runAllPromises([
+                space.createSession(),
+                space.createSession(),
+            ]);
 
             const task1Id = generateId<TaskId>();
             const task2Id = generateId<TaskId>();
@@ -8111,7 +8163,8 @@ test("can filter by empty due dates", async () => {
 });
 
 test("can filter by title includes", async () => {
-    const {space, session1} = await createScenario();
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -8405,7 +8458,8 @@ test("can filter by title includes", async () => {
 });
 
 test("can filter by title excludes", async () => {
-    const {space, session1} = await createScenario();
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -8699,7 +8753,8 @@ test("can filter by title excludes", async () => {
 });
 
 test("can merge title filters", async () => {
-    const {space, session1} = await createScenario();
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -8858,7 +8913,8 @@ test("can merge title filters", async () => {
 });
 
 test("can filter by parent task", async () => {
-    const {space, session1} = await createScenario();
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
@@ -8997,7 +9053,12 @@ test("can filter by parent task", async () => {
 });
 
 test("can filter by notepad page", async () => {
-    const {space, session1, session2} = await createScenario();
+    const space = await TestSpace.create(context);
+
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
 
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();

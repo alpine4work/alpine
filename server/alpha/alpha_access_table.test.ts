@@ -1,4 +1,4 @@
-import {getAccountsTableForTest} from "~/server/accounts/accounts_table.js";
+import {createAccountForAlphaTransactionEntries} from "~/server/accounts/accounts_table.js";
 import {requestAlphaAccess} from "~/server/alpha/alpha_access_table.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -8,7 +8,6 @@ import {generateId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
 const context = createTestContext();
-const AccountsTable = getAccountsTableForTest();
 
 async function createTestAccount() {
     const accountId = generateId<AccountId>();
@@ -17,22 +16,14 @@ async function createTestAccount() {
         `test@${accountId}.test.cyberworlds.dev`,
     );
 
-    await DynamoTableSchema.executeTransaction(context, [
-        AccountsTable.transactionCreateItem({
-            partitionType: "Account",
-            sortRangeType: "Attributes",
-            accountId,
+    await DynamoTableSchema.executeTransaction(
+        context,
+        createAccountForAlphaTransactionEntries({
+            id: accountId,
             name: "Test",
-            createdTime: new Date(),
-        }),
-        AccountsTable.transactionCreateItem({
-            partitionType: "AccountEmailAddress",
-            sortRangeType: "Attributes",
             emailAddress,
-            accountId,
-            isVerified: false,
         }),
-    ]);
+    );
 
     return {
         id: accountId,

@@ -1,10 +1,11 @@
-import {SessionItem, getAccountsTableForTest} from "~/server/accounts/accounts_table.js";
-import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
+import {createAccountForTest, createSessionForTest} from "~/server/accounts/accounts_table.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpaceItem} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {testSharedHooks} from "~/server/dynamo/test_helpers/test_shared_hooks.js";
-import {getSpacesTableForTest} from "~/server/spaces/spaces_table.js";
+import {createSpaceAccountForTest} from "~/server/spaces/spaces_table.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
+import {InternalError} from "~/shared/error/error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SessionId} from "~/shared/id/types/id_types.js";
 
@@ -23,10 +24,9 @@ let accountNameCounter = 1;
  *
  * The IDs are generated synchronously but the session is actually created in a
  * `beforeAll()` hook.
+ *
+ * @deprecated Use `TestSessionAccount` in the body of a test instead
  */
-// NOTE(calebmer, 2023-08-20): We recommend using `TestSessionAccount` instead
-// of this function. Not deprecating yet since the new test API hasn't
-// stabilized yet.
 export function createTestSession(
     context: TestContext,
     space: TestSpaceItem,
@@ -38,8 +38,6 @@ export function createTestSession(
         hasInternalAccess?: boolean;
     } = {},
 ): TestSessionItem {
-    const AccountsTable = getAccountsTableForTest();
-    const SpacesTable = getSpacesTableForTest();
     const sessionId = generateId<SessionId>();
     const accountId = generateId<AccountId>();
 
@@ -54,41 +52,40 @@ export function createTestSession(
         version: 0,
     });
 
-    const sessionItem: SessionItem = {
-        partitionType: "Session",
-        sortRangeType: "Attributes",
-        sessionId,
-        accountId,
-        createdTime,
-        initialIpAddress: null,
-        initialUserAgent: null,
-    };
+    let sessionCreatedTime: Date | null = null;
 
     testSharedHooks.beforeAll(async () => {
-        await DynamoTableSchema.executeTransaction(context, [
-            AccountsTable.transactionCreateItem({
-                partitionType: "Account",
-                sortRangeType: "Attributes",
+        await createAccountForTest(context, {
+            id: accountId,
+            name: account.initialData.name,
+            hasInternalAccess,
+        });
+
+        const [{createdTime: _sessionCreatedTime}] = await runAllPromises([
+            createSessionForTest(context, {
+                id: sessionId,
                 accountId,
-                name: account.initialData.name,
-                createdTime,
-                hasInternalAccess,
             }),
-            AccountsTable.transactionCreateItem(sessionItem),
-            SpacesTable.transactionCreateItem({
-                partitionType: "Space",
-                sortRangeType: "Account",
+            await createSpaceAccountForTest(context, {
                 spaceId: space.id,
                 accountId,
-                joinedTime: createdTime,
             }),
         ]);
+
+        sessionCreatedTime = _sessionCreatedTime;
     });
 
     return {
         sessionId,
         accountId,
-        createdTime: sessionItem.createdTime,
+        get createdTime() {
+            if (sessionCreatedTime === null) {
+                throw new InternalError(
+                    "Can't access session `createdTime` until after test hook runs",
+                );
+            }
+            return sessionCreatedTime;
+        },
         account,
     };
 }

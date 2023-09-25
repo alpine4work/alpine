@@ -1,4 +1,4 @@
-import {differenceInHours, differenceInMinutes} from "date-fns";
+import {differenceInHours, differenceInMinutes, subHours} from "date-fns";
 import {DynamoActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
@@ -51,10 +51,8 @@ const AccountsTable = DynamoTableSchema.new({
                          *
                          * Useful for the task system which updates a bunch of data in OpenSearch when
                          * an account name changes to only update old names.
-                         *
-                         * If not present the default value is 0.
                          */
-                        nameVersion: Schema.integer.optional(),
+                        nameVersion: Schema.integer.default(0),
 
                         /**
                          * When was this account created?
@@ -208,15 +206,6 @@ const AccountsTable = DynamoTableSchema.new({
     ],
 });
 
-/**
- * We are not allowed to export our DynamoDB tables so instead export a
- * function that can only be used in test environments.
- */
-export function getAccountsTableForTest() {
-    assert(process.env.NODE_ENV === "test");
-    return AccountsTable;
-}
-
 type AccountEmailAddressItem = DynamoTableItemType<
     typeof AccountsTable,
     "AccountEmailAddress",
@@ -227,6 +216,109 @@ type AccountItem = DynamoTableItemType<typeof AccountsTable, "Account", "Attribu
 
 export type SessionItem = DynamoTableItemType<typeof AccountsTable, "Session", "Attributes">;
 
+/**
+ * Create an account but only in test environments.
+ */
+export async function createAccountForTest(
+    context: DynamoContext,
+    {
+        id = generateId<AccountId>(),
+        name,
+        hasInternalAccess = false,
+    }: {
+        id?: AccountId;
+        name: string;
+        hasInternalAccess?: boolean;
+    },
+) {
+    assert(process.env.NODE_ENV === "test");
+
+    const createdTime = new Date();
+
+    await AccountsTable.createItem(context, {
+        partitionType: "Account",
+        sortRangeType: "Attributes",
+        accountId: id,
+        name,
+        nameVersion: 0,
+        createdTime,
+        hasInternalAccess,
+    });
+
+    return {createdTime};
+}
+
+/**
+ * Create an email address associated with the provided account in a test
+ * environment.
+ */
+export async function createAccountEmailAddressForTest(
+    context: DynamoContext,
+    {
+        accountId,
+        emailAddress,
+        isEmailAddressVerified,
+    }: {
+        accountId: AccountId;
+        emailAddress: EmailAddress;
+        isEmailAddressVerified: boolean;
+    },
+) {
+    assert(process.env.NODE_ENV === "test");
+
+    // This is a test. We assume the `AccountId` exists.
+
+    await AccountsTable.createItem(context, {
+        partitionType: "AccountEmailAddress",
+        sortRangeType: "Attributes",
+        emailAddress,
+        accountId,
+        isVerified: isEmailAddressVerified,
+    });
+}
+
+/**
+ * Create a session but only in test environments. This is not secure! We must
+ * only create sessions if the actual owner of the account is authorizing with
+ * our service.
+ */
+export async function createSessionForTest(
+    context: DynamoContext,
+    {id = generateId<SessionId>(), accountId}: {id?: SessionId; accountId: AccountId},
+) {
+    assert(process.env.NODE_ENV === "test");
+
+    const createdTime = new Date();
+
+    await AccountsTable.createItem(context, {
+        partitionType: "Session",
+        sortRangeType: "Attributes",
+        sessionId: id,
+        accountId,
+        createdTime,
+        initialIpAddress: null,
+        initialUserAgent: null,
+    });
+
+    return {createdTime};
+}
+
+/**
+ * Get the item representing an email address associated with an account for tests.
+ */
+export async function getAccountEmailAddressForTest(
+    context: DynamoContext,
+    emailAddress: EmailAddress,
+) {
+    assert(process.env.NODE_ENV === "test");
+
+    return AccountsTable.getItem(context, {
+        partitionType: "AccountEmailAddress",
+        sortRangeType: "Attributes",
+        emailAddress,
+    });
+}
+
 export async function seedTestAccounts(context: DynamoContext) {
     assert(process.env.NODE_ENV !== "production");
     const {adminAccountId, adminEmailAddress} = getDynamoSeedConstants();
@@ -236,6 +328,7 @@ export async function seedTestAccounts(context: DynamoContext) {
         sortRangeType: "Attributes",
         accountId: adminAccountId,
         name: "Test Admin",
+        nameVersion: 0,
         createdTime: new Date(),
         hasInternalAccess: true,
     });
@@ -284,6 +377,7 @@ export function createAccountForAlphaTransactionEntries({
             sortRangeType: "Attributes",
             accountId: id,
             name,
+            nameVersion: 0,
             createdTime: new Date(),
         }),
         AccountsTable.transactionCreateItem({
@@ -613,6 +707,50 @@ function accountEmailAddressSignInLockedError(hoursUntilUnlocked: number) {
             "/sign-in",
         )} again.`,
     });
+}
+
+/**
+ * Rewind an email address's one time password sign in state by some number of
+ * hours. This allows us to test cases where time has passed after the user
+ * tried to sign in.
+ */
+export async function rewindAccountEmailAddressOneTimePasswordSignInStateTimeForTest(
+    context: DynamoContext,
+    emailAddress: EmailAddress,
+    hours: number,
+) {
+    assert(process.env.NODE_ENV === "test");
+
+    await AccountsTable.updateItem(
+        context,
+        {
+            partitionType: "AccountEmailAddress",
+            sortRangeType: "Attributes",
+            emailAddress,
+        },
+        accountEmailAddressItem => {
+            assert(accountEmailAddressItem?.oneTimePasswordSignInState);
+
+            return {
+                ...accountEmailAddressItem,
+                oneTimePasswordSignInState: {
+                    ...accountEmailAddressItem.oneTimePasswordSignInState,
+                    generatedTime: subHours(
+                        accountEmailAddressItem.oneTimePasswordSignInState.generatedTime,
+                        hours,
+                    ),
+                    lastFailedAttemptTime: accountEmailAddressItem.oneTimePasswordSignInState
+                        .lastFailedAttemptTime
+                        ? subHours(
+                              accountEmailAddressItem.oneTimePasswordSignInState
+                                  .lastFailedAttemptTime,
+                              hours,
+                          )
+                        : null,
+                },
+            };
+        },
+    );
 }
 
 export class Session {
