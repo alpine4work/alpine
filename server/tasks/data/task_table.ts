@@ -1951,14 +1951,6 @@ async function actuallyCommitTaskActionTransaction(
                 });
                 break;
             }
-            case "UpdateAccountName": {
-                // Clients can't commit this action whenever they'd like by calling
-                // `commitTaskActionTransaction()`. We only commit this action when updating
-                // an account's name.
-                throw new InvalidArgumentError(
-                    "Clients are not allowed to commit an `UpdateAccountName` action",
-                );
-            }
             default:
                 throw exhaustive(action);
         }

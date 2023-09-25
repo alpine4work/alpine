@@ -1,5 +1,4 @@
 import createJsonBigInt from "json-bigint";
-import {inspect} from "util";
 import {waitForHttpServer} from "~/server/helpers/wait_for_http_server.js";
 import {
     OpensearchIndex,
@@ -12,19 +11,14 @@ import {
     getOpensearchQueryClauseDescription,
 } from "~/server/opensearch/opensearch_query_clause.js";
 import {OpensearchSortClause} from "~/server/opensearch/opensearch_sort_clause.js";
-import {
-    DeadlineExceededError,
-    FailedPreconditionError,
-    InternalError,
-    UnknownError,
-} from "~/shared/error/error.js";
+import {FailedPreconditionError, InternalError, UnknownError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
 import {partitionArray} from "~/shared/helpers/iterable/partition_array.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {JsonObjectValue, JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
+import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
 import {fetchWithTracer, fetchWithTracerAndReturnSpan} from "~/shared/tracer/fetch_with_tracer.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
@@ -161,40 +155,6 @@ export interface OpensearchClientInterface {
         tracer: TracerBase,
         index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
     ): Promise<void>;
-
-    /**
-     * Update many documents in an OpenSearch index at once with the [update by
-     * query API][1].
-     *
-     * If there are version conflicts while updating a document the update on that
-     * document is dropped and we proceed updating other documents. It's
-     * [recommended by the ElasticSearch team][2] to keep retrying updates by query
-     * until you have no version conflicts.
-     *
-     * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/update-by-query/
-     * [2]: https://github.com/elastic/elasticsearch/issues/22723#issuecomment-274156818
-     */
-    updateByQuery<
-        Routing extends string,
-        DocId extends string,
-        Doc extends {},
-        FlattenedKeys extends string,
-    >(
-        tracer: TracerBase,
-        index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
-        routing: Routing,
-        {
-            query,
-            script,
-        }: {
-            query: OpensearchQueryClause<FlattenedKeys>;
-            script: {
-                lang: "painless";
-                source: string;
-                params?: JsonObjectValue;
-            };
-        },
-    ): Promise<{versionConflictCount: number}>;
 }
 
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! //
@@ -758,28 +718,28 @@ export class OpensearchClient implements OpensearchClientInterface {
             await this._ensureLocalIndex(tracer, index);
         }
 
-        const url = new URL(`${this._protocol}://${this._host}/${index.name}/_search`);
-        url.searchParams.set("routing", routing);
-        url.searchParams.set("size", String(size));
+        const searchUrl = new URL(`${this._protocol}://${this._host}/${index.name}/_search`);
+        searchUrl.searchParams.set("routing", routing);
+        searchUrl.searchParams.set("size", String(size));
 
         // Important optimization. This means if we've satisfied the search's `size`
         // limit then we can immediately end the query and return instead of scanning
         // the entire index. [Works well with index sorting][1].
         //
         // [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/index-modules-index-sorting.html#early-terminate
-        url.searchParams.set("track_total_hits", "false");
+        searchUrl.searchParams.set("track_total_hits", "false");
 
         // Don't return partial results in case of error or timeout.
-        url.searchParams.set("allow_partial_search_results", "false");
+        searchUrl.searchParams.set("allow_partial_search_results", "false");
 
         // If a `TaskRealtimeService` search request takes a long time then it may
         // leave the action history visibility window. Bounding the time a search may
-        // take means we leave the rest of the visibility window (9.5min when the
-        // visibility window is 10min) for indexing actions.
-        url.searchParams.set("timeout", "30s");
-        url.searchParams.set("cancel_after_time_interval", "30s");
+        // take means we leave the rest of the visibility window (4.5min when the
+        // visibility window is 5min) for indexing actions.
+        searchUrl.searchParams.set("timeout", "30s");
+        searchUrl.searchParams.set("cancel_after_time_interval", "30s");
 
-        const {span, responsePromise} = fetchWithTracerAndReturnSpan(tracer, url, {
+        const {span, responsePromise} = fetchWithTracerAndReturnSpan(tracer, searchUrl, {
             spanRoute: `/${index.name}/_search`,
             method: "POST",
             headers: {"content-type": "application/json"},
@@ -851,111 +811,5 @@ export class OpensearchClient implements OpensearchClientInterface {
         if (!response.ok) {
             throw new InternalError("OpenSearch refresh failed");
         }
-    }
-
-    /**
-     * Update many documents in an OpenSearch index at once with the [update by
-     * query API][1].
-     *
-     * If there are version conflicts while updating a document the update on that
-     * document is dropped and we proceed updating other documents. It's
-     * [recommended by the ElasticSearch team][2] to keep retrying updates by query
-     * until you have no version conflicts.
-     *
-     * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/update-by-query/
-     * [2]: https://github.com/elastic/elasticsearch/issues/22723#issuecomment-274156818
-     */
-    public async updateByQuery<
-        Routing extends string,
-        DocId extends string,
-        Doc extends {},
-        FlattenedKeys extends string,
-    >(
-        tracer: TracerBase,
-        index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
-        routing: Routing,
-        {
-            query,
-            script,
-        }: {
-            query: OpensearchQueryClause<FlattenedKeys>;
-            script: {
-                lang: "painless";
-                source: string;
-                params?: JsonObjectValue;
-            };
-        },
-    ): Promise<{versionConflictCount: number}> {
-        if (process.env.NODE_ENV !== "production") {
-            await this._ensureLocalIndex(tracer, index);
-        }
-
-        const url = new URL(`${this._protocol}://${this._host}/${index.name}/_update_by_query`);
-        url.searchParams.set("routing", routing);
-
-        // If there's a version conflict, proceed with the update. We'll have the
-        // `versionConflictCount` return number to tell us if we had any version
-        // conflicts.
-        //
-        // It's [recommended by the ElasticSearch][1] team to perform your query
-        // updates with `conflicts=proceed` on then retry against documents which
-        // didn't update if there were conflicts.
-        //
-        // [1]: https://github.com/elastic/elasticsearch/issues/22723#issuecomment-274156818
-        url.searchParams.set("conflicts", "proceed");
-
-        // Bound how long this update may take. `TaskRealtimeService` expects actions
-        // to be indexed promptly (currently it's history window is configured to 10min
-        // but we need to index in less time to account for refresh interval, search
-        // time, and other factors). If it's taking too long we reject the update and
-        // should debug what's going on.
-        url.searchParams.set("timeout", "1m");
-
-        const {span, responsePromise} = fetchWithTracerAndReturnSpan(tracer, url, {
-            spanRoute: `/${index.name}/_update_by_query`,
-            method: "POST",
-            headers: {"content-type": "application/json"},
-            // NOTE(#opensearch-important-json-disclaimer): `long`s in `query` must be
-            // stringified since the query clause type only supports JSON values. `script`
-            // also is typed as a JSON safe value.
-            body: JSON.stringify({query, script}),
-        });
-
-        span.addData({
-            opensearch: {
-                query: getOpensearchQueryClauseDescription(query),
-            },
-        });
-
-        const response = await responsePromise;
-
-        // NOTE(#opensearch-important-json-disclaimer): All numbers in this response
-        // should safely fit into JavaScript float-64 numbers so we don't need to use
-        // bigint parsing.
-        const body:
-            | {
-                  timed_out: boolean;
-                  version_conflicts: number;
-                  failures: Array<unknown>;
-                  error?: undefined;
-              }
-            | {error: OpensearchError} = await response.json();
-
-        if (body.error) {
-            const errorType = body.error.root_cause?.[0]?.type ?? body.error.type;
-            throw new UnknownError(`OpenSearch update by query failed: ${errorType}`);
-        }
-
-        if (body.failures.length > 0) {
-            throw new UnknownError(
-                `OpenSearch update by query failed with ${body.failures.length} failure(s)`,
-            );
-        }
-
-        if (body.timed_out) {
-            throw new DeadlineExceededError("OpenSearch update by query timed out");
-        }
-
-        return {versionConflictCount: body.version_conflicts};
     }
 }

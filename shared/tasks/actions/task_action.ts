@@ -3,7 +3,6 @@ import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
-import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskCollectionActionSchema} from "~/shared/tasks/actions/task_collection_action.js";
 import {TaskNotepadPageActionSchema} from "~/shared/tasks/actions/task_notepad_page_action.js";
@@ -97,37 +96,10 @@ const TaskUpdateNotepadPageActionSchema = Schema.object({
     notepadPageAction: TaskNotepadPageActionSchema,
 });
 
-/**
- * When a task references an account it needs to sort/group by it uses the
- * `TaskSortableAccount` object. This object inlines the account's name so that
- * the task system can consistently sort by account names alphabetically. We
- * index our task data in OpenSearch and we need the account name string in
- * there to sort.
- *
- * So when an account changes their name, we commit an `UpdateAccountName`
- * action in all the spaces they are a member of. This action is applied to
- * every task that includes the account name at a version behind the version in
- * this action.
- *
- * Two different names at the same version is an error. We'll throw an
- * incompatible action error. Only the server can commit this action and it
- * must make sure to never use the same account name version twice.
- */
-export type TaskUpdateAccountNameAction = SchemaType<typeof TaskUpdateAccountNameActionSchema>;
-
-const TaskUpdateAccountNameActionSchema = Schema.object({
-    type: Schema.value("UpdateAccountName"),
-    time: HybridLogicalTimeSchema,
-    accountId: Schema.id<AccountId>(),
-    accountName: LabelStringSchema,
-    accountNameVersion: Schema.integer,
-});
-
 export const TaskActionSchema = Schema.union({
     UpdateTask: TaskUpdateTaskActionSchema,
     UpdateCollection: TaskUpdateCollectionActionSchema,
     UpdateNotepadPage: TaskUpdateNotepadPageActionSchema,
-    UpdateAccountName: TaskUpdateAccountNameActionSchema,
 });
 
 // Every action should have a `time` property with the logical time of
@@ -146,8 +118,6 @@ export function getTaskActionLabel(action: TaskAction): string {
             return `${action.type}_${action.collectionAction.type}`;
         case "UpdateNotepadPage":
             return `${action.type}_${action.notepadPageAction.type}`;
-        case "UpdateAccountName":
-            return action.type;
         default:
             throw exhaustive(action);
     }

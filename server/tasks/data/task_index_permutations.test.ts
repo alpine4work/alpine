@@ -20,6 +20,8 @@ import {
 
 const context = createTestContext({shouldStartOpensearch: true});
 const space = createTestSpace(context);
+const session1 = createTestSession(context, space);
+const session2 = createTestSession(context, space);
 
 import.meta.jest.setTimeout(1000 * 30);
 
@@ -27,12 +29,11 @@ testTaskActionPermutations({
     // This test takes a ridiculously long time to run given it needs to talk to
     // OpenSearch. Only run 15% of the test permutations. Our client-side
     // implementation will run all the tests for coverage.
-    // NOCOMMIT: percent: 0.15,
+    percent: 0.15,
     partitionNumber: parseInt(process.env.TEST_SHARD_INDEX ?? "0", 10) + 1,
     partitionCount: parseInt(process.env.TEST_TOTAL_SHARDS ?? "1", 10),
-    createAccount: () => {
-        return createTestSession(context, space).account;
-    },
+    account1: session1.account,
+    account2: session2.account,
     applyTaskAction: async (action, next) => {
         let hasCalledNext = false;
 

@@ -458,16 +458,6 @@ export type TaskIndexDocWithVersion = OpensearchClientDocWithVersion<TaskIndexDo
 
 export const TaskIndexDocType = OpensearchIndexObjectType.new({
     fields: {
-        // The space this task is in. We also use the `SpaceId` as the routing value
-        // for `TaskIndex`. Why do we also need it here? For index sorting. We want to
-        // sort the OpenSearch index by space, then deletion, then open/close status.
-        // So it's efficient to filter for open, not-deleted, tasks in a space. The
-        // documentation is unclear on whether the routing field is included in
-        // index sorting so we manually have an identical `spaceId` field that's
-        // part of index sorting.
-        //
-        // We recommend filtering on both `spaceId` and the routing field to make sure
-        // index sorting optimizations kick in.
         spaceId: new OpensearchIndexKeywordType({
             isFilterable: true,
             isSortable: true,

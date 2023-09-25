@@ -34,16 +34,25 @@ const store = new TaskClientStore({
     onDisplayError: handleDisplayError,
 });
 
+const account1 = new AccountModel({
+    id: generateId(),
+    name: "Test Account 1",
+    nameVersion: 0,
+    createdTime: new Date(),
+    version: 0,
+});
+
+const account2 = new AccountModel({
+    id: generateId(),
+    name: "Test Account 2",
+    nameVersion: 0,
+    createdTime: new Date(),
+    version: 0,
+});
+
 testTaskActionPermutations({
-    createAccount: () => {
-        return new AccountModel({
-            id: generateId(),
-            name: "Test Account",
-            nameVersion: 0,
-            createdTime: new Date(),
-            version: 0,
-        });
-    },
+    account1,
+    account2,
     applyTaskAction: action => {
         store.applyUpdateEvent({
             type: "Update",
