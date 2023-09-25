@@ -2336,7 +2336,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
-    public transactionUpdateLockVersionConditionCheck(
+    public transactionItemUpdateLockVersionConditionCheck(
         key: Types["ItemKey"],
         updateLockVersion: number | undefined,
     ): DynamoTransactionEntry {
@@ -2365,6 +2365,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      */
     public transactionDoesNotExistConditionCheck<Key extends Types["ItemKey"]>(
         key: Key,
+        {isConditionCheckErrorRetriable = false}: {isConditionCheckErrorRetriable?: boolean} = {},
     ): DynamoTransactionEntry {
         const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
 
@@ -2385,6 +2386,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             conditionExpression: conditionExpressionString,
             expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
             expressionAttributeNames: new Map(conditionCompilationContext.iterateAttributeNames()),
+            isConditionCheckErrorRetriable,
         });
     }
 

@@ -2,6 +2,8 @@
 // internal format to data structures expected by `TaskRealtimeProtocol`. For
 // instance converting `TaskIndexDoc` to `TaskModel`.
 
+// NOCOMMIT: Split this into individual files?
+
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {maxHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
@@ -214,80 +216,5 @@ export function collectReferencedAccountIdsFromTaskModelData(
     if (task.assignee.value) {
         accountIds.add(task.assignee.value.assignee.accountId);
         accountIds.add(task.assignee.value.assigner.accountId);
-    }
-}
-
-/**
- * Get all the `AccountId`s referenced by a task action.
- */
-export function collectReferencedAccountIdsFromTaskAction(
-    accountIds: Set<AccountId>,
-    action: TaskAction,
-) {
-    switch (action.type) {
-        case "UpdateTask": {
-            switch (action.taskAction.type) {
-                case "Create": {
-                    accountIds.add(action.taskAction.creator.accountId);
-                    return;
-                }
-                case "UpdateNotepadPagePosition": {
-                    accountIds.add(action.taskAction.accountId);
-                    return;
-                }
-                case "UpdateStatus": {
-                    if (action.taskAction.status.type === "Closed") {
-                        accountIds.add(action.taskAction.status.closer.accountId);
-                    }
-                    return;
-                }
-                case "UpdateAssignee": {
-                    if (action.taskAction.assignee) {
-                        accountIds.add(action.taskAction.assignee.assignee.accountId);
-                        accountIds.add(action.taskAction.assignee.assigner.accountId);
-                    }
-                    return;
-                }
-                case "Delete":
-                case "Undelete":
-                case "UpdateParentTaskId":
-                case "UpdateParentPosition":
-                case "UpdateChildrenCounts":
-                case "AddCollection":
-                case "RemoveCollection":
-                case "UpdateCollectionPosition":
-                case "UpdateAssigneeStatus":
-                case "UpdateAssigneeActivePosition":
-                case "UpdateTitle":
-                case "UpdateDueDate":
-                case "UpdatePriority": {
-                    return;
-                }
-                default:
-                    throw exhaustive(action.taskAction);
-            }
-        }
-        case "UpdateCollection": {
-            switch (action.collectionAction.type) {
-                case "Create":
-                case "Delete":
-                case "Undelete":
-                case "UpdateName":
-                case "UpdateAccessPolicy": {
-                    // The client doesn't expect access policy accounts to be loaded. We'll load
-                    // these accounts when the sharing modal opens.
-                    return;
-                }
-                default:
-                    throw exhaustive(action.collectionAction);
-            }
-        }
-        case "UpdateNotepadPage": {
-            cast<"Create">(action.notepadPageAction.type);
-            accountIds.add(action.accountId);
-            return action;
-        }
-        default:
-            throw exhaustive(action);
     }
 }

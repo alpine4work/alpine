@@ -1,12 +1,20 @@
-import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
+import {
+    TaskAssigneeWithSortableAccount,
+    TaskAssigneeWithSortableAccountRegister,
+    TaskIndexDoc,
+    TaskStatusWithSortableAccount,
+    TaskStatusWithSortableAccountRegister,
+} from "~/server/tasks/data/task_index_doc.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {areUint8ArraysEqual} from "~/shared/helpers/binary/are_uint8_arrays_equal.js";
 import {
     HybridLogicalTime,
+    compareHybridLogicalTimes,
     maxHybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
 import {TaskTaskAction} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {applyTaskTitleUpdate} from "~/shared/tasks/task_title.js";
@@ -15,25 +23,55 @@ import {applyTaskTitleUpdate} from "~/shared/tasks/task_title.js";
  * Applies a `TaskTaskAction` to a `TaskIndexDoc`. `TaskTaskAction`s are
  * commutative and idempotent. This means they can be applied in any order or
  * multiple times and we'll converge to the same result every time.
+ *
+ * `workingAccountName` and `workingAccountNameVersion` don't really follow the
+ * same commutativity and idempotency rules as everything else in a
+ * `TaskIndexDoc`. If the returned value from
+ * `getActionReferencedAccountName()` never changes then this function is fully
+ * commutative and idempotent. If the returned value from
+ * `getActionReferencedAccountName()` does change, not so much.
+ *
+ * We inline the account name and version into our OpenSearch index so we can
+ * sort by them. In theory there's a `TaskAccountName` object in our CRDT task
+ * system similar to the `Task` and `TaskCollection` CRDT objects but instead
+ * of being stored in its own OpenSearch index it needs to be inlined into our
+ * tasks so we can sort by it.
  */
 export function applyTaskActionToTaskIndexDoc(
     task: TaskIndexDoc,
     actionTime: HybridLogicalTime,
     action: TaskTaskAction,
+    getActionReferencedAccountName: (accountId: AccountId) => {name: string; nameVersion: number},
 ): TaskIndexDoc {
     switch (action.type) {
         case "Create": {
-            if (
-                !task.creator.isEqual(action.creator) ||
-                !task.createdTime.isEqual(
+            const isCompatible =
+                task.creator.accountId === action.creatorId &&
+                task.createdTime.isEqual(
                     new TaskFilterableTime({
                         absoluteTime: actionTime,
                         setterTimeZone: action.creatorTimeZone,
                     }),
-                )
-            ) {
+                );
+
+            if (!isCompatible) {
                 throw new FailedPreconditionError("Incompatible create action");
             }
+
+            const creatorName = getActionReferencedAccountName(action.creatorId);
+
+            // If the task creator's name changed then update the index doc.
+            if (creatorName.nameVersion > task.creator.workingAccountNameVersion) {
+                return {
+                    ...task,
+                    creator: {
+                        accountId: action.creatorId,
+                        workingAccountName: creatorName.name,
+                        workingAccountNameVersion: creatorName.nameVersion,
+                    },
+                };
+            }
+
             return task;
         }
         case "Delete": {
@@ -217,10 +255,36 @@ export function applyTaskActionToTaskIndexDoc(
             };
         }
         case "UpdateStatus": {
-            const newStatus = task.status.apply({
-                value: action.status,
-                version: actionTime,
-            });
+            let status: TaskStatusWithSortableAccount;
+            if (action.status.type !== "Closed") {
+                status = action.status;
+            } else {
+                const closerName = getActionReferencedAccountName(action.status.closerId);
+
+                status = {
+                    type: "Closed",
+                    closer: {
+                        accountId: action.status.closerId,
+                        workingAccountName: closerName.name,
+                        workingAccountNameVersion: closerName.nameVersion,
+                    },
+                    closedTime: action.status.closedTime,
+                };
+            }
+
+            const newStatus =
+                // If we have a version tie and our status's `workingAccountNameVersion` is
+                // newer then it should always win.
+                compareHybridLogicalTimes(task.status.version, actionTime) === 0 &&
+                task.status.value.type === "Closed" &&
+                status.type === "Closed" &&
+                status.closer.workingAccountNameVersion >
+                    task.status.value.closer.workingAccountNameVersion
+                    ? new TaskStatusWithSortableAccountRegister(status, actionTime)
+                    : task.status.apply({
+                          value: status,
+                          version: actionTime,
+                      });
 
             const newRawAssigneeStatus = task.rawAssigneeStatus.apply({
                 value: {type: "Inactive"},
@@ -248,10 +312,43 @@ export function applyTaskActionToTaskIndexDoc(
             };
         }
         case "UpdateAssignee": {
-            const newAssignee = task.assignee.apply({
-                value: action.assignee,
-                version: actionTime,
-            });
+            let assignee: TaskAssigneeWithSortableAccount | null;
+            if (action.assignee === null) {
+                assignee = null;
+            } else {
+                const assigneeName = getActionReferencedAccountName(action.assignee.assigneeId);
+                const assignerName = getActionReferencedAccountName(action.assignee.assignerId);
+
+                assignee = {
+                    assignee: {
+                        accountId: action.assignee.assigneeId,
+                        workingAccountName: assigneeName.name,
+                        workingAccountNameVersion: assigneeName.nameVersion,
+                    },
+                    assigner: {
+                        accountId: action.assignee.assignerId,
+                        workingAccountName: assignerName.name,
+                        workingAccountNameVersion: assignerName.nameVersion,
+                    },
+                    assignedTime: action.assignee.assignedTime,
+                };
+            }
+
+            const newAssignee =
+                // If we have a version tie and our assignee or assigner's
+                // `workingAccountNameVersion` is newer then it should always win.
+                compareHybridLogicalTimes(task.status.version, actionTime) === 0 &&
+                task.assignee.value &&
+                assignee &&
+                (assignee.assignee.workingAccountNameVersion >
+                    task.assignee.value.assignee.workingAccountNameVersion ||
+                    assignee.assigner.workingAccountNameVersion >
+                        task.assignee.value.assigner.workingAccountNameVersion)
+                    ? new TaskAssigneeWithSortableAccountRegister(assignee, actionTime)
+                    : task.assignee.apply({
+                          value: assignee,
+                          version: actionTime,
+                      });
 
             const newRawAssigneeStatus = task.rawAssigneeStatus.apply({
                 value: {type: "Inactive"},

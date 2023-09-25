@@ -61,7 +61,7 @@ testTaskActionPermutations({
         if (!task) throw new NotFoundError("Task not found");
 
         return {
-            creator: task.creator,
+            creatorId: task.creator.accountId,
             createdTime: task.createdTime,
             isDeleted: getTaskIndexDocIsDeleted(task),
             parent: task.parent.taskId.value
@@ -82,8 +82,21 @@ testTaskActionPermutations({
                 ]),
             ),
             notepadPagePositions: new Map(task.notepadPages.raw.positionById),
-            status: task.status.value,
-            assignee: task.assignee.value,
+            status:
+                task.status.value.type === "Closed"
+                    ? {
+                          type: "Closed",
+                          closerId: task.status.value.closer.accountId,
+                          closedTime: task.status.value.closedTime,
+                      }
+                    : task.status.value,
+            assignee: task.assignee.value
+                ? {
+                      assigneeId: task.assignee.value.assignee.accountId,
+                      assignerId: task.assignee.value.assigner.accountId,
+                      assignedTime: task.assignee.value.assignedTime,
+                  }
+                : null,
             assigneeStatus:
                 task.status.value.type === "Open" && task.assignee.value
                     ? task.rawAssigneeStatus.value

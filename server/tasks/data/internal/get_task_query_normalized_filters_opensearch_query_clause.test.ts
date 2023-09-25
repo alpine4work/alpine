@@ -18,6 +18,7 @@ import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id
 import {evaluateTaskQueryNormalizedFiltersForModel} from "~/shared/tasks/model/evaluate_task_query_normalized_filters_for_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
+import {TaskAssigneeRegister} from "~/shared/tasks/task_assignee.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskNotepadPageId, generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 import {TaskQueryFilter, TaskQueryFilterDateOperation} from "~/shared/tasks/task_query_filter.js";
@@ -26,7 +27,7 @@ import {
     defaultTaskQueryNormalizedFilters,
     normalizeTaskQueryFilters,
 } from "~/shared/tasks/task_query_normalized_filters.js";
-import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
+import {TaskStatusRegister} from "~/shared/tasks/task_status.js";
 import {TaskTitleUpdate} from "~/shared/tasks/task_title.js";
 import {
     sentenceTaskTitleTestScenario,
@@ -224,7 +225,7 @@ function convertTaskIndexDocToModel(task: TaskIndexDoc): TaskModel {
     return new TaskModel({
         id: task.id,
         spaceId: task.spaceId,
-        creator: task.creator,
+        creatorId: task.creator.accountId,
         createdTime: task.createdTime,
         deletedTime: task.rawDeletedTime,
         undeletedTime: task.rawUndeletedTime,
@@ -239,8 +240,26 @@ function convertTaskIndexDocToModel(task: TaskIndexDoc): TaskModel {
         collections: task.collections.raw.collections,
         positionByCollectionId: task.collections.raw.positionById,
         positionByAccountIdAndNotepadPageId: task.notepadPages.raw.positionById,
-        status: task.status,
-        assignee: task.assignee,
+        status: new TaskStatusRegister(
+            task.status.value.type === "Closed"
+                ? {
+                      type: "Closed",
+                      closerId: task.status.value.closer.accountId,
+                      closedTime: task.status.value.closedTime,
+                  }
+                : task.status.value,
+            task.status.version,
+        ),
+        assignee: new TaskAssigneeRegister(
+            task.assignee.value
+                ? {
+                      assigneeId: task.assignee.value.assignee.accountId,
+                      assignerId: task.assignee.value.assigner.accountId,
+                      assignedTime: task.assignee.value.assignedTime,
+                  }
+                : null,
+            task.assignee.version,
+        ),
         assigneeStatus: task.rawAssigneeStatus,
         assigneeActivePosition: task.rawAssigneeActivePosition,
         title: TaskTitleModel.new(task.title.raw),
@@ -264,7 +283,7 @@ test("searches all tasks in a space", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -279,7 +298,7 @@ test("searches all tasks in a space", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -289,7 +308,7 @@ test("searches all tasks in a space", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -320,7 +339,7 @@ test("deleted tasks are filtered out", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -330,7 +349,7 @@ test("deleted tasks are filtered out", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -340,7 +359,7 @@ test("deleted tasks are filtered out", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -411,7 +430,7 @@ test("closed tasks are filtered out by default", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -421,7 +440,7 @@ test("closed tasks are filtered out by default", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -431,7 +450,7 @@ test("closed tasks are filtered out by default", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -443,7 +462,7 @@ test("closed tasks are filtered out by default", async () => {
                 type: "UpdateStatus",
                 status: {
                     type: "Closed",
-                    closer: TaskSortableAccount.test(session1),
+                    closerId: session1.account.id,
                     closedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -484,7 +503,7 @@ test("can filter for closed tasks", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -494,7 +513,7 @@ test("can filter for closed tasks", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -504,7 +523,7 @@ test("can filter for closed tasks", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -516,7 +535,7 @@ test("can filter for closed tasks", async () => {
                 type: "UpdateStatus",
                 status: {
                     type: "Closed",
-                    closer: TaskSortableAccount.test(session1),
+                    closerId: session1.account.id,
                     closedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -528,8 +547,8 @@ test("can filter for closed tasks", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session2),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session2.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -589,7 +608,7 @@ test("can filter for open tasks", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -599,7 +618,7 @@ test("can filter for open tasks", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -609,7 +628,7 @@ test("can filter for open tasks", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -621,7 +640,7 @@ test("can filter for open tasks", async () => {
                 type: "UpdateStatus",
                 status: {
                     type: "Closed",
-                    closer: TaskSortableAccount.test(session1),
+                    closerId: session1.account.id,
                     closedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -633,8 +652,8 @@ test("can filter for open tasks", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session2),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session2.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -694,7 +713,7 @@ test("can filter for open inactive tasks", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -704,7 +723,7 @@ test("can filter for open inactive tasks", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -714,7 +733,7 @@ test("can filter for open inactive tasks", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -726,7 +745,7 @@ test("can filter for open inactive tasks", async () => {
                 type: "UpdateStatus",
                 status: {
                     type: "Closed",
-                    closer: TaskSortableAccount.test(session1),
+                    closerId: session1.account.id,
                     closedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -738,8 +757,8 @@ test("can filter for open inactive tasks", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session2),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session2.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -796,7 +815,7 @@ test("can filter for open active tasks", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -806,7 +825,7 @@ test("can filter for open active tasks", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -816,7 +835,7 @@ test("can filter for open active tasks", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -828,7 +847,7 @@ test("can filter for open active tasks", async () => {
                 type: "UpdateStatus",
                 status: {
                     type: "Closed",
-                    closer: TaskSortableAccount.test(session1),
+                    closerId: session1.account.id,
                     closedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -840,8 +859,8 @@ test("can filter for open active tasks", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session2),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session2.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -898,7 +917,7 @@ test("can filter for closed and open inactive tasks", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -908,7 +927,7 @@ test("can filter for closed and open inactive tasks", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -918,7 +937,7 @@ test("can filter for closed and open inactive tasks", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -930,7 +949,7 @@ test("can filter for closed and open inactive tasks", async () => {
                 type: "UpdateStatus",
                 status: {
                     type: "Closed",
-                    closer: TaskSortableAccount.test(session1),
+                    closerId: session1.account.id,
                     closedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -942,8 +961,8 @@ test("can filter for closed and open inactive tasks", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session2),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session2.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -1000,7 +1019,7 @@ test("can filter for closed and open active tasks", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1010,7 +1029,7 @@ test("can filter for closed and open active tasks", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1020,7 +1039,7 @@ test("can filter for closed and open active tasks", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1032,7 +1051,7 @@ test("can filter for closed and open active tasks", async () => {
                 type: "UpdateStatus",
                 status: {
                     type: "Closed",
-                    closer: TaskSortableAccount.test(session1),
+                    closerId: session1.account.id,
                     closedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -1044,8 +1063,8 @@ test("can filter for closed and open active tasks", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session2),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session2.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -1102,7 +1121,7 @@ test("can filter for no statuses", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1112,7 +1131,7 @@ test("can filter for no statuses", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1122,7 +1141,7 @@ test("can filter for no statuses", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1134,7 +1153,7 @@ test("can filter for no statuses", async () => {
                 type: "UpdateStatus",
                 status: {
                     type: "Closed",
-                    closer: TaskSortableAccount.test(session1),
+                    closerId: session1.account.id,
                     closedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -1146,8 +1165,8 @@ test("can filter for no statuses", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session2),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session2.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -1207,7 +1226,7 @@ test("can filter for all statuses", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1217,7 +1236,7 @@ test("can filter for all statuses", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1227,7 +1246,7 @@ test("can filter for all statuses", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1239,7 +1258,7 @@ test("can filter for all statuses", async () => {
                 type: "UpdateStatus",
                 status: {
                     type: "Closed",
-                    closer: TaskSortableAccount.test(session1),
+                    closerId: session1.account.id,
                     closedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -1251,8 +1270,8 @@ test("can filter for all statuses", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session2),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session2.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -1315,7 +1334,7 @@ test("will merge multiple status filters", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1325,7 +1344,7 @@ test("will merge multiple status filters", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1335,7 +1354,7 @@ test("will merge multiple status filters", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1347,7 +1366,7 @@ test("will merge multiple status filters", async () => {
                 type: "UpdateStatus",
                 status: {
                     type: "Closed",
-                    closer: TaskSortableAccount.test(session1),
+                    closerId: session1.account.id,
                     closedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -1359,8 +1378,8 @@ test("will merge multiple status filters", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session2),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session2.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -1556,7 +1575,7 @@ test("can filter by one of collections", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1566,7 +1585,7 @@ test("can filter by one of collections", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1576,7 +1595,7 @@ test("can filter by one of collections", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1586,7 +1605,7 @@ test("can filter by one of collections", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1778,7 +1797,7 @@ test("can filter by all of collections", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1788,7 +1807,7 @@ test("can filter by all of collections", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1798,7 +1817,7 @@ test("can filter by all of collections", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1808,7 +1827,7 @@ test("can filter by all of collections", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2000,7 +2019,7 @@ test("can filter by excludes all of collections", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2010,7 +2029,7 @@ test("can filter by excludes all of collections", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2020,7 +2039,7 @@ test("can filter by excludes all of collections", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2030,7 +2049,7 @@ test("can filter by excludes all of collections", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2234,7 +2253,7 @@ test("can filter by empty collections", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2244,7 +2263,7 @@ test("can filter by empty collections", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2254,7 +2273,7 @@ test("can filter by empty collections", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2264,7 +2283,7 @@ test("can filter by empty collections", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2393,7 +2412,7 @@ test("can filter against collections without providing collection ids", async ()
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2403,7 +2422,7 @@ test("can filter against collections without providing collection ids", async ()
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2413,7 +2432,7 @@ test("can filter against collections without providing collection ids", async ()
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2423,7 +2442,7 @@ test("can filter against collections without providing collection ids", async ()
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2571,7 +2590,7 @@ test("can merge collection filters in various ways", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2581,7 +2600,7 @@ test("can merge collection filters in various ways", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2591,7 +2610,7 @@ test("can merge collection filters in various ways", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2601,7 +2620,7 @@ test("can merge collection filters in various ways", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2611,7 +2630,7 @@ test("can merge collection filters in various ways", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3370,7 +3389,7 @@ test("can filter for individual priorities", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3380,7 +3399,7 @@ test("can filter for individual priorities", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3390,7 +3409,7 @@ test("can filter for individual priorities", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3400,7 +3419,7 @@ test("can filter for individual priorities", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3410,7 +3429,7 @@ test("can filter for individual priorities", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3539,7 +3558,7 @@ test("can filter for three priorities at once", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3549,7 +3568,7 @@ test("can filter for three priorities at once", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3559,7 +3578,7 @@ test("can filter for three priorities at once", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3569,7 +3588,7 @@ test("can filter for three priorities at once", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3579,7 +3598,7 @@ test("can filter for three priorities at once", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3684,7 +3703,7 @@ test("can negative filter for individual priorities", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3694,7 +3713,7 @@ test("can negative filter for individual priorities", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3704,7 +3723,7 @@ test("can negative filter for individual priorities", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3714,7 +3733,7 @@ test("can negative filter for individual priorities", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3724,7 +3743,7 @@ test("can negative filter for individual priorities", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3853,7 +3872,7 @@ test("can negative filter for three priorities at once", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3863,7 +3882,7 @@ test("can negative filter for three priorities at once", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3873,7 +3892,7 @@ test("can negative filter for three priorities at once", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3883,7 +3902,7 @@ test("can negative filter for three priorities at once", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3893,7 +3912,7 @@ test("can negative filter for three priorities at once", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -3998,7 +4017,7 @@ test("can filter for all priorities", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4008,7 +4027,7 @@ test("can filter for all priorities", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4018,7 +4037,7 @@ test("can filter for all priorities", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4028,7 +4047,7 @@ test("can filter for all priorities", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4038,7 +4057,7 @@ test("can filter for all priorities", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4119,7 +4138,7 @@ test("can negative filter for all priorities", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4129,7 +4148,7 @@ test("can negative filter for all priorities", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4139,7 +4158,7 @@ test("can negative filter for all priorities", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4149,7 +4168,7 @@ test("can negative filter for all priorities", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4159,7 +4178,7 @@ test("can negative filter for all priorities", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4240,7 +4259,7 @@ test("can merge priority filters", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4250,7 +4269,7 @@ test("can merge priority filters", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4260,7 +4279,7 @@ test("can merge priority filters", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4270,7 +4289,7 @@ test("can merge priority filters", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4280,7 +4299,7 @@ test("can merge priority filters", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4485,7 +4504,7 @@ test("can filter for a single assignee account", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4495,7 +4514,7 @@ test("can filter for a single assignee account", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4505,7 +4524,7 @@ test("can filter for a single assignee account", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4515,7 +4534,7 @@ test("can filter for a single assignee account", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4526,8 +4545,8 @@ test("can filter for a single assignee account", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session1),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session1.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -4539,8 +4558,8 @@ test("can filter for a single assignee account", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session2),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session2.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -4552,8 +4571,8 @@ test("can filter for a single assignee account", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session2),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session2.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -4641,7 +4660,7 @@ test("can filter for multiple assignee accounts", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4651,7 +4670,7 @@ test("can filter for multiple assignee accounts", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4661,7 +4680,7 @@ test("can filter for multiple assignee accounts", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4671,7 +4690,7 @@ test("can filter for multiple assignee accounts", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4682,8 +4701,8 @@ test("can filter for multiple assignee accounts", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session1),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session1.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -4695,8 +4714,8 @@ test("can filter for multiple assignee accounts", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session2),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session2.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -4708,8 +4727,8 @@ test("can filter for multiple assignee accounts", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session2),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session2.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -4764,7 +4783,7 @@ test("can negative filter for a single assignee account", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4774,7 +4793,7 @@ test("can negative filter for a single assignee account", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4784,7 +4803,7 @@ test("can negative filter for a single assignee account", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4794,7 +4813,7 @@ test("can negative filter for a single assignee account", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4805,8 +4824,8 @@ test("can negative filter for a single assignee account", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session1),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session1.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -4818,8 +4837,8 @@ test("can negative filter for a single assignee account", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session2),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session2.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -4831,8 +4850,8 @@ test("can negative filter for a single assignee account", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session2),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session2.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -4920,7 +4939,7 @@ test("can negative filter for multiple assignee accounts", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4930,7 +4949,7 @@ test("can negative filter for multiple assignee accounts", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4940,7 +4959,7 @@ test("can negative filter for multiple assignee accounts", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4950,7 +4969,7 @@ test("can negative filter for multiple assignee accounts", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -4961,8 +4980,8 @@ test("can negative filter for multiple assignee accounts", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session1),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session1.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -4974,8 +4993,8 @@ test("can negative filter for multiple assignee accounts", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session2),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session2.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -4987,8 +5006,8 @@ test("can negative filter for multiple assignee accounts", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session2),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session2.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -5043,7 +5062,7 @@ test("can filter with empty assignee accounts", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5053,7 +5072,7 @@ test("can filter with empty assignee accounts", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5063,7 +5082,7 @@ test("can filter with empty assignee accounts", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5073,7 +5092,7 @@ test("can filter with empty assignee accounts", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5084,8 +5103,8 @@ test("can filter with empty assignee accounts", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session1),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session1.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -5097,8 +5116,8 @@ test("can filter with empty assignee accounts", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session2),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session2.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -5110,8 +5129,8 @@ test("can filter with empty assignee accounts", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session2),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session2.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -5163,7 +5182,7 @@ test("can merge assignee filters", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5173,7 +5192,7 @@ test("can merge assignee filters", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5183,7 +5202,7 @@ test("can merge assignee filters", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5193,7 +5212,7 @@ test("can merge assignee filters", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5204,8 +5223,8 @@ test("can merge assignee filters", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session1),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session1.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -5217,8 +5236,8 @@ test("can merge assignee filters", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session2),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session2.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -5230,8 +5249,8 @@ test("can merge assignee filters", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session2),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session2.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -5364,7 +5383,7 @@ test("can filter for a single creator account", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5377,7 +5396,7 @@ test("can filter for a single creator account", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session2),
+                creatorId: session2.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5387,7 +5406,7 @@ test("can filter for a single creator account", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session2),
+                creatorId: session2.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5400,7 +5419,7 @@ test("can filter for a single creator account", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session3),
+                creatorId: session3.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5488,7 +5507,7 @@ test("can filter for multiple creator accounts", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5501,7 +5520,7 @@ test("can filter for multiple creator accounts", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session2),
+                creatorId: session2.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5511,7 +5530,7 @@ test("can filter for multiple creator accounts", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session2),
+                creatorId: session2.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5524,7 +5543,7 @@ test("can filter for multiple creator accounts", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session3),
+                creatorId: session3.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5579,7 +5598,7 @@ test("can negative filter for a single creator account", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5592,7 +5611,7 @@ test("can negative filter for a single creator account", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session2),
+                creatorId: session2.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5602,7 +5621,7 @@ test("can negative filter for a single creator account", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session2),
+                creatorId: session2.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5615,7 +5634,7 @@ test("can negative filter for a single creator account", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session3),
+                creatorId: session3.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5703,7 +5722,7 @@ test("can negative filter for multiple creator accounts", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5716,7 +5735,7 @@ test("can negative filter for multiple creator accounts", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session2),
+                creatorId: session2.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5726,7 +5745,7 @@ test("can negative filter for multiple creator accounts", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session2),
+                creatorId: session2.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5739,7 +5758,7 @@ test("can negative filter for multiple creator accounts", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session3),
+                creatorId: session3.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5794,7 +5813,7 @@ test("can filter with empty creator accounts", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5807,7 +5826,7 @@ test("can filter with empty creator accounts", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session2),
+                creatorId: session2.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5817,7 +5836,7 @@ test("can filter with empty creator accounts", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session2),
+                creatorId: session2.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5830,7 +5849,7 @@ test("can filter with empty creator accounts", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session3),
+                creatorId: session3.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5882,7 +5901,7 @@ test("can merge creator filters", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5895,7 +5914,7 @@ test("can merge creator filters", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session2),
+                creatorId: session2.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5905,7 +5924,7 @@ test("can merge creator filters", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session2),
+                creatorId: session2.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5918,7 +5937,7 @@ test("can merge creator filters", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session3),
+                creatorId: session3.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6051,7 +6070,7 @@ test("can filter for a single assigner account", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6061,7 +6080,7 @@ test("can filter for a single assigner account", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6071,7 +6090,7 @@ test("can filter for a single assigner account", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6081,7 +6100,7 @@ test("can filter for a single assigner account", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6148,8 +6167,8 @@ test("can filter for a single assigner account", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session2),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session2.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -6164,8 +6183,8 @@ test("can filter for a single assigner account", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session1),
-                    assigner: TaskSortableAccount.test(session2),
+                    assigneeId: session1.account.id,
+                    assignerId: session2.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -6177,8 +6196,8 @@ test("can filter for a single assigner account", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session1),
-                    assigner: TaskSortableAccount.test(session2),
+                    assigneeId: session1.account.id,
+                    assignerId: session2.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -6268,7 +6287,7 @@ test("can filter for multiple assigner accounts", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6278,7 +6297,7 @@ test("can filter for multiple assigner accounts", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6288,7 +6307,7 @@ test("can filter for multiple assigner accounts", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6298,7 +6317,7 @@ test("can filter for multiple assigner accounts", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6365,8 +6384,8 @@ test("can filter for multiple assigner accounts", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session2),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session2.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -6381,8 +6400,8 @@ test("can filter for multiple assigner accounts", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session1),
-                    assigner: TaskSortableAccount.test(session2),
+                    assigneeId: session1.account.id,
+                    assignerId: session2.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -6394,8 +6413,8 @@ test("can filter for multiple assigner accounts", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session1),
-                    assigner: TaskSortableAccount.test(session2),
+                    assigneeId: session1.account.id,
+                    assignerId: session2.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -6452,7 +6471,7 @@ test("can negative filter for a single assigner account", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6462,7 +6481,7 @@ test("can negative filter for a single assigner account", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6472,7 +6491,7 @@ test("can negative filter for a single assigner account", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6482,7 +6501,7 @@ test("can negative filter for a single assigner account", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6549,8 +6568,8 @@ test("can negative filter for a single assigner account", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session2),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session2.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -6565,8 +6584,8 @@ test("can negative filter for a single assigner account", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session1),
-                    assigner: TaskSortableAccount.test(session2),
+                    assigneeId: session1.account.id,
+                    assignerId: session2.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -6578,8 +6597,8 @@ test("can negative filter for a single assigner account", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session1),
-                    assigner: TaskSortableAccount.test(session2),
+                    assigneeId: session1.account.id,
+                    assignerId: session2.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -6669,7 +6688,7 @@ test("can negative filter for multiple assigner accounts", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6679,7 +6698,7 @@ test("can negative filter for multiple assigner accounts", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6689,7 +6708,7 @@ test("can negative filter for multiple assigner accounts", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6699,7 +6718,7 @@ test("can negative filter for multiple assigner accounts", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6766,8 +6785,8 @@ test("can negative filter for multiple assigner accounts", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session2),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session2.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -6782,8 +6801,8 @@ test("can negative filter for multiple assigner accounts", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session1),
-                    assigner: TaskSortableAccount.test(session2),
+                    assigneeId: session1.account.id,
+                    assignerId: session2.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -6795,8 +6814,8 @@ test("can negative filter for multiple assigner accounts", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session1),
-                    assigner: TaskSortableAccount.test(session2),
+                    assigneeId: session1.account.id,
+                    assignerId: session2.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -6853,7 +6872,7 @@ test("can filter with empty assigner accounts", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6863,7 +6882,7 @@ test("can filter with empty assigner accounts", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6873,7 +6892,7 @@ test("can filter with empty assigner accounts", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6883,7 +6902,7 @@ test("can filter with empty assigner accounts", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -6950,8 +6969,8 @@ test("can filter with empty assigner accounts", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session2),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session2.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -6966,8 +6985,8 @@ test("can filter with empty assigner accounts", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session1),
-                    assigner: TaskSortableAccount.test(session2),
+                    assigneeId: session1.account.id,
+                    assignerId: session2.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -6979,8 +6998,8 @@ test("can filter with empty assigner accounts", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session1),
-                    assigner: TaskSortableAccount.test(session2),
+                    assigneeId: session1.account.id,
+                    assignerId: session2.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -7034,7 +7053,7 @@ test("can merge assigner filters", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -7044,7 +7063,7 @@ test("can merge assigner filters", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -7054,7 +7073,7 @@ test("can merge assigner filters", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -7064,7 +7083,7 @@ test("can merge assigner filters", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -7131,8 +7150,8 @@ test("can merge assigner filters", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session2),
-                    assigner: TaskSortableAccount.test(session1),
+                    assigneeId: session2.account.id,
+                    assignerId: session1.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -7147,8 +7166,8 @@ test("can merge assigner filters", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session1),
-                    assigner: TaskSortableAccount.test(session2),
+                    assigneeId: session1.account.id,
+                    assignerId: session2.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -7160,8 +7179,8 @@ test("can merge assigner filters", async () => {
             taskAction: {
                 type: "UpdateAssignee",
                 assignee: {
-                    assignee: TaskSortableAccount.test(session1),
-                    assigner: TaskSortableAccount.test(session2),
+                    assigneeId: session1.account.id,
+                    assignerId: session2.account.id,
                     assignedTime: TaskFilterableTime.test(clock.now()),
                 },
             },
@@ -7308,7 +7327,7 @@ const dueDateFilterTestCase: DateFilterTestCase = {
                 taskId: task1Id,
                 taskAction: {
                     type: "Create",
-                    creator: TaskSortableAccount.test(session1),
+                    creatorId: session1.account.id,
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7318,7 +7337,7 @@ const dueDateFilterTestCase: DateFilterTestCase = {
                 taskId: task2Id,
                 taskAction: {
                     type: "Create",
-                    creator: TaskSortableAccount.test(session1),
+                    creatorId: session1.account.id,
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7328,7 +7347,7 @@ const dueDateFilterTestCase: DateFilterTestCase = {
                 taskId: task3Id,
                 taskAction: {
                     type: "Create",
-                    creator: TaskSortableAccount.test(session1),
+                    creatorId: session1.account.id,
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7338,7 +7357,7 @@ const dueDateFilterTestCase: DateFilterTestCase = {
                 taskId: task4Id,
                 taskAction: {
                     type: "Create",
-                    creator: TaskSortableAccount.test(session1),
+                    creatorId: session1.account.id,
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7348,7 +7367,7 @@ const dueDateFilterTestCase: DateFilterTestCase = {
                 taskId: task5Id,
                 taskAction: {
                     type: "Create",
-                    creator: TaskSortableAccount.test(session1),
+                    creatorId: session1.account.id,
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7431,7 +7450,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task1Id,
                     taskAction: {
                         type: "Create",
-                        creator: TaskSortableAccount.test(session1),
+                        creatorId: session1.account.id,
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7441,7 +7460,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task2Id,
                     taskAction: {
                         type: "Create",
-                        creator: TaskSortableAccount.test(session1),
+                        creatorId: session1.account.id,
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7451,7 +7470,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task3Id,
                     taskAction: {
                         type: "Create",
-                        creator: TaskSortableAccount.test(session1),
+                        creatorId: session1.account.id,
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7461,7 +7480,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task4Id,
                     taskAction: {
                         type: "Create",
-                        creator: TaskSortableAccount.test(session1),
+                        creatorId: session1.account.id,
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7501,7 +7520,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task1Id,
                     taskAction: {
                         type: "Create",
-                        creator: TaskSortableAccount.test(session1),
+                        creatorId: session1.account.id,
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7511,7 +7530,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task2Id,
                     taskAction: {
                         type: "Create",
-                        creator: TaskSortableAccount.test(session1),
+                        creatorId: session1.account.id,
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7521,7 +7540,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task3Id,
                     taskAction: {
                         type: "Create",
-                        creator: TaskSortableAccount.test(session1),
+                        creatorId: session1.account.id,
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7531,7 +7550,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task4Id,
                     taskAction: {
                         type: "Create",
-                        creator: TaskSortableAccount.test(session1),
+                        creatorId: session1.account.id,
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7541,7 +7560,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task5Id,
                     taskAction: {
                         type: "Create",
-                        creator: TaskSortableAccount.test(session1),
+                        creatorId: session1.account.id,
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7552,8 +7571,8 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskAction: {
                         type: "UpdateAssignee",
                         assignee: {
-                            assignee: TaskSortableAccount.test(session2),
-                            assigner: TaskSortableAccount.test(session1),
+                            assigneeId: session2.account.id,
+                            assignerId: session1.account.id,
                             assignedTime: TaskFilterableTime.test(clock.now()),
                         },
                     },
@@ -7565,8 +7584,8 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskAction: {
                         type: "UpdateAssignee",
                         assignee: {
-                            assignee: TaskSortableAccount.test(session2),
-                            assigner: TaskSortableAccount.test(session1),
+                            assigneeId: session2.account.id,
+                            assignerId: session1.account.id,
                             assignedTime: TaskFilterableTime.test(clock2.now()),
                         },
                     },
@@ -7578,8 +7597,8 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskAction: {
                         type: "UpdateAssignee",
                         assignee: {
-                            assignee: TaskSortableAccount.test(session2),
-                            assigner: TaskSortableAccount.test(session1),
+                            assigneeId: session2.account.id,
+                            assignerId: session1.account.id,
                             assignedTime: TaskFilterableTime.test(clock2.now()),
                         },
                     },
@@ -7591,8 +7610,8 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskAction: {
                         type: "UpdateAssignee",
                         assignee: {
-                            assignee: TaskSortableAccount.test(session2),
-                            assigner: TaskSortableAccount.test(session1),
+                            assigneeId: session2.account.id,
+                            assignerId: session1.account.id,
                             assignedTime: TaskFilterableTime.test(clock3.now()),
                         },
                     },
@@ -7639,7 +7658,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task1Id,
                     taskAction: {
                         type: "Create",
-                        creator: TaskSortableAccount.test(session1),
+                        creatorId: session1.account.id,
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7649,7 +7668,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task2Id,
                     taskAction: {
                         type: "Create",
-                        creator: TaskSortableAccount.test(session1),
+                        creatorId: session1.account.id,
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7659,7 +7678,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task3Id,
                     taskAction: {
                         type: "Create",
-                        creator: TaskSortableAccount.test(session1),
+                        creatorId: session1.account.id,
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7669,7 +7688,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task4Id,
                     taskAction: {
                         type: "Create",
-                        creator: TaskSortableAccount.test(session1),
+                        creatorId: session1.account.id,
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7679,7 +7698,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task5Id,
                     taskAction: {
                         type: "Create",
-                        creator: TaskSortableAccount.test(session1),
+                        creatorId: session1.account.id,
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7691,7 +7710,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                         type: "UpdateStatus",
                         status: {
                             type: "Closed",
-                            closer: TaskSortableAccount.test(session1),
+                            closerId: session1.account.id,
                             closedTime: TaskFilterableTime.test(clock.now()),
                         },
                     },
@@ -7704,7 +7723,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                         type: "UpdateStatus",
                         status: {
                             type: "Closed",
-                            closer: TaskSortableAccount.test(session1),
+                            closerId: session1.account.id,
                             closedTime: TaskFilterableTime.test(clock2.now()),
                         },
                     },
@@ -7717,7 +7736,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                         type: "UpdateStatus",
                         status: {
                             type: "Closed",
-                            closer: TaskSortableAccount.test(session1),
+                            closerId: session1.account.id,
                             closedTime: TaskFilterableTime.test(clock2.now()),
                         },
                     },
@@ -7730,7 +7749,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                         type: "UpdateStatus",
                         status: {
                             type: "Closed",
-                            closer: TaskSortableAccount.test(session1),
+                            closerId: session1.account.id,
                             closedTime: TaskFilterableTime.test(clock3.now()),
                         },
                     },
@@ -7772,7 +7791,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task1Id,
                     taskAction: {
                         type: "Create",
-                        creator: TaskSortableAccount.test(session1),
+                        creatorId: session1.account.id,
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7782,7 +7801,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task2Id,
                     taskAction: {
                         type: "Create",
-                        creator: TaskSortableAccount.test(session1),
+                        creatorId: session1.account.id,
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7792,7 +7811,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task3Id,
                     taskAction: {
                         type: "Create",
-                        creator: TaskSortableAccount.test(session1),
+                        creatorId: session1.account.id,
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7802,7 +7821,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task4Id,
                     taskAction: {
                         type: "Create",
-                        creator: TaskSortableAccount.test(session1),
+                        creatorId: session1.account.id,
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7812,7 +7831,7 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskId: task5Id,
                     taskAction: {
                         type: "Create",
-                        creator: TaskSortableAccount.test(session1),
+                        creatorId: session1.account.id,
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -7823,8 +7842,8 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskAction: {
                         type: "UpdateAssignee",
                         assignee: {
-                            assignee: TaskSortableAccount.test(session2),
-                            assigner: TaskSortableAccount.test(session1),
+                            assigneeId: session2.account.id,
+                            assignerId: session1.account.id,
                             assignedTime: TaskFilterableTime.test(clock.now()),
                         },
                     },
@@ -7836,8 +7855,8 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskAction: {
                         type: "UpdateAssignee",
                         assignee: {
-                            assignee: TaskSortableAccount.test(session2),
-                            assigner: TaskSortableAccount.test(session1),
+                            assigneeId: session2.account.id,
+                            assignerId: session1.account.id,
                             assignedTime: TaskFilterableTime.test(clock.now()),
                         },
                     },
@@ -7849,8 +7868,8 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskAction: {
                         type: "UpdateAssignee",
                         assignee: {
-                            assignee: TaskSortableAccount.test(session2),
-                            assigner: TaskSortableAccount.test(session1),
+                            assigneeId: session2.account.id,
+                            assignerId: session1.account.id,
                             assignedTime: TaskFilterableTime.test(clock.now()),
                         },
                     },
@@ -7862,8 +7881,8 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskAction: {
                         type: "UpdateAssignee",
                         assignee: {
-                            assignee: TaskSortableAccount.test(session2),
-                            assigner: TaskSortableAccount.test(session1),
+                            assigneeId: session2.account.id,
+                            assignerId: session1.account.id,
                             assignedTime: TaskFilterableTime.test(clock.now()),
                         },
                     },
@@ -7875,8 +7894,8 @@ const dateFilterTestCases: Array<DateFilterTestCase> = [
                     taskAction: {
                         type: "UpdateAssignee",
                         assignee: {
-                            assignee: TaskSortableAccount.test(session2),
-                            assigner: TaskSortableAccount.test(session1),
+                            assigneeId: session2.account.id,
+                            assignerId: session1.account.id,
                             assignedTime: TaskFilterableTime.test(clock.now()),
                         },
                     },
@@ -8179,7 +8198,7 @@ test("can filter by title includes", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -8189,7 +8208,7 @@ test("can filter by title includes", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -8199,7 +8218,7 @@ test("can filter by title includes", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -8209,7 +8228,7 @@ test("can filter by title includes", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -8219,7 +8238,7 @@ test("can filter by title includes", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -8474,7 +8493,7 @@ test("can filter by title excludes", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -8484,7 +8503,7 @@ test("can filter by title excludes", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -8494,7 +8513,7 @@ test("can filter by title excludes", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -8504,7 +8523,7 @@ test("can filter by title excludes", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -8514,7 +8533,7 @@ test("can filter by title excludes", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -8769,7 +8788,7 @@ test("can merge title filters", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -8779,7 +8798,7 @@ test("can merge title filters", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -8789,7 +8808,7 @@ test("can merge title filters", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -8799,7 +8818,7 @@ test("can merge title filters", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -8809,7 +8828,7 @@ test("can merge title filters", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -8932,7 +8951,7 @@ test("can filter by parent task", async () => {
             taskId: parentTask1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -8942,7 +8961,7 @@ test("can filter by parent task", async () => {
             taskId: parentTask2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -8952,7 +8971,7 @@ test("can filter by parent task", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -8962,7 +8981,7 @@ test("can filter by parent task", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -8972,7 +8991,7 @@ test("can filter by parent task", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -8982,7 +9001,7 @@ test("can filter by parent task", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -9022,7 +9041,7 @@ test("can filter by parent task", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -9076,7 +9095,7 @@ test("can filter by notepad page", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -9086,7 +9105,7 @@ test("can filter by notepad page", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -9096,7 +9115,7 @@ test("can filter by notepad page", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -9106,7 +9125,7 @@ test("can filter by notepad page", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session1),
+                creatorId: session1.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -9152,7 +9171,7 @@ test("can filter by notepad page", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creator: TaskSortableAccount.test(session2),
+                creatorId: session2.account.id,
                 creatorTimeZone: defaultTimeZone,
             },
         },

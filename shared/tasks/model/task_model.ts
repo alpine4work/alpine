@@ -8,7 +8,7 @@ import {
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskUpdateTaskAction} from "~/shared/tasks/actions/task_action.js";
@@ -32,7 +32,6 @@ import {TaskPosition, TaskPositionRegister} from "~/shared/tasks/task_position.j
 import {TaskPositionByAccountIdAndNotepadPageIdMap} from "~/shared/tasks/task_position_by_account_id_and_notepad_page_id.js";
 import {TaskPositionByCollectionIdMap} from "~/shared/tasks/task_position_by_collection_id_map.js";
 import {TaskPriorityRegister} from "~/shared/tasks/task_priority.js";
-import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {TaskStatusRegister} from "~/shared/tasks/task_status.js";
 import {emptyTaskTitle} from "~/shared/tasks/task_title.js";
 
@@ -42,7 +41,7 @@ const TaskModelDataSchema = Schema.object({
     id: Schema.id<TaskId>(),
     spaceId: Schema.id<SpaceId>(),
 
-    creator: TaskSortableAccount.schema,
+    creatorId: Schema.id<AccountId>(),
     createdTime: TaskFilterableTime.schema,
     deletedTime: HybridLogicalTimeSchema.nullable(),
     undeletedTime: HybridLogicalTimeSchema.nullable(),
@@ -127,7 +126,7 @@ export class TaskModel {
         return new TaskModel({
             spaceId,
             id: taskId,
-            creator: action.creator,
+            creatorId: action.creatorId,
             createdTime: new TaskFilterableTime({
                 absoluteTime: actionTime,
                 setterTimeZone: action.creatorTimeZone,
@@ -213,8 +212,8 @@ export class TaskModel {
         return this.rawData.spaceId;
     }
 
-    public getCreator() {
-        return this.rawData.creator;
+    public getCreatorId() {
+        return this.rawData.creatorId;
     }
 
     public getCreatedTime() {
@@ -298,7 +297,7 @@ export class TaskModel {
             this.rawData.assignee.value &&
             this.rawData.assigneeStatus?.value.type === "Active"
             ? this.rawData.assigneeActivePosition.value?.accountId ===
-              this.rawData.assignee.value.assignee.accountId
+              this.rawData.assignee.value.assigneeId
                 ? this.rawData.assigneeActivePosition.value.position
                 : // TODO(calebmer): Ideally we'd return a referentially identical object here
                   // whenever this function is called instead of creating a new object. Does it
@@ -327,7 +326,7 @@ function mergeTaskModelData(task1: TaskModelData, task2: TaskModelData) {
     if (task1.spaceId !== task2.spaceId)
         throw new InternalError("Incompatible task `spaceId` when merging");
 
-    if (!task1.creator.isEqual(task2.creator))
+    if (task1.creatorId !== task2.creatorId)
         throw new InternalError("Incompatible task `creator` when merging");
 
     if (!task1.createdTime.isEqual(task2.createdTime))
@@ -337,7 +336,7 @@ function mergeTaskModelData(task1: TaskModelData, task2: TaskModelData) {
         id: task1.id,
         spaceId: task1.spaceId,
 
-        creator: task1.creator,
+        creatorId: task1.creatorId,
         createdTime: task1.createdTime,
         deletedTime:
             task1.deletedTime !== null && task2.deletedTime !== null
@@ -396,7 +395,7 @@ function applyTaskActionToTaskModelData(
     switch (action.type) {
         case "Create": {
             if (
-                !task.creator.isEqual(action.creator) ||
+                task.creatorId !== action.creatorId ||
                 !task.createdTime.isEqual(
                     new TaskFilterableTime({
                         absoluteTime: actionTime,

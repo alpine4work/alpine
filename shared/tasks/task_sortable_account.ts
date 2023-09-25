@@ -5,6 +5,8 @@ import {AccountId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
+// NOCOMMIT: I think this file needs to be deleted!
+
 type _TestAccountOptions =
     | {id: AccountId; name: string; nameVersion?: number}
     | {id: AccountId; initialName: string}

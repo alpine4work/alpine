@@ -1,3 +1,4 @@
+import {dangerouslyGetAccountIfExistsWithoutCaching} from "~/server/accounts/accounts_table.js";
 import {DynamoSystemActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
 import {ServerSystemActionContext} from "~/server/context/server_action_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
@@ -10,7 +11,8 @@ import {
     OpensearchIndexFlattenedKeysType,
     OpensearchIndexTypeType,
 } from "~/server/opensearch/opensearch_index_type.js";
-import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
+import {OpensearchQueryValue} from "~/server/opensearch/opensearch_query_clause.js";
+import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/data/apply_task_action_to_task_index_doc.js";
 import {applyTaskCollectionActionToCollectionIndexDoc} from "~/server/tasks/data/apply_task_collection_action_to_collection_index_doc.js";
 import {createEmptyTaskCollectionIndexDoc} from "~/server/tasks/data/create_empty_task_collection_index_doc.js";
@@ -25,22 +27,30 @@ import {
     TaskCollectionIndexDocWithVersion,
 } from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDocType, TaskIndexDocWithVersion} from "~/server/tasks/data/task_index_doc.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
-import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {collectReferencedAccountIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_account_ids_from_task_action.js";
+import {TaskAction, TaskUpdateAccountNameAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
+
+const taskIndexRefreshIntervalSecs = 30;
+const taskIndexRefreshIntervalMs = taskIndexRefreshIntervalSecs * 1000;
 
 // IMPORTANT: Don't export this. All access to the index should be exposed
 // through functions in this file. Like how we organize DynamoDB tables. By
@@ -68,7 +78,7 @@ const TaskIndex = new OpensearchIndex<
     // Serving realtime task data is handled by a separate service. So we can
     // afford to slow down our task refresh interval for improved indexing
     // performance.
-    refreshInterval: "30s",
+    refreshInterval: `${taskIndexRefreshIntervalSecs}s`,
 });
 
 // IMPORTANT: Don't export this. All access to the index should be exposed
@@ -210,7 +220,8 @@ export function refreshTaskIndexForTest(
     return context.opensearch.client.refresh(context.tracer.getTracer(), TaskIndex);
 }
 
-export const indexTaskActionTransactionTestCheckpoint = new TestCheckpoint<SpaceId>();
+export const indexTaskActionTransactionBeforeUpdateTestCheckpoint = new TestCheckpoint<SpaceId>();
+export const indexTaskActionTransactionAfterUpdateTestCheckpoint = new TestCheckpoint<SpaceId>();
 
 /**
  * Takes a transaction of `TaskAction`s and indexes them in our OpenSearch
@@ -228,6 +239,26 @@ export function indexTaskActionTransactionAssumingItsCommitted(
     actions: ReadonlyArray<TaskAction>,
     options?: {onRetry?: () => void},
 ) {
+    const updateAccountNameAction = actions.find(
+        (action): action is TaskUpdateAccountNameAction => action.type === "UpdateAccountName",
+    );
+    if (updateAccountNameAction) {
+        if (actions.length !== 1) {
+            throw new InternalError(
+                "We only support indexing `UpdateAccountName` actions as the one action in a transaction",
+            );
+        }
+
+        return indexTaskUpdateAccountNameActionAssumingItsCommitted(
+            context,
+            spaceId,
+            updateAccountNameAction,
+            options,
+        );
+    }
+
+    // We don't have a `context.tracer.withSpan()` call here because the one
+    // call-site for this function adds a span.
     return TaskActionTransactionIndexState.index(context, spaceId, actions, options);
 }
 
@@ -245,6 +276,7 @@ class TaskActionTransactionIndexState {
     private readonly _context: ServerSystemActionContext;
     public readonly spaceId: SpaceId;
     public readonly retry: (error?: unknown) => never;
+    private readonly _actionReferencedAccountById: ReadonlyMap<AccountId, AccountModel>;
 
     private readonly _updatedTaskIndexDocById = new Map<TaskId, TaskIndexDocWithVersion>();
     private readonly _retrievedTaskIndexDocById = new Map<
@@ -264,12 +296,14 @@ class TaskActionTransactionIndexState {
         context: ServerSystemActionContext,
         spaceId: SpaceId,
         retry: (error?: unknown) => never,
+        actionReferencedAccountById: ReadonlyMap<AccountId, AccountModel>,
     ) {
         assert(context.actor.getSpaceId() === spaceId);
 
         this._context = context;
         this.spaceId = spaceId;
         this.retry = retry;
+        this._actionReferencedAccountById = actionReferencedAccountById;
     }
 
     public static async index(
@@ -278,11 +312,21 @@ class TaskActionTransactionIndexState {
         actions: ReadonlyArray<TaskAction>,
         {onRetry}: {onRetry?: () => void} = {},
     ) {
+        const referencedAccountIds = new Set<AccountId>();
+        for (const action of actions) {
+            collectReferencedAccountIdsFromTaskAction(referencedAccountIds, action);
+        }
+
+        // Load all referenced accounts so we can inline them in our OpenSearch index.
+        let referencedAccountById = await runAllPromises(
+            Array.from(referencedAccountIds, accountId => getAccount(context, spaceId, accountId)),
+        ).then(
+            referencedAccounts => new Map(referencedAccounts.map(account => [account.id, account])),
+        );
+
         let hasAlreadyAttempted = false;
 
         return retryWithExponentialBackoff(async _retry => {
-            await indexTaskActionTransactionTestCheckpoint.waitForTest(spaceId);
-
             const isInitialAttempt = !hasAlreadyAttempted;
             hasAlreadyAttempted = true;
 
@@ -293,7 +337,14 @@ class TaskActionTransactionIndexState {
 
             await authorizeSpaceAccess(context, spaceId);
 
-            const state = new TaskActionTransactionIndexState(context, spaceId, retry);
+            await indexTaskActionTransactionBeforeUpdateTestCheckpoint.waitForTest(spaceId);
+
+            const state = new TaskActionTransactionIndexState(
+                context,
+                spaceId,
+                retry,
+                referencedAccountById,
+            );
 
             for (const action of actions) {
                 await actuallyIndexTaskAction(state, action, isInitialAttempt);
@@ -326,7 +377,102 @@ class TaskActionTransactionIndexState {
                     {retryVersionConflictError: retry},
                 ),
             ]);
+
+            // After we've indexed our data, read all our referenced accounts again but
+            // with a strong read consistency. If any referenced account name changed while
+            // indexing then we need to re-index our transaction.
+            //
+            // Account names are not logically a part of a task object in our system, but
+            // we do need to inline account names into tasks in OpenSearch so we can sort
+            // by account name. We inline account names at indexing time.
+            //
+            // When an account name updates, we run [update by query][1] to update all
+            // previously written account names. However, "previously written" is the
+            // operative word. Our update by query can only catch data that finished
+            // indexing before the query starts. So what happens to actions that started
+            // indexing but have not finished? That's where this check comes into play.
+            // When we finish indexing, we check if a name update has occurred. If it has
+            // then our transaction might not have been picked up by the update by query so
+            // we attempt to re-index.
+            //
+            // Here's a diagram to visually explain the situation. The following line
+            // represents time with events happening on the timeline:
+            //
+            // ```
+            //              Index UpdateAssignee
+            //
+            //     1. get accounts         4. _bulk writes tasks
+            //         ┌─┴──────────────────────────┴───┐
+            // ◄──────────────────────────────────────────────────────────────────────────►
+            //               │           └───┬────────────────────────┬─┘
+            //               │        3. _update_by_query      5. _update_by_query
+            //               │          finishes querying         finishes writing
+            //        2. account name
+            //           updates              Index UpdateAccountName
+            // ```
+            //
+            // This is the edge case we want to prevent with the retry below. We read
+            // accounts at 1 which are outdated by the account name update at 2. Then we
+            // finish writing our new tasks at 4 (with old inlined data) AFTER
+            // `_update_by_query` has searched the tasks to update at 3.
+            //
+            // The retry will redo 1 and 4 so we write correct data.
+            //
+            // In practice indexing `UpdateAccountName` also requires us to first wait for
+            // an OpenSearch index refresh which is currently configured to be 30s long. So
+            // this edge case happens if 4 is written after the refresh 3 observes. Our
+            // example is simplified to not consider index refreshing.
+            //
+            // [1]: https://opensearch.org/docs/latest/api-reference/document-apis/update-by-query/
+            {
+                const newReferencedAccountById = await runAllPromises(
+                    Array.from(referencedAccountIds, accountId =>
+                        // Avoid our account cache to get the latest account model. Ok to get these
+                        // accounts without authorization since we call `getAccount()` for these same
+                        // accounts earlier which will perform authorization.
+                        dangerouslyGetAccountIfExistsWithoutCaching(
+                            context.dynamo.setDefaultReadConsistency("Strong"),
+                            accountId,
+                        ),
+                    ),
+                ).then(
+                    referencedAccounts =>
+                        new Map(
+                            referencedAccounts.map(account => {
+                                assert(account);
+                                return [account.id, account];
+                            }),
+                        ),
+                );
+
+                if (
+                    !iterableEvery(
+                        referencedAccountIds,
+                        accountId =>
+                            referencedAccountById.get(accountId)!.initialData.nameVersion ===
+                            newReferencedAccountById.get(accountId)!.initialData.nameVersion,
+                    )
+                ) {
+                    referencedAccountById = newReferencedAccountById;
+                    retry();
+                }
+            }
+
+            await indexTaskActionTransactionAfterUpdateTestCheckpoint.waitForTest(spaceId);
         });
+    }
+
+    /**
+     * Gets the name of an `AccountId` referenced by one of the `TaskAction`s we're
+     * indexing. Referenced accounts are determined by
+     * `collectReferencedAccountIdsFromTaskAction()`. If the account is not
+     * referenced then we'll throw an error.
+     */
+    public getActionReferencedAccountName(accountId: AccountId): {
+        name: string;
+        nameVersion: number;
+    } {
+        return assertExists(this._actionReferencedAccountById.get(accountId)).initialData;
     }
 
     /**
@@ -433,6 +579,11 @@ async function actuallyIndexTaskAction(
     action: TaskAction,
     isInitialAttempt: boolean,
 ) {
+    // We handle `UpdateAccountName` indexing in
+    // `indexTaskActionTransactionAssumingItsCommitted()` instead of here since it
+    // needs to update a lot of data.
+    assert(action.type !== "UpdateAccountName");
+
     switch (action.type) {
         case "UpdateTask": {
             const oldTask =
@@ -443,10 +594,18 @@ async function actuallyIndexTaskAction(
                     : await state.getTaskIndexDocIfExists(action.taskId);
 
             if (!oldTask && action.taskAction.type === "Create") {
+                const {name: workingAccountName, nameVersion: workingAccountNameVersion} =
+                    state.getActionReferencedAccountName(action.taskAction.creatorId);
+
                 state.putTaskIndexDoc(action.taskId, {
                     id: action.taskId,
                     spaceId: state.spaceId,
                     ...createEmptyTaskIndexDoc(action.time, action.taskAction),
+                    creator: {
+                        accountId: action.taskAction.creatorId,
+                        workingAccountName,
+                        workingAccountNameVersion,
+                    },
                     version: null,
                 });
                 return;
@@ -467,7 +626,12 @@ async function actuallyIndexTaskAction(
                 );
             }
 
-            const newTask = applyTaskActionToTaskIndexDoc(oldTask, action.time, action.taskAction);
+            const newTask = applyTaskActionToTaskIndexDoc(
+                oldTask,
+                action.time,
+                action.taskAction,
+                accountId => state.getActionReferencedAccountName(accountId),
+            );
 
             // NOTE(calebmer): Maintaining referential identity to avoid having to make an
             // update network request is an important optimization.
@@ -541,6 +705,229 @@ async function actuallyIndexTaskAction(
         default:
             throw exhaustive(action);
     }
+}
+
+export const indexTaskUpdateAccountNameActionBeforeUpdateTestCheckpoint =
+    new TestCheckpoint<AccountId>();
+
+export const indexTaskUpdateAccountNameActionAfterUpdateTestCheckpoint =
+    new TestCheckpoint<AccountId>();
+
+/**
+ * Index an account name update action for a space. Uses the OpenSearch [update
+ * by query API][1] to find every `TaskSortableAccount` the account name is
+ * referenced in and updates to the latest value. This may take a while to run
+ * as queries and bulk updates may be expensive. Then we need to retry on
+ * version conflicts as well.
+ *
+ * As long as this takes less than, say, 5min we're good. So that indexing
+ * comfortably completes before the action leaves `TaskRealtimeService`'s
+ * action history window.
+ *
+ * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/update-by-query/
+ */
+function indexTaskUpdateAccountNameActionAssumingItsCommitted(
+    context: ServerSystemActionContext,
+    spaceId: SpaceId,
+    action: TaskUpdateAccountNameAction,
+    {onRetry}: {onRetry?: () => void} = {},
+) {
+    return context.tracer.withSpan("Index account name update task action", async context => {
+        const sortableAccountFields = [
+            "creator",
+            "status.value.closer",
+            "assignee.value.assignee",
+            "assignee.value.assigner",
+        ] as const;
+
+        let lastUpdateByQueryStartTime: number | null = null;
+
+        // We need to retry until there are no version conflicts...
+        await retryWithExponentialBackoff(async _retry => {
+            const retry = (error?: unknown) => {
+                onRetry?.();
+                return _retry(error);
+            };
+
+            // Assuming the update account name action has been committed, all future
+            // actions that reference an account use the new account name. (Because we read
+            // referenced accounts with strong consistency during action indexing.) Before
+            // we can update our index we must wait for the index to refresh. After the
+            // next refresh we're guaranteed to see (by query) all old account name
+            // references. No new account name references will be added so we only need to
+            // update the old account name references in this function.
+            //
+            // We wait the full refresh interval for a refresh to happen. This does mean we
+            // trust OpenSearch to refresh on time. We add one extra second of delay as
+            // protection against clock skew.
+            //
+            // `TaskIndex` is currently configured to refresh every 30s. So this is a long
+            // delay! We're ok with action indexing taking a while as long as it takes less
+            // than ~5min so it fits in our `TaskRealtimeService` action history window
+            // (currently configured to be ~10min).
+            //
+            // In unit tests we force a refresh immediately. Since indexes must be manually
+            // refreshed in unit tests (refresh interval set to -1). It's not recommended
+            // to force a refresh in production since that could harm index performance.
+            //
+            // NOTE(calebmer, 2023-09-25): I'm a little worried about update starvation.
+            // Let's say there's a client continuously updating a task's title for 10
+            // minutes. Our `_update_by_query` will always run into version conflicts since
+            // it operates on a potentially stale view of the data. Is this a real problem
+            // or only theoretical? I wonder if it makes sense to manually implement
+            // `_update_by_query`. We know that no NEW tasks will have the old account name
+            // so we only need to update tasks we find from an initial query.
+            if (import.meta.jest) {
+                await context.opensearch.client.refresh(context.tracer.getTracer(), TaskIndex);
+            } else {
+                await context.tracer.withSpan(
+                    "Waiting for task index to refresh",
+                    async context => {
+                        await wait(
+                            taskIndexRefreshIntervalMs +
+                                1000 -
+                                // If we are retrying then subtract the time it took to run our
+                                // `updateByQuery()`s. This does assume `updateByQuery()` reads the index at
+                                // `lastUpdateByQueryStartTime` which is not quite true. There's some latency
+                                // from our service to OpenSearch. We consider our extra 1s enough to cover
+                                // that latency. Also if our index is not refreshed we'll get the same version
+                                // conflicts and try again.
+                                (lastUpdateByQueryStartTime !== null
+                                    ? Date.now() - lastUpdateByQueryStartTime
+                                    : 0),
+                        );
+                    },
+                );
+            }
+
+            lastUpdateByQueryStartTime = Date.now();
+
+            // Double check that we're updating a doc that matches our query. If not then
+            // consider this script execution a noop.
+            //
+            // NOTE(calebmer, 2023-09-25): As I'm adding this, it's unclear to me how docs
+            // that are updated but not refreshed work. Does the script get the same doc as
+            // what's in the index even if the index isn't refreshed? Or does the script
+            // get the live doc? This noop check only makes sense if the script gets the
+            // live, out-of-date, doc.
+            const noopConditionExpression = `!(${sortableAccountFields
+                .map(sortableAccountField => {
+                    const sortableAccountFieldSegments = sortableAccountField.split(".");
+
+                    const existenceCheckExpression = sortableAccountFieldSegments
+                        .map(
+                            (segment, i) =>
+                                `ctx._source.${sortableAccountFieldSegments
+                                    .slice(0, i + 1)
+                                    .join(".")} != null`,
+                        )
+                        .join(" && ");
+
+                    return `(${existenceCheckExpression} && ctx._source.${sortableAccountField}.accountId == params.accountId && ctx._source.${sortableAccountField}.workingAccountNameVersion < params.accountNameVersion)`;
+                })
+                .join(" || ")})`;
+
+            const updateStatements = sortableAccountFields.map(sortableAccountField => {
+                const sortableAccountFieldSegments = sortableAccountField.split(".");
+
+                const existenceCheckExpression = sortableAccountFieldSegments
+                    .map(
+                        (segment, i) =>
+                            `ctx._source.${sortableAccountFieldSegments
+                                .slice(0, i + 1)
+                                .join(".")} != null`,
+                    )
+                    .join(" && ");
+
+                return `if (${existenceCheckExpression} && ctx._source.${sortableAccountField}.accountId == params.accountId && ctx._source.${sortableAccountField}.workingAccountNameVersion < params.accountNameVersion) { ctx._source.${sortableAccountField}.workingAccountName = params.accountName; ctx._source.${sortableAccountField}.workingAccountNameVersion = params.accountNameVersion }`;
+            });
+
+            const script = `if (${noopConditionExpression}) { ctx.op = "noop" } else { ${updateStatements.join(
+                " ",
+            )} }`;
+
+            await indexTaskUpdateAccountNameActionBeforeUpdateTestCheckpoint.waitForTest(
+                action.accountId,
+            );
+
+            const {versionConflictCount} = await context.opensearch.client.updateByQuery(
+                context.tracer.getTracer(),
+                TaskIndex,
+                spaceId,
+                {
+                    query: {
+                        bool: {
+                            // Enter a filter context. Query clauses in a filter context may be cached.
+                            // https://opensearch.org/docs/latest/query-dsl/query-filter-context/#filter-context
+                            filter: [
+                                // Only update tasks in this space:
+                                {term: {spaceId: new OpensearchQueryValue(spaceId)}},
+
+                                // We want to update deleted tasks in addition to undeleted tasks. Which is why
+                                // we don't have a deleted task filter here.
+
+                                {
+                                    bool: {
+                                        minimum_should_match: 1,
+                                        should: sortableAccountFields.map(sortableAccountField => ({
+                                            bool: {
+                                                must: [
+                                                    {
+                                                        term: {
+                                                            [`${sortableAccountField}.accountId`]:
+                                                                new OpensearchQueryValue(
+                                                                    action.accountId,
+                                                                ),
+                                                        },
+                                                    },
+                                                    {
+                                                        range: {
+                                                            [`${sortableAccountField}.workingAccountNameVersion`]:
+                                                                {
+                                                                    lt: new OpensearchQueryValue(
+                                                                        action.accountNameVersion,
+                                                                    ),
+                                                                },
+                                                        },
+                                                    },
+                                                ],
+                                            },
+                                        })),
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    script: {
+                        lang: "painless",
+                        source: script,
+                        params: {
+                            accountId: action.accountId,
+                            accountNameVersion: action.accountNameVersion,
+                            accountName: action.accountName,
+                        },
+                    },
+                },
+            );
+
+            // If there were some version conflicts, retry. We keep retrying until the
+            // update successfully completes.
+            //
+            // An [ElasticSearch team member][1] also recommends waiting for the index to
+            // refresh before retrying so updated fields aren't picked up by the query.
+            // We're ok if previously updated docs are seen by the retried query because
+            // we'll noop those updates in our script.
+            //
+            // [1]: https://github.com/elastic/elasticsearch/issues/22723#issuecomment-274156818
+            if (versionConflictCount > 0) {
+                retry();
+            }
+        });
+
+        await indexTaskUpdateAccountNameActionAfterUpdateTestCheckpoint.waitForTest(
+            action.accountId,
+        );
+    });
 }
 
 export const queryTaskIndexTestCounter = new TestCounter<SpaceId>();

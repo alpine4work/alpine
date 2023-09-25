@@ -42,7 +42,7 @@ import {wordTaskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_
 assert(import.meta.jest);
 
 export type TaskTestInterface = {
-    creator: TaskSortableAccount;
+    creatorId: AccountId;
     createdTime: TaskFilterableTime;
     isDeleted: boolean;
     parent: {taskId: TaskId; position: TaskPosition} | null;
@@ -101,7 +101,7 @@ const taskTaskActionTestCases: Array<{
             actions: [
                 {
                     type: "Create",
-                    creator,
+                    creatorId: creator.accountId,
                     creatorTimeZone: defaultTimeZone,
                 },
             ],
@@ -114,12 +114,12 @@ const taskTaskActionTestCases: Array<{
             actions: [
                 {
                     type: "Create",
-                    creator,
+                    creatorId: creator.accountId,
                     creatorTimeZone: defaultTimeZone,
                 },
                 {
                     type: "Create",
-                    creator: account2,
+                    creatorId: account2.accountId,
                     creatorTimeZone: defaultTimeZone,
                 },
             ],
@@ -132,12 +132,12 @@ const taskTaskActionTestCases: Array<{
             actions: [
                 {
                     type: "Create",
-                    creator,
+                    creatorId: creator.accountId,
                     creatorTimeZone: defaultTimeZone,
                 },
                 {
                     type: "Create",
-                    creator,
+                    creatorId: creator.accountId,
                     creatorTimeZone: assertTimeZone("America/Denver"),
                 },
             ],
@@ -150,7 +150,7 @@ const taskTaskActionTestCases: Array<{
             actions: [
                 {
                     type: "Create",
-                    creator,
+                    creatorId: creator.accountId,
                     creatorTimeZone: defaultTimeZone,
                 },
                 {
@@ -207,7 +207,7 @@ const taskTaskActionTestCases: Array<{
             actions: [
                 {
                     type: "Create",
-                    creator,
+                    creatorId: creator.accountId,
                     creatorTimeZone: defaultTimeZone,
                 },
                 {
@@ -252,7 +252,7 @@ const taskTaskActionTestCases: Array<{
             actions: [
                 {
                     type: "Create",
-                    creator,
+                    creatorId: creator.accountId,
                     creatorTimeZone: defaultTimeZone,
                 },
                 {
@@ -291,7 +291,7 @@ const taskTaskActionTestCases: Array<{
             actions: [
                 {
                     type: "Create",
-                    creator,
+                    creatorId: creator.accountId,
                     creatorTimeZone: defaultTimeZone,
                 },
                 {
@@ -332,7 +332,7 @@ const taskTaskActionTestCases: Array<{
                 actions: [
                     {
                         type: "Create",
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -352,7 +352,7 @@ const taskTaskActionTestCases: Array<{
                 actions: [
                     {
                         type: "Create",
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -375,7 +375,7 @@ const taskTaskActionTestCases: Array<{
                 actions: [
                     {
                         type: "Create",
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -400,7 +400,7 @@ const taskTaskActionTestCases: Array<{
                 actions: [
                     {
                         type: "Create",
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -425,7 +425,7 @@ const taskTaskActionTestCases: Array<{
                 actions: [
                     {
                         type: "Create",
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -451,7 +451,7 @@ const taskTaskActionTestCases: Array<{
                 actions: [
                     {
                         type: "Create",
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -473,7 +473,7 @@ const taskTaskActionTestCases: Array<{
                 actions: [
                     {
                         type: "Create",
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -498,7 +498,7 @@ const taskTaskActionTestCases: Array<{
                 actions: [
                     {
                         type: "Create",
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -526,7 +526,7 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -553,7 +553,7 @@ const taskTaskActionTestCases: Array<{
                 actions: [
                     {
                         type: "Create",
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -584,7 +584,7 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -620,7 +620,7 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -656,7 +656,7 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -694,7 +694,7 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -733,7 +733,7 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -745,7 +745,7 @@ const taskTaskActionTestCases: Array<{
                                 absoluteTime: time2,
                                 setterTimeZone: defaultTimeZone,
                             }),
-                            closer: account2,
+                            closerId: account2.accountId,
                         },
                     },
                 ],
@@ -756,7 +756,7 @@ const taskTaskActionTestCases: Array<{
                             absoluteTime: time2,
                             setterTimeZone: defaultTimeZone,
                         }),
-                        closer: account2,
+                        closerId: account2.accountId,
                     },
                 },
             };
@@ -774,7 +774,7 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -786,7 +786,7 @@ const taskTaskActionTestCases: Array<{
                                 absoluteTime: time2,
                                 setterTimeZone: defaultTimeZone,
                             }),
-                            closer: account2,
+                            closerId: account2.accountId,
                         },
                     },
                     {
@@ -812,15 +812,15 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdateAssignee",
                         time: time2,
                         assignee: {
-                            assignee: account2,
-                            assigner: creator,
+                            assigneeId: account2.accountId,
+                            assignerId: creator.accountId,
                             assignedTime: new TaskFilterableTime({
                                 absoluteTime: time2,
                                 setterTimeZone: defaultTimeZone,
@@ -830,8 +830,8 @@ const taskTaskActionTestCases: Array<{
                 ],
                 task: {
                     assignee: {
-                        assignee: account2,
-                        assigner: creator,
+                        assigneeId: account2.accountId,
+                        assignerId: creator.accountId,
                         assignedTime: new TaskFilterableTime({
                             absoluteTime: time2,
                             setterTimeZone: defaultTimeZone,
@@ -853,15 +853,15 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdateAssignee",
                         time: time2,
                         assignee: {
-                            assignee: account2,
-                            assigner: creator,
+                            assigneeId: account2.accountId,
+                            assignerId: creator.accountId,
                             assignedTime: new TaskFilterableTime({
                                 absoluteTime: time2,
                                 setterTimeZone: defaultTimeZone,
@@ -892,15 +892,15 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdateAssignee",
                         time: time2,
                         assignee: {
-                            assignee: account2,
-                            assigner: creator,
+                            assigneeId: account2.accountId,
+                            assignerId: creator.accountId,
                             assignedTime: new TaskFilterableTime({
                                 absoluteTime: time2,
                                 setterTimeZone: defaultTimeZone,
@@ -921,8 +921,8 @@ const taskTaskActionTestCases: Array<{
                 ],
                 task: {
                     assignee: {
-                        assignee: account2,
-                        assigner: creator,
+                        assigneeId: account2.accountId,
+                        assignerId: creator.accountId,
                         assignedTime: new TaskFilterableTime({
                             absoluteTime: time2,
                             setterTimeZone: defaultTimeZone,
@@ -956,15 +956,15 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdateAssignee",
                         time: time2,
                         assignee: {
-                            assignee: account2,
-                            assigner: creator,
+                            assigneeId: account2.accountId,
+                            assignerId: creator.accountId,
                             assignedTime: new TaskFilterableTime({
                                 absoluteTime: time2,
                                 setterTimeZone: defaultTimeZone,
@@ -990,8 +990,8 @@ const taskTaskActionTestCases: Array<{
                 ],
                 task: {
                     assignee: {
-                        assignee: account2,
-                        assigner: creator,
+                        assigneeId: account2.accountId,
+                        assignerId: creator.accountId,
                         assignedTime: new TaskFilterableTime({
                             absoluteTime: time2,
                             setterTimeZone: defaultTimeZone,
@@ -1015,15 +1015,15 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdateAssignee",
                         time: time2,
                         assignee: {
-                            assignee: account2,
-                            assigner: creator,
+                            assigneeId: account2.accountId,
+                            assignerId: creator.accountId,
                             assignedTime: new TaskFilterableTime({
                                 absoluteTime: time2,
                                 setterTimeZone: defaultTimeZone,
@@ -1050,7 +1050,7 @@ const taskTaskActionTestCases: Array<{
                                 absoluteTime: time4,
                                 setterTimeZone: defaultTimeZone,
                             }),
-                            closer: account2,
+                            closerId: account2.accountId,
                         },
                     },
                 ],
@@ -1061,11 +1061,11 @@ const taskTaskActionTestCases: Array<{
                             absoluteTime: time4,
                             setterTimeZone: defaultTimeZone,
                         }),
-                        closer: account2,
+                        closerId: account2.accountId,
                     },
                     assignee: {
-                        assignee: account2,
-                        assigner: creator,
+                        assigneeId: account2.accountId,
+                        assignerId: creator.accountId,
                         assignedTime: new TaskFilterableTime({
                             absoluteTime: time2,
                             setterTimeZone: defaultTimeZone,
@@ -1089,15 +1089,15 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdateAssignee",
                         time: time2,
                         assignee: {
-                            assignee: account2,
-                            assigner: creator,
+                            assigneeId: account2.accountId,
+                            assignerId: creator.accountId,
                             assignedTime: new TaskFilterableTime({
                                 absoluteTime: time2,
                                 setterTimeZone: defaultTimeZone,
@@ -1123,8 +1123,8 @@ const taskTaskActionTestCases: Array<{
                 ],
                 task: {
                     assignee: {
-                        assignee: account2,
-                        assigner: creator,
+                        assigneeId: account2.accountId,
+                        assignerId: creator.accountId,
                         assignedTime: new TaskFilterableTime({
                             absoluteTime: time2,
                             setterTimeZone: defaultTimeZone,
@@ -1148,15 +1148,15 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdateAssignee",
                         time: time2,
                         assignee: {
-                            assignee: account2,
-                            assigner: creator,
+                            assigneeId: account2.accountId,
+                            assignerId: creator.accountId,
                             assignedTime: new TaskFilterableTime({
                                 absoluteTime: time2,
                                 setterTimeZone: defaultTimeZone,
@@ -1178,8 +1178,8 @@ const taskTaskActionTestCases: Array<{
                         type: "UpdateAssignee",
                         time: time4,
                         assignee: {
-                            assignee: creator,
-                            assigner: account2,
+                            assigneeId: creator.accountId,
+                            assignerId: account2.accountId,
                             assignedTime: new TaskFilterableTime({
                                 absoluteTime: time4,
                                 setterTimeZone: defaultTimeZone,
@@ -1189,8 +1189,8 @@ const taskTaskActionTestCases: Array<{
                 ],
                 task: {
                     assignee: {
-                        assignee: creator,
-                        assigner: account2,
+                        assigneeId: creator.accountId,
+                        assignerId: account2.accountId,
                         assignedTime: new TaskFilterableTime({
                             absoluteTime: time4,
                             setterTimeZone: defaultTimeZone,
@@ -1214,15 +1214,15 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdateAssignee",
                         time: time2,
                         assignee: {
-                            assignee: account2,
-                            assigner: creator,
+                            assigneeId: account2.accountId,
+                            assignerId: creator.accountId,
                             assignedTime: new TaskFilterableTime({
                                 absoluteTime: time2,
                                 setterTimeZone: defaultTimeZone,
@@ -1244,8 +1244,8 @@ const taskTaskActionTestCases: Array<{
                         type: "UpdateAssignee",
                         time: time4,
                         assignee: {
-                            assignee: account2,
-                            assigner: creator,
+                            assigneeId: account2.accountId,
+                            assignerId: creator.accountId,
                             assignedTime: new TaskFilterableTime({
                                 absoluteTime: time4,
                                 setterTimeZone: defaultTimeZone,
@@ -1255,8 +1255,8 @@ const taskTaskActionTestCases: Array<{
                 ],
                 task: {
                     assignee: {
-                        assignee: account2,
-                        assigner: creator,
+                        assigneeId: account2.accountId,
+                        assignerId: creator.accountId,
                         assignedTime: new TaskFilterableTime({
                             absoluteTime: time4,
                             setterTimeZone: defaultTimeZone,
@@ -1280,15 +1280,15 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdateAssignee",
                         time: time2,
                         assignee: {
-                            assignee: account2,
-                            assigner: creator,
+                            assigneeId: account2.accountId,
+                            assignerId: creator.accountId,
                             assignedTime: new TaskFilterableTime({
                                 absoluteTime: time2,
                                 setterTimeZone: defaultTimeZone,
@@ -1315,8 +1315,8 @@ const taskTaskActionTestCases: Array<{
                 ],
                 task: {
                     assignee: {
-                        assignee: account2,
-                        assigner: creator,
+                        assigneeId: account2.accountId,
+                        assignerId: creator.accountId,
                         assignedTime: new TaskFilterableTime({
                             absoluteTime: time2,
                             setterTimeZone: defaultTimeZone,
@@ -1347,15 +1347,15 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdateAssignee",
                         time: time2,
                         assignee: {
-                            assignee: account2,
-                            assigner: creator,
+                            assigneeId: account2.accountId,
+                            assignerId: creator.accountId,
                             assignedTime: new TaskFilterableTime({
                                 absoluteTime: time2,
                                 setterTimeZone: defaultTimeZone,
@@ -1382,8 +1382,8 @@ const taskTaskActionTestCases: Array<{
                 ],
                 task: {
                     assignee: {
-                        assignee: account2,
-                        assigner: creator,
+                        assigneeId: account2.accountId,
+                        assignerId: creator.accountId,
                         assignedTime: new TaskFilterableTime({
                             absoluteTime: time2,
                             setterTimeZone: defaultTimeZone,
@@ -1415,15 +1415,15 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdateAssignee",
                         time: time2,
                         assignee: {
-                            assignee: account2,
-                            assigner: creator,
+                            assigneeId: account2.accountId,
+                            assignerId: creator.accountId,
                             assignedTime: new TaskFilterableTime({
                                 absoluteTime: time2,
                                 setterTimeZone: defaultTimeZone,
@@ -1452,7 +1452,7 @@ const taskTaskActionTestCases: Array<{
                         time: time5,
                         status: {
                             type: "Closed",
-                            closer: creator,
+                            closerId: creator.accountId,
                             closedTime: new TaskFilterableTime({
                                 absoluteTime: time5,
                                 setterTimeZone: defaultTimeZone,
@@ -1467,11 +1467,11 @@ const taskTaskActionTestCases: Array<{
                             absoluteTime: time5,
                             setterTimeZone: defaultTimeZone,
                         }),
-                        closer: creator,
+                        closerId: creator.accountId,
                     },
                     assignee: {
-                        assignee: account2,
-                        assigner: creator,
+                        assigneeId: account2.accountId,
+                        assignerId: creator.accountId,
                         assignedTime: new TaskFilterableTime({
                             absoluteTime: time2,
                             setterTimeZone: defaultTimeZone,
@@ -1497,15 +1497,15 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdateAssignee",
                         time: time2,
                         assignee: {
-                            assignee: account2,
-                            assigner: creator,
+                            assigneeId: account2.accountId,
+                            assignerId: creator.accountId,
                             assignedTime: new TaskFilterableTime({
                                 absoluteTime: time2,
                                 setterTimeZone: defaultTimeZone,
@@ -1533,8 +1533,8 @@ const taskTaskActionTestCases: Array<{
                         type: "UpdateAssignee",
                         time: time5,
                         assignee: {
-                            assignee: creator,
-                            assigner: creator,
+                            assigneeId: creator.accountId,
+                            assignerId: creator.accountId,
                             assignedTime: new TaskFilterableTime({
                                 absoluteTime: time2,
                                 setterTimeZone: defaultTimeZone,
@@ -1544,8 +1544,8 @@ const taskTaskActionTestCases: Array<{
                 ],
                 task: {
                     assignee: {
-                        assignee: creator,
-                        assigner: creator,
+                        assigneeId: creator.accountId,
+                        assignerId: creator.accountId,
                         assignedTime: new TaskFilterableTime({
                             absoluteTime: time2,
                             setterTimeZone: defaultTimeZone,
@@ -1571,15 +1571,15 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
                         type: "UpdateAssignee",
                         time: time2,
                         assignee: {
-                            assignee: account2,
-                            assigner: creator,
+                            assigneeId: account2.accountId,
+                            assignerId: creator.accountId,
                             assignedTime: new TaskFilterableTime({
                                 absoluteTime: time2,
                                 setterTimeZone: defaultTimeZone,
@@ -1611,8 +1611,8 @@ const taskTaskActionTestCases: Array<{
                 ],
                 task: {
                     assignee: {
-                        assignee: account2,
-                        assigner: creator,
+                        assigneeId: account2.accountId,
+                        assignerId: creator.accountId,
                         assignedTime: new TaskFilterableTime({
                             absoluteTime: time2,
                             setterTimeZone: defaultTimeZone,
@@ -1631,7 +1631,7 @@ const taskTaskActionTestCases: Array<{
                 actions: [
                     {
                         type: "Create",
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -1652,7 +1652,7 @@ const taskTaskActionTestCases: Array<{
                 actions: [
                     {
                         type: "Create",
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -1677,7 +1677,7 @@ const taskTaskActionTestCases: Array<{
                 actions: [
                     {
                         type: "Create",
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -1698,7 +1698,7 @@ const taskTaskActionTestCases: Array<{
                 actions: [
                     {
                         type: "Create",
-                        creator,
+                        creatorId: creator.accountId,
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -1722,7 +1722,7 @@ const taskTaskActionTestCases: Array<{
             actions: [
                 {
                     type: "Create",
-                    creator,
+                    creatorId: creator.accountId,
                     creatorTimeZone: defaultTimeZone,
                 },
                 {
@@ -1741,7 +1741,7 @@ const taskTaskActionTestCases: Array<{
             actions: [
                 {
                     type: "Create",
-                    creator,
+                    creatorId: creator.accountId,
                     creatorTimeZone: defaultTimeZone,
                 },
                 {
@@ -1764,7 +1764,7 @@ const taskTaskActionTestCases: Array<{
             actions: [
                 {
                     type: "Create",
-                    creator,
+                    creatorId: creator.accountId,
                     creatorTimeZone: defaultTimeZone,
                 },
                 {
@@ -1874,7 +1874,7 @@ const taskActionTestCases: Array<{
                         taskId,
                         taskAction: {
                             type: "Create",
-                            creator,
+                            creatorId: creator.accountId,
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -1933,7 +1933,7 @@ const taskActionTestCases: Array<{
                         taskId,
                         taskAction: {
                             type: "Create",
-                            creator,
+                            creatorId: creator.accountId,
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -1996,7 +1996,7 @@ const taskActionTestCases: Array<{
                         taskId,
                         taskAction: {
                             type: "Create",
-                            creator,
+                            creatorId: creator.accountId,
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -2062,7 +2062,7 @@ const taskActionTestCases: Array<{
                         taskId,
                         taskAction: {
                             type: "Create",
-                            creator,
+                            creatorId: creator.accountId,
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -2114,7 +2114,7 @@ const taskActionTestCases: Array<{
                         taskId,
                         taskAction: {
                             type: "Create",
-                            creator,
+                            creatorId: creator.accountId,
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -2543,7 +2543,7 @@ const taskActionTestCases: Array<{
                         taskId,
                         taskAction: {
                             type: "Create",
-                            creator,
+                            creatorId: creator.accountId,
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -2618,7 +2618,7 @@ const taskActionTestCases: Array<{
                         taskId,
                         taskAction: {
                             type: "Create",
-                            creator,
+                            creatorId: creator.accountId,
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -2704,7 +2704,7 @@ const taskActionTestCases: Array<{
                         taskId,
                         taskAction: {
                             type: "Create",
-                            creator,
+                            creatorId: creator.accountId,
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -2777,7 +2777,7 @@ const taskActionTestCases: Array<{
                         taskId,
                         taskAction: {
                             type: "Create",
-                            creator,
+                            creatorId: creator.accountId,
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -2871,7 +2871,7 @@ const taskActionTestCases: Array<{
                         taskId,
                         taskAction: {
                             type: "Create",
-                            creator,
+                            creatorId: creator.accountId,
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -3116,7 +3116,7 @@ const taskActionTestCases: Array<{
                         taskId,
                         taskAction: {
                             type: "Create",
-                            creator,
+                            creatorId: creator.accountId,
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -3381,11 +3381,11 @@ export function testTaskActionPermutations({
                                         dueDate: null,
                                         priority: null,
                                         ...expectation.task,
-                                        creator:
-                                            expectation.task.creator ??
+                                        creatorId:
+                                            expectation.task.creatorId ??
                                             assertExists(
-                                                createAction?.taskAction.creator,
-                                                "Expected `Create` task action when `creator` is not provided",
+                                                createAction?.taskAction.creatorId,
+                                                "Expected `Create` task action when `creatorId` is not provided",
                                             ),
                                         createdTime:
                                             expectation.task.createdTime ??

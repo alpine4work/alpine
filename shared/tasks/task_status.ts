@@ -1,7 +1,7 @@
 import {CrdtRegister, createCrdtRegister} from "~/shared/crdt/crdt_register.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
-import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 
 /**
  * The task status represents whether a task is open or closed. Additionally
@@ -16,7 +16,7 @@ export const TaskStatusSchema = Schema.union({
     }),
     Closed: Schema.object({
         type: Schema.value("Closed"),
-        closer: TaskSortableAccount.schema,
+        closerId: Schema.id<AccountId>(),
         closedTime: TaskFilterableTime.schema,
     }),
 });

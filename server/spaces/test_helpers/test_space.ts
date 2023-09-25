@@ -1,6 +1,7 @@
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createSpaceAccountForTest, createSpaceForTest} from "~/server/spaces/spaces_table.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
+import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {generateId} from "~/shared/id/id.js";
@@ -49,7 +50,7 @@ export class TestSpace {
 
         await createSpaceForTest(context, {
             id,
-            name: "Test",
+            name,
         });
 
         return new TestSpace(context, id);
@@ -65,17 +66,17 @@ export class TestSpace {
         }
 
         const [session] = await runAllPromises([
-            TestSpaceSession.create(this, account),
+            TestSpaceSession.createForSpace(this, account),
             this.addAccount(account),
         ]);
 
         return session;
     }
 
-    public async addAccount(account: TestAccount) {
+    public async addAccount(account: TestAccount | TestSession) {
         await createSpaceAccountForTest(this.context, {
             spaceId: this.id,
-            accountId: account.id,
+            accountId: account instanceof TestSession ? account.account.id : account.id,
         });
     }
 }

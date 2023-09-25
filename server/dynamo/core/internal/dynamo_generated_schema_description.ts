@@ -3929,30 +3929,9 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     },
                                                                                     "optional": false
                                                                                 },
-                                                                                "creator": {
+                                                                                "creatorId": {
                                                                                     "valueSchema": {
-                                                                                        "type": "Object",
-                                                                                        "propertySchemaByKey": {
-                                                                                            "accountId": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Id"
-                                                                                                },
-                                                                                                "optional": false
-                                                                                            },
-                                                                                            "workingAccountName": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "String"
-                                                                                                },
-                                                                                                "optional": false
-                                                                                            },
-                                                                                            "workingAccountNameVersion": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Integer"
-                                                                                                },
-                                                                                                "optional": true
-                                                                                            }
-                                                                                        },
-                                                                                        "referenceId": "c42a5e6f"
+                                                                                        "type": "Id"
                                                                                     },
                                                                                     "optional": false
                                                                                 },
@@ -4216,10 +4195,9 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                         },
                                                                                                         "optional": false
                                                                                                     },
-                                                                                                    "closer": {
+                                                                                                    "closerId": {
                                                                                                         "valueSchema": {
-                                                                                                            "type": "Reference",
-                                                                                                            "reuseReferenceId": "c42a5e6f"
+                                                                                                            "type": "Id"
                                                                                                         },
                                                                                                         "optional": false
                                                                                                     },
@@ -4268,17 +4246,15 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                         "schema": {
                                                                                             "type": "Object",
                                                                                             "propertySchemaByKey": {
-                                                                                                "assignee": {
+                                                                                                "assigneeId": {
                                                                                                     "valueSchema": {
-                                                                                                        "type": "Reference",
-                                                                                                        "reuseReferenceId": "c42a5e6f"
+                                                                                                        "type": "Id"
                                                                                                     },
                                                                                                     "optional": false
                                                                                                 },
-                                                                                                "assigner": {
+                                                                                                "assignerId": {
                                                                                                     "valueSchema": {
-                                                                                                        "type": "Reference",
-                                                                                                        "reuseReferenceId": "c42a5e6f"
+                                                                                                        "type": "Id"
                                                                                                     },
                                                                                                     "optional": false
                                                                                                 },
@@ -4674,6 +4650,42 @@ export const dynamoGeneratedSchemaDescription: {
                                                                             }
                                                                         }
                                                                     }
+                                                                },
+                                                                "optional": false
+                                                            }
+                                                        }
+                                                    },
+                                                    "UpdateAccountName": {
+                                                        "type": "Object",
+                                                        "propertySchemaByKey": {
+                                                            "type": {
+                                                                "valueSchema": {
+                                                                    "type": "Value",
+                                                                    "value": "UpdateAccountName"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "time": {
+                                                                "valueSchema": {
+                                                                    "type": "Uint64"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "accountId": {
+                                                                "valueSchema": {
+                                                                    "type": "Id"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "accountName": {
+                                                                "valueSchema": {
+                                                                    "type": "String"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "accountNameVersion": {
+                                                                "valueSchema": {
+                                                                    "type": "Integer"
                                                                 },
                                                                 "optional": false
                                                             }

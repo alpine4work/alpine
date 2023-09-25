@@ -5,6 +5,7 @@ ts_project(
     test_deps = [
         "//:node_modules/@types/json-bigint",
         "//:node_modules/json-bigint",
+        "//server/accounts/update_name",
         "//server/dynamo/test_helpers",
         "//server/spaces/test_helpers",
         "//server/tasks/test_helpers",
@@ -32,6 +33,7 @@ ts_project(
     },
     visibility = [
         "//admin/dynamo:__pkg__",
+        "//server/accounts/update_name:__pkg__",
         "//server/remix:__pkg__",
         "//server/rpc:__pkg__",
         "//server/tasks:__subpackages__",

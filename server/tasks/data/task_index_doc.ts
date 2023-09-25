@@ -20,7 +20,7 @@ import {
     HybridLogicalTimeType,
     SortableHybridLogicalTimeType,
 } from "~/server/tasks/data/internal/hybrid_logical_time_type.js";
-import {CrdtRegister} from "~/shared/crdt/crdt_register.js";
+import {CrdtRegister, createCrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {
     HybridLogicalTime,
     compareHybridLogicalTimes,
@@ -32,12 +32,12 @@ import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_inter
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {
     TaskDueDateRegister,
     TaskParentTaskIdRegister,
 } from "~/shared/tasks/actions/task_task_action.js";
-import {TaskAssignee, TaskAssigneeRegister} from "~/shared/tasks/task_assignee.js";
 import {TaskAssigneeActivePositionRegister} from "~/shared/tasks/task_assignee_active_position.js";
 import {
     TaskAssigneeStatus,
@@ -66,17 +66,27 @@ import {
     TaskPriorityIntegerMapping,
     TaskPriorityRegister,
 } from "~/shared/tasks/task_priority.js";
-import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
-import {TaskStatus, TaskStatusRegister} from "~/shared/tasks/task_status.js";
+import {TaskStatus} from "~/shared/tasks/task_status.js";
 import {TaskTitle, getTaskTitleText} from "~/shared/tasks/task_title.js";
 
+const TaskSortableAccountSchema = Schema.object({
+    accountId: Schema.id<AccountId>(),
+    workingAccountName: LabelStringSchema,
+    workingAccountNameVersion: Schema.integer,
+});
+
 /**
- * Indexes `TaskSortableAccount`.
+ * Indexes an account and inlines the account's name and the account's
+ * name version.
  *
- * We denormalize the account name into this object so we can sort by account
+ * We inline the account name into this object so we can sort by account
  * name. When the account name changes we run a
  * [`/:index/_update_by_query` request][1] to update all tasks the name is
- * present in at once. Hopefully in one refresh.
+ * present in at once.
+ *
+ * The inlined account name/version is prefixed with "working" to denote that
+ * the account is what we're currently using for sorting but it's not the
+ * canonical account name source and may temporarily be out-of-date.
  *
  * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/update-by-query/
  */
@@ -86,9 +96,6 @@ const TaskIndexSortableAccountType = OpensearchIndexObjectType.new({
         workingAccountName: new OpensearchIndexKeywordType({isSortable: true}),
         workingAccountNameVersion: new OpensearchIndexIntegerType({isFilterable: true}),
     },
-}).transform<TaskSortableAccount>({
-    serialize: account => account,
-    deserialize: account => new TaskSortableAccount(account),
 });
 
 /**
@@ -284,6 +291,24 @@ export const TaskStatusTypeIntegerMapping = createEnumIntegerMapping({
     Closed: 2,
 });
 
+export type TaskStatusWithSortableAccount = SchemaType<typeof TaskStatusWithSortableAccountSchema>;
+
+export const TaskStatusWithSortableAccountSchema = Schema.union({
+    Open: Schema.object({
+        type: Schema.value("Open"),
+    }),
+    Closed: Schema.object({
+        type: Schema.value("Closed"),
+        closer: TaskSortableAccountSchema,
+        closedTime: TaskFilterableTime.schema,
+    }),
+});
+
+export const TaskStatusWithSortableAccountRegister = createCrdtRegister(
+    TaskStatusWithSortableAccountSchema,
+);
+export type TaskStatusWithSortableAccountRegister = CrdtRegister<TaskStatusWithSortableAccount>;
+
 /**
  * Indexes `TaskStatus`.
  *
@@ -297,7 +322,7 @@ export const TaskStatusTypeIntegerMapping = createEnumIntegerMapping({
  * [1]: https://opensearch.org/docs/latest/search-plugins/searching-data/sort/#performance-considerations
  */
 const TaskIndexStatusType = createCrdtRegisterOpensearchType(
-    TaskStatusRegister,
+    TaskStatusWithSortableAccountRegister,
     OpensearchIndexUnionObjectType.new({
         type: new OpensearchIndexByteType({
             isFilterable: true,
@@ -319,11 +344,27 @@ const TaskIndexStatusType = createCrdtRegisterOpensearchType(
     }),
 );
 
+export type TaskAssigneeWithSortableAccount = SchemaType<
+    typeof TaskAssigneeWithSortableAccountSchema
+>;
+
+export const TaskAssigneeWithSortableAccountSchema = Schema.object({
+    assignee: TaskSortableAccountSchema,
+    assigner: TaskSortableAccountSchema,
+    assignedTime: TaskFilterableTime.schema,
+});
+
+export const TaskAssigneeWithSortableAccountRegister = createCrdtRegister(
+    TaskAssigneeWithSortableAccountSchema.nullable(),
+);
+export type TaskAssigneeWithSortableAccountRegister =
+    CrdtRegister<TaskAssigneeWithSortableAccount | null>;
+
 /**
  * Indexes `TaskAssignee`.
  */
 const TaskIndexAssigneeType = createCrdtRegisterOpensearchType(
-    TaskAssigneeRegister,
+    TaskAssigneeWithSortableAccountRegister,
     OpensearchIndexObjectType.new({
         fields: {
             assignee: TaskIndexSortableAccountType,
@@ -568,8 +609,8 @@ export function getTaskIndexDocIsDeleted(task: {
 }
 
 export function getTaskIndexDocDisplayStatus(task: {
-    status: CrdtRegister<TaskStatus>;
-    assignee: CrdtRegister<TaskAssignee | null>;
+    status: TaskStatusWithSortableAccountRegister;
+    assignee: TaskAssigneeWithSortableAccountRegister;
     rawAssigneeStatus: CrdtRegister<TaskAssigneeStatus>;
 }): TaskDisplayStatus {
     return task.status.value.type === "Closed"
@@ -579,17 +620,19 @@ export function getTaskIndexDocDisplayStatus(task: {
         : "OpenInactive";
 }
 
-export function getTaskIndexDocAssigneeStatus(
-    task: Omit<TaskIndexDoc, "id" | "spaceId">,
-): TaskAssigneeStatus {
+export function getTaskIndexDocAssigneeStatus(task: {
+    status: TaskStatusWithSortableAccountRegister;
+    assignee: TaskAssigneeWithSortableAccountRegister;
+    rawAssigneeStatus: TaskAssigneeStatusRegister;
+}): TaskAssigneeStatus {
     return task.status.value.type === "Open" && task.assignee.value
         ? task.rawAssigneeStatus.value
         : {type: "Inactive"};
 }
 
 export function getTaskIndexDocAssigneeActivePosition(task: {
-    status: TaskStatusRegister;
-    assignee: TaskAssigneeRegister;
+    status: TaskStatusWithSortableAccountRegister;
+    assignee: TaskAssigneeWithSortableAccountRegister;
     rawAssigneeStatus: TaskAssigneeStatusRegister;
     rawAssigneeActivePosition: TaskAssigneeActivePositionRegister;
 }): TaskPosition | null {

@@ -511,3 +511,44 @@ export async function expensivelyGetAllSpaceAccounts(
         },
     );
 }
+
+/**
+ * Get the `SpaceId`s our actor is a part of.
+ *
+ * Also allows you to get a condition check transaction entry that fails if our
+ * actor was added to or removed from a space.
+ */
+export async function getSessionActorAccountSpaces(context: ServerSessionActionContext): Promise<{
+    spaceIds: ReadonlySet<SpaceId>;
+    getConditionCheckTransactionEntry: () => DynamoTransactionEntry;
+}> {
+    const spacesItem = await SpacesTable.getItemIfExists(context, {
+        partitionType: "Account",
+        sortRangeType: "Spaces",
+        accountId: context.actor.getAccountId(),
+    });
+
+    const spaceIds: ReadonlySet<SpaceId> = spacesItem?.spaceIds ?? new Set();
+
+    return {
+        spaceIds,
+        getConditionCheckTransactionEntry: () =>
+            spacesItem
+                ? SpacesTable.transactionItemUpdateLockVersionConditionCheck(
+                      {
+                          partitionType: "Account",
+                          sortRangeType: "Spaces",
+                          accountId: context.actor.getAccountId(),
+                      },
+                      spacesItem.updateLockVersion,
+                  )
+                : SpacesTable.transactionDoesNotExistConditionCheck(
+                      {
+                          partitionType: "Account",
+                          sortRangeType: "Spaces",
+                          accountId: context.actor.getAccountId(),
+                      },
+                      {isConditionCheckErrorRetriable: true},
+                  ),
+    };
+}

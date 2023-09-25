@@ -38,6 +38,9 @@ export async function runAllPromises<Value>(
     for (const result of results) {
         // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
         // just the first one. Probably by using an `AggregateError`.
+        //
+        // `retryWithExponentialBackoff()` should still be able to detect retries from
+        // a `runAllPromises()` `AggregateError`.
         if (result.status === "rejected") {
             if (!hasRejection) firstRejectionReason = result.reason;
             hasRejection = true;

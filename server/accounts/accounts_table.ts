@@ -1,6 +1,10 @@
 import {differenceInHours, differenceInMinutes, subHours} from "date-fns";
-import {DynamoActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
+import {
+    DynamoActorContextModule,
+    DynamoSessionActorContextModule,
+} from "~/server/accounts/dynamo_actor_context_module.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
+import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
@@ -8,6 +12,7 @@ import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_en
 import {EmailAddress} from "~/server/emails/email_address.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {FromEmailAddress} from "~/server/emails/from_email_address.js";
+import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {Context} from "~/shared/context/context.js";
 import {
@@ -22,6 +27,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, ContentMentionAccountId, SessionId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
@@ -911,4 +917,65 @@ export async function dangerouslyGetAccountIfExistsWithoutCaching(
     if (!accountItem) return null;
 
     return createAccountModelFromItem(accountItem);
+}
+
+export const updateSessionActorAccountNameBeforeExecuteTestCheckpoint =
+    new TestCheckpoint<AccountId>();
+
+/**
+ * Updates an account's name. When we update an account's name we also need to
+ * update our task index since the account name is inlined in the task index.
+ * This Bazel package does not have access to `//server/tasks/data` (this would
+ * create a circular dependency) so instead we export a low level update
+ * function that requires you to inject some logic for updating tasks.
+ *
+ * You should call `updateSessionActorAccountName()` in
+ * `//server/accounts/update_name` which brings together the account table
+ * update with the task table update.
+ */
+export async function internalUpdateSessionActorAccountNameWithoutUpdatingTasks<
+    Modules extends DynamoContextModules & {actor: DynamoSessionActorContextModule},
+>(
+    context: Context<Modules>,
+    name: string,
+    {
+        getTaskTransactionEntries,
+    }: {
+        getTaskTransactionEntries: (
+            context: Context<Replace<Modules, {dynamo: DynamoContextModule}>>,
+            options: {name: string; nameVersion: number},
+        ) => Promise<{
+            transactionEntries: Array<DynamoTransactionEntry>;
+            onAfterTransactionExecutedSuccessfully: () => void;
+        }>;
+    },
+) {
+    return context.dynamo.retryTransaction(async context => {
+        const accountItem = await AccountsTable.getItem(context, {
+            partitionType: "Account",
+            sortRangeType: "Attributes",
+            accountId: context.actor.getAccountId(),
+        });
+
+        const nameVersion = accountItem.nameVersion + 1;
+
+        const {transactionEntries: taskTransactionEntries, onAfterTransactionExecutedSuccessfully} =
+            await getTaskTransactionEntries(context, {name, nameVersion});
+
+        await updateSessionActorAccountNameBeforeExecuteTestCheckpoint.waitForTest(
+            context.actor.getAccountId(),
+        );
+
+        await DynamoTableSchema.executeTransaction(context, [
+            AccountsTable.transactionDirectlyUpdateItem({
+                ...accountItem,
+                name,
+                nameVersion,
+            }),
+            ...taskTransactionEntries,
+        ]);
+
+        // After we've committed our transaction, we need to update the task index.
+        onAfterTransactionExecutedSuccessfully();
+    });
 }

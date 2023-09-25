@@ -1,7 +1,6 @@
 import {getContentReferences} from "~/server/content/get_content_references.js";
 import {implementRpc} from "~/server/rpc/internal/implement_rpc.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
-import {collectReferencedAccountIdsFromTaskAction} from "~/server/tasks/data/task_realtime_protocol_helpers.js";
 import {
     authorizeTaskAccess,
     commitTaskActionTransaction,
@@ -14,6 +13,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import * as definition from "~/shared/rpc/tasks_rpc_definitions.js";
+import {collectReferencedAccountIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_account_ids_from_task_action.js";
 
 implementRpc(
     definition.commitTaskActionTransaction,

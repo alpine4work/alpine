@@ -10,7 +10,6 @@ import {TaskAssigneeStatusSchema} from "~/shared/tasks/task_assignee_status.js";
 import {TaskNotepadPageIdSchema} from "~/shared/tasks/task_notepad_page_id.js";
 import {TaskPositionSchema} from "~/shared/tasks/task_position.js";
 import {TaskPrioritySchema} from "~/shared/tasks/task_priority.js";
-import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {TaskStatusSchema} from "~/shared/tasks/task_status.js";
 import {TaskTitleUpdateSchema} from "~/shared/tasks/task_title.js";
 
@@ -45,7 +44,7 @@ export type TaskCreateAction = SchemaType<typeof TaskCreateActionSchema>;
 
 const TaskCreateActionSchema = Schema.object({
     type: Schema.value("Create"),
-    creator: TaskSortableAccount.schema,
+    creatorId: Schema.id<AccountId>(),
     creatorTimeZone: TimeZoneSchema,
 });
 

@@ -15,7 +15,11 @@ import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
-import {authorizeSpaceAccess, isAccountMemberOfSpace} from "~/server/spaces/spaces_table.js";
+import {
+    authorizeSpaceAccess,
+    getSessionActorAccountSpaces,
+    isAccountMemberOfSpace,
+} from "~/server/spaces/spaces_table.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskContextModuleBase} from "~/server/tasks/data/task_context_module.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
@@ -1142,7 +1146,7 @@ async function actuallyCommitTaskActionTransaction(
 
                 switch (taskAction.type) {
                     case "Create": {
-                        if (taskAction.creator.accountId !== state.getActorAccountId()) {
+                        if (taskAction.creatorId !== state.getActorAccountId()) {
                             throw new PermissionDeniedError(
                                 "Can only create a task with yourself as the creator",
                             );
@@ -1153,7 +1157,7 @@ async function actuallyCommitTaskActionTransaction(
                             sortRangeType: "EssentialAttributes",
                             taskId,
                             spaceId,
-                            creatorId: taskAction.creator.accountId,
+                            creatorId: taskAction.creatorId,
                             createdTime: action.time,
                             deletedTime: null,
                             statusType: new TaskStatusTypeRegister("Open", action.time),
@@ -1623,7 +1627,7 @@ async function actuallyCommitTaskActionTransaction(
 
                                 if (
                                     taskAction.status.type === "Closed" &&
-                                    taskAction.status.closer.accountId !== state.getActorAccountId()
+                                    taskAction.status.closerId !== state.getActorAccountId()
                                 ) {
                                     throw new PermissionDeniedError(
                                         "Can only close a task with yourself as the closer",
@@ -1697,8 +1701,7 @@ async function actuallyCommitTaskActionTransaction(
 
                                 if (
                                     taskAction.assignee &&
-                                    taskAction.assignee.assigner.accountId !==
-                                        state.getActorAccountId()
+                                    taskAction.assignee.assignerId !== state.getActorAccountId()
                                 ) {
                                     throw new PermissionDeniedError(
                                         "Can only assign a task with yourself as the assigner",
@@ -1708,7 +1711,7 @@ async function actuallyCommitTaskActionTransaction(
                                 if (
                                     taskAction.assignee &&
                                     !(await state.isAccountMemberOfSpace(
-                                        taskAction.assignee.assignee.accountId,
+                                        taskAction.assignee.assigneeId,
                                     ))
                                 ) {
                                     throw new FailedPreconditionError(
@@ -1719,7 +1722,7 @@ async function actuallyCommitTaskActionTransaction(
                                 state.updateTaskItem({
                                     ...taskItem,
                                     assigneeId: taskItem.assigneeId.apply({
-                                        value: taskAction.assignee?.assignee.accountId ?? null,
+                                        value: taskAction.assignee?.assigneeId ?? null,
                                         version: action.time,
                                     }),
                                 });
@@ -1926,6 +1929,14 @@ async function actuallyCommitTaskActionTransaction(
                     pageIds: TaskNotepadPageIdCompressedSet.fromIds(newPageIds),
                 });
                 break;
+            }
+            case "UpdateAccountName": {
+                // Clients can't commit this action whenever they'd like by calling
+                // `commitTaskActionTransaction()`. We only commit this action when updating
+                // an account's name.
+                throw new InvalidArgumentError(
+                    "Clients are not allowed to commit an `UpdateAccountName` action",
+                );
             }
             default:
                 throw exhaustive(action);
@@ -2163,6 +2174,64 @@ export function deleteTaskAndAllChildren(
             actions: actionTransactionItem.actions,
         };
     });
+}
+
+/**
+ * The task part required for implementing `updateSessionActorAccountName()`.
+ * Commits an `UpdateAccountName` action to every space the account is in then
+ * once the transaction has committed begins indexing the action.
+ */
+export async function internalGetUpdateSessionActorAccountNameTaskTransactionEntries(
+    context: Context<ServerSessionActionContextModules & {tasks: TaskContextModuleBase}>,
+    {name, nameVersion}: {name: string; nameVersion: number},
+): Promise<{
+    transactionEntries: Array<DynamoTransactionEntry>;
+    onAfterTransactionExecutedSuccessfully: () => void;
+}> {
+    const currentTime = new Date();
+
+    // We commit an update account name task action in all the spaces an account is in.
+    const {spaceIds, getConditionCheckTransactionEntry} = await getSessionActorAccountSpaces(
+        context,
+    );
+
+    const actionTransactionItems = Array.from(spaceIds, spaceId => {
+        const actionTransactionItem: TaskActionTransactionItem = {
+            partitionType: "TaskActions",
+            sortRangeType: "ActionTransaction",
+            spaceId,
+            committedTime: currentTime,
+            actionTransactionId: generateId<TaskActionTransactionId>(),
+            actions: [
+                {
+                    type: "UpdateAccountName",
+                    time: [currentTime.getTime(), 0],
+                    accountId: context.actor.getAccountId(),
+                    accountName: name,
+                    accountNameVersion: nameVersion,
+                },
+            ],
+            wasProcessed: false,
+        };
+
+        return actionTransactionItem;
+    });
+
+    return {
+        transactionEntries: [
+            // Don't commit if the account's space list changed.
+            getConditionCheckTransactionEntry(),
+
+            ...actionTransactionItems.map(actionTransactionItem =>
+                TaskActionTable.transactionCreateOrReplaceItem(actionTransactionItem),
+            ),
+        ],
+        onAfterTransactionExecutedSuccessfully: () => {
+            for (const actionTransactionItem of actionTransactionItems) {
+                afterCommitTaskActionTransaction(context, actionTransactionItem);
+            }
+        },
+    };
 }
 
 export const backfillTaskActionTransactionHistoryTestCounter = new TestCounter<SpaceId>();

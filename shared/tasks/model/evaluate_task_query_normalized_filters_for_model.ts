@@ -108,7 +108,7 @@ export function evaluateTaskQueryNormalizedFiltersForModel(
         filters.assigneeFilter !== undefined &&
         !evaluateTaskQueryAccountNormalizedFilter(
             filters.assigneeFilter,
-            task.getAssignee()?.assignee.accountId ?? "MissingAccount",
+            task.getAssignee()?.assigneeId ?? "MissingAccount",
         )
     ) {
         return false;
@@ -116,10 +116,7 @@ export function evaluateTaskQueryNormalizedFiltersForModel(
 
     if (
         filters.creatorFilter !== undefined &&
-        !evaluateTaskQueryAccountNormalizedFilter(
-            filters.creatorFilter,
-            task.getCreator().accountId,
-        )
+        !evaluateTaskQueryAccountNormalizedFilter(filters.creatorFilter, task.getCreatorId())
     ) {
         return false;
     }
@@ -128,7 +125,7 @@ export function evaluateTaskQueryNormalizedFiltersForModel(
         filters.assignerFilter !== undefined &&
         !evaluateTaskQueryAccountNormalizedFilter(
             filters.assignerFilter,
-            task.getAssignee()?.assigner.accountId ?? "MissingAccount",
+            task.getAssignee()?.assignerId ?? "MissingAccount",
         )
     ) {
         return false;
@@ -196,7 +193,7 @@ export function evaluateTaskQueryNormalizedFiltersForModel(
 
     if (
         filters.notepadPageFilter !== undefined &&
-        (task.getCreator().accountId !== filters.notepadPageFilter.accountId ||
+        (task.getCreatorId() !== filters.notepadPageFilter.accountId ||
             !task.rawData.positionByAccountIdAndNotepadPageId.has(
                 `${filters.notepadPageFilter.accountId}-${filters.notepadPageFilter.notepadPageId}`,
             ))

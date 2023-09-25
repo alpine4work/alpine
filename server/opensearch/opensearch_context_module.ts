@@ -111,4 +111,8 @@ export class TestDisabledOpensearchClient implements OpensearchClientInterface {
     public refresh(): never {
         throw this._newUnavailableError();
     }
+
+    public updateByQuery(): never {
+        throw this._newUnavailableError();
+    }
 }

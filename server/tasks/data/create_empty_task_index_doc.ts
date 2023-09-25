@@ -1,12 +1,16 @@
-import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
+import {
+    TaskAssigneeWithSortableAccountRegister,
+    TaskIndexDoc,
+    TaskStatusWithSortableAccountRegister,
+} from "~/server/tasks/data/task_index_doc.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
 import {
     TaskCreateAction,
     TaskDueDateRegister,
     TaskParentTaskIdRegister,
 } from "~/shared/tasks/actions/task_task_action.js";
-import {TaskAssigneeRegister} from "~/shared/tasks/task_assignee.js";
 import {TaskAssigneeActivePositionRegister} from "~/shared/tasks/task_assignee_active_position.js";
 import {TaskAssigneeStatusRegister} from "~/shared/tasks/task_assignee_status.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
@@ -15,15 +19,14 @@ import {TaskPositionRegister} from "~/shared/tasks/task_position.js";
 import {TaskPositionByAccountIdAndNotepadPageIdMap} from "~/shared/tasks/task_position_by_account_id_and_notepad_page_id.js";
 import {TaskPositionByCollectionIdMap} from "~/shared/tasks/task_position_by_collection_id_map.js";
 import {TaskPriorityRegister} from "~/shared/tasks/task_priority.js";
-import {TaskStatusRegister} from "~/shared/tasks/task_status.js";
 import {emptyTaskTitle} from "~/shared/tasks/task_title.js";
 
 export function createEmptyTaskIndexDoc(
     actionTime: HybridLogicalTime,
     action: TaskCreateAction,
-): Omit<TaskIndexDoc, "id" | "spaceId"> {
+): Omit<TaskIndexDoc, "id" | "spaceId" | "creator"> & {creator: {accountId: AccountId}} {
     return {
-        creator: action.creator,
+        creator: {accountId: action.creatorId},
         createdTime: new TaskFilterableTime({
             absoluteTime: actionTime,
             setterTimeZone: action.creatorTimeZone,
@@ -52,8 +55,8 @@ export function createEmptyTaskIndexDoc(
                 positionById: TaskPositionByAccountIdAndNotepadPageIdMap.empty,
             },
         },
-        status: new TaskStatusRegister({type: "Open"}, actionTime),
-        assignee: new TaskAssigneeRegister(null, actionTime),
+        status: new TaskStatusWithSortableAccountRegister({type: "Open"}, actionTime),
+        assignee: new TaskAssigneeWithSortableAccountRegister(null, actionTime),
         rawAssigneeStatus: new TaskAssigneeStatusRegister({type: "Inactive"}, actionTime),
         rawAssigneeActivePosition: new TaskAssigneeActivePositionRegister(null, actionTime),
         title: {raw: emptyTaskTitle.get()},
