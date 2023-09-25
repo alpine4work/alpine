@@ -3258,7 +3258,7 @@ export function testTaskActionPermutations({
         const collectionId2 = generateId<TaskCollectionId>();
 
         const testCaseArtifacts = testCase.create({
-            creator: TaskSortableAccount.test(account2),
+            creator: TaskSortableAccount.test(account1),
             createdTime: getNextFilterableTime(),
             account2: TaskSortableAccount.test(account2),
             collectionId1,
