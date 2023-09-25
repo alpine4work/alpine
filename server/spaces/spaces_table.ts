@@ -1,18 +1,25 @@
-import {dangerouslyGetAccountIfExistsWithoutCaching} from "~/server/accounts/accounts_table.js";
+import {
+    authorizeInternalAccess,
+    dangerouslyGetAccountIfExistsWithoutCaching,
+} from "~/server/accounts/accounts_table.js";
 import {DynamoActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
-import {ServerActionContext} from "~/server/context/server_action_context.js";
+import {
+    ServerActionContext,
+    ServerSessionActionContext,
+} from "~/server/context/server_action_context.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
+import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {CacheContextModule, ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {DeadlineExceededError, NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -25,6 +32,7 @@ import {
     ContentMentionAccountId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
+import {IdByteSetSchema} from "~/shared/schema/helpers/id_byte_set_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
@@ -89,6 +97,28 @@ const SpacesTable = DynamoTableSchema.new({
                 },
             ],
         },
+
+        /**
+         * The spaces all of our accounts are members of. This is an item we have to
+         * manually maintain instead of a DynamoDB index so we can read an account's
+         * spaces with strong read consistency or have transaction conditional checks
+         * on an account's space memberships.
+         */
+        {
+            name: "Account",
+            partitionKeyAttributes: {
+                accountId: DynamoKeyAttributeSchema.id<AccountId>(),
+            },
+            sortRanges: [
+                {
+                    name: "Spaces",
+                    sortKeyAttributes: {},
+                    attributes: Schema.object({
+                        spaceIds: IdByteSetSchema.get<SpaceId>(),
+                    }),
+                },
+            ],
+        },
     ],
 });
 
@@ -123,12 +153,32 @@ export async function createSpaceAccountForTest(
 
     // This is a test. We assume the `SpaceId` and `AccountId` exist.
 
-    await SpacesTable.createItem(context, {
-        partitionType: "Space",
-        sortRangeType: "Account",
-        spaceId,
-        accountId,
-        joinedTime: new Date(),
+    await context.dynamo.retryTransaction(async context => {
+        const spacesItem = await SpacesTable.getItemIfExists(context, {
+            partitionType: "Account",
+            sortRangeType: "Spaces",
+            accountId,
+        });
+
+        const spaceIds: Set<SpaceId> = spacesItem ? new Set(spacesItem.spaceIds) : new Set();
+        spaceIds.add(spaceId);
+
+        await DynamoTableSchema.executeTransaction(context, [
+            SpacesTable.transactionCreateItem({
+                partitionType: "Space",
+                sortRangeType: "Account",
+                spaceId,
+                accountId,
+                joinedTime: new Date(),
+            }),
+            SpacesTable.transactionDirectlyUpdateItem({
+                ...spacesItem,
+                partitionType: "Account",
+                sortRangeType: "Spaces",
+                accountId,
+                spaceIds,
+            }),
+        ]);
     });
 }
 
@@ -144,13 +194,58 @@ export async function seedTestSpaces(context: DynamoContext) {
         createdTime: new Date(),
     });
 
-    await SpacesTable.createItemIfNoneExists(context, {
-        partitionType: "Space",
-        sortRangeType: "Account",
-        spaceId: defaultSpaceId,
-        accountId: adminAccountId,
-        joinedTime: new Date(),
-    });
+    try {
+        await context.dynamo.retryTransaction(async context => {
+            const adminAccountSpacesItem = await SpacesTable.getItemIfExists(context, {
+                partitionType: "Account",
+                sortRangeType: "Spaces",
+                accountId: adminAccountId,
+            });
+
+            const adminAccountSpaceIds: Set<SpaceId> = adminAccountSpacesItem
+                ? new Set(adminAccountSpacesItem.spaceIds)
+                : new Set();
+            const adminAccountAlreadyHadDefaultSpaceId = adminAccountSpaceIds.has(defaultSpaceId);
+            adminAccountSpaceIds.add(defaultSpaceId);
+
+            if (adminAccountAlreadyHadDefaultSpaceId) {
+                await SpacesTable.createItem(context, {
+                    partitionType: "Space",
+                    sortRangeType: "Account",
+                    spaceId: defaultSpaceId,
+                    accountId: adminAccountId,
+                    joinedTime: new Date(),
+                });
+            } else {
+                await DynamoTableSchema.executeTransaction(context, [
+                    SpacesTable.transactionCreateItem({
+                        partitionType: "Space",
+                        sortRangeType: "Account",
+                        spaceId: defaultSpaceId,
+                        accountId: adminAccountId,
+                        joinedTime: new Date(),
+                    }),
+                    SpacesTable.transactionDirectlyUpdateItem({
+                        ...adminAccountSpaceIds,
+                        partitionType: "Account",
+                        sortRangeType: "Spaces",
+                        accountId: adminAccountId,
+                        spaceIds: adminAccountSpaceIds,
+                    }),
+                ]);
+            }
+        });
+    } catch (error) {
+        if (isDynamoConditionCheckError(error) && !(error instanceof DeadlineExceededError)) {
+            // We can ignore DynamoDB condition check errors since it means the created
+            // item already exists.
+            //
+            // Though don't ignore `DeadlineExceededError` (thrown by `retryTransaction()`
+            // if we retry too many times). That's a real bug in seeding.
+        } else {
+            throw error;
+        }
+    }
 }
 
 /**
@@ -159,13 +254,29 @@ export async function seedTestSpaces(context: DynamoContext) {
  * This is only meant for adding accounts to a space during closed alpha. We
  * will probably get rid of this afterwards.
  */
-export function createSpaceAccountForAlphaTransactionEntries({
-    spaceId,
-    accountId,
-}: {
-    spaceId: SpaceId;
-    accountId: AccountId;
-}): Array<DynamoTransactionEntry> {
+export async function createSpaceAccountForAlphaTransactionEntries(
+    context: ServerSessionActionContext,
+    {
+        spaceId,
+        accountId,
+    }: {
+        spaceId: SpaceId;
+        accountId: AccountId;
+    },
+): Promise<Array<DynamoTransactionEntry>> {
+    // Only accounts with internal access can create alpha accounts. This adds an
+    // `AccountId` to an arbitrary `SpaceId`! Pretty dangerous.
+    await authorizeInternalAccess(context);
+
+    const spacesItem = await SpacesTable.getItemIfExists(context, {
+        partitionType: "Account",
+        sortRangeType: "Spaces",
+        accountId,
+    });
+
+    const spaceIds: Set<SpaceId> = spacesItem ? new Set(spacesItem.spaceIds) : new Set();
+    spaceIds.add(spaceId);
+
     return [
         // Fail the transaction if the space does not exist.
         SpacesTable.transactionConditionCheck({
@@ -179,6 +290,13 @@ export function createSpaceAccountForAlphaTransactionEntries({
             spaceId,
             accountId,
             joinedTime: new Date(),
+        }),
+        SpacesTable.transactionDirectlyUpdateItem({
+            ...spacesItem,
+            partitionType: "Account",
+            sortRangeType: "Spaces",
+            accountId,
+            spaceIds,
         }),
     ];
 }

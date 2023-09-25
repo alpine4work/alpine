@@ -49,7 +49,7 @@ import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {decodeIdInto, encodeId, generateId, getMinId, idByteLength} from "~/shared/id/id.js";
+import {generateId, getMinId} from "~/shared/id/id.js";
 import {
     AccountId,
     BrowserId,
@@ -59,6 +59,7 @@ import {
     TaskId,
 } from "~/shared/id/types/id_types.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
+import {IdByteSetSchema} from "~/shared/schema/helpers/id_byte_set_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {
     TaskAction,
@@ -316,32 +317,7 @@ const TaskTable = DynamoTableSchema.new({
                          * task is removed then we remove it from the set. If a child task is deleted
                          * it stays in the set, though.
                          */
-                        childTaskIds: Schema.bytes.transform<ReadonlySet<TaskId>>({
-                            serialize: taskIds => {
-                                const bytes = new Uint8Array(taskIds.size * idByteLength);
-
-                                let byteOffset = 0;
-                                for (const taskId of taskIds) {
-                                    decodeIdInto(taskId, bytes, byteOffset);
-                                    byteOffset += idByteLength;
-                                }
-
-                                return bytes;
-                            },
-                            deserialize: bytes => {
-                                const taskIds = new Set<TaskId>();
-
-                                for (
-                                    let byteOffset = 0;
-                                    byteOffset + idByteLength <= bytes.byteLength;
-                                    byteOffset += idByteLength
-                                ) {
-                                    taskIds.add(encodeId(bytes, byteOffset));
-                                }
-
-                                return taskIds;
-                            },
-                        }),
+                        childTaskIds: IdByteSetSchema.get<TaskId>(),
 
                         /**
                          * The collections this task is a part of. A task inherits the highest access

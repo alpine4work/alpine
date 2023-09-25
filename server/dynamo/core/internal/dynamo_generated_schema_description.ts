@@ -37,6 +37,12 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "nameVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    },
                                     "createdTime": {
                                         "valueSchema": {
                                             "type": "Date"
@@ -3818,6 +3824,38 @@ export const dynamoGeneratedSchemaDescription: {
                             }
                         }
                     }
+                },
+                "Account": {
+                    "id": 1,
+                    "partitionKeyAttributeByKey": {
+                        "accountId": {
+                            "type": "Id"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "Spaces": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {},
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "spaceIds": {
+                                        "valueSchema": {
+                                            "type": "Bytes"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             },
             "indexes": []
@@ -3906,6 +3944,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                     "type": "String"
                                                                                                 },
                                                                                                 "optional": false
+                                                                                            },
+                                                                                            "workingAccountNameVersion": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Integer"
+                                                                                                },
+                                                                                                "optional": true
                                                                                             }
                                                                                         },
                                                                                         "referenceId": "c42a5e6f"

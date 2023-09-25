@@ -292,10 +292,10 @@ export async function approveAlphaAccessRequest(
             name: requestItem.name,
             emailAddress: requestItem.emailAddress,
         }),
-        ...createSpaceAccountForAlphaTransactionEntries({
+        ...(await createSpaceAccountForAlphaTransactionEntries(context, {
             spaceId: defaultSpaceId,
             accountId,
-        }),
+        })),
     ]);
 
     // TODO(calebmer): For now I am sending alpha request approval emails manually
