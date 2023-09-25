@@ -1820,86 +1820,1369 @@ const taskActionTestCases: Array<{
     name: string;
     create: (scenario: TaskActionTestScenario) => TaskActionTestArtifacts;
 }> = [
-    ...taskTaskActionTestCases.map(testCase => {
-        return {
-            name: testCase.name,
-            create: (scenario: TaskActionTestScenario): TaskActionTestArtifacts => {
-                const testCaseArtifacts = testCase.create(scenario);
-                const taskId = generateId<TaskId>();
-
-                const actions: Array<TaskAction> = testCaseArtifacts.actions.map(action => ({
-                    type: "UpdateTask",
-                    time: action.time ?? scenario.getNextTime(),
-                    taskId,
-                    taskAction: action,
-                }));
-
-                if (testCaseArtifacts.error) {
-                    return {
-                        actions,
-                        error: testCaseArtifacts.error,
-                    };
-                } else {
-                    return {
-                        actions,
-                        expect: [{taskId, task: testCaseArtifacts.task}],
-                    };
-                }
-            },
-        };
-    }),
+    // NOCOMMIT
+    //
+    // ...taskTaskActionTestCases.map(testCase => {
+    //     return {
+    //         name: testCase.name,
+    //         create: (scenario: TaskActionTestScenario): TaskActionTestArtifacts => {
+    //             const testCaseArtifacts = testCase.create(scenario);
+    //             const taskId = generateId<TaskId>();
+    //             const actions: Array<TaskAction> = testCaseArtifacts.actions.map(action => ({
+    //                 type: "UpdateTask",
+    //                 time: action.time ?? scenario.getNextTime(),
+    //                 taskId,
+    //                 taskAction: action,
+    //             }));
+    //             if (testCaseArtifacts.error) {
+    //                 return {
+    //                     actions,
+    //                     error: testCaseArtifacts.error,
+    //                 };
+    //             } else {
+    //                 return {
+    //                     actions,
+    //                     expect: [{taskId, task: testCaseArtifacts.task}],
+    //                 };
+    //             }
+    //         },
+    //     };
+    // }),
+    // {
+    //     name: "add task to notepad page",
+    //     create: ({creator, getNextTime}): TaskActionTestArtifacts => {
+    //         const taskId = generateId<TaskId>();
+    //         const notepadPageId = generateTaskNotepadPageId();
+    //         const time1 = getNextTime();
+    //         const time2 = getNextTime();
+    //         const time3 = getNextTime();
+    //         return {
+    //             actions: [
+    //                 {
+    //                     type: "UpdateNotepadPage",
+    //                     time: time1,
+    //                     accountId: creator.accountId,
+    //                     notepadPageId,
+    //                     notepadPageAction: {
+    //                         type: "Create",
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: time2,
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "Create",
+    //                         creator,
+    //                         creatorTimeZone: defaultTimeZone,
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: time3,
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "UpdateNotepadPagePosition",
+    //                         accountId: creator.accountId,
+    //                         notepadPageId,
+    //                         position: {orderTime: time3, orderKey: initialOrderKey},
+    //                     },
+    //                 },
+    //             ],
+    //             expect: [
+    //                 {
+    //                     taskId,
+    //                     task: {
+    //                         notepadPagePositions: new Map([
+    //                             [
+    //                                 `${creator.accountId}-${notepadPageId}` as const,
+    //                                 {orderTime: time3, orderKey: initialOrderKey},
+    //                             ],
+    //                         ]),
+    //                     },
+    //                 },
+    //             ],
+    //         };
+    //     },
+    // },
+    // {
+    //     name: "add then remove task from notepad page",
+    //     create: ({creator, getNextTime}): TaskActionTestArtifacts => {
+    //         const taskId = generateId<TaskId>();
+    //         const notepadPageId = generateTaskNotepadPageId();
+    //         const time1 = getNextTime();
+    //         const time2 = getNextTime();
+    //         const time3 = getNextTime();
+    //         const time4 = getNextTime();
+    //         return {
+    //             actions: [
+    //                 {
+    //                     type: "UpdateNotepadPage",
+    //                     time: time1,
+    //                     accountId: creator.accountId,
+    //                     notepadPageId,
+    //                     notepadPageAction: {
+    //                         type: "Create",
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: time2,
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "Create",
+    //                         creator,
+    //                         creatorTimeZone: defaultTimeZone,
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: time3,
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "UpdateNotepadPagePosition",
+    //                         accountId: creator.accountId,
+    //                         notepadPageId,
+    //                         position: {orderTime: time3, orderKey: initialOrderKey},
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: time4,
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "UpdateNotepadPagePosition",
+    //                         accountId: creator.accountId,
+    //                         notepadPageId,
+    //                         position: null,
+    //                     },
+    //                 },
+    //             ],
+    //             expect: [
+    //                 {
+    //                     taskId,
+    //                     task: {},
+    //                 },
+    //             ],
+    //         };
+    //     },
+    // },
+    // {
+    //     name: "remove then add task from notepad page",
+    //     create: ({creator, getNextTime}): TaskActionTestArtifacts => {
+    //         const taskId = generateId<TaskId>();
+    //         const notepadPageId = generateTaskNotepadPageId();
+    //         const time1 = getNextTime();
+    //         const time2 = getNextTime();
+    //         const time3 = getNextTime();
+    //         const time4 = getNextTime();
+    //         return {
+    //             actions: [
+    //                 {
+    //                     type: "UpdateNotepadPage",
+    //                     time: time1,
+    //                     accountId: creator.accountId,
+    //                     notepadPageId,
+    //                     notepadPageAction: {
+    //                         type: "Create",
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: time2,
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "Create",
+    //                         creator,
+    //                         creatorTimeZone: defaultTimeZone,
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: time3,
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "UpdateNotepadPagePosition",
+    //                         accountId: creator.accountId,
+    //                         notepadPageId,
+    //                         position: null,
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: time4,
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "UpdateNotepadPagePosition",
+    //                         accountId: creator.accountId,
+    //                         notepadPageId,
+    //                         position: {orderTime: time4, orderKey: initialOrderKey},
+    //                     },
+    //                 },
+    //             ],
+    //             expect: [
+    //                 {
+    //                     taskId,
+    //                     task: {
+    //                         notepadPagePositions: new Map([
+    //                             [
+    //                                 `${creator.accountId}-${notepadPageId}` as const,
+    //                                 {orderTime: time4, orderKey: initialOrderKey},
+    //                             ],
+    //                         ]),
+    //                     },
+    //                 },
+    //             ],
+    //         };
+    //     },
+    // },
+    // {
+    //     name: "only remove task from notepad page",
+    //     create: ({creator, getNextTime}): TaskActionTestArtifacts => {
+    //         const taskId = generateId<TaskId>();
+    //         const notepadPageId = generateTaskNotepadPageId();
+    //         return {
+    //             actions: [
+    //                 {
+    //                     type: "UpdateNotepadPage",
+    //                     time: getNextTime(),
+    //                     accountId: creator.accountId,
+    //                     notepadPageId,
+    //                     notepadPageAction: {
+    //                         type: "Create",
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: getNextTime(),
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "Create",
+    //                         creator,
+    //                         creatorTimeZone: defaultTimeZone,
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: getNextTime(),
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "UpdateNotepadPagePosition",
+    //                         accountId: creator.accountId,
+    //                         notepadPageId,
+    //                         position: null,
+    //                     },
+    //                 },
+    //             ],
+    //             expect: [
+    //                 {
+    //                     taskId,
+    //                     task: {},
+    //                 },
+    //             ],
+    //         };
+    //     },
+    // },
+    // {
+    //     name: "change task position in notepad page",
+    //     create: ({creator, getNextTime}): TaskActionTestArtifacts => {
+    //         const taskId = generateId<TaskId>();
+    //         const notepadPageId = generateTaskNotepadPageId();
+    //         const time1 = getNextTime();
+    //         const time2 = getNextTime();
+    //         const time3 = getNextTime();
+    //         const time4 = getNextTime();
+    //         return {
+    //             actions: [
+    //                 {
+    //                     type: "UpdateNotepadPage",
+    //                     time: time1,
+    //                     accountId: creator.accountId,
+    //                     notepadPageId,
+    //                     notepadPageAction: {
+    //                         type: "Create",
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: time2,
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "Create",
+    //                         creator,
+    //                         creatorTimeZone: defaultTimeZone,
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: time3,
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "UpdateNotepadPagePosition",
+    //                         accountId: creator.accountId,
+    //                         notepadPageId,
+    //                         position: {orderTime: time3, orderKey: initialOrderKey},
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: time4,
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "UpdateNotepadPagePosition",
+    //                         accountId: creator.accountId,
+    //                         notepadPageId,
+    //                         position: {orderTime: time3, orderKey: assertOrderKey("a42")},
+    //                     },
+    //                 },
+    //             ],
+    //             expect: [
+    //                 {
+    //                     taskId,
+    //                     task: {
+    //                         notepadPagePositions: new Map([
+    //                             [
+    //                                 `${creator.accountId}-${notepadPageId}` as const,
+    //                                 {orderTime: time3, orderKey: assertOrderKey("a42")},
+    //                             ],
+    //                         ]),
+    //                     },
+    //                 },
+    //             ],
+    //         };
+    //     },
+    // },
+    // {
+    //     name: "delete collection",
+    //     create: ({getNextTime}): TaskActionTestArtifacts => {
+    //         const collectionId = generateId<TaskCollectionId>();
+    //         return {
+    //             actions: [
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: getNextTime(),
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "Create",
+    //                         name: "Test",
+    //                         accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: getNextTime(),
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "Delete",
+    //                     },
+    //                 },
+    //             ],
+    //             expect: [
+    //                 {
+    //                     collectionId,
+    //                     collection: {
+    //                         isDeleted: true,
+    //                     },
+    //                 },
+    //             ],
+    //         };
+    //     },
+    // },
+    // {
+    //     name: "undelete collection",
+    //     create: ({getNextTime}): TaskActionTestArtifacts => {
+    //         const collectionId = generateId<TaskCollectionId>();
+    //         return {
+    //             actions: [
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: getNextTime(),
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "Create",
+    //                         name: "Test",
+    //                         accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: getNextTime(),
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "Delete",
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: getNextTime(),
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "Undelete",
+    //                     },
+    //                 },
+    //             ],
+    //             expect: [
+    //                 {
+    //                     collectionId,
+    //                     collection: {
+    //                         isDeleted: false,
+    //                     },
+    //                 },
+    //             ],
+    //         };
+    //     },
+    // },
+    // {
+    //     name: "update name before delete collection",
+    //     create: ({getNextTime}): TaskActionTestArtifacts => {
+    //         const collectionId = generateId<TaskCollectionId>();
+    //         return {
+    //             actions: [
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: getNextTime(),
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "Create",
+    //                         name: "Test",
+    //                         accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: getNextTime(),
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "UpdateName",
+    //                         name: "New Collection Name",
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: getNextTime(),
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "Delete",
+    //                     },
+    //                 },
+    //             ],
+    //             expect: [
+    //                 {
+    //                     collectionId,
+    //                     collection: {
+    //                         isDeleted: true,
+    //                         name: "New Collection Name",
+    //                     },
+    //                 },
+    //             ],
+    //         };
+    //     },
+    // },
+    // {
+    //     name: "update name after delete collection",
+    //     create: ({getNextTime}): TaskActionTestArtifacts => {
+    //         const collectionId = generateId<TaskCollectionId>();
+    //         return {
+    //             actions: [
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: getNextTime(),
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "Create",
+    //                         name: "Test",
+    //                         accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: getNextTime(),
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "Delete",
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: getNextTime(),
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "UpdateName",
+    //                         name: "New Collection Name",
+    //                     },
+    //                 },
+    //             ],
+    //             expect: [
+    //                 {
+    //                     collectionId,
+    //                     collection: {
+    //                         isDeleted: true,
+    //                         name: "New Collection Name",
+    //                     },
+    //                 },
+    //             ],
+    //         };
+    //     },
+    // },
+    // {
+    //     name: "delete collection, undelete collection, delete collection",
+    //     create: ({getNextTime}): TaskActionTestArtifacts => {
+    //         const collectionId = generateId<TaskCollectionId>();
+    //         return {
+    //             actions: [
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: getNextTime(),
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "Create",
+    //                         name: "Test",
+    //                         accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: getNextTime(),
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "Delete",
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: getNextTime(),
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "Undelete",
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: getNextTime(),
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "Delete",
+    //                     },
+    //                 },
+    //             ],
+    //             expect: [
+    //                 {
+    //                     collectionId,
+    //                     collection: {
+    //                         isDeleted: true,
+    //                     },
+    //                 },
+    //             ],
+    //         };
+    //     },
+    // },
+    // {
+    //     name: "undelete collection without delete collection",
+    //     create: ({getNextTime}): TaskActionTestArtifacts => {
+    //         const collectionId = generateId<TaskCollectionId>();
+    //         return {
+    //             actions: [
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: getNextTime(),
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "Create",
+    //                         name: "Test",
+    //                         accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: getNextTime(),
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "Undelete",
+    //                     },
+    //                 },
+    //             ],
+    //             expect: [
+    //                 {
+    //                     collectionId,
+    //                     collection: {
+    //                         isDeleted: false,
+    //                     },
+    //                 },
+    //             ],
+    //         };
+    //     },
+    // },
+    // {
+    //     name: "delete collection and undelete collection time conflict",
+    //     create: ({getNextTime}): TaskActionTestArtifacts => {
+    //         const collectionId = generateId<TaskCollectionId>();
+    //         const createdTime = getNextTime();
+    //         const deletedTime = getNextTime();
+    //         return {
+    //             actions: [
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: createdTime,
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "Create",
+    //                         name: "Test",
+    //                         accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: deletedTime,
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "Delete",
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: deletedTime,
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "Undelete",
+    //                     },
+    //                 },
+    //             ],
+    //             expect: [
+    //                 {
+    //                     collectionId,
+    //                     collection: {
+    //                         isDeleted: false,
+    //                     },
+    //                 },
+    //             ],
+    //         };
+    //     },
+    // },
+    // {
+    //     name: "undelete collection before delete collection",
+    //     create: ({getNextTime}): TaskActionTestArtifacts => {
+    //         const collectionId = generateId<TaskCollectionId>();
+    //         return {
+    //             actions: [
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: getNextTime(),
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "Create",
+    //                         name: "Test",
+    //                         accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: getNextTime(),
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "Undelete",
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: getNextTime(),
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "Delete",
+    //                     },
+    //                 },
+    //             ],
+    //             expect: [
+    //                 {
+    //                     collectionId,
+    //                     collection: {
+    //                         isDeleted: true,
+    //                     },
+    //                 },
+    //             ],
+    //         };
+    //     },
+    // },
+    // {
+    //     name: "move task in collection",
+    //     create: ({creator, getNextTime}): TaskActionTestArtifacts => {
+    //         const taskId = generateId<TaskId>();
+    //         const collectionId = generateId<TaskCollectionId>();
+    //         const time1 = getNextTime();
+    //         const time2 = getNextTime();
+    //         const time3 = getNextTime();
+    //         const time4 = getNextTime();
+    //         return {
+    //             actions: [
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: time1,
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "Create",
+    //                         name: "Test",
+    //                         accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: time2,
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "Create",
+    //                         creator,
+    //                         creatorTimeZone: defaultTimeZone,
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: time3,
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "AddCollection",
+    //                         collectionId: collectionId,
+    //                         orderKey: initialOrderKey,
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: time4,
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "UpdateCollectionPosition",
+    //                         collectionId,
+    //                         position: {orderTime: time3, orderKey: assertOrderKey("a42")},
+    //                     },
+    //                 },
+    //             ],
+    //             expect: [
+    //                 {
+    //                     taskId,
+    //                     task: {
+    //                         collections: TaskCollectionSet.schema.deserialize([
+    //                             [
+    //                                 collectionId,
+    //                                 {
+    //                                     value: initialOrderKey,
+    //                                     version: String(serializeHybridLogicalTime(time3)),
+    //                                 },
+    //                             ],
+    //                         ]),
+    //                         collectionPositions: new Map([
+    //                             [collectionId, {orderTime: time3, orderKey: assertOrderKey("a42")}],
+    //                         ]),
+    //                     },
+    //                 },
+    //             ],
+    //         };
+    //     },
+    // },
+    // {
+    //     name: "move task in collection twice",
+    //     create: ({creator, getNextTime}): TaskActionTestArtifacts => {
+    //         const taskId = generateId<TaskId>();
+    //         const collectionId = generateId<TaskCollectionId>();
+    //         const time1 = getNextTime();
+    //         const time2 = getNextTime();
+    //         const time3 = getNextTime();
+    //         const time4 = getNextTime();
+    //         return {
+    //             actions: [
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: time1,
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "Create",
+    //                         name: "Test",
+    //                         accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: time2,
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "Create",
+    //                         creator,
+    //                         creatorTimeZone: defaultTimeZone,
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: time3,
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "AddCollection",
+    //                         collectionId: collectionId,
+    //                         orderKey: initialOrderKey,
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: time4,
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "UpdateCollectionPosition",
+    //                         collectionId,
+    //                         position: {orderTime: time3, orderKey: assertOrderKey("a42")},
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: time4,
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "UpdateCollectionPosition",
+    //                         collectionId,
+    //                         position: {orderTime: time3, orderKey: assertOrderKey("a43")},
+    //                     },
+    //                 },
+    //             ],
+    //             expect: [
+    //                 {
+    //                     taskId,
+    //                     task: {
+    //                         collections: TaskCollectionSet.schema.deserialize([
+    //                             [
+    //                                 collectionId,
+    //                                 {
+    //                                     value: initialOrderKey,
+    //                                     version: String(serializeHybridLogicalTime(time3)),
+    //                                 },
+    //                             ],
+    //                         ]),
+    //                         collectionPositions: new Map([
+    //                             [collectionId, {orderTime: time3, orderKey: assertOrderKey("a43")}],
+    //                         ]),
+    //                     },
+    //                 },
+    //             ],
+    //         };
+    //     },
+    // },
+    // {
+    //     name: "move then remove task in collection",
+    //     create: ({creator, getNextTime}): TaskActionTestArtifacts => {
+    //         const taskId = generateId<TaskId>();
+    //         const collectionId = generateId<TaskCollectionId>();
+    //         const time1 = getNextTime();
+    //         const time2 = getNextTime();
+    //         const time3 = getNextTime();
+    //         const time4 = getNextTime();
+    //         const time5 = getNextTime();
+    //         return {
+    //             actions: [
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: time1,
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "Create",
+    //                         name: "Test",
+    //                         accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: time2,
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "Create",
+    //                         creator,
+    //                         creatorTimeZone: defaultTimeZone,
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: time3,
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "AddCollection",
+    //                         collectionId,
+    //                         orderKey: initialOrderKey,
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: time4,
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "UpdateCollectionPosition",
+    //                         collectionId,
+    //                         position: {orderTime: time3, orderKey: assertOrderKey("a42")},
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: time5,
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "RemoveCollection",
+    //                         collectionId,
+    //                     },
+    //                 },
+    //             ],
+    //             expect: [
+    //                 {
+    //                     taskId,
+    //                     task: {},
+    //                 },
+    //             ],
+    //         };
+    //     },
+    // },
+    // {
+    //     name: "collection task position preserved after removing",
+    //     create: ({creator, getNextTime}): TaskActionTestArtifacts => {
+    //         const taskId = generateId<TaskId>();
+    //         const collectionId = generateId<TaskCollectionId>();
+    //         const time1 = getNextTime();
+    //         const time2 = getNextTime();
+    //         const time3 = getNextTime();
+    //         const time4 = getNextTime();
+    //         const time5 = getNextTime();
+    //         const time6 = getNextTime();
+    //         return {
+    //             actions: [
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: time1,
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "Create",
+    //                         name: "Test",
+    //                         accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: time2,
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "Create",
+    //                         creator,
+    //                         creatorTimeZone: defaultTimeZone,
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: time3,
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "AddCollection",
+    //                         collectionId,
+    //                         orderKey: initialOrderKey,
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: time4,
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "UpdateCollectionPosition",
+    //                         collectionId,
+    //                         position: {orderTime: time4, orderKey: assertOrderKey("a42")},
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: time5,
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "RemoveCollection",
+    //                         collectionId: collectionId,
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: time6,
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "AddCollection",
+    //                         collectionId,
+    //                         orderKey: assertOrderKey("a2"),
+    //                     },
+    //                 },
+    //             ],
+    //             expect: [
+    //                 {
+    //                     taskId,
+    //                     task: {
+    //                         collections: TaskCollectionSet.schema.deserialize([
+    //                             [
+    //                                 collectionId,
+    //                                 {
+    //                                     value: assertOrderKey("a2"),
+    //                                     version: String(serializeHybridLogicalTime(time6)),
+    //                                 },
+    //                             ],
+    //                         ]),
+    //                         collectionPositions: new Map([
+    //                             [collectionId, {orderTime: time4, orderKey: assertOrderKey("a42")}],
+    //                         ]),
+    //                     },
+    //                 },
+    //             ],
+    //         };
+    //     },
+    // },
+    // {
+    //     name: "move task before adding to collection",
+    //     create: ({creator, getNextTime}): TaskActionTestArtifacts => {
+    //         const taskId = generateId<TaskId>();
+    //         const collectionId = generateId<TaskCollectionId>();
+    //         const time1 = getNextTime();
+    //         const time2 = getNextTime();
+    //         const time3 = getNextTime();
+    //         const time4 = getNextTime();
+    //         return {
+    //             actions: [
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: time1,
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "Create",
+    //                         name: "Test",
+    //                         accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: time2,
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "Create",
+    //                         creator,
+    //                         creatorTimeZone: defaultTimeZone,
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: time3,
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "UpdateCollectionPosition",
+    //                         collectionId,
+    //                         position: {orderTime: time3, orderKey: assertOrderKey("a42")},
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: time4,
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "AddCollection",
+    //                         collectionId,
+    //                         orderKey: initialOrderKey,
+    //                     },
+    //                 },
+    //             ],
+    //             expect: [
+    //                 {
+    //                     taskId,
+    //                     task: {
+    //                         collections: TaskCollectionSet.schema.deserialize([
+    //                             [
+    //                                 collectionId,
+    //                                 {
+    //                                     value: initialOrderKey,
+    //                                     version: String(serializeHybridLogicalTime(time4)),
+    //                                 },
+    //                             ],
+    //                         ]),
+    //                         collectionPositions: new Map([
+    //                             [collectionId, {orderTime: time3, orderKey: assertOrderKey("a42")}],
+    //                         ]),
+    //                     },
+    //                 },
+    //             ],
+    //         };
+    //     },
+    // },
+    // {
+    //     name: "update task collection name",
+    //     create: ({getNextTime}): TaskActionTestArtifacts => {
+    //         const collectionId = generateId<TaskCollectionId>();
+    //         return {
+    //             actions: [
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: getNextTime(),
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "Create",
+    //                         name: "Test",
+    //                         accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: getNextTime(),
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "UpdateName",
+    //                         name: "New Collection Name",
+    //                     },
+    //                 },
+    //             ],
+    //             expect: [
+    //                 {
+    //                     collectionId,
+    //                     collection: {
+    //                         name: "New Collection Name",
+    //                     },
+    //                 },
+    //             ],
+    //         };
+    //     },
+    // },
+    // {
+    //     name: "update task collection name twice",
+    //     create: ({getNextTime}): TaskActionTestArtifacts => {
+    //         const collectionId = generateId<TaskCollectionId>();
+    //         return {
+    //             actions: [
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: getNextTime(),
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "Create",
+    //                         name: "Test",
+    //                         accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: getNextTime(),
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "UpdateName",
+    //                         name: "New Collection Name 1",
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: getNextTime(),
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "UpdateName",
+    //                         name: "New Collection Name 2",
+    //                     },
+    //                 },
+    //             ],
+    //             expect: [
+    //                 {
+    //                     collectionId,
+    //                     collection: {
+    //                         name: "New Collection Name 2",
+    //                     },
+    //                 },
+    //             ],
+    //         };
+    //     },
+    // },
+    // {
+    //     name: "update task collection access policy",
+    //     create: ({getNextTime}): TaskActionTestArtifacts => {
+    //         const collectionId = generateId<TaskCollectionId>();
+    //         return {
+    //             actions: [
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: getNextTime(),
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "Create",
+    //                         name: "Test",
+    //                         accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: getNextTime(),
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "UpdateAccessPolicy",
+    //                         accessPolicy: {
+    //                             accountGrantById: new Map(),
+    //                             defaultGrant: {type: "Space", level: "View"},
+    //                         },
+    //                     },
+    //                 },
+    //             ],
+    //             expect: [
+    //                 {
+    //                     collectionId,
+    //                     collection: {
+    //                         accessPolicy: {
+    //                             accountGrantById: new Map(),
+    //                             defaultGrant: {type: "Space", level: "View"},
+    //                         },
+    //                     },
+    //                 },
+    //             ],
+    //         };
+    //     },
+    // },
+    // {
+    //     name: "update task collection access policy twice",
+    //     create: ({getNextTime}): TaskActionTestArtifacts => {
+    //         const collectionId = generateId<TaskCollectionId>();
+    //         return {
+    //             actions: [
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: getNextTime(),
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "Create",
+    //                         name: "Test",
+    //                         accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: getNextTime(),
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "UpdateAccessPolicy",
+    //                         accessPolicy: {
+    //                             accountGrantById: new Map(),
+    //                             defaultGrant: {type: "Space", level: "View"},
+    //                         },
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateCollection",
+    //                     time: getNextTime(),
+    //                     collectionId,
+    //                     collectionAction: {
+    //                         type: "UpdateAccessPolicy",
+    //                         accessPolicy: {
+    //                             accountGrantById: new Map(),
+    //                             defaultGrant: {type: "Space", level: "Edit"},
+    //                         },
+    //                     },
+    //                 },
+    //             ],
+    //             expect: [
+    //                 {
+    //                     collectionId,
+    //                     collection: {
+    //                         accessPolicy: {
+    //                             accountGrantById: new Map(),
+    //                             defaultGrant: {type: "Space", level: "Edit"},
+    //                         },
+    //                     },
+    //                 },
+    //             ],
+    //         };
+    //     },
+    // },
+    // {
+    //     name: "updating task children counts",
+    //     create: ({creator, getNextTime}): TaskActionTestArtifacts => {
+    //         const taskId = generateId<TaskId>();
+    //         return {
+    //             actions: [
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: getNextTime(),
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "Create",
+    //                         creator,
+    //                         creatorTimeZone: defaultTimeZone,
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: getNextTime(),
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "UpdateChildrenCounts",
+    //                         addedChildTaskCount: 1,
+    //                         removedChildTaskCount: 0,
+    //                         addedClosedChildTaskCount: 0,
+    //                         removedClosedChildTaskCount: 0,
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: getNextTime(),
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "UpdateChildrenCounts",
+    //                         addedChildTaskCount: 1,
+    //                         removedChildTaskCount: 0,
+    //                         addedClosedChildTaskCount: 1,
+    //                         removedClosedChildTaskCount: 1,
+    //                     },
+    //                 },
+    //                 {
+    //                     type: "UpdateTask",
+    //                     time: getNextTime(),
+    //                     taskId,
+    //                     taskAction: {
+    //                         type: "UpdateChildrenCounts",
+    //                         addedChildTaskCount: 0,
+    //                         removedChildTaskCount: 1,
+    //                         addedClosedChildTaskCount: 2,
+    //                         removedClosedChildTaskCount: 0,
+    //                     },
+    //                 },
+    //             ],
+    //             expect: [
+    //                 {
+    //                     taskId,
+    //                     task: {
+    //                         addedChildTaskCount: 1,
+    //                         removedChildTaskCount: 1,
+    //                         addedClosedChildTaskCount: 2,
+    //                         removedClosedChildTaskCount: 1,
+    //                     },
+    //                 },
+    //             ],
+    //         };
+    //     },
+    // },
     {
-        name: "add task to notepad page",
-        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
+        name: "updating creator account name",
+        create: ({getNextTime, creator}) => {
             const taskId = generateId<TaskId>();
-            const notepadPageId = generateTaskNotepadPageId();
-            const time1 = getNextTime();
-            const time2 = getNextTime();
-            const time3 = getNextTime();
-
+            const accountName = generateId();
+            const accountNameVersion = creator.workingAccountNameVersion + 1;
             return {
                 actions: [
                     {
-                        type: "UpdateNotepadPage",
-                        time: time1,
+                        type: "UpdateTask",
+                        time: getNextTime(),
+                        taskId,
+                        taskAction: {
+                            type: "Create",
+                            creator,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateAccountName",
+                        time: getNextTime(),
                         accountId: creator.accountId,
-                        notepadPageId,
-                        notepadPageAction: {
-                            type: "Create",
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time2,
-                        taskId,
-                        taskAction: {
-                            type: "Create",
-                            creator,
-                            creatorTimeZone: defaultTimeZone,
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time3,
-                        taskId,
-                        taskAction: {
-                            type: "UpdateNotepadPagePosition",
-                            accountId: creator.accountId,
-                            notepadPageId,
-                            position: {orderTime: time3, orderKey: initialOrderKey},
-                        },
+                        accountName,
+                        accountNameVersion,
                     },
                 ],
                 expect: [
                     {
                         taskId,
                         task: {
-                            notepadPagePositions: new Map([
-                                [
-                                    `${creator.accountId}-${notepadPageId}` as const,
-                                    {orderTime: time3, orderKey: initialOrderKey},
-                                ],
-                            ]),
+                            creator: new TaskSortableAccount({
+                                accountId: creator.accountId,
+                                workingAccountName: accountName,
+                                workingAccountNameVersion: accountNameVersion,
+                            }),
                         },
                     },
                 ],
@@ -1907,29 +3190,18 @@ const taskActionTestCases: Array<{
         },
     },
     {
-        name: "add then remove task from notepad page",
-        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
+        name: "updating creator account name twice",
+        create: ({getNextTime, creator}) => {
             const taskId = generateId<TaskId>();
-            const notepadPageId = generateTaskNotepadPageId();
-            const time1 = getNextTime();
-            const time2 = getNextTime();
-            const time3 = getNextTime();
-            const time4 = getNextTime();
-
+            const accountName1 = generateId();
+            const accountNameVersion1 = creator.workingAccountNameVersion + 1;
+            const accountName2 = generateId();
+            const accountNameVersion2 = creator.workingAccountNameVersion + 2;
             return {
                 actions: [
                     {
-                        type: "UpdateNotepadPage",
-                        time: time1,
-                        accountId: creator.accountId,
-                        notepadPageId,
-                        notepadPageAction: {
-                            type: "Create",
-                        },
-                    },
-                    {
                         type: "UpdateTask",
-                        time: time2,
+                        time: getNextTime(),
                         taskId,
                         taskAction: {
                             type: "Create",
@@ -1938,219 +3210,29 @@ const taskActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateTask",
-                        time: time3,
-                        taskId,
-                        taskAction: {
-                            type: "UpdateNotepadPagePosition",
-                            accountId: creator.accountId,
-                            notepadPageId,
-                            position: {orderTime: time3, orderKey: initialOrderKey},
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time4,
-                        taskId,
-                        taskAction: {
-                            type: "UpdateNotepadPagePosition",
-                            accountId: creator.accountId,
-                            notepadPageId,
-                            position: null,
-                        },
-                    },
-                ],
-                expect: [
-                    {
-                        taskId,
-                        task: {},
-                    },
-                ],
-            };
-        },
-    },
-    {
-        name: "remove then add task from notepad page",
-        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
-            const taskId = generateId<TaskId>();
-            const notepadPageId = generateTaskNotepadPageId();
-            const time1 = getNextTime();
-            const time2 = getNextTime();
-            const time3 = getNextTime();
-            const time4 = getNextTime();
-
-            return {
-                actions: [
-                    {
-                        type: "UpdateNotepadPage",
-                        time: time1,
-                        accountId: creator.accountId,
-                        notepadPageId,
-                        notepadPageAction: {
-                            type: "Create",
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time2,
-                        taskId,
-                        taskAction: {
-                            type: "Create",
-                            creator,
-                            creatorTimeZone: defaultTimeZone,
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time3,
-                        taskId,
-                        taskAction: {
-                            type: "UpdateNotepadPagePosition",
-                            accountId: creator.accountId,
-                            notepadPageId,
-                            position: null,
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time4,
-                        taskId,
-                        taskAction: {
-                            type: "UpdateNotepadPagePosition",
-                            accountId: creator.accountId,
-                            notepadPageId,
-                            position: {orderTime: time4, orderKey: initialOrderKey},
-                        },
-                    },
-                ],
-                expect: [
-                    {
-                        taskId,
-                        task: {
-                            notepadPagePositions: new Map([
-                                [
-                                    `${creator.accountId}-${notepadPageId}` as const,
-                                    {orderTime: time4, orderKey: initialOrderKey},
-                                ],
-                            ]),
-                        },
-                    },
-                ],
-            };
-        },
-    },
-    {
-        name: "only remove task from notepad page",
-        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
-            const taskId = generateId<TaskId>();
-            const notepadPageId = generateTaskNotepadPageId();
-
-            return {
-                actions: [
-                    {
-                        type: "UpdateNotepadPage",
+                        type: "UpdateAccountName",
                         time: getNextTime(),
                         accountId: creator.accountId,
-                        notepadPageId,
-                        notepadPageAction: {
-                            type: "Create",
-                        },
+                        accountName: accountName1,
+                        accountNameVersion: accountNameVersion1,
                     },
                     {
-                        type: "UpdateTask",
+                        type: "UpdateAccountName",
                         time: getNextTime(),
-                        taskId,
-                        taskAction: {
-                            type: "Create",
-                            creator,
-                            creatorTimeZone: defaultTimeZone,
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: getNextTime(),
-                        taskId,
-                        taskAction: {
-                            type: "UpdateNotepadPagePosition",
-                            accountId: creator.accountId,
-                            notepadPageId,
-                            position: null,
-                        },
-                    },
-                ],
-                expect: [
-                    {
-                        taskId,
-                        task: {},
-                    },
-                ],
-            };
-        },
-    },
-    {
-        name: "change task position in notepad page",
-        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
-            const taskId = generateId<TaskId>();
-            const notepadPageId = generateTaskNotepadPageId();
-            const time1 = getNextTime();
-            const time2 = getNextTime();
-            const time3 = getNextTime();
-            const time4 = getNextTime();
-
-            return {
-                actions: [
-                    {
-                        type: "UpdateNotepadPage",
-                        time: time1,
                         accountId: creator.accountId,
-                        notepadPageId,
-                        notepadPageAction: {
-                            type: "Create",
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time2,
-                        taskId,
-                        taskAction: {
-                            type: "Create",
-                            creator,
-                            creatorTimeZone: defaultTimeZone,
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time3,
-                        taskId,
-                        taskAction: {
-                            type: "UpdateNotepadPagePosition",
-                            accountId: creator.accountId,
-                            notepadPageId,
-                            position: {orderTime: time3, orderKey: initialOrderKey},
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time4,
-                        taskId,
-                        taskAction: {
-                            type: "UpdateNotepadPagePosition",
-                            accountId: creator.accountId,
-                            notepadPageId,
-                            position: {orderTime: time3, orderKey: assertOrderKey("a42")},
-                        },
+                        accountName: accountName2,
+                        accountNameVersion: accountNameVersion2,
                     },
                 ],
                 expect: [
                     {
                         taskId,
                         task: {
-                            notepadPagePositions: new Map([
-                                [
-                                    `${creator.accountId}-${notepadPageId}` as const,
-                                    {orderTime: time3, orderKey: assertOrderKey("a42")},
-                                ],
-                            ]),
+                            creator: new TaskSortableAccount({
+                                accountId: creator.accountId,
+                                workingAccountName: accountName2,
+                                workingAccountNameVersion: accountNameVersion2,
+                            }),
                         },
                     },
                 ],
@@ -2158,388 +3240,100 @@ const taskActionTestCases: Array<{
         },
     },
     {
-        name: "delete collection",
-        create: ({getNextTime}): TaskActionTestArtifacts => {
-            const collectionId = generateId<TaskCollectionId>();
-
+        name: "updating multiple creator account names",
+        create: ({getNextTime, creator, account2}) => {
+            const taskId1 = generateId<TaskId>();
+            const taskId2 = generateId<TaskId>();
+            const taskId3 = generateId<TaskId>();
+            const accountName = generateId();
+            const accountNameVersion = creator.workingAccountNameVersion + 1;
             return {
                 actions: [
                     {
-                        type: "UpdateCollection",
+                        type: "UpdateTask",
                         time: getNextTime(),
-                        collectionId,
-                        collectionAction: {
+                        taskId: taskId1,
+                        taskAction: {
                             type: "Create",
-                            name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
-                        },
-                    },
-                    {
-                        type: "UpdateCollection",
-                        time: getNextTime(),
-                        collectionId,
-                        collectionAction: {
-                            type: "Delete",
-                        },
-                    },
-                ],
-                expect: [
-                    {
-                        collectionId,
-                        collection: {
-                            isDeleted: true,
-                        },
-                    },
-                ],
-            };
-        },
-    },
-    {
-        name: "undelete collection",
-        create: ({getNextTime}): TaskActionTestArtifacts => {
-            const collectionId = generateId<TaskCollectionId>();
-
-            return {
-                actions: [
-                    {
-                        type: "UpdateCollection",
-                        time: getNextTime(),
-                        collectionId,
-                        collectionAction: {
-                            type: "Create",
-                            name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
-                        },
-                    },
-                    {
-                        type: "UpdateCollection",
-                        time: getNextTime(),
-                        collectionId,
-                        collectionAction: {
-                            type: "Delete",
-                        },
-                    },
-                    {
-                        type: "UpdateCollection",
-                        time: getNextTime(),
-                        collectionId,
-                        collectionAction: {
-                            type: "Undelete",
-                        },
-                    },
-                ],
-                expect: [
-                    {
-                        collectionId,
-                        collection: {
-                            isDeleted: false,
-                        },
-                    },
-                ],
-            };
-        },
-    },
-    {
-        name: "update name before delete collection",
-        create: ({getNextTime}): TaskActionTestArtifacts => {
-            const collectionId = generateId<TaskCollectionId>();
-
-            return {
-                actions: [
-                    {
-                        type: "UpdateCollection",
-                        time: getNextTime(),
-                        collectionId,
-                        collectionAction: {
-                            type: "Create",
-                            name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
-                        },
-                    },
-                    {
-                        type: "UpdateCollection",
-                        time: getNextTime(),
-                        collectionId,
-                        collectionAction: {
-                            type: "UpdateName",
-                            name: "New Collection Name",
-                        },
-                    },
-                    {
-                        type: "UpdateCollection",
-                        time: getNextTime(),
-                        collectionId,
-                        collectionAction: {
-                            type: "Delete",
-                        },
-                    },
-                ],
-                expect: [
-                    {
-                        collectionId,
-                        collection: {
-                            isDeleted: true,
-                            name: "New Collection Name",
-                        },
-                    },
-                ],
-            };
-        },
-    },
-    {
-        name: "update name after delete collection",
-        create: ({getNextTime}): TaskActionTestArtifacts => {
-            const collectionId = generateId<TaskCollectionId>();
-
-            return {
-                actions: [
-                    {
-                        type: "UpdateCollection",
-                        time: getNextTime(),
-                        collectionId,
-                        collectionAction: {
-                            type: "Create",
-                            name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
-                        },
-                    },
-                    {
-                        type: "UpdateCollection",
-                        time: getNextTime(),
-                        collectionId,
-                        collectionAction: {
-                            type: "Delete",
-                        },
-                    },
-                    {
-                        type: "UpdateCollection",
-                        time: getNextTime(),
-                        collectionId,
-                        collectionAction: {
-                            type: "UpdateName",
-                            name: "New Collection Name",
-                        },
-                    },
-                ],
-                expect: [
-                    {
-                        collectionId,
-                        collection: {
-                            isDeleted: true,
-                            name: "New Collection Name",
-                        },
-                    },
-                ],
-            };
-        },
-    },
-    {
-        name: "delete collection, undelete collection, delete collection",
-        create: ({getNextTime}): TaskActionTestArtifacts => {
-            const collectionId = generateId<TaskCollectionId>();
-
-            return {
-                actions: [
-                    {
-                        type: "UpdateCollection",
-                        time: getNextTime(),
-                        collectionId,
-                        collectionAction: {
-                            type: "Create",
-                            name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
-                        },
-                    },
-                    {
-                        type: "UpdateCollection",
-                        time: getNextTime(),
-                        collectionId,
-                        collectionAction: {
-                            type: "Delete",
-                        },
-                    },
-                    {
-                        type: "UpdateCollection",
-                        time: getNextTime(),
-                        collectionId,
-                        collectionAction: {
-                            type: "Undelete",
-                        },
-                    },
-                    {
-                        type: "UpdateCollection",
-                        time: getNextTime(),
-                        collectionId,
-                        collectionAction: {
-                            type: "Delete",
-                        },
-                    },
-                ],
-                expect: [
-                    {
-                        collectionId,
-                        collection: {
-                            isDeleted: true,
-                        },
-                    },
-                ],
-            };
-        },
-    },
-    {
-        name: "undelete collection without delete collection",
-        create: ({getNextTime}): TaskActionTestArtifacts => {
-            const collectionId = generateId<TaskCollectionId>();
-
-            return {
-                actions: [
-                    {
-                        type: "UpdateCollection",
-                        time: getNextTime(),
-                        collectionId,
-                        collectionAction: {
-                            type: "Create",
-                            name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
-                        },
-                    },
-                    {
-                        type: "UpdateCollection",
-                        time: getNextTime(),
-                        collectionId,
-                        collectionAction: {
-                            type: "Undelete",
-                        },
-                    },
-                ],
-                expect: [
-                    {
-                        collectionId,
-                        collection: {
-                            isDeleted: false,
-                        },
-                    },
-                ],
-            };
-        },
-    },
-    {
-        name: "delete collection and undelete collection time conflict",
-        create: ({getNextTime}): TaskActionTestArtifacts => {
-            const collectionId = generateId<TaskCollectionId>();
-            const createdTime = getNextTime();
-            const deletedTime = getNextTime();
-
-            return {
-                actions: [
-                    {
-                        type: "UpdateCollection",
-                        time: createdTime,
-                        collectionId,
-                        collectionAction: {
-                            type: "Create",
-                            name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
-                        },
-                    },
-                    {
-                        type: "UpdateCollection",
-                        time: deletedTime,
-                        collectionId,
-                        collectionAction: {
-                            type: "Delete",
-                        },
-                    },
-                    {
-                        type: "UpdateCollection",
-                        time: deletedTime,
-                        collectionId,
-                        collectionAction: {
-                            type: "Undelete",
-                        },
-                    },
-                ],
-                expect: [
-                    {
-                        collectionId,
-                        collection: {
-                            isDeleted: false,
-                        },
-                    },
-                ],
-            };
-        },
-    },
-    {
-        name: "undelete collection before delete collection",
-        create: ({getNextTime}): TaskActionTestArtifacts => {
-            const collectionId = generateId<TaskCollectionId>();
-
-            return {
-                actions: [
-                    {
-                        type: "UpdateCollection",
-                        time: getNextTime(),
-                        collectionId,
-                        collectionAction: {
-                            type: "Create",
-                            name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
-                        },
-                    },
-                    {
-                        type: "UpdateCollection",
-                        time: getNextTime(),
-                        collectionId,
-                        collectionAction: {
-                            type: "Undelete",
-                        },
-                    },
-                    {
-                        type: "UpdateCollection",
-                        time: getNextTime(),
-                        collectionId,
-                        collectionAction: {
-                            type: "Delete",
-                        },
-                    },
-                ],
-                expect: [
-                    {
-                        collectionId,
-                        collection: {
-                            isDeleted: true,
-                        },
-                    },
-                ],
-            };
-        },
-    },
-    {
-        name: "move task in collection",
-        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
-            const taskId = generateId<TaskId>();
-            const collectionId = generateId<TaskCollectionId>();
-            const time1 = getNextTime();
-            const time2 = getNextTime();
-            const time3 = getNextTime();
-            const time4 = getNextTime();
-
-            return {
-                actions: [
-                    {
-                        type: "UpdateCollection",
-                        time: time1,
-                        collectionId,
-                        collectionAction: {
-                            type: "Create",
-                            name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+                            creator,
+                            creatorTimeZone: defaultTimeZone,
                         },
                     },
                     {
                         type: "UpdateTask",
-                        time: time2,
+                        time: getNextTime(),
+                        taskId: taskId2,
+                        taskAction: {
+                            type: "Create",
+                            creator,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: getNextTime(),
+                        taskId: taskId3,
+                        taskAction: {
+                            type: "Create",
+                            creator: account2,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateAccountName",
+                        time: getNextTime(),
+                        accountId: creator.accountId,
+                        accountName,
+                        accountNameVersion,
+                    },
+                ],
+                expect: [
+                    {
+                        taskId: taskId1,
+                        task: {
+                            creator: new TaskSortableAccount({
+                                accountId: creator.accountId,
+                                workingAccountName: accountName,
+                                workingAccountNameVersion: accountNameVersion,
+                            }),
+                        },
+                    },
+                    {
+                        taskId: taskId2,
+                        task: {
+                            creator: new TaskSortableAccount({
+                                accountId: creator.accountId,
+                                workingAccountName: accountName,
+                                workingAccountNameVersion: accountNameVersion,
+                            }),
+                        },
+                    },
+                    {
+                        taskId: taskId3,
+                        task: {
+                            creator: account2,
+                        },
+                    },
+                ],
+            };
+        },
+    },
+    {
+        name: "updating closer account name",
+        create: ({getNextTime, creator, account2}) => {
+            const taskId = generateId<TaskId>();
+            const accountName = generateId();
+            const accountNameVersion = account2.workingAccountNameVersion + 1;
+
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: time1,
                         taskId,
                         taskAction: {
                             type: "Create",
@@ -2549,570 +3343,60 @@ const taskActionTestCases: Array<{
                     },
                     {
                         type: "UpdateTask",
-                        time: time3,
+                        time: time2,
                         taskId,
                         taskAction: {
-                            type: "AddCollection",
-                            collectionId: collectionId,
-                            orderKey: initialOrderKey,
+                            type: "UpdateStatus",
+                            status: {
+                                type: "Closed",
+                                closer: account2,
+                                closedTime: TaskFilterableTime.test(time2),
+                            },
                         },
                     },
                     {
-                        type: "UpdateTask",
-                        time: time4,
-                        taskId,
-                        taskAction: {
-                            type: "UpdateCollectionPosition",
-                            collectionId,
-                            position: {orderTime: time3, orderKey: assertOrderKey("a42")},
-                        },
+                        type: "UpdateAccountName",
+                        time: time3,
+                        accountId: account2.accountId,
+                        accountName,
+                        accountNameVersion,
                     },
                 ],
                 expect: [
                     {
                         taskId,
                         task: {
-                            collections: TaskCollectionSet.schema.deserialize([
-                                [
-                                    collectionId,
-                                    {
-                                        value: initialOrderKey,
-                                        version: String(serializeHybridLogicalTime(time3)),
-                                    },
-                                ],
-                            ]),
-                            collectionPositions: new Map([
-                                [collectionId, {orderTime: time3, orderKey: assertOrderKey("a42")}],
-                            ]),
-                        },
-                    },
-                ],
-            };
-        },
-    },
-    {
-        name: "move task in collection twice",
-        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
-            const taskId = generateId<TaskId>();
-            const collectionId = generateId<TaskCollectionId>();
-            const time1 = getNextTime();
-            const time2 = getNextTime();
-            const time3 = getNextTime();
-            const time4 = getNextTime();
-
-            return {
-                actions: [
-                    {
-                        type: "UpdateCollection",
-                        time: time1,
-                        collectionId,
-                        collectionAction: {
-                            type: "Create",
-                            name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time2,
-                        taskId,
-                        taskAction: {
-                            type: "Create",
-                            creator,
-                            creatorTimeZone: defaultTimeZone,
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time3,
-                        taskId,
-                        taskAction: {
-                            type: "AddCollection",
-                            collectionId: collectionId,
-                            orderKey: initialOrderKey,
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time4,
-                        taskId,
-                        taskAction: {
-                            type: "UpdateCollectionPosition",
-                            collectionId,
-                            position: {orderTime: time3, orderKey: assertOrderKey("a42")},
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time4,
-                        taskId,
-                        taskAction: {
-                            type: "UpdateCollectionPosition",
-                            collectionId,
-                            position: {orderTime: time3, orderKey: assertOrderKey("a43")},
-                        },
-                    },
-                ],
-                expect: [
-                    {
-                        taskId,
-                        task: {
-                            collections: TaskCollectionSet.schema.deserialize([
-                                [
-                                    collectionId,
-                                    {
-                                        value: initialOrderKey,
-                                        version: String(serializeHybridLogicalTime(time3)),
-                                    },
-                                ],
-                            ]),
-                            collectionPositions: new Map([
-                                [collectionId, {orderTime: time3, orderKey: assertOrderKey("a43")}],
-                            ]),
-                        },
-                    },
-                ],
-            };
-        },
-    },
-    {
-        name: "move then remove task in collection",
-        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
-            const taskId = generateId<TaskId>();
-            const collectionId = generateId<TaskCollectionId>();
-            const time1 = getNextTime();
-            const time2 = getNextTime();
-            const time3 = getNextTime();
-            const time4 = getNextTime();
-            const time5 = getNextTime();
-
-            return {
-                actions: [
-                    {
-                        type: "UpdateCollection",
-                        time: time1,
-                        collectionId,
-                        collectionAction: {
-                            type: "Create",
-                            name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time2,
-                        taskId,
-                        taskAction: {
-                            type: "Create",
-                            creator,
-                            creatorTimeZone: defaultTimeZone,
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time3,
-                        taskId,
-                        taskAction: {
-                            type: "AddCollection",
-                            collectionId,
-                            orderKey: initialOrderKey,
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time4,
-                        taskId,
-                        taskAction: {
-                            type: "UpdateCollectionPosition",
-                            collectionId,
-                            position: {orderTime: time3, orderKey: assertOrderKey("a42")},
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time5,
-                        taskId,
-                        taskAction: {
-                            type: "RemoveCollection",
-                            collectionId,
-                        },
-                    },
-                ],
-                expect: [
-                    {
-                        taskId,
-                        task: {},
-                    },
-                ],
-            };
-        },
-    },
-    {
-        name: "collection task position preserved after removing",
-        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
-            const taskId = generateId<TaskId>();
-            const collectionId = generateId<TaskCollectionId>();
-            const time1 = getNextTime();
-            const time2 = getNextTime();
-            const time3 = getNextTime();
-            const time4 = getNextTime();
-            const time5 = getNextTime();
-            const time6 = getNextTime();
-
-            return {
-                actions: [
-                    {
-                        type: "UpdateCollection",
-                        time: time1,
-                        collectionId,
-                        collectionAction: {
-                            type: "Create",
-                            name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time2,
-                        taskId,
-                        taskAction: {
-                            type: "Create",
-                            creator,
-                            creatorTimeZone: defaultTimeZone,
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time3,
-                        taskId,
-                        taskAction: {
-                            type: "AddCollection",
-                            collectionId,
-                            orderKey: initialOrderKey,
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time4,
-                        taskId,
-                        taskAction: {
-                            type: "UpdateCollectionPosition",
-                            collectionId,
-                            position: {orderTime: time4, orderKey: assertOrderKey("a42")},
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time5,
-                        taskId,
-                        taskAction: {
-                            type: "RemoveCollection",
-                            collectionId: collectionId,
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time6,
-                        taskId,
-                        taskAction: {
-                            type: "AddCollection",
-                            collectionId,
-                            orderKey: assertOrderKey("a2"),
-                        },
-                    },
-                ],
-                expect: [
-                    {
-                        taskId,
-                        task: {
-                            collections: TaskCollectionSet.schema.deserialize([
-                                [
-                                    collectionId,
-                                    {
-                                        value: assertOrderKey("a2"),
-                                        version: String(serializeHybridLogicalTime(time6)),
-                                    },
-                                ],
-                            ]),
-                            collectionPositions: new Map([
-                                [collectionId, {orderTime: time4, orderKey: assertOrderKey("a42")}],
-                            ]),
-                        },
-                    },
-                ],
-            };
-        },
-    },
-    {
-        name: "move task before adding to collection",
-        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
-            const taskId = generateId<TaskId>();
-            const collectionId = generateId<TaskCollectionId>();
-            const time1 = getNextTime();
-            const time2 = getNextTime();
-            const time3 = getNextTime();
-            const time4 = getNextTime();
-
-            return {
-                actions: [
-                    {
-                        type: "UpdateCollection",
-                        time: time1,
-                        collectionId,
-                        collectionAction: {
-                            type: "Create",
-                            name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time2,
-                        taskId,
-                        taskAction: {
-                            type: "Create",
-                            creator,
-                            creatorTimeZone: defaultTimeZone,
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time3,
-                        taskId,
-                        taskAction: {
-                            type: "UpdateCollectionPosition",
-                            collectionId,
-                            position: {orderTime: time3, orderKey: assertOrderKey("a42")},
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time4,
-                        taskId,
-                        taskAction: {
-                            type: "AddCollection",
-                            collectionId,
-                            orderKey: initialOrderKey,
-                        },
-                    },
-                ],
-                expect: [
-                    {
-                        taskId,
-                        task: {
-                            collections: TaskCollectionSet.schema.deserialize([
-                                [
-                                    collectionId,
-                                    {
-                                        value: initialOrderKey,
-                                        version: String(serializeHybridLogicalTime(time4)),
-                                    },
-                                ],
-                            ]),
-                            collectionPositions: new Map([
-                                [collectionId, {orderTime: time3, orderKey: assertOrderKey("a42")}],
-                            ]),
-                        },
-                    },
-                ],
-            };
-        },
-    },
-    {
-        name: "update task collection name",
-        create: ({getNextTime}): TaskActionTestArtifacts => {
-            const collectionId = generateId<TaskCollectionId>();
-
-            return {
-                actions: [
-                    {
-                        type: "UpdateCollection",
-                        time: getNextTime(),
-                        collectionId,
-                        collectionAction: {
-                            type: "Create",
-                            name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
-                        },
-                    },
-                    {
-                        type: "UpdateCollection",
-                        time: getNextTime(),
-                        collectionId,
-                        collectionAction: {
-                            type: "UpdateName",
-                            name: "New Collection Name",
-                        },
-                    },
-                ],
-                expect: [
-                    {
-                        collectionId,
-                        collection: {
-                            name: "New Collection Name",
-                        },
-                    },
-                ],
-            };
-        },
-    },
-    {
-        name: "update task collection name twice",
-        create: ({getNextTime}): TaskActionTestArtifacts => {
-            const collectionId = generateId<TaskCollectionId>();
-
-            return {
-                actions: [
-                    {
-                        type: "UpdateCollection",
-                        time: getNextTime(),
-                        collectionId,
-                        collectionAction: {
-                            type: "Create",
-                            name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
-                        },
-                    },
-                    {
-                        type: "UpdateCollection",
-                        time: getNextTime(),
-                        collectionId,
-                        collectionAction: {
-                            type: "UpdateName",
-                            name: "New Collection Name 1",
-                        },
-                    },
-                    {
-                        type: "UpdateCollection",
-                        time: getNextTime(),
-                        collectionId,
-                        collectionAction: {
-                            type: "UpdateName",
-                            name: "New Collection Name 2",
-                        },
-                    },
-                ],
-                expect: [
-                    {
-                        collectionId,
-                        collection: {
-                            name: "New Collection Name 2",
-                        },
-                    },
-                ],
-            };
-        },
-    },
-    {
-        name: "update task collection access policy",
-        create: ({getNextTime}): TaskActionTestArtifacts => {
-            const collectionId = generateId<TaskCollectionId>();
-
-            return {
-                actions: [
-                    {
-                        type: "UpdateCollection",
-                        time: getNextTime(),
-                        collectionId,
-                        collectionAction: {
-                            type: "Create",
-                            name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
-                        },
-                    },
-                    {
-                        type: "UpdateCollection",
-                        time: getNextTime(),
-                        collectionId,
-                        collectionAction: {
-                            type: "UpdateAccessPolicy",
-                            accessPolicy: {
-                                accountGrantById: new Map(),
-                                defaultGrant: {type: "Space", level: "View"},
+                            status: {
+                                type: "Closed",
+                                closer: new TaskSortableAccount({
+                                    accountId: account2.accountId,
+                                    workingAccountName: accountName,
+                                    workingAccountNameVersion: accountNameVersion,
+                                }),
+                                closedTime: TaskFilterableTime.test(time2),
                             },
                         },
                     },
                 ],
-                expect: [
-                    {
-                        collectionId,
-                        collection: {
-                            accessPolicy: {
-                                accountGrantById: new Map(),
-                                defaultGrant: {type: "Space", level: "View"},
-                            },
-                        },
-                    },
-                ],
             };
         },
     },
     {
-        name: "update task collection access policy twice",
-        create: ({getNextTime}): TaskActionTestArtifacts => {
-            const collectionId = generateId<TaskCollectionId>();
-
-            return {
-                actions: [
-                    {
-                        type: "UpdateCollection",
-                        time: getNextTime(),
-                        collectionId,
-                        collectionAction: {
-                            type: "Create",
-                            name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
-                        },
-                    },
-                    {
-                        type: "UpdateCollection",
-                        time: getNextTime(),
-                        collectionId,
-                        collectionAction: {
-                            type: "UpdateAccessPolicy",
-                            accessPolicy: {
-                                accountGrantById: new Map(),
-                                defaultGrant: {type: "Space", level: "View"},
-                            },
-                        },
-                    },
-                    {
-                        type: "UpdateCollection",
-                        time: getNextTime(),
-                        collectionId,
-                        collectionAction: {
-                            type: "UpdateAccessPolicy",
-                            accessPolicy: {
-                                accountGrantById: new Map(),
-                                defaultGrant: {type: "Space", level: "Edit"},
-                            },
-                        },
-                    },
-                ],
-                expect: [
-                    {
-                        collectionId,
-                        collection: {
-                            accessPolicy: {
-                                accountGrantById: new Map(),
-                                defaultGrant: {type: "Space", level: "Edit"},
-                            },
-                        },
-                    },
-                ],
-            };
-        },
-    },
-    {
-        name: "updating task children counts",
-        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
+        name: "updating closer account name and creator account name",
+        create: ({getNextTime, creator}) => {
             const taskId = generateId<TaskId>();
+            const accountName = generateId();
+            const accountNameVersion = creator.workingAccountNameVersion + 1;
+
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
 
             return {
                 actions: [
                     {
                         type: "UpdateTask",
-                        time: getNextTime(),
+                        time: time1,
                         taskId,
                         taskAction: {
                             type: "Create",
@@ -3122,49 +3406,835 @@ const taskActionTestCases: Array<{
                     },
                     {
                         type: "UpdateTask",
-                        time: getNextTime(),
+                        time: time2,
                         taskId,
                         taskAction: {
-                            type: "UpdateChildrenCounts",
-                            addedChildTaskCount: 1,
-                            removedChildTaskCount: 0,
-                            addedClosedChildTaskCount: 0,
-                            removedClosedChildTaskCount: 0,
+                            type: "UpdateStatus",
+                            status: {
+                                type: "Closed",
+                                closer: creator,
+                                closedTime: TaskFilterableTime.test(time2),
+                            },
                         },
                     },
                     {
-                        type: "UpdateTask",
-                        time: getNextTime(),
-                        taskId,
-                        taskAction: {
-                            type: "UpdateChildrenCounts",
-                            addedChildTaskCount: 1,
-                            removedChildTaskCount: 0,
-                            addedClosedChildTaskCount: 1,
-                            removedClosedChildTaskCount: 1,
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: getNextTime(),
-                        taskId,
-                        taskAction: {
-                            type: "UpdateChildrenCounts",
-                            addedChildTaskCount: 0,
-                            removedChildTaskCount: 1,
-                            addedClosedChildTaskCount: 2,
-                            removedClosedChildTaskCount: 0,
-                        },
+                        type: "UpdateAccountName",
+                        time: time3,
+                        accountId: creator.accountId,
+                        accountName,
+                        accountNameVersion,
                     },
                 ],
                 expect: [
                     {
                         taskId,
                         task: {
-                            addedChildTaskCount: 1,
-                            removedChildTaskCount: 1,
-                            addedClosedChildTaskCount: 2,
-                            removedClosedChildTaskCount: 1,
+                            creator: new TaskSortableAccount({
+                                accountId: creator.accountId,
+                                workingAccountName: accountName,
+                                workingAccountNameVersion: accountNameVersion,
+                            }),
+                            status: {
+                                type: "Closed",
+                                closer: new TaskSortableAccount({
+                                    accountId: creator.accountId,
+                                    workingAccountName: accountName,
+                                    workingAccountNameVersion: accountNameVersion,
+                                }),
+                                closedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                ],
+            };
+        },
+    },
+    {
+        name: "updating two closer account names",
+        create: ({getNextTime, creator, account2}) => {
+            const taskId1 = generateId<TaskId>();
+            const taskId2 = generateId<TaskId>();
+            const accountName = generateId();
+            const accountNameVersion = account2.workingAccountNameVersion + 1;
+
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId: taskId1,
+                        taskAction: {
+                            type: "Create",
+                            creator,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId: taskId1,
+                        taskAction: {
+                            type: "UpdateStatus",
+                            status: {
+                                type: "Closed",
+                                closer: account2,
+                                closedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId: taskId2,
+                        taskAction: {
+                            type: "Create",
+                            creator,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId: taskId2,
+                        taskAction: {
+                            type: "UpdateStatus",
+                            status: {
+                                type: "Closed",
+                                closer: account2,
+                                closedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateAccountName",
+                        time: time3,
+                        accountId: account2.accountId,
+                        accountName,
+                        accountNameVersion,
+                    },
+                ],
+                expect: [
+                    {
+                        taskId: taskId1,
+                        task: {
+                            status: {
+                                type: "Closed",
+                                closer: new TaskSortableAccount({
+                                    accountId: account2.accountId,
+                                    workingAccountName: accountName,
+                                    workingAccountNameVersion: accountNameVersion,
+                                }),
+                                closedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        taskId: taskId2,
+                        task: {
+                            status: {
+                                type: "Closed",
+                                closer: new TaskSortableAccount({
+                                    accountId: account2.accountId,
+                                    workingAccountName: accountName,
+                                    workingAccountNameVersion: accountNameVersion,
+                                }),
+                                closedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                ],
+            };
+        },
+    },
+    {
+        name: "updating closer account name but not other closer",
+        create: ({getNextTime, creator, account2}) => {
+            const taskId1 = generateId<TaskId>();
+            const taskId2 = generateId<TaskId>();
+            const accountName = generateId();
+            const accountNameVersion = account2.workingAccountNameVersion + 1;
+
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId: taskId1,
+                        taskAction: {
+                            type: "Create",
+                            creator,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId: taskId1,
+                        taskAction: {
+                            type: "UpdateStatus",
+                            status: {
+                                type: "Closed",
+                                closer: account2,
+                                closedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId: taskId2,
+                        taskAction: {
+                            type: "Create",
+                            creator,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId: taskId2,
+                        taskAction: {
+                            type: "UpdateStatus",
+                            status: {
+                                type: "Closed",
+                                closer: creator,
+                                closedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateAccountName",
+                        time: time3,
+                        accountId: account2.accountId,
+                        accountName,
+                        accountNameVersion,
+                    },
+                ],
+                expect: [
+                    {
+                        taskId: taskId1,
+                        task: {
+                            status: {
+                                type: "Closed",
+                                closer: new TaskSortableAccount({
+                                    accountId: account2.accountId,
+                                    workingAccountName: accountName,
+                                    workingAccountNameVersion: accountNameVersion,
+                                }),
+                                closedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        taskId: taskId2,
+                        task: {
+                            status: {
+                                type: "Closed",
+                                closer: creator,
+                                closedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                ],
+            };
+        },
+    },
+    {
+        name: "updating assignee account name",
+        create: ({getNextTime, creator, account2}) => {
+            const taskId = generateId<TaskId>();
+            const accountName = generateId();
+            const accountNameVersion = account2.workingAccountNameVersion + 1;
+
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId,
+                        taskAction: {
+                            type: "Create",
+                            creator,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assignee: account2,
+                                assigner: creator,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateAccountName",
+                        time: time3,
+                        accountId: account2.accountId,
+                        accountName,
+                        accountNameVersion,
+                    },
+                ],
+                expect: [
+                    {
+                        taskId,
+                        task: {
+                            assignee: {
+                                assignee: new TaskSortableAccount({
+                                    accountId: account2.accountId,
+                                    workingAccountName: accountName,
+                                    workingAccountNameVersion: accountNameVersion,
+                                }),
+                                assigner: creator,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                ],
+            };
+        },
+    },
+    {
+        name: "updating assignee account name and creator account name",
+        create: ({getNextTime, creator}) => {
+            const taskId = generateId<TaskId>();
+            const accountName = generateId();
+            const accountNameVersion = creator.workingAccountNameVersion + 1;
+
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId,
+                        taskAction: {
+                            type: "Create",
+                            creator,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assignee: creator,
+                                assigner: creator,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateAccountName",
+                        time: time3,
+                        accountId: creator.accountId,
+                        accountName,
+                        accountNameVersion,
+                    },
+                ],
+                expect: [
+                    {
+                        taskId,
+                        task: {
+                            creator: new TaskSortableAccount({
+                                accountId: creator.accountId,
+                                workingAccountName: accountName,
+                                workingAccountNameVersion: accountNameVersion,
+                            }),
+                            assignee: {
+                                assignee: new TaskSortableAccount({
+                                    accountId: creator.accountId,
+                                    workingAccountName: accountName,
+                                    workingAccountNameVersion: accountNameVersion,
+                                }),
+                                assigner: new TaskSortableAccount({
+                                    accountId: creator.accountId,
+                                    workingAccountName: accountName,
+                                    workingAccountNameVersion: accountNameVersion,
+                                }),
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                ],
+            };
+        },
+    },
+    {
+        name: "updating two assignee account names",
+        create: ({getNextTime, creator, account2}) => {
+            const taskId1 = generateId<TaskId>();
+            const taskId2 = generateId<TaskId>();
+            const accountName = generateId();
+            const accountNameVersion = account2.workingAccountNameVersion + 1;
+
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId: taskId1,
+                        taskAction: {
+                            type: "Create",
+                            creator,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId: taskId1,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assignee: account2,
+                                assigner: creator,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId: taskId2,
+                        taskAction: {
+                            type: "Create",
+                            creator,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId: taskId2,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assignee: account2,
+                                assigner: creator,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateAccountName",
+                        time: time3,
+                        accountId: account2.accountId,
+                        accountName,
+                        accountNameVersion,
+                    },
+                ],
+                expect: [
+                    {
+                        taskId: taskId1,
+                        task: {
+                            assignee: {
+                                assignee: new TaskSortableAccount({
+                                    accountId: account2.accountId,
+                                    workingAccountName: accountName,
+                                    workingAccountNameVersion: accountNameVersion,
+                                }),
+                                assigner: creator,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        taskId: taskId2,
+                        task: {
+                            assignee: {
+                                assignee: new TaskSortableAccount({
+                                    accountId: account2.accountId,
+                                    workingAccountName: accountName,
+                                    workingAccountNameVersion: accountNameVersion,
+                                }),
+                                assigner: creator,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                ],
+            };
+        },
+    },
+    {
+        name: "updating assignee account name but not other assignee",
+        create: ({getNextTime, creator, account2}) => {
+            const taskId1 = generateId<TaskId>();
+            const taskId2 = generateId<TaskId>();
+            const accountName = generateId();
+            const accountNameVersion = account2.workingAccountNameVersion + 1;
+
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId: taskId1,
+                        taskAction: {
+                            type: "Create",
+                            creator,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId: taskId1,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assignee: account2,
+                                assigner: creator,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId: taskId2,
+                        taskAction: {
+                            type: "Create",
+                            creator,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId: taskId2,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assignee: creator,
+                                assigner: creator,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateAccountName",
+                        time: time3,
+                        accountId: account2.accountId,
+                        accountName,
+                        accountNameVersion,
+                    },
+                ],
+                expect: [
+                    {
+                        taskId: taskId1,
+                        task: {
+                            assignee: {
+                                assignee: new TaskSortableAccount({
+                                    accountId: account2.accountId,
+                                    workingAccountName: accountName,
+                                    workingAccountNameVersion: accountNameVersion,
+                                }),
+                                assigner: creator,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        taskId: taskId2,
+                        task: {
+                            assignee: {
+                                assignee: creator,
+                                assigner: creator,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                ],
+            };
+        },
+    },
+    {
+        name: "updating assigner account name",
+        create: ({getNextTime, creator, account2}) => {
+            const taskId = generateId<TaskId>();
+            const accountName = generateId();
+            const accountNameVersion = account2.workingAccountNameVersion + 1;
+
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId,
+                        taskAction: {
+                            type: "Create",
+                            creator,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assignee: creator,
+                                assigner: account2,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateAccountName",
+                        time: time3,
+                        accountId: account2.accountId,
+                        accountName,
+                        accountNameVersion,
+                    },
+                ],
+                expect: [
+                    {
+                        taskId,
+                        task: {
+                            assignee: {
+                                assignee: creator,
+                                assigner: new TaskSortableAccount({
+                                    accountId: account2.accountId,
+                                    workingAccountName: accountName,
+                                    workingAccountNameVersion: accountNameVersion,
+                                }),
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                ],
+            };
+        },
+    },
+    {
+        name: "updating two assigner account names",
+        create: ({getNextTime, creator, account2}) => {
+            const taskId1 = generateId<TaskId>();
+            const taskId2 = generateId<TaskId>();
+            const accountName = generateId();
+            const accountNameVersion = account2.workingAccountNameVersion + 1;
+
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId: taskId1,
+                        taskAction: {
+                            type: "Create",
+                            creator,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId: taskId1,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assignee: creator,
+                                assigner: account2,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId: taskId2,
+                        taskAction: {
+                            type: "Create",
+                            creator,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId: taskId2,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assignee: creator,
+                                assigner: account2,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateAccountName",
+                        time: time3,
+                        accountId: account2.accountId,
+                        accountName,
+                        accountNameVersion,
+                    },
+                ],
+                expect: [
+                    {
+                        taskId: taskId1,
+                        task: {
+                            assignee: {
+                                assignee: creator,
+                                assigner: new TaskSortableAccount({
+                                    accountId: account2.accountId,
+                                    workingAccountName: accountName,
+                                    workingAccountNameVersion: accountNameVersion,
+                                }),
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        taskId: taskId2,
+                        task: {
+                            assignee: {
+                                assignee: creator,
+                                assigner: new TaskSortableAccount({
+                                    accountId: account2.accountId,
+                                    workingAccountName: accountName,
+                                    workingAccountNameVersion: accountNameVersion,
+                                }),
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                ],
+            };
+        },
+    },
+    {
+        name: "updating assignee account name but not other assignee",
+        create: ({getNextTime, creator, account2}) => {
+            const taskId1 = generateId<TaskId>();
+            const taskId2 = generateId<TaskId>();
+            const accountName = generateId();
+            const accountNameVersion = account2.workingAccountNameVersion + 1;
+
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId: taskId1,
+                        taskAction: {
+                            type: "Create",
+                            creator,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId: taskId1,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assignee: creator,
+                                assigner: account2,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId: taskId2,
+                        taskAction: {
+                            type: "Create",
+                            creator,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId: taskId2,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assignee: creator,
+                                assigner: creator,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateAccountName",
+                        time: time3,
+                        accountId: account2.accountId,
+                        accountName,
+                        accountNameVersion,
+                    },
+                ],
+                expect: [
+                    {
+                        taskId: taskId1,
+                        task: {
+                            assignee: {
+                                assignee: creator,
+                                assigner: new TaskSortableAccount({
+                                    accountId: account2.accountId,
+                                    workingAccountName: accountName,
+                                    workingAccountNameVersion: accountNameVersion,
+                                }),
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        taskId: taskId2,
+                        task: {
+                            assignee: {
+                                assignee: creator,
+                                assigner: creator,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
                         },
                     },
                 ],
@@ -3216,8 +4286,7 @@ export function testTaskActionPermutations({
     percent = 1,
     partitionNumber = 1,
     partitionCount = 1,
-    account1,
-    account2,
+    createAccount,
     applyTaskAction,
     getTask,
     getTaskCollection,
@@ -3225,8 +4294,7 @@ export function testTaskActionPermutations({
     percent?: number;
     partitionNumber?: number;
     partitionCount?: number;
-    account1: AccountModel;
-    account2: AccountModel;
+    createAccount: () => AccountModel;
     applyTaskAction: (action: TaskAction, next: () => void) => MaybePromise<void>;
     getTask: (taskId: TaskId) => MaybePromise<TaskTestInterface>;
     getTaskCollection: (
@@ -3257,8 +4325,11 @@ export function testTaskActionPermutations({
         const collectionId1 = generateId<TaskCollectionId>();
         const collectionId2 = generateId<TaskCollectionId>();
 
+        const account1 = createAccount();
+        const account2 = createAccount();
+
         const testCaseArtifacts = testCase.create({
-            creator: TaskSortableAccount.test(account2),
+            creator: TaskSortableAccount.test(account1),
             createdTime: getNextFilterableTime(),
             account2: TaskSortableAccount.test(account2),
             collectionId1,

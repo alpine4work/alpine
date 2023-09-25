@@ -10,6 +10,7 @@ import {
     OpensearchIndexFlattenedKeysType,
     OpensearchIndexTypeType,
 } from "~/server/opensearch/opensearch_index_type.js";
+import {OpensearchQueryValue} from "~/server/opensearch/opensearch_query_clause.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/data/apply_task_action_to_task_index_doc.js";
 import {applyTaskCollectionActionToCollectionIndexDoc} from "~/server/tasks/data/apply_task_collection_action_to_collection_index_doc.js";
@@ -31,16 +32,20 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
-import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskAction, TaskUpdateAccountNameAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
+
+const taskIndexRefreshIntervalSecs = 30;
+const taskIndexRefreshIntervalMs = taskIndexRefreshIntervalSecs * 1000;
 
 // IMPORTANT: Don't export this. All access to the index should be exposed
 // through functions in this file. Like how we organize DynamoDB tables. By
@@ -68,7 +73,7 @@ const TaskIndex = new OpensearchIndex<
     // Serving realtime task data is handled by a separate service. So we can
     // afford to slow down our task refresh interval for improved indexing
     // performance.
-    refreshInterval: "30s",
+    refreshInterval: `${taskIndexRefreshIntervalSecs}s`,
 });
 
 // IMPORTANT: Don't export this. All access to the index should be exposed
@@ -228,6 +233,26 @@ export function indexTaskActionTransactionAssumingItsCommitted(
     actions: ReadonlyArray<TaskAction>,
     options?: {onRetry?: () => void},
 ) {
+    const updateAccountNameAction = actions.find(
+        (action): action is TaskUpdateAccountNameAction => action.type === "UpdateAccountName",
+    );
+    if (updateAccountNameAction) {
+        if (actions.length !== 1) {
+            throw new InternalError(
+                "We only support indexing `UpdateAccountName` actions as the one action in a transaction",
+            );
+        }
+
+        return indexTaskUpdateAccountNameActionAssumingItsCommitted(
+            context,
+            spaceId,
+            updateAccountNameAction,
+            options,
+        );
+    }
+
+    // We don't have a `context.tracer.withSpan()` call here because the one
+    // call-site for this function adds a span.
     return TaskActionTransactionIndexState.index(context, spaceId, actions, options);
 }
 
@@ -433,6 +458,11 @@ async function actuallyIndexTaskAction(
     action: TaskAction,
     isInitialAttempt: boolean,
 ) {
+    // We handle `UpdateAccountName` indexing in
+    // `indexTaskActionTransactionAssumingItsCommitted()` instead of here since it
+    // needs to update a lot of data.
+    assert(action.type !== "UpdateAccountName");
+
     switch (action.type) {
         case "UpdateTask": {
             const oldTask =
@@ -541,6 +571,136 @@ async function actuallyIndexTaskAction(
         default:
             throw exhaustive(action);
     }
+}
+
+/**
+ * Index an account name update action for a space. Uses the OpenSearch [update
+ * by query API][1] to find every `TaskSortableAccount` the account name is
+ * referenced in and updates to the latest value. This may take a while to run
+ * as queries and bulk updates may be expensive. Then we need to retry on
+ * version conflicts as well.
+ *
+ * As long as this takes less than, say, 5min we're good. So that indexing
+ * comfortably completes before the action leaves `TaskRealtimeService`'s
+ * action history window.
+ *
+ * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/update-by-query/
+ */
+function indexTaskUpdateAccountNameActionAssumingItsCommitted(
+    context: ServerSystemActionContext,
+    spaceId: SpaceId,
+    action: TaskUpdateAccountNameAction,
+    {onRetry}: {onRetry?: () => void} = {},
+) {
+    return context.tracer.withSpan("Index account name update task action", async context => {
+        // Assuming the update account name action has been committed, all future
+        // actions that reference an account must use the new account name. (Validated
+        // when we try to commit an action.) Before we can update our index we must
+        // wait for the index to refresh. After the next refresh we're guaranteed to
+        // see (by query) all old account name references. No new account name
+        // references will be added so we only need to update the old account name
+        // references in this function.
+        //
+        // We wait the full refresh interval for a refresh to happen. This does mean we
+        // trust OpenSearch to refresh on time. We add one extra second of delay as a
+        // protection against clock skew.
+        //
+        // `TaskIndex` is currently configured to refresh every 30s. So this is a long
+        // delay! We're ok with action indexing taking a while as long as it takes less
+        // than ~5min so it fits in our `TaskRealtimeService` action history window
+        // (currently configured to be ~10min).
+        //
+        // In unit tests we force a refresh immediately. It's not recommended to force
+        // a refresh in production since that could harm index performance.
+        if (import.meta.jest) {
+            await context.opensearch.client.refresh(context.tracer.getTracer(), TaskIndex);
+        } else {
+            await context.tracer.withSpan("Waiting for task index to refresh", async context => {
+                await wait(taskIndexRefreshIntervalMs + 1000);
+            });
+        }
+
+        await runAllPromises(
+            (
+                [
+                    "creator",
+                    "status.value.closer",
+                    "assignee.value.assignee",
+                    "assignee.value.assigner",
+                ] as const
+            ).map(async sortableAccountField => {
+                // We need to retry until there are no version conflicts...
+                await retryWithExponentialBackoff(async _retry => {
+                    const retry = (error?: unknown) => {
+                        onRetry?.();
+                        return _retry(error);
+                    };
+
+                    const {versionConflictCount} = await context.opensearch.client.updateByQuery(
+                        context.tracer.getTracer(),
+                        TaskIndex,
+                        spaceId,
+                        {
+                            query: {
+                                bool: {
+                                    // Enter a filter context. Query clauses in a filter context may be cached.
+                                    // https://opensearch.org/docs/latest/query-dsl/query-filter-context/#filter-context
+                                    filter: [
+                                        // Only update tasks in this space:
+                                        {term: {spaceId: new OpensearchQueryValue(spaceId)}},
+
+                                        // We want to update deleted tasks in addition to undeleted tasks. Which is why
+                                        // we don't have a deleted task filter here.
+                                        {
+                                            term: {
+                                                [`${sortableAccountField}.accountId`]:
+                                                    new OpensearchQueryValue(action.accountId),
+                                            },
+                                        },
+                                        {
+                                            range: {
+                                                [`${sortableAccountField}.workingAccountNameVersion`]:
+                                                    {
+                                                        lt: new OpensearchQueryValue(
+                                                            action.accountNameVersion,
+                                                        ),
+                                                    },
+                                            },
+                                        },
+                                    ],
+                                },
+                            },
+                            script: {
+                                lang: "painless",
+                                // In the script we double check that we're updating the account name for the
+                                // right `AccountId` and an older account name version in case the `_source` is
+                                // out-of-date with what's indexed and visible to the query.
+                                source: `if (ctx._source.${sortableAccountField}.accountId != params.accountId || ctx._source.${sortableAccountField}.workingAccountNameVersion >= params.accountNameVersion) { ctx.op = "noop" } else { ctx._source.${sortableAccountField}.workingAccountName = params.accountName; ctx._source.${sortableAccountField}.workingAccountNameVersion = params.accountNameVersion }`,
+                                params: {
+                                    accountId: action.accountId,
+                                    accountNameVersion: action.accountNameVersion,
+                                    accountName: action.accountName,
+                                },
+                            },
+                        },
+                    );
+
+                    // If there were some version conflicts, retry. We keep retrying until the
+                    // update successfully completes.
+                    //
+                    // An [ElasticSearch team member][1] also recommends waiting for the index to
+                    // refresh before retrying. So updated fields aren't picked up by the query.
+                    // We're ok if previously updated fields are seen by the retried query because
+                    // we'll noop those updates in our script.
+                    //
+                    // [1]: https://github.com/elastic/elasticsearch/issues/22723#issuecomment-274156818
+                    if (versionConflictCount > 0) {
+                        retry();
+                    }
+                });
+            }),
+        );
+    });
 }
 
 export const queryTaskIndexTestCounter = new TestCounter<SpaceId>();

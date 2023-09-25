@@ -23,17 +23,26 @@ export function applyTaskActionToTaskIndexDoc(
 ): TaskIndexDoc {
     switch (action.type) {
         case "Create": {
-            if (
-                !task.creator.isEqual(action.creator) ||
-                !task.createdTime.isEqual(
+            const isCompatible =
+                // If the action's account name is not equal to what's in the task then it
+                // should be an earlier version than what's in the task.
+                task.creator.accountId === action.creator.accountId &&
+                ((task.creator.workingAccountNameVersion ===
+                    action.creator.workingAccountNameVersion &&
+                    task.creator.workingAccountName === action.creator.workingAccountName) ||
+                    action.creator.workingAccountNameVersion <
+                        task.creator.workingAccountNameVersion) &&
+                task.createdTime.isEqual(
                     new TaskFilterableTime({
                         absoluteTime: actionTime,
                         setterTimeZone: action.creatorTimeZone,
                     }),
-                )
-            ) {
+                );
+
+            if (!isCompatible) {
                 throw new FailedPreconditionError("Incompatible create action");
             }
+
             return task;
         }
         case "Delete": {
