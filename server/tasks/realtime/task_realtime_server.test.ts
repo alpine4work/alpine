@@ -1,10 +1,12 @@
+import {updateSessionActorAccountName} from "~/server/accounts/update_name/update_session_actor_account_name.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {getTaskQueryNormalizedSortCursorForIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_for_index_doc.js";
 import {
     getTaskIndexDocIfExistsForTest,
-    indexTaskActionTransactionTestCheckpoint,
+    indexTaskActionTransactionBeforeUpdateTestCheckpoint,
+    indexTaskUpdateAccountNameActionBeforeUpdateTestCheckpoint,
     queryTaskIndex,
     queryTaskIndexTestCounter,
 } from "~/server/tasks/data/task_index.js";
@@ -16,10 +18,13 @@ import {
     waitForIndexActionTransactionsWithoutClearingActionHistory,
 } from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {generateId} from "~/shared/id/id.js";
 import {
     TaskQueryNormalizedFilters,
     defaultTaskQueryNormalizedFilters,
@@ -3760,7 +3765,9 @@ test("after loading tasks we will replay actions to add missing tasks if the tas
     await task3.updatePriority(session, "Medium");
     await server.waitForApplyActionTransactions();
 
-    const pausePromise = indexTaskActionTransactionTestCheckpoint.pauseForTest(space.id);
+    const pausePromise = indexTaskActionTransactionBeforeUpdateTestCheckpoint.pauseForTest(
+        space.id,
+    );
     const updatedTime = testClock.nowLogical();
     const updatePromise = task2.updatePriority(session, "High", {time: updatedTime});
     const {unpause} = await pausePromise;
@@ -4146,5 +4153,3182 @@ test("task updates in query after change and is moved", async () => {
             task1.getIndexDoc(),
             task3.getIndexDoc(),
         ]),
+    });
+});
+
+test("query after creator account name update applied and refreshed", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const server = new TestTaskRealtimeServer(context);
+
+    const [task1, task2] = await runAllPromises([
+        TestTask.create(session1),
+        TestTask.create(session2),
+    ]);
+
+    await server.wait();
+
+    const newAccountName = generateId();
+    expect(session1.account.initialName).not.toEqual(newAccountName);
+    expect(session1.account.initialName).not.toEqual(session2.account.initialName);
+
+    await updateSessionActorAccountName(TestTask.action(session1), newAccountName);
+
+    await server.wait();
+
+    expect((await task1.getIndexDoc({realtime: false})).creator).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: newAccountName,
+        workingAccountNameVersion: 1,
+    });
+    expect((await task1.getIndexDoc({realtime: true})).creator).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: newAccountName,
+        workingAccountNameVersion: 1,
+    });
+
+    expect((await task2.getIndexDoc({realtime: false})).creator).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect((await task2.getIndexDoc({realtime: true})).creator).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    expect(await server.loadQuery(session1)).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                creator: {
+                    accountId: session1.account.id,
+                    workingAccountName: newAccountName,
+                    workingAccountNameVersion: 1,
+                },
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                creator: {
+                    accountId: session2.account.id,
+                    workingAccountName: session2.account.initialName,
+                    workingAccountNameVersion: 0,
+                },
+            }),
+        ],
+    });
+});
+
+test("query after creator account name update applied but not refreshed", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const server = new TestTaskRealtimeServer(context);
+
+    const [task1, task2] = await runAllPromises([
+        TestTask.create(session1),
+        TestTask.create(session2),
+    ]);
+
+    await server.wait();
+
+    const newAccountName = generateId();
+    expect(session1.account.initialName).not.toEqual(newAccountName);
+    expect(session1.account.initialName).not.toEqual(session2.account.initialName);
+
+    await updateSessionActorAccountName(TestTask.action(session1), newAccountName);
+
+    await server.waitForApplyActionTransactions();
+    await ProcessContextModule.waitForTestTasks();
+
+    expect((await task1.getIndexDoc({realtime: false})).creator).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: session1.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect((await task1.getIndexDoc({realtime: true})).creator).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: newAccountName,
+        workingAccountNameVersion: 1,
+    });
+
+    expect((await task2.getIndexDoc({realtime: false})).creator).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect((await task2.getIndexDoc({realtime: true})).creator).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    expect(await server.loadQuery(session1)).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                creator: {
+                    accountId: session1.account.id,
+                    workingAccountName: newAccountName,
+                    workingAccountNameVersion: 1,
+                },
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                creator: {
+                    accountId: session2.account.id,
+                    workingAccountName: session2.account.initialName,
+                    workingAccountNameVersion: 0,
+                },
+            }),
+        ],
+    });
+});
+
+test("query before creator account name update applied but not refreshed", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const server = new TestTaskRealtimeServer(context);
+
+    const [task1, task2] = await runAllPromises([
+        TestTask.create(session1),
+        TestTask.create(session2),
+    ]);
+
+    await server.wait();
+
+    const newAccountName = generateId();
+    expect(session1.account.initialName).not.toEqual(newAccountName);
+    expect(session1.account.initialName).not.toEqual(session2.account.initialName);
+
+    expect(await server.loadQuery(session1)).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                creator: {
+                    accountId: session1.account.id,
+                    workingAccountName: session1.account.initialName,
+                    workingAccountNameVersion: 0,
+                },
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                creator: {
+                    accountId: session2.account.id,
+                    workingAccountName: session2.account.initialName,
+                    workingAccountNameVersion: 0,
+                },
+            }),
+        ],
+    });
+
+    await updateSessionActorAccountName(TestTask.action(session1), newAccountName);
+
+    await server.waitForApplyActionTransactions();
+    await ProcessContextModule.waitForTestTasks();
+
+    expect((await task1.getIndexDoc({realtime: false})).creator).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: session1.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect((await task1.getIndexDoc({realtime: true})).creator).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: newAccountName,
+        workingAccountNameVersion: 1,
+    });
+
+    expect((await task2.getIndexDoc({realtime: false})).creator).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect((await task2.getIndexDoc({realtime: true})).creator).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    expect(await server.loadQuery(session1)).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                creator: {
+                    accountId: session1.account.id,
+                    workingAccountName: newAccountName,
+                    workingAccountNameVersion: 1,
+                },
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                creator: {
+                    accountId: session2.account.id,
+                    workingAccountName: session2.account.initialName,
+                    workingAccountNameVersion: 0,
+                },
+            }),
+        ],
+    });
+});
+
+test("update introduces task with creator account name update to query when index is not refreshed", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const server = new TestTaskRealtimeServer(context);
+
+    const [task1, task2] = await runAllPromises([
+        TestTask.create(session1),
+        TestTask.create(session2),
+    ]);
+
+    await task2.updatePriority(session2, "High");
+
+    await server.wait();
+
+    const newAccountName = generateId();
+    expect(session1.account.initialName).not.toEqual(newAccountName);
+    expect(session1.account.initialName).not.toEqual(session2.account.initialName);
+
+    expect(
+        await server.loadQuery(session1, {
+            filters: [
+                {
+                    type: "Priority",
+                    operation: {type: "OneOf", priorities: new Set(["High"])},
+                },
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task2.id,
+                creator: {
+                    accountId: session2.account.id,
+                    workingAccountName: session2.account.initialName,
+                    workingAccountNameVersion: 0,
+                },
+            }),
+        ],
+    });
+
+    const pausePromise = indexTaskUpdateAccountNameActionBeforeUpdateTestCheckpoint.pauseForTest(
+        session1.account.id,
+    );
+
+    await updateSessionActorAccountName(TestTask.action(session1), newAccountName);
+
+    const {unpause} = await pausePromise;
+
+    await server.waitForApplyActionTransactions();
+
+    expect(
+        (await getTaskIndexDocIfExistsForTest(context, space.id, task1.id, {realtime: false}))
+            ?.creator,
+    ).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: session1.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect(
+        (await getTaskIndexDocIfExistsForTest(context, space.id, task1.id, {realtime: true}))
+            ?.creator,
+    ).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: session1.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    expect(
+        (await getTaskIndexDocIfExistsForTest(context, space.id, task2.id, {realtime: false}))
+            ?.creator,
+    ).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect(
+        (await getTaskIndexDocIfExistsForTest(context, space.id, task2.id, {realtime: false}))
+            ?.creator,
+    ).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    await task1.updatePriority(session1, "High");
+
+    await server.waitForApplyActionTransactions();
+
+    expect(
+        (await getTaskIndexDocIfExistsForTest(context, space.id, task1.id, {realtime: false}))
+            ?.creator,
+    ).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: session1.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect(
+        (await getTaskIndexDocIfExistsForTest(context, space.id, task1.id, {realtime: true}))
+            ?.creator,
+    ).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: session1.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    expect(
+        (await getTaskIndexDocIfExistsForTest(context, space.id, task2.id, {realtime: false}))
+            ?.creator,
+    ).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect(
+        (await getTaskIndexDocIfExistsForTest(context, space.id, task2.id, {realtime: false}))
+            ?.creator,
+    ).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    expect(
+        await server.loadQuery(session1, {
+            filters: [
+                {
+                    type: "Priority",
+                    operation: {type: "OneOf", priorities: new Set(["High"])},
+                },
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                creator: {
+                    accountId: session1.account.id,
+                    workingAccountName: newAccountName,
+                    workingAccountNameVersion: 1,
+                },
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                creator: {
+                    accountId: session2.account.id,
+                    workingAccountName: session2.account.initialName,
+                    workingAccountNameVersion: 0,
+                },
+            }),
+        ],
+    });
+
+    unpause();
+    await ProcessContextModule.waitForTestTasks();
+
+    expect((await task1.getIndexDoc({realtime: false})).creator).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: session1.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect((await task1.getIndexDoc({realtime: true})).creator).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: newAccountName,
+        workingAccountNameVersion: 1,
+    });
+
+    expect((await task2.getIndexDoc({realtime: false})).creator).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect((await task2.getIndexDoc({realtime: true})).creator).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    expect(
+        await server.loadQuery(session1, {
+            filters: [
+                {
+                    type: "Priority",
+                    operation: {type: "OneOf", priorities: new Set(["High"])},
+                },
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                creator: {
+                    accountId: session1.account.id,
+                    workingAccountName: newAccountName,
+                    workingAccountNameVersion: 1,
+                },
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                creator: {
+                    accountId: session2.account.id,
+                    workingAccountName: session2.account.initialName,
+                    workingAccountNameVersion: 0,
+                },
+            }),
+        ],
+    });
+});
+
+test("query after closer account name update applied and refreshed", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const server = new TestTaskRealtimeServer(context);
+
+    const [task1, task2] = await runAllPromises([
+        TestTask.create(session2),
+        TestTask.create(session2),
+    ]);
+
+    const collection = await TestTaskCollection.createPublic(session2);
+    await runAllPromises([
+        task1.addCollection(session2, collection),
+        task2.addCollection(session2, collection),
+    ]);
+
+    await task1.updateStatus(session1, "Closed");
+    await task2.updateStatus(session2, "Closed");
+
+    await server.wait();
+
+    const newAccountName = generateId();
+    expect(session1.account.initialName).not.toEqual(newAccountName);
+    expect(session1.account.initialName).not.toEqual(session2.account.initialName);
+
+    await updateSessionActorAccountName(TestTask.action(session1), newAccountName);
+
+    await server.wait();
+
+    expect((await task1.getIndexDoc({realtime: false})).status.value.closer).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: newAccountName,
+        workingAccountNameVersion: 1,
+    });
+    expect((await task1.getIndexDoc({realtime: true})).status.value.closer).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: newAccountName,
+        workingAccountNameVersion: 1,
+    });
+
+    expect((await task2.getIndexDoc({realtime: false})).status.value.closer).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect((await task2.getIndexDoc({realtime: true})).status.value.closer).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    expect(
+        await server.loadQuery(session1, {
+            filters: [
+                {
+                    type: "DisplayStatus",
+                    operation: {
+                        type: "OneOf",
+                        displayStatuses: new Set(["OpenInactive", "OpenActive", "Closed"]),
+                    },
+                },
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                status: expect.objectContaining({
+                    value: expect.objectContaining({
+                        closer: {
+                            accountId: session1.account.id,
+                            workingAccountName: newAccountName,
+                            workingAccountNameVersion: 1,
+                        },
+                    }),
+                }),
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                status: expect.objectContaining({
+                    value: expect.objectContaining({
+                        closer: {
+                            accountId: session2.account.id,
+                            workingAccountName: session2.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+});
+
+test("query after closer account name update applied but not refreshed", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const server = new TestTaskRealtimeServer(context);
+
+    const [task1, task2] = await runAllPromises([
+        TestTask.create(session2),
+        TestTask.create(session2),
+    ]);
+
+    const collection = await TestTaskCollection.createPublic(session2);
+    await runAllPromises([
+        task1.addCollection(session2, collection),
+        task2.addCollection(session2, collection),
+    ]);
+
+    await task1.updateStatus(session1, "Closed");
+    await task2.updateStatus(session2, "Closed");
+
+    await server.wait();
+
+    const newAccountName = generateId();
+    expect(session1.account.initialName).not.toEqual(newAccountName);
+    expect(session1.account.initialName).not.toEqual(session2.account.initialName);
+
+    await updateSessionActorAccountName(TestTask.action(session1), newAccountName);
+
+    await server.waitForApplyActionTransactions();
+    await ProcessContextModule.waitForTestTasks();
+
+    expect((await task1.getIndexDoc({realtime: false})).status.value.closer).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: session1.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect((await task1.getIndexDoc({realtime: true})).status.value.closer).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: newAccountName,
+        workingAccountNameVersion: 1,
+    });
+
+    expect((await task2.getIndexDoc({realtime: false})).status.value.closer).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect((await task2.getIndexDoc({realtime: true})).status.value.closer).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    expect(
+        await server.loadQuery(session1, {
+            filters: [
+                {
+                    type: "DisplayStatus",
+                    operation: {
+                        type: "OneOf",
+                        displayStatuses: new Set(["OpenInactive", "OpenActive", "Closed"]),
+                    },
+                },
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                status: expect.objectContaining({
+                    value: expect.objectContaining({
+                        closer: {
+                            accountId: session1.account.id,
+                            workingAccountName: newAccountName,
+                            workingAccountNameVersion: 1,
+                        },
+                    }),
+                }),
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                status: expect.objectContaining({
+                    value: expect.objectContaining({
+                        closer: {
+                            accountId: session2.account.id,
+                            workingAccountName: session2.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+});
+
+test("query before closer account name update applied but not refreshed", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const server = new TestTaskRealtimeServer(context);
+
+    const [task1, task2] = await runAllPromises([
+        TestTask.create(session2),
+        TestTask.create(session2),
+    ]);
+
+    const collection = await TestTaskCollection.createPublic(session2);
+    await runAllPromises([
+        task1.addCollection(session2, collection),
+        task2.addCollection(session2, collection),
+    ]);
+
+    await task1.updateStatus(session1, "Closed");
+    await task2.updateStatus(session2, "Closed");
+
+    await server.wait();
+
+    const newAccountName = generateId();
+    expect(session1.account.initialName).not.toEqual(newAccountName);
+    expect(session1.account.initialName).not.toEqual(session2.account.initialName);
+
+    expect(
+        await server.loadQuery(session1, {
+            filters: [
+                {
+                    type: "DisplayStatus",
+                    operation: {
+                        type: "OneOf",
+                        displayStatuses: new Set(["OpenInactive", "OpenActive", "Closed"]),
+                    },
+                },
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                status: expect.objectContaining({
+                    value: expect.objectContaining({
+                        closer: {
+                            accountId: session1.account.id,
+                            workingAccountName: session1.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                status: expect.objectContaining({
+                    value: expect.objectContaining({
+                        closer: {
+                            accountId: session2.account.id,
+                            workingAccountName: session2.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+
+    await updateSessionActorAccountName(TestTask.action(session1), newAccountName);
+
+    await server.waitForApplyActionTransactions();
+    await ProcessContextModule.waitForTestTasks();
+
+    expect((await task1.getIndexDoc({realtime: false})).status.value.closer).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: session1.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect((await task1.getIndexDoc({realtime: true})).status.value.closer).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: newAccountName,
+        workingAccountNameVersion: 1,
+    });
+
+    expect((await task2.getIndexDoc({realtime: false})).status.value.closer).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect((await task2.getIndexDoc({realtime: true})).status.value.closer).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    expect(
+        await server.loadQuery(session1, {
+            filters: [
+                {
+                    type: "DisplayStatus",
+                    operation: {
+                        type: "OneOf",
+                        displayStatuses: new Set(["OpenInactive", "OpenActive", "Closed"]),
+                    },
+                },
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                status: expect.objectContaining({
+                    value: expect.objectContaining({
+                        closer: {
+                            accountId: session1.account.id,
+                            workingAccountName: newAccountName,
+                            workingAccountNameVersion: 1,
+                        },
+                    }),
+                }),
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                status: expect.objectContaining({
+                    value: expect.objectContaining({
+                        closer: {
+                            accountId: session2.account.id,
+                            workingAccountName: session2.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+});
+
+test("update introduces task with closer account name update to query when index is not refreshed", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const server = new TestTaskRealtimeServer(context);
+
+    const [task1, task2] = await runAllPromises([
+        TestTask.create(session2),
+        TestTask.create(session2),
+    ]);
+
+    const collection = await TestTaskCollection.createPublic(session2);
+    await runAllPromises([
+        task1.addCollection(session2, collection),
+        task2.addCollection(session2, collection),
+    ]);
+
+    await task1.updateStatus(session1, "Closed");
+    await task2.updateStatus(session2, "Closed");
+
+    await task2.updatePriority(session2, "High");
+
+    await server.wait();
+
+    const newAccountName = generateId();
+    expect(session1.account.initialName).not.toEqual(newAccountName);
+    expect(session1.account.initialName).not.toEqual(session2.account.initialName);
+
+    expect(
+        await server.loadQuery(session1, {
+            filters: [
+                {
+                    type: "DisplayStatus",
+                    operation: {
+                        type: "OneOf",
+                        displayStatuses: new Set(["OpenInactive", "OpenActive", "Closed"]),
+                    },
+                },
+                {
+                    type: "Priority",
+                    operation: {type: "OneOf", priorities: new Set(["High"])},
+                },
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task2.id,
+                status: expect.objectContaining({
+                    value: expect.objectContaining({
+                        closer: {
+                            accountId: session2.account.id,
+                            workingAccountName: session2.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+
+    const pausePromise = indexTaskUpdateAccountNameActionBeforeUpdateTestCheckpoint.pauseForTest(
+        session1.account.id,
+    );
+
+    await updateSessionActorAccountName(TestTask.action(session1), newAccountName);
+
+    const {unpause} = await pausePromise;
+
+    await server.waitForApplyActionTransactions();
+
+    expect(
+        (await getTaskIndexDocIfExistsForTest(context, space.id, task1.id, {realtime: false}))
+            ?.status.value.closer,
+    ).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: session1.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect(
+        (await getTaskIndexDocIfExistsForTest(context, space.id, task1.id, {realtime: true}))
+            ?.status.value.closer,
+    ).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: session1.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    expect(
+        (await getTaskIndexDocIfExistsForTest(context, space.id, task2.id, {realtime: false}))
+            ?.status.value.closer,
+    ).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect(
+        (await getTaskIndexDocIfExistsForTest(context, space.id, task2.id, {realtime: false}))
+            ?.status.value.closer,
+    ).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    await task1.updatePriority(session1, "High");
+
+    await server.waitForApplyActionTransactions();
+
+    expect(
+        (await getTaskIndexDocIfExistsForTest(context, space.id, task1.id, {realtime: false}))
+            ?.status.value.closer,
+    ).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: session1.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect(
+        (await getTaskIndexDocIfExistsForTest(context, space.id, task1.id, {realtime: true}))
+            ?.status.value.closer,
+    ).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: session1.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    expect(
+        (await getTaskIndexDocIfExistsForTest(context, space.id, task2.id, {realtime: false}))
+            ?.status.value.closer,
+    ).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect(
+        (await getTaskIndexDocIfExistsForTest(context, space.id, task2.id, {realtime: false}))
+            ?.status.value.closer,
+    ).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    expect(
+        await server.loadQuery(session1, {
+            filters: [
+                {
+                    type: "DisplayStatus",
+                    operation: {
+                        type: "OneOf",
+                        displayStatuses: new Set(["OpenInactive", "OpenActive", "Closed"]),
+                    },
+                },
+                {
+                    type: "Priority",
+                    operation: {type: "OneOf", priorities: new Set(["High"])},
+                },
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                status: expect.objectContaining({
+                    value: expect.objectContaining({
+                        closer: {
+                            accountId: session1.account.id,
+                            workingAccountName: newAccountName,
+                            workingAccountNameVersion: 1,
+                        },
+                    }),
+                }),
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                status: expect.objectContaining({
+                    value: expect.objectContaining({
+                        closer: {
+                            accountId: session2.account.id,
+                            workingAccountName: session2.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+
+    unpause();
+    await ProcessContextModule.waitForTestTasks();
+
+    expect((await task1.getIndexDoc({realtime: false})).status.value.closer).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: session1.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect((await task1.getIndexDoc({realtime: true})).status.value.closer).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: newAccountName,
+        workingAccountNameVersion: 1,
+    });
+
+    expect((await task2.getIndexDoc({realtime: false})).status.value.closer).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect((await task2.getIndexDoc({realtime: true})).status.value.closer).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    expect(
+        await server.loadQuery(session1, {
+            filters: [
+                {
+                    type: "DisplayStatus",
+                    operation: {
+                        type: "OneOf",
+                        displayStatuses: new Set(["OpenInactive", "OpenActive", "Closed"]),
+                    },
+                },
+                {
+                    type: "Priority",
+                    operation: {type: "OneOf", priorities: new Set(["High"])},
+                },
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                status: expect.objectContaining({
+                    value: expect.objectContaining({
+                        closer: {
+                            accountId: session1.account.id,
+                            workingAccountName: newAccountName,
+                            workingAccountNameVersion: 1,
+                        },
+                    }),
+                }),
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                status: expect.objectContaining({
+                    value: expect.objectContaining({
+                        closer: {
+                            accountId: session2.account.id,
+                            workingAccountName: session2.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+});
+
+test("query after assignee account name update applied and refreshed", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const server = new TestTaskRealtimeServer(context);
+
+    const [task1, task2] = await runAllPromises([
+        TestTask.create(session2),
+        TestTask.create(session2),
+    ]);
+
+    const collection = await TestTaskCollection.createPublic(session2);
+    await runAllPromises([
+        task1.addCollection(session2, collection),
+        task2.addCollection(session2, collection),
+    ]);
+
+    await task1.updateAssignee(session2, session1);
+    await task2.updateAssignee(session2, session2);
+
+    await server.wait();
+
+    const newAccountName = generateId();
+    expect(session1.account.initialName).not.toEqual(newAccountName);
+    expect(session1.account.initialName).not.toEqual(session2.account.initialName);
+
+    await updateSessionActorAccountName(TestTask.action(session1), newAccountName);
+
+    await server.wait();
+
+    expect((await task1.getIndexDoc({realtime: false})).assignee.value?.assignee).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: newAccountName,
+        workingAccountNameVersion: 1,
+    });
+    expect((await task1.getIndexDoc({realtime: true})).assignee.value?.assignee).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: newAccountName,
+        workingAccountNameVersion: 1,
+    });
+
+    expect((await task2.getIndexDoc({realtime: false})).assignee.value?.assignee).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect((await task2.getIndexDoc({realtime: true})).assignee.value?.assignee).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    expect(await server.loadQuery(session1)).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assignee: {
+                            accountId: session1.account.id,
+                            workingAccountName: newAccountName,
+                            workingAccountNameVersion: 1,
+                        },
+                    }),
+                }),
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assignee: {
+                            accountId: session2.account.id,
+                            workingAccountName: session2.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+});
+
+test("query after assignee account name update applied but not refreshed", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const server = new TestTaskRealtimeServer(context);
+
+    const [task1, task2] = await runAllPromises([
+        TestTask.create(session2),
+        TestTask.create(session2),
+    ]);
+
+    const collection = await TestTaskCollection.createPublic(session2);
+    await runAllPromises([
+        task1.addCollection(session2, collection),
+        task2.addCollection(session2, collection),
+    ]);
+
+    await task1.updateAssignee(session2, session1);
+    await task2.updateAssignee(session2, session2);
+
+    await server.wait();
+
+    const newAccountName = generateId();
+    expect(session1.account.initialName).not.toEqual(newAccountName);
+    expect(session1.account.initialName).not.toEqual(session2.account.initialName);
+
+    await updateSessionActorAccountName(TestTask.action(session1), newAccountName);
+
+    await server.waitForApplyActionTransactions();
+    await ProcessContextModule.waitForTestTasks();
+
+    expect((await task1.getIndexDoc({realtime: false})).assignee.value?.assignee).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: session1.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect((await task1.getIndexDoc({realtime: true})).assignee.value?.assignee).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: newAccountName,
+        workingAccountNameVersion: 1,
+    });
+
+    expect((await task2.getIndexDoc({realtime: false})).assignee.value?.assignee).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect((await task2.getIndexDoc({realtime: true})).assignee.value?.assignee).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    expect(await server.loadQuery(session1)).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assignee: {
+                            accountId: session1.account.id,
+                            workingAccountName: newAccountName,
+                            workingAccountNameVersion: 1,
+                        },
+                    }),
+                }),
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assignee: {
+                            accountId: session2.account.id,
+                            workingAccountName: session2.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+});
+
+test("query before assignee account name update applied but not refreshed", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const server = new TestTaskRealtimeServer(context);
+
+    const [task1, task2] = await runAllPromises([
+        TestTask.create(session2),
+        TestTask.create(session2),
+    ]);
+
+    const collection = await TestTaskCollection.createPublic(session2);
+    await runAllPromises([
+        task1.addCollection(session2, collection),
+        task2.addCollection(session2, collection),
+    ]);
+
+    await task1.updateAssignee(session2, session1);
+    await task2.updateAssignee(session2, session2);
+
+    await server.wait();
+
+    const newAccountName = generateId();
+    expect(session1.account.initialName).not.toEqual(newAccountName);
+    expect(session1.account.initialName).not.toEqual(session2.account.initialName);
+
+    expect(await server.loadQuery(session1)).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assignee: {
+                            accountId: session1.account.id,
+                            workingAccountName: session1.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assignee: {
+                            accountId: session2.account.id,
+                            workingAccountName: session2.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+
+    await updateSessionActorAccountName(TestTask.action(session1), newAccountName);
+
+    await server.waitForApplyActionTransactions();
+    await ProcessContextModule.waitForTestTasks();
+
+    expect((await task1.getIndexDoc({realtime: false})).assignee.value?.assignee).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: session1.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect((await task1.getIndexDoc({realtime: true})).assignee.value?.assignee).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: newAccountName,
+        workingAccountNameVersion: 1,
+    });
+
+    expect((await task2.getIndexDoc({realtime: false})).assignee.value?.assignee).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect((await task2.getIndexDoc({realtime: true})).assignee.value?.assignee).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    expect(await server.loadQuery(session1)).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assignee: {
+                            accountId: session1.account.id,
+                            workingAccountName: newAccountName,
+                            workingAccountNameVersion: 1,
+                        },
+                    }),
+                }),
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assignee: {
+                            accountId: session2.account.id,
+                            workingAccountName: session2.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+});
+
+test("update introduces task with assignee account name update to query when index is not refreshed", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const server = new TestTaskRealtimeServer(context);
+
+    const [task1, task2] = await runAllPromises([
+        TestTask.create(session2),
+        TestTask.create(session2),
+    ]);
+
+    const collection = await TestTaskCollection.createPublic(session2);
+    await runAllPromises([
+        task1.addCollection(session2, collection),
+        task2.addCollection(session2, collection),
+    ]);
+
+    await task1.updateAssignee(session2, session1);
+    await task2.updateAssignee(session2, session2);
+
+    await task2.updatePriority(session2, "High");
+
+    await server.wait();
+
+    const newAccountName = generateId();
+    expect(session1.account.initialName).not.toEqual(newAccountName);
+    expect(session1.account.initialName).not.toEqual(session2.account.initialName);
+
+    expect(
+        await server.loadQuery(session1, {
+            filters: [
+                {
+                    type: "Priority",
+                    operation: {type: "OneOf", priorities: new Set(["High"])},
+                },
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task2.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assignee: {
+                            accountId: session2.account.id,
+                            workingAccountName: session2.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+
+    const pausePromise = indexTaskUpdateAccountNameActionBeforeUpdateTestCheckpoint.pauseForTest(
+        session1.account.id,
+    );
+
+    await updateSessionActorAccountName(TestTask.action(session1), newAccountName);
+
+    const {unpause} = await pausePromise;
+
+    await server.waitForApplyActionTransactions();
+
+    expect(
+        (await getTaskIndexDocIfExistsForTest(context, space.id, task1.id, {realtime: false}))
+            ?.assignee.value?.assignee,
+    ).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: session1.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect(
+        (await getTaskIndexDocIfExistsForTest(context, space.id, task1.id, {realtime: true}))
+            ?.assignee.value?.assignee,
+    ).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: session1.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    expect(
+        (await getTaskIndexDocIfExistsForTest(context, space.id, task2.id, {realtime: false}))
+            ?.assignee.value?.assignee,
+    ).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect(
+        (await getTaskIndexDocIfExistsForTest(context, space.id, task2.id, {realtime: false}))
+            ?.assignee.value?.assignee,
+    ).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    await task1.updatePriority(session1, "High");
+
+    await server.waitForApplyActionTransactions();
+
+    expect(
+        (await getTaskIndexDocIfExistsForTest(context, space.id, task1.id, {realtime: false}))
+            ?.assignee.value?.assignee,
+    ).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: session1.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect(
+        (await getTaskIndexDocIfExistsForTest(context, space.id, task1.id, {realtime: true}))
+            ?.assignee.value?.assignee,
+    ).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: session1.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    expect(
+        (await getTaskIndexDocIfExistsForTest(context, space.id, task2.id, {realtime: false}))
+            ?.assignee.value?.assignee,
+    ).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect(
+        (await getTaskIndexDocIfExistsForTest(context, space.id, task2.id, {realtime: false}))
+            ?.assignee.value?.assignee,
+    ).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    expect(
+        await server.loadQuery(session1, {
+            filters: [
+                {
+                    type: "Priority",
+                    operation: {type: "OneOf", priorities: new Set(["High"])},
+                },
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assignee: {
+                            accountId: session1.account.id,
+                            workingAccountName: newAccountName,
+                            workingAccountNameVersion: 1,
+                        },
+                    }),
+                }),
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assignee: {
+                            accountId: session2.account.id,
+                            workingAccountName: session2.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+
+    unpause();
+    await ProcessContextModule.waitForTestTasks();
+
+    expect((await task1.getIndexDoc({realtime: false})).assignee.value?.assignee).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: session1.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect((await task1.getIndexDoc({realtime: true})).assignee.value?.assignee).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: newAccountName,
+        workingAccountNameVersion: 1,
+    });
+
+    expect((await task2.getIndexDoc({realtime: false})).assignee.value?.assignee).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect((await task2.getIndexDoc({realtime: true})).assignee.value?.assignee).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    expect(
+        await server.loadQuery(session1, {
+            filters: [
+                {
+                    type: "Priority",
+                    operation: {type: "OneOf", priorities: new Set(["High"])},
+                },
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assignee: {
+                            accountId: session1.account.id,
+                            workingAccountName: newAccountName,
+                            workingAccountNameVersion: 1,
+                        },
+                    }),
+                }),
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assignee: {
+                            accountId: session2.account.id,
+                            workingAccountName: session2.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+});
+
+test("query after assigner account name update applied and refreshed", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const server = new TestTaskRealtimeServer(context);
+
+    const [task1, task2] = await runAllPromises([
+        TestTask.create(session2),
+        TestTask.create(session2),
+    ]);
+
+    const collection = await TestTaskCollection.createPublic(session2);
+    await runAllPromises([
+        task1.addCollection(session2, collection),
+        task2.addCollection(session2, collection),
+    ]);
+
+    await task1.updateAssignee(session1, session2);
+    await task2.updateAssignee(session2, session2);
+
+    await server.wait();
+
+    const newAccountName = generateId();
+    expect(session1.account.initialName).not.toEqual(newAccountName);
+    expect(session1.account.initialName).not.toEqual(session2.account.initialName);
+
+    await updateSessionActorAccountName(TestTask.action(session1), newAccountName);
+
+    await server.wait();
+
+    expect((await task1.getIndexDoc({realtime: false})).assignee.value?.assigner).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: newAccountName,
+        workingAccountNameVersion: 1,
+    });
+    expect((await task1.getIndexDoc({realtime: true})).assignee.value?.assigner).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: newAccountName,
+        workingAccountNameVersion: 1,
+    });
+
+    expect((await task2.getIndexDoc({realtime: false})).assignee.value?.assigner).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect((await task2.getIndexDoc({realtime: true})).assignee.value?.assigner).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    expect(await server.loadQuery(session1)).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assigner: {
+                            accountId: session1.account.id,
+                            workingAccountName: newAccountName,
+                            workingAccountNameVersion: 1,
+                        },
+                    }),
+                }),
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assigner: {
+                            accountId: session2.account.id,
+                            workingAccountName: session2.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+});
+
+test("query after assigner account name update applied but not refreshed", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const server = new TestTaskRealtimeServer(context);
+
+    const [task1, task2] = await runAllPromises([
+        TestTask.create(session2),
+        TestTask.create(session2),
+    ]);
+
+    const collection = await TestTaskCollection.createPublic(session2);
+    await runAllPromises([
+        task1.addCollection(session2, collection),
+        task2.addCollection(session2, collection),
+    ]);
+
+    await task1.updateAssignee(session1, session2);
+    await task2.updateAssignee(session2, session2);
+
+    await server.wait();
+
+    const newAccountName = generateId();
+    expect(session1.account.initialName).not.toEqual(newAccountName);
+    expect(session1.account.initialName).not.toEqual(session2.account.initialName);
+
+    await updateSessionActorAccountName(TestTask.action(session1), newAccountName);
+
+    await server.waitForApplyActionTransactions();
+    await ProcessContextModule.waitForTestTasks();
+
+    expect((await task1.getIndexDoc({realtime: false})).assignee.value?.assigner).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: session1.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect((await task1.getIndexDoc({realtime: true})).assignee.value?.assigner).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: newAccountName,
+        workingAccountNameVersion: 1,
+    });
+
+    expect((await task2.getIndexDoc({realtime: false})).assignee.value?.assigner).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect((await task2.getIndexDoc({realtime: true})).assignee.value?.assigner).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    expect(await server.loadQuery(session1)).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assigner: {
+                            accountId: session1.account.id,
+                            workingAccountName: newAccountName,
+                            workingAccountNameVersion: 1,
+                        },
+                    }),
+                }),
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assigner: {
+                            accountId: session2.account.id,
+                            workingAccountName: session2.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+});
+
+test("query before assigner account name update applied but not refreshed", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const server = new TestTaskRealtimeServer(context);
+
+    const [task1, task2] = await runAllPromises([
+        TestTask.create(session2),
+        TestTask.create(session2),
+    ]);
+
+    const collection = await TestTaskCollection.createPublic(session2);
+    await runAllPromises([
+        task1.addCollection(session2, collection),
+        task2.addCollection(session2, collection),
+    ]);
+
+    await task1.updateAssignee(session1, session2);
+    await task2.updateAssignee(session2, session2);
+
+    await server.wait();
+
+    const newAccountName = generateId();
+    expect(session1.account.initialName).not.toEqual(newAccountName);
+    expect(session1.account.initialName).not.toEqual(session2.account.initialName);
+
+    expect(await server.loadQuery(session1)).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assigner: {
+                            accountId: session1.account.id,
+                            workingAccountName: session1.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assigner: {
+                            accountId: session2.account.id,
+                            workingAccountName: session2.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+
+    await updateSessionActorAccountName(TestTask.action(session1), newAccountName);
+
+    await server.waitForApplyActionTransactions();
+    await ProcessContextModule.waitForTestTasks();
+
+    expect((await task1.getIndexDoc({realtime: false})).assignee.value?.assigner).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: session1.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect((await task1.getIndexDoc({realtime: true})).assignee.value?.assigner).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: newAccountName,
+        workingAccountNameVersion: 1,
+    });
+
+    expect((await task2.getIndexDoc({realtime: false})).assignee.value?.assigner).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect((await task2.getIndexDoc({realtime: true})).assignee.value?.assigner).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    expect(await server.loadQuery(session1)).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assigner: {
+                            accountId: session1.account.id,
+                            workingAccountName: newAccountName,
+                            workingAccountNameVersion: 1,
+                        },
+                    }),
+                }),
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assigner: {
+                            accountId: session2.account.id,
+                            workingAccountName: session2.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+});
+
+test("update introduces task with assigner account name update to query when index is not refreshed", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const server = new TestTaskRealtimeServer(context);
+
+    const [task1, task2] = await runAllPromises([
+        TestTask.create(session2),
+        TestTask.create(session2),
+    ]);
+
+    const collection = await TestTaskCollection.createPublic(session2);
+    await runAllPromises([
+        task1.addCollection(session2, collection),
+        task2.addCollection(session2, collection),
+    ]);
+
+    await task1.updateAssignee(session1, session2);
+    await task2.updateAssignee(session2, session2);
+
+    await task2.updatePriority(session2, "High");
+
+    await server.wait();
+
+    const newAccountName = generateId();
+    expect(session1.account.initialName).not.toEqual(newAccountName);
+    expect(session1.account.initialName).not.toEqual(session2.account.initialName);
+
+    expect(
+        await server.loadQuery(session1, {
+            filters: [
+                {
+                    type: "Priority",
+                    operation: {type: "OneOf", priorities: new Set(["High"])},
+                },
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task2.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assigner: {
+                            accountId: session2.account.id,
+                            workingAccountName: session2.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+
+    const pausePromise = indexTaskUpdateAccountNameActionBeforeUpdateTestCheckpoint.pauseForTest(
+        session1.account.id,
+    );
+
+    await updateSessionActorAccountName(TestTask.action(session1), newAccountName);
+
+    const {unpause} = await pausePromise;
+
+    await server.waitForApplyActionTransactions();
+
+    expect(
+        (await getTaskIndexDocIfExistsForTest(context, space.id, task1.id, {realtime: false}))
+            ?.assignee.value?.assigner,
+    ).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: session1.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect(
+        (await getTaskIndexDocIfExistsForTest(context, space.id, task1.id, {realtime: true}))
+            ?.assignee.value?.assigner,
+    ).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: session1.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    expect(
+        (await getTaskIndexDocIfExistsForTest(context, space.id, task2.id, {realtime: false}))
+            ?.assignee.value?.assigner,
+    ).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect(
+        (await getTaskIndexDocIfExistsForTest(context, space.id, task2.id, {realtime: false}))
+            ?.assignee.value?.assigner,
+    ).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    await task1.updatePriority(session1, "High");
+
+    await server.waitForApplyActionTransactions();
+
+    expect(
+        (await getTaskIndexDocIfExistsForTest(context, space.id, task1.id, {realtime: false}))
+            ?.assignee.value?.assigner,
+    ).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: session1.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect(
+        (await getTaskIndexDocIfExistsForTest(context, space.id, task1.id, {realtime: true}))
+            ?.assignee.value?.assigner,
+    ).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: session1.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    expect(
+        (await getTaskIndexDocIfExistsForTest(context, space.id, task2.id, {realtime: false}))
+            ?.assignee.value?.assigner,
+    ).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect(
+        (await getTaskIndexDocIfExistsForTest(context, space.id, task2.id, {realtime: false}))
+            ?.assignee.value?.assigner,
+    ).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    expect(
+        await server.loadQuery(session1, {
+            filters: [
+                {
+                    type: "Priority",
+                    operation: {type: "OneOf", priorities: new Set(["High"])},
+                },
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assigner: {
+                            accountId: session1.account.id,
+                            workingAccountName: newAccountName,
+                            workingAccountNameVersion: 1,
+                        },
+                    }),
+                }),
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assigner: {
+                            accountId: session2.account.id,
+                            workingAccountName: session2.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+
+    unpause();
+    await ProcessContextModule.waitForTestTasks();
+
+    expect((await task1.getIndexDoc({realtime: false})).assignee.value?.assigner).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: session1.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect((await task1.getIndexDoc({realtime: true})).assignee.value?.assigner).toEqual({
+        accountId: session1.account.id,
+        workingAccountName: newAccountName,
+        workingAccountNameVersion: 1,
+    });
+
+    expect((await task2.getIndexDoc({realtime: false})).assignee.value?.assigner).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect((await task2.getIndexDoc({realtime: true})).assignee.value?.assigner).toEqual({
+        accountId: session2.account.id,
+        workingAccountName: session2.account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    expect(
+        await server.loadQuery(session1, {
+            filters: [
+                {
+                    type: "Priority",
+                    operation: {type: "OneOf", priorities: new Set(["High"])},
+                },
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assigner: {
+                            accountId: session1.account.id,
+                            workingAccountName: newAccountName,
+                            workingAccountNameVersion: 1,
+                        },
+                    }),
+                }),
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assigner: {
+                            accountId: session2.account.id,
+                            workingAccountName: session2.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+});
+
+test("query before creator, closer, assignee, and assigner account name update applied but not refreshed", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const server = new TestTaskRealtimeServer(context);
+
+    const task = await TestTask.create(session);
+
+    await task.updateAssignee(session, session);
+    await task.updateStatus(session, "Closed");
+
+    await server.wait();
+
+    const newAccountName = generateId();
+    expect(session.account.initialName).not.toEqual(newAccountName);
+
+    expect(
+        await server.loadQuery(session, {
+            filters: [
+                {
+                    type: "DisplayStatus",
+                    operation: {type: "OneOf", displayStatuses: new Set(["Closed"])},
+                },
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task.id,
+                creator: {
+                    accountId: session.account.id,
+                    workingAccountName: session.account.initialName,
+                    workingAccountNameVersion: 0,
+                },
+                status: expect.objectContaining({
+                    value: expect.objectContaining({
+                        closer: {
+                            accountId: session.account.id,
+                            workingAccountName: session.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assignee: {
+                            accountId: session.account.id,
+                            workingAccountName: session.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                        assigner: {
+                            accountId: session.account.id,
+                            workingAccountName: session.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+
+    await updateSessionActorAccountName(TestTask.action(session), newAccountName);
+
+    await server.waitForApplyActionTransactions();
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await task.getIndexDoc({realtime: false})).toEqual(
+        expect.objectContaining({
+            id: task.id,
+            creator: {
+                accountId: session.account.id,
+                workingAccountName: session.account.initialName,
+                workingAccountNameVersion: 0,
+            },
+            status: expect.objectContaining({
+                value: expect.objectContaining({
+                    closer: {
+                        accountId: session.account.id,
+                        workingAccountName: session.account.initialName,
+                        workingAccountNameVersion: 0,
+                    },
+                }),
+            }),
+            assignee: expect.objectContaining({
+                value: expect.objectContaining({
+                    assignee: {
+                        accountId: session.account.id,
+                        workingAccountName: session.account.initialName,
+                        workingAccountNameVersion: 0,
+                    },
+                    assigner: {
+                        accountId: session.account.id,
+                        workingAccountName: session.account.initialName,
+                        workingAccountNameVersion: 0,
+                    },
+                }),
+            }),
+        }),
+    );
+    expect(await task.getIndexDoc({realtime: true})).toEqual(
+        expect.objectContaining({
+            id: task.id,
+            creator: {
+                accountId: session.account.id,
+                workingAccountName: newAccountName,
+                workingAccountNameVersion: 1,
+            },
+            status: expect.objectContaining({
+                value: expect.objectContaining({
+                    closer: {
+                        accountId: session.account.id,
+                        workingAccountName: newAccountName,
+                        workingAccountNameVersion: 1,
+                    },
+                }),
+            }),
+            assignee: expect.objectContaining({
+                value: expect.objectContaining({
+                    assignee: {
+                        accountId: session.account.id,
+                        workingAccountName: newAccountName,
+                        workingAccountNameVersion: 1,
+                    },
+                    assigner: {
+                        accountId: session.account.id,
+                        workingAccountName: newAccountName,
+                        workingAccountNameVersion: 1,
+                    },
+                }),
+            }),
+        }),
+    );
+
+    expect(
+        await server.loadQuery(session, {
+            filters: [
+                {
+                    type: "DisplayStatus",
+                    operation: {type: "OneOf", displayStatuses: new Set(["Closed"])},
+                },
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task.id,
+                creator: {
+                    accountId: session.account.id,
+                    workingAccountName: newAccountName,
+                    workingAccountNameVersion: 1,
+                },
+                status: expect.objectContaining({
+                    value: expect.objectContaining({
+                        closer: {
+                            accountId: session.account.id,
+                            workingAccountName: newAccountName,
+                            workingAccountNameVersion: 1,
+                        },
+                    }),
+                }),
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assignee: {
+                            accountId: session.account.id,
+                            workingAccountName: newAccountName,
+                            workingAccountNameVersion: 1,
+                        },
+                        assigner: {
+                            accountId: session.account.id,
+                            workingAccountName: newAccountName,
+                            workingAccountNameVersion: 1,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+});
+
+test("referenced creator gets correct account name when query is loaded before", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const server = new TestTaskRealtimeServer(context);
+
+    await server.wait();
+
+    const newAccountName = generateId();
+    expect(session1.account.initialName).not.toEqual(newAccountName);
+    expect(session1.account.initialName).not.toEqual(session2.account.initialName);
+
+    expect(await server.loadQuery(session1)).toEqual({
+        hasMoreTasks: false,
+        tasks: [],
+    });
+
+    await updateSessionActorAccountName(TestTask.action(session1), newAccountName);
+
+    await server.waitForApplyActionTransactions();
+    await ProcessContextModule.waitForTestTasks();
+
+    const task1 = await TestTask.create(session1);
+    const task2 = await TestTask.create(session2);
+
+    await server.waitForApplyActionTransactions();
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await server.loadQuery(session1)).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                creator: {
+                    accountId: session1.account.id,
+                    workingAccountName: newAccountName,
+                    workingAccountNameVersion: 1,
+                },
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                creator: {
+                    accountId: session2.account.id,
+                    workingAccountName: session2.account.initialName,
+                    workingAccountNameVersion: 0,
+                },
+            }),
+        ],
+    });
+});
+
+test("referenced creator gets correct account name when query is loaded after", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const server = new TestTaskRealtimeServer(context);
+
+    await server.wait();
+
+    const newAccountName = generateId();
+    expect(session1.account.initialName).not.toEqual(newAccountName);
+    expect(session1.account.initialName).not.toEqual(session2.account.initialName);
+
+    await updateSessionActorAccountName(TestTask.action(session1), newAccountName);
+
+    await server.waitForApplyActionTransactions();
+    await ProcessContextModule.waitForTestTasks();
+
+    const task1 = await TestTask.create(session1);
+    const task2 = await TestTask.create(session2);
+
+    await server.waitForApplyActionTransactions();
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await server.loadQuery(session1)).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                creator: {
+                    accountId: session1.account.id,
+                    workingAccountName: newAccountName,
+                    workingAccountNameVersion: 1,
+                },
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                creator: {
+                    accountId: session2.account.id,
+                    workingAccountName: session2.account.initialName,
+                    workingAccountNameVersion: 0,
+                },
+            }),
+        ],
+    });
+});
+
+test("referenced closer gets correct account name when query is loaded before", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const server = new TestTaskRealtimeServer(context);
+
+    const [task1, task2] = await runAllPromises([
+        TestTask.create(session2),
+        TestTask.create(session2),
+    ]);
+
+    const collection = await TestTaskCollection.createPublic(session2);
+    await runAllPromises([
+        task1.addCollection(session2, collection),
+        task2.addCollection(session2, collection),
+    ]);
+
+    await server.wait();
+
+    const newAccountName = generateId();
+    expect(session1.account.initialName).not.toEqual(newAccountName);
+    expect(session1.account.initialName).not.toEqual(session2.account.initialName);
+
+    expect(
+        await server.loadQuery(session1, {
+            filters: [
+                {
+                    type: "DisplayStatus",
+                    operation: {
+                        type: "OneOf",
+                        displayStatuses: new Set(["OpenInactive", "OpenActive", "Closed"]),
+                    },
+                },
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                status: expect.objectContaining({
+                    value: {type: "Open"},
+                }),
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                status: expect.objectContaining({
+                    value: {type: "Open"},
+                }),
+            }),
+        ],
+    });
+
+    await updateSessionActorAccountName(TestTask.action(session1), newAccountName);
+
+    await server.waitForApplyActionTransactions();
+    await ProcessContextModule.waitForTestTasks();
+
+    await task1.updateStatus(session1, "Closed");
+    await task2.updateStatus(session2, "Closed");
+
+    await server.waitForApplyActionTransactions();
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        await server.loadQuery(session1, {
+            filters: [
+                {
+                    type: "DisplayStatus",
+                    operation: {
+                        type: "OneOf",
+                        displayStatuses: new Set(["OpenInactive", "OpenActive", "Closed"]),
+                    },
+                },
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                status: expect.objectContaining({
+                    value: expect.objectContaining({
+                        closer: {
+                            accountId: session1.account.id,
+                            workingAccountName: newAccountName,
+                            workingAccountNameVersion: 1,
+                        },
+                    }),
+                }),
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                status: expect.objectContaining({
+                    value: expect.objectContaining({
+                        closer: {
+                            accountId: session2.account.id,
+                            workingAccountName: session2.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+});
+
+test("referenced closer gets correct account name when query is loaded after", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const server = new TestTaskRealtimeServer(context);
+
+    const [task1, task2] = await runAllPromises([
+        TestTask.create(session2),
+        TestTask.create(session2),
+    ]);
+
+    const collection = await TestTaskCollection.createPublic(session2);
+    await runAllPromises([
+        task1.addCollection(session2, collection),
+        task2.addCollection(session2, collection),
+    ]);
+
+    await server.wait();
+
+    const newAccountName = generateId();
+    expect(session1.account.initialName).not.toEqual(newAccountName);
+    expect(session1.account.initialName).not.toEqual(session2.account.initialName);
+
+    await updateSessionActorAccountName(TestTask.action(session1), newAccountName);
+
+    await server.waitForApplyActionTransactions();
+    await ProcessContextModule.waitForTestTasks();
+
+    await task1.updateStatus(session1, "Closed");
+    await task2.updateStatus(session2, "Closed");
+
+    await server.waitForApplyActionTransactions();
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        await server.loadQuery(session1, {
+            filters: [
+                {
+                    type: "DisplayStatus",
+                    operation: {
+                        type: "OneOf",
+                        displayStatuses: new Set(["OpenInactive", "OpenActive", "Closed"]),
+                    },
+                },
+            ],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                status: expect.objectContaining({
+                    value: expect.objectContaining({
+                        closer: {
+                            accountId: session1.account.id,
+                            workingAccountName: newAccountName,
+                            workingAccountNameVersion: 1,
+                        },
+                    }),
+                }),
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                status: expect.objectContaining({
+                    value: expect.objectContaining({
+                        closer: {
+                            accountId: session2.account.id,
+                            workingAccountName: session2.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+});
+
+test("referenced assignee gets correct account name when query is loaded before", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const server = new TestTaskRealtimeServer(context);
+
+    const [task1, task2] = await runAllPromises([
+        TestTask.create(session2),
+        TestTask.create(session2),
+    ]);
+
+    const collection = await TestTaskCollection.createPublic(session2);
+    await runAllPromises([
+        task1.addCollection(session2, collection),
+        task2.addCollection(session2, collection),
+    ]);
+
+    await server.wait();
+
+    const newAccountName = generateId();
+    expect(session1.account.initialName).not.toEqual(newAccountName);
+    expect(session1.account.initialName).not.toEqual(session2.account.initialName);
+
+    expect(await server.loadQuery(session1)).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                assignee: expect.objectContaining({
+                    value: null,
+                }),
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                assignee: expect.objectContaining({
+                    value: null,
+                }),
+            }),
+        ],
+    });
+
+    await updateSessionActorAccountName(TestTask.action(session1), newAccountName);
+
+    await server.waitForApplyActionTransactions();
+    await ProcessContextModule.waitForTestTasks();
+
+    await task1.updateAssignee(session2, session1);
+    await task2.updateAssignee(session2, session2);
+
+    await server.waitForApplyActionTransactions();
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await server.loadQuery(session1)).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assignee: {
+                            accountId: session1.account.id,
+                            workingAccountName: newAccountName,
+                            workingAccountNameVersion: 1,
+                        },
+                    }),
+                }),
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assignee: {
+                            accountId: session2.account.id,
+                            workingAccountName: session2.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+});
+
+test("referenced assignee gets correct account name when query is loaded after", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const server = new TestTaskRealtimeServer(context);
+
+    const [task1, task2] = await runAllPromises([
+        TestTask.create(session2),
+        TestTask.create(session2),
+    ]);
+
+    const collection = await TestTaskCollection.createPublic(session2);
+    await runAllPromises([
+        task1.addCollection(session2, collection),
+        task2.addCollection(session2, collection),
+    ]);
+
+    await server.wait();
+
+    const newAccountName = generateId();
+    expect(session1.account.initialName).not.toEqual(newAccountName);
+    expect(session1.account.initialName).not.toEqual(session2.account.initialName);
+
+    await updateSessionActorAccountName(TestTask.action(session1), newAccountName);
+
+    await server.waitForApplyActionTransactions();
+    await ProcessContextModule.waitForTestTasks();
+
+    await task1.updateAssignee(session2, session1);
+    await task2.updateAssignee(session2, session2);
+
+    await server.waitForApplyActionTransactions();
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await server.loadQuery(session1)).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assignee: {
+                            accountId: session1.account.id,
+                            workingAccountName: newAccountName,
+                            workingAccountNameVersion: 1,
+                        },
+                    }),
+                }),
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assignee: {
+                            accountId: session2.account.id,
+                            workingAccountName: session2.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+});
+
+test("referenced assigner gets correct account name when query is loaded before", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const server = new TestTaskRealtimeServer(context);
+
+    const [task1, task2] = await runAllPromises([
+        TestTask.create(session2),
+        TestTask.create(session2),
+    ]);
+
+    const collection = await TestTaskCollection.createPublic(session2);
+    await runAllPromises([
+        task1.addCollection(session2, collection),
+        task2.addCollection(session2, collection),
+    ]);
+
+    await server.wait();
+
+    const newAccountName = generateId();
+    expect(session1.account.initialName).not.toEqual(newAccountName);
+    expect(session1.account.initialName).not.toEqual(session2.account.initialName);
+
+    expect(await server.loadQuery(session1)).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                assignee: expect.objectContaining({
+                    value: null,
+                }),
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                assignee: expect.objectContaining({
+                    value: null,
+                }),
+            }),
+        ],
+    });
+
+    await updateSessionActorAccountName(TestTask.action(session1), newAccountName);
+
+    await server.waitForApplyActionTransactions();
+    await ProcessContextModule.waitForTestTasks();
+
+    await task1.updateAssignee(session1, session2);
+    await task2.updateAssignee(session2, session2);
+
+    await server.waitForApplyActionTransactions();
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await server.loadQuery(session1)).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assigner: {
+                            accountId: session1.account.id,
+                            workingAccountName: newAccountName,
+                            workingAccountNameVersion: 1,
+                        },
+                    }),
+                }),
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assigner: {
+                            accountId: session2.account.id,
+                            workingAccountName: session2.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+});
+
+test("referenced assigner gets correct account name when query is loaded after", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const server = new TestTaskRealtimeServer(context);
+
+    const [task1, task2] = await runAllPromises([
+        TestTask.create(session2),
+        TestTask.create(session2),
+    ]);
+
+    const collection = await TestTaskCollection.createPublic(session2);
+    await runAllPromises([
+        task1.addCollection(session2, collection),
+        task2.addCollection(session2, collection),
+    ]);
+
+    await server.wait();
+
+    const newAccountName = generateId();
+    expect(session1.account.initialName).not.toEqual(newAccountName);
+    expect(session1.account.initialName).not.toEqual(session2.account.initialName);
+
+    await updateSessionActorAccountName(TestTask.action(session1), newAccountName);
+
+    await server.waitForApplyActionTransactions();
+    await ProcessContextModule.waitForTestTasks();
+
+    await task1.updateAssignee(session1, session2);
+    await task2.updateAssignee(session2, session2);
+
+    await server.waitForApplyActionTransactions();
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await server.loadQuery(session1)).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assigner: {
+                            accountId: session1.account.id,
+                            workingAccountName: newAccountName,
+                            workingAccountNameVersion: 1,
+                        },
+                    }),
+                }),
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assigner: {
+                            accountId: session2.account.id,
+                            workingAccountName: session2.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+});
+
+test("tasks reorder when creator account name changes", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const server = new TestTaskRealtimeServer(context);
+
+    const [task1, task2] = await runAllPromises([
+        TestTask.create(session1),
+        TestTask.create(session2),
+    ]);
+
+    await updateSessionActorAccountName(TestTask.action(session1), "a");
+    await updateSessionActorAccountName(TestTask.action(session2), "b");
+
+    await server.wait();
+
+    expect(
+        await server.loadQuery(session1, {
+            sorts: [{type: "Creator"}],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                creator: {
+                    accountId: session1.account.id,
+                    workingAccountName: "a",
+                    workingAccountNameVersion: 1,
+                },
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                creator: {
+                    accountId: session2.account.id,
+                    workingAccountName: "b",
+                    workingAccountNameVersion: 1,
+                },
+            }),
+        ],
+    });
+
+    await updateSessionActorAccountName(TestTask.action(session1), "c");
+
+    await server.wait();
+
+    expect(
+        await server.loadQuery(session1, {
+            sorts: [{type: "Creator"}],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task2.id,
+                creator: {
+                    accountId: session2.account.id,
+                    workingAccountName: "b",
+                    workingAccountNameVersion: 1,
+                },
+            }),
+            expect.objectContaining({
+                id: task1.id,
+                creator: {
+                    accountId: session1.account.id,
+                    workingAccountName: "c",
+                    workingAccountNameVersion: 2,
+                },
+            }),
+        ],
+    });
+});
+
+test("tasks reorder when assignee account name changes", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const server = new TestTaskRealtimeServer(context);
+
+    const [task1, task2] = await runAllPromises([
+        TestTask.create(session2),
+        TestTask.create(session2),
+    ]);
+
+    const collection = await TestTaskCollection.createPublic(session2);
+    await runAllPromises([
+        task1.addCollection(session2, collection),
+        task2.addCollection(session2, collection),
+    ]);
+
+    await task1.updateAssignee(session2, session1);
+    await task2.updateAssignee(session2, session2);
+
+    await updateSessionActorAccountName(TestTask.action(session1), "a");
+    await updateSessionActorAccountName(TestTask.action(session2), "b");
+
+    await server.wait();
+
+    expect(
+        await server.loadQuery(session1, {
+            sorts: [{type: "Assignee", missing: "Last"}],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assignee: {
+                            accountId: session1.account.id,
+                            workingAccountName: "a",
+                            workingAccountNameVersion: 1,
+                        },
+                    }),
+                }),
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assignee: {
+                            accountId: session2.account.id,
+                            workingAccountName: "b",
+                            workingAccountNameVersion: 1,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+
+    await updateSessionActorAccountName(TestTask.action(session1), "c");
+
+    await server.wait();
+
+    expect(
+        await server.loadQuery(session1, {
+            sorts: [{type: "Assignee", missing: "Last"}],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task2.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assignee: {
+                            accountId: session2.account.id,
+                            workingAccountName: "b",
+                            workingAccountNameVersion: 1,
+                        },
+                    }),
+                }),
+            }),
+            expect.objectContaining({
+                id: task1.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assignee: {
+                            accountId: session1.account.id,
+                            workingAccountName: "c",
+                            workingAccountNameVersion: 2,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+});
+
+test("tasks reorder when assigner account name changes", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const server = new TestTaskRealtimeServer(context);
+
+    const [task1, task2] = await runAllPromises([
+        TestTask.create(session2),
+        TestTask.create(session2),
+    ]);
+
+    const collection = await TestTaskCollection.createPublic(session2);
+    await runAllPromises([
+        task1.addCollection(session2, collection),
+        task2.addCollection(session2, collection),
+    ]);
+
+    await task1.updateAssignee(session1, session2);
+    await task2.updateAssignee(session2, session2);
+
+    await updateSessionActorAccountName(TestTask.action(session1), "a");
+    await updateSessionActorAccountName(TestTask.action(session2), "b");
+
+    await server.wait();
+
+    expect(
+        await server.loadQuery(session1, {
+            sorts: [{type: "Assigner", missing: "Last"}],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task1.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assigner: {
+                            accountId: session1.account.id,
+                            workingAccountName: "a",
+                            workingAccountNameVersion: 1,
+                        },
+                    }),
+                }),
+            }),
+            expect.objectContaining({
+                id: task2.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assigner: {
+                            accountId: session2.account.id,
+                            workingAccountName: "b",
+                            workingAccountNameVersion: 1,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+
+    await updateSessionActorAccountName(TestTask.action(session1), "c");
+
+    await server.wait();
+
+    expect(
+        await server.loadQuery(session1, {
+            sorts: [{type: "Assigner", missing: "Last"}],
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task2.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assigner: {
+                            accountId: session2.account.id,
+                            workingAccountName: "b",
+                            workingAccountNameVersion: 1,
+                        },
+                    }),
+                }),
+            }),
+            expect.objectContaining({
+                id: task1.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assigner: {
+                            accountId: session1.account.id,
+                            workingAccountName: "c",
+                            workingAccountNameVersion: 2,
+                        },
+                    }),
+                }),
+            }),
+        ],
     });
 });

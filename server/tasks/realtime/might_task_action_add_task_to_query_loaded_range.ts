@@ -319,14 +319,14 @@ export function mightTaskActionAddTaskToQueryLoadedRange(
             const pass1 = filters.assigneeFilter
                 ? evaluateTaskQueryAccountNormalizedFilter(
                       filters.assigneeFilter,
-                      action.assignee?.assignee.accountId ?? "MissingAccount",
+                      action.assignee?.assigneeId ?? "MissingAccount",
                   )
                 : true;
 
             const pass2 = filters.assignerFilter
                 ? evaluateTaskQueryAccountNormalizedFilter(
                       filters.assignerFilter,
-                      action.assignee?.assigner.accountId ?? "MissingAccount",
+                      action.assignee?.assignerId ?? "MissingAccount",
                   )
                 : true;
 

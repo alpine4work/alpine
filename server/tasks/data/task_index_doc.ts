@@ -25,6 +25,7 @@ import {
     HybridLogicalTime,
     compareHybridLogicalTimes,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {isTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {initialOrderKey, isOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {createEnumIntegerMapping} from "~/shared/helpers/string/create_enum_integer_mapping.js";
@@ -33,7 +34,7 @@ import {isId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {ObjectSchema, Schema, SchemaType} from "~/shared/schema/schema.js";
 import {
     TaskDueDateRegister,
     TaskParentTaskIdRegister,
@@ -294,9 +295,11 @@ export const TaskStatusTypeIntegerMapping = createEnumIntegerMapping({
 export type TaskStatusWithSortableAccount = SchemaType<typeof TaskStatusWithSortableAccountSchema>;
 
 export const TaskStatusWithSortableAccountSchema = Schema.union({
-    Open: Schema.object({
-        type: Schema.value("Open"),
-    }),
+    Open: cast<ObjectSchema<{readonly type: "Open"; readonly closer?: undefined}>>(
+        Schema.object({
+            type: Schema.value("Open"),
+        }),
+    ),
     Closed: Schema.object({
         type: Schema.value("Closed"),
         closer: TaskSortableAccountSchema,
@@ -333,7 +336,9 @@ const TaskIndexStatusType = createCrdtRegisterOpensearchType(
                 TaskStatusTypeIntegerMapping.from(TaskStatusTypeIntegerMapping.assert(status)),
         }),
         variants: {
-            Open: OpensearchIndexObjectType.new({fields: {}}),
+            Open: cast<OpensearchIndexObjectType<{readonly closer?: undefined}, never>>(
+                OpensearchIndexObjectType.new({fields: {}}),
+            ),
             Closed: OpensearchIndexObjectType.new({
                 fields: {
                     closer: TaskIndexSortableAccountType,

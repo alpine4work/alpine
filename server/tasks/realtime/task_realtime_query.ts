@@ -1,6 +1,7 @@
 import {RBTree} from "bintrees";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/data/apply_task_action_to_task_index_doc.js";
+import {applyTaskUpdateAccountNameToTaskIndexDoc} from "~/server/tasks/data/apply_task_update_account_name_to_task_index_doc.js";
 import {evaluateTaskQueryNormalizedFiltersForIndexDoc} from "~/server/tasks/data/evaluate_task_query_normalized_filters_for_index_doc.js";
 import {getTaskQueryNormalizedSortCursorForIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_for_index_doc.js";
 import {queryTaskIndex} from "~/server/tasks/data/task_index.js";
@@ -639,7 +640,7 @@ export class TaskRealtimeQuery {
         this.store.actionHistory.iterateActions(
             context.tracer.getTracer(),
             this.store.spaceId,
-            action => {
+            (action, options) => {
                 switch (action.type) {
                     case "UpdateTask": {
                         const freshTaskEntry = freshTaskEntryById.get(action.taskId)?.taskEntry;
@@ -652,6 +653,7 @@ export class TaskRealtimeQuery {
                                 oldTask,
                                 action.time,
                                 action.taskAction,
+                                options,
                             );
                             freshTaskEntry.task = newTask;
                         }
@@ -684,6 +686,26 @@ export class TaskRealtimeQuery {
                     case "UpdateNotepadPage": {
                         cast<"Create">(action.notepadPageAction.type);
                         // Doesn't affect query
+                        break;
+                    }
+                    case "UpdateAccountName": {
+                        for (const {taskEntry: freshTaskEntry} of freshTaskEntryById.values()) {
+                            const oldTask = freshTaskEntry.task;
+                            const newTask = applyTaskUpdateAccountNameToTaskIndexDoc(
+                                oldTask,
+                                action,
+                            );
+
+                            // If nothing changed in the task (probably because the account is not
+                            // referenced by the task) then ignore and carry on.
+                            if (oldTask === newTask) break;
+
+                            freshTaskEntry.task = newTask;
+                        }
+
+                        // `UpdateAccountName` doesn't change whether a hidden task is now visible in
+                        // our query. It can only change a task's position in a query. So we don't need
+                        // to add anything to `maybeAddVisibleTaskIdsToLoad`.
                         break;
                     }
                     default:

@@ -36,7 +36,6 @@ import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exp
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
@@ -178,6 +177,7 @@ export function getTaskIndexDocIfExistsForTest(
     context: Context<{tracer: TracerContextModule; opensearch: OpensearchContextModule}>,
     spaceId: SpaceId,
     taskId: TaskId,
+    options?: {realtime?: boolean},
 ) {
     assert(import.meta.jest);
 
@@ -186,6 +186,7 @@ export function getTaskIndexDocIfExistsForTest(
         TaskIndex,
         spaceId,
         taskId,
+        options,
     );
 }
 
@@ -472,7 +473,18 @@ class TaskActionTransactionIndexState {
         name: string;
         nameVersion: number;
     } {
-        return assertExists(this._actionReferencedAccountById.get(accountId)).initialData;
+        const account = this._actionReferencedAccountById.get(accountId);
+
+        if (!account) {
+            throw new InternalError(
+                "Expected account referenced by task action to be available while indexing action",
+            );
+        }
+
+        return {
+            name: account.initialData.name,
+            nameVersion: account.initialData.nameVersion,
+        };
     }
 
     /**
@@ -626,12 +638,10 @@ async function actuallyIndexTaskAction(
                 );
             }
 
-            const newTask = applyTaskActionToTaskIndexDoc(
-                oldTask,
-                action.time,
-                action.taskAction,
-                accountId => state.getActionReferencedAccountName(accountId),
-            );
+            const newTask = applyTaskActionToTaskIndexDoc(oldTask, action.time, action.taskAction, {
+                getActionReferencedAccountName: accountId =>
+                    state.getActionReferencedAccountName(accountId),
+            });
 
             // NOTE(calebmer): Maintaining referential identity to avoid having to make an
             // update network request is an important optimization.
@@ -777,6 +787,10 @@ function indexTaskUpdateAccountNameActionAssumingItsCommitted(
             // or only theoretical? I wonder if it makes sense to manually implement
             // `_update_by_query`. We know that no NEW tasks will have the old account name
             // so we only need to update tasks we find from an initial query.
+            //
+            // NOCOMMIT: Maybe use `refresh=wait_for` instead of waiting a set number of
+            // ms? Do this in tests too and manually trigger refreshes.
+            // https://opensearch.org/docs/latest/api-reference/document-apis/get-documents/
             if (import.meta.jest) {
                 await context.opensearch.client.refresh(context.tracer.getTracer(), TaskIndex);
             } else {

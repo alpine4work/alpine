@@ -82,6 +82,7 @@ export interface OpensearchClientInterface {
         index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
         routing: Routing,
         id: DocId,
+        options?: {realtime?: boolean},
     ): Promise<OpensearchClientDocWithIdAndVersion<DocId, Doc> | null>;
 
     /**
@@ -491,6 +492,7 @@ export class OpensearchClient implements OpensearchClientInterface {
         index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
         routing: Routing,
         id: DocId,
+        {realtime = true}: {realtime?: boolean} = {},
     ): Promise<OpensearchClientDocWithIdAndVersion<DocId, Doc> | null> {
         if (process.env.NODE_ENV !== "production") {
             await this._ensureLocalIndex(tracer, index);
@@ -498,7 +500,7 @@ export class OpensearchClient implements OpensearchClientInterface {
 
         const response = await fetchWithTracer(
             tracer,
-            `${this._protocol}://${this._host}/${index.name}/_doc/${id}?routing=${routing}`,
+            `${this._protocol}://${this._host}/${index.name}/_doc/${id}?routing=${routing}&realtime=${realtime}`,
             {spanRoute: `/${index.name}/_doc/:taskId`},
         );
 

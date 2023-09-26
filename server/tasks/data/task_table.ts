@@ -1397,8 +1397,10 @@ async function actuallyCommitTaskActionTransaction(
                                         // Arguably not. But it's hard to explain a restriction like that in the UI and
                                         // the restriction is not too bad if we explain it in the revision feed.
                                         //
-                                        // NOCOMMIT: Deleting or changing the parent of a child task should add a
-                                        // revision history entry to the parent task.
+                                        // TODO(calebmer): When we add revision history, deleting or changing the
+                                        // parent of a child task should add a revision history entry to the parent
+                                        // task. That way a user who has access to the child but not the parent can
+                                        // have their changes audited.
 
                                         let currentOldParentTaskItem = oldParentTaskItem;
 

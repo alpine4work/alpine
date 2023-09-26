@@ -1,6 +1,6 @@
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
-import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
+import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {
@@ -30,7 +30,8 @@ import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {collectReferencedAccountIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_account_ids_from_task_action.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
@@ -290,11 +291,37 @@ export class TaskRealtimeServer {
                     new Date(visibleStartTime),
                 );
 
+                const referencedAccountIds = new Set<AccountId>();
+                for (const actionTransaction of actionTransactions) {
+                    for (const action of actionTransaction.actions) {
+                        collectReferencedAccountIdsFromTaskAction(referencedAccountIds, action);
+                    }
+                }
+
+                const referencedAccounts = await runAllPromises(
+                    Array.from(referencedAccountIds, accountId =>
+                        getAccount(
+                            // It's important that we read our referenced accounts with a strong read
+                            // consistency to make sure our realtime server sees the correct account name.
+                            //
+                            // After we've finished committing the new account name we're also guaranteed
+                            // to have commit the update name task action. So the action will always be
+                            // applied on our server after the new account name is visible with a strong
+                            // read consistency. This means we'll never miss an account name update. Actions
+                            // applied after the update name task action will always see the correct
+                            // account name.
+                            context.dynamo.setDefaultReadConsistency("Strong"),
+                            spaceId,
+                            accountId,
+                        ),
+                    ),
+                );
+
                 for (const actionTransaction of actionTransactions) {
                     // Add the action transaction to our history but don't send it to connected
                     // clients since the action happened in the past. If a client asks for a
                     // backfill we will serve them one using our action history class.
-                    this._actionHistory.addActionTransaction(actionTransaction);
+                    this._actionHistory.addActionTransaction(actionTransaction, referencedAccounts);
                 }
             },
         );
@@ -395,10 +422,42 @@ export class TaskRealtimeServer {
 
         await authorizeSpaceAccess(context, actionTransaction.spaceId);
 
-        this._actionHistory.addActionTransaction(actionTransaction);
+        const referencedAccountIds = new Set<AccountId>();
+        for (const action of actionTransaction.actions) {
+            collectReferencedAccountIdsFromTaskAction(referencedAccountIds, action);
+        }
+
+        const referencedAccounts = await runAllPromises(
+            Array.from(referencedAccountIds, accountId =>
+                getAccount(
+                    // It's important that we read our referenced accounts with a strong read
+                    // consistency to make sure our realtime server sees the correct account name.
+                    //
+                    // After we've finished committing the new account name we're also guaranteed
+                    // to have commit the update name task action. So the action will always be
+                    // applied on our server after the new account name is visible with a strong
+                    // read consistency. This means we'll never miss an account name update. Actions
+                    // applied after the update name task action will always see the correct
+                    // account name.
+                    context.dynamo.setDefaultReadConsistency("Strong"),
+                    actionTransaction.spaceId,
+                    accountId,
+                ),
+            ),
+        );
+
+        const referencedAccountById = new Map(
+            referencedAccounts.map(account => [account.id, account]),
+        );
+
+        this._actionHistory.addActionTransaction(actionTransaction, referencedAccounts);
 
         const store = this._storeBySpaceId.get(actionTransaction.spaceId);
-        await store?.applyActionTransaction(context, actionTransaction.actions);
+        await store?.applyActionTransaction(
+            context,
+            actionTransaction.actions,
+            referencedAccountById,
+        );
     }
 
     /**

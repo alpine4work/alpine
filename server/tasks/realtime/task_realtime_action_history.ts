@@ -1,15 +1,15 @@
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {InternalError} from "~/shared/error/error.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
-import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {
     TaskAction,
+    TaskUpdateAccountNameAction,
     TaskUpdateCollectionAction,
     TaskUpdateTaskAction,
 } from "~/shared/tasks/actions/task_action.js";
-import {TaskCollectionAction} from "~/shared/tasks/actions/task_collection_action.js";
-import {TaskTaskAction} from "~/shared/tasks/actions/task_task_action.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 /**
@@ -40,6 +40,13 @@ type TaskRealtimeActionHistorySpaceSegment = {
     readonly actionTransactions: Array<TaskRealtimeActionHistorySpaceSegmentActionTransaction>;
     readonly actionsByTaskId: Map<TaskId, Array<TaskUpdateTaskAction>>;
     readonly actionsByCollectionId: Map<TaskCollectionId, Array<TaskUpdateCollectionAction>>;
+    readonly updateAccountNameActions: Array<TaskUpdateAccountNameAction>;
+
+    // Keep track of accounts referenced by actions in this segment. We need
+    // up-to-date account names for computing task cursors. The account in this map
+    // may be out-of-date in older segments. Newer segments should have a
+    // `TaskUpdateAccountNameAction` action with the new name.
+    readonly actionReferencedAccountById: Map<AccountId, AccountModel>;
 };
 
 type TaskRealtimeActionHistorySpaceSegmentActionTransaction = {
@@ -55,21 +62,45 @@ export interface ReadonlyTaskRealtimeActionHistory {
     iterateActions(
         tracer: TracerBase,
         spaceId: SpaceId,
-        callback: (action: TaskAction) => void,
+        callback: (
+            action: TaskAction,
+            options: {
+                getActionReferencedAccountName: (accountId: AccountId) => {
+                    name: string;
+                    nameVersion: number;
+                };
+            },
+        ) => void,
     ): void;
 
     iterateTaskActions(
         tracer: TracerBase,
         spaceId: SpaceId,
         taskId: TaskId,
-        callback: (actionTime: HybridLogicalTime, action: TaskTaskAction) => void,
+        callback: (
+            action: TaskUpdateTaskAction | TaskUpdateAccountNameAction,
+            options: {
+                getActionReferencedAccountName: (accountId: AccountId) => {
+                    name: string;
+                    nameVersion: number;
+                };
+            },
+        ) => void,
     ): void;
 
     iterateCollectionActions(
         tracer: TracerBase,
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
-        callback: (actionTime: HybridLogicalTime, action: TaskCollectionAction) => void,
+        callback: (
+            action: TaskUpdateCollectionAction,
+            options: {
+                getActionReferencedAccountName: (accountId: AccountId) => {
+                    name: string;
+                    nameVersion: number;
+                };
+            },
+        ) => void,
     ): void;
 }
 
@@ -268,15 +299,18 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
      * Add an action transaction to our history. If we are not recording (`start()`
      * has not been called) then this function does nothing.
      */
-    public addActionTransaction({
-        spaceId,
-        committedTime: committedTimeDate,
-        actions,
-    }: {
-        spaceId: SpaceId;
-        committedTime: Date;
-        actions: ReadonlyArray<TaskAction>;
-    }) {
+    public addActionTransaction(
+        {
+            spaceId,
+            committedTime: committedTimeDate,
+            actions,
+        }: {
+            spaceId: SpaceId;
+            committedTime: Date;
+            actions: ReadonlyArray<TaskAction>;
+        },
+        actionReferencedAccounts: ReadonlyArray<AccountModel>,
+    ) {
         const committedTime = committedTimeDate.getTime();
 
         // Ignore actions committed before our history cutoff.
@@ -335,6 +369,8 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
             actionTransactions: [],
             actionsByTaskId: new Map(),
             actionsByCollectionId: new Map(),
+            actionReferencedAccountById: new Map(),
+            updateAccountNameActions: [],
         }));
 
         spaceSegment.actionTransactions.push({
@@ -360,12 +396,52 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
                     ).push(action);
                     break;
                 }
+                case "UpdateAccountName": {
+                    spaceSegment.updateAccountNameActions.push(action);
+                    break;
+                }
                 default: {
                     // Ignore...
                     break;
                 }
             }
         }
+
+        // Put updated accounts in `referencedAccountById`. If an account already
+        // exists in the map with the latest version then we don't need to override it.
+        for (const newAccount of actionReferencedAccounts) {
+            const oldAccount = spaceSegment.actionReferencedAccountById.get(newAccount.id);
+            if (!oldAccount || oldAccount.initialData.version < newAccount.initialData.version) {
+                spaceSegment.actionReferencedAccountById.set(newAccount.id, newAccount);
+            }
+        }
+    }
+
+    private _getActionReferencedAccountName(
+        spaceId: SpaceId,
+        accountId: AccountId,
+    ): {
+        name: string;
+        nameVersion: number;
+    } {
+        let segment = this._newestSegment;
+        while (segment !== null) {
+            const account = segment.spaceSegmentById
+                .get(spaceId)
+                ?.actionReferencedAccountById.get(accountId);
+            if (account) {
+                return {
+                    name: account.initialData.name,
+                    nameVersion: account.initialData.nameVersion,
+                };
+            }
+
+            segment = segment.olderSegment;
+        }
+
+        throw new InternalError(
+            "Expected account referenced by task action to be available in action history",
+        );
     }
 
     /**
@@ -375,8 +451,21 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
     public iterateActions(
         tracer: TracerBase,
         spaceId: SpaceId,
-        callback: (action: TaskAction) => void,
+        callback: (
+            action: TaskAction,
+            options: {
+                getActionReferencedAccountName: (accountId: AccountId) => {
+                    name: string;
+                    nameVersion: number;
+                };
+            },
+        ) => void,
     ) {
+        const options = {
+            getActionReferencedAccountName: (accountId: AccountId) =>
+                this._getActionReferencedAccountName(spaceId, accountId),
+        };
+
         let segment = this._oldestSegment;
         while (segment !== null) {
             const spaceSegment = segment.spaceSegmentById.get(spaceId);
@@ -388,7 +477,7 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
                     const actions = spaceSegment.actionTransactions[i]!.actions;
 
                     for (const action of actions) {
-                        callback(action);
+                        callback(action, options);
                     }
                 }
             }
@@ -405,15 +494,37 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
         tracer: TracerBase,
         spaceId: SpaceId,
         taskId: TaskId,
-        callback: (actionTime: HybridLogicalTime, action: TaskTaskAction) => void,
+        callback: (
+            action: TaskUpdateTaskAction | TaskUpdateAccountNameAction,
+            options: {
+                getActionReferencedAccountName: (accountId: AccountId) => {
+                    name: string;
+                    nameVersion: number;
+                };
+            },
+        ) => void,
     ) {
+        const options = {
+            getActionReferencedAccountName: (accountId: AccountId) =>
+                this._getActionReferencedAccountName(spaceId, accountId),
+        };
+
         let segment = this._oldestSegment;
         while (segment !== null) {
-            const actions = segment.spaceSegmentById.get(spaceId)?.actionsByTaskId.get(taskId);
+            const spaceSegment = segment.spaceSegmentById.get(spaceId);
 
-            if (actions !== undefined) {
-                for (const action of actions) {
-                    callback(action.time, action.taskAction);
+            if (spaceSegment !== undefined) {
+                const actions = spaceSegment.actionsByTaskId.get(taskId);
+
+                if (actions !== undefined) {
+                    for (const action of actions) {
+                        callback(action, options);
+                    }
+                }
+
+                // `UpdateAccountName` actions need to be applied against every task.
+                for (const action of spaceSegment.updateAccountNameActions) {
+                    callback(action, options);
                 }
             }
 
@@ -429,44 +540,34 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
         tracer: TracerBase,
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
-        callback: (actionTime: HybridLogicalTime, action: TaskCollectionAction) => void,
+        callback: (
+            action: TaskUpdateCollectionAction,
+            options: {
+                getActionReferencedAccountName: (accountId: AccountId) => {
+                    name: string;
+                    nameVersion: number;
+                };
+            },
+        ) => void,
     ) {
-        tracer.withSpanSync("Iterate individual task collection action history", span => {
-            span.addData({
-                context: {
-                    spaceId,
-                    taskCollectionId: collectionId,
-                },
-            });
+        const options = {
+            getActionReferencedAccountName: (accountId: AccountId) =>
+                this._getActionReferencedAccountName(spaceId, accountId),
+        };
 
-            let actionHistorySegmentCount = 0;
-            let actionCount = 0;
+        let segment = this._oldestSegment;
+        while (segment !== null) {
+            const actions = segment.spaceSegmentById
+                .get(spaceId)
+                ?.actionsByCollectionId.get(collectionId);
 
-            let segment = this._oldestSegment;
-            while (segment !== null) {
-                actionHistorySegmentCount++;
-
-                const actions = segment.spaceSegmentById
-                    .get(spaceId)
-                    ?.actionsByCollectionId.get(collectionId);
-
-                if (actions !== undefined) {
-                    actionCount += actions.length;
-
-                    for (const action of actions) {
-                        callback(action.time, action.collectionAction);
-                    }
+            if (actions !== undefined) {
+                for (const action of actions) {
+                    callback(action, options);
                 }
-
-                segment = segment.newerSegment;
             }
 
-            span.addData({
-                tasks: {
-                    actionHistorySegmentCount,
-                    actionCount,
-                },
-            });
-        });
+            segment = segment.newerSegment;
+        }
     }
 }

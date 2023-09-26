@@ -41,7 +41,14 @@ export function applyTaskActionToTaskIndexDoc(
     task: TaskIndexDoc,
     actionTime: HybridLogicalTime,
     action: TaskTaskAction,
-    getActionReferencedAccountName: (accountId: AccountId) => {name: string; nameVersion: number},
+    {
+        getActionReferencedAccountName,
+    }: {
+        getActionReferencedAccountName: (accountId: AccountId) => {
+            name: string;
+            nameVersion: number;
+        };
+    },
 ): TaskIndexDoc {
     switch (action.type) {
         case "Create": {

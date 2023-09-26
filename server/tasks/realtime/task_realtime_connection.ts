@@ -9,7 +9,6 @@ import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js"
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {
-    collectReferencedAccountIdsFromTaskAction,
     collectReferencedAccountIdsFromTaskModelData,
     prepareTaskActionForClient,
     prepareTaskCollectionForClient,
@@ -57,6 +56,7 @@ import {
     TaskRealtimeQuerySubscriptionId,
     TaskRealtimeTaskSubscriptionId,
 } from "~/shared/id/types/id_types.js";
+import {collectReferencedAccountIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_account_ids_from_task_action.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {

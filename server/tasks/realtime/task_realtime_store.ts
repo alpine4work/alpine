@@ -2,6 +2,7 @@ import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/data/apply_task_action_to_task_index_doc.js";
 import {applyTaskCollectionActionToCollectionIndexDoc} from "~/server/tasks/data/apply_task_collection_action_to_collection_index_doc.js";
+import {applyTaskUpdateAccountNameToTaskIndexDoc} from "~/server/tasks/data/apply_task_update_account_name_to_task_index_doc.js";
 import {createEmptyTaskCollectionIndexDoc} from "~/server/tasks/data/create_empty_task_collection_index_doc.js";
 import {createEmptyTaskIndexDoc} from "~/server/tasks/data/create_empty_task_index_doc.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
@@ -29,6 +30,7 @@ import {
     TaskRealtimeTaskSubscriptionInternal,
 } from "~/server/tasks/realtime/task_realtime_task_subscription.js";
 import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
 import {InternalError} from "~/shared/error/error.js";
 import {isNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
@@ -37,11 +39,12 @@ import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exp
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {stringifyForDeepEqualCheck} from "~/shared/helpers/control/stringify_for_deep_equal_check.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
@@ -217,9 +220,10 @@ export class TaskRealtimeStore {
     public applyActionTransaction(
         context: TaskRealtimeSystemActionContext,
         actions: ReadonlyArray<TaskAction>,
+        actionReferencedAccountById: ReadonlyMap<AccountId, AccountModel>,
     ): Promise<void> {
         return this._withFatalErrorHandling(context, () =>
-            this._internal.applyActionTransaction(context, actions),
+            this._internal.applyActionTransaction(context, actions, actionReferencedAccountById),
         );
     }
 
@@ -606,12 +610,14 @@ export class TaskRealtimeStoreInternal {
     public applyActionTransaction(
         context: TaskRealtimeSystemActionContext,
         actions: ReadonlyArray<TaskAction>,
+        actionReferencedAccountById: ReadonlyMap<AccountId, AccountModel>,
     ): Promise<void> {
         const eventBuilder = new TaskRealtimeUpdateEventBuilder();
 
         const queriesByMaybeAddVisibleTaskIdToLoad = this._applyActionTransactionSync(
             context,
             actions,
+            actionReferencedAccountById,
             eventBuilder,
         );
 
@@ -628,6 +634,7 @@ export class TaskRealtimeStoreInternal {
     private _applyActionTransactionSync(
         context: TaskRealtimeSystemActionContext,
         actions: ReadonlyArray<TaskAction>,
+        actionReferencedAccountById: ReadonlyMap<AccountId, AccountModel>,
         eventBuilder: TaskRealtimeUpdateEventBuilder,
     ) {
         const updatedTaskEntriesById = new Map<
@@ -669,6 +676,11 @@ export class TaskRealtimeStoreInternal {
                             oldTask,
                             action.time,
                             action.taskAction,
+                            {
+                                getActionReferencedAccountName: accountId =>
+                                    assertExists(actionReferencedAccountById.get(accountId))
+                                        .initialData,
+                            },
                         );
                         taskEntry.task = newTask;
 
@@ -695,10 +707,19 @@ export class TaskRealtimeStoreInternal {
                     else if (action.taskAction.type === "Create") {
                         const task = createEmptyTaskIndexDoc(action.time, action.taskAction);
 
+                        const creatorName = assertExists(
+                            actionReferencedAccountById.get(action.taskAction.creatorId),
+                        ).initialData;
+
                         const taskEntry = new TaskRealtimeStoreTaskEntry(this, {
                             id: action.taskId,
                             spaceId: this.spaceId,
                             ...task,
+                            creator: {
+                                accountId: action.taskAction.creatorId,
+                                workingAccountName: creatorName.name,
+                                workingAccountNameVersion: creatorName.nameVersion,
+                            },
                         });
                         this._taskEntryById.set(action.taskId, taskEntry);
 
@@ -789,6 +810,36 @@ export class TaskRealtimeStoreInternal {
                     // Doesn't affect store data
                     break;
                 }
+                case "UpdateAccountName": {
+                    for (const taskEntry of this._taskEntryById.values()) {
+                        const oldTask = taskEntry.task;
+                        const newTask = applyTaskUpdateAccountNameToTaskIndexDoc(oldTask, action);
+
+                        // If nothing changed in the task (probably because the account is not
+                        // referenced by the task) then ignore and carry on.
+                        if (oldTask === newTask) break;
+
+                        taskEntry.task = newTask;
+
+                        // Clients won't see this action if no affected tasks were updated.
+                        //
+                        // This is different than the `UpdateTask` and `UpdateCollection` behavior
+                        // where we always send actions down to clients even if the task doesn't
+                        // change. For correctness, it should be ok to not send noop actions. More so
+                        // we choose to send noop actions for completeness. Sending a noop update
+                        // account name action to every task regardless of whether it's affected seems
+                        // inefficient so we're ok sacrificing completeness.
+                        getOrSetDefaultMapValue(updatedTaskEntriesById, newTask.id, () => ({
+                            taskEntry,
+                            oldTask,
+                            actions: [],
+                            taskReferencesSubscriptions: Array.from(
+                                taskEntry.iterateTaskReferencesSubscriptionDependents(),
+                            ),
+                        })).actions.push(action);
+                    }
+                    break;
+                }
                 default:
                     throw exhaustive(action);
             }
@@ -835,7 +886,7 @@ export class TaskRealtimeStoreInternal {
         //     {
         //         type: "UpdateTask",
         //         taskId: task1,
-        //         taskAction: {type: "UpdateParentTask", parentTaskId: null},
+        //         taskAction: {type: "UpdateParentTaskId", parentTaskId: null},
         //     },
         //     {
         //         type: "UpdateTask",
@@ -855,14 +906,14 @@ export class TaskRealtimeStoreInternal {
         // to observe every update to a task (we have assertions for this in test + dev
         // environments).
         //
-        // So this a hacky fix. If a task has an `UpdateParentTask` action we apply
+        // So this a hacky fix. If a task has an `UpdateParentTaskId` action we apply
         // updates for that task last. This could still break if we have two
-        // `UpdateParentTask`s in the same action since we don't try to determine a
-        // proper order between them. A more correct fix would be: when
+        // `UpdateParentTaskId`s in the same transaction since we don't try to
+        // determine a proper order between them. A more correct fix would be: when
         // `_onReferencedTaskRemove()` is called check if there's a pending
         // `onReferencedTaskUpdate()` call for the task and run it first. But this
         // hacky fix works in all practical cases (we don't have any double
-        // `UpdateParentTask` actions) so it's fine for now.
+        // `UpdateParentTaskId` actions) so it's fine for now.
         const updatedTaskEntries = Array.from(updatedTaskEntriesById.values()).sort(
             ({actions: actions1}, {actions: actions2}) => {
                 const getActionPriority = (action: TaskAction) => {
@@ -1134,8 +1185,19 @@ export class TaskRealtimeStoreInternal {
                 context.tracer.getTracer(),
                 this.spaceId,
                 taskId,
-                (actionTime, action) => {
-                    task = applyTaskActionToTaskIndexDoc(task, actionTime, action);
+                (action, options) => {
+                    if (action.type === "UpdateTask") {
+                        task = applyTaskActionToTaskIndexDoc(
+                            task,
+                            action.time,
+                            action.taskAction,
+                            options,
+                        );
+                    } else {
+                        cast<"UpdateAccountName">(action.type);
+
+                        task = applyTaskUpdateAccountNameToTaskIndexDoc(task, action);
+                    }
                 },
             );
 
@@ -1290,11 +1352,11 @@ export class TaskRealtimeStoreInternal {
                 context.tracer.getTracer(),
                 this.spaceId,
                 collectionId,
-                (actionTime, action) => {
+                action => {
                     collection = applyTaskCollectionActionToCollectionIndexDoc(
                         collection,
-                        actionTime,
-                        action,
+                        action.time,
+                        action.collectionAction,
                     );
                 },
             );

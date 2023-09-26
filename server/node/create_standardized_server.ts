@@ -215,7 +215,6 @@ export function createStandardizedServerWithWebSockets(
         },
     );
 
-    // NOCOMMIT: Graceful shutdown for WebSocket server
     const webSocketServer = new WebSocketServer({
         noServer: true,
         // Disable automatic handling of `Sec-WebSocket-Protocol` header, to match

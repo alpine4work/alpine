@@ -74,17 +74,24 @@ export class TestTask {
         return getTaskItemForTest(this.context, this.id);
     }
 
-    public async getIndexDocWithVersion(): Promise<TaskIndexDocWithVersion> {
+    public async getIndexDocWithVersion(options?: {
+        realtime?: boolean;
+    }): Promise<TaskIndexDocWithVersion> {
         // Wait for any indexing tasks before loading doc...
         await ProcessContextModule.waitForTestTasks();
 
-        const task = await getTaskIndexDocIfExistsForTest(this.context, this.space.id, this.id);
+        const task = await getTaskIndexDocIfExistsForTest(
+            this.context,
+            this.space.id,
+            this.id,
+            options,
+        );
         if (!task) throw new NotFoundError("Task not found");
         return task;
     }
 
-    public async getIndexDoc(): Promise<TaskIndexDoc> {
-        const {version, ...task} = await this.getIndexDocWithVersion();
+    public async getIndexDoc(options?: {realtime?: boolean}): Promise<TaskIndexDoc> {
+        const {version, ...task} = await this.getIndexDocWithVersion(options);
         return task;
     }
 
