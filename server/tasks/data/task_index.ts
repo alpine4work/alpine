@@ -787,10 +787,6 @@ function indexTaskUpdateAccountNameActionAssumingItsCommitted(
             // or only theoretical? I wonder if it makes sense to manually implement
             // `_update_by_query`. We know that no NEW tasks will have the old account name
             // so we only need to update tasks we find from an initial query.
-            //
-            // NOCOMMIT: Maybe use `refresh=wait_for` instead of waiting a set number of
-            // ms? Do this in tests too and manually trigger refreshes.
-            // https://opensearch.org/docs/latest/api-reference/document-apis/get-documents/
             if (import.meta.jest) {
                 await context.opensearch.client.refresh(context.tracer.getTracer(), TaskIndex);
             } else {
