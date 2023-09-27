@@ -54,7 +54,7 @@ export function createGetTaskActionReferencedSortableAccount(
     // application time the referenced accounts aren't garbage collected.
     const actionReferencedAccountStoreById = new Map(
         mapIterable(actionReferencedAccountIds, accountId => {
-            const accountStore = store.getAccountStoreByIdIfExists(accountId);
+            const accountStore = store.weakGetAccountStoreByIdIfExists(accountId);
 
             if (!accountStore) {
                 throw new InternalError(

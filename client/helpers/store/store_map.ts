@@ -20,6 +20,9 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
  */
 export class StoreMap<Key, Value> {
     private readonly _map: Map<Key, Value>;
+
+    // Users of this class do not observe non-determinism due to JavaScript garbage
+    // collector timing. Yay!
     private readonly _storeMap = new AdvancedWeakValuesMap<Key, ValueStore<Value | undefined>>();
 
     constructor(entries?: ReadonlyArray<readonly [Key, Value]> | null) {

@@ -39,7 +39,7 @@ const account1Store = accountStore.getAccountStore(account1);
 
 const getSortableAccount = (accountId: AccountId) => {
     const accountData = assertExists(
-        accountStore.getAccountStoreByIdIfExists(accountId),
+        accountStore.weakGetAccountStoreByIdIfExists(accountId),
     ).getSnapshot();
 
     return {

@@ -21,6 +21,21 @@ import {AccountId} from "~/shared/id/types/id_types.js";
 export class AccountClientStore {
     private _scheduledAccountUpdates: Set<AccountModel> | null = null;
 
+    // NOTE(calebmer): We broadly discourage usage of `AdvancedWeakValuesMap` since
+    // it leads to non-deterministic behavior. We use it here because it's
+    // convenient for the pervasive use of `AccountClientStore` across our
+    // codebase.
+    //
+    // You mostly call `getAccountStore()` on this class which doesn't introduce
+    // non-deterministic behavior due to JavaScript garbage collector timing.
+    // However, advanced use cases can call `weakGetAccountStoreByIdIfExists()`
+    // which does observe non-deterministic behavior due to JavaScript garbage
+    // collector timing. It's prefixed with "weak" so callers are discouraged from
+    // using it unless they know what they're doing.
+    //
+    // We could use a simple `Map` but that would lead to a memory leak since
+    // account data is never garbage collected. Account data is small so arguably a
+    // memory leak is acceptable.
     private readonly _accountDataStoreById = new AdvancedWeakValuesMap<
         AccountId,
         ValueStore<AccountModelData>
@@ -102,8 +117,12 @@ export class AccountClientStore {
 
     /**
      * Get the store for the provided `AccountId` if it exists.
+     *
+     * Even if the client previously saw an `AccountModel` for the `AccountId` we
+     * may have garbage collected the `AccountModel` data meaning this function
+     * returns null. That's why this is a "weak" get.
      */
-    public getAccountStoreByIdIfExists(accountId: AccountId): Store<AccountModelData> | null {
+    public weakGetAccountStoreByIdIfExists(accountId: AccountId): Store<AccountModelData> | null {
         return this._accountDataStoreById.get(accountId) ?? null;
     }
 
