@@ -30,6 +30,8 @@ testTaskActionPermutations({
     // OpenSearch. Only run 15% of the test permutations. Our client-side
     // implementation will run all the tests for coverage.
     percent: 0.15,
+    // Run tests concurrently to speed up execution.
+    concurrent: true,
     partitionNumber: parseInt(process.env.TEST_SHARD_INDEX ?? "0", 10) + 1,
     partitionCount: parseInt(process.env.TEST_TOTAL_SHARDS ?? "1", 10),
     account1: session1.account,

@@ -183,6 +183,11 @@ export class TaskClientStore {
         this.clock = this._internal.clock;
     }
 
+    public getInternalForTest() {
+        assert(import.meta.jest);
+        return this._internal;
+    }
+
     public getTaskCountForTest() {
         return this._internal.getTaskCountForTest();
     }
@@ -208,7 +213,7 @@ export class TaskClientStore {
     }
 
     public subscribeToBatchUpdate(
-        listener: (
+        listener: (update: {
             taskEntryUpdateById: ReadonlyMap<
                 TaskId,
                 {
@@ -216,8 +221,9 @@ export class TaskClientStore {
                     readonly oldTaskEntry: TaskClientStoreTaskEntry | null;
                     readonly newTaskEntry: TaskClientStoreTaskEntry;
                 }
-            >,
-        ) => void,
+            >;
+            updatedCollectionIds: Iterable<TaskCollectionId>;
+        }) => void,
     ) {
         return this._internal.subscribeToBatchUpdate(listener);
     }
@@ -1030,12 +1036,31 @@ export class TaskClientStoreInternal {
                             ?.store.getSnapshot();
 
                     if (!oldCollectionEntry) {
-                        newCollectionEntryById.set(action.collectionId, {
-                            collection: null,
-                            actions: [action],
-                            isAuthorized: null,
-                            authorizationEventNumber: null,
-                        });
+                        if (action.collectionAction.type !== "Create") {
+                            newCollectionEntryById.set(action.collectionId, {
+                                collection: null,
+                                actions: [action],
+                                isAuthorized: null,
+                                authorizationEventNumber: null,
+                            });
+                        } else {
+                            const newCollection = TaskCollectionModel.createFromAction(
+                                this.spaceId,
+                                action.collectionId,
+                                action.time,
+                                action.collectionAction,
+                            );
+
+                            newCollectionEntryById.set(action.collectionId, {
+                                collection: newCollection,
+                                actions: null,
+                                // If we receive the create event for a collection we assume it to be
+                                // authorized. In practice when a collection is created we'll get a backfill
+                                // for the collection instead of the create action.
+                                isAuthorized: true,
+                                authorizationEventNumber: event.number,
+                            });
+                        }
                         continue;
                     }
 
@@ -2349,7 +2374,7 @@ export class TaskClientStoreInternal {
 
     private _updateStore(
         newTaskEntryById: ReadonlyMap<TaskId, TaskClientStoreTaskEntry>,
-        newCollectionEntryById: Map<TaskCollectionId, TaskClientStoreCollectionEntry>,
+        newCollectionEntryById: ReadonlyMap<TaskCollectionId, TaskClientStoreCollectionEntry>,
     ) {
         // Apply all the updates to our store in one batch...
         batchStoreUpdates(() => {
@@ -2457,7 +2482,10 @@ export class TaskClientStoreInternal {
                     }
                 }
 
-                this._batchUpdateEventEmitter.emit(taskEntryUpdateById);
+                this._batchUpdateEventEmitter.emit({
+                    taskEntryUpdateById,
+                    updatedCollectionIds: newCollectionEntryById.keys(),
+                });
             } finally {
                 // We delay releasing tasks/collections until the end of our store update so
                 // that if one query releases a task (setting its `referenceCount` to 0) and
@@ -2534,16 +2562,17 @@ export class TaskClientStoreInternal {
         });
     }
 
-    private readonly _batchUpdateEventEmitter = new EventEmitter<
-        ReadonlyMap<
+    private readonly _batchUpdateEventEmitter = new EventEmitter<{
+        taskEntryUpdateById: ReadonlyMap<
             TaskId,
             {
                 readonly taskEntryStore: Store<TaskClientStoreTaskEntry>;
                 readonly oldTaskEntry: TaskClientStoreTaskEntry | null;
                 readonly newTaskEntry: TaskClientStoreTaskEntry;
             }
-        >
-    >();
+        >;
+        updatedCollectionIds: Iterable<TaskCollectionId>;
+    }>();
 
     /**
      * Subscribes to all store task updates.
@@ -2553,7 +2582,7 @@ export class TaskClientStoreInternal {
      * can make your own store updates that will fire listeners in the same batch.
      */
     public subscribeToBatchUpdate(
-        listener: (
+        listener: (update: {
             taskEntryUpdateById: ReadonlyMap<
                 TaskId,
                 {
@@ -2561,8 +2590,9 @@ export class TaskClientStoreInternal {
                     readonly oldTaskEntry: TaskClientStoreTaskEntry | null;
                     readonly newTaskEntry: TaskClientStoreTaskEntry;
                 }
-            >,
-        ) => void,
+            >;
+            updatedCollectionIds: Iterable<TaskCollectionId>;
+        }) => void,
     ) {
         return this._batchUpdateEventEmitter.subscribe(listener);
     }

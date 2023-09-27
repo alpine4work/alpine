@@ -526,7 +526,7 @@ export function useTaskGridViewExpansionState({
     useEffect(() => {
         const queryParentTaskId = getParentTaskIdIfChildrenQuery(query);
 
-        return store.subscribeToBatchUpdate(taskEntryUpdateById => {
+        return store.subscribeToBatchUpdate(({taskEntryUpdateById}) => {
             for (const {oldTaskEntry, newTaskEntry} of taskEntryUpdateById.values()) {
                 if (!oldTaskEntry?.task || !newTaskEntry.task) continue;
 

@@ -3214,6 +3214,7 @@ function permutator<Item>(inputArray: ReadonlyArray<Item>): Array<Array<Item>> {
  */
 export function testTaskActionPermutations({
     percent = 1,
+    concurrent = false,
     partitionNumber = 1,
     partitionCount = 1,
     account1,
@@ -3223,6 +3224,7 @@ export function testTaskActionPermutations({
     getTaskCollection,
 }: {
     percent?: number;
+    concurrent?: boolean;
     partitionNumber?: number;
     partitionCount?: number;
     account1: AccountModel;
@@ -3538,6 +3540,8 @@ export function testTaskActionPermutations({
                             await partitionTest.runTest();
                             return;
                         } catch (error) {
+                            if (!concurrent) throw error;
+
                             // Attempt each test 3 times before throwing...
                             if (attempt >= 3) throw error;
 
@@ -3564,7 +3568,7 @@ export function testTaskActionPermutations({
                     };
                 }
 
-                test.concurrent(
+                (concurrent ? test.concurrent : test)(
                     `${partitionTest.testName}`,
                     withLogging(runTestWithRetries, (result, durationMs) => {
                         const statusMark = result.ok ? chalk.green("✔") : chalk.red("✘");

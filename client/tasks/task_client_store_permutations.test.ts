@@ -2,36 +2,78 @@ import {getAccountClientStoreForClient} from "~/client/accounts/account_client_s
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {InternalError} from "~/shared/error/error.js";
-import {waitMacrotask} from "~/shared/helpers/async/wait_macrotask.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {testTaskActionPermutations} from "~/shared/tasks/test_helpers/test_task_action_permutations.js";
 
+const accountStore = getAccountClientStoreForClient();
+
+const spaceId = generateId<SpaceId>();
+let eventNumber = 1;
+
+let store: TaskClientStore;
+let retainedTaskIds = new Set<TaskId>();
+let retainedCollectionIds = new Set<TaskCollectionId>();
 let errors: Array<unknown> = [];
 
 const handleError = ({error}: {error: unknown}) => {
     errors.push(error);
 };
 
+beforeEach(() => {
+    import.meta.jest.useFakeTimers();
+
+    store = new TaskClientStore({
+        accountStore,
+        spaceId,
+        onError: handleError,
+    });
+
+    // Auto-retain tasks and collections that are updated until the end of the test.
+    store.subscribeToBatchUpdate(({taskEntryUpdateById, updatedCollectionIds}) => {
+        for (const taskId of taskEntryUpdateById.keys()) {
+            if (retainedTaskIds.has(taskId)) continue;
+            retainedTaskIds.add(taskId);
+
+            store.getInternalForTest().retainTaskEntryStore(taskId);
+        }
+
+        for (const collectionId of updatedCollectionIds) {
+            if (retainedCollectionIds.has(collectionId)) continue;
+            retainedCollectionIds.add(collectionId);
+
+            store.getInternalForTest().retainCollectionEntryStore(collectionId);
+        }
+    });
+});
+
 afterEach(() => {
+    import.meta.jest.runAllTimers();
+
     const previousErrors = errors;
     errors = [];
 
     if (previousErrors.length > 0) {
         throw InternalError.from(previousErrors[0]!, "Received error");
     }
-});
 
-const accountStore = getAccountClientStoreForClient();
+    const previousRetainedTaskIds = retainedTaskIds;
+    retainedTaskIds = new Set();
+    for (const taskId of previousRetainedTaskIds) {
+        store.getInternalForTest().releaseTaskEntryStore(taskId);
+    }
 
-const spaceId = generateId<SpaceId>();
-let eventNumber = 1;
-const store = new TaskClientStore({
-    accountStore,
-    spaceId,
-    onError: handleError,
+    const previousRetainedCollectionIds = retainedCollectionIds;
+    retainedCollectionIds = new Set();
+    for (const collectionId of previousRetainedCollectionIds) {
+        store.getInternalForTest().releaseCollectionEntryStore(collectionId);
+    }
+
+    assert(store.getTaskCountForTest() === 0, "Expected all tasks to be released");
+    assert(store.getCollectionCountForTest() === 0, "Expected all collections to be released");
 });
 
 const account1 = new AccountModel({
@@ -50,6 +92,12 @@ const account2 = new AccountModel({
     version: 0,
 });
 
+// Make sure we hold a reference to the account stores for the entire test.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const account1Store = accountStore.getAccountStore(account1);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const account2Store = accountStore.getAccountStore(account2);
+
 testTaskActionPermutations({
     account1,
     account2,
@@ -66,8 +114,7 @@ testTaskActionPermutations({
         });
     },
     getTask: taskId => {
-        // Task should exist. `WeakRef`s aren't garbage collected until the end of the
-        // current JavaScript job (synchronous code and promise reactions).
+        // Task should exist. We auto-retain tasks in our store.
         const task = assertExists(store.getTaskEntryStoreIfExists(taskId)?.getSnapshot()?.task);
 
         const taskStatus = task.getStatus();
@@ -119,8 +166,7 @@ testTaskActionPermutations({
         };
     },
     getTaskCollection: collectionId => {
-        // Collection should exist. `WeakRef`s aren't garbage collected until the end
-        // of the current JavaScript job (synchronous code and promise reactions).
+        // Task should exist. We auto-retain collections in our store.
         const collection = assertExists(
             store.getCollectionEntryStoreIfExists(collectionId)?.getSnapshot()?.collection,
         );
@@ -132,22 +178,4 @@ testTaskActionPermutations({
             accessPolicy: collection.getAccessPolicy(),
         };
     },
-});
-
-test("the store empties out after a garbage collection", async () => {
-    // We need multiple garbage collections to fully clean out the store. I'm not
-    // sure why V8 needs this.
-    await waitMacrotask();
-    global.gc!();
-    await waitMacrotask();
-    global.gc!();
-    await waitMacrotask();
-    global.gc!();
-    await waitMacrotask();
-    global.gc!();
-    await waitMacrotask();
-    global.gc!();
-
-    expect(store.getTaskCountForTest()).toEqual(0);
-    expect(store.getCollectionCountForTest()).toEqual(0);
 });

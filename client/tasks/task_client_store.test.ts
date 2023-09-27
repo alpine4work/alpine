@@ -140,7 +140,7 @@ function createAutoRetainStore() {
 
     const taskIdsWithSubscription = new Set<TaskId>();
 
-    store.subscribeToBatchUpdate(taskEntryUpdateById => {
+    store.subscribeToBatchUpdate(({taskEntryUpdateById}) => {
         for (const taskId of taskEntryUpdateById.keys()) {
             if (taskIdsWithSubscription.has(taskId)) continue;
             taskIdsWithSubscription.add(taskId);
