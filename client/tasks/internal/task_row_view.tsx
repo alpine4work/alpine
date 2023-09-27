@@ -1,18 +1,22 @@
 import {useDraggable} from "@dnd-kit/core";
-import {DotsSixVertical} from "phosphor-react";
+import {ArrowsOutSimple, DotsSixVertical} from "phosphor-react";
 import {Selection} from "prosemirror-state";
 import {Ref, forwardRef, useId, useImperativeHandle, useMemo, useRef, useState} from "react";
 import {mergeProps} from "react-aria";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
+import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu_button.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
+import {usePeekContext} from "~/client/peek/peek_remix_embed.js";
+import {usePeekStackContext} from "~/client/peek/peek_stack.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/get_new_task_position_for_query_sorted_by_position.js";
 import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
@@ -166,9 +170,12 @@ function TaskRowView(
     // transitions from a ghost task to a regular task when the user enters data.
     assert(cursor !== null ? ghostTaskId === null : ghostTaskId !== null);
 
+    const navigate = useNavigate();
     const context = useAppContext();
     const {timeZone} = useClientInfo();
     const {currentAccount} = useSpaceContext();
+    const peekContext = usePeekContext();
+    const peekStackContext = usePeekStackContext();
 
     const taskId = cursor !== null ? getTaskQuerySortCursorTaskId(cursor) : null;
     const taskEntry = useStore(taskId !== null ? query.getLoadedTaskEntryStore(taskId) : null);
@@ -676,16 +683,32 @@ function TaskRowView(
                                             tasksStyles.pointerEventsNoneNotInheritedClassName
                                         }
                                     >
-                                        {/* NOCOMMIT: {onExpand && isHovered && (
-                                        <IconButton
-                                            size="xs"
-                                            description="Expand"
-                                            pressErrorTitle="Couldn’t expand task"
-                                            onPress={onExpand}
-                                        >
-                                            <ArrowsOutSimple />
-                                        </IconButton>
-                                    )} */}
+                                        {task && isHovered && (
+                                            <IconButton
+                                                size="xs"
+                                                description="Expand"
+                                                pressErrorTitle="Couldn’t expand task"
+                                                onPress={async () => {
+                                                    // If we are already in a peek then navigate the peek instead of opening a
+                                                    // new one.
+                                                    if (peekContext?.withMobileLayout) {
+                                                        await navigate(
+                                                            `/s/${task.getSpaceId()}/tasks/${
+                                                                task.id
+                                                            }`,
+                                                        );
+                                                    } else {
+                                                        await peekStackContext.push(
+                                                            `/s/${task.getSpaceId()}/tasks/${
+                                                                task.id
+                                                            }`,
+                                                        );
+                                                    }
+                                                }}
+                                            >
+                                                <ArrowsOutSimple />
+                                            </IconButton>
+                                        )}
                                     </Box>
                                     <Box
                                         width="6"
