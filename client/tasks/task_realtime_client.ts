@@ -60,7 +60,18 @@ export class TaskRealtimeClient {
         this.store = new TaskClientStore({
             accountStore,
             spaceId,
-            onDisplayError,
+            onError: options => {
+                if (options.display) {
+                    onDisplayError(options);
+                } else {
+                    this._getContext()
+                        .tracer.getRoot()
+                        .logUncaughtException(
+                            "Uncaught exception from task client store",
+                            options.error,
+                        );
+                }
+            },
         });
     }
 

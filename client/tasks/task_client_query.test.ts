@@ -2,8 +2,9 @@ import {getAccountClientStoreForClient} from "~/client/accounts/account_client_s
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {Context} from "~/shared/context/context.js";
-import {InternalError} from "~/shared/error/error.js";
+import {DeadlineExceededError, InternalError} from "~/shared/error/error.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -22,6 +23,17 @@ import {
 } from "~/shared/tasks/task_query_normalized_filters.js";
 import {defaultTaskQueryNormalizedSorts} from "~/shared/tasks/task_query_normalized_sort.js";
 import {getTaskQuerySortCursorTaskId} from "~/shared/tasks/task_query_sort_cursor.js";
+
+beforeEach(() => {
+    import.meta.jest.useFakeTimers();
+});
+
+afterEach(() => {
+    const hadNoTimers = import.meta.jest.getTimerCount() === 0;
+    import.meta.jest.clearAllTimers();
+    import.meta.jest.useRealTimers();
+    assert(hadNoTimers, "Expected all timers to be cleaned up by the end of each test");
+});
 
 const accountStore = getAccountClientStoreForClient();
 
@@ -88,18 +100,18 @@ function getTaskEntryIfExists(store: TaskClientStore, taskId: TaskId) {
     }));
 }
 
-let displayErrors: Array<unknown> = [];
+let errors: Array<unknown> = [];
 
-const handleDisplayError = ({error}: {error: unknown}) => {
-    displayErrors.push(error);
+const handleError = ({error}: {error: unknown}) => {
+    errors.push(error);
 };
 
 afterEach(() => {
-    const previousDisplayErrors = displayErrors;
-    displayErrors = [];
+    const previousError = errors;
+    errors = [];
 
-    if (previousDisplayErrors.length > 0) {
-        throw InternalError.from(previousDisplayErrors[0]!, "Received display error");
+    if (previousError.length > 0) {
+        throw InternalError.from(previousError[0]!, "Received error");
     }
 });
 
@@ -126,7 +138,7 @@ test("if optimistic task creation is reverted then queries remove the task", asy
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
-        onDisplayError: handleDisplayError,
+        onError: handleError,
     });
 
     const action1 = {
@@ -155,6 +167,18 @@ test("if optimistic task creation is reverted then queries remove the task", asy
             priority: "High",
         },
     } satisfies TaskAction;
+
+    // Make sure the task is retained when priority is not set.
+    store.createAndRetainQuery({
+        filters: {
+            ...defaultTaskQueryNormalizedFilters,
+            creatorFilter: {
+                type: "OneOf",
+                accountIds: assertNonEmptyReadonlySet(new Set([account1.id])),
+            },
+        },
+        sorts: defaultTaskQueryNormalizedSorts,
+    });
 
     const query = store.createAndRetainQuery({
         filters: {
@@ -227,43 +251,25 @@ test("if optimistic task creation is reverted then queries remove the task", asy
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
 
-    expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: null,
-        actions: [action2],
-        optimisticState: {
-            original: {
-                task: null,
-                actions: [],
-            },
-            actions: [{isOptimistic: true, action: action2}],
-        },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
-    });
+    expect(getTaskEntryIfExists(store, task.id)).toEqual(null);
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
 
-    expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: null,
-        actions: [],
-        optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
-    });
+    expect(getTaskEntryIfExists(store, task.id)).toEqual(null);
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
 
-    expect(displayErrors.length).toEqual(2);
-    displayErrors = [];
+    expect(errors.length).toEqual(2);
+    errors = [];
 });
 
 test("task can be added to query through backfill", () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
-        onDisplayError: handleDisplayError,
+        onError: handleError,
     });
 
     const task = createTask(store);
@@ -307,10 +313,22 @@ test("task can be added to query through previously backfilled tasks", () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
-        onDisplayError: handleDisplayError,
+        onError: handleError,
     });
 
     const task = createTask(store);
+
+    // Make sure another query retains the task.
+    store.createAndRetainQuery({
+        filters: {
+            ...defaultTaskQueryNormalizedFilters,
+            creatorFilter: {
+                type: "OneOf",
+                accountIds: assertNonEmptyReadonlySet(new Set([account1.id])),
+            },
+        },
+        sorts: defaultTaskQueryNormalizedSorts,
+    });
 
     store.applyUpdateEvent({
         type: "Update",
@@ -351,7 +369,7 @@ test("task can be added to query through action", () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
-        onDisplayError: handleDisplayError,
+        onError: handleError,
     });
 
     const task = createTask(store);
@@ -365,6 +383,18 @@ test("task can be added to query through action", () => {
             priority: "High",
         },
     } satisfies TaskAction;
+
+    // Make sure another query retains the task.
+    store.createAndRetainQuery({
+        filters: {
+            ...defaultTaskQueryNormalizedFilters,
+            creatorFilter: {
+                type: "OneOf",
+                accountIds: assertNonEmptyReadonlySet(new Set([account1.id])),
+            },
+        },
+        sorts: defaultTaskQueryNormalizedSorts,
+    });
 
     const query = store.createAndRetainQuery({
         filters: {
@@ -425,7 +455,7 @@ test("task can be removed from a query through an action", () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
-        onDisplayError: handleDisplayError,
+        onError: handleError,
     });
 
     const task = createTask(store);
@@ -509,7 +539,7 @@ test("task can be moved in query through an action", () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
-        onDisplayError: handleDisplayError,
+        onError: handleError,
     });
 
     const task1 = createTask(store);
@@ -623,7 +653,7 @@ test("task can be left alone through an action", () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
-        onDisplayError: handleDisplayError,
+        onError: handleError,
     });
 
     const task1 = createTask(store);
@@ -734,7 +764,7 @@ test("task references can be added to query through backfill", () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
-        onDisplayError: handleDisplayError,
+        onError: handleError,
     });
 
     const collection1 = TaskCollectionModel.createFromAction(
@@ -978,7 +1008,7 @@ test("task references can be added to query through previous backfill", () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
-        onDisplayError: handleDisplayError,
+        onError: handleError,
     });
 
     const collection1 = TaskCollectionModel.createFromAction(
@@ -1166,6 +1196,18 @@ test("task references can be added to query through previous backfill", () => {
             getSortableAccount,
         );
 
+    // Make sure another query retains everything.
+    store.createAndRetainQuery({
+        filters: {
+            ...defaultTaskQueryNormalizedFilters,
+            creatorFilter: {
+                type: "OneOf",
+                accountIds: assertNonEmptyReadonlySet(new Set([account1.id])),
+            },
+        },
+        sorts: defaultTaskQueryNormalizedSorts,
+    });
+
     store.applyUpdateEvent({
         type: "Update",
         number: 1,
@@ -1222,7 +1264,7 @@ test("task references can be added to query through action", () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
-        onDisplayError: handleDisplayError,
+        onError: handleError,
     });
 
     const collection1 = TaskCollectionModel.createFromAction(
@@ -1499,7 +1541,7 @@ test("task references can be removed from query through actions", () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
-        onDisplayError: handleDisplayError,
+        onError: handleError,
     });
 
     const collection1 = TaskCollectionModel.createFromAction(
@@ -1828,7 +1870,7 @@ test("references from optimistic task can be removed", async () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
-        onDisplayError: handleDisplayError,
+        onError: handleError,
     });
 
     const collection1 = TaskCollectionModel.createFromAction(
@@ -1961,6 +2003,18 @@ test("references from optimistic task can be removed", async () => {
         },
         getSortableAccount,
     );
+
+    // Make sure another query retains everything.
+    store.createAndRetainQuery({
+        filters: {
+            ...defaultTaskQueryNormalizedFilters,
+            creatorFilter: {
+                type: "OneOf",
+                accountIds: assertNonEmptyReadonlySet(new Set([account1.id])),
+            },
+        },
+        sorts: defaultTaskQueryNormalizedSorts,
+    });
 
     const query = store.createAndRetainQuery({
         filters: {
@@ -2102,15 +2156,15 @@ test("references from optimistic task can be removed", async () => {
         new Set([collection1.id, collection2.id]),
     );
 
-    expect(displayErrors.length).toEqual(1);
-    displayErrors = [];
+    expect(errors.length).toEqual(1);
+    errors = [];
 });
 
 test("task references can be added and removed through actions", () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
-        onDisplayError: handleDisplayError,
+        onError: handleError,
     });
 
     const collection1 = TaskCollectionModel.createFromAction(
@@ -2397,7 +2451,7 @@ test("task references can be added and removed through actions on a referenced t
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
-        onDisplayError: handleDisplayError,
+        onError: handleError,
     });
 
     const collection1 = TaskCollectionModel.createFromAction(
@@ -2699,7 +2753,7 @@ test("task references can be added and removed through actions on a task that's 
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
-        onDisplayError: handleDisplayError,
+        onError: handleError,
     });
 
     const collection1 = TaskCollectionModel.createFromAction(
@@ -3020,7 +3074,7 @@ test("can handle a temporary cycle", () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
-        onDisplayError: handleDisplayError,
+        onError: handleError,
     });
 
     let task1 = createTask(store);
@@ -3176,7 +3230,7 @@ test("can handle a temporary cycle unrelated to loaded task", () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
-        onDisplayError: handleDisplayError,
+        onError: handleError,
     });
 
     let task1 = createTask(store);
@@ -3341,4 +3395,402 @@ test("can handle a temporary cycle unrelated to loaded task", () => {
 
     expect(query.getReferencedTaskIdsForTest()).toEqual(new Set([]));
     expect(query.getReferencedCollectionIdsForTest()).toEqual(new Set([]));
+});
+
+test("temporarily holds on to actions applied to task that wasn't backfilled", () => {
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onError: handleError,
+    });
+
+    const action = {
+        type: "UpdateTask",
+        time: store.clock.now(),
+        taskId: generateId(),
+        taskAction: {
+            type: "UpdatePriority",
+            priority: "High",
+        },
+    } satisfies TaskAction;
+
+    expect(getTaskEntryIfExists(store, action.taskId)).toEqual(null);
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 1,
+        actions: [action],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getTaskEntryIfExists(store, action.taskId)).toEqual({
+        task: null,
+        actions: [action],
+        optimisticState: null,
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    expect(errors.length).toEqual(0);
+
+    import.meta.jest.runAllTimers();
+
+    expect(getTaskEntryIfExists(store, action.taskId)).toEqual(null);
+
+    expect(errors.length).toEqual(1);
+    expect(errors[0]).toBeInstanceOf(DeadlineExceededError);
+    errors = [];
+});
+
+test("temporarily holds on to actions applied to collection that wasn't backfilled", () => {
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onError: handleError,
+    });
+
+    const action = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: generateId(),
+        collectionAction: {
+            type: "UpdateName",
+            name: "Yo",
+        },
+    } satisfies TaskAction;
+
+    expect(store.getCollectionEntryStoreIfExists(action.collectionId)).toBeNull();
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 1,
+        actions: [action],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(store.getCollectionEntryStoreIfExists(action.collectionId)).not.toBeNull();
+
+    expect(errors.length).toEqual(0);
+
+    import.meta.jest.runAllTimers();
+
+    expect(store.getCollectionEntryStoreIfExists(action.collectionId)).toBeNull();
+
+    expect(errors.length).toEqual(1);
+    expect(errors[0]).toBeInstanceOf(DeadlineExceededError);
+    errors = [];
+});
+
+test("action removing from the query immediately releases task", async () => {
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onError: handleError,
+    });
+
+    const action1 = {
+        type: "UpdateTask",
+        time: store.clock.now(),
+        taskId: generateId(),
+        taskAction: {
+            type: "Create",
+            creatorId: account1.id,
+            creatorTimeZone: defaultTimeZone,
+        },
+    } satisfies TaskAction;
+
+    const task = createTask(store, {
+        id: action1.taskId,
+        time: action1.time,
+        taskAction: action1.taskAction,
+    });
+
+    const action2 = {
+        type: "UpdateTask",
+        time: store.clock.now(),
+        taskId: task.id,
+        taskAction: {
+            type: "UpdatePriority",
+            priority: "High",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateTask",
+        time: store.clock.now(),
+        taskId: task.id,
+        taskAction: {
+            type: "UpdatePriority",
+            priority: "Low",
+        },
+    } satisfies TaskAction;
+
+    const query = store.createAndRetainQuery({
+        filters: {
+            ...defaultTaskQueryNormalizedFilters,
+            creatorFilter: {
+                type: "OneOf",
+                accountIds: assertNonEmptyReadonlySet(new Set([account1.id])),
+            },
+            priorityFilter: {
+                ifHigh: true,
+                ifNull: false,
+                ifLow: false,
+                ifMedium: false,
+                ifUrgent: false,
+            },
+        },
+        sorts: defaultTaskQueryNormalizedSorts,
+    });
+
+    store.loadTasksIntoQuery(query, {
+        limit: 100,
+        loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
+    });
+
+    expect(store.getTaskCountForTest()).toEqual(0);
+    expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 1,
+        actions: [],
+        backfillAuthorizedTasks: [task.apply(action2, getSortableAccount)],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(store.getTaskCountForTest()).toEqual(1);
+    expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
+        task.id,
+    ]);
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 1,
+        actions: [action3],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(store.getTaskCountForTest()).toEqual(0);
+    expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
+});
+
+test("optimistic update retains task until resolved", async () => {
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onError: handleError,
+    });
+
+    const action1 = {
+        type: "UpdateTask",
+        time: store.clock.now(),
+        taskId: generateId(),
+        taskAction: {
+            type: "Create",
+            creatorId: account1.id,
+            creatorTimeZone: defaultTimeZone,
+        },
+    } satisfies TaskAction;
+
+    const task = createTask(store, {
+        id: action1.taskId,
+        time: action1.time,
+        taskAction: action1.taskAction,
+    });
+
+    const action2 = {
+        type: "UpdateTask",
+        time: store.clock.now(),
+        taskId: task.id,
+        taskAction: {
+            type: "UpdatePriority",
+            priority: "High",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateTask",
+        time: store.clock.now(),
+        taskId: task.id,
+        taskAction: {
+            type: "UpdatePriority",
+            priority: "Low",
+        },
+    } satisfies TaskAction;
+
+    const query = store.createAndRetainQuery({
+        filters: {
+            ...defaultTaskQueryNormalizedFilters,
+            creatorFilter: {
+                type: "OneOf",
+                accountIds: assertNonEmptyReadonlySet(new Set([account1.id])),
+            },
+            priorityFilter: {
+                ifHigh: true,
+                ifNull: false,
+                ifLow: false,
+                ifMedium: false,
+                ifUrgent: false,
+            },
+        },
+        sorts: defaultTaskQueryNormalizedSorts,
+    });
+
+    store.loadTasksIntoQuery(query, {
+        limit: 100,
+        loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
+    });
+
+    expect(store.getTaskCountForTest()).toEqual(0);
+    expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 1,
+        actions: [],
+        backfillAuthorizedTasks: [task.apply(action2, getSortableAccount)],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(store.getTaskCountForTest()).toEqual(1);
+    expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
+        task.id,
+    ]);
+
+    store.commitTaskActionTransaction(context, [action3]);
+
+    expect(store.getTaskCountForTest()).toEqual(1);
+    expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
+
+    await TestRpcContextModule.resolveLastExecution(commitTaskActionTransaction, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(store.getTaskCountForTest()).toEqual(0);
+    expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
+});
+
+test("optimistic update retains task until rejected", async () => {
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onError: handleError,
+    });
+
+    const action1 = {
+        type: "UpdateTask",
+        time: store.clock.now(),
+        taskId: generateId(),
+        taskAction: {
+            type: "Create",
+            creatorId: account1.id,
+            creatorTimeZone: defaultTimeZone,
+        },
+    } satisfies TaskAction;
+
+    const task = createTask(store, {
+        id: action1.taskId,
+        time: action1.time,
+        taskAction: action1.taskAction,
+    });
+
+    const action2 = {
+        type: "UpdateTask",
+        time: store.clock.now(),
+        taskId: task.id,
+        taskAction: {
+            type: "UpdatePriority",
+            priority: "High",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateTask",
+        time: store.clock.now(),
+        taskId: task.id,
+        taskAction: {
+            type: "UpdatePriority",
+            priority: "Low",
+        },
+    } satisfies TaskAction;
+
+    const query = store.createAndRetainQuery({
+        filters: {
+            ...defaultTaskQueryNormalizedFilters,
+            creatorFilter: {
+                type: "OneOf",
+                accountIds: assertNonEmptyReadonlySet(new Set([account1.id])),
+            },
+            priorityFilter: {
+                ifHigh: true,
+                ifNull: false,
+                ifLow: false,
+                ifMedium: false,
+                ifUrgent: false,
+            },
+        },
+        sorts: defaultTaskQueryNormalizedSorts,
+    });
+
+    store.loadTasksIntoQuery(query, {
+        limit: 100,
+        loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
+    });
+
+    expect(store.getTaskCountForTest()).toEqual(0);
+    expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 1,
+        actions: [],
+        backfillAuthorizedTasks: [task.apply(action2, getSortableAccount)],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(store.getTaskCountForTest()).toEqual(1);
+    expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
+        task.id,
+    ]);
+
+    store.commitTaskActionTransaction(context, [action3]);
+
+    expect(store.getTaskCountForTest()).toEqual(1);
+    expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
+
+    await TestRpcContextModule.rejectLastExecution(commitTaskActionTransaction);
+
+    expect(store.getTaskCountForTest()).toEqual(1);
+    expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
+        task.id,
+    ]);
+
+    expect(errors.length).toEqual(1);
+    errors = [];
 });

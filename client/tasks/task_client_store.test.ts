@@ -4,11 +4,12 @@ import {
     TaskClientStore,
     setShouldDisableCommitTaskActionTransactionMutexForTest,
 } from "~/client/tasks/task_client_store.js";
+import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {Context} from "~/shared/context/context.js";
 import {InternalError} from "~/shared/error/error.js";
-import {waitMacrotask} from "~/shared/helpers/async/wait_macrotask.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -101,20 +102,57 @@ function getTaskEntryIfExists(store: TaskClientStore, taskId: TaskId) {
     }));
 }
 
-let displayErrors: Array<unknown> = [];
+let taskSubscriptions: Array<TaskClientTaskSubscription> = [];
+let errors: Array<unknown> = [];
 
-const handleDisplayError = ({error}: {error: unknown}) => {
-    displayErrors.push(error);
+const handleError = ({error}: {error: unknown}) => {
+    errors.push(error);
 };
 
 afterEach(() => {
-    const previousDisplayErrors = displayErrors;
-    displayErrors = [];
+    const previousErrors = errors;
+    errors = [];
 
-    if (previousDisplayErrors.length > 0) {
-        throw InternalError.from(previousDisplayErrors[0]!, "Received display error");
+    if (previousErrors.length > 0) {
+        throw InternalError.from(previousErrors[0]!, "Received error");
+    }
+
+    const taskSubscriptionStores = new Set<TaskClientStore>();
+    const previousTaskSubscriptions = taskSubscriptions;
+    taskSubscriptions = [];
+    for (const subscription of previousTaskSubscriptions) {
+        taskSubscriptionStores.add(subscription.store);
+        subscription.release();
+    }
+
+    for (const store of taskSubscriptionStores) {
+        assert(store.getTaskCountForTest() === 0, "Expected all tasks to be released");
+        assert(store.getCollectionCountForTest() === 0, "Expected all collections to be released");
     }
 });
+
+function createAutoRetainStore() {
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onError: handleError,
+    });
+
+    const taskIdsWithSubscription = new Set<TaskId>();
+
+    store.subscribeToBatchUpdate(taskEntryUpdateById => {
+        for (const taskId of taskEntryUpdateById.keys()) {
+            if (taskIdsWithSubscription.has(taskId)) continue;
+            taskIdsWithSubscription.add(taskId);
+
+            // Create a subscription to every `TaskId` we see updated so our tests don't
+            // have to worry about retaining task entries.
+            taskSubscriptions.push(store.createAndRetainTaskSubscription(taskId));
+        }
+    });
+
+    return store;
+}
 
 function createTask(
     store: TaskClientStore,
@@ -136,11 +174,7 @@ function createTask(
 }
 
 test("backfills an authorized task", () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task = createTask(store);
 
@@ -167,11 +201,7 @@ test("backfills an authorized task", () => {
 });
 
 test("backfills authorized tasks", () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task1 = createTask(store);
 
@@ -261,11 +291,7 @@ test("backfills authorized tasks", () => {
 });
 
 test("backfill merges with existing authorized task", () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task1a = createTask(store);
 
@@ -326,11 +352,7 @@ test("backfill merges with existing authorized task", () => {
 });
 
 test("backfill merges with existing unauthorized task", () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task1a = createTask(store);
 
@@ -410,11 +432,7 @@ test("backfill merges with existing unauthorized task", () => {
 });
 
 test("backfill merges behind existing unauthorized task", () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task1a = createTask(store);
 
@@ -494,11 +512,7 @@ test("backfill merges behind existing unauthorized task", () => {
 });
 
 test("backfill adds task behind existing unauthorized task", () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task1a = createTask(store);
 
@@ -559,11 +573,7 @@ test("backfill adds task behind existing unauthorized task", () => {
 });
 
 test("action is applied to authorized task", () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task1a = createTask(store);
 
@@ -623,11 +633,7 @@ test("action is applied to authorized task", () => {
 });
 
 test("action is applied to unauthorized task", () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task1a = createTask(store);
 
@@ -704,11 +710,7 @@ test("action is applied to unauthorized task", () => {
 });
 
 test("actions can be applied out of order", () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task1a = createTask(store);
 
@@ -766,11 +768,7 @@ test("actions can be applied out of order", () => {
 });
 
 test("actions can be applied out of order to unauthorized tasks", () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task1a = createTask(store);
 
@@ -847,11 +845,7 @@ test("actions can be applied out of order to unauthorized tasks", () => {
 });
 
 test("if nothing changes in the task entry after action it's left as same reference", () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task1a = createTask(store);
 
@@ -924,11 +918,7 @@ test("if nothing changes in the task entry after action it's left as same refere
 });
 
 test("if nothing changes in the task entry after backfill it's left as same reference", () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task1a = createTask(store);
 
@@ -1001,11 +991,7 @@ test("if nothing changes in the task entry after backfill it's left as same refe
 });
 
 test("action can be applied then task can be marked unauthorized", () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task1a = createTask(store);
 
@@ -1061,11 +1047,7 @@ test("action can be applied then task can be marked unauthorized", () => {
 });
 
 test("redundant unauthorized action doesn't change task", () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task1a = createTask(store);
 
@@ -1136,11 +1118,7 @@ test("redundant unauthorized action doesn't change task", () => {
 });
 
 test("create action will create a task", () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const action = {
         type: "UpdateTask",
@@ -1180,11 +1158,7 @@ test("create action will create a task", () => {
 });
 
 test("can receive create action out of order", () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const action1 = {
         type: "UpdateTask",
@@ -1253,11 +1227,7 @@ test("can receive create action out of order", () => {
 });
 
 test("can receive create action with another action within a transaction", () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const action1 = {
         type: "UpdateTask",
@@ -1307,11 +1277,7 @@ test("can receive create action with another action within a transaction", () =>
 });
 
 test("can receive create action out of order within a transaction", () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const action1 = {
         type: "UpdateTask",
@@ -1361,11 +1327,7 @@ test("can receive create action out of order within a transaction", () => {
 });
 
 test("applies commit action calls optimistically", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task = createTask(store);
 
@@ -1431,11 +1393,7 @@ test("applies commit action calls optimistically", async () => {
 });
 
 test("can create tasks optimistically", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const action1 = {
         type: "UpdateTask",
@@ -1489,11 +1447,7 @@ test("can create tasks optimistically", async () => {
 });
 
 test("can create then update tasks optimistically", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const action1 = {
         type: "UpdateTask",
@@ -1607,11 +1561,7 @@ test("can create then update tasks optimistically", async () => {
 });
 
 test("can create then update tasks optimistically and resolve commits out of order", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const action1 = {
         type: "UpdateTask",
@@ -1721,11 +1671,7 @@ test("can create then update tasks optimistically and resolve commits out of ord
 });
 
 test("can create then update tasks optimistically after an action from the server", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const action2Time = store.clock.now();
 
@@ -1876,11 +1822,7 @@ test("can create then update tasks optimistically after an action from the serve
 });
 
 test("can create then update tasks optimistically our of order", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const action1 = {
         type: "UpdateTask",
@@ -1986,11 +1928,7 @@ test("can create then update tasks optimistically our of order", async () => {
 });
 
 test("can create then update tasks optimistically out of order after an action from the server", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const action2Time = store.clock.now();
 
@@ -2133,11 +2071,7 @@ test("can create then update tasks optimistically out of order after an action f
 });
 
 test("can create then update tasks optimistically out of order with more non-create tasks", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const action2Time = store.clock.now();
 
@@ -2309,11 +2243,7 @@ test("can create then update tasks optimistically out of order with more non-cre
 });
 
 test("resolving optimistic update after garbage collection is ok", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const action1 = {
         type: "UpdateTask",
@@ -2408,8 +2338,11 @@ test("resolving optimistic update after garbage collection is ok", async () => {
         authorizationEventNumber: 0,
     });
 
-    await waitMacrotask();
-    global.gc!();
+    const previousTaskSubscriptions = taskSubscriptions;
+    taskSubscriptions = [];
+    for (const subscription of previousTaskSubscriptions) {
+        subscription.release();
+    }
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual(null);
 
@@ -2422,11 +2355,7 @@ test("resolving optimistic update after garbage collection is ok", async () => {
 });
 
 test("regular actions are added to optimistic state", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task = createTask(store);
 
@@ -2530,11 +2459,7 @@ test("regular actions are added to optimistic state", async () => {
 });
 
 test("regular actions are added to optimistic state with multiple actions", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task = createTask(store);
 
@@ -2696,11 +2621,7 @@ test("regular actions are added to optimistic state with multiple actions", asyn
 });
 
 test("regular actions are added to optimistic state with multiple actions that are committed out of order", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task = createTask(store);
 
@@ -2865,11 +2786,7 @@ test("regular actions are added to optimistic state with multiple actions that a
 });
 
 test("regular actions are added to optimistic state when task is not backfilled", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task = createTask(store);
 
@@ -2954,11 +2871,7 @@ test("regular actions are added to optimistic state when task is not backfilled"
 });
 
 test("regular actions are added to optimistic state with multiple actions when task is not backfilled", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task = createTask(store);
 
@@ -3092,11 +3005,7 @@ test("regular actions are added to optimistic state with multiple actions when t
 });
 
 test("regular actions are added to optimistic state with multiple actions that are committed out of order when task is not backfilled", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task = createTask(store);
 
@@ -3233,11 +3142,7 @@ test("regular actions are added to optimistic state with multiple actions that a
 });
 
 test("regular actions are added to optimistic state when task is created optimistically", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const action1 = {
         type: "UpdateTask",
@@ -3379,11 +3284,7 @@ test("regular actions are added to optimistic state when task is created optimis
 });
 
 test("regular actions are added to optimistic state with multiple actions when task is created optimistically", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const action1 = {
         type: "UpdateTask",
@@ -3588,11 +3489,7 @@ test("regular actions are added to optimistic state with multiple actions when t
 });
 
 test("regular actions are added to optimistic state with multiple actions that are committed out of order when task is created optimistically", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const action1 = {
         type: "UpdateTask",
@@ -3800,11 +3697,7 @@ test("regular actions are added to optimistic state with multiple actions that a
 });
 
 test("three optimistic actions when task is not backfilled", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task = createTask(store);
 
@@ -3951,11 +3844,7 @@ test("three optimistic actions when task is not backfilled", async () => {
 });
 
 test("backfilling a task when none exists and there are optimistic actions works", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task = createTask(store);
 
@@ -4068,11 +3957,7 @@ test("backfilling a task when none exists and there are optimistic actions works
 });
 
 test("backfilling a task when one is already backfilled and there are optimistic actions works", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task = createTask(store);
 
@@ -4173,11 +4058,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
 });
 
 test("backfilling a task when there are optimistic actions but no previously backfilled task works", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const action1 = {
         type: "UpdateTask",
@@ -4356,11 +4237,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
 });
 
 test("applies commit action calls optimistically (rejected)", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task = createTask(store);
 
@@ -4421,16 +4298,12 @@ test("applies commit action calls optimistically (rejected)", async () => {
         authorizationEventNumber: 1,
     });
 
-    expect(displayErrors.length).toEqual(1);
-    displayErrors = [];
+    expect(errors.length).toEqual(1);
+    errors = [];
 });
 
 test("can create tasks optimistically (rejected)", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const action1 = {
         type: "UpdateTask",
@@ -4475,16 +4348,12 @@ test("can create tasks optimistically (rejected)", async () => {
         authorizationEventNumber: 0,
     });
 
-    expect(displayErrors.length).toEqual(1);
-    displayErrors = [];
+    expect(errors.length).toEqual(1);
+    errors = [];
 });
 
 test("can create then update tasks optimistically (rejected)", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const action1 = {
         type: "UpdateTask",
@@ -4578,16 +4447,12 @@ test("can create then update tasks optimistically (rejected)", async () => {
         authorizationEventNumber: 0,
     });
 
-    expect(displayErrors.length).toEqual(2);
-    displayErrors = [];
+    expect(errors.length).toEqual(2);
+    errors = [];
 });
 
 test("can create then update tasks optimistically and resolve commits out of order (rejected)", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const action1 = {
         type: "UpdateTask",
@@ -4685,16 +4550,12 @@ test("can create then update tasks optimistically and resolve commits out of ord
         authorizationEventNumber: 0,
     });
 
-    expect(displayErrors.length).toEqual(2);
-    displayErrors = [];
+    expect(errors.length).toEqual(2);
+    errors = [];
 });
 
 test("can create then update tasks optimistically after an action from the server (rejected)", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const action2Time = store.clock.now();
 
@@ -4821,16 +4682,12 @@ test("can create then update tasks optimistically after an action from the serve
         authorizationEventNumber: 0,
     });
 
-    expect(displayErrors.length).toEqual(2);
-    displayErrors = [];
+    expect(errors.length).toEqual(2);
+    errors = [];
 });
 
 test("can create then update tasks optimistically our of order (rejected)", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const action1 = {
         type: "UpdateTask",
@@ -4924,16 +4781,12 @@ test("can create then update tasks optimistically our of order (rejected)", asyn
         authorizationEventNumber: 0,
     });
 
-    expect(displayErrors.length).toEqual(2);
-    displayErrors = [];
+    expect(errors.length).toEqual(2);
+    errors = [];
 });
 
 test("can create then update tasks optimistically out of order after an action from the server (rejected)", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const action2Time = store.clock.now();
 
@@ -5060,16 +4913,12 @@ test("can create then update tasks optimistically out of order after an action f
         authorizationEventNumber: 0,
     });
 
-    expect(displayErrors.length).toEqual(2);
-    displayErrors = [];
+    expect(errors.length).toEqual(2);
+    errors = [];
 });
 
 test("can create then update tasks optimistically out of order with more non-create tasks (rejected)", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const action2Time = store.clock.now();
 
@@ -5220,16 +5069,12 @@ test("can create then update tasks optimistically out of order with more non-cre
         authorizationEventNumber: 0,
     });
 
-    expect(displayErrors.length).toEqual(3);
-    displayErrors = [];
+    expect(errors.length).toEqual(3);
+    errors = [];
 });
 
 test("resolving optimistic update after garbage collection is ok (rejected)", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const action1 = {
         type: "UpdateTask",
@@ -5324,8 +5169,11 @@ test("resolving optimistic update after garbage collection is ok (rejected)", as
         authorizationEventNumber: 0,
     });
 
-    await waitMacrotask();
-    global.gc!();
+    const previousTaskSubscriptions = taskSubscriptions;
+    taskSubscriptions = [];
+    for (const subscription of previousTaskSubscriptions) {
+        subscription.release();
+    }
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual(null);
 
@@ -5333,16 +5181,12 @@ test("resolving optimistic update after garbage collection is ok (rejected)", as
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual(null);
 
-    expect(displayErrors.length).toEqual(1);
-    displayErrors = [];
+    expect(errors.length).toEqual(1);
+    errors = [];
 });
 
 test("regular actions are added to optimistic state (rejected)", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task = createTask(store);
 
@@ -5441,16 +5285,12 @@ test("regular actions are added to optimistic state (rejected)", async () => {
         authorizationEventNumber: 1,
     });
 
-    expect(displayErrors.length).toEqual(1);
-    displayErrors = [];
+    expect(errors.length).toEqual(1);
+    errors = [];
 });
 
 test("regular actions are added to optimistic state with multiple actions (rejected)", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task = createTask(store);
 
@@ -5598,16 +5438,12 @@ test("regular actions are added to optimistic state with multiple actions (rejec
         authorizationEventNumber: 1,
     });
 
-    expect(displayErrors.length).toEqual(2);
-    displayErrors = [];
+    expect(errors.length).toEqual(2);
+    errors = [];
 });
 
 test("regular actions are added to optimistic state with multiple actions that are committed out of order (rejected)", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task = createTask(store);
 
@@ -5758,16 +5594,12 @@ test("regular actions are added to optimistic state with multiple actions that a
         authorizationEventNumber: 1,
     });
 
-    expect(displayErrors.length).toEqual(2);
-    displayErrors = [];
+    expect(errors.length).toEqual(2);
+    errors = [];
 });
 
 test("regular actions are added to optimistic state when task is not backfilled (rejected)", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task = createTask(store);
 
@@ -5847,16 +5679,12 @@ test("regular actions are added to optimistic state when task is not backfilled 
         authorizationEventNumber: null,
     });
 
-    expect(displayErrors.length).toEqual(1);
-    displayErrors = [];
+    expect(errors.length).toEqual(1);
+    errors = [];
 });
 
 test("regular actions are added to optimistic state with multiple actions when task is not backfilled (rejected)", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task = createTask(store);
 
@@ -5982,16 +5810,12 @@ test("regular actions are added to optimistic state with multiple actions when t
         authorizationEventNumber: null,
     });
 
-    expect(displayErrors.length).toEqual(2);
-    displayErrors = [];
+    expect(errors.length).toEqual(2);
+    errors = [];
 });
 
 test("regular actions are added to optimistic state with multiple actions that are committed out of order when task is not backfilled (rejected)", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task = createTask(store);
 
@@ -6120,16 +5944,12 @@ test("regular actions are added to optimistic state with multiple actions that a
         authorizationEventNumber: null,
     });
 
-    expect(displayErrors.length).toEqual(2);
-    displayErrors = [];
+    expect(errors.length).toEqual(2);
+    errors = [];
 });
 
 test("regular actions are added to optimistic state when task is created optimistically (rejected)", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const action1 = {
         type: "UpdateTask",
@@ -6263,16 +6083,12 @@ test("regular actions are added to optimistic state when task is created optimis
         authorizationEventNumber: 0,
     });
 
-    expect(displayErrors.length).toEqual(2);
-    displayErrors = [];
+    expect(errors.length).toEqual(2);
+    errors = [];
 });
 
 test("regular actions are added to optimistic state with multiple actions when task is created optimistically (rejected)", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const action1 = {
         type: "UpdateTask",
@@ -6457,16 +6273,12 @@ test("regular actions are added to optimistic state with multiple actions when t
         authorizationEventNumber: 0,
     });
 
-    expect(displayErrors.length).toEqual(3);
-    displayErrors = [];
+    expect(errors.length).toEqual(3);
+    errors = [];
 });
 
 test("regular actions are added to optimistic state with multiple actions that are committed out of order when task is created optimistically (rejected)", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const action1 = {
         type: "UpdateTask",
@@ -6654,16 +6466,12 @@ test("regular actions are added to optimistic state with multiple actions that a
         authorizationEventNumber: 0,
     });
 
-    expect(displayErrors.length).toEqual(3);
-    displayErrors = [];
+    expect(errors.length).toEqual(3);
+    errors = [];
 });
 
 test("three optimistic actions when task is not backfilled (rejected)", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task = createTask(store);
 
@@ -6799,16 +6607,12 @@ test("three optimistic actions when task is not backfilled (rejected)", async ()
         authorizationEventNumber: null,
     });
 
-    expect(displayErrors.length).toEqual(3);
-    displayErrors = [];
+    expect(errors.length).toEqual(3);
+    errors = [];
 });
 
 test("backfilling a task when none exists and there are optimistic actions works (rejected)", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task = createTask(store);
 
@@ -6916,16 +6720,12 @@ test("backfilling a task when none exists and there are optimistic actions works
         authorizationEventNumber: 1,
     });
 
-    expect(displayErrors.length).toEqual(1);
-    displayErrors = [];
+    expect(errors.length).toEqual(1);
+    errors = [];
 });
 
 test("backfilling a task when one is already backfilled and there are optimistic actions works (rejected)", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const task = createTask(store);
 
@@ -7021,16 +6821,12 @@ test("backfilling a task when one is already backfilled and there are optimistic
         authorizationEventNumber: 2,
     });
 
-    expect(displayErrors.length).toEqual(1);
-    displayErrors = [];
+    expect(errors.length).toEqual(1);
+    errors = [];
 });
 
 test("backfilling a task when there are optimistic actions but no previously backfilled task works (rejected)", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const action1 = {
         type: "UpdateTask",
@@ -7195,16 +6991,12 @@ test("backfilling a task when there are optimistic actions but no previously bac
         authorizationEventNumber: 2,
     });
 
-    expect(displayErrors.length).toEqual(2);
-    displayErrors = [];
+    expect(errors.length).toEqual(2);
+    errors = [];
 });
 
 test("create task applied after optimistic updates", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const action1 = {
         type: "UpdateTask",
@@ -7343,11 +7135,7 @@ test("create task applied after optimistic updates", async () => {
 });
 
 test("create task applied after optimistic updates that are resolved out of order", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const action1 = {
         type: "UpdateTask",
@@ -7489,11 +7277,7 @@ test("create task applied after optimistic updates that are resolved out of orde
 });
 
 test("create task applied after optimistic updates (rejected)", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const action1 = {
         type: "UpdateTask",
@@ -7624,16 +7408,12 @@ test("create task applied after optimistic updates (rejected)", async () => {
         authorizationEventNumber: 1,
     });
 
-    expect(displayErrors.length).toEqual(2);
-    displayErrors = [];
+    expect(errors.length).toEqual(2);
+    errors = [];
 });
 
 test("create task applied after optimistic updates that are resolved out of order (rejected)", async () => {
-    const store = new TaskClientStore({
-        accountStore,
-        spaceId: generateId(),
-        onDisplayError: handleDisplayError,
-    });
+    const store = createAutoRetainStore();
 
     const action1 = {
         type: "UpdateTask",
@@ -7767,6 +7547,6 @@ test("create task applied after optimistic updates that are resolved out of orde
         authorizationEventNumber: 1,
     });
 
-    expect(displayErrors.length).toEqual(2);
-    displayErrors = [];
+    expect(errors.length).toEqual(2);
+    errors = [];
 });

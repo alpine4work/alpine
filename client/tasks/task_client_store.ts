@@ -10,7 +10,7 @@ import {TaskClientQuery, TaskClientQueryInternal} from "~/client/tasks/task_clie
 import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
 import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_clock.js";
 import {Context} from "~/shared/context/context.js";
-import {InternalError} from "~/shared/error/error.js";
+import {DeadlineExceededError, InternalError} from "~/shared/error/error.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {Clock} from "~/shared/helpers/clock/clock.js";
 import {
@@ -23,6 +23,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {noop} from "~/shared/helpers/control/noop.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
@@ -162,16 +163,20 @@ export class TaskClientStore {
     constructor({
         accountStore,
         spaceId,
-        onDisplayError,
+        onError,
     }: {
         accountStore: AccountClientStore;
         spaceId: SpaceId;
-        onDisplayError: (options: {title: string; error: unknown}) => void;
+        onError: (
+            options:
+                | {display: true; title: string; error: unknown}
+                | {display: false; error: unknown},
+        ) => void;
     }) {
         this._internal = new TaskClientStoreInternal(this, {
             accountStore,
             spaceId,
-            onDisplayError,
+            onError,
         });
         this.accountStore = this._internal.accountStore;
         this.spaceId = this._internal.spaceId;
@@ -304,7 +309,9 @@ export class TaskClientStoreInternal {
 
     public readonly accountStore: AccountClientStore;
     public readonly spaceId: SpaceId;
-    private readonly _onDisplayError: (options: {title: string; error: unknown}) => void;
+    private readonly _onError: (
+        options: {display: true; title: string; error: unknown} | {display: false; error: unknown},
+    ) => void;
 
     /**
      * The clock we use on the client for assigning a time to actions. This clock
@@ -387,17 +394,21 @@ export class TaskClientStoreInternal {
         {
             accountStore,
             spaceId,
-            onDisplayError,
+            onError,
         }: {
             accountStore: AccountClientStore;
             spaceId: SpaceId;
-            onDisplayError: (options: {title: string; error: unknown}) => void;
+            onError: (
+                options:
+                    | {display: true; title: string; error: unknown}
+                    | {display: false; error: unknown},
+            ) => void;
         },
     ) {
         this.external = external;
         this.accountStore = accountStore;
         this.spaceId = spaceId;
-        this._onDisplayError = onDisplayError;
+        this._onError = onError;
 
         const synchronizedSystemClockPromise = getSynchronizedSystemClock();
         let synchronizedSystemClock: Clock | null = null;
@@ -462,9 +473,20 @@ export class TaskClientStoreInternal {
         return this._collectionEntryStoreById.get(collectionId)?.store ?? null;
     }
 
+    // Allow releasing of task entry stores to be delayed. For example, while
+    // updating our store if one query releases a task then another query retains
+    // the same task then we want to keep the task around instead of garbage
+    // collecting it.
+    private _delayReleaseTaskEntryStoreIds: Set<TaskId> | null = null;
+    private _delayReleaseCollectionEntryStoreIds: Set<TaskCollectionId> | null = null;
+
     public retainTaskEntryStore(taskId: TaskId) {
         const taskEntryStore = assertExists(this._taskEntryStoreById.get(taskId));
         taskEntryStore.referenceCount++;
+
+        if (taskEntryStore.referenceCount === 1) {
+            this._delayReleaseTaskEntryStoreIds?.delete(taskId);
+        }
     }
 
     public releaseTaskEntryStore(taskId: TaskId) {
@@ -472,13 +494,47 @@ export class TaskClientStoreInternal {
         taskEntryStore.referenceCount--;
 
         if (taskEntryStore.referenceCount === 0) {
-            this._taskEntryStoreById.delete(taskId);
+            if (this._delayReleaseTaskEntryStoreIds) {
+                this._delayReleaseTaskEntryStoreIds.add(taskId);
+            } else {
+                this._taskEntryStoreById.delete(taskId);
+            }
         }
+    }
+
+    private _temporarilyRetainTaskEntryStore(taskId: TaskId) {
+        this.retainTaskEntryStore(taskId);
+
+        setTimeout(() => {
+            const taskEntryStore = assertExists(this._taskEntryStoreById.get(taskId));
+
+            // We may receive a `TaskAction` before the task is backfilled. When we receive
+            // such an action we expect to receive the task shortly thereafter! If we don't
+            // receive the task we consider it an error.
+            const taskEntry = taskEntryStore.store.getSnapshot();
+            if (taskEntry.task === null && taskEntry.actions.length > 0) {
+                this._onError({
+                    // We don't display the error in a toast to the user since while this error
+                    // will cause glitches the user might not see it. (They'd definitely see a
+                    // toast.)
+                    display: false,
+                    error: new DeadlineExceededError(
+                        "Received actions for a task that was never loaded",
+                    ),
+                });
+            }
+
+            this.releaseTaskEntryStore(taskId);
+        }, 1000 * 10);
     }
 
     public retainCollectionEntryStore(collectionId: TaskCollectionId) {
         const collectionEntryStore = assertExists(this._collectionEntryStoreById.get(collectionId));
         collectionEntryStore.referenceCount++;
+
+        if (collectionEntryStore.referenceCount === 1) {
+            this._delayReleaseCollectionEntryStoreIds?.delete(collectionId);
+        }
     }
 
     public releaseCollectionEntryStore(collectionId: TaskCollectionId) {
@@ -486,8 +542,40 @@ export class TaskClientStoreInternal {
         collectionEntryStore.referenceCount--;
 
         if (collectionEntryStore.referenceCount === 0) {
-            this._collectionEntryStoreById.delete(collectionId);
+            if (this._delayReleaseCollectionEntryStoreIds) {
+                this._delayReleaseCollectionEntryStoreIds.add(collectionId);
+            } else {
+                this._collectionEntryStoreById.delete(collectionId);
+            }
         }
+    }
+
+    private _temporarilyRetainCollectionEntryStore(collectionId: TaskCollectionId) {
+        this.retainCollectionEntryStore(collectionId);
+
+        setTimeout(() => {
+            const collectionEntryStore = assertExists(
+                this._collectionEntryStoreById.get(collectionId),
+            );
+
+            // We may receive a `TaskAction` before the collection is backfilled. When we
+            // receive such an action we expect to receive the collection shortly
+            // thereafter! If we don't receive the collection we consider it an error.
+            const collectionEntry = collectionEntryStore.store.getSnapshot();
+            if (collectionEntry.collection === null && collectionEntry.actions.length > 0) {
+                this._onError({
+                    // We don't display the error in a toast to the user since while this error
+                    // will cause glitches the user might not see it. (They'd definitely see a
+                    // toast.)
+                    display: false,
+                    error: new DeadlineExceededError(
+                        "Received actions for a task collection that was never loaded",
+                    ),
+                });
+            }
+
+            this.releaseCollectionEntryStore(collectionId);
+        }, 1000 * 10);
     }
 
     /**
@@ -1047,7 +1135,7 @@ export class TaskClientStoreInternal {
 
         const optimisticExtraActions = this._getOptimisticExtraActions(actions);
 
-        const allPendingActions = this._applyOptimisticTaskActions(
+        const {pendingActions: allPendingActions, release} = this._applyOptimisticTaskActions(
             optimisticExtraActions.length > 0 ? [...actions, ...optimisticExtraActions] : actions,
         );
 
@@ -1171,6 +1259,11 @@ export class TaskClientStoreInternal {
                             this._revertOptimisticTaskActions(optimisticExtraActions);
                         }
                     }
+
+                    // Release any references held when we applied the optimistic action. If tasks
+                    // are fully released by the optimistic action, we retain them until the action
+                    // commits in case we need to revert the action.
+                    release();
                 });
             },
             error => {
@@ -1213,7 +1306,8 @@ export class TaskClientStoreInternal {
                     failedNouns.push("notepad");
                 }
 
-                this._onDisplayError({
+                this._onError({
+                    display: true,
                     title:
                         failedNouns.length === 0
                             ? "Couldn’t save changes"
@@ -1224,12 +1318,18 @@ export class TaskClientStoreInternal {
                     error,
                 });
 
-                this._revertOptimisticTaskActions(
-                    optimisticExtraPendingActions.length > 0
-                        ? [...pendingActions, ...optimisticExtraPendingActions]
-                        : pendingActions,
-                );
-                this._revertOptimisticTaskActions(optimisticExtraPendingActions);
+                batchStoreUpdates(() => {
+                    this._revertOptimisticTaskActions(
+                        optimisticExtraPendingActions.length > 0
+                            ? [...pendingActions, ...optimisticExtraPendingActions]
+                            : pendingActions,
+                    );
+
+                    // Release any references held when we applied the optimistic action. If tasks
+                    // are fully released by the optimistic action, we retain them until the action
+                    // commits in case we need to revert the action.
+                    release();
+                });
             },
         );
 
@@ -1279,7 +1379,10 @@ export class TaskClientStoreInternal {
             },
         ];
 
-        this._applyOptimisticTaskActions(actions);
+        const releases: Array<() => void> = [];
+
+        const {release: initialRelease} = this._applyOptimisticTaskActions(actions);
+        releases.push(initialRelease);
 
         return {
             add: (titleUpdate: TaskTitleUpdate) => {
@@ -1298,7 +1401,8 @@ export class TaskClientStoreInternal {
                 };
                 actions.push(action);
 
-                this._applyOptimisticTaskActions([action]);
+                const {release} = this._applyOptimisticTaskActions([action]);
+                releases.push(release);
             },
             commit: context => {
                 assert(!isFinished);
@@ -1329,33 +1433,46 @@ export class TaskClientStoreInternal {
 
                 commitPromise.then(
                     () => {
-                        this._commitOptimisticTaskActions(
-                            actions.map(action => ({
-                                action,
-                                getActionReferencedSortableAccount: () => {
-                                    throw new InternalError(
-                                        "`UpdateTitle` task action doesn't reference any accounts",
-                                    );
-                                },
-                            })),
-                        );
+                        batchStoreUpdates(() => {
+                            this._commitOptimisticTaskActions(
+                                actions.map(action => ({
+                                    action,
+                                    getActionReferencedSortableAccount: () => {
+                                        throw new InternalError(
+                                            "`UpdateTitle` task action doesn't reference any accounts",
+                                        );
+                                    },
+                                })),
+                            );
+
+                            for (const release of releases) {
+                                release();
+                            }
+                        });
                     },
                     error => {
-                        this._onDisplayError({
+                        this._onError({
+                            display: true,
                             title: "Couldn’t save changes to task",
                             error,
                         });
 
-                        this._revertOptimisticTaskActions(
-                            actions.map(action => ({
-                                action,
-                                getActionReferencedSortableAccount: () => {
-                                    throw new InternalError(
-                                        "`UpdateTitle` task action doesn't reference any accounts",
-                                    );
-                                },
-                            })),
-                        );
+                        batchStoreUpdates(() => {
+                            this._revertOptimisticTaskActions(
+                                actions.map(action => ({
+                                    action,
+                                    getActionReferencedSortableAccount: () => {
+                                        throw new InternalError(
+                                            "`UpdateTitle` task action doesn't reference any accounts",
+                                        );
+                                    },
+                                })),
+                            );
+
+                            for (const release of releases) {
+                                release();
+                            }
+                        });
                     },
                 );
 
@@ -1419,10 +1536,11 @@ export class TaskClientStoreInternal {
         // Get any extra actions from our delete (e.g. changing child task counts).
         const optimisticExtraActions = this._getOptimisticExtraActions(optimisticDeleteActions);
 
-        const optimisticPendingActions = this._applyOptimisticTaskActions([
-            ...optimisticDeleteActions,
-            ...optimisticExtraActions,
-        ]);
+        const {pendingActions: optimisticPendingActions, release} =
+            this._applyOptimisticTaskActions([
+                ...optimisticDeleteActions,
+                ...optimisticExtraActions,
+            ]);
 
         // All of our actions are associated with a task. Make our optimistic actions
         // easier to search by putting them in a map keyed by `TaskId`.
@@ -1509,15 +1627,28 @@ export class TaskClientStoreInternal {
                             referencedAccounts,
                         });
                     }
+
+                    // Release any references held when we applied the optimistic action. If tasks
+                    // are fully released by the optimistic action, we retain them until the action
+                    // commits in case we need to revert the action.
+                    release();
                 });
             },
             error => {
-                this._onDisplayError({
+                this._onError({
+                    display: true,
                     title: "Couldn’t delete task",
                     error,
                 });
 
-                this._revertOptimisticTaskActions(optimisticPendingActions);
+                batchStoreUpdates(() => {
+                    this._revertOptimisticTaskActions(optimisticPendingActions);
+
+                    // Release any references held when we applied the optimistic action. If tasks
+                    // are fully released by the optimistic action, we retain them until the action
+                    // commits in case we need to revert the action.
+                    release();
+                });
             },
         );
 
@@ -1529,7 +1660,7 @@ export class TaskClientStoreInternal {
     }
 
     private _applyOptimisticTaskActions(actions: ReadonlyArray<TaskAction>) {
-        if (actions.length === 0) return [];
+        if (actions.length === 0) return {pendingActions: [], release: noop};
 
         const newTaskEntryById = new Map<TaskId, TaskClientStoreTaskEntry>();
         const newCollectionEntryById = new Map<TaskCollectionId, TaskClientStoreCollectionEntry>();
@@ -1542,6 +1673,8 @@ export class TaskClientStoreInternal {
                 this.accountStore,
                 action,
             );
+
+            pendingActions.push({action, getActionReferencedSortableAccount});
 
             switch (action.type) {
                 case "UpdateTask": {
@@ -1723,9 +1856,57 @@ export class TaskClientStoreInternal {
             }
         }
 
-        this._updateStore(newTaskEntryById, newCollectionEntryById);
+        const previousDelayReleaseTaskEntryStoreIds = this._delayReleaseTaskEntryStoreIds;
+        const previousDelayReleaseCollectionEntryStoreIds =
+            this._delayReleaseCollectionEntryStoreIds;
 
-        return pendingActions;
+        const delayReleaseTaskEntryStoreIds = new Set<TaskId>();
+        const delayReleaseCollectionEntryStoreIds = new Set<TaskCollectionId>();
+
+        this._delayReleaseTaskEntryStoreIds = delayReleaseTaskEntryStoreIds;
+        this._delayReleaseCollectionEntryStoreIds = delayReleaseCollectionEntryStoreIds;
+
+        let releaseTaskIds: Array<TaskId>;
+        let releaseCollectionIds: Array<TaskCollectionId>;
+
+        try {
+            this._updateStore(newTaskEntryById, newCollectionEntryById);
+        } finally {
+            // Any tasks or collections that were released while updating our store, we
+            // want to retain until the optimistic action is committed or rejected. Because
+            // the task may be reintroduced to a query, say, if the optimistic action was
+            // rejected.
+
+            releaseTaskIds = Array.from(delayReleaseTaskEntryStoreIds);
+            releaseCollectionIds = Array.from(delayReleaseCollectionEntryStoreIds);
+
+            for (const taskId of releaseTaskIds) {
+                this.retainTaskEntryStore(taskId);
+            }
+
+            for (const collectionId of releaseCollectionIds) {
+                this.retainCollectionEntryStore(collectionId);
+            }
+
+            assert(delayReleaseTaskEntryStoreIds.size === 0);
+            assert(delayReleaseCollectionEntryStoreIds.size === 0);
+
+            this._delayReleaseTaskEntryStoreIds = previousDelayReleaseTaskEntryStoreIds;
+            this._delayReleaseCollectionEntryStoreIds = previousDelayReleaseCollectionEntryStoreIds;
+        }
+
+        return {
+            pendingActions,
+            release: () => {
+                for (const taskId of releaseTaskIds) {
+                    this.releaseTaskEntryStore(taskId);
+                }
+
+                for (const collectionId of releaseCollectionIds) {
+                    this.releaseCollectionEntryStore(collectionId);
+                }
+            },
+        };
     }
 
     private _commitOptimisticTaskActions(pendingActions: Iterable<TaskClientStorePendingAction>) {
@@ -2184,6 +2365,22 @@ export class TaskClientStoreInternal {
             const newTaskEntryStoreIds = new Set<TaskId>();
             const newCollectionEntryStoreIds = new Set<TaskCollectionId>();
 
+            const previousDelayReleaseTaskEntryStoreIds = this._delayReleaseTaskEntryStoreIds;
+            const previousDelayReleaseCollectionEntryStoreIds =
+                this._delayReleaseCollectionEntryStoreIds;
+
+            const delayReleaseTaskEntryStoreIds = !previousDelayReleaseTaskEntryStoreIds
+                ? new Set<TaskId>()
+                : null;
+            const delayReleaseCollectionEntryStoreIds = !previousDelayReleaseCollectionEntryStoreIds
+                ? new Set<TaskCollectionId>()
+                : null;
+
+            this._delayReleaseTaskEntryStoreIds =
+                delayReleaseTaskEntryStoreIds ?? previousDelayReleaseTaskEntryStoreIds;
+            this._delayReleaseCollectionEntryStoreIds =
+                delayReleaseCollectionEntryStoreIds ?? previousDelayReleaseCollectionEntryStoreIds;
+
             try {
                 // Update all our task stores and create new ones when necessary. Listeners
                 // will be called at the end of the batch.
@@ -2259,34 +2456,81 @@ export class TaskClientStoreInternal {
                         taskSubscription._onTaskUpdate(this, taskId, oldTaskEntry, newTaskEntry);
                     }
                 }
+
+                this._batchUpdateEventEmitter.emit(taskEntryUpdateById);
             } finally {
+                // We delay releasing tasks/collections until the end of our store update so
+                // that if one query releases a task (setting its `referenceCount` to 0) and
+                // another query wants to retain a task (setting its `referenceCount` back to
+                // 1) we don't end up deleting the task from our store.
+                {
+                    this._delayReleaseTaskEntryStoreIds = previousDelayReleaseTaskEntryStoreIds;
+                    this._delayReleaseCollectionEntryStoreIds =
+                        previousDelayReleaseCollectionEntryStoreIds;
+
+                    if (delayReleaseTaskEntryStoreIds) {
+                        for (const taskId of delayReleaseTaskEntryStoreIds) {
+                            this._taskEntryStoreById.delete(taskId);
+                        }
+                    }
+
+                    if (delayReleaseCollectionEntryStoreIds) {
+                        for (const collectionId of delayReleaseCollectionEntryStoreIds) {
+                            this._collectionEntryStoreById.delete(collectionId);
+                        }
+                    }
+                }
+
                 // Check that any tasks or collections we added with zero references got a
                 // reference when updating our subscriptions. If they didn't get a reference
                 // then the tasks/collections are immediately garbage and we clean them up.
                 //
                 // In a `finally` block so we still perform this cleanup even if something
                 // throws.
+                {
+                    for (const taskId of newTaskEntryStoreIds) {
+                        const taskEntryStore = this._taskEntryStoreById.get(taskId);
+                        if (!taskEntryStore) continue;
 
-                for (const taskId of newTaskEntryStoreIds) {
-                    const taskEntryStore = this._taskEntryStoreById.get(taskId);
-                    if (!taskEntryStore) continue;
+                        if (taskEntryStore.referenceCount === 0) {
+                            const taskEntry = taskEntryStore.store.getSnapshot();
 
-                    if (taskEntryStore.referenceCount === 0) {
-                        this._taskEntryStoreById.delete(taskId);
+                            // If we're releasing a task entry with some actions but no backing `task`,
+                            // then we're receiving events out-of-order. Hold on to the actions for a
+                            // bit while we wait for the task to be backfilled instead of immediately
+                            // releasing.
+                            if (taskEntry.task === null && taskEntry.actions.length > 0) {
+                                this._temporarilyRetainTaskEntryStore(taskId);
+                            } else {
+                                this._taskEntryStoreById.delete(taskId);
+                            }
+                        }
                     }
-                }
 
-                for (const collectionId of newCollectionEntryStoreIds) {
-                    const collectionEntryStore = this._collectionEntryStoreById.get(collectionId);
-                    if (!collectionEntryStore) continue;
+                    for (const collectionId of newCollectionEntryStoreIds) {
+                        const collectionEntryStore =
+                            this._collectionEntryStoreById.get(collectionId);
+                        if (!collectionEntryStore) continue;
 
-                    if (collectionEntryStore.referenceCount === 0) {
-                        this._collectionEntryStoreById.delete(collectionId);
+                        if (collectionEntryStore.referenceCount === 0) {
+                            const collectionEntry = collectionEntryStore.store.getSnapshot();
+
+                            // If we're releasing a collection entry with some actions but no backing
+                            // `collection`, then we're receiving events out-of-order. Hold on to the
+                            // actions for a bit while we wait for the collection to be backfilled
+                            // instead of immediately releasing.
+                            if (
+                                collectionEntry.collection === null &&
+                                collectionEntry.actions.length > 0
+                            ) {
+                                this._temporarilyRetainCollectionEntryStore(collectionId);
+                            } else {
+                                this._collectionEntryStoreById.delete(collectionId);
+                            }
+                        }
                     }
                 }
             }
-
-            this._batchUpdateEventEmitter.emit(taskEntryUpdateById);
         });
     }
 

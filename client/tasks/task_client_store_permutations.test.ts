@@ -9,18 +9,18 @@ import {generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {testTaskActionPermutations} from "~/shared/tasks/test_helpers/test_task_action_permutations.js";
 
-let displayErrors: Array<unknown> = [];
+let errors: Array<unknown> = [];
 
-const handleDisplayError = ({error}: {error: unknown}) => {
-    displayErrors.push(error);
+const handleError = ({error}: {error: unknown}) => {
+    errors.push(error);
 };
 
 afterEach(() => {
-    const previousDisplayErrors = displayErrors;
-    displayErrors = [];
+    const previousErrors = errors;
+    errors = [];
 
-    if (previousDisplayErrors.length > 0) {
-        throw InternalError.from(previousDisplayErrors[0]!, "Received display error");
+    if (previousErrors.length > 0) {
+        throw InternalError.from(previousErrors[0]!, "Received error");
     }
 });
 
@@ -31,7 +31,7 @@ let eventNumber = 1;
 const store = new TaskClientStore({
     accountStore,
     spaceId,
-    onDisplayError: handleDisplayError,
+    onError: handleError,
 });
 
 const account1 = new AccountModel({
