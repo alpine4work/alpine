@@ -150,7 +150,7 @@ function SpaceErrorRenderer({error: _error}: {error: unknown}) {
                 className={sprinkles({
                     width: "full",
                     maxWidth: "128",
-                    paddingX: "4",
+                    paddingX: "6",
                     paddingY: {desktop: "32", mobile: "16"},
                 })}
             >

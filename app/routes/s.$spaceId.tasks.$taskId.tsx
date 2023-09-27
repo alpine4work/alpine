@@ -147,7 +147,7 @@ export default function TaskRoute({withMobileLayout}: {withMobileLayout?: boolea
     } = useTaskStoreLoaderDataWithoutRetaining();
     assert(childrenQuery && taskSubscription);
 
-    // Retain our queries so they aren't destroyed after
+    // Retain our queries so they aren't destroyed while we're using them.
     useEffect(() => {
         childrenQuery.retain();
         taskSubscription.retain();

@@ -1,3 +1,4 @@
+import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {
@@ -18,10 +19,7 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
     public readonly store: TaskClientStore;
     private readonly _store: TaskClientStoreInternal;
     public readonly taskId: TaskId;
-
-    // It's important we keep a reference to the task entry store so it's not
-    // garbage collected from our `TaskClientStore`.
-    private readonly _taskEntryStore: Store<TaskClientStoreTaskEntry>;
+    private readonly _taskEntryStore: ValueStore<Store<TaskClientStoreTaskEntry>>;
 
     private readonly _errorStateStore = new ValueStore<
         {hasError: false} | {hasError: true; error: unknown}
@@ -46,10 +44,10 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
         this.store = store.external;
         this._store = store;
         this.taskId = taskId;
-        this._taskEntryStore = taskEntryStore;
+        this._taskEntryStore = new ValueStore(taskEntryStore);
 
         this.taskEntryStore = Store.map(
-            this._taskEntryStore,
+            this._taskEntryStore.flat(),
             this._errorStateStore,
             (taskEntry, errorState) => {
                 if (errorState.hasError) throw errorState.error;
@@ -58,7 +56,7 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
         );
 
         // Add dependencies...
-        this._trackTaskDependenciesFromAdd(taskEntryStore.getSnapshot());
+        this._trackTaskDependenciesFromAdd(this._taskEntryStore.getSnapshot().getSnapshot());
     }
 
     protected override _getStore() {
@@ -78,9 +76,25 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
      * we will clean up this subscription and all its data.
      */
     public retain() {
-        assert(this._referenceCount > 0, "Can't retain a released subscription");
-
         this._referenceCount++;
+
+        // If our subscription went to zero references then `retain()` is called again,
+        // we need to revive the subscription class.
+        //
+        // TODO(calebmer): If we are retaining again we should probably incorporate the
+        // old data in our class back into the store? So we can show data while the
+        // realtime client is re-subscribing.
+        if (this._referenceCount === 1) {
+            batchStoreUpdates(() => {
+                // Add the subscription back to our store.
+                const taskEntryStore =
+                    this._store.onTaskSubscriptionRetainedAgainAfterFinalRelease(this);
+                this._taskEntryStore.set(taskEntryStore);
+
+                // Add back dependencies.
+                this._trackTaskDependenciesFromAdd(taskEntryStore.getSnapshot());
+            });
+        }
     }
 
     /**
@@ -93,15 +107,19 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
         this._referenceCount--;
 
         if (this._referenceCount === 0) {
-            // Remove dependencies...
-            this._trackTaskDependenciesFromRemove(this.taskEntryStore.getSnapshot());
+            batchStoreUpdates(() => {
+                // Remove dependencies.
+                this._trackTaskDependenciesFromRemove(
+                    this._taskEntryStore.getSnapshot().getSnapshot(),
+                );
 
-            // Should have been cleared by removing all our loaded tasks.
-            assert(this._referencedTaskEntryStoreById.size === 0);
-            assert(this._referencedCollectionEntryStoreById.size === 0);
+                // Should have been cleared by removing all our loaded tasks.
+                assert(this._referencedTaskEntryStoreById.size === 0);
+                assert(this._referencedCollectionEntryStoreById.size === 0);
 
-            // Delete the subscription from our store.
-            this._store.onTaskSubscriptionFinallyReleased(this);
+                // Delete the subscription from our store.
+                this._store.onTaskSubscriptionFinallyReleased(this);
+            });
         }
     }
 

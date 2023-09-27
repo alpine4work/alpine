@@ -519,7 +519,11 @@ export class TaskClientStoreInternal {
             // such an action we expect to receive the task shortly thereafter! If we don't
             // receive the task we consider it an error.
             const taskEntry = taskEntryStore.store.getSnapshot();
-            if (taskEntry.task === null && taskEntry.actions.length > 0) {
+            if (
+                taskEntryStore.referenceCount === 0 &&
+                taskEntry.task === null &&
+                taskEntry.actions.length > 0
+            ) {
                 this._onError({
                     // We don't display the error in a toast to the user since while this error
                     // will cause glitches the user might not see it. (They'd definitely see a
@@ -569,7 +573,11 @@ export class TaskClientStoreInternal {
             // receive such an action we expect to receive the collection shortly
             // thereafter! If we don't receive the collection we consider it an error.
             const collectionEntry = collectionEntryStore.store.getSnapshot();
-            if (collectionEntry.collection === null && collectionEntry.actions.length > 0) {
+            if (
+                collectionEntryStore.referenceCount === 0 &&
+                collectionEntry.collection === null &&
+                collectionEntry.actions.length > 0
+            ) {
                 this._onError({
                     // We don't display the error in a toast to the user since while this error
                     // will cause glitches the user might not see it. (They'd definitely see a
@@ -2963,25 +2971,37 @@ export class TaskClientStoreInternal {
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
     }): TaskClientQuery {
         return batchStoreUpdates(() => {
+            // Detect if this is a child task query (filters for all child tasks, sorted by
+            // parent position). If this is a child task query then:
+            //
+            // - If a child task query already exists, let's reuse it and avoid duplicate
+            //   subscriptions.
+            // - Otherwise we should set it in our child task query map.
+            const parentTaskId = getParentTaskIdIfChildrenQuery({filters, sorts});
+            if (parentTaskId) {
+                const existingQuery =
+                    this._taskChildrenQueryByParentTaskId.getSnapshot(parentTaskId);
+                if (existingQuery) {
+                    existingQuery.retain();
+                    return existingQuery;
+                }
+            }
+
             const query = new TaskClientQueryInternal({
                 store: this,
                 filters,
                 sorts,
             });
 
+            if (parentTaskId) {
+                this._taskChildrenQueryByParentTaskId.set(parentTaskId, query.external);
+            }
+
             this._subscriptionsStore.set(subscriptions => {
                 const newQueries = new Set(subscriptions.queries);
                 newQueries.add(query.external);
                 return {...subscriptions, queries: newQueries};
             });
-
-            // Detect if this is a child task query (filters for all child tasks, sorted by
-            // parent position). If this is a child task then add it to our child task
-            // query map.
-            const parentTaskId = getParentTaskIdIfChildrenQuery(query);
-            if (parentTaskId && !this._taskChildrenQueryByParentTaskId.getSnapshot(parentTaskId)) {
-                this._taskChildrenQueryByParentTaskId.set(parentTaskId, query.external);
-            }
 
             return query.external;
         });
@@ -2998,20 +3018,29 @@ export class TaskClientStoreInternal {
     ): Array<TaskClientQuery> {
         return batchStoreUpdates(() => {
             const createdQueries = queries.map(({filters, sorts}) => {
+                // Detect if this is a child task query (filters for all child tasks, sorted by
+                // parent position). If this is a child task query then:
+                //
+                // - If a child task query already exists, let's reuse it and avoid duplicate
+                //   subscriptions.
+                // - Otherwise we should set it in our child task query map.
+                const parentTaskId = getParentTaskIdIfChildrenQuery({filters, sorts});
+                if (parentTaskId) {
+                    const existingQuery =
+                        this._taskChildrenQueryByParentTaskId.getSnapshot(parentTaskId);
+                    if (existingQuery) {
+                        existingQuery.retain();
+                        return existingQuery;
+                    }
+                }
+
                 const query = new TaskClientQueryInternal({
                     store: this,
                     filters,
                     sorts,
                 });
 
-                // Detect if this is a child task query (filters for all child tasks, sorted by
-                // parent position). If this is a child task then add it to our child task
-                // query map.
-                const parentTaskId = getParentTaskIdIfChildrenQuery(query);
-                if (
-                    parentTaskId &&
-                    !this._taskChildrenQueryByParentTaskId.getSnapshot(parentTaskId)
-                ) {
+                if (parentTaskId) {
                     this._taskChildrenQueryByParentTaskId.set(parentTaskId, query.external);
                 }
 
@@ -3022,6 +3051,10 @@ export class TaskClientStoreInternal {
                 const newQueries = new Set(subscriptions.queries);
 
                 for (const query of createdQueries) {
+                    // If we're reusing a child task query it should already have been added to our
+                    // subscriptions.
+                    if (newQueries.has(query)) continue;
+
                     newQueries.add(query);
                 }
 
@@ -3049,6 +3082,23 @@ export class TaskClientStoreInternal {
                 this._taskChildrenQueryByParentTaskId.getSnapshot(parentTaskId) === query.external
             ) {
                 this._taskChildrenQueryByParentTaskId.delete(parentTaskId);
+            }
+        });
+    }
+
+    public onQueryRetainedAgainAfterFinalRelease(query: TaskClientQueryInternal) {
+        batchStoreUpdates(() => {
+            this._subscriptionsStore.set(subscriptions => {
+                const newQueries = new Set(subscriptions.queries);
+                newQueries.add(query.external);
+                return {...subscriptions, queries: newQueries};
+            });
+
+            // If this is a child task query then add it to our child task query map if
+            // there's not already another query.
+            const parentTaskId = getParentTaskIdIfChildrenQuery(query);
+            if (parentTaskId && !this._taskChildrenQueryByParentTaskId.getSnapshot(parentTaskId)) {
+                this._taskChildrenQueryByParentTaskId.set(parentTaskId, query.external);
             }
         });
     }
@@ -3193,9 +3243,8 @@ export class TaskClientStoreInternal {
             return {...oldSubscriptions, taskSubscriptionsById};
         });
 
-        // Subscription holds a reference to the store. We increment `referenceCount`
-        // directly since we already have the store object.
-        taskEntryStore.referenceCount++;
+        // Retain the new store.
+        this.retainTaskEntryStore(taskId);
 
         return taskSubscription;
     }
@@ -3221,6 +3270,46 @@ export class TaskClientStoreInternal {
 
             return {...oldSubscriptions, taskSubscriptionsById};
         });
+    }
+
+    public onTaskSubscriptionRetainedAgainAfterFinalRelease(
+        taskSubscription: TaskClientTaskSubscription,
+    ) {
+        const taskEntryStore = getOrSetDefaultMapValue(
+            this._taskEntryStoreById,
+            taskSubscription.taskId,
+            () => ({
+                referenceCount: 0,
+                store: new ValueStore<TaskClientStoreTaskEntry>({
+                    task: null,
+                    actions: [],
+                    optimisticState: null,
+                    isAuthorized: null,
+                    authorizationEventNumber: null,
+                }),
+            }),
+        );
+
+        // Add the store back to our subscriptions.
+        this._subscriptionsStore.set(oldSubscriptions => {
+            const taskSubscriptionsById = new Map(oldSubscriptions.taskSubscriptionsById);
+
+            const oldTaskSubscriptions = taskSubscriptionsById.get(taskSubscription.taskId);
+            if (!oldTaskSubscriptions) {
+                taskSubscriptionsById.set(taskSubscription.taskId, new Set([taskSubscription]));
+            } else {
+                const taskSubscriptions = new Set(oldTaskSubscriptions);
+                taskSubscriptions.add(taskSubscription);
+                taskSubscriptionsById.set(taskSubscription.taskId, taskSubscriptions);
+            }
+
+            return {...oldSubscriptions, taskSubscriptionsById};
+        });
+
+        // Retain the store.
+        this.retainTaskEntryStore(taskSubscription.taskId);
+
+        return taskEntryStore.store;
     }
 
     /**
@@ -3279,9 +3368,8 @@ export class TaskClientStoreInternal {
             return {...oldSubscriptions, collectionSubscriptionsById};
         });
 
-        // Subscription holds a reference to the store. We increment `referenceCount`
-        // directly since we already have the store object.
-        collectionEntryStore.referenceCount++;
+        // Retain the new store.
+        this.retainCollectionEntryStore(collectionId);
 
         return collectionSubscription;
     }
@@ -3314,6 +3402,55 @@ export class TaskClientStoreInternal {
 
             return {...oldSubscriptions, collectionSubscriptionsById};
         });
+    }
+
+    public onCollectionSubscriptionRetainedAgainAfterFinalRelease(
+        collectionSubscription: TaskClientCollectionSubscription,
+    ) {
+        const collectionEntryStore = getOrSetDefaultMapValue(
+            this._collectionEntryStoreById,
+            collectionSubscription.collectionId,
+            () => ({
+                referenceCount: 0,
+                store: new ValueStore<TaskClientStoreCollectionEntry>({
+                    collection: null,
+                    actions: [],
+                    isAuthorized: null,
+                    authorizationEventNumber: null,
+                }),
+            }),
+        );
+
+        // Add the store back to our subscriptions.
+        this._subscriptionsStore.set(oldSubscriptions => {
+            const collectionSubscriptionsById = new Map(
+                oldSubscriptions.collectionSubscriptionsById,
+            );
+
+            const oldCollectionSubscriptions = collectionSubscriptionsById.get(
+                collectionSubscription.collectionId,
+            );
+            if (!oldCollectionSubscriptions) {
+                collectionSubscriptionsById.set(
+                    collectionSubscription.collectionId,
+                    new Set([collectionSubscription]),
+                );
+            } else {
+                const collectionSubscriptions = new Set(oldCollectionSubscriptions);
+                collectionSubscriptions.add(collectionSubscription);
+                collectionSubscriptionsById.set(
+                    collectionSubscription.collectionId,
+                    collectionSubscriptions,
+                );
+            }
+
+            return {...oldSubscriptions, collectionSubscriptionsById};
+        });
+
+        // Retain the store.
+        this.retainCollectionEntryStore(collectionSubscription.collectionId);
+
+        return collectionEntryStore.store;
     }
 }
 
