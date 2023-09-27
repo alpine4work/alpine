@@ -41,7 +41,7 @@ js_run_binary(
 
 sh_binary(
     name = "write_schema",
-    srcs = ["write_schema.sh"],
+    srcs = ["dynamo_write_schema.sh"],
     data = [
         "//server/dynamo/core:write_dynamo_schema_description",
         "//server/tracer:write_tracer_event_data_dynamo_consumed_capacity_keys",

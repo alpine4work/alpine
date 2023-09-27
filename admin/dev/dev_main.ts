@@ -259,6 +259,7 @@ ${
         : ""
 }\
 • Logs are available at: ${chalk.underline(devEnvPaths.log)}
+• Start DynamoDB GUI with: \`bazel run //admin/dynamo/local:gui\`
 
 
 `);

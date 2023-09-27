@@ -95,6 +95,8 @@
         "dedent": "^0.7.0",
         "dotenv": "^16.0.3",
         "dotenv-expand": "^9.0.0",
+        "dynamodb-admin": "^4.5.0",
+        "ejs": "^3.1.9",
         "email-validator": "^2.0.4",
         "emoji-regex": "^10.2.1",
         "env-paths": "^2.2.1",
