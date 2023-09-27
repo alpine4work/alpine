@@ -21,12 +21,12 @@ export abstract class TaskClientTaskReferencesSubscriptionBase {
 
     protected readonly _referencedTaskEntryStoreById = new Map<
         TaskId,
-        {referenceCount: number; taskEntryStore: Store<TaskClientStoreTaskEntry>}
+        {referenceCount: number; store: Store<TaskClientStoreTaskEntry>}
     >();
 
     protected readonly _referencedCollectionEntryStoreById = new Map<
         TaskCollectionId,
-        {referenceCount: number; taskEntryStore: Store<TaskClientStoreCollectionEntry>}
+        {referenceCount: number; store: Store<TaskClientStoreCollectionEntry>}
     >();
 
     private _onReferencedTaskAdd(newTaskEntry: TaskClientStoreTaskEntry) {
@@ -67,16 +67,20 @@ export abstract class TaskClientTaskReferencesSubscriptionBase {
             } else {
                 // The server makes sure all referenced collections are available so it's safe
                 // to assert. If a parent task is not available that means the server has
-                // failed to send us some data or we didn't hold a reference to the task and it
-                // was garbage collected.
+                // failed to send us some data or we didn't retain a reference to the collection
+                // and it was garbage collected.
                 const collectionEntryStore = assertExists(
                     this._getStore().getCollectionEntryStoreIfExists(newCollectionId),
                 );
 
                 this._referencedCollectionEntryStoreById.set(newCollectionId, {
                     referenceCount: 1,
-                    taskEntryStore: collectionEntryStore,
+                    store: collectionEntryStore,
                 });
+
+                // While a collection is referenced in our subscription class, it should also be
+                // referenced in the store.
+                this._getStore().retainCollectionEntryStore(newCollectionId);
             }
         }
     }
@@ -129,16 +133,20 @@ export abstract class TaskClientTaskReferencesSubscriptionBase {
                 } else {
                     // The server makes sure all referenced collections are available so it's safe
                     // to assert. If a parent task is not available that means the server has
-                    // failed to send us some data or we didn't hold a reference to the task and it
-                    // was garbage collected.
+                    // failed to send us some data or we didn't retain a reference to the collection
+                    // and it was garbage collected.
                     const collectionEntryStore = assertExists(
                         this._getStore().getCollectionEntryStoreIfExists(addedCollectionId),
                     );
 
                     this._referencedCollectionEntryStoreById.set(addedCollectionId, {
                         referenceCount: 1,
-                        taskEntryStore: collectionEntryStore,
+                        store: collectionEntryStore,
                     });
+
+                    // While a collection is referenced in our subscription class, it should also be
+                    // referenced in the store.
+                    this._getStore().retainCollectionEntryStore(addedCollectionId);
                 }
             }
 
@@ -151,6 +159,7 @@ export abstract class TaskClientTaskReferencesSubscriptionBase {
 
                 if (referencedCollectionEntryStore.referenceCount === 0) {
                     this._referencedCollectionEntryStoreById.delete(removedCollectionId);
+                    this._getStore().releaseCollectionEntryStore(removedCollectionId);
                 }
             }
         }
@@ -179,6 +188,7 @@ export abstract class TaskClientTaskReferencesSubscriptionBase {
 
             if (referencedCollectionEntryStore.referenceCount === 0) {
                 this._referencedCollectionEntryStoreById.delete(oldCollectionId);
+                this._getStore().releaseCollectionEntryStore(oldCollectionId);
             }
         }
     }
@@ -191,7 +201,7 @@ export abstract class TaskClientTaskReferencesSubscriptionBase {
         } else {
             // The server makes sure all parent tasks are available so it's safe to assert.
             // If a parent task is not available that means the server has failed to send
-            // us some data or we didn't hold a reference to the task and it was garbage
+            // us some data or we didn't retain a reference to the task and it was garbage
             // collected.
             const taskEntryStore = assertExists(
                 this._getStore().getTaskEntryStoreIfExists(newParentTaskId),
@@ -199,8 +209,12 @@ export abstract class TaskClientTaskReferencesSubscriptionBase {
 
             this._referencedTaskEntryStoreById.set(newParentTaskId, {
                 referenceCount: 1,
-                taskEntryStore,
+                store: taskEntryStore,
             });
+
+            // While a task is referenced in our subscription class, it should also be
+            // referenced in the store.
+            this._getStore().retainTaskEntryStore(newParentTaskId);
 
             this._onReferencedTaskAdd(taskEntryStore.getSnapshot());
         }
@@ -220,7 +234,8 @@ export abstract class TaskClientTaskReferencesSubscriptionBase {
 
         if (referencedTaskEntryStore.referenceCount === 0) {
             this._referencedTaskEntryStoreById.delete(oldParentTaskId);
-            this._onReferencedTaskRemove(referencedTaskEntryStore.taskEntryStore.getSnapshot());
+            this._getStore().releaseTaskEntryStore(oldParentTaskId);
+            this._onReferencedTaskRemove(referencedTaskEntryStore.store.getSnapshot());
         }
         // If we have a cycle then a task entry's one remaining reference might be a
         // reference to itself! Loop through the task's parents to see if we have a
@@ -233,7 +248,7 @@ export abstract class TaskClientTaskReferencesSubscriptionBase {
                 // a cycle.
                 if (currentReferencedTaskEntryStore.referenceCount !== 1) break;
 
-                const taskEntry = currentReferencedTaskEntryStore.taskEntryStore.getSnapshot();
+                const taskEntry = currentReferencedTaskEntryStore.store.getSnapshot();
                 if (!taskEntry.task) break;
                 const parentTaskId = taskEntry.task.getParent()?.taskId;
                 if (!parentTaskId) break;
@@ -246,6 +261,7 @@ export abstract class TaskClientTaskReferencesSubscriptionBase {
                     removingCycleStartingWithTaskId = taskEntry.task.id;
                     try {
                         this._referencedTaskEntryStoreById.delete(taskEntry.task.id);
+                        this._getStore().releaseTaskEntryStore(oldParentTaskId);
                         this._onReferencedTaskRemove(taskEntry);
                     } finally {
                         removingCycleStartingWithTaskId = previousRemovingCycleFromInitialTaskId;

@@ -15,6 +15,7 @@ import {TaskRealtimeClient} from "~/client/tasks/task_realtime_client.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {taskStoreLoaderDataKey} from "~/shared/remix/json_with_schema_shared.js";
@@ -237,8 +238,16 @@ export function TaskRealtimeClientContextProvider({
             const subscriptions = subscriptionsStore.getSnapshot();
             return (
                 subscriptions.queries.size +
-                subscriptions.taskSubscriptions.size +
-                subscriptions.collectionSubscriptions.size
+                reduceIterable(
+                    subscriptions.taskSubscriptionsById.values(),
+                    (count, {size}) => count + size,
+                    0,
+                ) +
+                reduceIterable(
+                    subscriptions.collectionSubscriptionsById.values(),
+                    (count, {size}) => count + size,
+                    0,
+                )
             );
         };
 

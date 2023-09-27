@@ -36,6 +36,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
  * [1]: https://github.com/tc39/proposal-weakrefs
  * [2]: https://en.wikipedia.org/wiki/Garbage_collection_(computer_science)
  */
+// NOCOMMIT: I kinda want to kill this
 export class AdvancedWeakValuesMap<Key, Value extends object> {
     private readonly _map = new Map<Key, WeakRef<Value>>();
 

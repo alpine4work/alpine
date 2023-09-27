@@ -56,6 +56,9 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
                 return taskEntry;
             },
         );
+
+        // Add dependencies...
+        this._trackTaskDependenciesFromAdd(taskEntryStore.getSnapshot());
     }
 
     protected override _getStore() {
@@ -90,6 +93,13 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
         this._referenceCount--;
 
         if (this._referenceCount === 0) {
+            // Remove dependencies...
+            this._trackTaskDependenciesFromRemove(this.taskEntryStore.getSnapshot());
+
+            // Should have been cleared by removing all our loaded tasks.
+            assert(this._referencedTaskEntryStoreById.size === 0);
+            assert(this._referencedCollectionEntryStoreById.size === 0);
+
             // Delete the subscription from our store.
             this._store.onTaskSubscriptionFinallyReleased(this);
         }
@@ -114,5 +124,22 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
         this._errorStateStore.set(errorState =>
             errorState.hasError ? {hasError: false} : errorState,
         );
+    }
+
+    // This is a private function we expose publicly so `TaskClientStoreInternal`
+    // can call it. To call you must prove you have access to a
+    // `TaskClientStoreInternal` instance.
+    //
+    // We could also do a `TaskClientTaskSubscription`
+    // `TaskClientTaskSubscriptionInternal` class split like we do for
+    // `TaskClientQuery` but that feels like too much for one method.
+    public _onTaskUpdate(
+        internal: TaskClientStoreInternal,
+        taskId: TaskId,
+        oldTaskEntry: TaskClientStoreTaskEntry,
+        newTaskEntry: TaskClientStoreTaskEntry,
+    ) {
+        assert(internal instanceof TaskClientStoreInternal);
+        this._trackTaskDependenciesFromUpdate(oldTaskEntry, newTaskEntry);
     }
 }

@@ -140,18 +140,12 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
 
     protected readonly _referencedTaskEntryById = new Map<
         TaskId,
-        {
-            referenceCount: number;
-            taskEntry: PromiseImmediate<TaskRealtimeStoreTaskEntry>;
-        }
+        {referenceCount: number; promise: PromiseImmediate<TaskRealtimeStoreTaskEntry>}
     >();
 
     protected readonly _referencedCollectionEntryById = new Map<
         TaskCollectionId,
-        {
-            referenceCount: number;
-            collectionEntry: PromiseImmediate<TaskRealtimeStoreCollectionEntry>;
-        }
+        {referenceCount: number; promise: PromiseImmediate<TaskRealtimeStoreCollectionEntry>}
     >();
 
     protected abstract _getStore(): TaskRealtimeStoreInternal;
@@ -284,7 +278,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
 
                     return {
                         referenceCount: 0,
-                        collectionEntry: collectionEntryPromise,
+                        promise: collectionEntryPromise,
                     };
                 },
             );
@@ -354,7 +348,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
 
                         return {
                             referenceCount: 0,
-                            collectionEntry: collectionEntryPromise,
+                            promise: collectionEntryPromise,
                         };
                     },
                 );
@@ -371,7 +365,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
 
                 if (referencedCollectionEntry.referenceCount === 0) {
                     eventBuilder.waitUntil(
-                        referencedCollectionEntry.collectionEntry.then(collectionEntry => {
+                        referencedCollectionEntry.promise.then(collectionEntry => {
                             collectionEntry.removeTaskReferencesSubscriptionDependent(this);
                             this._onReferencedCollectionRemove(
                                 eventBuilder,
@@ -408,7 +402,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
 
             if (referencedCollectionEntry.referenceCount === 0) {
                 eventBuilder.waitUntil(
-                    referencedCollectionEntry.collectionEntry.then(collectionEntry => {
+                    referencedCollectionEntry.promise.then(collectionEntry => {
                         collectionEntry.removeTaskReferencesSubscriptionDependent(this);
                         this._onReferencedCollectionRemove(
                             eventBuilder,
@@ -439,7 +433,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
             // which may recurse back into this function if there's a cycle.
             const newReferencedTaskEntry = {
                 referenceCount: 1,
-                taskEntry: taskEntryPromiseResolver.promise,
+                promise: taskEntryPromiseResolver.promise,
             };
             this._referencedTaskEntryById.set(newParentTaskId, newReferencedTaskEntry);
 
@@ -501,7 +495,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
             this._referencedTaskEntryById.delete(oldParentTaskId);
 
             eventBuilder.waitUntil(
-                referencedTaskEntry.taskEntry.then(taskEntry => {
+                referencedTaskEntry.promise.then(taskEntry => {
                     // If we've already synchronously removed this task then stop. We don't need to
                     // remove it again. This may happen when removing a cycle from an asynchronously
                     // resolved `taskEntry`.
@@ -530,7 +524,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
                 if (currentReferencedTaskEntry.referenceCount !== 1) break;
 
                 const currentReferencedTaskEntryPromiseState =
-                    currentReferencedTaskEntry.taskEntry.getStateWithoutListening();
+                    currentReferencedTaskEntry.promise.getStateWithoutListening();
                 if (currentReferencedTaskEntryPromiseState.status !== "fulfilled") break;
 
                 const taskEntry = currentReferencedTaskEntryPromiseState.value;

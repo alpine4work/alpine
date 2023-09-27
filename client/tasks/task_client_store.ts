@@ -19,10 +19,10 @@ import {
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {AdvancedWeakValuesMap} from "~/shared/helpers/map/advanced_weak_values_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
@@ -329,9 +329,12 @@ export class TaskClientStoreInternal {
      * will eventually clean it up and remove it from this map. You need to hold a
      * reference to the `ValueStore` for all tasks that are currently visible.
      */
-    private readonly _taskEntryStoreById = new AdvancedWeakValuesMap<
+    private readonly _taskEntryStoreById = new Map<
         TaskId,
-        ValueStore<TaskClientStoreTaskEntry>
+        {
+            referenceCount: number;
+            store: ValueStore<TaskClientStoreTaskEntry>;
+        }
     >();
 
     /**
@@ -340,9 +343,12 @@ export class TaskClientStoreInternal {
      * Like `taskById`, it's not guaranteed that a collection is up-to-date if it's
      * in this map. See the documentation on `taskById` for more of an explanation.
      */
-    private readonly _collectionEntryStoreById = new AdvancedWeakValuesMap<
+    private readonly _collectionEntryStoreById = new Map<
         TaskCollectionId,
-        ValueStore<TaskClientStoreCollectionEntry>
+        {
+            referenceCount: number;
+            store: ValueStore<TaskClientStoreCollectionEntry>;
+        }
     >();
 
     /**
@@ -350,12 +356,18 @@ export class TaskClientStoreInternal {
      */
     private readonly _subscriptionsStore = new ValueStore<{
         readonly queries: ReadonlySet<TaskClientQuery>;
-        readonly taskSubscriptions: ReadonlySet<TaskClientTaskSubscription>;
-        readonly collectionSubscriptions: ReadonlySet<TaskClientCollectionSubscription>;
+        readonly taskSubscriptionsById: ReadonlyMap<
+            TaskId,
+            ReadonlySet<TaskClientTaskSubscription>
+        >;
+        readonly collectionSubscriptionsById: ReadonlyMap<
+            TaskCollectionId,
+            ReadonlySet<TaskClientCollectionSubscription>
+        >;
     }>({
         queries: new Set(),
-        taskSubscriptions: new Set(),
-        collectionSubscriptions: new Set(),
+        taskSubscriptionsById: new Map(),
+        collectionSubscriptionsById: new Map(),
     });
 
     /**
@@ -416,18 +428,24 @@ export class TaskClientStoreInternal {
 
     public getTaskCountForTest() {
         assert(import.meta.jest);
-        return this._taskEntryStoreById.getSizeForTest();
+        return this._taskEntryStoreById.size;
     }
 
     public getCollectionCountForTest() {
         assert(import.meta.jest);
-        return this._collectionEntryStoreById.getSizeForTest();
+        return this._collectionEntryStoreById.size;
     }
 
     public getSubscriptionsStore(): Store<{
         readonly queries: ReadonlySet<TaskClientQuery>;
-        readonly taskSubscriptions: ReadonlySet<TaskClientTaskSubscription>;
-        readonly collectionSubscriptions: ReadonlySet<TaskClientCollectionSubscription>;
+        readonly taskSubscriptionsById: ReadonlyMap<
+            TaskId,
+            ReadonlySet<TaskClientTaskSubscription>
+        >;
+        readonly collectionSubscriptionsById: ReadonlyMap<
+            TaskCollectionId,
+            ReadonlySet<TaskClientCollectionSubscription>
+        >;
     }> {
         // Importantly our return type returns a `Store` not a `ValueStore`. Callers
         // shouldn't be able to access `set()`.
@@ -435,13 +453,41 @@ export class TaskClientStoreInternal {
     }
 
     public getTaskEntryStoreIfExists(taskId: TaskId): Store<TaskClientStoreTaskEntry> | null {
-        return this._taskEntryStoreById.get(taskId) ?? null;
+        return this._taskEntryStoreById.get(taskId)?.store ?? null;
     }
 
     public getCollectionEntryStoreIfExists(
         collectionId: TaskCollectionId,
     ): Store<TaskClientStoreCollectionEntry> | null {
-        return this._collectionEntryStoreById.get(collectionId) ?? null;
+        return this._collectionEntryStoreById.get(collectionId)?.store ?? null;
+    }
+
+    public retainTaskEntryStore(taskId: TaskId) {
+        const taskEntryStore = assertExists(this._taskEntryStoreById.get(taskId));
+        taskEntryStore.referenceCount++;
+    }
+
+    public releaseTaskEntryStore(taskId: TaskId) {
+        const taskEntryStore = assertExists(this._taskEntryStoreById.get(taskId));
+        taskEntryStore.referenceCount--;
+
+        if (taskEntryStore.referenceCount === 0) {
+            this._taskEntryStoreById.delete(taskId);
+        }
+    }
+
+    public retainCollectionEntryStore(collectionId: TaskCollectionId) {
+        const collectionEntryStore = assertExists(this._collectionEntryStoreById.get(collectionId));
+        collectionEntryStore.referenceCount++;
+    }
+
+    public releaseCollectionEntryStore(collectionId: TaskCollectionId) {
+        const collectionEntryStore = assertExists(this._collectionEntryStoreById.get(collectionId));
+        collectionEntryStore.referenceCount--;
+
+        if (collectionEntryStore.referenceCount === 0) {
+            this._collectionEntryStoreById.delete(collectionId);
+        }
     }
 
     /**
@@ -469,7 +515,7 @@ export class TaskClientStoreInternal {
         for (const backfillTask of event.backfillAuthorizedTasks) {
             const oldTaskEntry =
                 newTaskEntryById.get(backfillTask.id) ??
-                this._taskEntryStoreById.get(backfillTask.id)?.getSnapshot();
+                this._taskEntryStoreById.get(backfillTask.id)?.store.getSnapshot();
 
             if (!oldTaskEntry) {
                 // This backfill introduced new data. Make sure our logical clock's time is
@@ -588,7 +634,7 @@ export class TaskClientStoreInternal {
         for (const backfillUnauthorizedTaskId of event.backfillUnauthorizedTaskIds) {
             const oldTaskEntry =
                 newTaskEntryById.get(backfillUnauthorizedTaskId) ??
-                this._taskEntryStoreById.get(backfillUnauthorizedTaskId)?.getSnapshot();
+                this._taskEntryStoreById.get(backfillUnauthorizedTaskId)?.store.getSnapshot();
 
             if (!oldTaskEntry) {
                 newTaskEntryById.set(backfillUnauthorizedTaskId, {
@@ -627,7 +673,7 @@ export class TaskClientStoreInternal {
         for (const backfillCollection of event.backfillAuthorizedCollections) {
             const oldCollectionEntry =
                 newCollectionEntryById.get(backfillCollection.id) ??
-                this._collectionEntryStoreById.get(backfillCollection.id)?.getSnapshot();
+                this._collectionEntryStoreById.get(backfillCollection.id)?.store.getSnapshot();
 
             if (!oldCollectionEntry) {
                 // This backfill introduced new data. Make sure our logical clock's time is
@@ -701,7 +747,9 @@ export class TaskClientStoreInternal {
         for (const backfillUnauthorizedCollectionId of event.backfillUnauthorizedCollectionIds) {
             const oldCollectionEntry =
                 newCollectionEntryById.get(backfillUnauthorizedCollectionId) ??
-                this._collectionEntryStoreById.get(backfillUnauthorizedCollectionId)?.getSnapshot();
+                this._collectionEntryStoreById
+                    .get(backfillUnauthorizedCollectionId)
+                    ?.store.getSnapshot();
 
             if (!oldCollectionEntry) {
                 newCollectionEntryById.set(backfillUnauthorizedCollectionId, {
@@ -750,7 +798,7 @@ export class TaskClientStoreInternal {
                 case "UpdateTask": {
                     const oldTaskEntry =
                         newTaskEntryById.get(action.taskId) ??
-                        this._taskEntryStoreById.get(action.taskId)?.getSnapshot();
+                        this._taskEntryStoreById.get(action.taskId)?.store.getSnapshot();
 
                     if (!oldTaskEntry) {
                         if (action.taskAction.type !== "Create") {
@@ -889,7 +937,9 @@ export class TaskClientStoreInternal {
                 case "UpdateCollection": {
                     const oldCollectionEntry =
                         newCollectionEntryById.get(action.collectionId) ??
-                        this._collectionEntryStoreById.get(action.collectionId)?.getSnapshot();
+                        this._collectionEntryStoreById
+                            .get(action.collectionId)
+                            ?.store.getSnapshot();
 
                     if (!oldCollectionEntry) {
                         newCollectionEntryById.set(action.collectionId, {
@@ -1043,7 +1093,7 @@ export class TaskClientStoreInternal {
                     for (const taskId of optimisticExtraPendingActionsByTaskId.keys()) {
                         taskByIdBeforeExtraActions.set(
                             taskId,
-                            this._taskEntryStoreById.get(taskId)?.getSnapshot().task ?? null,
+                            this._taskEntryStoreById.get(taskId)?.store.getSnapshot().task ?? null,
                         );
                     }
 
@@ -1065,7 +1115,7 @@ export class TaskClientStoreInternal {
                         taskId,
                         optimisticExtraActions,
                     ] of optimisticExtraPendingActionsByTaskId) {
-                        const taskEntry = this._taskEntryStoreById.get(taskId)?.getSnapshot();
+                        const taskEntry = this._taskEntryStoreById.get(taskId)?.store.getSnapshot();
 
                         // This task:
                         //
@@ -1497,7 +1547,7 @@ export class TaskClientStoreInternal {
                 case "UpdateTask": {
                     const oldTaskEntry =
                         newTaskEntryById.get(action.taskId) ??
-                        this._taskEntryStoreById.get(action.taskId)?.getSnapshot();
+                        this._taskEntryStoreById.get(action.taskId)?.store.getSnapshot();
 
                     // If we do not have a task entry yet then let's create one.
                     if (!oldTaskEntry) {
@@ -1687,7 +1737,7 @@ export class TaskClientStoreInternal {
                 case "UpdateTask": {
                     const oldTaskEntry =
                         newTaskEntryById.get(action.taskId) ??
-                        this._taskEntryStoreById.get(action.taskId)?.getSnapshot();
+                        this._taskEntryStoreById.get(action.taskId)?.store.getSnapshot();
 
                     // Entry has been garbage collected, ignore.
                     if (!oldTaskEntry) {
@@ -1889,7 +1939,7 @@ export class TaskClientStoreInternal {
                 case "UpdateTask": {
                     const oldTaskEntry =
                         newTaskEntryById.get(action.taskId) ??
-                        this._taskEntryStoreById.get(action.taskId)?.getSnapshot();
+                        this._taskEntryStoreById.get(action.taskId)?.store.getSnapshot();
 
                     // Entry has been garbage collected, ignore.
                     if (!oldTaskEntry) {
@@ -2131,53 +2181,109 @@ export class TaskClientStoreInternal {
                 }
             >();
 
-            // Update all our task stores and create new ones when necessary. Listeners
-            // will be called at the end of the batch.
-            for (const [taskId, newTaskEntry] of newTaskEntryById) {
-                let taskEntryStore = this._taskEntryStoreById.get(taskId);
-                const oldTaskEntry = taskEntryStore?.getSnapshot() ?? null;
+            const newTaskEntryStoreIds = new Set<TaskId>();
+            const newCollectionEntryStoreIds = new Set<TaskCollectionId>();
 
-                if (taskEntryStore === undefined) {
-                    taskEntryStore = new ValueStore(newTaskEntry);
-                    this._taskEntryStoreById.set(taskId, taskEntryStore);
-                } else {
-                    taskEntryStore.set(newTaskEntry);
+            try {
+                // Update all our task stores and create new ones when necessary. Listeners
+                // will be called at the end of the batch.
+                for (const [taskId, newTaskEntry] of newTaskEntryById) {
+                    let taskEntryStore = this._taskEntryStoreById.get(taskId);
+                    const oldTaskEntry = taskEntryStore?.store.getSnapshot() ?? null;
+
+                    if (taskEntryStore === undefined) {
+                        taskEntryStore = {
+                            referenceCount: 0,
+                            store: new ValueStore(newTaskEntry),
+                        };
+                        this._taskEntryStoreById.set(taskId, taskEntryStore);
+
+                        // If a reference isn't added to the task by the end of this function then we
+                        // immediately garbage collect the new store.
+                        newTaskEntryStoreIds.add(taskId);
+                    } else {
+                        taskEntryStore.store.set(newTaskEntry);
+                    }
+
+                    taskEntryUpdateById.set(taskId, {
+                        taskEntryStore: taskEntryStore.store,
+                        oldTaskEntry,
+                        newTaskEntry,
+                    });
+
+                    // If the old task entry was not deleted but the new task entry is then if we
+                    // have a query for this task's children, delete the reference to that query.
+                    if (
+                        !(oldTaskEntry?.task?.isDeleted() ?? true) &&
+                        (newTaskEntry.task?.isDeleted() ?? true)
+                    ) {
+                        this._taskChildrenQueryByParentTaskId.delete(taskId);
+                    }
                 }
 
-                taskEntryUpdateById.set(taskId, {
-                    taskEntryStore: taskEntryStore,
-                    oldTaskEntry,
-                    newTaskEntry,
-                });
+                // Update all our collection stores and create new ones when necessary.
+                // Listeners will be called at the end of the batch.
+                for (const [collectionId, newCollectionEntry] of newCollectionEntryById) {
+                    const collectionEntryStore = this._collectionEntryStoreById.get(collectionId);
+                    if (collectionEntryStore === undefined) {
+                        this._collectionEntryStoreById.set(collectionId, {
+                            referenceCount: 0,
+                            store: new ValueStore(newCollectionEntry),
+                        });
 
-                // If the old task entry was not deleted but the new task entry is then if we
-                // have a query for this task's children, delete the reference to that query.
-                if (
-                    !(oldTaskEntry?.task?.isDeleted() ?? true) &&
-                    (newTaskEntry.task?.isDeleted() ?? true)
-                ) {
-                    this._taskChildrenQueryByParentTaskId.delete(taskId);
+                        // If a reference isn't added to the collection by the end of this function then
+                        // we immediately garbage collect the new store.
+                        newCollectionEntryStoreIds.add(collectionId);
+                    } else {
+                        collectionEntryStore.store.set(newCollectionEntry);
+                    }
                 }
-            }
 
-            // Update all our collection stores and create new ones when necessary.
-            // Listeners will be called at the end of the batch.
-            for (const [collectionId, newCollectionEntry] of newCollectionEntryById) {
-                const collectionEntryStore = this._collectionEntryStoreById.get(collectionId);
-                if (collectionEntryStore === undefined) {
-                    this._collectionEntryStoreById.set(
-                        collectionId,
-                        new ValueStore(newCollectionEntry),
-                    );
-                } else {
-                    collectionEntryStore.set(newCollectionEntry);
+                // Apply task updates to our subscriptions. This will also update stores within
+                // the subscriptions which will call listeners at the end of the batch.
+                const subscriptions = this._subscriptionsStore.getSnapshot();
+
+                for (const query of subscriptions.queries) {
+                    query._getInternal(this).onTasksUpdated(taskEntryUpdateById);
                 }
-            }
 
-            // Apply task updates to all our queries. This will also update stores within
-            // the query which will call listeners at the end of the batch.
-            for (const query of this._subscriptionsStore.getSnapshot().queries) {
-                query._getInternal(this).onTasksUpdated(taskEntryUpdateById);
+                for (const [taskId, {oldTaskEntry, newTaskEntry}] of taskEntryUpdateById) {
+                    const taskSubscriptions = subscriptions.taskSubscriptionsById.get(taskId);
+                    if (!taskSubscriptions) continue;
+
+                    // If we have subscriptions for this task then a task entry must have already
+                    // existed in our store.
+                    assert(oldTaskEntry);
+
+                    for (const taskSubscription of taskSubscriptions) {
+                        taskSubscription._onTaskUpdate(this, taskId, oldTaskEntry, newTaskEntry);
+                    }
+                }
+            } finally {
+                // Check that any tasks or collections we added with zero references got a
+                // reference when updating our subscriptions. If they didn't get a reference
+                // then the tasks/collections are immediately garbage and we clean them up.
+                //
+                // In a `finally` block so we still perform this cleanup even if something
+                // throws.
+
+                for (const taskId of newTaskEntryStoreIds) {
+                    const taskEntryStore = this._taskEntryStoreById.get(taskId);
+                    if (!taskEntryStore) continue;
+
+                    if (taskEntryStore.referenceCount === 0) {
+                        this._taskEntryStoreById.delete(taskId);
+                    }
+                }
+
+                for (const collectionId of newCollectionEntryStoreIds) {
+                    const collectionEntryStore = this._collectionEntryStoreById.get(collectionId);
+                    if (!collectionEntryStore) continue;
+
+                    if (collectionEntryStore.referenceCount === 0) {
+                        this._collectionEntryStoreById.delete(collectionId);
+                    }
+                }
             }
 
             this._batchUpdateEventEmitter.emit(taskEntryUpdateById);
@@ -2294,7 +2400,7 @@ export class TaskClientStoreInternal {
                 const taskEntryStore = this._taskEntryStoreById.get(action.taskId);
                 const task = applyPreviousActions(
                     action.taskId,
-                    taskEntryStore?.getSnapshot().task ?? null,
+                    taskEntryStore?.store.getSnapshot().task ?? null,
                 );
                 if (!task) continue;
 
@@ -2306,7 +2412,7 @@ export class TaskClientStoreInternal {
                     const oldParentTaskEntryStore = this._taskEntryStoreById.get(oldParentTaskId);
                     const oldParentTask = applyPreviousActions(
                         oldParentTaskId,
-                        oldParentTaskEntryStore?.getSnapshot().task ?? null,
+                        oldParentTaskEntryStore?.store.getSnapshot().task ?? null,
                     );
 
                     if (oldParentTask) {
@@ -2333,7 +2439,7 @@ export class TaskClientStoreInternal {
                     const newParentTaskEntryStore = this._taskEntryStoreById.get(newParentTaskId);
                     const newParentTask = applyPreviousActions(
                         newParentTaskId,
-                        newParentTaskEntryStore?.getSnapshot().task ?? null,
+                        newParentTaskEntryStore?.store.getSnapshot().task ?? null,
                     );
 
                     if (newParentTask) {
@@ -2363,7 +2469,7 @@ export class TaskClientStoreInternal {
                 const taskEntryStore = this._taskEntryStoreById.get(action.taskId);
                 const task = applyPreviousActions(
                     action.taskId,
-                    taskEntryStore?.getSnapshot().task ?? null,
+                    taskEntryStore?.store.getSnapshot().task ?? null,
                 );
                 if (!task) continue;
 
@@ -2377,7 +2483,7 @@ export class TaskClientStoreInternal {
                 const parentTaskEntryStore = this._taskEntryStoreById.get(parentTaskId);
                 const parentTask = applyPreviousActions(
                     parentTaskId,
-                    parentTaskEntryStore?.getSnapshot().task ?? null,
+                    parentTaskEntryStore?.store.getSnapshot().task ?? null,
                 );
                 if (!parentTask) continue;
 
@@ -2404,7 +2510,7 @@ export class TaskClientStoreInternal {
                 const taskEntryStore = this._taskEntryStoreById.get(action.taskId);
                 const task = applyPreviousActions(
                     action.taskId,
-                    taskEntryStore?.getSnapshot().task ?? null,
+                    taskEntryStore?.store.getSnapshot().task ?? null,
                 );
                 if (!task) continue;
 
@@ -2414,7 +2520,7 @@ export class TaskClientStoreInternal {
                 const parentTaskEntryStore = this._taskEntryStoreById.get(parentTaskId);
                 const parentTask = applyPreviousActions(
                     parentTaskId,
-                    parentTaskEntryStore?.getSnapshot().task ?? null,
+                    parentTaskEntryStore?.store.getSnapshot().task ?? null,
                 );
 
                 if (!parentTask) continue;
@@ -2441,7 +2547,7 @@ export class TaskClientStoreInternal {
                 const taskEntryStore = this._taskEntryStoreById.get(action.taskId);
                 const task = applyPreviousActions(
                     action.taskId,
-                    taskEntryStore?.getSnapshot().task ?? null,
+                    taskEntryStore?.store.getSnapshot().task ?? null,
                 );
                 if (!task) continue;
 
@@ -2451,7 +2557,7 @@ export class TaskClientStoreInternal {
                 const parentTaskEntryStore = this._taskEntryStoreById.get(parentTaskId);
                 const parentTask = applyPreviousActions(
                     parentTaskId,
-                    parentTaskEntryStore?.getSnapshot().task ?? null,
+                    parentTaskEntryStore?.store.getSnapshot().task ?? null,
                 );
 
                 if (!parentTask) continue;
@@ -2624,7 +2730,7 @@ export class TaskClientStoreInternal {
             limit,
             loadedState,
             previouslyBackfilledTasks: previouslyBackfilledTaskIds.map(taskId => {
-                const taskEntryStore = this._taskEntryStoreById.get(taskId);
+                const taskEntryStore = this._taskEntryStoreById.get(taskId)?.store;
                 const taskEntry = taskEntryStore?.getSnapshot();
 
                 // The server only includes tasks in `previouslyBackfilledTaskIds` that it has
@@ -2638,7 +2744,7 @@ export class TaskClientStoreInternal {
                 //
                 // Even considering garbage collection, the task should be loaded in some other
                 // query (or else the server would not be keeping the task up-to-date in
-                // realtime) which means we've kept the reference to the task alive since it's
+                // realtime) which means we've kept the reference to the task retained since it's
                 // been created.
                 assert(taskEntryStore && taskEntry?.task);
 
@@ -2709,37 +2815,61 @@ export class TaskClientStoreInternal {
      * listens to our subscribed tasks and will subscribe to the task on the server.
      */
     public createAndRetainTaskSubscription(taskId: TaskId): TaskClientTaskSubscription {
-        const taskEntryStore = getOrSetDefaultMapValue(
-            this._taskEntryStoreById,
-            taskId,
-            () =>
-                new ValueStore<TaskClientStoreTaskEntry>({
-                    task: null,
-                    actions: [],
-                    optimisticState: null,
-                    isAuthorized: null,
-                    authorizationEventNumber: null,
-                }),
-        );
+        const taskEntryStore = getOrSetDefaultMapValue(this._taskEntryStoreById, taskId, () => ({
+            referenceCount: 0,
+            store: new ValueStore<TaskClientStoreTaskEntry>({
+                task: null,
+                actions: [],
+                optimisticState: null,
+                isAuthorized: null,
+                authorizationEventNumber: null,
+            }),
+        }));
 
-        const taskSubscription = new TaskClientTaskSubscription(this, taskId, taskEntryStore);
+        const taskSubscription = new TaskClientTaskSubscription(this, taskId, taskEntryStore.store);
 
-        this._subscriptionsStore.set(subscriptions => {
-            const newTaskSubscriptions = new Set(subscriptions.taskSubscriptions);
-            newTaskSubscriptions.add(taskSubscription);
-            return {...subscriptions, taskSubscriptions: newTaskSubscriptions};
+        this._subscriptionsStore.set(oldSubscriptions => {
+            const taskSubscriptionsById = new Map(oldSubscriptions.taskSubscriptionsById);
+
+            const oldTaskSubscriptions = taskSubscriptionsById.get(taskSubscription.taskId);
+            if (!oldTaskSubscriptions) {
+                taskSubscriptionsById.set(taskSubscription.taskId, new Set([taskSubscription]));
+            } else {
+                const taskSubscriptions = new Set(oldTaskSubscriptions);
+                taskSubscriptions.add(taskSubscription);
+                taskSubscriptionsById.set(taskSubscription.taskId, taskSubscriptions);
+            }
+
+            return {...oldSubscriptions, taskSubscriptionsById};
         });
+
+        // Subscription holds a reference to the store. We increment `referenceCount`
+        // directly since we already have the store object.
+        taskEntryStore.referenceCount++;
 
         return taskSubscription;
     }
 
     public onTaskSubscriptionFinallyReleased(taskSubscription: TaskClientTaskSubscription) {
-        batchStoreUpdates(() => {
-            this._subscriptionsStore.set(subscriptions => {
-                const newTaskSubscriptions = new Set(subscriptions.taskSubscriptions);
-                newTaskSubscriptions.delete(taskSubscription);
-                return {...subscriptions, taskSubscriptions: newTaskSubscriptions};
-            });
+        this.releaseTaskEntryStore(taskSubscription.taskId);
+
+        this._subscriptionsStore.set(oldSubscriptions => {
+            const taskSubscriptionsById = new Map(oldSubscriptions.taskSubscriptionsById);
+
+            const oldTaskSubscriptions = assertExists(
+                taskSubscriptionsById.get(taskSubscription.taskId),
+            );
+
+            const taskSubscriptions = new Set(oldTaskSubscriptions);
+            assert(taskSubscriptions.delete(taskSubscription));
+
+            if (taskSubscriptions.size === 0) {
+                taskSubscriptionsById.delete(taskSubscription.taskId);
+            } else {
+                taskSubscriptionsById.set(taskSubscription.taskId, taskSubscriptions);
+            }
+
+            return {...oldSubscriptions, taskSubscriptionsById};
         });
     }
 
@@ -2757,26 +2887,51 @@ export class TaskClientStoreInternal {
         const collectionEntryStore = getOrSetDefaultMapValue(
             this._collectionEntryStoreById,
             collectionId,
-            () =>
-                new ValueStore<TaskClientStoreCollectionEntry>({
+            () => ({
+                referenceCount: 0,
+                store: new ValueStore<TaskClientStoreCollectionEntry>({
                     collection: null,
                     actions: [],
                     isAuthorized: null,
                     authorizationEventNumber: null,
                 }),
+            }),
         );
 
         const collectionSubscription = new TaskClientCollectionSubscription(
             this,
             collectionId,
-            collectionEntryStore,
+            collectionEntryStore.store,
         );
 
-        this._subscriptionsStore.set(subscriptions => {
-            const newCollectionSubscriptions = new Set(subscriptions.collectionSubscriptions);
-            newCollectionSubscriptions.add(collectionSubscription);
-            return {...subscriptions, collectionSubscriptions: newCollectionSubscriptions};
+        this._subscriptionsStore.set(oldSubscriptions => {
+            const collectionSubscriptionsById = new Map(
+                oldSubscriptions.collectionSubscriptionsById,
+            );
+
+            const oldCollectionSubscriptions = collectionSubscriptionsById.get(
+                collectionSubscription.collectionId,
+            );
+            if (!oldCollectionSubscriptions) {
+                collectionSubscriptionsById.set(
+                    collectionSubscription.collectionId,
+                    new Set([collectionSubscription]),
+                );
+            } else {
+                const collectionSubscriptions = new Set(oldCollectionSubscriptions);
+                collectionSubscriptions.add(collectionSubscription);
+                collectionSubscriptionsById.set(
+                    collectionSubscription.collectionId,
+                    collectionSubscriptions,
+                );
+            }
+
+            return {...oldSubscriptions, collectionSubscriptionsById};
         });
+
+        // Subscription holds a reference to the store. We increment `referenceCount`
+        // directly since we already have the store object.
+        collectionEntryStore.referenceCount++;
 
         return collectionSubscription;
     }
@@ -2784,12 +2939,30 @@ export class TaskClientStoreInternal {
     public onCollectionSubscriptionFinallyReleased(
         collectionSubscription: TaskClientCollectionSubscription,
     ) {
-        batchStoreUpdates(() => {
-            this._subscriptionsStore.set(subscriptions => {
-                const newCollectionSubscriptions = new Set(subscriptions.collectionSubscriptions);
-                newCollectionSubscriptions.delete(collectionSubscription);
-                return {...subscriptions, collectionSubscriptions: newCollectionSubscriptions};
-            });
+        this.releaseCollectionEntryStore(collectionSubscription.collectionId);
+
+        this._subscriptionsStore.set(oldSubscriptions => {
+            const collectionSubscriptionsById = new Map(
+                oldSubscriptions.collectionSubscriptionsById,
+            );
+
+            const oldCollectionSubscriptions = assertExists(
+                collectionSubscriptionsById.get(collectionSubscription.collectionId),
+            );
+
+            const collectionSubscriptions = new Set(oldCollectionSubscriptions);
+            assert(collectionSubscriptions.delete(collectionSubscription));
+
+            if (collectionSubscriptions.size === 0) {
+                collectionSubscriptionsById.delete(collectionSubscription.collectionId);
+            } else {
+                collectionSubscriptionsById.set(
+                    collectionSubscription.collectionId,
+                    collectionSubscriptions,
+                );
+            }
+
+            return {...oldSubscriptions, collectionSubscriptionsById};
         });
     }
 }

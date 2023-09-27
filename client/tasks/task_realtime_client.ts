@@ -12,6 +12,7 @@ import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
+import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
 import {Id, generateId} from "~/shared/id/id.js";
 import {
     SpaceId,
@@ -118,8 +119,18 @@ export class TaskRealtimeClient {
             const subscriptions = subscriptionsStore.getSnapshot();
 
             const newQueries = new Set(subscriptions.queries);
-            const newTaskSubscriptions = new Set(subscriptions.taskSubscriptions);
-            const newCollectionSubscriptions = new Set(subscriptions.collectionSubscriptions);
+            const newTaskSubscriptions = new Set(
+                flatMapIterable(
+                    subscriptions.taskSubscriptionsById.values(),
+                    subscriptions => subscriptions,
+                ),
+            );
+            const newCollectionSubscriptions = new Set(
+                flatMapIterable(
+                    subscriptions.collectionSubscriptionsById.values(),
+                    subscriptions => subscriptions,
+                ),
+            );
 
             const oldSubscribedQueries = new Set<{
                 query: TaskClientQuery;

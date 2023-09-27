@@ -93,6 +93,7 @@ export class TaskClientQuery {
      * store instance. Otherwise you must use the query's public methods.
      */
     public _getInternal(internal: TaskClientStoreInternal) {
+        assert(internal instanceof TaskClientStoreInternal);
         return this._internal;
     }
 
@@ -228,7 +229,7 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
         readonly loadedState: TaskRealtimeQueryLoadedState | null;
         readonly taskOrder: Tree<TaskQuerySortCursor, null>;
     }>;
-    private readonly _taskEntryStoreById = new Map<TaskId, Store<TaskClientStoreTaskEntry>>();
+    private readonly _loadedTaskEntryStoreById = new Map<TaskId, Store<TaskClientStoreTaskEntry>>();
 
     private readonly _errorStateStore = new ValueStore<
         {hasError: false} | {hasError: true; error: unknown}
@@ -354,7 +355,7 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
             taskOrderIds.add(taskId);
 
             assert(
-                this._taskEntryStoreById.has(taskId),
+                this._loadedTaskEntryStoreById.has(taskId),
                 "Query must have a reference for every task entry store in the task order",
             );
 
@@ -362,7 +363,7 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
         }
 
         assert(
-            taskOrderIds.size === this._taskEntryStoreById.size,
+            taskOrderIds.size === this._loadedTaskEntryStoreById.size,
             "Query must not have a reference to a task entry store that's not in the task order",
         );
 
@@ -373,7 +374,7 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
             "If client query has no loaded tasks then it shouldn't have referenced tasks or referenced collections either",
         );
 
-        for (const taskEntryStore of this._taskEntryStoreById.values()) {
+        for (const taskEntryStore of this._loadedTaskEntryStoreById.values()) {
             const {task} = taskEntryStore.getSnapshot();
             if (!task) continue;
 
@@ -426,13 +427,17 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
 
         if (this._referenceCount === 0) {
             batchStoreUpdates(() => {
-                // Delete the query from our store.
-                this.store.onQueryFinallyReleased(this);
+                // Release our references to loaded tasks.
+                for (const [taskId, taskEntryStore] of this._loadedTaskEntryStoreById) {
+                    this._onLoadedTaskRemove(taskId, taskEntryStore.getSnapshot());
+                }
+
+                // Should have been cleared by removing all our loaded tasks.
+                assert(this._referencedTaskEntryStoreById.size === 0);
+                assert(this._referencedCollectionEntryStoreById.size === 0);
 
                 // Clear our query's task data.
-                this._taskEntryStoreById.clear();
-                this._referencedTaskEntryStoreById.clear();
-                this._referencedCollectionEntryStoreById.clear();
+                this._loadedTaskEntryStoreById.clear();
                 this._taskOrderAndLoadedStateStore.set({
                     loadedState: null,
                     taskOrder: createTree<TaskQuerySortCursor, null>((cursor1, cursor2) =>
@@ -440,6 +445,9 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
                     ),
                 });
                 this.loadMoreTaskCountStore.set(0);
+
+                // Delete the query from our store.
+                this.store.onQueryFinallyReleased(this);
             });
         }
     }
@@ -455,11 +463,11 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
     }
 
     public getLoadedTaskEntryStoreIfExists(taskId: TaskId): Store<TaskClientStoreTaskEntry> | null {
-        return this._taskEntryStoreById.get(taskId) ?? null;
+        return this._loadedTaskEntryStoreById.get(taskId) ?? null;
     }
 
     public getLoadedTaskEntryStore(taskId: TaskId): Store<TaskClientStoreTaskEntry> {
-        const taskEntryStore = this._taskEntryStoreById.get(taskId);
+        const taskEntryStore = this._loadedTaskEntryStoreById.get(taskId);
         if (!taskEntryStore) throw new InternalError("Task is not visible in query");
         return taskEntryStore;
     }
@@ -467,7 +475,7 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
     public getReferencedTaskEntryStore(taskId: TaskId): Store<TaskClientStoreTaskEntry> {
         const referencedTaskEntryStore = this._referencedTaskEntryStoreById.get(taskId);
         if (!referencedTaskEntryStore) throw new InternalError("Task is not referenced in query");
-        return referencedTaskEntryStore.taskEntryStore;
+        return referencedTaskEntryStore.store;
     }
 
     public loadMoreTasks(limit: number) {
@@ -521,19 +529,19 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
 
                 // If a task is being reverted we need to remove it from our query. But we
                 // don't have to remove tasks that don't exist in our query.
-                if (!this._taskEntryStoreById.has(taskId)) continue;
+                if (!this._loadedTaskEntryStoreById.has(taskId)) continue;
 
                 const oldCursor = getTaskQueryNormalizedSortCursorForModel(
                     this.sorts,
                     oldTaskEntry.task,
                 );
 
-                this._onLoadedTaskRemove(oldTaskEntry);
+                this._onLoadedTaskRemove(taskId, oldTaskEntry);
 
                 taskOrder = taskOrder.remove(oldCursor);
 
                 // Get rid of our task entry store reference so it can be garbage collected.
-                this._taskEntryStoreById.delete(taskId);
+                this._loadedTaskEntryStoreById.delete(taskId);
                 continue;
             }
 
@@ -544,7 +552,7 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
 
             // If a task was not visible in our query, check if it's visible now and add it
             // if so.
-            if (!this._taskEntryStoreById.has(taskId)) {
+            if (!this._loadedTaskEntryStoreById.has(taskId)) {
                 if (!isVisible) continue;
 
                 const newCursor = getTaskQueryNormalizedSortCursorForModel(
@@ -552,12 +560,12 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
                     newTaskEntry.task,
                 );
 
-                this._onLoadedTaskAdd(newTaskEntry);
+                this._onLoadedTaskAdd(taskId, newTaskEntry);
 
                 taskOrder = taskOrder.insert(newCursor, null);
 
                 // Capture a reference to the task entry store so it's not garbage collected.
-                this._taskEntryStoreById.set(taskId, taskEntryStore);
+                this._loadedTaskEntryStoreById.set(taskId, taskEntryStore);
                 continue;
             }
 
@@ -572,12 +580,12 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
                     oldTaskEntry.task,
                 );
 
-                this._onLoadedTaskRemove(oldTaskEntry);
+                this._onLoadedTaskRemove(taskId, oldTaskEntry);
 
                 taskOrder = taskOrder.remove(oldCursor);
 
                 // Get rid of our task entry store reference so it can be garbage collected.
-                this._taskEntryStoreById.delete(taskId);
+                this._loadedTaskEntryStoreById.delete(taskId);
                 continue;
             }
 
@@ -590,7 +598,7 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
                 oldTaskEntry.task,
             );
 
-            this._onLoadedTaskUpdate(oldTaskEntry, newTaskEntry);
+            this._onLoadedTaskUpdate(taskId, oldTaskEntry, newTaskEntry);
 
             const haveSortValuesChanged =
                 compareTaskQuerySortCursors(this.sorts, oldCursor, newCursor) !== 0;
@@ -658,7 +666,7 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
         for (const {taskEntryStore, taskEntry} of previouslyBackfilledTasks) {
             // If the task is already in our store (perhaps an update event added it) then
             // we don't need to insert the task again.
-            if (this._taskEntryStoreById.has(taskEntry.task.id)) continue;
+            if (this._loadedTaskEntryStoreById.has(taskEntry.task.id)) continue;
 
             const isVisible = evaluateTaskQueryNormalizedFiltersForModel(
                 this.filters,
@@ -668,12 +676,12 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
 
             const newCursor = getTaskQueryNormalizedSortCursorForModel(this.sorts, taskEntry.task);
 
-            this._onLoadedTaskAdd(taskEntry);
+            this._onLoadedTaskAdd(taskEntry.task.id, taskEntry);
 
             nextTaskOrder = nextTaskOrder.insert(newCursor, null);
 
             // Capture a reference to the task entry store so it's not garbage collected.
-            this._taskEntryStoreById.set(taskEntry.task.id, taskEntryStore);
+            this._loadedTaskEntryStoreById.set(taskEntry.task.id, taskEntryStore);
         }
 
         batchStoreUpdates(() => {
@@ -696,18 +704,25 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
         }
     }
 
-    private _onLoadedTaskAdd(newTaskEntry: TaskClientStoreTaskEntry) {
+    private _onLoadedTaskAdd(taskId: TaskId, newTaskEntry: TaskClientStoreTaskEntry) {
+        // Hold a reference to all loaded tasks.
+        this.store.retainTaskEntryStore(taskId);
+
         this._trackTaskDependenciesFromAdd(newTaskEntry);
     }
 
     private _onLoadedTaskUpdate(
+        taskId: TaskId,
         oldTaskEntry: TaskClientStoreTaskEntry,
         newTaskEntry: TaskClientStoreTaskEntry,
     ) {
         this._trackTaskDependenciesFromUpdate(oldTaskEntry, newTaskEntry);
     }
 
-    private _onLoadedTaskRemove(oldTaskEntry: TaskClientStoreTaskEntry) {
+    private _onLoadedTaskRemove(taskId: TaskId, oldTaskEntry: TaskClientStoreTaskEntry) {
+        // Release our loaded task reference.
+        this.store.releaseTaskEntryStore(taskId);
+
         this._trackTaskDependenciesFromRemove(oldTaskEntry);
     }
 }
