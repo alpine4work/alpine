@@ -396,14 +396,21 @@ export function getAccountIfExists(
     // when the account does not exist in the space.
     accountId: AccountId | ContentMentionAccountId,
 ): Promise<AccountModel | null> {
-    return AccountContextCache.get(context, `${spaceId}:${accountId}`, async () => {
+    const get = async () => {
         // Make sure we have access to the space being requested.
         await authorizeSpaceAccess(context, spaceId);
 
         // If we are requesting the authenticated account then return the account model
         // from our context which may already be cached.
-        if (context.actor.type === "Session" && context.actor.getAccountId() === accountId)
+        if (
+            context.actor.type === "Session" &&
+            context.actor.getAccountId() === accountId &&
+            // If are reading with strong consistency then always read a new `AccountModel`
+            // instead of returning the initial, cached, version.
+            context.dynamo.defaultReadConsistency !== "Strong"
+        ) {
             return context.actor.getAccount();
+        }
 
         const [account, isMemberOfSpace] = await runAllPromises([
             dangerouslyGetAccountIfExistsWithoutCaching(context, accountId as AccountId),
@@ -415,7 +422,18 @@ export function getAccountIfExists(
         if (!isMemberOfSpace) return null;
 
         return account;
-    });
+    };
+
+    // If we are reading with a strong DynamoDB read consistency then always
+    // execute the read, don't consult the cache. Future reads with eventual
+    // consistency may use the cached account from a strong read.
+    if (context.dynamo.defaultReadConsistency === "Strong") {
+        const getPromise = get();
+        AccountContextCache.set(context, `${spaceId}:${accountId}`, getPromise);
+        return getPromise;
+    }
+
+    return AccountContextCache.get(context, `${spaceId}:${accountId}`, get);
 }
 
 /**

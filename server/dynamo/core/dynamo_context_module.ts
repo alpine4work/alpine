@@ -29,12 +29,13 @@ export class DynamoContextModule<Modules extends {} = {}>
      * Using `Eventual` consistency is much faster but it might give you slightly
      * out of date data.
      */
-    // TODO(calebmer): I'm starting to suspect default read consistency may be a
-    // bad design? Any function may make so many reads and make more reads in the
-    // future, setting default read consistency sets like controlling an
-    // implementation detail too high up.
+    // TODO(calebmer): I now believe default read consistency is a bad design. Any
+    // function may make so many reads and make more reads in the future, setting
+    // default read consistency feels like controlling an implementation detail too
+    // high up where you shouldn't have to think about the implementation.
     //
-    // Get rid of it and set read consistency on individual reads.
+    // Get rid of this and have individual reads ask for a read consistency
+    // parameter.
     public readonly defaultReadConsistency: DynamoReadConsistency;
 
     /**

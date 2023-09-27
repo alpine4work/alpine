@@ -3,6 +3,7 @@ import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 
 /**
  * A context module used for caching values for the lifetime of a context. Used
@@ -96,7 +97,11 @@ export class ContextCache<Key, Value> {
      * Unconditionally sets a value in the cache. If a value already exists in the
      * cache then this function will overwrite it.
      */
-    public set(context: Context<{cache: CacheContextModule}>, key: Key, value: Value): void {
+    public set(
+        context: Context<{cache: CacheContextModule}>,
+        key: Key,
+        value: MaybePromise<Value>,
+    ): void {
         const cacheMap = context.cache._getCacheMap(this);
         cacheMap.set(key, Promise.resolve(value));
     }

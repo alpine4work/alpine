@@ -3,13 +3,17 @@ import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {Context} from "~/shared/context/context.js";
 import {InternalError} from "~/shared/error/error.js";
+import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {AccountId, TaskId} from "~/shared/id/types/id_types.js";
 import {commitTaskActionTransaction} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {TestRpcContextModule} from "~/shared/rpc/test_rpc_context_module.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskCreateAction} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {
@@ -18,7 +22,6 @@ import {
 } from "~/shared/tasks/task_query_normalized_filters.js";
 import {defaultTaskQueryNormalizedSorts} from "~/shared/tasks/task_query_normalized_sort.js";
 import {getTaskQuerySortCursorTaskId} from "~/shared/tasks/task_query_sort_cursor.js";
-import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 
 const accountStore = getAccountClientStoreForClient();
 
@@ -30,12 +33,59 @@ const account1 = new AccountModel({
     version: 0,
 });
 
+// Make sure we hold a reference to the `account1` store for the entire test.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const account1Store = accountStore.getAccountStore(account1);
+
+const getSortableAccount = (accountId: AccountId) => {
+    const accountData = assertExists(
+        accountStore.getAccountStoreByIdIfExists(accountId),
+    ).getSnapshot();
+
+    return {
+        accountId,
+        workingAccountName: accountData.name,
+        workingAccountNameVersion: accountData.version,
+    };
+};
+
 const context = Context.new({
     rpc: new TestRpcContextModule(),
 });
 
+const taskEntryCache = new WeakMap();
+
 function getTaskEntryIfExists(store: TaskClientStore, taskId: TaskId) {
-    throw store.getTaskEntryStoreIfExists(taskId)?.getSnapshot() ?? null;
+    const taskEntry = store.getTaskEntryStoreIfExists(taskId)?.getSnapshot();
+    if (!taskEntry) return null;
+
+    // This test was written before we added `actionReferencedAccountStoreById` to
+    // task entries. Discard `actionReferencedAccountStoreById` so we can avoid
+    // rewriting tests.
+
+    // Use a `WeakMap` to make sure we maintain referential equality if the task
+    // entry doesn't change.
+    return getOrSetDefaultMapValue(taskEntryCache, taskEntry, () => ({
+        ...taskEntry,
+        actions: taskEntry.actions?.map(({action}) => action) ?? null,
+        optimisticState: taskEntry.optimisticState
+            ? {
+                  ...taskEntry.optimisticState,
+                  original: !taskEntry.optimisticState.original.task
+                      ? {
+                            ...taskEntry.optimisticState.original,
+                            actions: taskEntry.optimisticState.original.actions.map(
+                                ({action}) => action,
+                            ),
+                        }
+                      : taskEntry.optimisticState.original,
+                  actions: taskEntry.optimisticState.actions.map(({isOptimistic, action}) => ({
+                      isOptimistic,
+                      action,
+                  })),
+              }
+            : null,
+    }));
 }
 
 let displayErrors: Array<unknown> = [];
@@ -53,6 +103,25 @@ afterEach(() => {
     }
 });
 
+function createTask(
+    store: TaskClientStore,
+    {
+        id = generateId<TaskId>(),
+        time = store.clock.now(),
+        taskAction = {
+            type: "Create",
+            creatorId: account1.id,
+            creatorTimeZone: defaultTimeZone,
+        },
+    }: {
+        id?: TaskId;
+        time?: HybridLogicalTime;
+        taskAction?: TaskCreateAction;
+    } = {},
+) {
+    return TaskModel.createFromAction(store.spaceId, id, time, taskAction, getSortableAccount);
+}
+
 test("if optimistic task creation is reverted then queries remove the task", async () => {
     const store = new TaskClientStore({
         accountStore,
@@ -66,17 +135,16 @@ test("if optimistic task creation is reverted then queries remove the task", asy
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
 
-    const task = TaskModel.createFromAction(
-        store.spaceId,
-        action1.taskId,
-        action1.time,
-        action1.taskAction,
-    );
+    const task = createTask(store, {
+        id: action1.taskId,
+        time: action1.time,
+        taskAction: action1.taskAction,
+    });
 
     const action2 = {
         type: "UpdateTask",
@@ -137,7 +205,7 @@ test("if optimistic task creation is reverted then queries remove the task", asy
     store.commitTaskActionTransaction(context, [action2]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2),
+        task: task.apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -186,6 +254,9 @@ test("if optimistic task creation is reverted then queries remove the task", asy
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
+
+    expect(displayErrors.length).toEqual(2);
+    displayErrors = [];
 });
 
 test("task can be added to query through backfill", () => {
@@ -195,11 +266,7 @@ test("task can be added to query through backfill", () => {
         onDisplayError: handleDisplayError,
     });
 
-    const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task = createTask(store);
 
     const query = store.createAndRetainQuery({
         filters: {
@@ -243,11 +310,7 @@ test("task can be added to query through previously backfilled tasks", () => {
         onDisplayError: handleDisplayError,
     });
 
-    const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task = createTask(store);
 
     store.applyUpdateEvent({
         type: "Update",
@@ -291,11 +354,7 @@ test("task can be added to query through action", () => {
         onDisplayError: handleDisplayError,
     });
 
-    const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task = createTask(store);
 
     const action = {
         type: "UpdateTask",
@@ -369,11 +428,7 @@ test("task can be removed from a query through an action", () => {
         onDisplayError: handleDisplayError,
     });
 
-    const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task = createTask(store);
 
     const action1 = {
         type: "UpdateTask",
@@ -425,7 +480,7 @@ test("task can be removed from a query through an action", () => {
         type: "Update",
         number: 1,
         actions: [],
-        backfillAuthorizedTasks: [task.apply(action1)],
+        backfillAuthorizedTasks: [task.apply(action1, getSortableAccount)],
         backfillUnauthorizedTaskIds: [],
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
@@ -457,23 +512,11 @@ test("task can be moved in query through an action", () => {
         onDisplayError: handleDisplayError,
     });
 
-    const task1 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task1 = createTask(store);
 
-    const task2 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task2 = createTask(store);
 
-    const task3 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task3 = createTask(store);
 
     const action1 = {
         type: "UpdateTask",
@@ -541,7 +584,11 @@ test("task can be moved in query through an action", () => {
         type: "Update",
         number: 1,
         actions: [],
-        backfillAuthorizedTasks: [task1.apply(action1), task2.apply(action2), task3.apply(action3)],
+        backfillAuthorizedTasks: [
+            task1.apply(action1, getSortableAccount),
+            task2.apply(action2, getSortableAccount),
+            task3.apply(action3, getSortableAccount),
+        ],
         backfillUnauthorizedTaskIds: [],
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
@@ -579,23 +626,11 @@ test("task can be left alone through an action", () => {
         onDisplayError: handleDisplayError,
     });
 
-    const task1 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task1 = createTask(store);
 
-    const task2 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task2 = createTask(store);
 
-    const task3 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task3 = createTask(store);
 
     const action1 = {
         type: "UpdateTask",
@@ -660,7 +695,11 @@ test("task can be left alone through an action", () => {
         type: "Update",
         number: 1,
         actions: [],
-        backfillAuthorizedTasks: [task1.apply(action1), task2.apply(action2), task3.apply(action3)],
+        backfillAuthorizedTasks: [
+            task1.apply(action1, getSortableAccount),
+            task2.apply(action2, getSortableAccount),
+            task3.apply(action3, getSortableAccount),
+        ],
         backfillUnauthorizedTaskIds: [],
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
@@ -740,138 +779,148 @@ test("task references can be added to query through backfill", () => {
         },
     );
 
-    let task3 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    let task3 = createTask(store);
 
     task3 = task3
-        .apply({
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task3.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection1.id,
+                    orderKey: initialOrderKey,
+                },
+            },
+            getSortableAccount,
+        )
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task3.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection2.id,
+                    orderKey: initialOrderKey,
+                },
+            },
+            getSortableAccount,
+        );
+
+    let task2 = createTask(store);
+
+    task2 = task2.apply(
+        {
             type: "UpdateTask",
             time: store.clock.now(),
-            taskId: task3.id,
+            taskId: task2.id,
             taskAction: {
-                type: "AddCollection",
-                collectionId: collection1.id,
-                orderKey: initialOrderKey,
+                type: "UpdateParentTaskId",
+                parentTaskId: task3.id,
             },
-        })
-        .apply({
-            type: "UpdateTask",
-            time: store.clock.now(),
-            taskId: task3.id,
-            taskAction: {
-                type: "AddCollection",
-                collectionId: collection2.id,
-                orderKey: initialOrderKey,
-            },
-        });
-
-    let task2 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
-
-    task2 = task2.apply({
-        type: "UpdateTask",
-        time: store.clock.now(),
-        taskId: task2.id,
-        taskAction: {
-            type: "UpdateParentTaskId",
-            parentTaskId: task3.id,
         },
-    });
+        getSortableAccount,
+    );
 
-    let task1 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    let task1 = createTask(store);
 
     task1 = task1
-        .apply({
-            type: "UpdateTask",
-            time: store.clock.now(),
-            taskId: task1.id,
-            taskAction: {
-                type: "UpdateParentTaskId",
-                parentTaskId: task2.id,
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId: task2.id,
+                },
             },
-        })
-        .apply({
-            type: "UpdateTask",
-            time: store.clock.now(),
-            taskId: task1.id,
-            taskAction: {
-                type: "UpdatePriority",
-                priority: "High",
+            getSortableAccount,
+        )
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "UpdatePriority",
+                    priority: "High",
+                },
             },
-        });
+            getSortableAccount,
+        );
 
-    let task5 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    let task5 = createTask(store);
 
     task5 = task5
-        .apply({
-            type: "UpdateTask",
-            time: store.clock.now(),
-            taskId: task5.id,
-            taskAction: {
-                type: "UpdatePriority",
-                priority: "High",
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task5.id,
+                taskAction: {
+                    type: "UpdatePriority",
+                    priority: "High",
+                },
             },
-        })
-        .apply({
-            type: "UpdateTask",
-            time: store.clock.now(),
-            taskId: task5.id,
-            taskAction: {
-                type: "AddCollection",
-                collectionId: collection2.id,
-                orderKey: initialOrderKey,
+            getSortableAccount,
+        )
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task5.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection2.id,
+                    orderKey: initialOrderKey,
+                },
             },
-        })
-        .apply({
-            type: "UpdateTask",
-            time: store.clock.now(),
-            taskId: task5.id,
-            taskAction: {
-                type: "AddCollection",
-                collectionId: collection3.id,
-                orderKey: initialOrderKey,
+            getSortableAccount,
+        )
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task5.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection3.id,
+                    orderKey: initialOrderKey,
+                },
             },
-        });
+            getSortableAccount,
+        );
 
-    let task4 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    let task4 = createTask(store);
 
     task4 = task4
-        .apply({
-            type: "UpdateTask",
-            time: store.clock.now(),
-            taskId: task4.id,
-            taskAction: {
-                type: "UpdateParentTaskId",
-                parentTaskId: task5.id,
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task4.id,
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId: task5.id,
+                },
             },
-        })
-        .apply({
-            type: "UpdateTask",
-            time: store.clock.now(),
-            taskId: task4.id,
-            taskAction: {
-                type: "UpdatePriority",
-                priority: "High",
+            getSortableAccount,
+        )
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task4.id,
+                taskAction: {
+                    type: "UpdatePriority",
+                    priority: "High",
+                },
             },
-        });
+            getSortableAccount,
+        );
 
     const query = store.createAndRetainQuery({
         filters: {
@@ -974,138 +1023,148 @@ test("task references can be added to query through previous backfill", () => {
         },
     );
 
-    let task3 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    let task3 = createTask(store);
 
     task3 = task3
-        .apply({
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task3.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection1.id,
+                    orderKey: initialOrderKey,
+                },
+            },
+            getSortableAccount,
+        )
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task3.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection2.id,
+                    orderKey: initialOrderKey,
+                },
+            },
+            getSortableAccount,
+        );
+
+    let task2 = createTask(store);
+
+    task2 = task2.apply(
+        {
             type: "UpdateTask",
             time: store.clock.now(),
-            taskId: task3.id,
+            taskId: task2.id,
             taskAction: {
-                type: "AddCollection",
-                collectionId: collection1.id,
-                orderKey: initialOrderKey,
+                type: "UpdateParentTaskId",
+                parentTaskId: task3.id,
             },
-        })
-        .apply({
-            type: "UpdateTask",
-            time: store.clock.now(),
-            taskId: task3.id,
-            taskAction: {
-                type: "AddCollection",
-                collectionId: collection2.id,
-                orderKey: initialOrderKey,
-            },
-        });
-
-    let task2 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
-
-    task2 = task2.apply({
-        type: "UpdateTask",
-        time: store.clock.now(),
-        taskId: task2.id,
-        taskAction: {
-            type: "UpdateParentTaskId",
-            parentTaskId: task3.id,
         },
-    });
+        getSortableAccount,
+    );
 
-    let task1 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    let task1 = createTask(store);
 
     task1 = task1
-        .apply({
-            type: "UpdateTask",
-            time: store.clock.now(),
-            taskId: task1.id,
-            taskAction: {
-                type: "UpdateParentTaskId",
-                parentTaskId: task2.id,
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId: task2.id,
+                },
             },
-        })
-        .apply({
-            type: "UpdateTask",
-            time: store.clock.now(),
-            taskId: task1.id,
-            taskAction: {
-                type: "UpdatePriority",
-                priority: "High",
+            getSortableAccount,
+        )
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "UpdatePriority",
+                    priority: "High",
+                },
             },
-        });
+            getSortableAccount,
+        );
 
-    let task5 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    let task5 = createTask(store);
 
     task5 = task5
-        .apply({
-            type: "UpdateTask",
-            time: store.clock.now(),
-            taskId: task5.id,
-            taskAction: {
-                type: "UpdatePriority",
-                priority: "High",
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task5.id,
+                taskAction: {
+                    type: "UpdatePriority",
+                    priority: "High",
+                },
             },
-        })
-        .apply({
-            type: "UpdateTask",
-            time: store.clock.now(),
-            taskId: task5.id,
-            taskAction: {
-                type: "AddCollection",
-                collectionId: collection2.id,
-                orderKey: initialOrderKey,
+            getSortableAccount,
+        )
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task5.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection2.id,
+                    orderKey: initialOrderKey,
+                },
             },
-        })
-        .apply({
-            type: "UpdateTask",
-            time: store.clock.now(),
-            taskId: task5.id,
-            taskAction: {
-                type: "AddCollection",
-                collectionId: collection3.id,
-                orderKey: initialOrderKey,
+            getSortableAccount,
+        )
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task5.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection3.id,
+                    orderKey: initialOrderKey,
+                },
             },
-        });
+            getSortableAccount,
+        );
 
-    let task4 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    let task4 = createTask(store);
 
     task4 = task4
-        .apply({
-            type: "UpdateTask",
-            time: store.clock.now(),
-            taskId: task4.id,
-            taskAction: {
-                type: "UpdateParentTaskId",
-                parentTaskId: task5.id,
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task4.id,
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId: task5.id,
+                },
             },
-        })
-        .apply({
-            type: "UpdateTask",
-            time: store.clock.now(),
-            taskId: task4.id,
-            taskAction: {
-                type: "UpdatePriority",
-                priority: "High",
+            getSortableAccount,
+        )
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task4.id,
+                taskAction: {
+                    type: "UpdatePriority",
+                    priority: "High",
+                },
             },
-        });
+            getSortableAccount,
+        );
 
     store.applyUpdateEvent({
         type: "Update",
@@ -1208,109 +1267,110 @@ test("task references can be added to query through action", () => {
         },
     );
 
-    let task3 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    let task3 = createTask(store);
 
     task3 = task3
-        .apply({
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task3.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection1.id,
+                    orderKey: initialOrderKey,
+                },
+            },
+            getSortableAccount,
+        )
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task3.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection2.id,
+                    orderKey: initialOrderKey,
+                },
+            },
+            getSortableAccount,
+        );
+
+    let task2 = createTask(store);
+
+    task2 = task2.apply(
+        {
             type: "UpdateTask",
             time: store.clock.now(),
-            taskId: task3.id,
+            taskId: task2.id,
             taskAction: {
-                type: "AddCollection",
-                collectionId: collection1.id,
-                orderKey: initialOrderKey,
+                type: "UpdateParentTaskId",
+                parentTaskId: task3.id,
             },
-        })
-        .apply({
+        },
+        getSortableAccount,
+    );
+
+    let task1 = createTask(store);
+
+    task1 = task1.apply(
+        {
             type: "UpdateTask",
             time: store.clock.now(),
-            taskId: task3.id,
+            taskId: task1.id,
             taskAction: {
-                type: "AddCollection",
-                collectionId: collection2.id,
-                orderKey: initialOrderKey,
+                type: "UpdateParentTaskId",
+                parentTaskId: task2.id,
             },
-        });
-
-    let task2 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
-
-    task2 = task2.apply({
-        type: "UpdateTask",
-        time: store.clock.now(),
-        taskId: task2.id,
-        taskAction: {
-            type: "UpdateParentTaskId",
-            parentTaskId: task3.id,
         },
-    });
+        getSortableAccount,
+    );
 
-    let task1 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
-
-    task1 = task1.apply({
-        type: "UpdateTask",
-        time: store.clock.now(),
-        taskId: task1.id,
-        taskAction: {
-            type: "UpdateParentTaskId",
-            parentTaskId: task2.id,
-        },
-    });
-
-    let task5 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    let task5 = createTask(store);
 
     task5 = task5
-        .apply({
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task5.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection2.id,
+                    orderKey: initialOrderKey,
+                },
+            },
+            getSortableAccount,
+        )
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task5.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection3.id,
+                    orderKey: initialOrderKey,
+                },
+            },
+            getSortableAccount,
+        );
+
+    let task4 = createTask(store);
+
+    task4 = task4.apply(
+        {
             type: "UpdateTask",
             time: store.clock.now(),
-            taskId: task5.id,
+            taskId: task4.id,
             taskAction: {
-                type: "AddCollection",
-                collectionId: collection2.id,
-                orderKey: initialOrderKey,
+                type: "UpdateParentTaskId",
+                parentTaskId: task5.id,
             },
-        })
-        .apply({
-            type: "UpdateTask",
-            time: store.clock.now(),
-            taskId: task5.id,
-            taskAction: {
-                type: "AddCollection",
-                collectionId: collection3.id,
-                orderKey: initialOrderKey,
-            },
-        });
-
-    let task4 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
-
-    task4 = task4.apply({
-        type: "UpdateTask",
-        time: store.clock.now(),
-        taskId: task4.id,
-        taskAction: {
-            type: "UpdateParentTaskId",
-            parentTaskId: task5.id,
         },
-    });
+        getSortableAccount,
+    );
 
     const action1: TaskAction = {
         type: "UpdateTask",
@@ -1375,7 +1435,7 @@ test("task references can be added to query through action", () => {
         type: "Update",
         number: 1,
         actions: [],
-        backfillAuthorizedTasks: [task4.apply(action1), task5],
+        backfillAuthorizedTasks: [task4.apply(action1, getSortableAccount), task5],
         backfillUnauthorizedTaskIds: [],
         backfillAuthorizedCollections: [collection2, collection3],
         backfillUnauthorizedCollectionIds: [],
@@ -1395,7 +1455,7 @@ test("task references can be added to query through action", () => {
         type: "Update",
         number: 1,
         actions: [],
-        backfillAuthorizedTasks: [task1.apply(action2), task2, task3],
+        backfillAuthorizedTasks: [task1.apply(action2, getSortableAccount), task2, task3],
         backfillUnauthorizedTaskIds: [],
         backfillAuthorizedCollections: [collection1],
         backfillUnauthorizedCollectionIds: [],
@@ -1484,138 +1544,148 @@ test("task references can be removed from query through actions", () => {
         },
     );
 
-    let task3 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    let task3 = createTask(store);
 
     task3 = task3
-        .apply({
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task3.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection1.id,
+                    orderKey: initialOrderKey,
+                },
+            },
+            getSortableAccount,
+        )
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task3.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection2.id,
+                    orderKey: initialOrderKey,
+                },
+            },
+            getSortableAccount,
+        );
+
+    let task2 = createTask(store);
+
+    task2 = task2.apply(
+        {
             type: "UpdateTask",
             time: store.clock.now(),
-            taskId: task3.id,
+            taskId: task2.id,
             taskAction: {
-                type: "AddCollection",
-                collectionId: collection1.id,
-                orderKey: initialOrderKey,
+                type: "UpdateParentTaskId",
+                parentTaskId: task3.id,
             },
-        })
-        .apply({
-            type: "UpdateTask",
-            time: store.clock.now(),
-            taskId: task3.id,
-            taskAction: {
-                type: "AddCollection",
-                collectionId: collection2.id,
-                orderKey: initialOrderKey,
-            },
-        });
-
-    let task2 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
-
-    task2 = task2.apply({
-        type: "UpdateTask",
-        time: store.clock.now(),
-        taskId: task2.id,
-        taskAction: {
-            type: "UpdateParentTaskId",
-            parentTaskId: task3.id,
         },
-    });
+        getSortableAccount,
+    );
 
-    let task1 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    let task1 = createTask(store);
 
     task1 = task1
-        .apply({
-            type: "UpdateTask",
-            time: store.clock.now(),
-            taskId: task1.id,
-            taskAction: {
-                type: "UpdateParentTaskId",
-                parentTaskId: task2.id,
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId: task2.id,
+                },
             },
-        })
-        .apply({
-            type: "UpdateTask",
-            time: store.clock.now(),
-            taskId: task1.id,
-            taskAction: {
-                type: "UpdatePriority",
-                priority: "High",
+            getSortableAccount,
+        )
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "UpdatePriority",
+                    priority: "High",
+                },
             },
-        });
+            getSortableAccount,
+        );
 
-    let task5 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    let task5 = createTask(store);
 
     task5 = task5
-        .apply({
-            type: "UpdateTask",
-            time: store.clock.now(),
-            taskId: task5.id,
-            taskAction: {
-                type: "UpdatePriority",
-                priority: "High",
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task5.id,
+                taskAction: {
+                    type: "UpdatePriority",
+                    priority: "High",
+                },
             },
-        })
-        .apply({
-            type: "UpdateTask",
-            time: store.clock.now(),
-            taskId: task5.id,
-            taskAction: {
-                type: "AddCollection",
-                collectionId: collection3.id,
-                orderKey: initialOrderKey,
+            getSortableAccount,
+        )
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task5.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection3.id,
+                    orderKey: initialOrderKey,
+                },
             },
-        });
+            getSortableAccount,
+        );
 
-    let task4 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    let task4 = createTask(store);
 
     task4 = task4
-        .apply({
-            type: "UpdateTask",
-            time: store.clock.now(),
-            taskId: task4.id,
-            taskAction: {
-                type: "UpdateParentTaskId",
-                parentTaskId: task5.id,
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task4.id,
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId: task5.id,
+                },
             },
-        })
-        .apply({
-            type: "UpdateTask",
-            time: store.clock.now(),
-            taskId: task4.id,
-            taskAction: {
-                type: "AddCollection",
-                collectionId: collection2.id,
-                orderKey: initialOrderKey,
+            getSortableAccount,
+        )
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task4.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection2.id,
+                    orderKey: initialOrderKey,
+                },
             },
-        })
-        .apply({
-            type: "UpdateTask",
-            time: store.clock.now(),
-            taskId: task4.id,
-            taskAction: {
-                type: "UpdatePriority",
-                priority: "High",
+            getSortableAccount,
+        )
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task4.id,
+                taskAction: {
+                    type: "UpdatePriority",
+                    priority: "High",
+                },
             },
-        });
+            getSortableAccount,
+        );
 
     const action1: TaskAction = {
         type: "UpdateTask",
@@ -1803,92 +1873,94 @@ test("references from optimistic task can be removed", async () => {
         },
     );
 
-    let task3 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    let task3 = createTask(store);
 
     task3 = task3
-        .apply({
-            type: "UpdateTask",
-            time: store.clock.now(),
-            taskId: task3.id,
-            taskAction: {
-                type: "AddCollection",
-                collectionId: collection1.id,
-                orderKey: initialOrderKey,
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task3.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection1.id,
+                    orderKey: initialOrderKey,
+                },
             },
-        })
-        .apply({
-            type: "UpdateTask",
-            time: store.clock.now(),
-            taskId: task3.id,
-            taskAction: {
-                type: "AddCollection",
-                collectionId: collection2.id,
-                orderKey: initialOrderKey,
+            getSortableAccount,
+        )
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task3.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection2.id,
+                    orderKey: initialOrderKey,
+                },
             },
-        });
+            getSortableAccount,
+        );
 
-    let task2 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    let task2 = createTask(store);
 
-    task2 = task2.apply({
-        type: "UpdateTask",
-        time: store.clock.now(),
-        taskId: task2.id,
-        taskAction: {
-            type: "UpdateParentTaskId",
-            parentTaskId: task3.id,
-        },
-    });
-
-    let task1 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
-
-    task1 = task1
-        .apply({
+    task2 = task2.apply(
+        {
             type: "UpdateTask",
             time: store.clock.now(),
-            taskId: task1.id,
+            taskId: task2.id,
             taskAction: {
                 type: "UpdateParentTaskId",
-                parentTaskId: task2.id,
+                parentTaskId: task3.id,
             },
-        })
-        .apply({
+        },
+        getSortableAccount,
+    );
+
+    let task1 = createTask(store);
+
+    task1 = task1
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId: task2.id,
+                },
+            },
+            getSortableAccount,
+        )
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "UpdatePriority",
+                    priority: "High",
+                },
+            },
+            getSortableAccount,
+        );
+
+    let task5 = createTask(store);
+
+    task5 = task5.apply(
+        {
             type: "UpdateTask",
             time: store.clock.now(),
-            taskId: task1.id,
+            taskId: task5.id,
             taskAction: {
-                type: "UpdatePriority",
-                priority: "High",
+                type: "AddCollection",
+                collectionId: collection3.id,
+                orderKey: initialOrderKey,
             },
-        });
-
-    let task5 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
-
-    task5 = task5.apply({
-        type: "UpdateTask",
-        time: store.clock.now(),
-        taskId: task5.id,
-        taskAction: {
-            type: "AddCollection",
-            collectionId: collection3.id,
-            orderKey: initialOrderKey,
         },
-    });
+        getSortableAccount,
+    );
 
     const query = store.createAndRetainQuery({
         filters: {
@@ -1945,17 +2017,16 @@ test("references from optimistic task can be removed", async () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
 
-    const task4 = TaskModel.createFromAction(
-        store.spaceId,
-        action1.taskId,
-        action1.time,
-        action1.taskAction,
-    );
+    const task4 = createTask(store, {
+        id: action1.taskId,
+        time: action1.time,
+        taskAction: action1.taskAction,
+    });
 
     const action2: TaskAction = {
         type: "UpdateTask",
@@ -2030,6 +2101,9 @@ test("references from optimistic task can be removed", async () => {
     expect(query.getReferencedCollectionIdsForTest()).toEqual(
         new Set([collection1.id, collection2.id]),
     );
+
+    expect(displayErrors.length).toEqual(1);
+    displayErrors = [];
 });
 
 test("task references can be added and removed through actions", () => {
@@ -2081,55 +2155,52 @@ test("task references can be added and removed through actions", () => {
         },
     );
 
-    let task2 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    let task2 = createTask(store);
 
-    task2 = task2.apply({
-        type: "UpdateTask",
-        time: store.clock.now(),
-        taskId: task2.id,
-        taskAction: {
-            type: "AddCollection",
-            collectionId: collection2.id,
-            orderKey: initialOrderKey,
+    task2 = task2.apply(
+        {
+            type: "UpdateTask",
+            time: store.clock.now(),
+            taskId: task2.id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId: collection2.id,
+                orderKey: initialOrderKey,
+            },
         },
-    });
+        getSortableAccount,
+    );
 
-    let task3 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    let task3 = createTask(store);
 
-    task3 = task3.apply({
-        type: "UpdateTask",
-        time: store.clock.now(),
-        taskId: task3.id,
-        taskAction: {
-            type: "AddCollection",
-            collectionId: collection3.id,
-            orderKey: initialOrderKey,
+    task3 = task3.apply(
+        {
+            type: "UpdateTask",
+            time: store.clock.now(),
+            taskId: task3.id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId: collection3.id,
+                orderKey: initialOrderKey,
+            },
         },
-    });
+        getSortableAccount,
+    );
 
-    let task1 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    let task1 = createTask(store);
 
-    task1 = task1.apply({
-        type: "UpdateTask",
-        time: store.clock.now(),
-        taskId: task1.id,
-        taskAction: {
-            type: "UpdatePriority",
-            priority: "High",
+    task1 = task1.apply(
+        {
+            type: "UpdateTask",
+            time: store.clock.now(),
+            taskId: task1.id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "High",
+            },
         },
-    });
+        getSortableAccount,
+    );
 
     const action1: TaskAction = {
         type: "UpdateTask",
@@ -2371,71 +2442,67 @@ test("task references can be added and removed through actions on a referenced t
         },
     );
 
-    let task3 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    let task3 = createTask(store);
 
-    task3 = task3.apply({
-        type: "UpdateTask",
-        time: store.clock.now(),
-        taskId: task3.id,
-        taskAction: {
-            type: "AddCollection",
-            collectionId: collection2.id,
-            orderKey: initialOrderKey,
+    task3 = task3.apply(
+        {
+            type: "UpdateTask",
+            time: store.clock.now(),
+            taskId: task3.id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId: collection2.id,
+                orderKey: initialOrderKey,
+            },
         },
-    });
+        getSortableAccount,
+    );
 
-    let task4 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    let task4 = createTask(store);
 
-    task4 = task4.apply({
-        type: "UpdateTask",
-        time: store.clock.now(),
-        taskId: task4.id,
-        taskAction: {
-            type: "AddCollection",
-            collectionId: collection3.id,
-            orderKey: initialOrderKey,
+    task4 = task4.apply(
+        {
+            type: "UpdateTask",
+            time: store.clock.now(),
+            taskId: task4.id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId: collection3.id,
+                orderKey: initialOrderKey,
+            },
         },
-    });
+        getSortableAccount,
+    );
 
-    const task2 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task2 = createTask(store);
 
-    let task1 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    let task1 = createTask(store);
 
     task1 = task1
-        .apply({
-            type: "UpdateTask",
-            time: store.clock.now(),
-            taskId: task1.id,
-            taskAction: {
-                type: "UpdateParentTaskId",
-                parentTaskId: task2.id,
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId: task2.id,
+                },
             },
-        })
-        .apply({
-            type: "UpdateTask",
-            time: store.clock.now(),
-            taskId: task1.id,
-            taskAction: {
-                type: "UpdatePriority",
-                priority: "High",
+            getSortableAccount,
+        )
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "UpdatePriority",
+                    priority: "High",
+                },
             },
-        });
+            getSortableAccount,
+        );
 
     const action1: TaskAction = {
         type: "UpdateTask",
@@ -2677,81 +2744,80 @@ test("task references can be added and removed through actions on a task that's 
         },
     );
 
-    let task3 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    let task3 = createTask(store);
 
-    task3 = task3.apply({
-        type: "UpdateTask",
-        time: store.clock.now(),
-        taskId: task3.id,
-        taskAction: {
-            type: "AddCollection",
-            collectionId: collection2.id,
-            orderKey: initialOrderKey,
-        },
-    });
-
-    let task4 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
-
-    task4 = task4.apply({
-        type: "UpdateTask",
-        time: store.clock.now(),
-        taskId: task4.id,
-        taskAction: {
-            type: "AddCollection",
-            collectionId: collection3.id,
-            orderKey: initialOrderKey,
-        },
-    });
-
-    let task2 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
-
-    task2 = task2.apply({
-        type: "UpdateTask",
-        time: store.clock.now(),
-        taskId: task2.id,
-        taskAction: {
-            type: "UpdatePriority",
-            priority: "High",
-        },
-    });
-
-    let task1 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
-
-    task1 = task1
-        .apply({
+    task3 = task3.apply(
+        {
             type: "UpdateTask",
             time: store.clock.now(),
-            taskId: task1.id,
+            taskId: task3.id,
             taskAction: {
-                type: "UpdateParentTaskId",
-                parentTaskId: task2.id,
+                type: "AddCollection",
+                collectionId: collection2.id,
+                orderKey: initialOrderKey,
             },
-        })
-        .apply({
+        },
+        getSortableAccount,
+    );
+
+    let task4 = createTask(store);
+
+    task4 = task4.apply(
+        {
             type: "UpdateTask",
             time: store.clock.now(),
-            taskId: task1.id,
+            taskId: task4.id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId: collection3.id,
+                orderKey: initialOrderKey,
+            },
+        },
+        getSortableAccount,
+    );
+
+    let task2 = createTask(store);
+
+    task2 = task2.apply(
+        {
+            type: "UpdateTask",
+            time: store.clock.now(),
+            taskId: task2.id,
             taskAction: {
                 type: "UpdatePriority",
                 priority: "High",
             },
-        });
+        },
+        getSortableAccount,
+    );
+
+    let task1 = createTask(store);
+
+    task1 = task1
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId: task2.id,
+                },
+            },
+            getSortableAccount,
+        )
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "UpdatePriority",
+                    priority: "High",
+                },
+            },
+            getSortableAccount,
+        );
 
     const action1: TaskAction = {
         type: "UpdateTask",
@@ -2957,53 +3023,50 @@ test("can handle a temporary cycle", () => {
         onDisplayError: handleDisplayError,
     });
 
-    let task1 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    let task1 = createTask(store);
 
-    let task2 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    let task2 = createTask(store);
 
-    let task3 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    let task3 = createTask(store);
 
-    task1 = task1.apply({
-        type: "UpdateTask",
-        time: store.clock.now(),
-        taskId: task1.id,
-        taskAction: {
-            type: "UpdateParentTaskId",
-            parentTaskId: task2.id,
+    task1 = task1.apply(
+        {
+            type: "UpdateTask",
+            time: store.clock.now(),
+            taskId: task1.id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: task2.id,
+            },
         },
-    });
+        getSortableAccount,
+    );
 
-    task2 = task2.apply({
-        type: "UpdateTask",
-        time: store.clock.now(),
-        taskId: task2.id,
-        taskAction: {
-            type: "UpdateParentTaskId",
-            parentTaskId: task3.id,
+    task2 = task2.apply(
+        {
+            type: "UpdateTask",
+            time: store.clock.now(),
+            taskId: task2.id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: task3.id,
+            },
         },
-    });
+        getSortableAccount,
+    );
 
-    task3 = task3.apply({
-        type: "UpdateTask",
-        time: store.clock.now(),
-        taskId: task3.id,
-        taskAction: {
-            type: "UpdatePriority",
-            priority: "High",
+    task3 = task3.apply(
+        {
+            type: "UpdateTask",
+            time: store.clock.now(),
+            taskId: task3.id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "High",
+            },
         },
-    });
+        getSortableAccount,
+    );
 
     const action1: TaskAction = {
         type: "UpdateTask",
@@ -3116,69 +3179,65 @@ test("can handle a temporary cycle unrelated to loaded task", () => {
         onDisplayError: handleDisplayError,
     });
 
-    let task1 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    let task1 = createTask(store);
 
-    let task2 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    let task2 = createTask(store);
 
-    const task3 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task3 = createTask(store);
 
-    let task4 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    let task4 = createTask(store);
 
-    task1 = task1.apply({
-        type: "UpdateTask",
-        time: store.clock.now(),
-        taskId: task1.id,
-        taskAction: {
-            type: "UpdateParentTaskId",
-            parentTaskId: task2.id,
-        },
-    });
-
-    task2 = task2.apply({
-        type: "UpdateTask",
-        time: store.clock.now(),
-        taskId: task2.id,
-        taskAction: {
-            type: "UpdateParentTaskId",
-            parentTaskId: task3.id,
-        },
-    });
-
-    task4 = task4
-        .apply({
+    task1 = task1.apply(
+        {
             type: "UpdateTask",
             time: store.clock.now(),
-            taskId: task4.id,
-            taskAction: {
-                type: "UpdatePriority",
-                priority: "High",
-            },
-        })
-        .apply({
-            type: "UpdateTask",
-            time: store.clock.now(),
-            taskId: task4.id,
+            taskId: task1.id,
             taskAction: {
                 type: "UpdateParentTaskId",
                 parentTaskId: task2.id,
             },
-        });
+        },
+        getSortableAccount,
+    );
+
+    task2 = task2.apply(
+        {
+            type: "UpdateTask",
+            time: store.clock.now(),
+            taskId: task2.id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: task3.id,
+            },
+        },
+        getSortableAccount,
+    );
+
+    task4 = task4
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task4.id,
+                taskAction: {
+                    type: "UpdatePriority",
+                    priority: "High",
+                },
+            },
+            getSortableAccount,
+        )
+        .apply(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task4.id,
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId: task2.id,
+                },
+            },
+            getSortableAccount,
+        );
 
     const action1: TaskAction = {
         type: "UpdateTask",

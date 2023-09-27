@@ -70,8 +70,11 @@ testTaskActionPermutations({
         // current JavaScript job (synchronous code and promise reactions).
         const task = assertExists(store.getTaskEntryStoreIfExists(taskId)?.getSnapshot()?.task);
 
+        const taskStatus = task.getStatus();
+        const taskAssignee = task.getAssignee();
+
         return {
-            creator: task.getCreator(),
+            creatorId: task.getCreator().accountId,
             createdTime: task.getCreatedTime(),
             isDeleted: task.isDeleted(),
             parent: task.getParent(),
@@ -93,8 +96,21 @@ testTaskActionPermutations({
                     ]),
             ),
             notepadPagePositions: new Map(task.rawData.positionByAccountIdAndNotepadPageId),
-            status: task.getStatus(),
-            assignee: task.getAssignee(),
+            status:
+                taskStatus.type === "Closed"
+                    ? {
+                          type: "Closed",
+                          closerId: taskStatus.closer.accountId,
+                          closedTime: taskStatus.closedTime,
+                      }
+                    : taskStatus,
+            assignee: taskAssignee
+                ? {
+                      assigneeId: taskAssignee.assignee.accountId,
+                      assignerId: taskAssignee.assigner.accountId,
+                      assignedTime: taskAssignee.assignedTime,
+                  }
+                : null,
             assigneeStatus: task.getAssigneeStatus(),
             assigneeActivePosition: task.getAssigneeActivePosition(),
             title: task.getTitle().raw,

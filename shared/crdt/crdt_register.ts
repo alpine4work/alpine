@@ -76,10 +76,18 @@ type CrdtRegisterInterface<Value> = CrdtRegister<Value>;
  *    register was updated).
  * 2. We don't have to bother assigning `clientId`s.
  *
+ * The user may pass in a custom `merge` function for merging two registers
+ * whose versions are identical. If you provide a custom `merge` function then
+ * you must be careful to make sure your custom `merge` function is commutative
+ * and idempotent.
+ *
  * [1]: https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type
  * [2]: https://arxiv.org/pdf/1608.03960.pdf
  */
-export function createCrdtRegister<Value>(valueSchema: Schema<Value>): CrdtRegisterClass<Value> {
+export function createCrdtRegister<Value>(
+    valueSchema: Schema<Value>,
+    {merge}: {merge?: (value1: Value, value2: Value) => Value} = {},
+): CrdtRegisterClass<Value> {
     return class CrdtRegister implements CrdtRegisterInterface<Value> {
         public readonly value: Value;
         public readonly version: HybridLogicalTime;
@@ -106,6 +114,15 @@ export function createCrdtRegister<Value>(valueSchema: Schema<Value>): CrdtRegis
             const comparison = compareHybridLogicalTimes(this.version, other.version);
             if (comparison > 0) return this;
             if (comparison < 0) return other;
+
+            // If the user specified a custom merge function then run that when we have a
+            // version conflict.
+            if (merge !== undefined) {
+                const value = merge(this.value, other.value);
+                if (Object.is(value, this.value)) return this;
+                if (Object.is(value, other.value)) return other;
+                return new CrdtRegister(value, this.version);
+            }
 
             // Getting a `version` conflict should be rare. In this case, fallback
             // to the values' structural order. All that matters is the decision is

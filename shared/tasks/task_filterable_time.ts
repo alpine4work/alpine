@@ -2,9 +2,11 @@ import {CalendarDate, parseAbsolute, toCalendarDate} from "@internationalized/da
 import {
     HybridLogicalTime,
     areHybridLogicalTimesEqual,
+    compareHybridLogicalTimes,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {TimeZone, defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -93,6 +95,19 @@ export class TaskFilterableTime {
     public static test(absoluteTime: HybridLogicalTime) {
         assert(process.env.NODE_ENV === "test");
         return new TaskFilterableTime({absoluteTime, setterTimeZone: defaultTimeZone});
+    }
+
+    public merge(other: TaskFilterableTime): TaskFilterableTime {
+        const comparison1 = compareHybridLogicalTimes(this.absoluteTime, other.absoluteTime);
+        if (comparison1 < 0) return this;
+        if (comparison1 > 0) return other;
+
+        const comparison2 = defaultCompareStrings(this.setterTimeZone, other.setterTimeZone);
+        if (comparison2 < 0) return this;
+        if (comparison2 > 0) return other;
+
+        // Times are equal. Don't construct a new object.
+        return this;
     }
 
     public isEqual(other: TaskFilterableTime): boolean {

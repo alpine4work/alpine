@@ -1,8 +1,4 @@
-import {
-    TaskAssigneeWithSortableAccountRegister,
-    TaskIndexDoc,
-    TaskStatusWithSortableAccountRegister,
-} from "~/server/tasks/data/task_index_doc.js";
+import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
@@ -11,6 +7,7 @@ import {
     TaskDueDateRegister,
     TaskParentTaskIdRegister,
 } from "~/shared/tasks/actions/task_task_action.js";
+import {TaskAssigneeWithSortableAccountRegister} from "~/shared/tasks/task_assignee.js";
 import {TaskAssigneeActivePositionRegister} from "~/shared/tasks/task_assignee_active_position.js";
 import {TaskAssigneeStatusRegister} from "~/shared/tasks/task_assignee_status.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
@@ -19,6 +16,7 @@ import {TaskPositionRegister} from "~/shared/tasks/task_position.js";
 import {TaskPositionByAccountIdAndNotepadPageIdMap} from "~/shared/tasks/task_position_by_account_id_and_notepad_page_id.js";
 import {TaskPositionByCollectionIdMap} from "~/shared/tasks/task_position_by_collection_id_map.js";
 import {TaskPriorityRegister} from "~/shared/tasks/task_priority.js";
+import {TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.js";
 import {emptyTaskTitle} from "~/shared/tasks/task_title.js";
 
 export function createEmptyTaskIndexDoc(

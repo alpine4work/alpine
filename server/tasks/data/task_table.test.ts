@@ -149,17 +149,17 @@ describe("old style", () => {
         });
     });
 
-    const taskAccount1 = new TaskSortableAccount({
+    const taskAccount1 = {
         accountId: session1.accountId,
         workingAccountName: session1.account.initialData.name,
         workingAccountNameVersion: session1.account.initialData.nameVersion,
-    });
+    };
 
-    const taskAccount2 = new TaskSortableAccount({
+    const taskAccount2 = {
         accountId: session2.accountId,
         workingAccountName: session2.account.initialData.name,
         workingAccountNameVersion: session2.account.initialData.nameVersion,
-    });
+    };
 
     const clock = new HybridLogicalClock(unsynchronizedSystemClock);
 

@@ -24,7 +24,6 @@ import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {getTaskQueryNormalizedSortCursorForModel} from "~/shared/tasks/model/get_task_query_normalized_sort_cursor_for_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
-import {TaskAssigneeRegister} from "~/shared/tasks/task_assignee.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskNotepadPageId, generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 import {
@@ -33,7 +32,6 @@ import {
 } from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 import {compareTaskQuerySortCursors} from "~/shared/tasks/task_query_sort_cursor.js";
-import {TaskStatusRegister} from "~/shared/tasks/task_status.js";
 
 const JsonBigInt = createJsonBigInt({useNativeBigInt: true});
 
@@ -220,7 +218,7 @@ function convertTaskIndexDocToModel(task: TaskIndexDoc): TaskModel {
     return new TaskModel({
         id: task.id,
         spaceId: task.spaceId,
-        creatorId: task.creator.accountId,
+        creator: task.creator,
         createdTime: task.createdTime,
         deletedTime: task.rawDeletedTime,
         undeletedTime: task.rawUndeletedTime,
@@ -235,26 +233,8 @@ function convertTaskIndexDocToModel(task: TaskIndexDoc): TaskModel {
         collections: task.collections.raw.collections,
         positionByCollectionId: task.collections.raw.positionById,
         positionByAccountIdAndNotepadPageId: task.notepadPages.raw.positionById,
-        status: new TaskStatusRegister(
-            task.status.value.type === "Closed"
-                ? {
-                      type: "Closed",
-                      closerId: task.status.value.closer.accountId,
-                      closedTime: task.status.value.closedTime,
-                  }
-                : task.status.value,
-            task.status.version,
-        ),
-        assignee: new TaskAssigneeRegister(
-            task.assignee.value
-                ? {
-                      assigneeId: task.assignee.value.assignee.accountId,
-                      assignerId: task.assignee.value.assigner.accountId,
-                      assignedTime: task.assignee.value.assignedTime,
-                  }
-                : null,
-            task.assignee.version,
-        ),
+        status: task.status,
+        assignee: task.assignee,
         assigneeStatus: task.rawAssigneeStatus,
         assigneeActivePosition: task.rawAssigneeActivePosition,
         title: TaskTitleModel.new(task.title.raw),

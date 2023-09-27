@@ -51,7 +51,6 @@ import {
     TaskQuerySortCursor,
     getTaskQuerySortCursorTaskId,
 } from "~/shared/tasks/task_query_sort_cursor.js";
-import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {TaskTitleUpdate} from "~/shared/tasks/task_title.js";
 
 export type TaskRowViewRef = {
@@ -267,10 +266,7 @@ function TaskRowView(
                         taskId: ghostTaskId,
                         taskAction: {
                             type: "Create",
-                            creator: TaskSortableAccount.from(
-                                query.store.accountStore,
-                                currentAccount,
-                            ),
+                            creatorId: currentAccount.id,
                             creatorTimeZone: timeZone,
                         },
                     },
@@ -438,7 +434,7 @@ function TaskRowView(
                 taskId: newTaskId,
                 taskAction: {
                     type: "Create",
-                    creator: TaskSortableAccount.from(query.store.accountStore, currentAccount),
+                    creatorId: currentAccount.id,
                     creatorTimeZone: timeZone,
                 },
             },
@@ -492,10 +488,7 @@ function TaskRowView(
                         taskId: newTaskId,
                         taskAction: {
                             type: "Create",
-                            creator: TaskSortableAccount.from(
-                                query.store.accountStore,
-                                currentAccount,
-                            ),
+                            creatorId: currentAccount.id,
                             creatorTimeZone: timeZone,
                         },
                     },
@@ -541,7 +534,7 @@ function TaskRowView(
                 taskId: newTaskId,
                 taskAction: {
                     type: "Create",
-                    creator: TaskSortableAccount.from(query.store.accountStore, currentAccount),
+                    creatorId: currentAccount.id,
                     creatorTimeZone: timeZone,
                 },
             },

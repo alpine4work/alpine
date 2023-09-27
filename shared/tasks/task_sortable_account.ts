@@ -1,18 +1,7 @@
-import {AccountClientStore} from "~/client/accounts/account_client_store.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {FailedPreconditionError} from "~/shared/error/error.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
-
-// NOCOMMIT: I think this file needs to be deleted!
-
-type _TestAccountOptions =
-    | {id: AccountId; name: string; nameVersion?: number}
-    | {id: AccountId; initialName: string}
-    | {id: AccountId; initialData: {name: string; nameVersion?: number}};
-
-type TestAccountOptions = _TestAccountOptions | {account: _TestAccountOptions};
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
  * The representation of an account in a task that can be sorted. We can't sort by
@@ -31,77 +20,30 @@ type TestAccountOptions = _TestAccountOptions | {account: _TestAccountOptions};
  * However. the account name should be consistent throughout our task system.
  * The rest of the product should eventually update to the right account name.
  */
-// NOTE(calebmer, 2023-07-12): We don't yet have a system for keeping
-// `AccountModel` up-to-date in realtime but I'd like us to have one
-// eventually. My rough idea is to not actually maintain a realtime connection
-// for account updates but rather if we get a new `AccountModel` from the
-// network, somehow make sure we render the same `AccountModel` everywhere.
-//
-// In that case `AccountModel` would be more like a reference to a centralized
-// map somewhere in the React component tree or HTTP response.
-export class TaskSortableAccount {
-    public readonly accountId: AccountId;
-    public readonly workingAccountName: string;
-    public readonly workingAccountNameVersion: number;
+export type TaskSortableAccount = SchemaType<typeof TaskSortableAccountSchema>;
 
-    constructor({
-        accountId,
-        workingAccountName,
-        workingAccountNameVersion,
-    }: {
-        accountId: AccountId;
-        workingAccountName: string;
-        workingAccountNameVersion: number;
-    }) {
-        this.accountId = accountId;
-        this.workingAccountName = workingAccountName;
-        this.workingAccountNameVersion = workingAccountNameVersion;
+export const TaskSortableAccountSchema = Schema.object({
+    accountId: Schema.id<AccountId>(),
+    workingAccountName: LabelStringSchema,
+    workingAccountNameVersion: Schema.integer.default(0),
+});
+
+export function mergeTaskSortableAccounts(
+    account1: TaskSortableAccount,
+    account2: TaskSortableAccount,
+): TaskSortableAccount {
+    if (account1.accountId !== account2.accountId) {
+        throw new FailedPreconditionError("Incompatible sortable accounts");
     }
 
-    public static readonly schema = Schema.object({
-        accountId: Schema.id<AccountId>(),
-        workingAccountName: LabelStringSchema,
-        workingAccountNameVersion: Schema.integer.default(0),
-    }).transform<TaskSortableAccount>({
-        serialize: account => account,
-        deserialize: account => new TaskSortableAccount(account),
-    });
-
-    public static from(accountStore: AccountClientStore, account: AccountModel) {
-        const accountData = accountStore.getAccountStore(account).getSnapshot();
-
-        return new TaskSortableAccount({
-            accountId: account.id,
-            workingAccountName: accountData.name,
-            workingAccountNameVersion: accountData.version,
-        });
+    if (
+        account1.workingAccountNameVersion === account2.workingAccountNameVersion &&
+        account1.workingAccountName !== account2.workingAccountName
+    ) {
+        throw new FailedPreconditionError("Incompatible sortable accounts");
     }
 
-    /**
-     * Create from a `TestSession` object we use in server tests (see
-     * `createTestContext()`).
-     */
-    public static test(options: TestAccountOptions) {
-        assert(process.env.NODE_ENV === "test");
-
-        const account = "account" in options ? options.account : options;
-
-        return new TaskSortableAccount({
-            accountId: account.id,
-            workingAccountName:
-                "initialName" in account
-                    ? account.initialName
-                    : "initialData" in account
-                    ? account.initialData.name
-                    : account.name,
-            workingAccountNameVersion: "nameVersion" in account ? account.nameVersion ?? 0 : 0,
-        });
-    }
-
-    public isEqual(other: TaskSortableAccount): boolean {
-        return (
-            this.accountId === other.accountId &&
-            this.workingAccountName === other.workingAccountName
-        );
-    }
+    return account2.workingAccountNameVersion > account1.workingAccountNameVersion
+        ? account2
+        : account1;
 }

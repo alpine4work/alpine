@@ -640,7 +640,7 @@ export class TaskRealtimeQuery {
         this.store.actionHistory.iterateActions(
             context.tracer.getTracer(),
             this.store.spaceId,
-            (action, options) => {
+            (action, {getActionReferencedSortableAccount}) => {
                 switch (action.type) {
                     case "UpdateTask": {
                         const freshTaskEntry = freshTaskEntryById.get(action.taskId)?.taskEntry;
@@ -653,7 +653,7 @@ export class TaskRealtimeQuery {
                                 oldTask,
                                 action.time,
                                 action.taskAction,
-                                options,
+                                getActionReferencedSortableAccount,
                             );
                             freshTaskEntry.task = newTask;
                         }

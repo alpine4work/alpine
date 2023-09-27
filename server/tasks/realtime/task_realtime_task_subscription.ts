@@ -122,7 +122,9 @@ export class TaskRealtimeTaskSubscriptionInternal extends TaskRealtimeTaskRefere
 
         // We construct an event builder just so we can wait out `waitUntil()`
         // promises.
-        const eventBuilder = new TaskRealtimeUpdateEventBuilder();
+        const eventBuilder = new TaskRealtimeUpdateEventBuilder({
+            actionReferencedAccountById: null,
+        });
 
         const oldTask = this.taskEntry.task;
         this._trackTaskDependenciesFromRemove(eventBuilder, oldTask);

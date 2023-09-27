@@ -1,10 +1,8 @@
-import {
-    TaskAssigneeWithSortableAccountRegister,
-    TaskIndexDoc,
-    TaskStatusWithSortableAccountRegister,
-} from "~/server/tasks/data/task_index_doc.js";
+import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {TaskUpdateAccountNameAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskAssigneeWithSortableAccountRegister} from "~/shared/tasks/task_assignee.js";
+import {TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.js";
 
 /**
  * Applies an `UpdateAccountName` action to a task. If the account is not

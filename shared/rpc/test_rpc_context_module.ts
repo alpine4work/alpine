@@ -52,10 +52,14 @@ export class TestRpcContextModule extends RpcContextModuleBase {
         return outputPromiseResolver.promise;
     }
 
-    public static resolveLastExecution<Input, Output>(
+    public static async resolveLastExecution<Input, Output>(
         definition: RpcDefinition<Input, Output>,
         output: Output,
     ): Promise<void> {
+        // Wait a macrotask before looking for the RPC execution. The execution may not
+        // be fired synchronously and instead fired after a microtask.
+        await waitMacrotask();
+
         const executions = testRpcExecutions.get(definition) ?? [];
         assert(executions.length > 0, "No pending executions");
 
@@ -70,11 +74,15 @@ export class TestRpcContextModule extends RpcContextModuleBase {
         return waitMacrotask();
     }
 
-    public static resolveExecution<Input, Output>(
+    public static async resolveExecution<Input, Output>(
         definition: RpcDefinition<Input, Output>,
         n: number,
         output: Output,
     ): Promise<void> {
+        // Wait a macrotask before looking for the RPC execution. The execution may not
+        // be fired synchronously and instead fired after a microtask.
+        await waitMacrotask();
+
         const executions = testRpcExecutions.get(definition) ?? [];
         assert(n < executions.length, "Execution not found");
 
@@ -86,9 +94,13 @@ export class TestRpcContextModule extends RpcContextModuleBase {
         return waitMacrotask();
     }
 
-    public static rejectLastExecution<Input, Output>(
+    public static async rejectLastExecution<Input, Output>(
         definition: RpcDefinition<Input, Output>,
     ): Promise<void> {
+        // Wait a macrotask before looking for the RPC execution. The execution may not
+        // be fired synchronously and instead fired after a microtask.
+        await waitMacrotask();
+
         const executions = testRpcExecutions.get(definition) ?? [];
         assert(executions.length > 0, "No pending executions");
 
@@ -103,10 +115,14 @@ export class TestRpcContextModule extends RpcContextModuleBase {
         return waitMacrotask();
     }
 
-    public static rejectExecution<Input, Output>(
+    public static async rejectExecution<Input, Output>(
         definition: RpcDefinition<Input, Output>,
         n: number,
     ): Promise<void> {
+        // Wait a macrotask before looking for the RPC execution. The execution may not
+        // be fired synchronously and instead fired after a microtask.
+        await waitMacrotask();
+
         const executions = testRpcExecutions.get(definition) ?? [];
         assert(n < executions.length, "Execution not found");
 

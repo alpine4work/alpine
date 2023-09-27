@@ -294,39 +294,31 @@ export class TaskRealtimeConnection {
     ): Promise<{
         taskSubscriptionId: TaskRealtimeTaskSubscriptionId;
     }> {
-        return systemContext.tracer.withSpan(
-            "Subscribe to individual task",
-            async (systemContext, span) => {
-                sessionContext = sessionContext.clone({tracer: new TracerContextModule(span)});
+        return systemContext.tracer.withSpan("Subscribe to task", async (systemContext, span) => {
+            sessionContext = sessionContext.clone({tracer: new TracerContextModule(span)});
 
-                // Must authorize before using system context.
-                await this._server.authorizeTaskAccess(
-                    sessionContext,
-                    this._spaceId,
+            // Must authorize before using system context.
+            await this._server.authorizeTaskAccess(sessionContext, this._spaceId, taskId, "View");
+
+            const taskSubscription = await this._server.subscribeToTask(
+                systemContext,
+                eventBuilder,
+                {
+                    spaceId: this._spaceId,
                     taskId,
-                    "View",
-                );
+                    callbacks: this._subscriptionCallbacks,
+                },
+            );
 
-                const taskSubscription = await this._server.subscribeToTask(
-                    systemContext,
-                    eventBuilder,
-                    {
-                        spaceId: this._spaceId,
-                        taskId,
-                        callbacks: this._subscriptionCallbacks,
-                    },
-                );
+            const taskSubscriptionId = generateId<TaskRealtimeTaskSubscriptionId>();
 
-                const taskSubscriptionId = generateId<TaskRealtimeTaskSubscriptionId>();
+            assert(!this._taskSubscriptionById.has(taskSubscriptionId));
+            this._taskSubscriptionById.set(taskSubscriptionId, taskSubscription);
 
-                assert(!this._taskSubscriptionById.has(taskSubscriptionId));
-                this._taskSubscriptionById.set(taskSubscriptionId, taskSubscription);
-
-                return {
-                    taskSubscriptionId,
-                };
-            },
-        );
+            return {
+                taskSubscriptionId,
+            };
+        });
     }
 
     private async _unsubscribeFromTask(taskSubscriptionId: TaskRealtimeTaskSubscriptionId) {
@@ -405,7 +397,9 @@ export class TaskRealtimeConnection {
                 sessionContext,
                 this._spaceId,
                 async context => {
-                    const eventBuilder = new TaskRealtimeUpdateEventBuilder();
+                    const eventBuilder = new TaskRealtimeUpdateEventBuilder({
+                        actionReferencedAccountById: null,
+                    });
 
                     const {querySubscriptionId, loadedState, getPreviouslyBackfilledTaskIds} =
                         await this._subscribeToQuery(sessionContext, context, eventBuilder, input);
@@ -440,7 +434,9 @@ export class TaskRealtimeConnection {
                 context,
                 this._spaceId,
                 async context => {
-                    const eventBuilder = new TaskRealtimeUpdateEventBuilder();
+                    const eventBuilder = new TaskRealtimeUpdateEventBuilder({
+                        actionReferencedAccountById: null,
+                    });
 
                     const {loadedState, tasks} = await querySubscription.loadMoreTasks(
                         context,
@@ -472,7 +468,9 @@ export class TaskRealtimeConnection {
                 sessionContext,
                 this._spaceId,
                 async context => {
-                    const eventBuilder = new TaskRealtimeUpdateEventBuilder();
+                    const eventBuilder = new TaskRealtimeUpdateEventBuilder({
+                        actionReferencedAccountById: null,
+                    });
 
                     const {taskSubscriptionId} = await this._subscribeToTask(
                         sessionContext,
@@ -501,7 +499,9 @@ export class TaskRealtimeConnection {
                 sessionContext,
                 this._spaceId,
                 async context => {
-                    const eventBuilder = new TaskRealtimeUpdateEventBuilder();
+                    const eventBuilder = new TaskRealtimeUpdateEventBuilder({
+                        actionReferencedAccountById: null,
+                    });
 
                     const {collectionSubscriptionId} = await this._subscribeToCollection(
                         sessionContext,
@@ -530,7 +530,9 @@ export class TaskRealtimeConnection {
                 sessionContext,
                 this._spaceId,
                 async systemContext => {
-                    const eventBuilder = new TaskRealtimeUpdateEventBuilder();
+                    const eventBuilder = new TaskRealtimeUpdateEventBuilder({
+                        actionReferencedAccountById: null,
+                    });
 
                     const [
                         querySubscriptionResults,
@@ -673,7 +675,7 @@ export class TaskRealtimeConnection {
         // client.
         //
         // Finally, once all that is done we can send the event to the client!
-        send: async (context, event) => {
+        send: async (context, event, actionReferencedAccountById) => {
             const actions = filterMapArray(event.actions, action =>
                 prepareTaskActionForClient(this._accountId, action),
             );
@@ -698,8 +700,18 @@ export class TaskRealtimeConnection {
                 collectReferencedAccountIdsFromTaskAction(accountIds, action);
             }
 
+            // It's important that accounts referenced by `actions` are read with a
+            // `Strong` read consistency so we don't read stale account data after the
+            // `UpdateAccountName` action has been applied. If this event builder was
+            // created when applying actions then `actionReferencedAccountById` will be set
+            // with accounts read with `Strong` consistency.
             const referencedAccounts = await runAllPromises(
-                Array.from(accountIds, accountId => getAccount(context, this._spaceId, accountId)),
+                Array.from(
+                    accountIds,
+                    accountId =>
+                        actionReferencedAccountById?.get(accountId) ??
+                        getAccount(context, this._spaceId, accountId),
+                ),
             );
 
             this._sendEvent(context, {
@@ -1204,7 +1216,9 @@ export class TaskRealtimeConnection {
     private async _authorizeReferencedTasksAndCollections(
         context: TaskRealtimeSystemActionContext,
     ) {
-        const eventBuilder = new TaskRealtimeUpdateEventBuilder();
+        const eventBuilder = new TaskRealtimeUpdateEventBuilder({
+            actionReferencedAccountById: null,
+        });
 
         // Create a snapshot of `referencedTaskStateById` while we're reauthorizing.
         // Tasks may become unreferenced/referenced while we're authorizing and we

@@ -10,6 +10,7 @@ import {
     TaskUpdateCollectionAction,
     TaskUpdateTaskAction,
 } from "~/shared/tasks/actions/task_action.js";
+import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 /**
@@ -65,10 +66,7 @@ export interface ReadonlyTaskRealtimeActionHistory {
         callback: (
             action: TaskAction,
             options: {
-                getActionReferencedAccountName: (accountId: AccountId) => {
-                    name: string;
-                    nameVersion: number;
-                };
+                getActionReferencedSortableAccount: (accountId: AccountId) => TaskSortableAccount;
             },
         ) => void,
     ): void;
@@ -80,10 +78,7 @@ export interface ReadonlyTaskRealtimeActionHistory {
         callback: (
             action: TaskUpdateTaskAction | TaskUpdateAccountNameAction,
             options: {
-                getActionReferencedAccountName: (accountId: AccountId) => {
-                    name: string;
-                    nameVersion: number;
-                };
+                getActionReferencedSortableAccount: (accountId: AccountId) => TaskSortableAccount;
             },
         ) => void,
     ): void;
@@ -95,10 +90,7 @@ export interface ReadonlyTaskRealtimeActionHistory {
         callback: (
             action: TaskUpdateCollectionAction,
             options: {
-                getActionReferencedAccountName: (accountId: AccountId) => {
-                    name: string;
-                    nameVersion: number;
-                };
+                getActionReferencedSortableAccount: (accountId: AccountId) => TaskSortableAccount;
             },
         ) => void,
     ): void;
@@ -417,13 +409,10 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
         }
     }
 
-    private _getActionReferencedAccountName(
+    private _getActionReferencedSortableAccount(
         spaceId: SpaceId,
         accountId: AccountId,
-    ): {
-        name: string;
-        nameVersion: number;
-    } {
+    ): TaskSortableAccount {
         let segment = this._newestSegment;
         while (segment !== null) {
             const account = segment.spaceSegmentById
@@ -431,8 +420,9 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
                 ?.actionReferencedAccountById.get(accountId);
             if (account) {
                 return {
-                    name: account.initialData.name,
-                    nameVersion: account.initialData.nameVersion,
+                    accountId,
+                    workingAccountName: account.initialData.name,
+                    workingAccountNameVersion: account.initialData.nameVersion,
                 };
             }
 
@@ -454,16 +444,13 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
         callback: (
             action: TaskAction,
             options: {
-                getActionReferencedAccountName: (accountId: AccountId) => {
-                    name: string;
-                    nameVersion: number;
-                };
+                getActionReferencedSortableAccount: (accountId: AccountId) => TaskSortableAccount;
             },
         ) => void,
     ) {
         const options = {
-            getActionReferencedAccountName: (accountId: AccountId) =>
-                this._getActionReferencedAccountName(spaceId, accountId),
+            getActionReferencedSortableAccount: (accountId: AccountId) =>
+                this._getActionReferencedSortableAccount(spaceId, accountId),
         };
 
         let segment = this._oldestSegment;
@@ -497,16 +484,13 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
         callback: (
             action: TaskUpdateTaskAction | TaskUpdateAccountNameAction,
             options: {
-                getActionReferencedAccountName: (accountId: AccountId) => {
-                    name: string;
-                    nameVersion: number;
-                };
+                getActionReferencedSortableAccount: (accountId: AccountId) => TaskSortableAccount;
             },
         ) => void,
     ) {
         const options = {
-            getActionReferencedAccountName: (accountId: AccountId) =>
-                this._getActionReferencedAccountName(spaceId, accountId),
+            getActionReferencedSortableAccount: (accountId: AccountId) =>
+                this._getActionReferencedSortableAccount(spaceId, accountId),
         };
 
         let segment = this._oldestSegment;
@@ -543,16 +527,13 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
         callback: (
             action: TaskUpdateCollectionAction,
             options: {
-                getActionReferencedAccountName: (accountId: AccountId) => {
-                    name: string;
-                    nameVersion: number;
-                };
+                getActionReferencedSortableAccount: (accountId: AccountId) => TaskSortableAccount;
             },
         ) => void,
     ) {
         const options = {
-            getActionReferencedAccountName: (accountId: AccountId) =>
-                this._getActionReferencedAccountName(spaceId, accountId),
+            getActionReferencedSortableAccount: (accountId: AccountId) =>
+                this._getActionReferencedSortableAccount(spaceId, accountId),
         };
 
         let segment = this._oldestSegment;

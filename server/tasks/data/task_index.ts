@@ -47,6 +47,7 @@ import {TaskAction, TaskUpdateAccountNameAction} from "~/shared/tasks/actions/ta
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
+import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 
 const taskIndexRefreshIntervalSecs = 30;
 const taskIndexRefreshIntervalMs = taskIndexRefreshIntervalSecs * 1000;
@@ -469,10 +470,7 @@ class TaskActionTransactionIndexState {
      * `collectReferencedAccountIdsFromTaskAction()`. If the account is not
      * referenced then we'll throw an error.
      */
-    public getActionReferencedAccountName(accountId: AccountId): {
-        name: string;
-        nameVersion: number;
-    } {
+    public getActionReferencedSortableAccount(accountId: AccountId): TaskSortableAccount {
         const account = this._actionReferencedAccountById.get(accountId);
 
         if (!account) {
@@ -482,8 +480,9 @@ class TaskActionTransactionIndexState {
         }
 
         return {
-            name: account.initialData.name,
-            nameVersion: account.initialData.nameVersion,
+            accountId,
+            workingAccountName: account.initialData.name,
+            workingAccountNameVersion: account.initialData.nameVersion,
         };
     }
 
@@ -606,18 +605,15 @@ async function actuallyIndexTaskAction(
                     : await state.getTaskIndexDocIfExists(action.taskId);
 
             if (!oldTask && action.taskAction.type === "Create") {
-                const {name: workingAccountName, nameVersion: workingAccountNameVersion} =
-                    state.getActionReferencedAccountName(action.taskAction.creatorId);
+                const creator = state.getActionReferencedSortableAccount(
+                    action.taskAction.creatorId,
+                );
 
                 state.putTaskIndexDoc(action.taskId, {
                     id: action.taskId,
                     spaceId: state.spaceId,
                     ...createEmptyTaskIndexDoc(action.time, action.taskAction),
-                    creator: {
-                        accountId: action.taskAction.creatorId,
-                        workingAccountName,
-                        workingAccountNameVersion,
-                    },
+                    creator,
                     version: null,
                 });
                 return;
@@ -638,10 +634,12 @@ async function actuallyIndexTaskAction(
                 );
             }
 
-            const newTask = applyTaskActionToTaskIndexDoc(oldTask, action.time, action.taskAction, {
-                getActionReferencedAccountName: accountId =>
-                    state.getActionReferencedAccountName(accountId),
-            });
+            const newTask = applyTaskActionToTaskIndexDoc(
+                oldTask,
+                action.time,
+                action.taskAction,
+                accountId => state.getActionReferencedSortableAccount(accountId),
+            );
 
             // NOTE(calebmer): Maintaining referential identity to avoid having to make an
             // update network request is an important optimization.

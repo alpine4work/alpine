@@ -4,11 +4,13 @@ import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {StoreMap} from "~/client/helpers/store/store_map.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
+import {createGetTaskActionReferencedSortableAccount} from "~/client/tasks/internal/create_get_task_action_referenced_sortable_account.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {TaskClientQuery, TaskClientQueryInternal} from "~/client/tasks/task_client_query.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
 import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_clock.js";
 import {Context} from "~/shared/context/context.js";
+import {InternalError} from "~/shared/error/error.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {Clock} from "~/shared/helpers/clock/clock.js";
 import {
@@ -22,7 +24,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {AdvancedWeakValuesMap} from "~/shared/helpers/map/advanced_weak_values_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {
     commitTaskActionTransaction,
@@ -42,6 +44,7 @@ import {
     TaskRealtimeQueryLoadedState,
     TaskRealtimeUpdateEvent,
 } from "~/shared/tasks/task_realtime_protocol.js";
+import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {TaskTitleUpdate, mergeTaskTitleUpdates} from "~/shared/tasks/task_title.js";
 
 export type TaskClientStoreTaskEntry =
@@ -56,7 +59,7 @@ export type TaskClientStoreTaskEntry =
     // Task uninitialized and known authorization state:
     | {
           readonly task: null;
-          readonly actions: ReadonlyArray<TaskUpdateTaskAction>;
+          readonly actions: ReadonlyArray<TaskClientStorePendingUpdateTaskAction>;
           readonly optimisticState:
               | (TaskClientStoreTaskEntryOptimisticState & {original: {task: null}})
               | null;
@@ -66,7 +69,7 @@ export type TaskClientStoreTaskEntry =
     // Task uninitialized and unknown authorization state:
     | {
           readonly task: null;
-          readonly actions: ReadonlyArray<TaskUpdateTaskAction>;
+          readonly actions: ReadonlyArray<TaskClientStorePendingUpdateTaskAction>;
           readonly optimisticState:
               | (TaskClientStoreTaskEntryOptimisticState & {original: {task: null}})
               | null;
@@ -96,12 +99,13 @@ export type TaskClientStoreTaskEntryOptimisticState = {
           }
         | {
               readonly task: null;
-              readonly actions: ReadonlyArray<TaskUpdateTaskAction>;
+              readonly actions: ReadonlyArray<TaskClientStorePendingUpdateTaskAction>;
           };
-    readonly actions: ReadonlyArray<{
-        readonly isOptimistic: boolean;
-        readonly action: TaskUpdateTaskAction;
-    }>;
+    readonly actions: ReadonlyArray<
+        TaskClientStorePendingUpdateTaskAction & {
+            readonly isOptimistic: boolean;
+        }
+    >;
 };
 
 export type TaskClientStoreCollectionEntry =
@@ -126,6 +130,16 @@ export type TaskClientStoreCollectionEntry =
           readonly isAuthorized: false;
           readonly authorizationEventNumber: number;
       };
+
+type TaskClientStorePendingAction = {
+    readonly action: TaskAction;
+    readonly getActionReferencedSortableAccount: (accountId: AccountId) => TaskSortableAccount;
+};
+
+type TaskClientStorePendingUpdateTaskAction = {
+    readonly action: TaskUpdateTaskAction;
+    readonly getActionReferencedSortableAccount: (accountId: AccountId) => TaskSortableAccount;
+};
 
 /**
  * The client model store holds all our task data for a space on the client.
@@ -276,6 +290,13 @@ export class TaskClientStore {
     ): TaskClientCollectionSubscription {
         return this._internal.createAndRetainCollectionSubscription(collectionId);
     }
+}
+
+let shouldDisableCommitTaskActionTransactionMutexForTest = false;
+
+export function setShouldDisableCommitTaskActionTransactionMutexForTest(shouldDisable: boolean) {
+    assert(import.meta.jest);
+    shouldDisableCommitTaskActionTransactionMutexForTest = shouldDisable;
 }
 
 export class TaskClientStoreInternal {
@@ -430,8 +451,19 @@ export class TaskClientStoreInternal {
      * we'll converge to the same result.
      */
     public applyUpdateEvent(event: TaskRealtimeUpdateEvent): void {
+        batchStoreUpdates(() => {
+            this._applyUpdateEvent(event);
+        });
+    }
+
+    private _applyUpdateEvent(event: TaskRealtimeUpdateEvent): void {
         const newTaskEntryById = new Map<TaskId, TaskClientStoreTaskEntry>();
         const newCollectionEntryById = new Map<TaskCollectionId, TaskClientStoreCollectionEntry>();
+
+        // Incorporate referenced accounts into account store:
+        for (const account of event.referencedAccounts) {
+            this.accountStore.getAndImmediatelyUpdateStore(account);
+        }
 
         // Backfill authorized tasks:
         for (const backfillTask of event.backfillAuthorizedTasks) {
@@ -464,10 +496,7 @@ export class TaskClientStoreInternal {
             if (oldTaskEntry.task === null) {
                 newTask = backfillTask;
 
-                newTask = oldTaskEntry.actions.reduce(
-                    (task, action) => task.apply(action),
-                    newTask,
-                );
+                newTask = applyPendingTaskActions(newTask, oldTaskEntry.actions);
 
                 if (oldTaskEntry.optimisticState === null) {
                     newOptimisticState = null;
@@ -490,9 +519,9 @@ export class TaskClientStoreInternal {
                         original: {
                             task:
                                 oldTaskEntry.optimisticState.original.task === null
-                                    ? oldTaskEntry.optimisticState.original.actions.reduce(
-                                          (task, action) => task.apply(action),
+                                    ? applyPendingTaskActions(
                                           backfillTask,
+                                          oldTaskEntry.optimisticState.original.actions,
                                       )
                                     : oldTaskEntry.optimisticState.original.task.merge(
                                           backfillTask,
@@ -712,6 +741,11 @@ export class TaskClientStoreInternal {
             // actions we've already seen.
             this.clock.tick(action.time);
 
+            const getActionReferencedSortableAccount = createGetTaskActionReferencedSortableAccount(
+                this.accountStore,
+                action,
+            );
+
             switch (action.type) {
                 case "UpdateTask": {
                     const oldTaskEntry =
@@ -722,7 +756,7 @@ export class TaskClientStoreInternal {
                         if (action.taskAction.type !== "Create") {
                             newTaskEntryById.set(action.taskId, {
                                 task: null,
-                                actions: [action],
+                                actions: [{action, getActionReferencedSortableAccount}],
                                 optimisticState: null,
                                 isAuthorized: null,
                                 authorizationEventNumber: null,
@@ -733,6 +767,7 @@ export class TaskClientStoreInternal {
                                 action.taskId,
                                 action.time,
                                 action.taskAction,
+                                getActionReferencedSortableAccount,
                             );
 
                             newTaskEntryById.set(action.taskId, {
@@ -753,13 +788,20 @@ export class TaskClientStoreInternal {
                         if (action.taskAction.type !== "Create") {
                             newTaskEntryById.set(action.taskId, {
                                 ...oldTaskEntry,
-                                actions: [...oldTaskEntry.actions, action],
+                                actions: [
+                                    ...oldTaskEntry.actions,
+                                    {action, getActionReferencedSortableAccount},
+                                ],
                                 optimisticState: oldTaskEntry.optimisticState
                                     ? {
                                           original: oldTaskEntry.optimisticState.original,
                                           actions: [
                                               ...oldTaskEntry.optimisticState.actions,
-                                              {isOptimistic: false, action},
+                                              {
+                                                  isOptimistic: false,
+                                                  action,
+                                                  getActionReferencedSortableAccount,
+                                              },
                                           ],
                                       }
                                     : null,
@@ -771,19 +813,17 @@ export class TaskClientStoreInternal {
                                 action.taskId,
                                 action.time,
                                 action.taskAction,
+                                getActionReferencedSortableAccount,
                             );
 
                             // Apply any actions we received out-of-order now that the task has
                             // been created.
-                            newTask = oldTaskEntry.actions.reduce(
-                                (task, action) => task.apply(action),
-                                newTask,
-                            );
+                            newTask = applyPendingTaskActions(newTask, oldTaskEntry.actions);
 
                             if (oldTaskEntry.optimisticState) {
-                                newTask = oldTaskEntry.optimisticState.actions.reduce(
-                                    (task, {action}) => task.apply(action),
+                                newTask = applyPendingTaskActions(
                                     newTask,
+                                    oldTaskEntry.optimisticState.actions,
                                 );
                             }
 
@@ -795,7 +835,11 @@ export class TaskClientStoreInternal {
                                           original: oldTaskEntry.optimisticState.original,
                                           actions: [
                                               ...oldTaskEntry.optimisticState.actions,
-                                              {isOptimistic: false, action},
+                                              {
+                                                  isOptimistic: false,
+                                                  action,
+                                                  getActionReferencedSortableAccount,
+                                              },
                                           ],
                                       }
                                     : null,
@@ -810,7 +854,10 @@ export class TaskClientStoreInternal {
                         }
                     }
 
-                    const newTask = oldTaskEntry.task.apply(action);
+                    const newTask = oldTaskEntry.task.apply(
+                        action,
+                        getActionReferencedSortableAccount,
+                    );
 
                     // Optimization: If the task didn't change and we don't have optimistic state
                     // for the task then don't update our store.
@@ -826,7 +873,11 @@ export class TaskClientStoreInternal {
                                   original: oldTaskEntry.optimisticState.original,
                                   actions: [
                                       ...oldTaskEntry.optimisticState.actions,
-                                      {isOptimistic: false, action},
+                                      {
+                                          isOptimistic: false,
+                                          action,
+                                          getActionReferencedSortableAccount,
+                                      },
                                   ],
                               }
                             : null,
@@ -903,12 +954,14 @@ export class TaskClientStoreInternal {
                     // NOCOMMIT: I think this needs an implementation?
                     break;
                 }
+                case "UpdateAccountName": {
+                    // NOCOMMIT: Update all account names
+                    break;
+                }
                 default:
                     throw exhaustive(action);
             }
         }
-
-        // NOCOMMIT: Accounts??
 
         this._updateStore(newTaskEntryById, newCollectionEntryById);
     }
@@ -932,32 +985,48 @@ export class TaskClientStoreInternal {
         // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
         // close the page if we haven't finished committing their task action. It will
         // look committed on their machine but might not be on the server.
-        const commitPromise = this._commitTaskActionTransactionMutex.withLock(() =>
+        const run = () =>
             commitTaskActionTransaction(context, {
                 spaceId: this.spaceId,
                 actions,
-            }),
-        );
+            });
+
+        const commitPromise = shouldDisableCommitTaskActionTransactionMutexForTest
+            ? run()
+            : this._commitTaskActionTransactionMutex.withLock(run);
 
         const optimisticExtraActions = this._getOptimisticExtraActions(actions);
 
-        const optimisticExtraActionsByTaskId = new Map<TaskId, Array<TaskAction>>();
-        for (const action of optimisticExtraActions) {
-            getOrSetDefaultMapValue(optimisticExtraActionsByTaskId, action.taskId, () => []).push(
-                action,
-            );
-        }
-
-        this._applyOptimisticTaskActions(
+        const allPendingActions = this._applyOptimisticTaskActions(
             optimisticExtraActions.length > 0 ? [...actions, ...optimisticExtraActions] : actions,
         );
+
+        const pendingActions = allPendingActions.slice(0, actions.length);
+        const optimisticExtraPendingActions = allPendingActions.slice(actions.length);
+
+        const optimisticExtraPendingActionsByTaskId = new Map<
+            TaskId,
+            Array<TaskClientStorePendingUpdateTaskAction>
+        >();
+        for (const pendingAction of optimisticExtraPendingActions) {
+            assert(pendingAction.action.type === "UpdateTask");
+
+            getOrSetDefaultMapValue(
+                optimisticExtraPendingActionsByTaskId,
+                pendingAction.action.taskId,
+                () => [],
+            ).push({
+                ...pendingAction,
+                action: pendingAction.action,
+            });
+        }
 
         commitPromise.then(
             ({extraActions, referencedAccounts}) => {
                 // Between applying an update event and committing our optimistic actions we
                 // have a lot of store updates we want to batch together.
                 batchStoreUpdates(() => {
-                    this._commitOptimisticTaskActions(actions);
+                    this._commitOptimisticTaskActions(pendingActions);
 
                     // The code below is all about reconciling `optimisticExtraActions`. The
                     // procedure is:
@@ -971,7 +1040,7 @@ export class TaskClientStoreInternal {
                     // be a noop then we consider `optimisticExtraActions` to match `extraActions`.
 
                     const taskByIdBeforeExtraActions = new Map<TaskId, TaskModel | null>();
-                    for (const taskId of optimisticExtraActionsByTaskId.keys()) {
+                    for (const taskId of optimisticExtraPendingActionsByTaskId.keys()) {
                         taskByIdBeforeExtraActions.set(
                             taskId,
                             this._taskEntryStoreById.get(taskId)?.getSnapshot().task ?? null,
@@ -992,7 +1061,10 @@ export class TaskClientStoreInternal {
                         });
                     }
 
-                    for (const [taskId, optimisticExtraActions] of optimisticExtraActionsByTaskId) {
+                    for (const [
+                        taskId,
+                        optimisticExtraActions,
+                    ] of optimisticExtraPendingActionsByTaskId) {
                         const taskEntry = this._taskEntryStoreById.get(taskId)?.getSnapshot();
 
                         // This task:
@@ -1022,14 +1094,14 @@ export class TaskClientStoreInternal {
                         //
                         // - Has `extraActions` applied
                         // - Does not have `optimisticExtraActions` applied
-                        const taskWithoutOptimisticExtraActions =
-                            taskEntry.optimisticState.actions.reduce(
-                                (task, {action}) =>
-                                    !optimisticExtraActions.includes(action)
-                                        ? task.apply(action)
-                                        : task,
-                                taskEntry.optimisticState.original.task,
-                            );
+                        const taskWithoutOptimisticExtraActions = applyPendingTaskActions(
+                            taskEntry.optimisticState.original.task,
+                            taskEntry.optimisticState.actions.filter(({action}) =>
+                                optimisticExtraActions.every(
+                                    pendingAction => pendingAction.action !== action,
+                                ),
+                            ),
+                        );
 
                         // We want to check that `optimisticExtraActions` are a noop after
                         // `extraActions` are applied. If they are not a noop then our generated
@@ -1070,6 +1142,11 @@ export class TaskClientStoreInternal {
                             notepadPageCount++;
                             break;
                         }
+                        case "UpdateAccountName": {
+                            // Generic error message if this fails. The client shouldn't be committing
+                            // this anyway.
+                            break;
+                        }
                         default:
                             throw exhaustive(action);
                     }
@@ -1098,10 +1175,11 @@ export class TaskClientStoreInternal {
                 });
 
                 this._revertOptimisticTaskActions(
-                    optimisticExtraActions.length > 0
-                        ? [...actions, ...optimisticExtraActions]
-                        : actions,
+                    optimisticExtraPendingActions.length > 0
+                        ? [...pendingActions, ...optimisticExtraPendingActions]
+                        : pendingActions,
                 );
+                this._revertOptimisticTaskActions(optimisticExtraPendingActions);
             },
         );
 
@@ -1179,7 +1257,7 @@ export class TaskClientStoreInternal {
                 // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
                 // close the page if we haven't finished committing their task action. It will
                 // look committed on their machine but might not be on the server.
-                const commitPromise = this._commitTaskActionTransactionMutex.withLock(() =>
+                const run = () =>
                     commitTaskActionTransaction(context, {
                         spaceId: this.spaceId,
                         actions: [
@@ -1193,12 +1271,24 @@ export class TaskClientStoreInternal {
                                 },
                             },
                         ],
-                    }),
-                );
+                    });
+
+                const commitPromise = shouldDisableCommitTaskActionTransactionMutexForTest
+                    ? run()
+                    : this._commitTaskActionTransactionMutex.withLock(run);
 
                 commitPromise.then(
                     () => {
-                        this._commitOptimisticTaskActions(actions);
+                        this._commitOptimisticTaskActions(
+                            actions.map(action => ({
+                                action,
+                                getActionReferencedSortableAccount: () => {
+                                    throw new InternalError(
+                                        "`UpdateTitle` task action doesn't reference any accounts",
+                                    );
+                                },
+                            })),
+                        );
                     },
                     error => {
                         this._onDisplayError({
@@ -1206,7 +1296,16 @@ export class TaskClientStoreInternal {
                             error,
                         });
 
-                        this._revertOptimisticTaskActions(actions);
+                        this._revertOptimisticTaskActions(
+                            actions.map(action => ({
+                                action,
+                                getActionReferencedSortableAccount: () => {
+                                    throw new InternalError(
+                                        "`UpdateTitle` task action doesn't reference any accounts",
+                                    );
+                                },
+                            })),
+                        );
                     },
                 );
 
@@ -1234,12 +1333,15 @@ export class TaskClientStoreInternal {
         // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
         // close the page if we haven't finished committing their task action. It will
         // look committed on their machine but might not be on the server.
-        const deletePromise = this._commitTaskActionTransactionMutex.withLock(() =>
+        const run = () =>
             deleteTaskAndAllChildren(context, {
                 taskId,
                 actionTime,
-            }),
-        );
+            });
+
+        const deletePromise = shouldDisableCommitTaskActionTransactionMutexForTest
+            ? run()
+            : this._commitTaskActionTransactionMutex.withLock(run);
 
         const optimisticDeleteActions: Array<TaskUpdateTaskAction> = [];
 
@@ -1267,18 +1369,29 @@ export class TaskClientStoreInternal {
         // Get any extra actions from our delete (e.g. changing child task counts).
         const optimisticExtraActions = this._getOptimisticExtraActions(optimisticDeleteActions);
 
-        const optimisticActions = [...optimisticDeleteActions, ...optimisticExtraActions];
+        const optimisticPendingActions = this._applyOptimisticTaskActions([
+            ...optimisticDeleteActions,
+            ...optimisticExtraActions,
+        ]);
 
         // All of our actions are associated with a task. Make our optimistic actions
         // easier to search by putting them in a map keyed by `TaskId`.
-        const optimisticActionsByTaskId = new Map<TaskId, Array<TaskAction>>();
-        for (const action of optimisticActions) {
-            getOrSetDefaultMapValue(optimisticActionsByTaskId, action.taskId, () => []).push(
-                action,
-            );
-        }
+        const optimisticPendingActionsByTaskId = new Map<
+            TaskId,
+            Array<TaskClientStorePendingUpdateTaskAction>
+        >();
+        for (const pendingAction of optimisticPendingActions) {
+            assert(pendingAction.action.type === "UpdateTask");
 
-        this._applyOptimisticTaskActions(optimisticActions);
+            getOrSetDefaultMapValue(
+                optimisticPendingActionsByTaskId,
+                pendingAction.action.taskId,
+                () => [],
+            ).push({
+                ...pendingAction,
+                action: pendingAction.action,
+            });
+        }
 
         deletePromise.then(
             ({actions, referencedAccounts}) => {
@@ -1286,7 +1399,7 @@ export class TaskClientStoreInternal {
                 // see optimistically.
                 batchStoreUpdates(() => {
                     const newActions: Array<TaskAction> = [];
-                    const matchedOptimisticActions = new Set<TaskAction>();
+                    const matchedOptimisticPendingActions = new Set<TaskClientStorePendingAction>();
 
                     // For all the actions we ended up committing, look for an exact match with a
                     // corresponding optimistic action with `isDeepEqual()`.
@@ -1303,31 +1416,34 @@ export class TaskClientStoreInternal {
                             continue;
                         }
 
-                        const optimisticActions = optimisticActionsByTaskId.get(action.taskId);
-                        const matchedOptimisticAction = optimisticActions?.find(optimisticAction =>
-                            isDeepEqual(action, optimisticAction),
+                        const optimisticPendingActions = optimisticPendingActionsByTaskId.get(
+                            action.taskId,
+                        );
+                        const matchedOptimisticPendingAction = optimisticPendingActions?.find(
+                            ({action: optimisticAction}) => isDeepEqual(action, optimisticAction),
                         );
 
-                        if (matchedOptimisticAction) {
-                            matchedOptimisticActions.add(matchedOptimisticAction);
+                        if (matchedOptimisticPendingAction) {
+                            matchedOptimisticPendingActions.add(matchedOptimisticPendingAction);
                         } else {
                             newActions.push(action);
                         }
                     }
 
-                    const unmatchedOptimisticActions: Array<TaskAction> = [];
-                    for (const optimisticAction of optimisticActions) {
-                        if (!matchedOptimisticActions.has(optimisticAction)) {
-                            unmatchedOptimisticActions.push(optimisticAction);
+                    const unmatchedOptimisticPendingActions: Array<TaskClientStorePendingAction> =
+                        [];
+                    for (const optimisticPendingAction of optimisticPendingActions) {
+                        if (!matchedOptimisticPendingActions.has(optimisticPendingAction)) {
+                            unmatchedOptimisticPendingActions.push(optimisticPendingAction);
                         }
                     }
 
-                    if (matchedOptimisticActions.size > 0) {
-                        this._commitOptimisticTaskActions(matchedOptimisticActions);
+                    if (matchedOptimisticPendingActions.size > 0) {
+                        this._commitOptimisticTaskActions(matchedOptimisticPendingActions);
                     }
 
-                    if (unmatchedOptimisticActions.length > 0) {
-                        this._revertOptimisticTaskActions(unmatchedOptimisticActions);
+                    if (unmatchedOptimisticPendingActions.length > 0) {
+                        this._revertOptimisticTaskActions(unmatchedOptimisticPendingActions);
                     }
 
                     if (newActions.length > 0) {
@@ -1351,7 +1467,7 @@ export class TaskClientStoreInternal {
                     error,
                 });
 
-                this._revertOptimisticTaskActions(optimisticActions);
+                this._revertOptimisticTaskActions(optimisticPendingActions);
             },
         );
 
@@ -1363,11 +1479,20 @@ export class TaskClientStoreInternal {
     }
 
     private _applyOptimisticTaskActions(actions: ReadonlyArray<TaskAction>) {
+        if (actions.length === 0) return [];
+
         const newTaskEntryById = new Map<TaskId, TaskClientStoreTaskEntry>();
         const newCollectionEntryById = new Map<TaskCollectionId, TaskClientStoreCollectionEntry>();
 
+        const pendingActions: Array<TaskClientStorePendingAction> = [];
+
         // Apply actions optimistically:
         for (const action of actions) {
+            const getActionReferencedSortableAccount = createGetTaskActionReferencedSortableAccount(
+                this.accountStore,
+                action,
+            );
+
             switch (action.type) {
                 case "UpdateTask": {
                     const oldTaskEntry =
@@ -1379,13 +1504,19 @@ export class TaskClientStoreInternal {
                         if (action.taskAction.type !== "Create") {
                             newTaskEntryById.set(action.taskId, {
                                 task: null,
-                                actions: [action],
+                                actions: [{action, getActionReferencedSortableAccount}],
                                 optimisticState: {
                                     original: {
                                         task: null,
                                         actions: [],
                                     },
-                                    actions: [{isOptimistic: true, action}],
+                                    actions: [
+                                        {
+                                            isOptimistic: true,
+                                            action,
+                                            getActionReferencedSortableAccount,
+                                        },
+                                    ],
                                 },
                                 isAuthorized: null,
                                 authorizationEventNumber: null,
@@ -1397,6 +1528,7 @@ export class TaskClientStoreInternal {
                                 action.taskId,
                                 action.time,
                                 action.taskAction,
+                                getActionReferencedSortableAccount,
                             );
 
                             newTaskEntryById.set(action.taskId, {
@@ -1407,7 +1539,13 @@ export class TaskClientStoreInternal {
                                         task: null,
                                         actions: [],
                                     },
-                                    actions: [{isOptimistic: true, action}],
+                                    actions: [
+                                        {
+                                            isOptimistic: true,
+                                            action,
+                                            getActionReferencedSortableAccount,
+                                        },
+                                    ],
                                 },
                                 // If we receive an optimistic create action it's from our account (other
                                 // creates will be rejected by the backend) so the task is authorized.
@@ -1423,7 +1561,10 @@ export class TaskClientStoreInternal {
                         if (action.taskAction.type !== "Create") {
                             newTaskEntryById.set(action.taskId, {
                                 ...oldTaskEntry,
-                                actions: [...oldTaskEntry.actions, action],
+                                actions: [
+                                    ...oldTaskEntry.actions,
+                                    {action, getActionReferencedSortableAccount},
+                                ],
                                 optimisticState: {
                                     original: {
                                         task: null,
@@ -1433,7 +1574,11 @@ export class TaskClientStoreInternal {
                                     },
                                     actions: [
                                         ...(oldTaskEntry.optimisticState?.actions ?? []),
-                                        {isOptimistic: true, action},
+                                        {
+                                            isOptimistic: true,
+                                            action,
+                                            getActionReferencedSortableAccount,
+                                        },
                                     ],
                                 },
                             });
@@ -1444,19 +1589,17 @@ export class TaskClientStoreInternal {
                                 action.taskId,
                                 action.time,
                                 action.taskAction,
+                                getActionReferencedSortableAccount,
                             );
 
                             // Apply any actions we received now that the task has been created.
-                            newTask = oldTaskEntry.actions.reduce(
-                                (task, action) => task.apply(action),
-                                newTask,
-                            );
+                            newTask = applyPendingTaskActions(newTask, oldTaskEntry.actions);
 
                             // Apply any optimistic actions we received now that the task has been created.
                             if (oldTaskEntry.optimisticState) {
-                                newTask = oldTaskEntry.optimisticState.actions.reduce(
-                                    (task, {action}) => task.apply(action),
+                                newTask = applyPendingTaskActions(
                                     newTask,
+                                    oldTaskEntry.optimisticState.actions,
                                 );
                             }
 
@@ -1472,7 +1615,11 @@ export class TaskClientStoreInternal {
                                     },
                                     actions: [
                                         ...(oldTaskEntry.optimisticState?.actions ?? []),
-                                        {isOptimistic: true, action},
+                                        {
+                                            isOptimistic: true,
+                                            action,
+                                            getActionReferencedSortableAccount,
+                                        },
                                     ],
                                 },
                                 // If we receive an optimistic create action it's from our account (other
@@ -1485,7 +1632,10 @@ export class TaskClientStoreInternal {
                         }
                     }
 
-                    const newTask = oldTaskEntry.task.apply(action);
+                    const newTask = oldTaskEntry.task.apply(
+                        action,
+                        getActionReferencedSortableAccount,
+                    );
 
                     newTaskEntryById.set(action.taskId, {
                         task: newTask,
@@ -1497,7 +1647,7 @@ export class TaskClientStoreInternal {
                             },
                             actions: [
                                 ...(oldTaskEntry.optimisticState?.actions ?? []),
-                                {isOptimistic: true, action},
+                                {isOptimistic: true, action, getActionReferencedSortableAccount},
                             ],
                         },
                         isAuthorized: oldTaskEntry.isAuthorized,
@@ -1513,19 +1663,26 @@ export class TaskClientStoreInternal {
                     // NOCOMMIT: I think something needs to be done here?
                     continue;
                 }
+                case "UpdateAccountName": {
+                    throw new InternalError(
+                        "Can't optimistically apply `UpdateAccountName` action",
+                    );
+                }
                 default:
                     throw exhaustive(action);
             }
         }
 
         this._updateStore(newTaskEntryById, newCollectionEntryById);
+
+        return pendingActions;
     }
 
-    private _commitOptimisticTaskActions(actions: Iterable<TaskAction>) {
+    private _commitOptimisticTaskActions(pendingActions: Iterable<TaskClientStorePendingAction>) {
         const newTaskEntryById = new Map<TaskId, TaskClientStoreTaskEntry>();
         const newCollectionEntryById = new Map<TaskCollectionId, TaskClientStoreCollectionEntry>();
 
-        for (const action of actions) {
+        for (const {action, getActionReferencedSortableAccount} of pendingActions) {
             switch (action.type) {
                 case "UpdateTask": {
                     const oldTaskEntry =
@@ -1562,16 +1719,15 @@ export class TaskClientStoreInternal {
                     const firstActuallyOptimisticActionIndex = newOptimisticActions.findIndex(
                         optimisticAction => optimisticAction.isOptimistic,
                     );
-                    let removedNonOptimisticActions: Array<TaskUpdateTaskAction>;
+                    let removedNonOptimisticActions: Array<TaskClientStorePendingUpdateTaskAction>;
                     if (firstActuallyOptimisticActionIndex === -1) {
-                        removedNonOptimisticActions = newOptimisticActions.map(
-                            ({action}) => action,
-                        );
+                        removedNonOptimisticActions = newOptimisticActions;
                         newOptimisticActions = [];
                     } else {
-                        removedNonOptimisticActions = newOptimisticActions
-                            .slice(0, firstActuallyOptimisticActionIndex)
-                            .map(({action}) => action);
+                        removedNonOptimisticActions = newOptimisticActions.slice(
+                            0,
+                            firstActuallyOptimisticActionIndex,
+                        );
                         newOptimisticActions = newOptimisticActions.slice(
                             firstActuallyOptimisticActionIndex,
                         );
@@ -1592,7 +1748,7 @@ export class TaskClientStoreInternal {
                         // If there was a create action then `oldTaskEntry.task` should be non-null.
                         assert(
                             removedNonOptimisticActions.every(
-                                action => action.taskAction.type !== "Create",
+                                ({action}) => action.taskAction.type !== "Create",
                             ),
                         );
 
@@ -1600,7 +1756,7 @@ export class TaskClientStoreInternal {
                             task: null,
                             actions: [
                                 ...oldTaskEntry.optimisticState.original.actions,
-                                action,
+                                {action, getActionReferencedSortableAccount},
                                 ...removedNonOptimisticActions,
                             ],
                         };
@@ -1619,39 +1775,54 @@ export class TaskClientStoreInternal {
 
                     if (action.taskAction.type === "Create" && newOriginal.task === null) {
                         newOriginal = {
-                            task: newOriginal.actions.reduce(
-                                (task, action) => task.apply(action),
+                            task: applyPendingTaskActions(
                                 TaskModel.createFromAction(
                                     this.spaceId,
                                     action.taskId,
                                     action.time,
                                     action.taskAction,
+                                    getActionReferencedSortableAccount,
                                 ),
+                                newOriginal.actions,
                             ),
                             actions: null,
                         };
                     } else {
                         newOriginal =
                             newOriginal.task !== null
-                                ? {task: newOriginal.task.apply(action), actions: null}
-                                : {task: null, actions: [...newOriginal.actions, action]};
+                                ? {
+                                      task: newOriginal.task.apply(
+                                          action,
+                                          getActionReferencedSortableAccount,
+                                      ),
+                                      actions: null,
+                                  }
+                                : {
+                                      task: null,
+                                      actions: [
+                                          ...newOriginal.actions,
+                                          {action, getActionReferencedSortableAccount},
+                                      ],
+                                  };
                     }
 
                     if (newOriginal.task !== null) {
                         newOriginal = {
-                            task: removedNonOptimisticActions.reduce(
-                                (task, action) => task.apply(action),
+                            task: applyPendingTaskActions(
                                 newOriginal.task,
+                                removedNonOptimisticActions,
                             ),
                             actions: null,
                         };
                     } else {
                         const nonOptimisticCreateAction = removedNonOptimisticActions.find(
                             (
-                                action,
-                            ): action is TaskUpdateTaskAction & {
-                                taskAction: {type: "Create"};
-                            } => action.taskAction.type === "Create",
+                                pendingAction,
+                            ): pendingAction is TaskClientStorePendingAction & {
+                                action: TaskUpdateTaskAction & {
+                                    taskAction: {type: "Create"};
+                                };
+                            } => pendingAction.action.taskAction.type === "Create",
                         );
 
                         if (!nonOptimisticCreateAction) {
@@ -1661,17 +1832,18 @@ export class TaskClientStoreInternal {
                             };
                         } else {
                             newOriginal = {
-                                task: removedNonOptimisticActions.reduce(
-                                    (task, action) => task.apply(action),
-                                    newOriginal.actions.reduce(
-                                        (task, action) => task.apply(action),
+                                task: applyPendingTaskActions(
+                                    applyPendingTaskActions(
                                         TaskModel.createFromAction(
                                             this.spaceId,
-                                            nonOptimisticCreateAction.taskId,
-                                            nonOptimisticCreateAction.time,
-                                            nonOptimisticCreateAction.taskAction,
+                                            nonOptimisticCreateAction.action.taskId,
+                                            nonOptimisticCreateAction.action.time,
+                                            nonOptimisticCreateAction.action.taskAction,
+                                            nonOptimisticCreateAction.getActionReferencedSortableAccount,
                                         ),
+                                        newOriginal.actions,
                                     ),
+                                    removedNonOptimisticActions,
                                 ),
                                 actions: null,
                             };
@@ -1695,6 +1867,11 @@ export class TaskClientStoreInternal {
                     // NOCOMMIT: I think something needs to be done here?
                     continue;
                 }
+                case "UpdateAccountName": {
+                    throw new InternalError(
+                        "Can't optimistically apply `UpdateAccountName` action",
+                    );
+                }
                 default:
                     throw exhaustive(action);
             }
@@ -1703,11 +1880,11 @@ export class TaskClientStoreInternal {
         this._updateStore(newTaskEntryById, newCollectionEntryById);
     }
 
-    private _revertOptimisticTaskActions(actions: ReadonlyArray<TaskAction>) {
+    private _revertOptimisticTaskActions(pendingActions: Iterable<TaskClientStorePendingAction>) {
         const newTaskEntryById = new Map<TaskId, TaskClientStoreTaskEntry>();
         const newCollectionEntryById = new Map<TaskCollectionId, TaskClientStoreCollectionEntry>();
 
-        for (const action of actions) {
+        for (const {action} of pendingActions) {
             switch (action.type) {
                 case "UpdateTask": {
                     const oldTaskEntry =
@@ -1746,16 +1923,15 @@ export class TaskClientStoreInternal {
                     const firstActuallyOptimisticActionIndex = newOptimisticActions.findIndex(
                         optimisticAction => optimisticAction.isOptimistic,
                     );
-                    let removedNonOptimisticActions: Array<TaskUpdateTaskAction>;
+                    let removedNonOptimisticActions: Array<TaskClientStorePendingUpdateTaskAction>;
                     if (firstActuallyOptimisticActionIndex === -1) {
-                        removedNonOptimisticActions = newOptimisticActions.map(
-                            ({action}) => action,
-                        );
+                        removedNonOptimisticActions = newOptimisticActions;
                         newOptimisticActions = [];
                     } else {
-                        removedNonOptimisticActions = newOptimisticActions
-                            .slice(0, firstActuallyOptimisticActionIndex)
-                            .map(({action}) => action);
+                        removedNonOptimisticActions = newOptimisticActions.slice(
+                            0,
+                            firstActuallyOptimisticActionIndex,
+                        );
                         newOptimisticActions = newOptimisticActions.slice(
                             firstActuallyOptimisticActionIndex,
                         );
@@ -1766,9 +1942,9 @@ export class TaskClientStoreInternal {
                         oldTaskEntry.optimisticState.original.task !== null
                     ) {
                         const newOriginal = {
-                            task: removedNonOptimisticActions.reduce(
-                                (task, action) => task.apply(action),
+                            task: applyPendingTaskActions(
                                 oldTaskEntry.optimisticState.original.task,
+                                removedNonOptimisticActions,
                             ),
                             actions: null,
                         };
@@ -1777,10 +1953,7 @@ export class TaskClientStoreInternal {
                             ...oldTaskEntry,
                             // Reset `task` and `actions` in the task entry so it doesn't include the
                             // rejected action.
-                            task: newOptimisticActions.reduce(
-                                (task, {action}) => task.apply(action),
-                                newOriginal.task,
-                            ),
+                            task: applyPendingTaskActions(newOriginal.task, newOptimisticActions),
                             actions: null,
                             optimisticState:
                                 newOptimisticActions.length > 0
@@ -1796,9 +1969,11 @@ export class TaskClientStoreInternal {
                     const nonOptimisticCreateAction = removedNonOptimisticActions.find(
                         (
                             action,
-                        ): action is TaskUpdateTaskAction & {
-                            taskAction: {type: "Create"};
-                        } => action.taskAction.type === "Create",
+                        ): action is TaskClientStorePendingUpdateTaskAction & {
+                            action: {
+                                taskAction: {type: "Create"};
+                            };
+                        } => action.action.taskAction.type === "Create",
                     );
 
                     let newOriginal;
@@ -1812,17 +1987,18 @@ export class TaskClientStoreInternal {
                         };
                     } else {
                         newOriginal = {
-                            task: removedNonOptimisticActions.reduce(
-                                (task, action) => task.apply(action),
-                                oldTaskEntry.optimisticState.original.actions!.reduce(
-                                    (task, action) => task.apply(action),
+                            task: applyPendingTaskActions(
+                                applyPendingTaskActions(
                                     TaskModel.createFromAction(
                                         this.spaceId,
-                                        nonOptimisticCreateAction.taskId,
-                                        nonOptimisticCreateAction.time,
-                                        nonOptimisticCreateAction.taskAction,
+                                        nonOptimisticCreateAction.action.taskId,
+                                        nonOptimisticCreateAction.action.time,
+                                        nonOptimisticCreateAction.action.taskAction,
+                                        nonOptimisticCreateAction.getActionReferencedSortableAccount,
                                     ),
+                                    oldTaskEntry.optimisticState.original.actions!,
                                 ),
+                                removedNonOptimisticActions,
                             ),
                             actions: null,
                         };
@@ -1838,10 +2014,7 @@ export class TaskClientStoreInternal {
                             ...oldTaskEntry,
                             // Reset `task` and `actions` in the task entry so it doesn't include the
                             // rejected action.
-                            task: newOptimisticActions.reduce(
-                                (task, {action}) => task.apply(action),
-                                newOriginal.task,
-                            ),
+                            task: applyPendingTaskActions(newOriginal.task, newOptimisticActions),
                             actions: null,
                             optimisticState:
                                 newOptimisticActions.length > 0
@@ -1856,11 +2029,13 @@ export class TaskClientStoreInternal {
 
                     const optimisticCreateAction = newOptimisticActions.find(
                         (
-                            optimisticAction,
-                        ): optimisticAction is {
+                            action,
+                        ): action is TaskClientStorePendingUpdateTaskAction & {
                             isOptimistic: boolean;
-                            action: TaskUpdateTaskAction & {taskAction: {type: "Create"}};
-                        } => optimisticAction.action.taskAction.type === "Create",
+                            action: {
+                                taskAction: {type: "Create"};
+                            };
+                        } => action.action.taskAction.type === "Create",
                     );
 
                     if (!optimisticCreateAction) {
@@ -1871,7 +2046,12 @@ export class TaskClientStoreInternal {
                             task: null,
                             actions: [
                                 ...newOriginal.actions,
-                                ...newOptimisticActions.map(({action}) => action),
+                                ...newOptimisticActions.map(
+                                    ({action, getActionReferencedSortableAccount}) => ({
+                                        action,
+                                        getActionReferencedSortableAccount,
+                                    }),
+                                ),
                             ],
                             optimisticState:
                                 newOptimisticActions.length > 0
@@ -1885,17 +2065,18 @@ export class TaskClientStoreInternal {
                         newTaskEntryById.set(action.taskId, {
                             // Reset `task` and `actions` in the task entry so it doesn't include the
                             // rejected action.
-                            task: newOptimisticActions.reduce(
-                                (task, {action}) => task.apply(action),
-                                newOriginal.actions.reduce(
-                                    (task, action) => task.apply(action),
+                            task: applyPendingTaskActions(
+                                applyPendingTaskActions(
                                     TaskModel.createFromAction(
                                         this.spaceId,
                                         optimisticCreateAction.action.taskId,
                                         optimisticCreateAction.action.time,
                                         optimisticCreateAction.action.taskAction,
+                                        optimisticCreateAction.getActionReferencedSortableAccount,
                                     ),
+                                    newOptimisticActions,
                                 ),
+                                newOriginal.actions,
                             ),
                             actions: null,
                             optimisticState:
@@ -1921,6 +2102,11 @@ export class TaskClientStoreInternal {
                 case "UpdateNotepadPage": {
                     // NOCOMMIT: I think something needs to be done here?
                     continue;
+                }
+                case "UpdateAccountName": {
+                    throw new InternalError(
+                        "Can't optimistically apply `UpdateAccountName` action",
+                    );
                 }
                 default:
                     throw exhaustive(action);
@@ -1966,8 +2152,6 @@ export class TaskClientStoreInternal {
 
                 // If the old task entry was not deleted but the new task entry is then if we
                 // have a query for this task's children, delete the reference to that query.
-                //
-                // NOCOMMIT: Test this
                 if (
                     !(oldTaskEntry?.task?.isDeleted() ?? true) &&
                     (newTaskEntry.task?.isDeleted() ?? true)
@@ -2072,26 +2256,30 @@ export class TaskClientStoreInternal {
             const action = actions[i]!;
 
             const applyPreviousActions = (taskId: TaskId, task: TaskModel | null) => {
-                const pendingActions: Array<TaskUpdateTaskAction> = [];
+                const pendingActions: Array<TaskClientStorePendingUpdateTaskAction> = [];
 
                 for (let j = 0; j < i; j++) {
                     const action = actions[j]!;
                     if (action.type !== "UpdateTask" || action.taskId !== taskId) continue;
 
+                    const getActionReferencedSortableAccount =
+                        createGetTaskActionReferencedSortableAccount(this.accountStore, action);
+
                     if (task !== null) {
-                        task = task.apply(action);
+                        task = task.apply(action, getActionReferencedSortableAccount);
                     } else {
                         if (action.taskAction.type !== "Create") {
-                            pendingActions.push(action);
+                            pendingActions.push({action, getActionReferencedSortableAccount});
                         } else {
-                            task = pendingActions.reduce(
-                                (task, action) => task.apply(action),
+                            task = applyPendingTaskActions(
                                 TaskModel.createFromAction(
                                     this.spaceId,
                                     taskId,
                                     action.time,
                                     action.taskAction,
+                                    getActionReferencedSortableAccount,
                                 ),
+                                pendingActions,
                             );
                         }
                     }
@@ -2631,4 +2819,15 @@ export function getParentTaskIdIfChildrenQuery({
     }
 
     return null;
+}
+
+function applyPendingTaskActions(
+    task: TaskModel,
+    actions: ReadonlyArray<TaskClientStorePendingUpdateTaskAction>,
+) {
+    return actions.reduce(
+        (task, {action, getActionReferencedSortableAccount}) =>
+            task.apply(action, getActionReferencedSortableAccount),
+        task,
+    );
 }

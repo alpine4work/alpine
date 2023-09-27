@@ -612,7 +612,7 @@ export class TaskRealtimeStoreInternal {
         actions: ReadonlyArray<TaskAction>,
         actionReferencedAccountById: ReadonlyMap<AccountId, AccountModel>,
     ): Promise<void> {
-        const eventBuilder = new TaskRealtimeUpdateEventBuilder();
+        const eventBuilder = new TaskRealtimeUpdateEventBuilder({actionReferencedAccountById});
 
         const queriesByMaybeAddVisibleTaskIdToLoad = this._applyActionTransactionSync(
             context,
@@ -676,10 +676,15 @@ export class TaskRealtimeStoreInternal {
                             oldTask,
                             action.time,
                             action.taskAction,
-                            {
-                                getActionReferencedAccountName: accountId =>
-                                    assertExists(actionReferencedAccountById.get(accountId))
-                                        .initialData,
+                            accountId => {
+                                const account = assertExists(
+                                    actionReferencedAccountById.get(accountId),
+                                );
+                                return {
+                                    accountId,
+                                    workingAccountName: account.initialData.name,
+                                    workingAccountNameVersion: account.initialData.nameVersion,
+                                };
                             },
                         );
                         taskEntry.task = newTask;
@@ -707,9 +712,9 @@ export class TaskRealtimeStoreInternal {
                     else if (action.taskAction.type === "Create") {
                         const task = createEmptyTaskIndexDoc(action.time, action.taskAction);
 
-                        const creatorName = assertExists(
+                        const account = assertExists(
                             actionReferencedAccountById.get(action.taskAction.creatorId),
-                        ).initialData;
+                        );
 
                         const taskEntry = new TaskRealtimeStoreTaskEntry(this, {
                             id: action.taskId,
@@ -717,8 +722,8 @@ export class TaskRealtimeStoreInternal {
                             ...task,
                             creator: {
                                 accountId: action.taskAction.creatorId,
-                                workingAccountName: creatorName.name,
-                                workingAccountNameVersion: creatorName.nameVersion,
+                                workingAccountName: account.initialData.name,
+                                workingAccountNameVersion: account.initialData.nameVersion,
                             },
                         });
                         this._taskEntryById.set(action.taskId, taskEntry);
@@ -1185,13 +1190,13 @@ export class TaskRealtimeStoreInternal {
                 context.tracer.getTracer(),
                 this.spaceId,
                 taskId,
-                (action, options) => {
+                (action, {getActionReferencedSortableAccount}) => {
                     if (action.type === "UpdateTask") {
                         task = applyTaskActionToTaskIndexDoc(
                             task,
                             action.time,
                             action.taskAction,
-                            options,
+                            getActionReferencedSortableAccount,
                         );
                     } else {
                         cast<"UpdateAccountName">(action.type);

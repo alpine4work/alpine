@@ -1,6 +1,4 @@
-import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
-import {areUint8ArraysEqual} from "~/shared/helpers/binary/are_uint8_arrays_equal.js";
 import {
     HybridLogicalTime,
     maxHybridLogicalTime,
@@ -9,6 +7,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {TaskTaskAction} from "~/shared/tasks/actions/task_task_action.js";
+import {TaskModelData} from "~/shared/tasks/model/task_model.js";
 import {TaskAssigneeWithSortableAccount} from "~/shared/tasks/task_assignee.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {
@@ -16,18 +15,17 @@ import {
     mergeTaskSortableAccounts,
 } from "~/shared/tasks/task_sortable_account.js";
 import {TaskStatusWithSortableAccount} from "~/shared/tasks/task_status.js";
-import {applyTaskTitleUpdate} from "~/shared/tasks/task_title.js";
 
 /**
  * Applies a `TaskTaskAction` to a `TaskIndexDoc`. `TaskTaskAction`s are
  * commutative and idempotent. This means they can be applied in any order or
  * multiple times and we'll converge to the same result every time.
  *
- * We inline the account name and version into our OpenSearch index so we can
+ * We inline the account name and version into our client model data so we can
  * sort by them. In theory there's a `TaskAccountName` object in our CRDT task
  * system similar to the `Task` and `TaskCollection` CRDT objects but instead
- * of being stored in its own OpenSearch index it needs to be inlined into our
- * tasks so we can sort by it.
+ * of being stored in its own map in `TaskClientStore` it needs to be inlined
+ * into our tasks so we can sort by it.
  *
  * Inlining task account names means different tasks with the same referenced
  * `AccountId` may have different account names. But eventually all tasks
@@ -36,12 +34,12 @@ import {applyTaskTitleUpdate} from "~/shared/tasks/task_title.js";
  * name to avoid exposing our account name eventual consistency to the end user
  * which looks like a glitch (this isn't implemented as of 2023-09-26).
  */
-export function applyTaskActionToTaskIndexDoc(
-    task: TaskIndexDoc,
+export function applyTaskActionToTaskModelData(
+    task: TaskModelData,
     actionTime: HybridLogicalTime,
     action: TaskTaskAction,
     getActionReferencedSortableAccount: (accountId: AccountId) => TaskSortableAccount,
-): TaskIndexDoc {
+): TaskModelData {
     switch (action.type) {
         case "Create": {
             const isCompatible =
@@ -66,22 +64,22 @@ export function applyTaskActionToTaskIndexDoc(
             return {...task, creator};
         }
         case "Delete": {
-            const newRawDeletedTime =
-                task.rawDeletedTime !== null
-                    ? maxHybridLogicalTime(task.rawDeletedTime, actionTime)
+            const newDeletedTime =
+                task.deletedTime !== null
+                    ? maxHybridLogicalTime(task.deletedTime, actionTime)
                     : actionTime;
 
-            if (newRawDeletedTime === task.rawDeletedTime) return task;
-            return {...task, rawDeletedTime: newRawDeletedTime};
+            if (newDeletedTime === task.deletedTime) return task;
+            return {...task, deletedTime: newDeletedTime};
         }
         case "Undelete": {
-            const newRawUndeletedTime =
-                task.rawUndeletedTime !== null
-                    ? maxHybridLogicalTime(task.rawUndeletedTime, actionTime)
+            const newUndeletedTime =
+                task.undeletedTime !== null
+                    ? maxHybridLogicalTime(task.undeletedTime, actionTime)
                     : actionTime;
 
-            if (newRawUndeletedTime === task.rawUndeletedTime) return task;
-            return {...task, rawUndeletedTime: newRawUndeletedTime};
+            if (newUndeletedTime === task.undeletedTime) return task;
+            return {...task, undeletedTime: newUndeletedTime};
         }
         case "UpdateParentTaskId": {
             const newParentTaskId = task.parent.taskId.apply({
@@ -89,14 +87,14 @@ export function applyTaskActionToTaskIndexDoc(
                 version: actionTime,
             });
 
-            const newParentRawPosition = task.parent.rawPosition.apply({
+            const newParentPosition = task.parent.position.apply({
                 value: {orderTime: actionTime, orderKey: initialOrderKey},
                 version: actionTime,
             });
 
             if (
                 newParentTaskId === task.parent.taskId &&
-                newParentRawPosition === task.parent.rawPosition
+                newParentPosition === task.parent.position
             ) {
                 return task;
             }
@@ -105,23 +103,23 @@ export function applyTaskActionToTaskIndexDoc(
                 ...task,
                 parent: {
                     taskId: newParentTaskId,
-                    rawPosition: newParentRawPosition,
+                    position: newParentPosition,
                 },
             };
         }
         case "UpdateParentPosition": {
-            const newParentRawPosition = task.parent.rawPosition.apply({
+            const newParentPosition = task.parent.position.apply({
                 value: action.parentPosition,
                 version: actionTime,
             });
 
-            if (newParentRawPosition === task.parent.rawPosition) return task;
+            if (newParentPosition === task.parent.position) return task;
 
             return {
                 ...task,
                 parent: {
                     taskId: task.parent.taskId,
-                    rawPosition: newParentRawPosition,
+                    position: newParentPosition,
                 },
             };
         }
@@ -161,88 +159,70 @@ export function applyTaskActionToTaskIndexDoc(
             };
         }
         case "AddCollection": {
-            const newCollections = task.collections.raw.collections.apply({
+            const newCollections = task.collections.apply({
                 type: "Set",
                 key: action.collectionId,
                 value: action.orderKey,
                 version: actionTime,
             });
 
-            if (newCollections === task.collections.raw.collections) return task;
+            if (newCollections === task.collections) return task;
 
             return {
                 ...task,
-                collections: {
-                    raw: {
-                        collections: newCollections,
-                        positionById: task.collections.raw.positionById,
-                    },
-                },
+                collections: newCollections,
             };
         }
         case "RemoveCollection": {
-            const newCollections = task.collections.raw.collections.apply({
+            const newCollections = task.collections.apply({
                 type: "Delete",
                 key: action.collectionId,
                 version: actionTime,
             });
 
-            if (newCollections === task.collections.raw.collections) return task;
+            if (newCollections === task.collections) return task;
 
             return {
                 ...task,
-                collections: {
-                    raw: {
-                        collections: newCollections,
-                        positionById: task.collections.raw.positionById,
-                    },
-                },
+                collections: newCollections,
             };
         }
         case "UpdateCollectionPosition": {
-            const newPositionById = task.collections.raw.positionById.apply({
+            const newPositionByCollectionId = task.positionByCollectionId.apply({
                 type: "Set",
                 key: action.collectionId,
                 value: action.position,
                 version: actionTime,
             });
 
-            if (newPositionById === task.collections.raw.positionById) return task;
+            if (newPositionByCollectionId === task.positionByCollectionId) return task;
 
             return {
                 ...task,
-                collections: {
-                    raw: {
-                        collections: task.collections.raw.collections,
-                        positionById: newPositionById,
-                    },
-                },
+                positionByCollectionId: newPositionByCollectionId,
             };
         }
         case "UpdateNotepadPagePosition": {
-            const newPositionById =
+            const newPositionByAccountIdAndNotepadPageId =
                 action.position !== null
-                    ? task.notepadPages.raw.positionById.apply({
+                    ? task.positionByAccountIdAndNotepadPageId.apply({
                           type: "Set",
                           key: `${action.accountId}-${action.notepadPageId}`,
                           value: action.position,
                           version: actionTime,
                       })
-                    : task.notepadPages.raw.positionById.apply({
+                    : task.positionByAccountIdAndNotepadPageId.apply({
                           type: "Delete",
                           key: `${action.accountId}-${action.notepadPageId}`,
                           version: actionTime,
                       });
 
-            if (newPositionById === task.notepadPages.raw.positionById) return task;
+            if (newPositionByAccountIdAndNotepadPageId === task.positionByAccountIdAndNotepadPageId)
+                return task;
 
             return {
                 ...task,
-                notepadPages: {
-                    raw: {
-                        positionById: newPositionById,
-                    },
-                },
+                positionByAccountIdAndNotepadPageId: newPositionByAccountIdAndNotepadPageId,
             };
         }
         case "UpdateStatus": {
@@ -262,20 +242,20 @@ export function applyTaskActionToTaskIndexDoc(
                 version: actionTime,
             });
 
-            const newRawAssigneeStatus = task.rawAssigneeStatus.apply({
+            const newAssigneeStatus = task.assigneeStatus.apply({
                 value: {type: "Inactive"},
                 version: actionTime,
             });
 
-            const newRawAssigneeActivePosition = task.rawAssigneeActivePosition.apply({
+            const newAssigneeActivePosition = task.assigneeActivePosition.apply({
                 value: null,
                 version: actionTime,
             });
 
             if (
                 newStatus === task.status &&
-                newRawAssigneeStatus === task.rawAssigneeStatus &&
-                newRawAssigneeActivePosition === task.rawAssigneeActivePosition
+                newAssigneeStatus === task.assigneeStatus &&
+                newAssigneeActivePosition === task.assigneeActivePosition
             ) {
                 return task;
             }
@@ -283,8 +263,8 @@ export function applyTaskActionToTaskIndexDoc(
             return {
                 ...task,
                 status: newStatus,
-                rawAssigneeStatus: newRawAssigneeStatus,
-                rawAssigneeActivePosition: newRawAssigneeActivePosition,
+                assigneeStatus: newAssigneeStatus,
+                assigneeActivePosition: newAssigneeActivePosition,
             };
         }
         case "UpdateAssignee": {
@@ -304,20 +284,20 @@ export function applyTaskActionToTaskIndexDoc(
                 version: actionTime,
             });
 
-            const newRawAssigneeStatus = task.rawAssigneeStatus.apply({
+            const newAssigneeStatus = task.assigneeStatus.apply({
                 value: {type: "Inactive"},
                 version: actionTime,
             });
 
-            const newRawAssigneeActivePosition = task.rawAssigneeActivePosition.apply({
+            const newAssigneeActivePosition = task.assigneeActivePosition.apply({
                 value: null,
                 version: actionTime,
             });
 
             if (
                 newAssignee === task.assignee &&
-                newRawAssigneeStatus === task.rawAssigneeStatus &&
-                newRawAssigneeActivePosition === task.rawAssigneeActivePosition
+                newAssigneeStatus === task.assigneeStatus &&
+                newAssigneeActivePosition === task.assigneeActivePosition
             ) {
                 return task;
             }
@@ -325,36 +305,36 @@ export function applyTaskActionToTaskIndexDoc(
             return {
                 ...task,
                 assignee: newAssignee,
-                rawAssigneeStatus: newRawAssigneeStatus,
-                rawAssigneeActivePosition: newRawAssigneeActivePosition,
+                assigneeStatus: newAssigneeStatus,
+                assigneeActivePosition: newAssigneeActivePosition,
             };
         }
         case "UpdateAssigneeStatus": {
-            const newRawAssigneeStatus = task.rawAssigneeStatus.apply({
+            const newAssigneeStatus = task.assigneeStatus.apply({
                 value: action.assigneeStatus,
                 version: actionTime,
             });
 
-            const newRawAssigneeActivePosition = task.rawAssigneeActivePosition.apply({
+            const newAssigneeActivePosition = task.assigneeActivePosition.apply({
                 value: null,
                 version: actionTime,
             });
 
             if (
-                newRawAssigneeStatus === task.rawAssigneeStatus &&
-                newRawAssigneeActivePosition === task.rawAssigneeActivePosition
+                newAssigneeStatus === task.assigneeStatus &&
+                newAssigneeActivePosition === task.assigneeActivePosition
             ) {
                 return task;
             }
 
             return {
                 ...task,
-                rawAssigneeStatus: newRawAssigneeStatus,
-                rawAssigneeActivePosition: newRawAssigneeActivePosition,
+                assigneeStatus: newAssigneeStatus,
+                assigneeActivePosition: newAssigneeActivePosition,
             };
         }
         case "UpdateAssigneeActivePosition": {
-            const newRawAssigneeActivePosition = task.rawAssigneeActivePosition.apply({
+            const newAssigneeActivePosition = task.assigneeActivePosition.apply({
                 value: {
                     accountId: action.accountId,
                     position: action.position,
@@ -362,23 +342,23 @@ export function applyTaskActionToTaskIndexDoc(
                 version: actionTime,
             });
 
-            if (newRawAssigneeActivePosition === task.rawAssigneeActivePosition) {
+            if (newAssigneeActivePosition === task.assigneeActivePosition) {
                 return task;
             }
 
             return {
                 ...task,
-                rawAssigneeActivePosition: newRawAssigneeActivePosition,
+                assigneeActivePosition: newAssigneeActivePosition,
             };
         }
         case "UpdateTitle": {
-            const newTitle = applyTaskTitleUpdate(task.title.raw, action.titleUpdate);
+            const newTitle = task.title.apply(action.titleUpdate);
 
-            if (areUint8ArraysEqual(newTitle, task.title.raw)) return task;
+            if (newTitle.isEqual(task.title)) return task;
 
             return {
                 ...task,
-                title: {raw: newTitle},
+                title: newTitle,
             };
         }
         case "UpdateDueDate": {

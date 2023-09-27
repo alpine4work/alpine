@@ -14,6 +14,7 @@ import {createPortal} from "react-dom";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
+import {createGetTaskActionReferencedSortableAccount} from "~/client/tasks/internal/create_get_task_action_referenced_sortable_account.js";
 import {TaskStatusButton} from "~/client/tasks/internal/task_status_button.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {taskRowViewMinHeight} from "~/client/tasks/task_row_shared_styles.js";
@@ -139,7 +140,16 @@ export function TaskGridViewDndContext({
                                         .task;
                                 if (!task) continue;
 
-                                newTaskById.set(task.id, task.apply(action));
+                                newTaskById.set(
+                                    task.id,
+                                    task.apply(
+                                        action,
+                                        createGetTaskActionReferencedSortableAccount(
+                                            store.accountStore,
+                                            action,
+                                        ),
+                                    ),
+                                );
                             }
 
                             for (const task of newTaskById.values()) {

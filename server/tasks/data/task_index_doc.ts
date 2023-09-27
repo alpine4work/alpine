@@ -20,7 +20,7 @@ import {
     HybridLogicalTimeType,
     SortableHybridLogicalTimeType,
 } from "~/server/tasks/data/internal/hybrid_logical_time_type.js";
-import {CrdtRegister, createCrdtRegister} from "~/shared/crdt/crdt_register.js";
+import {CrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {
     HybridLogicalTime,
     compareHybridLogicalTimes,
@@ -33,12 +33,12 @@ import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_inter
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
-import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
-import {ObjectSchema, Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {
     TaskDueDateRegister,
     TaskParentTaskIdRegister,
 } from "~/shared/tasks/actions/task_task_action.js";
+import {TaskAssigneeWithSortableAccountRegister} from "~/shared/tasks/task_assignee.js";
 import {TaskAssigneeActivePositionRegister} from "~/shared/tasks/task_assignee_active_position.js";
 import {
     TaskAssigneeStatus,
@@ -67,14 +67,8 @@ import {
     TaskPriorityIntegerMapping,
     TaskPriorityRegister,
 } from "~/shared/tasks/task_priority.js";
-import {TaskStatus} from "~/shared/tasks/task_status.js";
+import {TaskStatus, TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.js";
 import {TaskTitle, getTaskTitleText} from "~/shared/tasks/task_title.js";
-
-const TaskSortableAccountSchema = Schema.object({
-    accountId: Schema.id<AccountId>(),
-    workingAccountName: LabelStringSchema,
-    workingAccountNameVersion: Schema.integer,
-});
 
 /**
  * Indexes an account and inlines the account's name and the account's
@@ -292,26 +286,6 @@ export const TaskStatusTypeIntegerMapping = createEnumIntegerMapping({
     Closed: 2,
 });
 
-export type TaskStatusWithSortableAccount = SchemaType<typeof TaskStatusWithSortableAccountSchema>;
-
-export const TaskStatusWithSortableAccountSchema = Schema.union({
-    Open: cast<ObjectSchema<{readonly type: "Open"; readonly closer?: undefined}>>(
-        Schema.object({
-            type: Schema.value("Open"),
-        }),
-    ),
-    Closed: Schema.object({
-        type: Schema.value("Closed"),
-        closer: TaskSortableAccountSchema,
-        closedTime: TaskFilterableTime.schema,
-    }),
-});
-
-export const TaskStatusWithSortableAccountRegister = createCrdtRegister(
-    TaskStatusWithSortableAccountSchema,
-);
-export type TaskStatusWithSortableAccountRegister = CrdtRegister<TaskStatusWithSortableAccount>;
-
 /**
  * Indexes `TaskStatus`.
  *
@@ -348,22 +322,6 @@ const TaskIndexStatusType = createCrdtRegisterOpensearchType(
         },
     }),
 );
-
-export type TaskAssigneeWithSortableAccount = SchemaType<
-    typeof TaskAssigneeWithSortableAccountSchema
->;
-
-export const TaskAssigneeWithSortableAccountSchema = Schema.object({
-    assignee: TaskSortableAccountSchema,
-    assigner: TaskSortableAccountSchema,
-    assignedTime: TaskFilterableTime.schema,
-});
-
-export const TaskAssigneeWithSortableAccountRegister = createCrdtRegister(
-    TaskAssigneeWithSortableAccountSchema.nullable(),
-);
-export type TaskAssigneeWithSortableAccountRegister =
-    CrdtRegister<TaskAssigneeWithSortableAccount | null>;
 
 /**
  * Indexes `TaskAssignee`.

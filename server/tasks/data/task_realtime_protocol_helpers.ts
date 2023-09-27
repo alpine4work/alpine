@@ -195,6 +195,9 @@ export function prepareTaskActionForClient(
             cast<"Create">(action.notepadPageAction.type);
             return action;
         }
+        case "UpdateAccountName": {
+            return action;
+        }
         default:
             throw exhaustive(action);
     }

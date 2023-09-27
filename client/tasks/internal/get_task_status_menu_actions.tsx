@@ -7,7 +7,6 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TimeZone} from "~/shared/helpers/date/time_zone.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
-import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 
 export function getTaskStatusMenuActions({
     context,
@@ -45,20 +44,20 @@ export function getTaskStatusMenuActions({
                                 taskId: task.id,
                                 taskAction: {
                                     type: "UpdateAssignee",
-                                    assignee: currentAssignee ?? {
-                                        assignee: TaskSortableAccount.from(
-                                            store.accountStore,
-                                            currentAccount,
-                                        ),
-                                        assigner: TaskSortableAccount.from(
-                                            store.accountStore,
-                                            currentAccount,
-                                        ),
-                                        assignedTime: new TaskFilterableTime({
-                                            absoluteTime: time1,
-                                            setterTimeZone: timeZone,
-                                        }),
-                                    },
+                                    assignee: currentAssignee
+                                        ? {
+                                              assigneeId: currentAssignee.assignee.accountId,
+                                              assignerId: currentAssignee.assigner.accountId,
+                                              assignedTime: currentAssignee.assignedTime,
+                                          }
+                                        : {
+                                              assigneeId: currentAccount.id,
+                                              assignerId: currentAccount.id,
+                                              assignedTime: new TaskFilterableTime({
+                                                  absoluteTime: time1,
+                                                  setterTimeZone: timeZone,
+                                              }),
+                                          },
                                 },
                             },
                             {
@@ -95,10 +94,7 @@ export function getTaskStatusMenuActions({
                                     type: "UpdateStatus",
                                     status: {
                                         type: "Closed",
-                                        closer: TaskSortableAccount.from(
-                                            store.accountStore,
-                                            currentAccount,
-                                        ),
+                                        closerId: currentAccount.id,
                                         closedTime: new TaskFilterableTime({
                                             absoluteTime: time,
                                             setterTimeZone: timeZone,
@@ -149,10 +145,7 @@ export function getTaskStatusMenuActions({
                                     type: "UpdateStatus",
                                     status: {
                                         type: "Closed",
-                                        closer: TaskSortableAccount.from(
-                                            store.accountStore,
-                                            currentAccount,
-                                        ),
+                                        closerId: currentAccount.id,
                                         closedTime: new TaskFilterableTime({
                                             absoluteTime: time,
                                             setterTimeZone: timeZone,
@@ -214,20 +207,20 @@ export function getTaskStatusMenuActions({
                                 taskId: task.id,
                                 taskAction: {
                                     type: "UpdateAssignee",
-                                    assignee: currentAssignee ?? {
-                                        assignee: TaskSortableAccount.from(
-                                            store.accountStore,
-                                            currentAccount,
-                                        ),
-                                        assigner: TaskSortableAccount.from(
-                                            store.accountStore,
-                                            currentAccount,
-                                        ),
-                                        assignedTime: new TaskFilterableTime({
-                                            absoluteTime: time1,
-                                            setterTimeZone: timeZone,
-                                        }),
-                                    },
+                                    assignee: currentAssignee
+                                        ? {
+                                              assigneeId: currentAssignee.assignee.accountId,
+                                              assignerId: currentAssignee.assigner.accountId,
+                                              assignedTime: currentAssignee.assignedTime,
+                                          }
+                                        : {
+                                              assigneeId: currentAccount.id,
+                                              assignerId: currentAccount.id,
+                                              assignedTime: new TaskFilterableTime({
+                                                  absoluteTime: time1,
+                                                  setterTimeZone: timeZone,
+                                              }),
+                                          },
                                 },
                             },
                             {

@@ -3,13 +3,14 @@ import {ServerProcessContextModules} from "~/server/context/server_process_conte
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
-import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 
 let number = 1;
@@ -36,6 +37,7 @@ export interface TaskRealtimeUpdateEventSender {
             }
         >,
         event: TaskRealtimeUpdateEvent,
+        actionReferencedAccountById: ReadonlyMap<AccountId, AccountModel> | null,
     ): Promise<void>;
 }
 
@@ -76,6 +78,16 @@ export class TaskRealtimeUpdateEventBuilder {
     private _isBuilding = true;
     private _isSending = false;
     private _promises: Array<PromiseLike<unknown>> = [];
+
+    private readonly _actionReferencedAccountById: ReadonlyMap<AccountId, AccountModel> | null;
+
+    constructor({
+        actionReferencedAccountById,
+    }: {
+        actionReferencedAccountById: ReadonlyMap<AccountId, AccountModel> | null;
+    }) {
+        this._actionReferencedAccountById = actionReferencedAccountById;
+    }
 
     private readonly _eventBySender = new DefaultMap<
         TaskRealtimeUpdateEventSender,
@@ -158,16 +170,20 @@ export class TaskRealtimeUpdateEventBuilder {
                     backfillAuthorizedCollections.push(collection);
                 }
 
-                await sender.send(context, {
-                    number: this._number,
-                    actions: Array.from(event.actions),
-                    backfillAuthorizedTasks,
-                    backfillUnauthorizedTaskIds: Array.from(event.backfillUnauthorizedTaskIds),
-                    backfillAuthorizedCollections,
-                    backfillUnauthorizedCollectionIds: Array.from(
-                        event.backfillUnauthorizedCollectionIds,
-                    ),
-                });
+                await sender.send(
+                    context,
+                    {
+                        number: this._number,
+                        actions: Array.from(event.actions),
+                        backfillAuthorizedTasks,
+                        backfillUnauthorizedTaskIds: Array.from(event.backfillUnauthorizedTaskIds),
+                        backfillAuthorizedCollections,
+                        backfillUnauthorizedCollectionIds: Array.from(
+                            event.backfillUnauthorizedCollectionIds,
+                        ),
+                    },
+                    this._actionReferencedAccountById,
+                );
             }),
         );
     }

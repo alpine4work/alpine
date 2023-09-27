@@ -31,26 +31,12 @@ export class AccountClientStore {
         ValueStore<AccountModelData>
     >();
 
-    /**
-     * Get the normalized account data store for our `AccountModel`.
-     *
-     * If our store hasn't seen the account yet then we'll initialize a store with
-     * the `AccountModel`'s `initialData`.
-     *
-     * If our store has seen the account but our `AccountModel`'s `initialData` is
-     * newer than what's in the store, we will schedule a render with the account's
-     * new data. Updating everywhere the account is visible in the product.
-     */
-    public getAccountStore(account: AccountModel): Store<AccountModelData> {
+    private _getAccountStoreWithoutUpdating(account: AccountModel): ValueStore<AccountModelData> {
         const accountStore = getOrSetDefaultMapValue(
             this._accountDataStoreById,
             account.id,
             () => new ValueStore(account.initialData),
         );
-
-        if (accountStore.getSnapshot().version < account.initialData.version) {
-            this._scheduleAccountUpdate(account);
-        }
 
         // As long as the `AccountModel` lives, hold a reference to
         // `ValueStore<AccountModelData>`. This prevents a bug where we're in a
@@ -66,6 +52,59 @@ export class AccountClientStore {
         this._accountDataStoreByModel.set(account, accountStore);
 
         return accountStore;
+    }
+
+    /**
+     * Get the normalized account data store for our `AccountModel`.
+     *
+     * If our store hasn't seen the account yet then we'll initialize a store with
+     * the `AccountModel`'s `initialData`.
+     *
+     * If our store has seen the account but our `AccountModel`'s `initialData` is
+     * newer than what's in the store, we will schedule a render with the account's
+     * new data. Updating everywhere the account is visible in the product.
+     */
+    public getAccountStore(account: AccountModel): Store<AccountModelData> {
+        const accountStore = this._getAccountStoreWithoutUpdating(account);
+
+        if (accountStore.getSnapshot().version < account.initialData.version) {
+            this._scheduleAccountUpdate(account);
+        }
+
+        return accountStore;
+    }
+
+    /**
+     * Get the normalized account data store for our `AccountModel`.
+     *
+     * If our store hasn't seen the account yet then we'll initialize a store with
+     * the `AccountModel`'s `initialData`.
+     *
+     * If our store has seen the account but our `AccountModel`'s `initialData` is
+     * newer than what's in the store, we will immediately update the store with
+     * the account's new data. Updating everywhere the account is visible in the
+     * product.
+     *
+     * You shouldn't call this in a React render method since it performs a side
+     * effect. Instead call `getAccountStore()` which schedules an update for
+     * later.
+     */
+    public getAndImmediatelyUpdateStore(account: AccountModel): Store<AccountModelData> {
+        const accountStore = this._getAccountStoreWithoutUpdating(account);
+
+        accountStore.set(accountData => {
+            if (accountData.version >= account.initialData.version) return accountData;
+            return account.initialData;
+        });
+
+        return accountStore;
+    }
+
+    /**
+     * Get the store for the provided `AccountId` if it exists.
+     */
+    public getAccountStoreByIdIfExists(accountId: AccountId): Store<AccountModelData> | null {
+        return this._accountDataStoreById.get(accountId) ?? null;
     }
 
     private _scheduleAccountUpdate(account: AccountModel) {

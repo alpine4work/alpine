@@ -229,7 +229,9 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
 
         // We construct an event builder just so we can wait out `waitUntil()`
         // promises.
-        const eventBuilder = new TaskRealtimeUpdateEventBuilder();
+        const eventBuilder = new TaskRealtimeUpdateEventBuilder({
+            actionReferencedAccountById: null,
+        });
 
         for (const task of tasks) {
             this._onLoadedTaskRemove(eventBuilder, task, []);

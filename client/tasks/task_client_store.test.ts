@@ -1,18 +1,40 @@
 import {CalendarDate} from "@internationalized/date";
 import {getAccountClientStoreForClient} from "~/client/accounts/account_client_store_context_provider.js";
-import {TaskClientStore} from "~/client/tasks/task_client_store.js";
+import {
+    TaskClientStore,
+    setShouldDisableCommitTaskActionTransactionMutexForTest,
+} from "~/client/tasks/task_client_store.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {Context} from "~/shared/context/context.js";
 import {InternalError} from "~/shared/error/error.js";
 import {waitMacrotask} from "~/shared/helpers/async/wait_macrotask.js";
+import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {generateId} from "~/shared/id/id.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {AccountId, TaskId} from "~/shared/id/types/id_types.js";
 import {commitTaskActionTransaction} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {TestRpcContextModule} from "~/shared/rpc/test_rpc_context_module.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskCreateAction} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
-import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
+
+// We disable the `commitTaskActionTransaction()` mutex in this file so commits
+// can be sent and responses received out-of-order. These tests were written
+// before we placed a mutex around `commitTaskActionTransaction()` and the
+// out-of-order tests tickle interesting code-paths in `TaskClientStore` we
+// want to keep testing.
+//
+// So even though out-of-order commits aren't possible in a web browser, allow
+// them in this test file.
+beforeAll(() => {
+    setShouldDisableCommitTaskActionTransactionMutexForTest(true);
+});
+
+afterAll(() => {
+    setShouldDisableCommitTaskActionTransactionMutexForTest(false);
+});
 
 const accountStore = getAccountClientStoreForClient();
 
@@ -24,12 +46,59 @@ const account1 = new AccountModel({
     version: 0,
 });
 
+// Make sure we hold a reference to the `account1` store for the entire test.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const account1Store = accountStore.getAccountStore(account1);
+
+const getSortableAccount = (accountId: AccountId) => {
+    const accountData = assertExists(
+        accountStore.getAccountStoreByIdIfExists(accountId),
+    ).getSnapshot();
+
+    return {
+        accountId,
+        workingAccountName: accountData.name,
+        workingAccountNameVersion: accountData.version,
+    };
+};
+
 const context = Context.new({
     rpc: new TestRpcContextModule(),
 });
 
+const taskEntryCache = new WeakMap();
+
 function getTaskEntryIfExists(store: TaskClientStore, taskId: TaskId) {
-    throw store.getTaskEntryStoreIfExists(taskId)?.getSnapshot() ?? null;
+    const taskEntry = store.getTaskEntryStoreIfExists(taskId)?.getSnapshot();
+    if (!taskEntry) return null;
+
+    // This test was written before we added `actionReferencedAccountStoreById` to
+    // task entries. Discard `actionReferencedAccountStoreById` so we can avoid
+    // rewriting tests.
+
+    // Use a `WeakMap` to make sure we maintain referential equality if the task
+    // entry doesn't change.
+    return getOrSetDefaultMapValue(taskEntryCache, taskEntry, () => ({
+        ...taskEntry,
+        actions: taskEntry.actions?.map(({action}) => action) ?? null,
+        optimisticState: taskEntry.optimisticState
+            ? {
+                  ...taskEntry.optimisticState,
+                  original: !taskEntry.optimisticState.original.task
+                      ? {
+                            ...taskEntry.optimisticState.original,
+                            actions: taskEntry.optimisticState.original.actions.map(
+                                ({action}) => action,
+                            ),
+                        }
+                      : taskEntry.optimisticState.original,
+                  actions: taskEntry.optimisticState.actions.map(({isOptimistic, action}) => ({
+                      isOptimistic,
+                      action,
+                  })),
+              }
+            : null,
+    }));
 }
 
 let displayErrors: Array<unknown> = [];
@@ -47,6 +116,25 @@ afterEach(() => {
     }
 });
 
+function createTask(
+    store: TaskClientStore,
+    {
+        id = generateId<TaskId>(),
+        time = store.clock.now(),
+        taskAction = {
+            type: "Create",
+            creatorId: account1.id,
+            creatorTimeZone: defaultTimeZone,
+        },
+    }: {
+        id?: TaskId;
+        time?: HybridLogicalTime;
+        taskAction?: TaskCreateAction;
+    } = {},
+) {
+    return TaskModel.createFromAction(store.spaceId, id, time, taskAction, getSortableAccount);
+}
+
 test("backfills an authorized task", () => {
     const store = new TaskClientStore({
         accountStore,
@@ -54,11 +142,7 @@ test("backfills an authorized task", () => {
         onDisplayError: handleDisplayError,
     });
 
-    const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task = createTask(store);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual(null);
 
@@ -89,29 +173,13 @@ test("backfills authorized tasks", () => {
         onDisplayError: handleDisplayError,
     });
 
-    const task1 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task1 = createTask(store);
 
-    const task2 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task2 = createTask(store);
 
-    const task3 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task3 = createTask(store);
 
-    const task4 = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task4 = createTask(store);
 
     expect(getTaskEntryIfExists(store, task1.id)).toEqual(null);
     expect(getTaskEntryIfExists(store, task2.id)).toEqual(null);
@@ -199,21 +267,20 @@ test("backfill merges with existing authorized task", () => {
         onDisplayError: handleDisplayError,
     });
 
-    const task1a = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task1a = createTask(store);
 
-    const task1b = task1a.apply({
-        type: "UpdateTask",
-        time: store.clock.now(),
-        taskId: task1a.id,
-        taskAction: {
-            type: "UpdatePriority",
-            priority: "High",
+    const task1b = task1a.apply(
+        {
+            type: "UpdateTask",
+            time: store.clock.now(),
+            taskId: task1a.id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "High",
+            },
         },
-    });
+        getSortableAccount,
+    );
 
     expect(task1a.rawData).not.toEqual(task1b.rawData);
 
@@ -265,21 +332,20 @@ test("backfill merges with existing unauthorized task", () => {
         onDisplayError: handleDisplayError,
     });
 
-    const task1a = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task1a = createTask(store);
 
-    const task1b = task1a.apply({
-        type: "UpdateTask",
-        time: store.clock.now(),
-        taskId: task1a.id,
-        taskAction: {
-            type: "UpdatePriority",
-            priority: "High",
+    const task1b = task1a.apply(
+        {
+            type: "UpdateTask",
+            time: store.clock.now(),
+            taskId: task1a.id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "High",
+            },
         },
-    });
+        getSortableAccount,
+    );
 
     expect(task1a.rawData).not.toEqual(task1b.rawData);
 
@@ -350,21 +416,20 @@ test("backfill merges behind existing unauthorized task", () => {
         onDisplayError: handleDisplayError,
     });
 
-    const task1a = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task1a = createTask(store);
 
-    const task1b = task1a.apply({
-        type: "UpdateTask",
-        time: store.clock.now(),
-        taskId: task1a.id,
-        taskAction: {
-            type: "UpdatePriority",
-            priority: "High",
+    const task1b = task1a.apply(
+        {
+            type: "UpdateTask",
+            time: store.clock.now(),
+            taskId: task1a.id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "High",
+            },
         },
-    });
+        getSortableAccount,
+    );
 
     expect(task1a.rawData).not.toEqual(task1b.rawData);
 
@@ -435,21 +500,20 @@ test("backfill adds task behind existing unauthorized task", () => {
         onDisplayError: handleDisplayError,
     });
 
-    const task1a = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task1a = createTask(store);
 
-    const task1b = task1a.apply({
-        type: "UpdateTask",
-        time: store.clock.now(),
-        taskId: task1a.id,
-        taskAction: {
-            type: "UpdatePriority",
-            priority: "High",
+    const task1b = task1a.apply(
+        {
+            type: "UpdateTask",
+            time: store.clock.now(),
+            taskId: task1a.id,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: "High",
+            },
         },
-    });
+        getSortableAccount,
+    );
 
     expect(task1a.rawData).not.toEqual(task1b.rawData);
 
@@ -501,11 +565,7 @@ test("action is applied to authorized task", () => {
         onDisplayError: handleDisplayError,
     });
 
-    const task1a = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task1a = createTask(store);
 
     const action1a: TaskAction = {
         type: "UpdateTask",
@@ -517,7 +577,7 @@ test("action is applied to authorized task", () => {
         },
     };
 
-    const task1b = task1a.apply(action1a);
+    const task1b = task1a.apply(action1a, getSortableAccount);
 
     expect(task1a.rawData).not.toEqual(task1b.rawData);
 
@@ -569,11 +629,7 @@ test("action is applied to unauthorized task", () => {
         onDisplayError: handleDisplayError,
     });
 
-    const task1a = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task1a = createTask(store);
 
     const action1a: TaskAction = {
         type: "UpdateTask",
@@ -636,10 +692,10 @@ test("action is applied to unauthorized task", () => {
         referencedAccounts: [],
     });
 
-    expect(task1a.rawData).not.toEqual(task1a.apply(action1a).rawData);
+    expect(task1a.rawData).not.toEqual(task1a.apply(action1a, getSortableAccount).rawData);
 
     expect(getTaskEntryIfExists(store, task1a.id)).toEqual({
-        task: task1a.apply(action1a),
+        task: task1a.apply(action1a, getSortableAccount),
         actions: null,
         optimisticState: null,
         isAuthorized: false,
@@ -654,11 +710,7 @@ test("actions can be applied out of order", () => {
         onDisplayError: handleDisplayError,
     });
 
-    const task1a = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task1a = createTask(store);
 
     const action1a: TaskAction = {
         type: "UpdateTask",
@@ -702,10 +754,10 @@ test("actions can be applied out of order", () => {
         referencedAccounts: [account1],
     });
 
-    expect(task1a.rawData).not.toEqual(task1a.apply(action1a).rawData);
+    expect(task1a.rawData).not.toEqual(task1a.apply(action1a, getSortableAccount).rawData);
 
     expect(getTaskEntryIfExists(store, task1a.id)).toEqual({
-        task: task1a.apply(action1a),
+        task: task1a.apply(action1a, getSortableAccount),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
@@ -720,11 +772,7 @@ test("actions can be applied out of order to unauthorized tasks", () => {
         onDisplayError: handleDisplayError,
     });
 
-    const task1a = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task1a = createTask(store);
 
     const action1a: TaskAction = {
         type: "UpdateTask",
@@ -787,10 +835,10 @@ test("actions can be applied out of order to unauthorized tasks", () => {
         referencedAccounts: [account1],
     });
 
-    expect(task1a.rawData).not.toEqual(task1a.apply(action1a).rawData);
+    expect(task1a.rawData).not.toEqual(task1a.apply(action1a, getSortableAccount).rawData);
 
     expect(getTaskEntryIfExists(store, task1a.id)).toEqual({
-        task: task1a.apply(action1a),
+        task: task1a.apply(action1a, getSortableAccount),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
@@ -805,11 +853,7 @@ test("if nothing changes in the task entry after action it's left as same refere
         onDisplayError: handleDisplayError,
     });
 
-    const task1a = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task1a = createTask(store);
 
     const action1a: TaskAction = {
         type: "UpdateTask",
@@ -853,12 +897,12 @@ test("if nothing changes in the task entry after action it's left as same refere
         referencedAccounts: [],
     });
 
-    expect(task1a.rawData).not.toEqual(task1a.apply(action1a).rawData);
+    expect(task1a.rawData).not.toEqual(task1a.apply(action1a, getSortableAccount).rawData);
 
     const taskEntry = getTaskEntryIfExists(store, task1a.id);
 
     expect(taskEntry).toEqual({
-        task: task1a.apply(action1a),
+        task: task1a.apply(action1a, getSortableAccount),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
@@ -886,11 +930,7 @@ test("if nothing changes in the task entry after backfill it's left as same refe
         onDisplayError: handleDisplayError,
     });
 
-    const task1a = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task1a = createTask(store);
 
     const action1a: TaskAction = {
         type: "UpdateTask",
@@ -934,12 +974,12 @@ test("if nothing changes in the task entry after backfill it's left as same refe
         referencedAccounts: [],
     });
 
-    expect(task1a.rawData).not.toEqual(task1a.apply(action1a).rawData);
+    expect(task1a.rawData).not.toEqual(task1a.apply(action1a, getSortableAccount).rawData);
 
     const taskEntry = getTaskEntryIfExists(store, task1a.id);
 
     expect(taskEntry).toEqual({
-        task: task1a.apply(action1a),
+        task: task1a.apply(action1a, getSortableAccount),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
@@ -950,7 +990,7 @@ test("if nothing changes in the task entry after backfill it's left as same refe
         type: "Update",
         number: 1,
         actions: [],
-        backfillAuthorizedTasks: [task1a.apply(action1a)],
+        backfillAuthorizedTasks: [task1a.apply(action1a, getSortableAccount)],
         backfillUnauthorizedTaskIds: [],
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
@@ -967,11 +1007,7 @@ test("action can be applied then task can be marked unauthorized", () => {
         onDisplayError: handleDisplayError,
     });
 
-    const task1a = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task1a = createTask(store);
 
     const action1a: TaskAction = {
         type: "UpdateTask",
@@ -1031,11 +1067,7 @@ test("redundant unauthorized action doesn't change task", () => {
         onDisplayError: handleDisplayError,
     });
 
-    const task1a = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task1a = createTask(store);
 
     const action1a: TaskAction = {
         type: "UpdateTask",
@@ -1116,7 +1148,7 @@ test("create action will create a task", () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -1131,16 +1163,15 @@ test("create action will create a task", () => {
         backfillUnauthorizedTaskIds: [],
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
-        referencedAccounts: [],
+        referencedAccounts: [account1],
     });
 
     expect(getTaskEntryIfExists(store, action.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action.taskId,
-            action.time,
-            action.taskAction,
-        ),
+        task: createTask(store, {
+            id: action.taskId,
+            time: action.time,
+            taskAction: action.taskAction,
+        }),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
@@ -1171,7 +1202,7 @@ test("can receive create action out of order", () => {
         taskId: action1.taskId,
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -1205,16 +1236,15 @@ test("can receive create action out of order", () => {
         backfillUnauthorizedTaskIds: [],
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
-        referencedAccounts: [],
+        referencedAccounts: [account1],
     });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action2.taskId,
-            action2.time,
-            action2.taskAction,
-        ).apply(action1),
+        task: createTask(store, {
+            id: action2.taskId,
+            time: action2.time,
+            taskAction: action2.taskAction,
+        }).apply(action1, getSortableAccount),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
@@ -1235,7 +1265,7 @@ test("can receive create action with another action within a transaction", () =>
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -1260,16 +1290,15 @@ test("can receive create action with another action within a transaction", () =>
         backfillUnauthorizedTaskIds: [],
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
-        referencedAccounts: [],
+        referencedAccounts: [account1],
     });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action1.taskId,
-            action1.time,
-            action1.taskAction,
-        ).apply(action2),
+        task: createTask(store, {
+            id: action1.taskId,
+            time: action1.time,
+            taskAction: action1.taskAction,
+        }).apply(action2, getSortableAccount),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
@@ -1300,7 +1329,7 @@ test("can receive create action out of order within a transaction", () => {
         taskId: action1.taskId,
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -1315,16 +1344,15 @@ test("can receive create action out of order within a transaction", () => {
         backfillUnauthorizedTaskIds: [],
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
-        referencedAccounts: [],
+        referencedAccounts: [account1],
     });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action2.taskId,
-            action2.time,
-            action2.taskAction,
-        ).apply(action1),
+        task: createTask(store, {
+            id: action2.taskId,
+            time: action2.time,
+            taskAction: action2.taskAction,
+        }).apply(action1, getSortableAccount),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
@@ -1339,11 +1367,7 @@ test("applies commit action calls optimistically", async () => {
         onDisplayError: handleDisplayError,
     });
 
-    const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task = createTask(store);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual(null);
 
@@ -1379,7 +1403,7 @@ test("applies commit action calls optimistically", async () => {
     store.commitTaskActionTransaction(context, [action]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action),
+        task: task.apply(action, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -1398,7 +1422,7 @@ test("applies commit action calls optimistically", async () => {
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action),
+        task: task.apply(action, getSortableAccount),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
@@ -1419,7 +1443,7 @@ test("can create tasks optimistically", async () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -1429,12 +1453,11 @@ test("can create tasks optimistically", async () => {
     store.commitTaskActionTransaction(context, [action1]);
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action1.taskId,
-            action1.time,
-            action1.taskAction,
-        ),
+        task: createTask(store, {
+            id: action1.taskId,
+            time: action1.time,
+            taskAction: action1.taskAction,
+        }),
         actions: null,
         optimisticState: {
             original: {
@@ -1453,12 +1476,11 @@ test("can create tasks optimistically", async () => {
     });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action1.taskId,
-            action1.time,
-            action1.taskAction,
-        ),
+        task: createTask(store, {
+            id: action1.taskId,
+            time: action1.time,
+            taskAction: action1.taskAction,
+        }),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
@@ -1479,7 +1501,7 @@ test("can create then update tasks optimistically", async () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -1499,12 +1521,11 @@ test("can create then update tasks optimistically", async () => {
     store.commitTaskActionTransaction(context, [action1]);
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action1.taskId,
-            action1.time,
-            action1.taskAction,
-        ),
+        task: createTask(store, {
+            id: action1.taskId,
+            time: action1.time,
+            taskAction: action1.taskAction,
+        }),
         actions: null,
         optimisticState: {
             original: {
@@ -1520,12 +1541,11 @@ test("can create then update tasks optimistically", async () => {
     store.commitTaskActionTransaction(context, [action2]);
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action1.taskId,
-            action1.time,
-            action1.taskAction,
-        ).apply(action2),
+        task: createTask(store, {
+            id: action1.taskId,
+            time: action1.time,
+            taskAction: action1.taskAction,
+        }).apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -1547,21 +1567,19 @@ test("can create then update tasks optimistically", async () => {
     });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action1.taskId,
-            action1.time,
-            action1.taskAction,
-        ).apply(action2),
+        task: createTask(store, {
+            id: action1.taskId,
+            time: action1.time,
+            taskAction: action1.taskAction,
+        }).apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
-                task: TaskModel.createFromAction(
-                    store.spaceId,
-                    action1.taskId,
-                    action1.time,
-                    action1.taskAction,
-                ),
+                task: createTask(store, {
+                    id: action1.taskId,
+                    time: action1.time,
+                    taskAction: action1.taskAction,
+                }),
                 actions: null,
             },
             actions: [{isOptimistic: true, action: action2}],
@@ -1576,12 +1594,11 @@ test("can create then update tasks optimistically", async () => {
     });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action1.taskId,
-            action1.time,
-            action1.taskAction,
-        ).apply(action2),
+        task: createTask(store, {
+            id: action1.taskId,
+            time: action1.time,
+            taskAction: action1.taskAction,
+        }).apply(action2, getSortableAccount),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
@@ -1602,7 +1619,7 @@ test("can create then update tasks optimistically and resolve commits out of ord
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -1622,12 +1639,11 @@ test("can create then update tasks optimistically and resolve commits out of ord
     store.commitTaskActionTransaction(context, [action1]);
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action1.taskId,
-            action1.time,
-            action1.taskAction,
-        ),
+        task: createTask(store, {
+            id: action1.taskId,
+            time: action1.time,
+            taskAction: action1.taskAction,
+        }),
         actions: null,
         optimisticState: {
             original: {
@@ -1643,12 +1659,11 @@ test("can create then update tasks optimistically and resolve commits out of ord
     store.commitTaskActionTransaction(context, [action2]);
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action1.taskId,
-            action1.time,
-            action1.taskAction,
-        ).apply(action2),
+        task: createTask(store, {
+            id: action1.taskId,
+            time: action1.time,
+            taskAction: action1.taskAction,
+        }).apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -1670,12 +1685,11 @@ test("can create then update tasks optimistically and resolve commits out of ord
     });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action1.taskId,
-            action1.time,
-            action1.taskAction,
-        ).apply(action2),
+        task: createTask(store, {
+            id: action1.taskId,
+            time: action1.time,
+            taskAction: action1.taskAction,
+        }).apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -1694,12 +1708,11 @@ test("can create then update tasks optimistically and resolve commits out of ord
     });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action1.taskId,
-            action1.time,
-            action1.taskAction,
-        ).apply(action2),
+        task: createTask(store, {
+            id: action1.taskId,
+            time: action1.time,
+            taskAction: action1.taskAction,
+        }).apply(action2, getSortableAccount),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
@@ -1732,7 +1745,7 @@ test("can create then update tasks optimistically after an action from the serve
         taskId: action1.taskId,
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -1771,12 +1784,11 @@ test("can create then update tasks optimistically after an action from the serve
     store.commitTaskActionTransaction(context, [action2]);
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action2.taskId,
-            action2.time,
-            action2.taskAction,
-        ).apply(action1),
+        task: createTask(store, {
+            id: action2.taskId,
+            time: action2.time,
+            taskAction: action2.taskAction,
+        }).apply(action1, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -1792,14 +1804,13 @@ test("can create then update tasks optimistically after an action from the serve
     store.commitTaskActionTransaction(context, [action3]);
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action2.taskId,
-            action2.time,
-            action2.taskAction,
-        )
-            .apply(action1)
-            .apply(action3),
+        task: createTask(store, {
+            id: action2.taskId,
+            time: action2.time,
+            taskAction: action2.taskAction,
+        })
+            .apply(action1, getSortableAccount)
+            .apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -1821,23 +1832,21 @@ test("can create then update tasks optimistically after an action from the serve
     });
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action2.taskId,
-            action2.time,
-            action2.taskAction,
-        )
-            .apply(action1)
-            .apply(action3),
+        task: createTask(store, {
+            id: action2.taskId,
+            time: action2.time,
+            taskAction: action2.taskAction,
+        })
+            .apply(action1, getSortableAccount)
+            .apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
-                task: TaskModel.createFromAction(
-                    store.spaceId,
-                    action2.taskId,
-                    action2.time,
-                    action2.taskAction,
-                ).apply(action1),
+                task: createTask(store, {
+                    id: action2.taskId,
+                    time: action2.time,
+                    taskAction: action2.taskAction,
+                }).apply(action1, getSortableAccount),
                 actions: null,
             },
             actions: [{isOptimistic: true, action: action3}],
@@ -1852,14 +1861,13 @@ test("can create then update tasks optimistically after an action from the serve
     });
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action2.taskId,
-            action2.time,
-            action2.taskAction,
-        )
-            .apply(action1)
-            .apply(action3),
+        task: createTask(store, {
+            id: action2.taskId,
+            time: action2.time,
+            taskAction: action2.taskAction,
+        })
+            .apply(action1, getSortableAccount)
+            .apply(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
@@ -1880,7 +1888,7 @@ test("can create then update tasks optimistically our of order", async () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -1916,12 +1924,11 @@ test("can create then update tasks optimistically our of order", async () => {
     store.commitTaskActionTransaction(context, [action1]);
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action1.taskId,
-            action1.time,
-            action1.taskAction,
-        ).apply(action2),
+        task: createTask(store, {
+            id: action1.taskId,
+            time: action1.time,
+            taskAction: action1.taskAction,
+        }).apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -1943,12 +1950,11 @@ test("can create then update tasks optimistically our of order", async () => {
     });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action1.taskId,
-            action1.time,
-            action1.taskAction,
-        ).apply(action2),
+        task: createTask(store, {
+            id: action1.taskId,
+            time: action1.time,
+            taskAction: action1.taskAction,
+        }).apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -1967,12 +1973,11 @@ test("can create then update tasks optimistically our of order", async () => {
     });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action1.taskId,
-            action1.time,
-            action1.taskAction,
-        ).apply(action2),
+        task: createTask(store, {
+            id: action1.taskId,
+            time: action1.time,
+            taskAction: action1.taskAction,
+        }).apply(action2, getSortableAccount),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
@@ -2005,7 +2010,7 @@ test("can create then update tasks optimistically out of order after an action f
         taskId: action1.taskId,
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -2060,14 +2065,13 @@ test("can create then update tasks optimistically out of order after an action f
     store.commitTaskActionTransaction(context, [action2]);
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action2.taskId,
-            action2.time,
-            action2.taskAction,
-        )
-            .apply(action1)
-            .apply(action3),
+        task: createTask(store, {
+            id: action2.taskId,
+            time: action2.time,
+            taskAction: action2.taskAction,
+        })
+            .apply(action1, getSortableAccount)
+            .apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -2089,14 +2093,13 @@ test("can create then update tasks optimistically out of order after an action f
     });
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action2.taskId,
-            action2.time,
-            action2.taskAction,
-        )
-            .apply(action1)
-            .apply(action3),
+        task: createTask(store, {
+            id: action2.taskId,
+            time: action2.time,
+            taskAction: action2.taskAction,
+        })
+            .apply(action1, getSortableAccount)
+            .apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -2115,14 +2118,13 @@ test("can create then update tasks optimistically out of order after an action f
     });
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action2.taskId,
-            action2.time,
-            action2.taskAction,
-        )
-            .apply(action1)
-            .apply(action3),
+        task: createTask(store, {
+            id: action2.taskId,
+            time: action2.time,
+            taskAction: action2.taskAction,
+        })
+            .apply(action1, getSortableAccount)
+            .apply(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
@@ -2155,7 +2157,7 @@ test("can create then update tasks optimistically out of order with more non-cre
         taskId: action1.taskId,
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -2210,14 +2212,13 @@ test("can create then update tasks optimistically out of order with more non-cre
     store.commitTaskActionTransaction(context, [action2]);
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action2.taskId,
-            action2.time,
-            action2.taskAction,
-        )
-            .apply(action1)
-            .apply(action3),
+        task: createTask(store, {
+            id: action2.taskId,
+            time: action2.time,
+            taskAction: action2.taskAction,
+        })
+            .apply(action1, getSortableAccount)
+            .apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -2240,14 +2241,13 @@ test("can create then update tasks optimistically out of order with more non-cre
     });
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action2.taskId,
-            action2.time,
-            action2.taskAction,
-        )
-            .apply(action1)
-            .apply(action3),
+        task: createTask(store, {
+            id: action2.taskId,
+            time: action2.time,
+            taskAction: action2.taskAction,
+        })
+            .apply(action1, getSortableAccount)
+            .apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -2269,14 +2269,13 @@ test("can create then update tasks optimistically out of order with more non-cre
     });
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action2.taskId,
-            action2.time,
-            action2.taskAction,
-        )
-            .apply(action1)
-            .apply(action3),
+        task: createTask(store, {
+            id: action2.taskId,
+            time: action2.time,
+            taskAction: action2.taskAction,
+        })
+            .apply(action1, getSortableAccount)
+            .apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -2295,14 +2294,13 @@ test("can create then update tasks optimistically out of order with more non-cre
     });
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action2.taskId,
-            action2.time,
-            action2.taskAction,
-        )
-            .apply(action1)
-            .apply(action3),
+        task: createTask(store, {
+            id: action2.taskId,
+            time: action2.time,
+            taskAction: action2.taskAction,
+        })
+            .apply(action1, getSortableAccount)
+            .apply(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
@@ -2323,7 +2321,7 @@ test("resolving optimistic update after garbage collection is ok", async () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -2343,12 +2341,11 @@ test("resolving optimistic update after garbage collection is ok", async () => {
     store.commitTaskActionTransaction(context, [action1]);
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action1.taskId,
-            action1.time,
-            action1.taskAction,
-        ),
+        task: createTask(store, {
+            id: action1.taskId,
+            time: action1.time,
+            taskAction: action1.taskAction,
+        }),
         actions: null,
         optimisticState: {
             original: {
@@ -2364,12 +2361,11 @@ test("resolving optimistic update after garbage collection is ok", async () => {
     store.commitTaskActionTransaction(context, [action2]);
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action1.taskId,
-            action1.time,
-            action1.taskAction,
-        ).apply(action2),
+        task: createTask(store, {
+            id: action1.taskId,
+            time: action1.time,
+            taskAction: action1.taskAction,
+        }).apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -2391,21 +2387,19 @@ test("resolving optimistic update after garbage collection is ok", async () => {
     });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action1.taskId,
-            action1.time,
-            action1.taskAction,
-        ).apply(action2),
+        task: createTask(store, {
+            id: action1.taskId,
+            time: action1.time,
+            taskAction: action1.taskAction,
+        }).apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
-                task: TaskModel.createFromAction(
-                    store.spaceId,
-                    action1.taskId,
-                    action1.time,
-                    action1.taskAction,
-                ),
+                task: createTask(store, {
+                    id: action1.taskId,
+                    time: action1.time,
+                    taskAction: action1.taskAction,
+                }),
                 actions: null,
             },
             actions: [{isOptimistic: true, action: action2}],
@@ -2434,11 +2428,7 @@ test("regular actions are added to optimistic state", async () => {
         onDisplayError: handleDisplayError,
     });
 
-    const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task = createTask(store);
 
     const action2 = {
         type: "UpdateTask",
@@ -2484,7 +2474,7 @@ test("regular actions are added to optimistic state", async () => {
     store.commitTaskActionTransaction(context, [action2]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2),
+        task: task.apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -2509,7 +2499,7 @@ test("regular actions are added to optimistic state", async () => {
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3),
+        task: task.apply(action2, getSortableAccount).apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -2531,7 +2521,7 @@ test("regular actions are added to optimistic state", async () => {
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3),
+        task: task.apply(action2, getSortableAccount).apply(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
@@ -2546,11 +2536,7 @@ test("regular actions are added to optimistic state with multiple actions", asyn
         onDisplayError: handleDisplayError,
     });
 
-    const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task = createTask(store);
 
     const action2 = {
         type: "UpdateTask",
@@ -2606,7 +2592,7 @@ test("regular actions are added to optimistic state with multiple actions", asyn
     store.commitTaskActionTransaction(context, [action2]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2),
+        task: task.apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -2631,7 +2617,7 @@ test("regular actions are added to optimistic state with multiple actions", asyn
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3),
+        task: task.apply(action2, getSortableAccount).apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -2650,7 +2636,10 @@ test("regular actions are added to optimistic state with multiple actions", asyn
     store.commitTaskActionTransaction(context, [action4]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3).apply(action4),
+        task: task
+            .apply(action2, getSortableAccount)
+            .apply(action3, getSortableAccount)
+            .apply(action4, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -2673,11 +2662,14 @@ test("regular actions are added to optimistic state with multiple actions", asyn
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3).apply(action4),
+        task: task
+            .apply(action2, getSortableAccount)
+            .apply(action3, getSortableAccount)
+            .apply(action4, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
-                task: task.apply(action2).apply(action3),
+                task: task.apply(action2, getSortableAccount).apply(action3, getSortableAccount),
                 actions: null,
             },
             actions: [{isOptimistic: true, action: action4}],
@@ -2692,7 +2684,10 @@ test("regular actions are added to optimistic state with multiple actions", asyn
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3).apply(action4),
+        task: task
+            .apply(action2, getSortableAccount)
+            .apply(action3, getSortableAccount)
+            .apply(action4, getSortableAccount),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
@@ -2707,11 +2702,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         onDisplayError: handleDisplayError,
     });
 
-    const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task = createTask(store);
 
     const action2 = {
         type: "UpdateTask",
@@ -2767,7 +2758,7 @@ test("regular actions are added to optimistic state with multiple actions that a
     store.commitTaskActionTransaction(context, [action2]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2),
+        task: task.apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -2792,7 +2783,7 @@ test("regular actions are added to optimistic state with multiple actions that a
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3),
+        task: task.apply(action2, getSortableAccount).apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -2811,7 +2802,10 @@ test("regular actions are added to optimistic state with multiple actions that a
     store.commitTaskActionTransaction(context, [action4]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3).apply(action4),
+        task: task
+            .apply(action2, getSortableAccount)
+            .apply(action3, getSortableAccount)
+            .apply(action4, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -2834,11 +2828,14 @@ test("regular actions are added to optimistic state with multiple actions that a
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3).apply(action4),
+        task: task
+            .apply(action2, getSortableAccount)
+            .apply(action3, getSortableAccount)
+            .apply(action4, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
-                task: task.apply(action4),
+                task: task.apply(action4, getSortableAccount),
                 actions: null,
             },
             actions: [
@@ -2856,7 +2853,10 @@ test("regular actions are added to optimistic state with multiple actions that a
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3).apply(action4),
+        task: task
+            .apply(action2, getSortableAccount)
+            .apply(action3, getSortableAccount)
+            .apply(action4, getSortableAccount),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
@@ -2871,11 +2871,7 @@ test("regular actions are added to optimistic state when task is not backfilled"
         onDisplayError: handleDisplayError,
     });
 
-    const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task = createTask(store);
 
     const action2 = {
         type: "UpdateTask",
@@ -2964,11 +2960,7 @@ test("regular actions are added to optimistic state with multiple actions when t
         onDisplayError: handleDisplayError,
     });
 
-    const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task = createTask(store);
 
     const action2 = {
         type: "UpdateTask",
@@ -3106,11 +3098,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         onDisplayError: handleDisplayError,
     });
 
-    const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task = createTask(store);
 
     const action2 = {
         type: "UpdateTask",
@@ -3257,17 +3245,16 @@ test("regular actions are added to optimistic state when task is created optimis
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
 
-    const task = TaskModel.createFromAction(
-        store.spaceId,
-        action1.taskId,
-        action1.time,
-        action1.taskAction,
-    );
+    const task = createTask(store, {
+        id: action1.taskId,
+        time: action1.time,
+        taskAction: action1.taskAction,
+    });
 
     const action2 = {
         type: "UpdateTask",
@@ -3310,7 +3297,7 @@ test("regular actions are added to optimistic state when task is created optimis
     store.commitTaskActionTransaction(context, [action2]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2),
+        task: task.apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -3338,7 +3325,7 @@ test("regular actions are added to optimistic state when task is created optimis
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3),
+        task: task.apply(action2, getSortableAccount).apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -3361,7 +3348,7 @@ test("regular actions are added to optimistic state when task is created optimis
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3),
+        task: task.apply(action2, getSortableAccount).apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -3383,7 +3370,7 @@ test("regular actions are added to optimistic state when task is created optimis
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3),
+        task: task.apply(action2, getSortableAccount).apply(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
@@ -3404,17 +3391,16 @@ test("regular actions are added to optimistic state with multiple actions when t
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
 
-    const task = TaskModel.createFromAction(
-        store.spaceId,
-        action1.taskId,
-        action1.time,
-        action1.taskAction,
-    );
+    const task = createTask(store, {
+        id: action1.taskId,
+        time: action1.time,
+        taskAction: action1.taskAction,
+    });
 
     const action2 = {
         type: "UpdateTask",
@@ -3467,7 +3453,7 @@ test("regular actions are added to optimistic state with multiple actions when t
     store.commitTaskActionTransaction(context, [action2]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2),
+        task: task.apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -3495,7 +3481,7 @@ test("regular actions are added to optimistic state with multiple actions when t
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3),
+        task: task.apply(action2, getSortableAccount).apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -3515,7 +3501,10 @@ test("regular actions are added to optimistic state with multiple actions when t
     store.commitTaskActionTransaction(context, [action4]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3).apply(action4),
+        task: task
+            .apply(action2, getSortableAccount)
+            .apply(action3, getSortableAccount)
+            .apply(action4, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -3539,7 +3528,10 @@ test("regular actions are added to optimistic state with multiple actions when t
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3).apply(action4),
+        task: task
+            .apply(action2, getSortableAccount)
+            .apply(action3, getSortableAccount)
+            .apply(action4, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -3562,11 +3554,14 @@ test("regular actions are added to optimistic state with multiple actions when t
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3).apply(action4),
+        task: task
+            .apply(action2, getSortableAccount)
+            .apply(action3, getSortableAccount)
+            .apply(action4, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
-                task: task.apply(action2).apply(action3),
+                task: task.apply(action2, getSortableAccount).apply(action3, getSortableAccount),
                 actions: null,
             },
             actions: [{isOptimistic: true, action: action4}],
@@ -3581,7 +3576,10 @@ test("regular actions are added to optimistic state with multiple actions when t
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3).apply(action4),
+        task: task
+            .apply(action2, getSortableAccount)
+            .apply(action3, getSortableAccount)
+            .apply(action4, getSortableAccount),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
@@ -3602,17 +3600,16 @@ test("regular actions are added to optimistic state with multiple actions that a
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
 
-    const task = TaskModel.createFromAction(
-        store.spaceId,
-        action1.taskId,
-        action1.time,
-        action1.taskAction,
-    );
+    const task = createTask(store, {
+        id: action1.taskId,
+        time: action1.time,
+        taskAction: action1.taskAction,
+    });
 
     const action2 = {
         type: "UpdateTask",
@@ -3665,7 +3662,7 @@ test("regular actions are added to optimistic state with multiple actions that a
     store.commitTaskActionTransaction(context, [action2]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2),
+        task: task.apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -3693,7 +3690,7 @@ test("regular actions are added to optimistic state with multiple actions that a
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3),
+        task: task.apply(action2, getSortableAccount).apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -3713,7 +3710,10 @@ test("regular actions are added to optimistic state with multiple actions that a
     store.commitTaskActionTransaction(context, [action4]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3).apply(action4),
+        task: task
+            .apply(action2, getSortableAccount)
+            .apply(action3, getSortableAccount)
+            .apply(action4, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -3737,7 +3737,10 @@ test("regular actions are added to optimistic state with multiple actions that a
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3).apply(action4),
+        task: task
+            .apply(action2, getSortableAccount)
+            .apply(action3, getSortableAccount)
+            .apply(action4, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -3760,11 +3763,14 @@ test("regular actions are added to optimistic state with multiple actions that a
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3).apply(action4),
+        task: task
+            .apply(action2, getSortableAccount)
+            .apply(action3, getSortableAccount)
+            .apply(action4, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
-                task: task.apply(action4),
+                task: task.apply(action4, getSortableAccount),
                 actions: null,
             },
             actions: [
@@ -3782,7 +3788,10 @@ test("regular actions are added to optimistic state with multiple actions that a
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3).apply(action4),
+        task: task
+            .apply(action2, getSortableAccount)
+            .apply(action3, getSortableAccount)
+            .apply(action4, getSortableAccount),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
@@ -3797,11 +3806,7 @@ test("three optimistic actions when task is not backfilled", async () => {
         onDisplayError: handleDisplayError,
     });
 
-    const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task = createTask(store);
 
     const action2 = {
         type: "UpdateTask",
@@ -3952,11 +3957,7 @@ test("backfilling a task when none exists and there are optimistic actions works
         onDisplayError: handleDisplayError,
     });
 
-    const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task = createTask(store);
 
     const action2 = {
         type: "UpdateTask",
@@ -4036,7 +4037,7 @@ test("backfilling a task when none exists and there are optimistic actions works
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3),
+        task: task.apply(action2, getSortableAccount).apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -4058,7 +4059,7 @@ test("backfilling a task when none exists and there are optimistic actions works
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3),
+        task: task.apply(action2, getSortableAccount).apply(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
@@ -4073,11 +4074,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
         onDisplayError: handleDisplayError,
     });
 
-    const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task = createTask(store);
 
     const action2 = {
         type: "UpdateTask",
@@ -4123,7 +4120,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
     store.commitTaskActionTransaction(context, [action2]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2),
+        task: task.apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -4140,7 +4137,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
         type: "Update",
         number: 2,
         actions: [],
-        backfillAuthorizedTasks: [task.apply(action3)],
+        backfillAuthorizedTasks: [task.apply(action3, getSortableAccount)],
         backfillUnauthorizedTaskIds: [],
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
@@ -4148,11 +4145,11 @@ test("backfilling a task when one is already backfilled and there are optimistic
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3),
+        task: task.apply(action2, getSortableAccount).apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
-                task: task.apply(action3),
+                task: task.apply(action3, getSortableAccount),
                 actions: null,
             },
             actions: [{isOptimistic: true, action: action2}],
@@ -4167,7 +4164,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3),
+        task: task.apply(action2, getSortableAccount).apply(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
@@ -4188,17 +4185,16 @@ test("backfilling a task when there are optimistic actions but no previously bac
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
 
-    const task = TaskModel.createFromAction(
-        store.spaceId,
-        action1.taskId,
-        action1.time,
-        action1.taskAction,
-    );
+    const task = createTask(store, {
+        id: action1.taskId,
+        time: action1.time,
+        taskAction: action1.taskAction,
+    });
 
     const action2 = {
         type: "UpdateTask",
@@ -4254,7 +4250,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
     store.commitTaskActionTransaction(context, [action1]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action3),
+        task: task.apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -4270,7 +4266,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
     store.commitTaskActionTransaction(context, [action2]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action3).apply(action2),
+        task: task.apply(action3, getSortableAccount).apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -4290,7 +4286,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
         type: "Update",
         number: 2,
         actions: [],
-        backfillAuthorizedTasks: [task.apply(action4)],
+        backfillAuthorizedTasks: [task.apply(action4, getSortableAccount)],
         backfillUnauthorizedTaskIds: [],
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
@@ -4298,11 +4294,14 @@ test("backfilling a task when there are optimistic actions but no previously bac
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action4).apply(action3).apply(action2),
+        task: task
+            .apply(action4, getSortableAccount)
+            .apply(action3, getSortableAccount)
+            .apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
-                task: task.apply(action4).apply(action3),
+                task: task.apply(action4, getSortableAccount).apply(action3, getSortableAccount),
                 actions: null,
             },
             actions: [
@@ -4320,11 +4319,17 @@ test("backfilling a task when there are optimistic actions but no previously bac
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action4).apply(action3).apply(action2),
+        task: task
+            .apply(action4, getSortableAccount)
+            .apply(action3, getSortableAccount)
+            .apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
-                task: task.apply(action4).apply(action3).apply(action1),
+                task: task
+                    .apply(action4, getSortableAccount)
+                    .apply(action3, getSortableAccount)
+                    .apply(action1, getSortableAccount),
                 actions: null,
             },
             actions: [{isOptimistic: true, action: action2}],
@@ -4339,7 +4344,10 @@ test("backfilling a task when there are optimistic actions but no previously bac
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action4).apply(action3).apply(action2),
+        task: task
+            .apply(action4, getSortableAccount)
+            .apply(action3, getSortableAccount)
+            .apply(action2, getSortableAccount),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
@@ -4354,11 +4362,7 @@ test("applies commit action calls optimistically (rejected)", async () => {
         onDisplayError: handleDisplayError,
     });
 
-    const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task = createTask(store);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual(null);
 
@@ -4394,7 +4398,7 @@ test("applies commit action calls optimistically (rejected)", async () => {
     store.commitTaskActionTransaction(context, [action]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action),
+        task: task.apply(action, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -4416,6 +4420,9 @@ test("applies commit action calls optimistically (rejected)", async () => {
         isAuthorized: true,
         authorizationEventNumber: 1,
     });
+
+    expect(displayErrors.length).toEqual(1);
+    displayErrors = [];
 });
 
 test("can create tasks optimistically (rejected)", async () => {
@@ -4431,7 +4438,7 @@ test("can create tasks optimistically (rejected)", async () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -4441,12 +4448,11 @@ test("can create tasks optimistically (rejected)", async () => {
     store.commitTaskActionTransaction(context, [action1]);
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action1.taskId,
-            action1.time,
-            action1.taskAction,
-        ),
+        task: createTask(store, {
+            id: action1.taskId,
+            time: action1.time,
+            taskAction: action1.taskAction,
+        }),
         actions: null,
         optimisticState: {
             original: {
@@ -4468,6 +4474,9 @@ test("can create tasks optimistically (rejected)", async () => {
         isAuthorized: true,
         authorizationEventNumber: 0,
     });
+
+    expect(displayErrors.length).toEqual(1);
+    displayErrors = [];
 });
 
 test("can create then update tasks optimistically (rejected)", async () => {
@@ -4483,7 +4492,7 @@ test("can create then update tasks optimistically (rejected)", async () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -4503,12 +4512,11 @@ test("can create then update tasks optimistically (rejected)", async () => {
     store.commitTaskActionTransaction(context, [action1]);
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action1.taskId,
-            action1.time,
-            action1.taskAction,
-        ),
+        task: createTask(store, {
+            id: action1.taskId,
+            time: action1.time,
+            taskAction: action1.taskAction,
+        }),
         actions: null,
         optimisticState: {
             original: {
@@ -4524,12 +4532,11 @@ test("can create then update tasks optimistically (rejected)", async () => {
     store.commitTaskActionTransaction(context, [action2]);
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action1.taskId,
-            action1.time,
-            action1.taskAction,
-        ).apply(action2),
+        task: createTask(store, {
+            id: action1.taskId,
+            time: action1.time,
+            taskAction: action1.taskAction,
+        }).apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -4570,6 +4577,9 @@ test("can create then update tasks optimistically (rejected)", async () => {
         isAuthorized: true,
         authorizationEventNumber: 0,
     });
+
+    expect(displayErrors.length).toEqual(2);
+    displayErrors = [];
 });
 
 test("can create then update tasks optimistically and resolve commits out of order (rejected)", async () => {
@@ -4585,7 +4595,7 @@ test("can create then update tasks optimistically and resolve commits out of ord
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -4605,12 +4615,11 @@ test("can create then update tasks optimistically and resolve commits out of ord
     store.commitTaskActionTransaction(context, [action1]);
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action1.taskId,
-            action1.time,
-            action1.taskAction,
-        ),
+        task: createTask(store, {
+            id: action1.taskId,
+            time: action1.time,
+            taskAction: action1.taskAction,
+        }),
         actions: null,
         optimisticState: {
             original: {
@@ -4626,12 +4635,11 @@ test("can create then update tasks optimistically and resolve commits out of ord
     store.commitTaskActionTransaction(context, [action2]);
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action1.taskId,
-            action1.time,
-            action1.taskAction,
-        ).apply(action2),
+        task: createTask(store, {
+            id: action1.taskId,
+            time: action1.time,
+            taskAction: action1.taskAction,
+        }).apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -4650,12 +4658,11 @@ test("can create then update tasks optimistically and resolve commits out of ord
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action1.taskId,
-            action1.time,
-            action1.taskAction,
-        ),
+        task: createTask(store, {
+            id: action1.taskId,
+            time: action1.time,
+            taskAction: action1.taskAction,
+        }),
         actions: null,
         optimisticState: {
             original: {
@@ -4677,6 +4684,9 @@ test("can create then update tasks optimistically and resolve commits out of ord
         isAuthorized: true,
         authorizationEventNumber: 0,
     });
+
+    expect(displayErrors.length).toEqual(2);
+    displayErrors = [];
 });
 
 test("can create then update tasks optimistically after an action from the server (rejected)", async () => {
@@ -4704,7 +4714,7 @@ test("can create then update tasks optimistically after an action from the serve
         taskId: action1.taskId,
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -4743,12 +4753,11 @@ test("can create then update tasks optimistically after an action from the serve
     store.commitTaskActionTransaction(context, [action2]);
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action2.taskId,
-            action2.time,
-            action2.taskAction,
-        ).apply(action1),
+        task: createTask(store, {
+            id: action2.taskId,
+            time: action2.time,
+            taskAction: action2.taskAction,
+        }).apply(action1, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -4764,14 +4773,13 @@ test("can create then update tasks optimistically after an action from the serve
     store.commitTaskActionTransaction(context, [action3]);
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action2.taskId,
-            action2.time,
-            action2.taskAction,
-        )
-            .apply(action1)
-            .apply(action3),
+        task: createTask(store, {
+            id: action2.taskId,
+            time: action2.time,
+            taskAction: action2.taskAction,
+        })
+            .apply(action1, getSortableAccount)
+            .apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -4812,6 +4820,9 @@ test("can create then update tasks optimistically after an action from the serve
         isAuthorized: true,
         authorizationEventNumber: 0,
     });
+
+    expect(displayErrors.length).toEqual(2);
+    displayErrors = [];
 });
 
 test("can create then update tasks optimistically our of order (rejected)", async () => {
@@ -4827,7 +4838,7 @@ test("can create then update tasks optimistically our of order (rejected)", asyn
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -4863,12 +4874,11 @@ test("can create then update tasks optimistically our of order (rejected)", asyn
     store.commitTaskActionTransaction(context, [action1]);
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action1.taskId,
-            action1.time,
-            action1.taskAction,
-        ).apply(action2),
+        task: createTask(store, {
+            id: action1.taskId,
+            time: action1.time,
+            taskAction: action1.taskAction,
+        }).apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -4887,12 +4897,11 @@ test("can create then update tasks optimistically our of order (rejected)", asyn
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action1.taskId,
-            action1.time,
-            action1.taskAction,
-        ),
+        task: createTask(store, {
+            id: action1.taskId,
+            time: action1.time,
+            taskAction: action1.taskAction,
+        }),
         actions: null,
         optimisticState: {
             original: {
@@ -4914,6 +4923,9 @@ test("can create then update tasks optimistically our of order (rejected)", asyn
         isAuthorized: true,
         authorizationEventNumber: 0,
     });
+
+    expect(displayErrors.length).toEqual(2);
+    displayErrors = [];
 });
 
 test("can create then update tasks optimistically out of order after an action from the server (rejected)", async () => {
@@ -4941,7 +4953,7 @@ test("can create then update tasks optimistically out of order after an action f
         taskId: action1.taskId,
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -4996,14 +5008,13 @@ test("can create then update tasks optimistically out of order after an action f
     store.commitTaskActionTransaction(context, [action2]);
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action2.taskId,
-            action2.time,
-            action2.taskAction,
-        )
-            .apply(action1)
-            .apply(action3),
+        task: createTask(store, {
+            id: action2.taskId,
+            time: action2.time,
+            taskAction: action2.taskAction,
+        })
+            .apply(action1, getSortableAccount)
+            .apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -5022,12 +5033,11 @@ test("can create then update tasks optimistically out of order after an action f
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action2.taskId,
-            action2.time,
-            action2.taskAction,
-        ).apply(action1),
+        task: createTask(store, {
+            id: action2.taskId,
+            time: action2.time,
+            taskAction: action2.taskAction,
+        }).apply(action1, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -5049,6 +5059,9 @@ test("can create then update tasks optimistically out of order after an action f
         isAuthorized: true,
         authorizationEventNumber: 0,
     });
+
+    expect(displayErrors.length).toEqual(2);
+    displayErrors = [];
 });
 
 test("can create then update tasks optimistically out of order with more non-create tasks (rejected)", async () => {
@@ -5076,7 +5089,7 @@ test("can create then update tasks optimistically out of order with more non-cre
         taskId: action1.taskId,
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -5131,14 +5144,13 @@ test("can create then update tasks optimistically out of order with more non-cre
     store.commitTaskActionTransaction(context, [action2]);
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action2.taskId,
-            action2.time,
-            action2.taskAction,
-        )
-            .apply(action1)
-            .apply(action3),
+        task: createTask(store, {
+            id: action2.taskId,
+            time: action2.time,
+            taskAction: action2.taskAction,
+        })
+            .apply(action1, getSortableAccount)
+            .apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -5158,12 +5170,11 @@ test("can create then update tasks optimistically out of order with more non-cre
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action2.taskId,
-            action2.time,
-            action2.taskAction,
-        ).apply(action3),
+        task: createTask(store, {
+            id: action2.taskId,
+            time: action2.time,
+            taskAction: action2.taskAction,
+        }).apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -5182,12 +5193,11 @@ test("can create then update tasks optimistically out of order with more non-cre
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action2.taskId,
-            action2.time,
-            action2.taskAction,
-        ),
+        task: createTask(store, {
+            id: action2.taskId,
+            time: action2.time,
+            taskAction: action2.taskAction,
+        }),
         actions: null,
         optimisticState: {
             original: {
@@ -5209,6 +5219,9 @@ test("can create then update tasks optimistically out of order with more non-cre
         isAuthorized: true,
         authorizationEventNumber: 0,
     });
+
+    expect(displayErrors.length).toEqual(3);
+    displayErrors = [];
 });
 
 test("resolving optimistic update after garbage collection is ok (rejected)", async () => {
@@ -5224,7 +5237,7 @@ test("resolving optimistic update after garbage collection is ok (rejected)", as
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -5244,12 +5257,11 @@ test("resolving optimistic update after garbage collection is ok (rejected)", as
     store.commitTaskActionTransaction(context, [action1]);
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action1.taskId,
-            action1.time,
-            action1.taskAction,
-        ),
+        task: createTask(store, {
+            id: action1.taskId,
+            time: action1.time,
+            taskAction: action1.taskAction,
+        }),
         actions: null,
         optimisticState: {
             original: {
@@ -5265,12 +5277,11 @@ test("resolving optimistic update after garbage collection is ok (rejected)", as
     store.commitTaskActionTransaction(context, [action2]);
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action1.taskId,
-            action1.time,
-            action1.taskAction,
-        ).apply(action2),
+        task: createTask(store, {
+            id: action1.taskId,
+            time: action1.time,
+            taskAction: action1.taskAction,
+        }).apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -5292,21 +5303,19 @@ test("resolving optimistic update after garbage collection is ok (rejected)", as
     });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
-        task: TaskModel.createFromAction(
-            store.spaceId,
-            action1.taskId,
-            action1.time,
-            action1.taskAction,
-        ).apply(action2),
+        task: createTask(store, {
+            id: action1.taskId,
+            time: action1.time,
+            taskAction: action1.taskAction,
+        }).apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
-                task: TaskModel.createFromAction(
-                    store.spaceId,
-                    action1.taskId,
-                    action1.time,
-                    action1.taskAction,
-                ),
+                task: createTask(store, {
+                    id: action1.taskId,
+                    time: action1.time,
+                    taskAction: action1.taskAction,
+                }),
                 actions: null,
             },
             actions: [{isOptimistic: true, action: action2}],
@@ -5323,6 +5332,9 @@ test("resolving optimistic update after garbage collection is ok (rejected)", as
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual(null);
+
+    expect(displayErrors.length).toEqual(1);
+    displayErrors = [];
 });
 
 test("regular actions are added to optimistic state (rejected)", async () => {
@@ -5332,11 +5344,7 @@ test("regular actions are added to optimistic state (rejected)", async () => {
         onDisplayError: handleDisplayError,
     });
 
-    const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task = createTask(store);
 
     const action2 = {
         type: "UpdateTask",
@@ -5382,7 +5390,7 @@ test("regular actions are added to optimistic state (rejected)", async () => {
     store.commitTaskActionTransaction(context, [action2]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2),
+        task: task.apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -5407,7 +5415,7 @@ test("regular actions are added to optimistic state (rejected)", async () => {
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3),
+        task: task.apply(action2, getSortableAccount).apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -5426,12 +5434,15 @@ test("regular actions are added to optimistic state (rejected)", async () => {
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action3),
+        task: task.apply(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
         authorizationEventNumber: 1,
     });
+
+    expect(displayErrors.length).toEqual(1);
+    displayErrors = [];
 });
 
 test("regular actions are added to optimistic state with multiple actions (rejected)", async () => {
@@ -5441,11 +5452,7 @@ test("regular actions are added to optimistic state with multiple actions (rejec
         onDisplayError: handleDisplayError,
     });
 
-    const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task = createTask(store);
 
     const action2 = {
         type: "UpdateTask",
@@ -5501,7 +5508,7 @@ test("regular actions are added to optimistic state with multiple actions (rejec
     store.commitTaskActionTransaction(context, [action2]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2),
+        task: task.apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -5526,7 +5533,7 @@ test("regular actions are added to optimistic state with multiple actions (rejec
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3),
+        task: task.apply(action2, getSortableAccount).apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -5545,7 +5552,10 @@ test("regular actions are added to optimistic state with multiple actions (rejec
     store.commitTaskActionTransaction(context, [action4]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3).apply(action4),
+        task: task
+            .apply(action2, getSortableAccount)
+            .apply(action3, getSortableAccount)
+            .apply(action4, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -5565,11 +5575,11 @@ test("regular actions are added to optimistic state with multiple actions (rejec
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action3).apply(action4),
+        task: task.apply(action3, getSortableAccount).apply(action4, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
-                task: task.apply(action3),
+                task: task.apply(action3, getSortableAccount),
                 actions: null,
             },
             actions: [{isOptimistic: true, action: action4}],
@@ -5581,12 +5591,15 @@ test("regular actions are added to optimistic state with multiple actions (rejec
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action3),
+        task: task.apply(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
         authorizationEventNumber: 1,
     });
+
+    expect(displayErrors.length).toEqual(2);
+    displayErrors = [];
 });
 
 test("regular actions are added to optimistic state with multiple actions that are committed out of order (rejected)", async () => {
@@ -5596,11 +5609,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         onDisplayError: handleDisplayError,
     });
 
-    const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task = createTask(store);
 
     const action2 = {
         type: "UpdateTask",
@@ -5656,7 +5665,7 @@ test("regular actions are added to optimistic state with multiple actions that a
     store.commitTaskActionTransaction(context, [action2]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2),
+        task: task.apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -5681,7 +5690,7 @@ test("regular actions are added to optimistic state with multiple actions that a
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3),
+        task: task.apply(action2, getSortableAccount).apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -5700,7 +5709,10 @@ test("regular actions are added to optimistic state with multiple actions that a
     store.commitTaskActionTransaction(context, [action4]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3).apply(action4),
+        task: task
+            .apply(action2, getSortableAccount)
+            .apply(action3, getSortableAccount)
+            .apply(action4, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -5720,7 +5732,7 @@ test("regular actions are added to optimistic state with multiple actions that a
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3),
+        task: task.apply(action2, getSortableAccount).apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -5739,12 +5751,15 @@ test("regular actions are added to optimistic state with multiple actions that a
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action3),
+        task: task.apply(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
         authorizationEventNumber: 1,
     });
+
+    expect(displayErrors.length).toEqual(2);
+    displayErrors = [];
 });
 
 test("regular actions are added to optimistic state when task is not backfilled (rejected)", async () => {
@@ -5754,11 +5769,7 @@ test("regular actions are added to optimistic state when task is not backfilled 
         onDisplayError: handleDisplayError,
     });
 
-    const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task = createTask(store);
 
     const action2 = {
         type: "UpdateTask",
@@ -5835,6 +5846,9 @@ test("regular actions are added to optimistic state when task is not backfilled 
         isAuthorized: null,
         authorizationEventNumber: null,
     });
+
+    expect(displayErrors.length).toEqual(1);
+    displayErrors = [];
 });
 
 test("regular actions are added to optimistic state with multiple actions when task is not backfilled (rejected)", async () => {
@@ -5844,11 +5858,7 @@ test("regular actions are added to optimistic state with multiple actions when t
         onDisplayError: handleDisplayError,
     });
 
-    const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task = createTask(store);
 
     const action2 = {
         type: "UpdateTask",
@@ -5971,6 +5981,9 @@ test("regular actions are added to optimistic state with multiple actions when t
         isAuthorized: null,
         authorizationEventNumber: null,
     });
+
+    expect(displayErrors.length).toEqual(2);
+    displayErrors = [];
 });
 
 test("regular actions are added to optimistic state with multiple actions that are committed out of order when task is not backfilled (rejected)", async () => {
@@ -5980,11 +5993,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         onDisplayError: handleDisplayError,
     });
 
-    const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task = createTask(store);
 
     const action2 = {
         type: "UpdateTask",
@@ -6110,6 +6119,9 @@ test("regular actions are added to optimistic state with multiple actions that a
         isAuthorized: null,
         authorizationEventNumber: null,
     });
+
+    expect(displayErrors.length).toEqual(2);
+    displayErrors = [];
 });
 
 test("regular actions are added to optimistic state when task is created optimistically (rejected)", async () => {
@@ -6125,17 +6137,16 @@ test("regular actions are added to optimistic state when task is created optimis
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
 
-    const task = TaskModel.createFromAction(
-        store.spaceId,
-        action1.taskId,
-        action1.time,
-        action1.taskAction,
-    );
+    const task = createTask(store, {
+        id: action1.taskId,
+        time: action1.time,
+        taskAction: action1.taskAction,
+    });
 
     const action2 = {
         type: "UpdateTask",
@@ -6178,7 +6189,7 @@ test("regular actions are added to optimistic state when task is created optimis
     store.commitTaskActionTransaction(context, [action2]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2),
+        task: task.apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -6206,7 +6217,7 @@ test("regular actions are added to optimistic state when task is created optimis
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3),
+        task: task.apply(action2, getSortableAccount).apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -6251,6 +6262,9 @@ test("regular actions are added to optimistic state when task is created optimis
         isAuthorized: true,
         authorizationEventNumber: 0,
     });
+
+    expect(displayErrors.length).toEqual(2);
+    displayErrors = [];
 });
 
 test("regular actions are added to optimistic state with multiple actions when task is created optimistically (rejected)", async () => {
@@ -6266,17 +6280,16 @@ test("regular actions are added to optimistic state with multiple actions when t
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
 
-    const task = TaskModel.createFromAction(
-        store.spaceId,
-        action1.taskId,
-        action1.time,
-        action1.taskAction,
-    );
+    const task = createTask(store, {
+        id: action1.taskId,
+        time: action1.time,
+        taskAction: action1.taskAction,
+    });
 
     const action2 = {
         type: "UpdateTask",
@@ -6329,7 +6342,7 @@ test("regular actions are added to optimistic state with multiple actions when t
     store.commitTaskActionTransaction(context, [action2]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2),
+        task: task.apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -6357,7 +6370,7 @@ test("regular actions are added to optimistic state with multiple actions when t
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3),
+        task: task.apply(action2, getSortableAccount).apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -6377,7 +6390,10 @@ test("regular actions are added to optimistic state with multiple actions when t
     store.commitTaskActionTransaction(context, [action4]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3).apply(action4),
+        task: task
+            .apply(action2, getSortableAccount)
+            .apply(action3, getSortableAccount)
+            .apply(action4, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -6440,6 +6456,9 @@ test("regular actions are added to optimistic state with multiple actions when t
         isAuthorized: true,
         authorizationEventNumber: 0,
     });
+
+    expect(displayErrors.length).toEqual(3);
+    displayErrors = [];
 });
 
 test("regular actions are added to optimistic state with multiple actions that are committed out of order when task is created optimistically (rejected)", async () => {
@@ -6455,17 +6474,16 @@ test("regular actions are added to optimistic state with multiple actions that a
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
 
-    const task = TaskModel.createFromAction(
-        store.spaceId,
-        action1.taskId,
-        action1.time,
-        action1.taskAction,
-    );
+    const task = createTask(store, {
+        id: action1.taskId,
+        time: action1.time,
+        taskAction: action1.taskAction,
+    });
 
     const action2 = {
         type: "UpdateTask",
@@ -6518,7 +6536,7 @@ test("regular actions are added to optimistic state with multiple actions that a
     store.commitTaskActionTransaction(context, [action2]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2),
+        task: task.apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -6546,7 +6564,7 @@ test("regular actions are added to optimistic state with multiple actions that a
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3),
+        task: task.apply(action2, getSortableAccount).apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -6566,7 +6584,10 @@ test("regular actions are added to optimistic state with multiple actions that a
     store.commitTaskActionTransaction(context, [action4]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3).apply(action4),
+        task: task
+            .apply(action2, getSortableAccount)
+            .apply(action3, getSortableAccount)
+            .apply(action4, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -6632,6 +6653,9 @@ test("regular actions are added to optimistic state with multiple actions that a
         isAuthorized: true,
         authorizationEventNumber: 0,
     });
+
+    expect(displayErrors.length).toEqual(3);
+    displayErrors = [];
 });
 
 test("three optimistic actions when task is not backfilled (rejected)", async () => {
@@ -6641,11 +6665,7 @@ test("three optimistic actions when task is not backfilled (rejected)", async ()
         onDisplayError: handleDisplayError,
     });
 
-    const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task = createTask(store);
 
     const action2 = {
         type: "UpdateTask",
@@ -6778,6 +6798,9 @@ test("three optimistic actions when task is not backfilled (rejected)", async ()
         isAuthorized: null,
         authorizationEventNumber: null,
     });
+
+    expect(displayErrors.length).toEqual(3);
+    displayErrors = [];
 });
 
 test("backfilling a task when none exists and there are optimistic actions works (rejected)", async () => {
@@ -6787,11 +6810,7 @@ test("backfilling a task when none exists and there are optimistic actions works
         onDisplayError: handleDisplayError,
     });
 
-    const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task = createTask(store);
 
     const action2 = {
         type: "UpdateTask",
@@ -6871,7 +6890,7 @@ test("backfilling a task when none exists and there are optimistic actions works
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3),
+        task: task.apply(action2, getSortableAccount).apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -6890,12 +6909,15 @@ test("backfilling a task when none exists and there are optimistic actions works
     await TestRpcContextModule.rejectLastExecution(commitTaskActionTransaction);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action3),
+        task: task.apply(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
         authorizationEventNumber: 1,
     });
+
+    expect(displayErrors.length).toEqual(1);
+    displayErrors = [];
 });
 
 test("backfilling a task when one is already backfilled and there are optimistic actions works (rejected)", async () => {
@@ -6905,11 +6927,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
         onDisplayError: handleDisplayError,
     });
 
-    const task = TaskModel.createFromAction(store.spaceId, generateId(), store.clock.now(), {
-        type: "Create",
-        creator: TaskSortableAccount.test(account1),
-        creatorTimeZone: defaultTimeZone,
-    });
+    const task = createTask(store);
 
     const action2 = {
         type: "UpdateTask",
@@ -6955,7 +6973,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
     store.commitTaskActionTransaction(context, [action2]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2),
+        task: task.apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -6972,7 +6990,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
         type: "Update",
         number: 2,
         actions: [],
-        backfillAuthorizedTasks: [task.apply(action3)],
+        backfillAuthorizedTasks: [task.apply(action3, getSortableAccount)],
         backfillUnauthorizedTaskIds: [],
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
@@ -6980,11 +6998,11 @@ test("backfilling a task when one is already backfilled and there are optimistic
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3),
+        task: task.apply(action2, getSortableAccount).apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
-                task: task.apply(action3),
+                task: task.apply(action3, getSortableAccount),
                 actions: null,
             },
             actions: [{isOptimistic: true, action: action2}],
@@ -6996,12 +7014,15 @@ test("backfilling a task when one is already backfilled and there are optimistic
     await TestRpcContextModule.rejectLastExecution(commitTaskActionTransaction);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action3),
+        task: task.apply(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
         authorizationEventNumber: 2,
     });
+
+    expect(displayErrors.length).toEqual(1);
+    displayErrors = [];
 });
 
 test("backfilling a task when there are optimistic actions but no previously backfilled task works (rejected)", async () => {
@@ -7017,17 +7038,16 @@ test("backfilling a task when there are optimistic actions but no previously bac
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
 
-    const task = TaskModel.createFromAction(
-        store.spaceId,
-        action1.taskId,
-        action1.time,
-        action1.taskAction,
-    );
+    const task = createTask(store, {
+        id: action1.taskId,
+        time: action1.time,
+        taskAction: action1.taskAction,
+    });
 
     const action2 = {
         type: "UpdateTask",
@@ -7083,7 +7103,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
     store.commitTaskActionTransaction(context, [action1]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action3),
+        task: task.apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -7099,7 +7119,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
     store.commitTaskActionTransaction(context, [action2]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action3).apply(action2),
+        task: task.apply(action3, getSortableAccount).apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -7119,7 +7139,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
         type: "Update",
         number: 2,
         actions: [],
-        backfillAuthorizedTasks: [task.apply(action4)],
+        backfillAuthorizedTasks: [task.apply(action4, getSortableAccount)],
         backfillUnauthorizedTaskIds: [],
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
@@ -7127,11 +7147,14 @@ test("backfilling a task when there are optimistic actions but no previously bac
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action4).apply(action3).apply(action2),
+        task: task
+            .apply(action4, getSortableAccount)
+            .apply(action3, getSortableAccount)
+            .apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
-                task: task.apply(action4).apply(action3),
+                task: task.apply(action4, getSortableAccount).apply(action3, getSortableAccount),
                 actions: null,
             },
             actions: [
@@ -7146,11 +7169,14 @@ test("backfilling a task when there are optimistic actions but no previously bac
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action4).apply(action3).apply(action2),
+        task: task
+            .apply(action4, getSortableAccount)
+            .apply(action3, getSortableAccount)
+            .apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
-                task: task.apply(action4).apply(action3),
+                task: task.apply(action4, getSortableAccount).apply(action3, getSortableAccount),
                 actions: null,
             },
             actions: [{isOptimistic: true, action: action2}],
@@ -7162,12 +7188,15 @@ test("backfilling a task when there are optimistic actions but no previously bac
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action4).apply(action3),
+        task: task.apply(action4, getSortableAccount).apply(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
         authorizationEventNumber: 2,
     });
+
+    expect(displayErrors.length).toEqual(2);
+    displayErrors = [];
 });
 
 test("create task applied after optimistic updates", async () => {
@@ -7183,17 +7212,16 @@ test("create task applied after optimistic updates", async () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
 
-    const task = TaskModel.createFromAction(
-        store.spaceId,
-        action1.taskId,
-        action1.time,
-        action1.taskAction,
-    );
+    const task = createTask(store, {
+        id: action1.taskId,
+        time: action1.time,
+        taskAction: action1.taskAction,
+    });
 
     const action2 = {
         type: "UpdateTask",
@@ -7241,11 +7269,11 @@ test("create task applied after optimistic updates", async () => {
         backfillUnauthorizedTaskIds: [],
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
-        referencedAccounts: [],
+        referencedAccounts: [account1],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2),
+        task: task.apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -7264,7 +7292,7 @@ test("create task applied after optimistic updates", async () => {
     store.commitTaskActionTransaction(context, [action3]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3),
+        task: task.apply(action2, getSortableAccount).apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -7287,11 +7315,11 @@ test("create task applied after optimistic updates", async () => {
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3),
+        task: task.apply(action2, getSortableAccount).apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
-                task: task.apply(action2),
+                task: task.apply(action2, getSortableAccount),
                 actions: null,
             },
             actions: [{isOptimistic: true, action: action3}],
@@ -7306,7 +7334,7 @@ test("create task applied after optimistic updates", async () => {
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3),
+        task: task.apply(action2, getSortableAccount).apply(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
@@ -7327,17 +7355,16 @@ test("create task applied after optimistic updates that are resolved out of orde
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
 
-    const task = TaskModel.createFromAction(
-        store.spaceId,
-        action1.taskId,
-        action1.time,
-        action1.taskAction,
-    );
+    const task = createTask(store, {
+        id: action1.taskId,
+        time: action1.time,
+        taskAction: action1.taskAction,
+    });
 
     const action2 = {
         type: "UpdateTask",
@@ -7385,11 +7412,11 @@ test("create task applied after optimistic updates that are resolved out of orde
         backfillUnauthorizedTaskIds: [],
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
-        referencedAccounts: [],
+        referencedAccounts: [account1],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2),
+        task: task.apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -7408,7 +7435,7 @@ test("create task applied after optimistic updates that are resolved out of orde
     store.commitTaskActionTransaction(context, [action3]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3),
+        task: task.apply(action2, getSortableAccount).apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -7431,7 +7458,7 @@ test("create task applied after optimistic updates that are resolved out of orde
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3),
+        task: task.apply(action2, getSortableAccount).apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -7453,7 +7480,7 @@ test("create task applied after optimistic updates that are resolved out of orde
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3),
+        task: task.apply(action2, getSortableAccount).apply(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
         isAuthorized: true,
@@ -7474,17 +7501,16 @@ test("create task applied after optimistic updates (rejected)", async () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
 
-    const task = TaskModel.createFromAction(
-        store.spaceId,
-        action1.taskId,
-        action1.time,
-        action1.taskAction,
-    );
+    const task = createTask(store, {
+        id: action1.taskId,
+        time: action1.time,
+        taskAction: action1.taskAction,
+    });
 
     const action2 = {
         type: "UpdateTask",
@@ -7532,11 +7558,11 @@ test("create task applied after optimistic updates (rejected)", async () => {
         backfillUnauthorizedTaskIds: [],
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
-        referencedAccounts: [],
+        referencedAccounts: [account1],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2),
+        task: task.apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -7555,7 +7581,7 @@ test("create task applied after optimistic updates (rejected)", async () => {
     store.commitTaskActionTransaction(context, [action3]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3),
+        task: task.apply(action2, getSortableAccount).apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -7575,7 +7601,7 @@ test("create task applied after optimistic updates (rejected)", async () => {
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action3),
+        task: task.apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -7597,6 +7623,9 @@ test("create task applied after optimistic updates (rejected)", async () => {
         isAuthorized: true,
         authorizationEventNumber: 1,
     });
+
+    expect(displayErrors.length).toEqual(2);
+    displayErrors = [];
 });
 
 test("create task applied after optimistic updates that are resolved out of order (rejected)", async () => {
@@ -7612,17 +7641,16 @@ test("create task applied after optimistic updates that are resolved out of orde
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creator: TaskSortableAccount.test(account1),
+            creatorId: account1.id,
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
 
-    const task = TaskModel.createFromAction(
-        store.spaceId,
-        action1.taskId,
-        action1.time,
-        action1.taskAction,
-    );
+    const task = createTask(store, {
+        id: action1.taskId,
+        time: action1.time,
+        taskAction: action1.taskAction,
+    });
 
     const action2 = {
         type: "UpdateTask",
@@ -7670,11 +7698,11 @@ test("create task applied after optimistic updates that are resolved out of orde
         backfillUnauthorizedTaskIds: [],
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
-        referencedAccounts: [],
+        referencedAccounts: [account1],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2),
+        task: task.apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -7693,7 +7721,7 @@ test("create task applied after optimistic updates that are resolved out of orde
     store.commitTaskActionTransaction(context, [action3]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2).apply(action3),
+        task: task.apply(action2, getSortableAccount).apply(action3, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -7713,7 +7741,7 @@ test("create task applied after optimistic updates that are resolved out of orde
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2),
+        task: task.apply(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -7738,4 +7766,7 @@ test("create task applied after optimistic updates that are resolved out of orde
         isAuthorized: true,
         authorizationEventNumber: 1,
     });
+
+    expect(displayErrors.length).toEqual(2);
+    displayErrors = [];
 });

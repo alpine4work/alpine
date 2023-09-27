@@ -16,7 +16,6 @@ import {AccountId} from "~/shared/id/types/id_types.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
-import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 
 export type TaskStatus =
     | {readonly type: "Open"}
@@ -111,10 +110,7 @@ export function TaskStatusButton({
                                 type: "UpdateStatus",
                                 status: {
                                     type: "Closed",
-                                    closer: TaskSortableAccount.from(
-                                        store.accountStore,
-                                        currentAccount,
-                                    ),
+                                    closerId: currentAccount.id,
                                     closedTime: new TaskFilterableTime({
                                         absoluteTime: time,
                                         setterTimeZone: timeZone,
