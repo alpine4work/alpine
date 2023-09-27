@@ -51,6 +51,7 @@ import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
 import {
     GlobalKeyDownEvent,
@@ -77,6 +78,7 @@ import {
 import {InternalError} from "~/shared/error/error.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
+import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -399,7 +401,23 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
             return;
         }
 
-        dispatch({type: "Restore", stack: result.stack});
+        const stack = result.stack;
+        if (!stack[0]) {
+            dispatch({type: "Restore", stack});
+        } else {
+            const routerPromise = stack[0].routerPromise.get();
+            if (routerPromise.getStateWithoutListening().status !== "pending") {
+                dispatch({type: "Restore", stack});
+            } else {
+                dispatch({type: "Reset"});
+
+                // Wait a bit for our top peek's data to load before restoring it so we can
+                // avoid showing a loading spinner.
+                Promise.race([routerPromise, wait(delayLoadingIndicatorLimitMs)]).finally(() => {
+                    dispatch({type: "Restore", stack});
+                });
+            }
+        }
     }, [createPeekRouter, peekRoutes, location.key, navigationType, state]);
 
     useEffect(() => {
