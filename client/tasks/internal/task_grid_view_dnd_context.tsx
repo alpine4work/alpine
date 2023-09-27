@@ -142,7 +142,7 @@ export function TaskGridViewDndContext({
 
                                 newTaskById.set(
                                     task.id,
-                                    task.apply(
+                                    task.applyAction(
                                         action,
                                         createGetTaskActionReferencedSortableAccount(
                                             store.accountStore,

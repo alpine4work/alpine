@@ -110,18 +110,32 @@ testTaskActionPermutations({
             backfillUnauthorizedTaskIds: [],
             backfillAuthorizedCollections: [],
             backfillUnauthorizedCollectionIds: [],
-            referencedAccounts: [],
+            // The server must send an updated `AccountModel` whenever there's an
+            // `UpdateAccountName` action. There's a hard assert in our requirement
+            // requiring this.
+            referencedAccounts:
+                action.type === "UpdateAccountName"
+                    ? [
+                          new AccountModel({
+                              ...assertExists(
+                                  accountStore
+                                      .weakGetAccountStoreByIdIfExists(action.accountId)
+                                      ?.getSnapshot(),
+                              ),
+                              name: action.accountName,
+                              nameVersion: action.accountNameVersion,
+                              version: action.accountNameVersion,
+                          }),
+                      ]
+                    : [],
         });
     },
     getTask: taskId => {
         // Task should exist. We auto-retain tasks in our store.
         const task = assertExists(store.getTaskEntryStoreIfExists(taskId)?.getSnapshot()?.task);
 
-        const taskStatus = task.getStatus();
-        const taskAssignee = task.getAssignee();
-
         return {
-            creatorId: task.getCreator().accountId,
+            creator: task.getCreator(),
             createdTime: task.getCreatedTime(),
             isDeleted: task.isDeleted(),
             parent: task.getParent(),
@@ -143,21 +157,8 @@ testTaskActionPermutations({
                     ]),
             ),
             notepadPagePositions: new Map(task.rawData.positionByAccountIdAndNotepadPageId),
-            status:
-                taskStatus.type === "Closed"
-                    ? {
-                          type: "Closed",
-                          closerId: taskStatus.closer.accountId,
-                          closedTime: taskStatus.closedTime,
-                      }
-                    : taskStatus,
-            assignee: taskAssignee
-                ? {
-                      assigneeId: taskAssignee.assignee.accountId,
-                      assignerId: taskAssignee.assigner.accountId,
-                      assignedTime: taskAssignee.assignedTime,
-                  }
-                : null,
+            status: task.getStatus(),
+            assignee: task.getAssignee(),
             assigneeStatus: task.getAssigneeStatus(),
             assigneeActivePosition: task.getAssigneeActivePosition(),
             title: task.getTitle().raw,

@@ -25,7 +25,7 @@ import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js
 import {serializeHybridLogicalTime} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskTaskAction} from "~/shared/tasks/actions/task_task_action.js";
-import {TaskAssignee} from "~/shared/tasks/task_assignee.js";
+import {TaskAssigneeWithSortableAccount} from "~/shared/tasks/task_assignee.js";
 import {TaskAssigneeStatus} from "~/shared/tasks/task_assignee_status.js";
 import {TaskCollectionAccessPolicy} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
@@ -34,7 +34,7 @@ import {TaskNotepadPageId, generateTaskNotepadPageId} from "~/shared/tasks/task_
 import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
-import {TaskStatus} from "~/shared/tasks/task_status.js";
+import {TaskStatusWithSortableAccount} from "~/shared/tasks/task_status.js";
 import {TaskTitle, emptyTaskTitle, getTaskTitleProsemirrorNode} from "~/shared/tasks/task_title.js";
 import {wordTaskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_test_scenarios.js";
 
@@ -42,7 +42,7 @@ import {wordTaskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_
 assert(import.meta.jest);
 
 export type TaskTestInterface = {
-    creatorId: AccountId;
+    creator: TaskSortableAccount;
     createdTime: TaskFilterableTime;
     isDeleted: boolean;
     parent: {taskId: TaskId; position: TaskPosition} | null;
@@ -53,8 +53,8 @@ export type TaskTestInterface = {
     collections: TaskCollectionSet;
     collectionPositions: Map<TaskCollectionId, TaskPosition>;
     notepadPagePositions: Map<`${AccountId}-${TaskNotepadPageId}`, TaskPosition>;
-    status: TaskStatus;
-    assignee: TaskAssignee | null;
+    status: TaskStatusWithSortableAccount;
+    assignee: TaskAssigneeWithSortableAccount | null;
     assigneeStatus: TaskAssigneeStatus;
     assigneeActivePosition: TaskPosition | null;
     title: TaskTitle;
@@ -90,6 +90,8 @@ type TaskTaskActionTestArtifacts =
           error: {new (...args: Array<any>): Error};
           task?: undefined;
       };
+
+let nextAccountNameVersion = 1;
 
 const taskTaskActionTestCases: Array<{
     name: string;
@@ -756,7 +758,7 @@ const taskTaskActionTestCases: Array<{
                             absoluteTime: time2,
                             setterTimeZone: defaultTimeZone,
                         }),
-                        closerId: account2.accountId,
+                        closer: account2,
                     },
                 },
             };
@@ -830,8 +832,8 @@ const taskTaskActionTestCases: Array<{
                 ],
                 task: {
                     assignee: {
-                        assigneeId: account2.accountId,
-                        assignerId: creator.accountId,
+                        assignee: account2,
+                        assigner: creator,
                         assignedTime: new TaskFilterableTime({
                             absoluteTime: time2,
                             setterTimeZone: defaultTimeZone,
@@ -921,8 +923,8 @@ const taskTaskActionTestCases: Array<{
                 ],
                 task: {
                     assignee: {
-                        assigneeId: account2.accountId,
-                        assignerId: creator.accountId,
+                        assignee: account2,
+                        assigner: creator,
                         assignedTime: new TaskFilterableTime({
                             absoluteTime: time2,
                             setterTimeZone: defaultTimeZone,
@@ -990,8 +992,8 @@ const taskTaskActionTestCases: Array<{
                 ],
                 task: {
                     assignee: {
-                        assigneeId: account2.accountId,
-                        assignerId: creator.accountId,
+                        assignee: account2,
+                        assigner: creator,
                         assignedTime: new TaskFilterableTime({
                             absoluteTime: time2,
                             setterTimeZone: defaultTimeZone,
@@ -1061,11 +1063,11 @@ const taskTaskActionTestCases: Array<{
                             absoluteTime: time4,
                             setterTimeZone: defaultTimeZone,
                         }),
-                        closerId: account2.accountId,
+                        closer: account2,
                     },
                     assignee: {
-                        assigneeId: account2.accountId,
-                        assignerId: creator.accountId,
+                        assignee: account2,
+                        assigner: creator,
                         assignedTime: new TaskFilterableTime({
                             absoluteTime: time2,
                             setterTimeZone: defaultTimeZone,
@@ -1123,8 +1125,8 @@ const taskTaskActionTestCases: Array<{
                 ],
                 task: {
                     assignee: {
-                        assigneeId: account2.accountId,
-                        assignerId: creator.accountId,
+                        assignee: account2,
+                        assigner: creator,
                         assignedTime: new TaskFilterableTime({
                             absoluteTime: time2,
                             setterTimeZone: defaultTimeZone,
@@ -1189,8 +1191,8 @@ const taskTaskActionTestCases: Array<{
                 ],
                 task: {
                     assignee: {
-                        assigneeId: creator.accountId,
-                        assignerId: account2.accountId,
+                        assignee: creator,
+                        assigner: account2,
                         assignedTime: new TaskFilterableTime({
                             absoluteTime: time4,
                             setterTimeZone: defaultTimeZone,
@@ -1255,8 +1257,8 @@ const taskTaskActionTestCases: Array<{
                 ],
                 task: {
                     assignee: {
-                        assigneeId: account2.accountId,
-                        assignerId: creator.accountId,
+                        assignee: account2,
+                        assigner: creator,
                         assignedTime: new TaskFilterableTime({
                             absoluteTime: time4,
                             setterTimeZone: defaultTimeZone,
@@ -1315,8 +1317,8 @@ const taskTaskActionTestCases: Array<{
                 ],
                 task: {
                     assignee: {
-                        assigneeId: account2.accountId,
-                        assignerId: creator.accountId,
+                        assignee: account2,
+                        assigner: creator,
                         assignedTime: new TaskFilterableTime({
                             absoluteTime: time2,
                             setterTimeZone: defaultTimeZone,
@@ -1382,8 +1384,8 @@ const taskTaskActionTestCases: Array<{
                 ],
                 task: {
                     assignee: {
-                        assigneeId: account2.accountId,
-                        assignerId: creator.accountId,
+                        assignee: account2,
+                        assigner: creator,
                         assignedTime: new TaskFilterableTime({
                             absoluteTime: time2,
                             setterTimeZone: defaultTimeZone,
@@ -1467,11 +1469,11 @@ const taskTaskActionTestCases: Array<{
                             absoluteTime: time5,
                             setterTimeZone: defaultTimeZone,
                         }),
-                        closerId: creator.accountId,
+                        closer: creator,
                     },
                     assignee: {
-                        assigneeId: account2.accountId,
-                        assignerId: creator.accountId,
+                        assignee: account2,
+                        assigner: creator,
                         assignedTime: new TaskFilterableTime({
                             absoluteTime: time2,
                             setterTimeZone: defaultTimeZone,
@@ -1544,8 +1546,8 @@ const taskTaskActionTestCases: Array<{
                 ],
                 task: {
                     assignee: {
-                        assigneeId: creator.accountId,
-                        assignerId: creator.accountId,
+                        assignee: creator,
+                        assigner: creator,
                         assignedTime: new TaskFilterableTime({
                             absoluteTime: time2,
                             setterTimeZone: defaultTimeZone,
@@ -1611,8 +1613,8 @@ const taskTaskActionTestCases: Array<{
                 ],
                 task: {
                     assignee: {
-                        assigneeId: account2.accountId,
-                        assignerId: creator.accountId,
+                        assignee: account2,
+                        assigner: creator,
                         assignedTime: new TaskFilterableTime({
                             absoluteTime: time2,
                             setterTimeZone: defaultTimeZone,
@@ -3171,6 +3173,1099 @@ const taskActionTestCases: Array<{
             };
         },
     },
+    {
+        name: "updating creator account name",
+        create: ({getNextTime, creator}): TaskActionTestArtifacts => {
+            const taskId = generateId<TaskId>();
+            const accountName = generateId();
+            const accountNameVersion = nextAccountNameVersion++;
+            return {
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: getNextTime(),
+                        taskId,
+                        taskAction: {
+                            type: "Create",
+                            creatorId: creator.accountId,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateAccountName",
+                        time: getNextTime(),
+                        accountId: creator.accountId,
+                        accountName,
+                        accountNameVersion,
+                    },
+                ],
+                expect: [
+                    {
+                        taskId,
+                        task: {
+                            creator: {
+                                accountId: creator.accountId,
+                                workingAccountName: accountName,
+                                workingAccountNameVersion: accountNameVersion,
+                            },
+                        },
+                    },
+                ],
+            };
+        },
+    },
+    {
+        name: "updating creator account name twice",
+        create: ({getNextTime, creator}): TaskActionTestArtifacts => {
+            const taskId = generateId<TaskId>();
+            const accountName1 = generateId();
+            const accountNameVersion1 = nextAccountNameVersion++;
+            const accountName2 = generateId();
+            const accountNameVersion2 = nextAccountNameVersion++;
+            return {
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: getNextTime(),
+                        taskId,
+                        taskAction: {
+                            type: "Create",
+                            creatorId: creator.accountId,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateAccountName",
+                        time: getNextTime(),
+                        accountId: creator.accountId,
+                        accountName: accountName1,
+                        accountNameVersion: accountNameVersion1,
+                    },
+                    {
+                        type: "UpdateAccountName",
+                        time: getNextTime(),
+                        accountId: creator.accountId,
+                        accountName: accountName2,
+                        accountNameVersion: accountNameVersion2,
+                    },
+                ],
+                expect: [
+                    {
+                        taskId,
+                        task: {
+                            creator: {
+                                accountId: creator.accountId,
+                                workingAccountName: accountName2,
+                                workingAccountNameVersion: accountNameVersion2,
+                            },
+                        },
+                    },
+                ],
+            };
+        },
+    },
+    {
+        name: "updating multiple creator account names",
+        create: ({getNextTime, creator, account2}): TaskActionTestArtifacts => {
+            const taskId1 = generateId<TaskId>();
+            const taskId2 = generateId<TaskId>();
+            const taskId3 = generateId<TaskId>();
+            const accountName = generateId();
+            const accountNameVersion = nextAccountNameVersion++;
+            return {
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: getNextTime(),
+                        taskId: taskId1,
+                        taskAction: {
+                            type: "Create",
+                            creatorId: creator.accountId,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: getNextTime(),
+                        taskId: taskId2,
+                        taskAction: {
+                            type: "Create",
+                            creatorId: creator.accountId,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: getNextTime(),
+                        taskId: taskId3,
+                        taskAction: {
+                            type: "Create",
+                            creatorId: account2.accountId,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateAccountName",
+                        time: getNextTime(),
+                        accountId: creator.accountId,
+                        accountName,
+                        accountNameVersion,
+                    },
+                ],
+                expect: [
+                    {
+                        taskId: taskId1,
+                        task: {
+                            creator: {
+                                accountId: creator.accountId,
+                                workingAccountName: accountName,
+                                workingAccountNameVersion: accountNameVersion,
+                            },
+                        },
+                    },
+                    {
+                        taskId: taskId2,
+                        task: {
+                            creator: {
+                                accountId: creator.accountId,
+                                workingAccountName: accountName,
+                                workingAccountNameVersion: accountNameVersion,
+                            },
+                        },
+                    },
+                    {
+                        taskId: taskId3,
+                        task: {
+                            creator: account2,
+                        },
+                    },
+                ],
+            };
+        },
+    },
+    {
+        name: "updating closer account name",
+        create: ({getNextTime, creator, account2}): TaskActionTestArtifacts => {
+            const taskId = generateId<TaskId>();
+            const accountName = generateId();
+            const accountNameVersion = nextAccountNameVersion++;
+
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId,
+                        taskAction: {
+                            type: "Create",
+                            creatorId: creator.accountId,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateStatus",
+                            status: {
+                                type: "Closed",
+                                closerId: account2.accountId,
+                                closedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateAccountName",
+                        time: time3,
+                        accountId: account2.accountId,
+                        accountName,
+                        accountNameVersion,
+                    },
+                ],
+                expect: [
+                    {
+                        taskId,
+                        task: {
+                            status: {
+                                type: "Closed",
+                                closer: {
+                                    accountId: account2.accountId,
+                                    workingAccountName: accountName,
+                                    workingAccountNameVersion: accountNameVersion,
+                                },
+                                closedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                ],
+            };
+        },
+    },
+    {
+        name: "updating closer account name and creator account name",
+        create: ({getNextTime, creator}): TaskActionTestArtifacts => {
+            const taskId = generateId<TaskId>();
+            const accountName = generateId();
+            const accountNameVersion = nextAccountNameVersion++;
+
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId,
+                        taskAction: {
+                            type: "Create",
+                            creatorId: creator.accountId,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateStatus",
+                            status: {
+                                type: "Closed",
+                                closerId: creator.accountId,
+                                closedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateAccountName",
+                        time: time3,
+                        accountId: creator.accountId,
+                        accountName,
+                        accountNameVersion,
+                    },
+                ],
+                expect: [
+                    {
+                        taskId,
+                        task: {
+                            creator: {
+                                accountId: creator.accountId,
+                                workingAccountName: accountName,
+                                workingAccountNameVersion: accountNameVersion,
+                            },
+                            status: {
+                                type: "Closed",
+                                closer: {
+                                    accountId: creator.accountId,
+                                    workingAccountName: accountName,
+                                    workingAccountNameVersion: accountNameVersion,
+                                },
+                                closedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                ],
+            };
+        },
+    },
+    {
+        name: "updating two closer account names",
+        create: ({getNextTime, creator, account2}): TaskActionTestArtifacts => {
+            const taskId1 = generateId<TaskId>();
+            const taskId2 = generateId<TaskId>();
+            const accountName = generateId();
+            const accountNameVersion = nextAccountNameVersion++;
+
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId: taskId1,
+                        taskAction: {
+                            type: "Create",
+                            creatorId: creator.accountId,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId: taskId1,
+                        taskAction: {
+                            type: "UpdateStatus",
+                            status: {
+                                type: "Closed",
+                                closerId: account2.accountId,
+                                closedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId: taskId2,
+                        taskAction: {
+                            type: "Create",
+                            creatorId: creator.accountId,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId: taskId2,
+                        taskAction: {
+                            type: "UpdateStatus",
+                            status: {
+                                type: "Closed",
+                                closerId: account2.accountId,
+                                closedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateAccountName",
+                        time: time3,
+                        accountId: account2.accountId,
+                        accountName,
+                        accountNameVersion,
+                    },
+                ],
+                expect: [
+                    {
+                        taskId: taskId1,
+                        task: {
+                            status: {
+                                type: "Closed",
+                                closer: {
+                                    accountId: account2.accountId,
+                                    workingAccountName: accountName,
+                                    workingAccountNameVersion: accountNameVersion,
+                                },
+                                closedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        taskId: taskId2,
+                        task: {
+                            status: {
+                                type: "Closed",
+                                closer: {
+                                    accountId: account2.accountId,
+                                    workingAccountName: accountName,
+                                    workingAccountNameVersion: accountNameVersion,
+                                },
+                                closedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                ],
+            };
+        },
+    },
+    {
+        name: "updating closer account name but not other closer",
+        create: ({getNextTime, creator, account2}): TaskActionTestArtifacts => {
+            const taskId1 = generateId<TaskId>();
+            const taskId2 = generateId<TaskId>();
+            const accountName = generateId();
+            const accountNameVersion = nextAccountNameVersion++;
+
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId: taskId1,
+                        taskAction: {
+                            type: "Create",
+                            creatorId: creator.accountId,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId: taskId1,
+                        taskAction: {
+                            type: "UpdateStatus",
+                            status: {
+                                type: "Closed",
+                                closerId: account2.accountId,
+                                closedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId: taskId2,
+                        taskAction: {
+                            type: "Create",
+                            creatorId: creator.accountId,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId: taskId2,
+                        taskAction: {
+                            type: "UpdateStatus",
+                            status: {
+                                type: "Closed",
+                                closerId: creator.accountId,
+                                closedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateAccountName",
+                        time: time3,
+                        accountId: account2.accountId,
+                        accountName,
+                        accountNameVersion,
+                    },
+                ],
+                expect: [
+                    {
+                        taskId: taskId1,
+                        task: {
+                            status: {
+                                type: "Closed",
+                                closer: {
+                                    accountId: account2.accountId,
+                                    workingAccountName: accountName,
+                                    workingAccountNameVersion: accountNameVersion,
+                                },
+                                closedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        taskId: taskId2,
+                        task: {
+                            status: {
+                                type: "Closed",
+                                closer: creator,
+                                closedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                ],
+            };
+        },
+    },
+    {
+        name: "updating assignee account name",
+        create: ({getNextTime, creator, account2}): TaskActionTestArtifacts => {
+            const taskId = generateId<TaskId>();
+            const accountName = generateId();
+            const accountNameVersion = nextAccountNameVersion++;
+
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId,
+                        taskAction: {
+                            type: "Create",
+                            creatorId: creator.accountId,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assigneeId: account2.accountId,
+                                assignerId: creator.accountId,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateAccountName",
+                        time: time3,
+                        accountId: account2.accountId,
+                        accountName,
+                        accountNameVersion,
+                    },
+                ],
+                expect: [
+                    {
+                        taskId,
+                        task: {
+                            assignee: {
+                                assignee: {
+                                    accountId: account2.accountId,
+                                    workingAccountName: accountName,
+                                    workingAccountNameVersion: accountNameVersion,
+                                },
+                                assigner: creator,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                ],
+            };
+        },
+    },
+    {
+        name: "updating assignee account name and creator account name",
+        create: ({getNextTime, creator}): TaskActionTestArtifacts => {
+            const taskId = generateId<TaskId>();
+            const accountName = generateId();
+            const accountNameVersion = nextAccountNameVersion++;
+
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId,
+                        taskAction: {
+                            type: "Create",
+                            creatorId: creator.accountId,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assigneeId: creator.accountId,
+                                assignerId: creator.accountId,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateAccountName",
+                        time: time3,
+                        accountId: creator.accountId,
+                        accountName,
+                        accountNameVersion,
+                    },
+                ],
+                expect: [
+                    {
+                        taskId,
+                        task: {
+                            creator: {
+                                accountId: creator.accountId,
+                                workingAccountName: accountName,
+                                workingAccountNameVersion: accountNameVersion,
+                            },
+                            assignee: {
+                                assignee: {
+                                    accountId: creator.accountId,
+                                    workingAccountName: accountName,
+                                    workingAccountNameVersion: accountNameVersion,
+                                },
+                                assigner: {
+                                    accountId: creator.accountId,
+                                    workingAccountName: accountName,
+                                    workingAccountNameVersion: accountNameVersion,
+                                },
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                ],
+            };
+        },
+    },
+    {
+        name: "updating two assignee account names",
+        create: ({getNextTime, creator, account2}): TaskActionTestArtifacts => {
+            const taskId1 = generateId<TaskId>();
+            const taskId2 = generateId<TaskId>();
+            const accountName = generateId();
+            const accountNameVersion = nextAccountNameVersion++;
+
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId: taskId1,
+                        taskAction: {
+                            type: "Create",
+                            creatorId: creator.accountId,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId: taskId1,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assigneeId: account2.accountId,
+                                assignerId: creator.accountId,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId: taskId2,
+                        taskAction: {
+                            type: "Create",
+                            creatorId: creator.accountId,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId: taskId2,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assigneeId: account2.accountId,
+                                assignerId: creator.accountId,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateAccountName",
+                        time: time3,
+                        accountId: account2.accountId,
+                        accountName,
+                        accountNameVersion,
+                    },
+                ],
+                expect: [
+                    {
+                        taskId: taskId1,
+                        task: {
+                            assignee: {
+                                assignee: {
+                                    accountId: account2.accountId,
+                                    workingAccountName: accountName,
+                                    workingAccountNameVersion: accountNameVersion,
+                                },
+                                assigner: creator,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        taskId: taskId2,
+                        task: {
+                            assignee: {
+                                assignee: {
+                                    accountId: account2.accountId,
+                                    workingAccountName: accountName,
+                                    workingAccountNameVersion: accountNameVersion,
+                                },
+                                assigner: creator,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                ],
+            };
+        },
+    },
+    {
+        name: "updating assignee account name but not other assignee",
+        create: ({getNextTime, creator, account2}): TaskActionTestArtifacts => {
+            const taskId1 = generateId<TaskId>();
+            const taskId2 = generateId<TaskId>();
+            const accountName = generateId();
+            const accountNameVersion = nextAccountNameVersion++;
+
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId: taskId1,
+                        taskAction: {
+                            type: "Create",
+                            creatorId: creator.accountId,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId: taskId1,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assigneeId: account2.accountId,
+                                assignerId: creator.accountId,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId: taskId2,
+                        taskAction: {
+                            type: "Create",
+                            creatorId: creator.accountId,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId: taskId2,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assigneeId: creator.accountId,
+                                assignerId: creator.accountId,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateAccountName",
+                        time: time3,
+                        accountId: account2.accountId,
+                        accountName,
+                        accountNameVersion,
+                    },
+                ],
+                expect: [
+                    {
+                        taskId: taskId1,
+                        task: {
+                            assignee: {
+                                assignee: {
+                                    accountId: account2.accountId,
+                                    workingAccountName: accountName,
+                                    workingAccountNameVersion: accountNameVersion,
+                                },
+                                assigner: creator,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        taskId: taskId2,
+                        task: {
+                            assignee: {
+                                assignee: creator,
+                                assigner: creator,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                ],
+            };
+        },
+    },
+    {
+        name: "updating assigner account name",
+        create: ({getNextTime, creator, account2}): TaskActionTestArtifacts => {
+            const taskId = generateId<TaskId>();
+            const accountName = generateId();
+            const accountNameVersion = nextAccountNameVersion++;
+
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId,
+                        taskAction: {
+                            type: "Create",
+                            creatorId: creator.accountId,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assigneeId: creator.accountId,
+                                assignerId: account2.accountId,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateAccountName",
+                        time: time3,
+                        accountId: account2.accountId,
+                        accountName,
+                        accountNameVersion,
+                    },
+                ],
+                expect: [
+                    {
+                        taskId,
+                        task: {
+                            assignee: {
+                                assignee: creator,
+                                assigner: {
+                                    accountId: account2.accountId,
+                                    workingAccountName: accountName,
+                                    workingAccountNameVersion: accountNameVersion,
+                                },
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                ],
+            };
+        },
+    },
+    {
+        name: "updating two assigner account names",
+        create: ({getNextTime, creator, account2}): TaskActionTestArtifacts => {
+            const taskId1 = generateId<TaskId>();
+            const taskId2 = generateId<TaskId>();
+            const accountName = generateId();
+            const accountNameVersion = nextAccountNameVersion++;
+
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId: taskId1,
+                        taskAction: {
+                            type: "Create",
+                            creatorId: creator.accountId,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId: taskId1,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assigneeId: creator.accountId,
+                                assignerId: account2.accountId,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId: taskId2,
+                        taskAction: {
+                            type: "Create",
+                            creatorId: creator.accountId,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId: taskId2,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assigneeId: creator.accountId,
+                                assignerId: account2.accountId,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateAccountName",
+                        time: time3,
+                        accountId: account2.accountId,
+                        accountName,
+                        accountNameVersion,
+                    },
+                ],
+                expect: [
+                    {
+                        taskId: taskId1,
+                        task: {
+                            assignee: {
+                                assignee: creator,
+                                assigner: {
+                                    accountId: account2.accountId,
+                                    workingAccountName: accountName,
+                                    workingAccountNameVersion: accountNameVersion,
+                                },
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        taskId: taskId2,
+                        task: {
+                            assignee: {
+                                assignee: creator,
+                                assigner: {
+                                    accountId: account2.accountId,
+                                    workingAccountName: accountName,
+                                    workingAccountNameVersion: accountNameVersion,
+                                },
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                ],
+            };
+        },
+    },
+    {
+        name: "updating assigner account name but not other assignee",
+        create: ({getNextTime, creator, account2}): TaskActionTestArtifacts => {
+            const taskId1 = generateId<TaskId>();
+            const taskId2 = generateId<TaskId>();
+            const accountName = generateId();
+            const accountNameVersion = nextAccountNameVersion++;
+
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId: taskId1,
+                        taskAction: {
+                            type: "Create",
+                            creatorId: creator.accountId,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId: taskId1,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assigneeId: creator.accountId,
+                                assignerId: account2.accountId,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId: taskId2,
+                        taskAction: {
+                            type: "Create",
+                            creatorId: creator.accountId,
+                            creatorTimeZone: defaultTimeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId: taskId2,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assigneeId: creator.accountId,
+                                assignerId: creator.accountId,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateAccountName",
+                        time: time3,
+                        accountId: account2.accountId,
+                        accountName,
+                        accountNameVersion,
+                    },
+                ],
+                expect: [
+                    {
+                        taskId: taskId1,
+                        task: {
+                            assignee: {
+                                assignee: creator,
+                                assigner: {
+                                    accountId: account2.accountId,
+                                    workingAccountName: accountName,
+                                    workingAccountNameVersion: accountNameVersion,
+                                },
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                    {
+                        taskId: taskId2,
+                        task: {
+                            assignee: {
+                                assignee: creator,
+                                assigner: creator,
+                                assignedTime: TaskFilterableTime.test(time2),
+                            },
+                        },
+                    },
+                ],
+            };
+        },
+    },
 ];
 
 /**
@@ -3214,7 +4309,6 @@ function permutator<Item>(inputArray: ReadonlyArray<Item>): Array<Array<Item>> {
  */
 export function testTaskActionPermutations({
     percent = 1,
-    concurrent = false,
     partitionNumber = 1,
     partitionCount = 1,
     account1,
@@ -3224,7 +4318,6 @@ export function testTaskActionPermutations({
     getTaskCollection,
 }: {
     percent?: number;
-    concurrent?: boolean;
     partitionNumber?: number;
     partitionCount?: number;
     account1: AccountModel;
@@ -3235,6 +4328,12 @@ export function testTaskActionPermutations({
         collectionId: TaskCollectionId,
     ) => MaybePromise<TaskCollectionTestInterface>;
 }) {
+    nextAccountNameVersion = Math.max(
+        nextAccountNameVersion,
+        account1.initialData.nameVersion + 1,
+        account2.initialData.nameVersion + 1,
+    );
+
     const stableRandom = new StableRandom("testTaskActionPermutations");
 
     const allTests: Array<{describeName: string; testName: string; runTest: () => Promise<void>}> =
@@ -3262,14 +4361,14 @@ export function testTaskActionPermutations({
         const testCaseArtifacts = testCase.create({
             creator: {
                 accountId: account1.id,
-                workingAccountName: account1.initialData.name,
-                workingAccountNameVersion: account1.initialData.nameVersion,
+                workingAccountName: expect.any(String),
+                workingAccountNameVersion: expect.any(Number),
             },
             createdTime: getNextFilterableTime(),
             account2: {
                 accountId: account2.id,
-                workingAccountName: account2.initialData.name,
-                workingAccountNameVersion: account2.initialData.nameVersion,
+                workingAccountName: expect.any(String),
+                workingAccountNameVersion: expect.any(Number),
             },
             collectionId1,
             collectionId2,
@@ -3391,12 +4490,14 @@ export function testTaskActionPermutations({
                                         dueDate: null,
                                         priority: null,
                                         ...expectation.task,
-                                        creatorId:
-                                            expectation.task.creatorId ??
-                                            assertExists(
-                                                createAction?.taskAction.creatorId,
-                                                "Expected `Create` task action when `creatorId` is not provided",
-                                            ),
+                                        creator:
+                                            expectation.task.creator ??
+                                            expect.objectContaining({
+                                                accountId: assertExists(
+                                                    createAction?.taskAction.creatorId,
+                                                    "Expected `Create` task action when `creatorId` is not provided",
+                                                ),
+                                            }),
                                         createdTime:
                                             expectation.task.createdTime ??
                                             new TaskFilterableTime({
@@ -3488,28 +4589,28 @@ export function testTaskActionPermutations({
 
     // If we are only running some percent of tests then randomly shuffle our tests
     // and pick the first N. That will be the set of tests we run.
-    const tests =
+    const shuffledTests =
         percent < 1
             ? stableShuffleArray(
                   stableRandom,
                   "percent",
                   allTests.map((item, i) => [item, i] as const),
-              )
-                  .slice(0, Math.floor(allTests.length * percent))
-                  .sort(([, i1], [, i2]) => i1 - i2)
-                  .map(([item]) => item)
-            : allTests;
+              ).slice(0, Math.floor(allTests.length * percent))
+            : allTests.map((item, i) => [item, i] as const);
 
-    const partitionTestCount = Math.floor(tests.length / partitionCount);
+    const partitionTestCount = Math.floor(shuffledTests.length / partitionCount);
     const partitionStartTestIndex = partitionTestCount * (partitionNumber - 1);
 
-    const partitionTests = tests.slice(
-        partitionStartTestIndex,
-        // The last partition gets all remaining tests.
-        partitionNumber !== partitionCount
-            ? partitionStartTestIndex + partitionTestCount
-            : undefined,
-    );
+    const partitionTests = shuffledTests
+        .slice(
+            partitionStartTestIndex,
+            // The last partition gets all remaining tests.
+            partitionNumber !== partitionCount
+                ? partitionStartTestIndex + partitionTestCount
+                : undefined,
+        )
+        .sort(([, i1], [, i2]) => i1 - i2)
+        .map(([item]) => item);
 
     const groupedPartitionTests: Array<{
         describeName: string;
@@ -3533,23 +4634,6 @@ export function testTaskActionPermutations({
     for (const groupedPartitionTest of groupedPartitionTests) {
         describe(`${groupedPartitionTest.describeName}`, () => {
             for (const partitionTest of groupedPartitionTest.tests) {
-                async function runTestWithRetries() {
-                    let attempt = 1;
-                    while (true) {
-                        try {
-                            await partitionTest.runTest();
-                            return;
-                        } catch (error) {
-                            if (!concurrent) throw error;
-
-                            // Attempt each test 3 times before throwing...
-                            if (attempt >= 3) throw error;
-
-                            attempt++;
-                        }
-                    }
-                }
-
                 function withLogging(
                     action: () => Promise<void>,
                     log: (result: Result<void>, durationMs: number) => void,
@@ -3568,9 +4652,9 @@ export function testTaskActionPermutations({
                     };
                 }
 
-                (concurrent ? test.concurrent : test)(
+                test(
                     `${partitionTest.testName}`,
-                    withLogging(runTestWithRetries, (result, durationMs) => {
+                    withLogging(partitionTest.runTest, (result, durationMs) => {
                         const statusMark = result.ok ? chalk.green("✔") : chalk.red("✘");
 
                         const partitionTestNumber = nextPartitionTestNumber++;

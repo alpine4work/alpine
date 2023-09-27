@@ -1,6 +1,8 @@
+import {internalUpdateSessionActorAccountNameWithoutUpdatingTasks} from "~/server/accounts/accounts_table.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
+import {getAccount} from "~/server/spaces/spaces_table.js";
 import {
     getTaskCollectionIndexDocIfExistsForTest,
     getTaskIndexDocIfExistsForTest,
@@ -11,6 +13,7 @@ import {
     getTaskIndexDocIsDeleted,
 } from "~/server/tasks/data/task_index_doc.js";
 import {NotFoundError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {
     TaskCollectionTestInterface,
@@ -30,14 +33,38 @@ testTaskActionPermutations({
     // OpenSearch. Only run 15% of the test permutations. Our client-side
     // implementation will run all the tests for coverage.
     percent: 0.15,
-    // Run tests concurrently to speed up execution.
-    concurrent: true,
     partitionNumber: parseInt(process.env.TEST_SHARD_INDEX ?? "0", 10) + 1,
     partitionCount: parseInt(process.env.TEST_TOTAL_SHARDS ?? "1", 10),
     account1: session1.account,
     account2: session2.account,
     applyTaskAction: async (action, next) => {
         let hasCalledNext = false;
+
+        // We need to update the account name in DynamoDB first before we can index
+        // the action.
+        if (action.type === "UpdateAccountName") {
+            const account = await getAccount(
+                context.systemAction(space.id),
+                space.id,
+                action.accountId,
+            );
+
+            if (account.initialData.nameVersion === action.accountNameVersion) {
+                assert(account.initialData.name === action.accountName);
+            } else if (account.initialData.nameVersion < action.accountNameVersion) {
+                await internalUpdateSessionActorAccountNameWithoutUpdatingTasks(
+                    context.action(action.accountId === session2.accountId ? session2 : session1),
+                    action.accountName,
+                    {
+                        nameVersionForTest: action.accountNameVersion,
+                        getTaskTransactionEntries: async () => ({
+                            transactionEntries: [],
+                            onAfterTransactionExecutedSuccessfully: () => {},
+                        }),
+                    },
+                );
+            }
+        }
 
         await indexTaskActionTransactionAssumingItsCommitted(
             context.systemAction(space.id),
@@ -63,7 +90,7 @@ testTaskActionPermutations({
         if (!task) throw new NotFoundError("Task not found");
 
         return {
-            creatorId: task.creator.accountId,
+            creator: task.creator,
             createdTime: task.createdTime,
             isDeleted: getTaskIndexDocIsDeleted(task),
             parent: task.parent.taskId.value
@@ -84,21 +111,8 @@ testTaskActionPermutations({
                 ]),
             ),
             notepadPagePositions: new Map(task.notepadPages.raw.positionById),
-            status:
-                task.status.value.type === "Closed"
-                    ? {
-                          type: "Closed",
-                          closerId: task.status.value.closer.accountId,
-                          closedTime: task.status.value.closedTime,
-                      }
-                    : task.status.value,
-            assignee: task.assignee.value
-                ? {
-                      assigneeId: task.assignee.value.assignee.accountId,
-                      assignerId: task.assignee.value.assigner.accountId,
-                      assignedTime: task.assignee.value.assignedTime,
-                  }
-                : null,
+            status: task.status.value,
+            assignee: task.assignee.value,
             assigneeStatus:
                 task.status.value.type === "Open" && task.assignee.value
                     ? task.rawAssigneeStatus.value

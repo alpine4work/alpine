@@ -939,8 +939,10 @@ export async function internalUpdateSessionActorAccountNameWithoutUpdatingTasks<
     context: Context<Modules>,
     name: string,
     {
+        nameVersionForTest,
         getTaskTransactionEntries,
     }: {
+        nameVersionForTest?: number;
         getTaskTransactionEntries: (
             context: Context<Replace<Modules, {dynamo: DynamoContextModule}>>,
             options: {name: string; nameVersion: number},
@@ -957,7 +959,13 @@ export async function internalUpdateSessionActorAccountNameWithoutUpdatingTasks<
             accountId: context.actor.getAccountId(),
         });
 
-        const nameVersion = accountItem.nameVersion + 1;
+        // Can only set `nameVersionForTest` in unit tests.
+        assert(
+            nameVersionForTest === undefined ||
+                (import.meta.jest && nameVersionForTest > accountItem.nameVersion),
+        );
+
+        const nameVersion = nameVersionForTest ?? accountItem.nameVersion + 1;
 
         const {transactionEntries: taskTransactionEntries, onAfterTransactionExecutedSuccessfully} =
             await getTaskTransactionEntries(context, {name, nameVersion});

@@ -8,13 +8,17 @@ import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {TaskUpdateTaskAction} from "~/shared/tasks/actions/task_action.js";
+import {
+    TaskUpdateAccountNameAction,
+    TaskUpdateTaskAction,
+} from "~/shared/tasks/actions/task_action.js";
 import {
     TaskCreateAction,
     TaskDueDateRegister,
     TaskParentTaskIdRegister,
 } from "~/shared/tasks/actions/task_task_action.js";
 import {applyTaskActionToTaskModelData} from "~/shared/tasks/model/apply_task_action_to_task_model_data.js";
+import {applyTaskUpdateAccountNameToTaskModelData} from "~/shared/tasks/model/apply_task_update_account_name_to_task_model_data.js";
 import {mergeTaskModelData} from "~/shared/tasks/model/merge_task_model_data.js";
 import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskAssigneeWithSortableAccountRegister} from "~/shared/tasks/task_assignee.js";
@@ -168,7 +172,7 @@ export class TaskModel {
      *
      * [1]: https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type
      */
-    public apply(
+    public applyAction(
         action: TaskUpdateTaskAction,
         getActionReferencedSortableAccount: (accountId: AccountId) => TaskSortableAccount,
     ): TaskModel {
@@ -182,6 +186,24 @@ export class TaskModel {
             action.taskAction,
             getActionReferencedSortableAccount,
         );
+
+        // Optimization: Maintain referential integrity if the task's data didn't
+        // change.
+        if (rawData === this.rawData) return this;
+
+        return new TaskModel(rawData);
+    }
+
+    /**
+     * Apply an `UpdateAccountName` action to this task. Tasks are [CRDTs][1] which
+     * means their actions are commutative and idempotent. In practical language:
+     * you can apply actions many times and in any order. Our task backend takes
+     * advantage of this and doesn't bother enforcing a canonical task order.
+     *
+     * [1]: https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type
+     */
+    public applyUpdateAccountNameAction(action: TaskUpdateAccountNameAction) {
+        const rawData = applyTaskUpdateAccountNameToTaskModelData(this.rawData, action);
 
         // Optimization: Maintain referential integrity if the task's data didn't
         // change.

@@ -33,6 +33,7 @@ import {
 } from "~/shared/rpc/tasks_rpc_definitions.js";
 import {
     TaskAction,
+    TaskUpdateAccountNameAction,
     TaskUpdateCollectionAction,
     TaskUpdateTaskAction,
 } from "~/shared/tasks/actions/task_action.js";
@@ -138,7 +139,7 @@ type TaskClientStorePendingAction = {
 };
 
 type TaskClientStorePendingUpdateTaskAction = {
-    readonly action: TaskUpdateTaskAction;
+    readonly action: TaskUpdateTaskAction | TaskUpdateAccountNameAction;
     readonly getActionReferencedSortableAccount: (accountId: AccountId) => TaskSortableAccount;
 };
 
@@ -877,6 +878,11 @@ export class TaskClientStoreInternal {
             });
         }
 
+        const updateAccountNameActions: Array<{
+            action: TaskUpdateAccountNameAction;
+            getActionReferencedSortableAccount: (accountId: AccountId) => TaskSortableAccount;
+        }> = [];
+
         // Apply actions:
         for (const action of event.actions) {
             // All actions our client commits will have a greater logical time than the
@@ -996,7 +1002,7 @@ export class TaskClientStoreInternal {
                         }
                     }
 
-                    const newTask = oldTaskEntry.task.apply(
+                    const newTask = oldTaskEntry.task.applyAction(
                         action,
                         getActionReferencedSortableAccount,
                     );
@@ -1118,11 +1124,71 @@ export class TaskClientStoreInternal {
                     break;
                 }
                 case "UpdateAccountName": {
-                    // NOCOMMIT: Update all account names
+                    updateAccountNameActions.push({action, getActionReferencedSortableAccount});
                     break;
                 }
                 default:
                     throw exhaustive(action);
+            }
+        }
+
+        for (const {action, getActionReferencedSortableAccount} of updateAccountNameActions) {
+            // The server must provide an updated `AccountModel` for `UpdateTaskName`
+            // actions so that when we apply actions in the future that reference this
+            // `AccountId` they get the right account name.
+            const account = event.referencedAccounts.find(
+                account => account.id === action.accountId,
+            );
+            assert(
+                account && account.initialData.nameVersion >= action.accountNameVersion,
+                "Server expected to include updated `AccountModel` in `referencedAccounts` for `UpdateTaskName` actions",
+            );
+
+            const updateTaskEntry = (taskId: TaskId, oldTaskEntry: TaskClientStoreTaskEntry) => {
+                // Skip tasks that haven't been backfilled yet. When we apply actions for these
+                // tasks we'll read the updated account name from `AccountClientStore`.
+                if (oldTaskEntry.task === null) return;
+
+                const newTask = oldTaskEntry.task.applyUpdateAccountNameAction(action);
+
+                // Optimization: If the task didn't change and we don't have optimistic state
+                // for the task then don't update our store.
+                if (newTask === oldTaskEntry.task && oldTaskEntry.optimisticState === null) {
+                    return;
+                }
+
+                newTaskEntryById.set(taskId, {
+                    task: newTask,
+                    actions: null,
+                    optimisticState: oldTaskEntry.optimisticState
+                        ? {
+                              original: oldTaskEntry.optimisticState.original,
+                              actions: [
+                                  ...oldTaskEntry.optimisticState.actions,
+                                  {
+                                      isOptimistic: false,
+                                      action,
+                                      getActionReferencedSortableAccount,
+                                  },
+                              ],
+                          }
+                        : null,
+                    isAuthorized: oldTaskEntry.isAuthorized,
+                    authorizationEventNumber: oldTaskEntry.authorizationEventNumber,
+                });
+            };
+
+            for (const [taskId, oldTaskEntry] of this._taskEntryStoreById) {
+                const taskEntry = newTaskEntryById.get(taskId) ?? oldTaskEntry.store.getSnapshot();
+
+                updateTaskEntry(taskId, taskEntry);
+            }
+
+            for (const [taskId, taskEntry] of newTaskEntryById) {
+                // Already covered by the loop above.
+                if (this._taskEntryStoreById.has(taskId)) continue;
+
+                updateTaskEntry(taskId, taskEntry);
             }
         }
 
@@ -1840,7 +1906,7 @@ export class TaskClientStoreInternal {
                         }
                     }
 
-                    const newTask = oldTaskEntry.task.apply(
+                    const newTask = oldTaskEntry.task.applyAction(
                         action,
                         getActionReferencedSortableAccount,
                     );
@@ -2004,7 +2070,9 @@ export class TaskClientStoreInternal {
                         // If there was a create action then `oldTaskEntry.task` should be non-null.
                         assert(
                             removedNonOptimisticActions.every(
-                                ({action}) => action.taskAction.type !== "Create",
+                                ({action}) =>
+                                    action.type !== "UpdateTask" ||
+                                    action.taskAction.type !== "Create",
                             ),
                         );
 
@@ -2047,7 +2115,7 @@ export class TaskClientStoreInternal {
                         newOriginal =
                             newOriginal.task !== null
                                 ? {
-                                      task: newOriginal.task.apply(
+                                      task: newOriginal.task.applyAction(
                                           action,
                                           getActionReferencedSortableAccount,
                                       ),
@@ -2078,7 +2146,9 @@ export class TaskClientStoreInternal {
                                 action: TaskUpdateTaskAction & {
                                     taskAction: {type: "Create"};
                                 };
-                            } => pendingAction.action.taskAction.type === "Create",
+                            } =>
+                                pendingAction.action.type === "UpdateTask" &&
+                                pendingAction.action.taskAction.type === "Create",
                         );
 
                         if (!nonOptimisticCreateAction) {
@@ -2227,9 +2297,12 @@ export class TaskClientStoreInternal {
                             action,
                         ): action is TaskClientStorePendingUpdateTaskAction & {
                             action: {
+                                type: "UpdateTask";
                                 taskAction: {type: "Create"};
                             };
-                        } => action.action.taskAction.type === "Create",
+                        } =>
+                            action.action.type === "UpdateTask" &&
+                            action.action.taskAction.type === "Create",
                     );
 
                     let newOriginal;
@@ -2289,9 +2362,12 @@ export class TaskClientStoreInternal {
                         ): action is TaskClientStorePendingUpdateTaskAction & {
                             isOptimistic: boolean;
                             action: {
+                                type: "UpdateTask";
                                 taskAction: {type: "Create"};
                             };
-                        } => action.action.taskAction.type === "Create",
+                        } =>
+                            action.action.type === "UpdateTask" &&
+                            action.action.taskAction.type === "Create",
                     );
 
                     if (!optimisticCreateAction) {
@@ -2646,7 +2722,7 @@ export class TaskClientStoreInternal {
                         createGetTaskActionReferencedSortableAccount(this.accountStore, action);
 
                     if (task !== null) {
-                        task = task.apply(action, getActionReferencedSortableAccount);
+                        task = task.applyAction(action, getActionReferencedSortableAccount);
                     } else {
                         if (action.taskAction.type !== "Create") {
                             pendingActions.push({action, getActionReferencedSortableAccount});
@@ -3272,9 +3348,11 @@ function applyPendingTaskActions(
     task: TaskModel,
     actions: ReadonlyArray<TaskClientStorePendingUpdateTaskAction>,
 ) {
-    return actions.reduce(
-        (task, {action, getActionReferencedSortableAccount}) =>
-            task.apply(action, getActionReferencedSortableAccount),
-        task,
-    );
+    return actions.reduce((task, {action, getActionReferencedSortableAccount}) => {
+        if (action.type === "UpdateTask") {
+            return task.applyAction(action, getActionReferencedSortableAccount);
+        } else {
+            return task.applyUpdateAccountNameAction(action);
+        }
+    }, task);
 }

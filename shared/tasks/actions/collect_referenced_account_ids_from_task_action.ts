@@ -88,9 +88,9 @@ export function collectReferencedAccountIdsFromTaskAction(
             return;
         }
         case "UpdateAccountName": {
-            // Even though there's an `AccountId` being updated we don't consider it
-            // referenced since the UI doesn't need to render or sort based on the
-            // `AccountId` in this action.
+            // We need to send an up-to-date `AccountModel` to the client with
+            // `UpdateAccountName` actions.
+            accountIds.add(action.accountId);
             return;
         }
         default:

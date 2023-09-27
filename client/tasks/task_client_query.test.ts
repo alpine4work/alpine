@@ -229,7 +229,7 @@ test("if optimistic task creation is reverted then queries remove the task", asy
     store.commitTaskActionTransaction(context, [action2]);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
-        task: task.apply(action2, getSortableAccount),
+        task: task.applyAction(action2, getSortableAccount),
         actions: null,
         optimisticState: {
             original: {
@@ -510,7 +510,7 @@ test("task can be removed from a query through an action", () => {
         type: "Update",
         number: 1,
         actions: [],
-        backfillAuthorizedTasks: [task.apply(action1, getSortableAccount)],
+        backfillAuthorizedTasks: [task.applyAction(action1, getSortableAccount)],
         backfillUnauthorizedTaskIds: [],
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
@@ -615,9 +615,9 @@ test("task can be moved in query through an action", () => {
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [
-            task1.apply(action1, getSortableAccount),
-            task2.apply(action2, getSortableAccount),
-            task3.apply(action3, getSortableAccount),
+            task1.applyAction(action1, getSortableAccount),
+            task2.applyAction(action2, getSortableAccount),
+            task3.applyAction(action3, getSortableAccount),
         ],
         backfillUnauthorizedTaskIds: [],
         backfillAuthorizedCollections: [],
@@ -726,9 +726,9 @@ test("task can be left alone through an action", () => {
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [
-            task1.apply(action1, getSortableAccount),
-            task2.apply(action2, getSortableAccount),
-            task3.apply(action3, getSortableAccount),
+            task1.applyAction(action1, getSortableAccount),
+            task2.applyAction(action2, getSortableAccount),
+            task3.applyAction(action3, getSortableAccount),
         ],
         backfillUnauthorizedTaskIds: [],
         backfillAuthorizedCollections: [],
@@ -812,7 +812,7 @@ test("task references can be added to query through backfill", () => {
     let task3 = createTask(store);
 
     task3 = task3
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -825,7 +825,7 @@ test("task references can be added to query through backfill", () => {
             },
             getSortableAccount,
         )
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -841,7 +841,7 @@ test("task references can be added to query through backfill", () => {
 
     let task2 = createTask(store);
 
-    task2 = task2.apply(
+    task2 = task2.applyAction(
         {
             type: "UpdateTask",
             time: store.clock.now(),
@@ -857,7 +857,7 @@ test("task references can be added to query through backfill", () => {
     let task1 = createTask(store);
 
     task1 = task1
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -869,7 +869,7 @@ test("task references can be added to query through backfill", () => {
             },
             getSortableAccount,
         )
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -885,7 +885,7 @@ test("task references can be added to query through backfill", () => {
     let task5 = createTask(store);
 
     task5 = task5
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -897,7 +897,7 @@ test("task references can be added to query through backfill", () => {
             },
             getSortableAccount,
         )
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -910,7 +910,7 @@ test("task references can be added to query through backfill", () => {
             },
             getSortableAccount,
         )
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -927,7 +927,7 @@ test("task references can be added to query through backfill", () => {
     let task4 = createTask(store);
 
     task4 = task4
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -939,7 +939,7 @@ test("task references can be added to query through backfill", () => {
             },
             getSortableAccount,
         )
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -1056,7 +1056,7 @@ test("task references can be added to query through previous backfill", () => {
     let task3 = createTask(store);
 
     task3 = task3
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -1069,7 +1069,7 @@ test("task references can be added to query through previous backfill", () => {
             },
             getSortableAccount,
         )
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -1085,7 +1085,7 @@ test("task references can be added to query through previous backfill", () => {
 
     let task2 = createTask(store);
 
-    task2 = task2.apply(
+    task2 = task2.applyAction(
         {
             type: "UpdateTask",
             time: store.clock.now(),
@@ -1101,7 +1101,7 @@ test("task references can be added to query through previous backfill", () => {
     let task1 = createTask(store);
 
     task1 = task1
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -1113,7 +1113,7 @@ test("task references can be added to query through previous backfill", () => {
             },
             getSortableAccount,
         )
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -1129,7 +1129,7 @@ test("task references can be added to query through previous backfill", () => {
     let task5 = createTask(store);
 
     task5 = task5
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -1141,7 +1141,7 @@ test("task references can be added to query through previous backfill", () => {
             },
             getSortableAccount,
         )
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -1154,7 +1154,7 @@ test("task references can be added to query through previous backfill", () => {
             },
             getSortableAccount,
         )
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -1171,7 +1171,7 @@ test("task references can be added to query through previous backfill", () => {
     let task4 = createTask(store);
 
     task4 = task4
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -1183,7 +1183,7 @@ test("task references can be added to query through previous backfill", () => {
             },
             getSortableAccount,
         )
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -1312,7 +1312,7 @@ test("task references can be added to query through action", () => {
     let task3 = createTask(store);
 
     task3 = task3
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -1325,7 +1325,7 @@ test("task references can be added to query through action", () => {
             },
             getSortableAccount,
         )
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -1341,7 +1341,7 @@ test("task references can be added to query through action", () => {
 
     let task2 = createTask(store);
 
-    task2 = task2.apply(
+    task2 = task2.applyAction(
         {
             type: "UpdateTask",
             time: store.clock.now(),
@@ -1356,7 +1356,7 @@ test("task references can be added to query through action", () => {
 
     let task1 = createTask(store);
 
-    task1 = task1.apply(
+    task1 = task1.applyAction(
         {
             type: "UpdateTask",
             time: store.clock.now(),
@@ -1372,7 +1372,7 @@ test("task references can be added to query through action", () => {
     let task5 = createTask(store);
 
     task5 = task5
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -1385,7 +1385,7 @@ test("task references can be added to query through action", () => {
             },
             getSortableAccount,
         )
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -1401,7 +1401,7 @@ test("task references can be added to query through action", () => {
 
     let task4 = createTask(store);
 
-    task4 = task4.apply(
+    task4 = task4.applyAction(
         {
             type: "UpdateTask",
             time: store.clock.now(),
@@ -1477,7 +1477,7 @@ test("task references can be added to query through action", () => {
         type: "Update",
         number: 1,
         actions: [],
-        backfillAuthorizedTasks: [task4.apply(action1, getSortableAccount), task5],
+        backfillAuthorizedTasks: [task4.applyAction(action1, getSortableAccount), task5],
         backfillUnauthorizedTaskIds: [],
         backfillAuthorizedCollections: [collection2, collection3],
         backfillUnauthorizedCollectionIds: [],
@@ -1497,7 +1497,7 @@ test("task references can be added to query through action", () => {
         type: "Update",
         number: 1,
         actions: [],
-        backfillAuthorizedTasks: [task1.apply(action2, getSortableAccount), task2, task3],
+        backfillAuthorizedTasks: [task1.applyAction(action2, getSortableAccount), task2, task3],
         backfillUnauthorizedTaskIds: [],
         backfillAuthorizedCollections: [collection1],
         backfillUnauthorizedCollectionIds: [],
@@ -1589,7 +1589,7 @@ test("task references can be removed from query through actions", () => {
     let task3 = createTask(store);
 
     task3 = task3
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -1602,7 +1602,7 @@ test("task references can be removed from query through actions", () => {
             },
             getSortableAccount,
         )
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -1618,7 +1618,7 @@ test("task references can be removed from query through actions", () => {
 
     let task2 = createTask(store);
 
-    task2 = task2.apply(
+    task2 = task2.applyAction(
         {
             type: "UpdateTask",
             time: store.clock.now(),
@@ -1634,7 +1634,7 @@ test("task references can be removed from query through actions", () => {
     let task1 = createTask(store);
 
     task1 = task1
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -1646,7 +1646,7 @@ test("task references can be removed from query through actions", () => {
             },
             getSortableAccount,
         )
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -1662,7 +1662,7 @@ test("task references can be removed from query through actions", () => {
     let task5 = createTask(store);
 
     task5 = task5
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -1674,7 +1674,7 @@ test("task references can be removed from query through actions", () => {
             },
             getSortableAccount,
         )
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -1691,7 +1691,7 @@ test("task references can be removed from query through actions", () => {
     let task4 = createTask(store);
 
     task4 = task4
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -1703,7 +1703,7 @@ test("task references can be removed from query through actions", () => {
             },
             getSortableAccount,
         )
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -1716,7 +1716,7 @@ test("task references can be removed from query through actions", () => {
             },
             getSortableAccount,
         )
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -1918,7 +1918,7 @@ test("references from optimistic task can be removed", async () => {
     let task3 = createTask(store);
 
     task3 = task3
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -1931,7 +1931,7 @@ test("references from optimistic task can be removed", async () => {
             },
             getSortableAccount,
         )
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -1947,7 +1947,7 @@ test("references from optimistic task can be removed", async () => {
 
     let task2 = createTask(store);
 
-    task2 = task2.apply(
+    task2 = task2.applyAction(
         {
             type: "UpdateTask",
             time: store.clock.now(),
@@ -1963,7 +1963,7 @@ test("references from optimistic task can be removed", async () => {
     let task1 = createTask(store);
 
     task1 = task1
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -1975,7 +1975,7 @@ test("references from optimistic task can be removed", async () => {
             },
             getSortableAccount,
         )
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -1990,7 +1990,7 @@ test("references from optimistic task can be removed", async () => {
 
     let task5 = createTask(store);
 
-    task5 = task5.apply(
+    task5 = task5.applyAction(
         {
             type: "UpdateTask",
             time: store.clock.now(),
@@ -2211,7 +2211,7 @@ test("task references can be added and removed through actions", () => {
 
     let task2 = createTask(store);
 
-    task2 = task2.apply(
+    task2 = task2.applyAction(
         {
             type: "UpdateTask",
             time: store.clock.now(),
@@ -2227,7 +2227,7 @@ test("task references can be added and removed through actions", () => {
 
     let task3 = createTask(store);
 
-    task3 = task3.apply(
+    task3 = task3.applyAction(
         {
             type: "UpdateTask",
             time: store.clock.now(),
@@ -2243,7 +2243,7 @@ test("task references can be added and removed through actions", () => {
 
     let task1 = createTask(store);
 
-    task1 = task1.apply(
+    task1 = task1.applyAction(
         {
             type: "UpdateTask",
             time: store.clock.now(),
@@ -2498,7 +2498,7 @@ test("task references can be added and removed through actions on a referenced t
 
     let task3 = createTask(store);
 
-    task3 = task3.apply(
+    task3 = task3.applyAction(
         {
             type: "UpdateTask",
             time: store.clock.now(),
@@ -2514,7 +2514,7 @@ test("task references can be added and removed through actions on a referenced t
 
     let task4 = createTask(store);
 
-    task4 = task4.apply(
+    task4 = task4.applyAction(
         {
             type: "UpdateTask",
             time: store.clock.now(),
@@ -2533,7 +2533,7 @@ test("task references can be added and removed through actions on a referenced t
     let task1 = createTask(store);
 
     task1 = task1
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -2545,7 +2545,7 @@ test("task references can be added and removed through actions on a referenced t
             },
             getSortableAccount,
         )
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -2800,7 +2800,7 @@ test("task references can be added and removed through actions on a task that's 
 
     let task3 = createTask(store);
 
-    task3 = task3.apply(
+    task3 = task3.applyAction(
         {
             type: "UpdateTask",
             time: store.clock.now(),
@@ -2816,7 +2816,7 @@ test("task references can be added and removed through actions on a task that's 
 
     let task4 = createTask(store);
 
-    task4 = task4.apply(
+    task4 = task4.applyAction(
         {
             type: "UpdateTask",
             time: store.clock.now(),
@@ -2832,7 +2832,7 @@ test("task references can be added and removed through actions on a task that's 
 
     let task2 = createTask(store);
 
-    task2 = task2.apply(
+    task2 = task2.applyAction(
         {
             type: "UpdateTask",
             time: store.clock.now(),
@@ -2848,7 +2848,7 @@ test("task references can be added and removed through actions on a task that's 
     let task1 = createTask(store);
 
     task1 = task1
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -2860,7 +2860,7 @@ test("task references can be added and removed through actions on a task that's 
             },
             getSortableAccount,
         )
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -3083,7 +3083,7 @@ test("can handle a temporary cycle", () => {
 
     let task3 = createTask(store);
 
-    task1 = task1.apply(
+    task1 = task1.applyAction(
         {
             type: "UpdateTask",
             time: store.clock.now(),
@@ -3096,7 +3096,7 @@ test("can handle a temporary cycle", () => {
         getSortableAccount,
     );
 
-    task2 = task2.apply(
+    task2 = task2.applyAction(
         {
             type: "UpdateTask",
             time: store.clock.now(),
@@ -3109,7 +3109,7 @@ test("can handle a temporary cycle", () => {
         getSortableAccount,
     );
 
-    task3 = task3.apply(
+    task3 = task3.applyAction(
         {
             type: "UpdateTask",
             time: store.clock.now(),
@@ -3241,7 +3241,7 @@ test("can handle a temporary cycle unrelated to loaded task", () => {
 
     let task4 = createTask(store);
 
-    task1 = task1.apply(
+    task1 = task1.applyAction(
         {
             type: "UpdateTask",
             time: store.clock.now(),
@@ -3254,7 +3254,7 @@ test("can handle a temporary cycle unrelated to loaded task", () => {
         getSortableAccount,
     );
 
-    task2 = task2.apply(
+    task2 = task2.applyAction(
         {
             type: "UpdateTask",
             time: store.clock.now(),
@@ -3268,7 +3268,7 @@ test("can handle a temporary cycle unrelated to loaded task", () => {
     );
 
     task4 = task4
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -3280,7 +3280,7 @@ test("can handle a temporary cycle unrelated to loaded task", () => {
             },
             getSortableAccount,
         )
-        .apply(
+        .applyAction(
             {
                 type: "UpdateTask",
                 time: store.clock.now(),
@@ -3564,7 +3564,7 @@ test("action removing from the query immediately releases task", async () => {
         type: "Update",
         number: 1,
         actions: [],
-        backfillAuthorizedTasks: [task.apply(action2, getSortableAccount)],
+        backfillAuthorizedTasks: [task.applyAction(action2, getSortableAccount)],
         backfillUnauthorizedTaskIds: [],
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
@@ -3666,7 +3666,7 @@ test("optimistic update retains task until resolved", async () => {
         type: "Update",
         number: 1,
         actions: [],
-        backfillAuthorizedTasks: [task.apply(action2, getSortableAccount)],
+        backfillAuthorizedTasks: [task.applyAction(action2, getSortableAccount)],
         backfillUnauthorizedTaskIds: [],
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
@@ -3767,7 +3767,7 @@ test("optimistic update retains task until rejected", async () => {
         type: "Update",
         number: 1,
         actions: [],
-        backfillAuthorizedTasks: [task.apply(action2, getSortableAccount)],
+        backfillAuthorizedTasks: [task.applyAction(action2, getSortableAccount)],
         backfillUnauthorizedTaskIds: [],
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],

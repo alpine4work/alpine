@@ -19,7 +19,7 @@ ts_project(
             "tags": ["cpu:3"],
             # It takes ~10s to start OpenSearch. Better to have a small number of large
             # shards than many small shards.
-            "shard_count": 3,
+            "shard_count": 4,
         },
         # These are kind of chunky tests that use OpenSearch. We configure OpenSearch
         # in tests to use 2 CPUs (see `startOpensearchLocal()`) so reserve those
