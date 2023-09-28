@@ -42,6 +42,7 @@ import {TaskId} from "~/shared/id/types/id_types.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 import {emptyTaskTitleModel, taskFallbackTitle} from "~/shared/tasks/model/task_title_model.js";
+import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
 import {TaskTitleUpdate} from "~/shared/tasks/task_title.js";
@@ -63,8 +64,9 @@ export function TaskDetailView({
     initialNotesVersion: number;
     initialNotesContent: TaskNotesContentWithReferences;
 }) {
-    const viewRef = useRef<VirtualizedScrollViewRef>(null);
+    const {store} = taskSubscription;
 
+    const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const childrenGridViewRef = useRef<TaskGridViewVirtualizedListViewRef>(null);
 
     const shiftRenderedRangeForChildrenGridView = useCallback(
@@ -141,15 +143,18 @@ export function TaskDetailView({
         initialBottomGhostTaskId,
         viewRef: childrenGridViewRef,
         getMoveTaskToQueryActions: (taskId, position) => {
-            const time1 = taskSubscription.store.clock.now();
-            const time2 = taskSubscription.store.clock.now();
+            const time1 = store.clock.now();
+            const time2 = store.clock.now();
 
             return [
                 {
                     type: "UpdateTask",
                     time: time1,
                     taskId,
-                    taskAction: {type: "UpdateParentTaskId", parentTaskId: taskSubscription.taskId},
+                    taskAction: {
+                        type: "UpdateParentTaskId",
+                        parentTaskId: taskSubscription.taskId,
+                    },
                 },
                 {
                     type: "UpdateTask",
@@ -169,7 +174,7 @@ export function TaskDetailView({
         getMaybeRemoveTaskFromQueryActions: taskId => [
             {
                 type: "UpdateTask",
-                time: taskSubscription.store.clock.now(),
+                time: store.clock.now(),
                 taskId,
                 taskAction: {type: "UpdateParentTaskId", parentTaskId: null},
             },
@@ -177,7 +182,7 @@ export function TaskDetailView({
     });
 
     return (
-        <TaskGridViewDndContext store={taskSubscription.store}>
+        <TaskGridViewDndContext store={store}>
             {childrenGridViewModals}
             <VirtualizedScrollView
                 ref={viewRef}
@@ -249,7 +254,10 @@ function TaskDetailViewMain({
     const {timeZone} = useClientInfo();
     const {currentAccount} = useSpaceContext();
 
-    const {task} = useStore(taskSubscription.taskEntryStore);
+    const {store, taskId, taskEntryStore} = taskSubscription;
+    const {task} = useStore(taskEntryStore);
+    const assigneeAccountStore = task ? store.getTaskAssigneeAccountStore(task) : null;
+    const assigneeAccountData = useStore(assigneeAccountStore);
     const priority = task?.getPriority() ?? null;
     const dueDate = task?.getDueDate() ?? null;
 
@@ -295,21 +303,18 @@ function TaskDetailViewMain({
                 titleCommitStateRef.current.pendingActionTransactionBuilder.add(titleUpdate);
             } else {
                 titleCommitStateRef.current.pendingActionTransactionBuilder =
-                    taskSubscription.store.getTaskUpdateTitleActionTransactionBuilder(
-                        taskSubscription.taskId,
-                        titleUpdate,
-                    );
+                    store.getTaskUpdateTitleActionTransactionBuilder(taskId, titleUpdate);
             }
             return;
         }
 
-        const time = taskSubscription.store.clock.now();
+        const time = store.clock.now();
 
-        const commitPromise = taskSubscription.store.commitTaskActionTransaction(context, [
+        const commitPromise = store.commitTaskActionTransaction(context, [
             {
                 type: "UpdateTask",
                 time,
-                taskId: taskSubscription.taskId,
+                taskId,
                 taskAction: {
                     type: "UpdateTitle",
                     titleUpdate,
@@ -416,7 +421,7 @@ function TaskDetailViewMain({
                     context,
                     timeZone,
                     currentAccount,
-                    store: taskSubscription.store,
+                    store,
                     task,
                 }),
             );
@@ -498,7 +503,7 @@ function TaskDetailViewMain({
                     gap="3"
                 >
                     {task ? (
-                        <TaskStatusButton size="5" store={taskSubscription.store} task={task} />
+                        <TaskStatusButton size="5" store={store} task={task} />
                     ) : (
                         <Box
                             width="5"
@@ -540,9 +545,31 @@ function TaskDetailViewMain({
                     {({"aria-labelledby": ariaLabelledBy}) => (
                         <TaskAssigneeInput
                             aria-labelledby={ariaLabelledBy}
-                            // NOCOMMIT
-                            assigneeAccount={null}
-                            onAssigneeAccountChange={assigneeAccount => {}}
+                            assigneeAccountData={assigneeAccountData}
+                            onAssigneeAccountChange={assigneeAccount => {
+                                const time = store.clock.now();
+
+                                store.commitTaskActionTransaction(context, [
+                                    {
+                                        type: "UpdateTask",
+                                        time,
+                                        taskId,
+                                        taskAction: {
+                                            type: "UpdateAssignee",
+                                            assignee: assigneeAccount
+                                                ? {
+                                                      assigneeId: assigneeAccount.id,
+                                                      assignerId: currentAccount.id,
+                                                      assignedTime: new TaskFilterableTime({
+                                                          absoluteTime: time,
+                                                          setterTimeZone: timeZone,
+                                                      }),
+                                                  }
+                                                : null,
+                                        },
+                                    },
+                                ]);
+                            }}
                         />
                     )}
                 </TaskDetailViewDenseField>
@@ -587,20 +614,17 @@ function TaskDetailViewMain({
                                 <TaskPriorityInput
                                     priority={priority}
                                     onPriorityChange={priority => {
-                                        taskSubscription.store.commitTaskActionTransaction(
-                                            context,
-                                            [
-                                                {
-                                                    type: "UpdateTask",
-                                                    time: taskSubscription.store.clock.now(),
-                                                    taskId: taskSubscription.taskId,
-                                                    taskAction: {
-                                                        type: "UpdatePriority",
-                                                        priority,
-                                                    },
+                                        store.commitTaskActionTransaction(context, [
+                                            {
+                                                type: "UpdateTask",
+                                                time: store.clock.now(),
+                                                taskId,
+                                                taskAction: {
+                                                    type: "UpdatePriority",
+                                                    priority,
                                                 },
-                                            ],
-                                        );
+                                            },
+                                        ]);
                                     }}
                                     aria-labelledby={ariaLabelledBy}
                                 />
@@ -634,20 +658,17 @@ function TaskDetailViewMain({
                                 <TaskDateInput
                                     date={dueDate}
                                     onDateChange={dueDate => {
-                                        taskSubscription.store.commitTaskActionTransaction(
-                                            context,
-                                            [
-                                                {
-                                                    type: "UpdateTask",
-                                                    time: taskSubscription.store.clock.now(),
-                                                    taskId: taskSubscription.taskId,
-                                                    taskAction: {
-                                                        type: "UpdateDueDate",
-                                                        dueDate,
-                                                    },
+                                        store.commitTaskActionTransaction(context, [
+                                            {
+                                                type: "UpdateTask",
+                                                time: store.clock.now(),
+                                                taskId,
+                                                taskAction: {
+                                                    type: "UpdateDueDate",
+                                                    dueDate,
                                                 },
-                                            ],
-                                        );
+                                            },
+                                        ]);
                                     }}
                                     shouldIncludeCalendarIcon={true}
                                     shouldWarnIfAfterDate={task?.getDisplayStatus() !== "Closed"}
@@ -661,7 +682,7 @@ function TaskDetailViewMain({
             </Box>
             <Spacer space="9" />
             <TaskDetailNotesField
-                taskId={taskSubscription.taskId}
+                taskId={taskId}
                 initialNotesVersion={initialNotesVersion}
                 initialNotesContent={initialNotesContent}
                 padding={padding}

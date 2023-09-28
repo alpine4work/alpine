@@ -181,11 +181,15 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
             // When the WebSocket closes, reject all messages that haven't been
             // acknowledged since we will not be receiving an acknowledgement for them. We
             // do not resubmit messages when reopening the WebSocket.
+            //
+            // If the WebSocket gave us an error object, use that when rejecting instead of
+            // an `UnavailableError`.
             for (const promiseResolver of this._procedureResponsePromiseResolverByRequestId.values()) {
                 promiseResolver.reject(
-                    new UnavailableError("WebSocket closed before procedure response", {
-                        displayMessage: errorDisplayMessage`Your connection to our servers was ended unexpectedly. Please try again.`,
-                    }),
+                    closeErrorResult?.error ??
+                        new UnavailableError("WebSocket closed before procedure response", {
+                            displayMessage: errorDisplayMessage`Your connection to our servers was ended unexpectedly. Please try again.`,
+                        }),
                 );
             }
             this._procedureResponsePromiseResolverByRequestId.clear();

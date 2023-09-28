@@ -1,5 +1,5 @@
 import {addSeconds} from "date-fns";
-import {X} from "phosphor-react";
+import {Info, X} from "phosphor-react";
 import {
     Memo,
     ReactNode,
@@ -20,7 +20,8 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {spacing} from "~/shared/design/spacing.js";
-import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
+import {ErrorBase, InternalError, InvalidArgumentError} from "~/shared/error/error.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -272,6 +273,14 @@ function ToastView({
         setIsInitialRender(false);
     }, []);
 
+    // If this is not a system error and has a display message (e.g.
+    // `PermissionDeniedError`) then we don't show the red warning icon. Since this
+    // error is probably expected.
+    const dontShowErrorIcon =
+        toast.error instanceof ErrorBase &&
+        !isSystemError(toast.error) &&
+        !!toast.error.displayMessage;
+
     return (
         <Box
             position="relative"
@@ -283,9 +292,13 @@ function ToastView({
             display="flex"
         >
             <Box flexGrow="1" alignSelf="center" display="flex" padding="2">
-                <Box flexShrink="0" color="red-50-const" paddingRight="2">
+                <Box flexShrink="0" color="grey-70" paddingRight="1.5">
                     <Box position="relative" style={{top: 1}}>
-                        <ErrorIcon size={spacing["4"]} />
+                        {dontShowErrorIcon ? (
+                            <Info size={spacing["4"]} />
+                        ) : (
+                            <ErrorIcon size={spacing["4"]} />
+                        )}
                     </Box>
                 </Box>
                 <Box flexGrow="1" role="alert">

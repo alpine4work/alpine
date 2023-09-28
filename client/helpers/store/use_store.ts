@@ -1,5 +1,6 @@
 import {useSyncExternalStore} from "react";
 import {Store} from "~/client/helpers/store/store.js";
+import {noop} from "~/shared/helpers/control/noop.js";
 
 /**
  * Convenience hook that directly calls [`useSyncExternalStore()`][1] for using
@@ -18,7 +19,7 @@ export function useStore<Value>(store: Store<Value> | null): Value | null {
 }
 
 function subscribeToNull() {
-    return () => {};
+    return noop;
 }
 
 function getNullSnapshot() {

@@ -207,6 +207,10 @@ export class TaskClientStore {
         return this._internal.getCollectionEntryStoreIfExists(collectionId);
     }
 
+    public getTaskAssigneeAccountStore(task: TaskModel): Store<AccountModelData> | null {
+        return this._internal.getTaskAssigneeAccountStore(task);
+    }
+
     public getSubscriptionsStore() {
         return this._internal.getSubscriptionsStore();
     }
@@ -495,6 +499,26 @@ export class TaskClientStoreInternal {
         collectionId: TaskCollectionId,
     ): Store<TaskClientStoreCollectionEntry> | null {
         return this._collectionEntryStoreById.get(collectionId)?.store ?? null;
+    }
+
+    /**
+     * Get the store representing the assignee account from our store.
+     *
+     * Must pass in the exact `TaskModel` object that's currently in the store for
+     * the provided `TaskId`. Since the store only keeps track of accounts
+     * referenced in the tasks it knows about.
+     */
+    public getTaskAssigneeAccountStore(task: TaskModel): Store<AccountModelData> | null {
+        assert(
+            this._taskEntryStoreById.get(task.id)?.store.getSnapshot().task === task,
+            "Can't get the assignee account for a `TaskModel` that's not the latest task in our store",
+        );
+
+        const assignee = task.getAssignee();
+        if (!assignee) return null;
+
+        return assertExists(this._referencedAccountStoreById.get(assignee.assignee.accountId))
+            .store;
     }
 
     // Allow releasing of task entry stores to be delayed. For example, while

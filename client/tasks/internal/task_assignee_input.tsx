@@ -23,7 +23,7 @@ import {
     useOption,
 } from "react-aria";
 import {ComboBoxState, ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
-import {AccountAvatar, AccountDataAvatar} from "~/client/accounts/account_avatar.js";
+import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
@@ -90,7 +90,7 @@ export {TaskAssigneeInputForwardRef as TaskAssigneeInput};
 
 function TaskAssigneeInput(
     {
-        assigneeAccount,
+        assigneeAccountData,
         onAssigneeAccountChange,
         "aria-label": ariaLabel,
         "aria-labelledby": ariaLabelledBy,
@@ -100,7 +100,7 @@ function TaskAssigneeInput(
         onArrowLeftLeaveKeyDown,
         onArrowRightLeaveKeyDown,
     }: {
-        assigneeAccount: AccountModel | null;
+        assigneeAccountData: AccountModelData | null;
         onAssigneeAccountChange: (assigneeAccount: AccountModel | null) => void;
         "aria-label"?: string;
         "aria-labelledby"?: string;
@@ -134,9 +134,6 @@ function TaskAssigneeInput(
                 : assigneeAccountData.name
             : "";
 
-    const assigneeAccountData = useStore(
-        assigneeAccount ? accountStore.getAccountStore(assigneeAccount) : null,
-    );
     const selectionInputValue = getSelectionInputValue(assigneeAccountData);
 
     const inputValue = inputState.type === "Selection" ? selectionInputValue : inputState.value;
@@ -197,7 +194,7 @@ function TaskAssigneeInput(
         [allItems, inputState, inputValue, itemsSearchIndex],
     );
 
-    const selectedKey = assigneeAccount ? `Account:${assigneeAccount.id}` : "Null";
+    const selectedKey = assigneeAccountData ? `Account:${assigneeAccountData.id}` : "Null";
 
     const comboBoxProps: ComboBoxStateOptions<TaskAssigneeInputItem> = {
         menuTrigger: "focus",
@@ -239,7 +236,7 @@ function TaskAssigneeInput(
             switch (event.key) {
                 case "Backspace": {
                     if (
-                        assigneeAccount &&
+                        assigneeAccountData &&
                         inputState.type === "Typing" &&
                         inputState.value.length === 0
                     ) {
@@ -294,11 +291,11 @@ function TaskAssigneeInput(
             }
 
             if (!newAssigneeAccount) {
-                if (assigneeAccount) {
+                if (assigneeAccountData) {
                     onAssigneeAccountChange(null);
                 }
             } else {
-                if (assigneeAccount?.id !== newAssigneeAccount.id) {
+                if (assigneeAccountData?.id !== newAssigneeAccount.id) {
                     onAssigneeAccountChange(newAssigneeAccount);
                 }
             }
@@ -309,7 +306,11 @@ function TaskAssigneeInput(
                     if (inputState.type !== "Typing") return inputState;
                     return {
                         type: "Typing",
-                        value: getSelectionInputValue(assigneeAccountData),
+                        value: getSelectionInputValue(
+                            newAssigneeAccount
+                                ? accountStore.getAccountStore(newAssigneeAccount).getSnapshot()
+                                : null,
+                        ),
                         hasChanged: false,
                         shouldSelect: true,
                     };
@@ -413,8 +414,8 @@ function TaskAssigneeInput(
                         }}
                     >
                         <Box flexShrink="0" pointerEvents="none">
-                            {assigneeAccount ? (
-                                <AccountAvatar size={avatarSize} account={assigneeAccount} />
+                            {assigneeAccountData ? (
+                                <AccountAvatar size={avatarSize} account={assigneeAccountData} />
                             ) : (
                                 <TaskMissingAccountAvatar size={avatarSize} />
                             )}
@@ -422,7 +423,9 @@ function TaskAssigneeInput(
                         <InputWithAutoGrowingWidth
                             {...inputProps}
                             ref={inputRef}
-                            placeholder={assigneeAccount ? selectionInputValue : nullAssigneeLabel}
+                            placeholder={
+                                assigneeAccountData ? selectionInputValue : nullAssigneeLabel
+                            }
                             className={sprinkles({color, height: "4"})}
                         />
                     </Box>
@@ -548,7 +551,7 @@ function TaskAssigneeInputListBoxOptionItem({
         case "Account": {
             return (
                 <Box display="flex" alignItems="center" gap="1.5">
-                    <AccountDataAvatar accountData={item.accountData} size="5" />
+                    <AccountAvatar account={item.accountData} size="5" />
                     <Box flexGrow="1" fontStyle="truncate">
                         {item.accountData.name}
                     </Box>

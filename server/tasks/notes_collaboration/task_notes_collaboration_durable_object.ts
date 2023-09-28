@@ -105,9 +105,10 @@ class TaskNotesCollaborationDurableObject {
             WorkerSessionActionContextModules,
             typeof TaskNotesCollaborationProtocol,
             TaskNotesCollaborationConnection
-        >(this._processContext, TaskNotesCollaborationProtocol, () => {
+        >(this._processContext, TaskNotesCollaborationProtocol, ({closeWithError}) => {
             return new TaskNotesCollaborationConnection({
                 contentManager: this._contentManager,
+                closeWithError,
             });
         });
     }

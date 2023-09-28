@@ -302,7 +302,7 @@ function RootErrorRenderer({error: _error, title}: {error: unknown; title?: stri
                 className={sprinkles({
                     width: "full",
                     maxWidth: "128",
-                    paddingX: "6",
+                    paddingX: "8",
                     paddingY: {desktop: "32", mobile: "16"},
                 })}
             >

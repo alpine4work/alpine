@@ -26,7 +26,6 @@ import {
     InternalError,
     InvalidArgumentError,
 } from "~/shared/error/error.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -435,11 +434,10 @@ export class DocumentCollaborationContentManager {
                                         newVersion: oldVersion + nextSteps.length,
                                     });
                                 } catch (unknownError) {
-                                    // Upgrade the severity of non-internal errors to internal since the client has
-                                    // already seen the update.
-                                    const error = !isSystemError(unknownError)
-                                        ? InternalError.from(unknownError)
-                                        : unknownError;
+                                    // Upgrade the severity to internal since the client has already seen the update.
+                                    //
+                                    // The client will also attempt to reconnect on a system error.
+                                    const error = InternalError.from(unknownError);
 
                                     span.addException(error);
 

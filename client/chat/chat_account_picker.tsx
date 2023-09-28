@@ -23,7 +23,7 @@ import {
     useOption,
 } from "react-aria";
 import {ComboBoxState, ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
-import {AccountDataAvatar} from "~/client/accounts/account_avatar.js";
+import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
@@ -447,7 +447,7 @@ export function ChatAccountPicker({
                     onKeyDown={handleKeyDown}
                 >
                     <Box paddingLeft="0.5">
-                        <AccountDataAvatar size="5" accountData={accountData} />
+                        <AccountAvatar size="5" account={accountData} />
                     </Box>
                     <Box paddingLeft="1.5" paddingRight="0.5" fontSize="100">
                         {accountData.name}
@@ -724,7 +724,7 @@ function ChatAccountPickerListBoxOptionItem({
         case "Account": {
             return (
                 <Box display="flex" alignItems="center" gap="2">
-                    <AccountDataAvatar accountData={item.accountData} size="6" />
+                    <AccountAvatar account={item.accountData} size="6" />
                     <Box fontStyle="truncate">{item.accountData.name}</Box>
                 </Box>
             );
@@ -737,7 +737,7 @@ function ChatAccountPickerListBoxOptionItem({
                 <Box display="flex" alignItems="center" gap="2">
                     <Box position="relative" width="6" height="6">
                         <Box position="absolute" top="0" left="-1">
-                            <AccountDataAvatar accountData={otherAccountDatas[0]!} size="5" />
+                            <AccountAvatar account={otherAccountDatas[0]!} size="5" />
                         </Box>
                         <Box
                             position="absolute"

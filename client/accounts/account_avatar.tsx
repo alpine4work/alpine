@@ -9,18 +9,15 @@ import {Spacing} from "~/shared/design/spacing.js";
 /**
  * A circular image representing the account.
  */
-export function AccountAvatar({account, size}: {account: AccountModel; size: Spacing}) {
-    const accountData = useAccountModel(account);
-    return <AccountDataAvatar accountData={accountData} size={size} />;
-}
-
-export function AccountDataAvatar({
-    accountData,
+export function AccountAvatar({
+    account,
     size,
 }: {
-    accountData: AccountModelData;
+    account: AccountModel | AccountModelData;
     size: Spacing;
 }) {
+    const accountData = useAccountModel(account);
+
     const {firstInitial, lastInitial} = useMemo(() => {
         const splitter = new GraphemeSplitter();
 

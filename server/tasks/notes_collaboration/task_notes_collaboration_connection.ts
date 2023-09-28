@@ -2,6 +2,7 @@ import {
     WorkerSessionActionContext,
     WorkerSessionActionContextModules,
 } from "~/server/cloudflare/context/worker_action_context.js";
+import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {TaskNotesCollaborationContentManager} from "~/server/tasks/notes_collaboration/task_notes_collaboration_content_manager.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import {
@@ -10,7 +11,6 @@ import {
     isEmptyContentReferencedIds,
 } from "~/shared/content/content_referenced_ids.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {
@@ -21,11 +21,19 @@ import {TaskNotesCollaborationProtocol} from "~/shared/tasks/task_notes_collabor
 
 export class TaskNotesCollaborationConnection {
     private readonly _contentManager: TaskNotesCollaborationContentManager;
+    public readonly closeWithError: (context: WorkerProcessContext, error: unknown) => void;
     private readonly _mutex = new Mutex();
     private _editAccessPromiseResolver: PromiseResolver<void>;
 
-    constructor({contentManager}: {contentManager: TaskNotesCollaborationContentManager}) {
+    constructor({
+        contentManager,
+        closeWithError,
+    }: {
+        contentManager: TaskNotesCollaborationContentManager;
+        closeWithError: (context: WorkerProcessContext, error: unknown) => void;
+    }) {
         this._contentManager = contentManager;
+        this.closeWithError = closeWithError;
 
         this._editAccessPromiseResolver = createPromiseResolver();
 
@@ -75,13 +83,12 @@ export class TaskNotesCollaborationConnection {
                 const version = this._contentManager.getCurrentVersion();
                 const clientVersion = input.version;
 
-                if (clientVersion > version) {
-                    throw new FailedPreconditionError(
-                        "Tried to backfill a future task notes version",
-                    );
-                }
-
-                const stepsResult = this._contentManager.getSteps(clientVersion, version);
+                // If the client has a future version it's trying to backfill then reset the
+                // client's doc. Happens if the durable object previously crashed.
+                const stepsResult =
+                    clientVersion > version
+                        ? {type: "Unavailable" as const}
+                        : this._contentManager.getSteps(clientVersion, version);
 
                 if (stepsResult.type === "Unavailable") {
                     const content = this._contentManager.getCurrentContent();
@@ -150,7 +157,7 @@ export class TaskNotesCollaborationConnection {
                 // object.
                 await this._editAccessPromiseResolver.promise;
 
-                await this._contentManager.update(context, input);
+                await this._contentManager.update(context, this, input);
                 return {};
             }),
     };

@@ -13,7 +13,7 @@ import {
     useState,
 } from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
-import {AccountDataAvatar} from "~/client/accounts/account_avatar.js";
+import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name.js";
 import {
@@ -511,7 +511,7 @@ function ContentEditorMentionAccountItem({
                 gap="2"
                 backgroundColor={isPressed ? "grey-10" : isHovered ? "grey-5" : undefined}
             >
-                <AccountDataAvatar accountData={accountData} size="6" />
+                <AccountAvatar account={accountData} size="6" />
                 <Box fontStyle="truncate">{accountData.name}</Box>
             </Box>
         </FocusRing>

@@ -99,8 +99,16 @@ export function useAccountClientStore(): AccountClientStore {
  * everywhere else the account is presented. If we observe the account's data
  * change this hook will re-render with the new data.
  */
-export function useAccountModel(account: AccountModel): AccountModelData {
+export function useAccountModel(account: AccountModel | AccountModelData): AccountModelData {
     const store = useAccountClientStore();
-    const accountDataStore = store.getAccountStore(account);
-    return useStore(accountDataStore);
+
+    const accountData = useStore(
+        account instanceof AccountModel ? store.getAccountStore(account) : null,
+    );
+
+    if (accountData === null) {
+        return account as AccountModelData;
+    } else {
+        return accountData;
+    }
 }
