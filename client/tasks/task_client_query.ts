@@ -4,6 +4,7 @@ import {Store} from "~/client/helpers/store/store.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {
     TaskClientStore,
+    TaskClientStoreCollectionEntry,
     TaskClientStoreInternal,
     TaskClientStoreTaskEntry,
 } from "~/client/tasks/task_client_store.js";
@@ -12,7 +13,7 @@ import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {evaluateTaskQueryNormalizedFiltersForModel} from "~/shared/tasks/model/evaluate_task_query_normalized_filters_for_model.js";
 import {getTaskQueryNormalizedSortCursorForModel} from "~/shared/tasks/model/get_task_query_normalized_sort_cursor_for_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
@@ -476,6 +477,16 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
         const referencedTaskEntryStore = this._referencedTaskEntryStoreById.get(taskId);
         if (!referencedTaskEntryStore) throw new InternalError("Task is not referenced in query");
         return referencedTaskEntryStore.store;
+    }
+
+    public getReferencedCollectionEntryStore(
+        collectionId: TaskCollectionId,
+    ): Store<TaskClientStoreCollectionEntry> {
+        const referencedCollectionEntryStore =
+            this._referencedCollectionEntryStoreById.get(collectionId);
+        if (!referencedCollectionEntryStore)
+            throw new InternalError("Collection is not referenced in query");
+        return referencedCollectionEntryStore.store;
     }
 
     public loadMoreTasks(limit: number) {

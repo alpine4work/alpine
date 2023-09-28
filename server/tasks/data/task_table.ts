@@ -2418,16 +2418,21 @@ async function isTaskCollectionItemAccessAuthorized(
     collectionItem: TaskCollectionEssentialAttributesItem,
     expectedAccessLevel: TaskCollectionAccessLevel,
 ) {
-    if (collectionItem.deletedTime) {
-        return false;
-    }
-
-    return isTaskCollectionItemAccessAuthorizedAllowingDeletedTasks(
+    const isAuthorized = await isTaskCollectionItemAccessAuthorizedAllowingDeletedTasks(
         context,
         accountId,
         collectionItem,
         expectedAccessLevel,
     );
+
+    // If you were authorized to view, edit, whatever, but the collection is
+    // deleted then you don't have edit access anymore but you can still view the
+    // collection.
+    if (collectionItem.deletedTime && isAuthorized) {
+        return hasTaskCollectionAccessLevel("View", expectedAccessLevel);
+    }
+
+    return isAuthorized;
 }
 
 async function isTaskCollectionItemAccessAuthorizedAllowingDeletedTasks(
@@ -2560,15 +2565,21 @@ async function isTaskItemAccessAuthorized(
         ) => Promise<TaskCollectionEssentialAttributesItem>;
     },
 ) {
-    if (taskItem.deletedTime) return false;
-
-    return isTaskItemAccessAuthorizedAllowingDeletedTasks(
+    const isAuthorized = await isTaskItemAccessAuthorizedAllowingDeletedTasks(
         context,
         accountId,
         taskItem,
         expectedAccessLevel,
         loaders,
     );
+
+    // If you were authorized to view, edit, whatever, but the task is deleted then
+    // you don't have edit access anymore but you can still view the task.
+    if (taskItem.deletedTime && isAuthorized) {
+        return hasTaskCollectionAccessLevel("View", expectedAccessLevel);
+    }
+
+    return isAuthorized;
 }
 
 async function isTaskItemAccessAuthorizedAllowingDeletedTasks(

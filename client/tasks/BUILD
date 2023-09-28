@@ -17,6 +17,7 @@ ts_project(
         "//:node_modules/classnames",
         "//:node_modules/fuse.js",
         "//:node_modules/grapheme-splitter",
+        "//:node_modules/json-stable-stringify",
         "//:node_modules/prosemirror-model",
         "//:node_modules/prosemirror-state",
         "//:node_modules/prosemirror-view",

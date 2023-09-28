@@ -35,6 +35,21 @@ export function hasTaskCollectionAccessLevel(
 }
 
 /**
+ * Return the higher of the two access levels.
+ */
+export function maxTaskCollectionAccessLevel(
+    level1: TaskCollectionAccessLevel,
+    level2: TaskCollectionAccessLevel,
+): TaskCollectionAccessLevel {
+    const index1 = taskCollectionAccessLevels.indexOf(level1);
+    const index2 = taskCollectionAccessLevels.indexOf(level2);
+    assert(index1 >= 0 && index2 >= 0);
+
+    if (index2 > index1) return level2;
+    return level1;
+}
+
+/**
  * Task collection access grant to a single person.
  */
 export type TaskCollectionAccessPolicyAccountGrant = SchemaType<

@@ -3,12 +3,14 @@ import {Store} from "~/client/helpers/store/store.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {
     TaskClientStore,
+    TaskClientStoreCollectionEntry,
     TaskClientStoreInternal,
     TaskClientStoreTaskEntry,
 } from "~/client/tasks/task_client_store.js";
 import {TaskClientTaskReferencesSubscriptionBase} from "~/client/tasks/task_client_task_references_subscription_base.js";
+import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 
 /**
  * Maintains a subscription to a single task outside of a query. Useful when
@@ -124,6 +126,42 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
         this._errorStateStore.set(errorState =>
             errorState.hasError ? {hasError: false} : errorState,
         );
+    }
+
+    /**
+     * Get the store associated with the provided `TaskId`.
+     *
+     * Throws an error if `TaskId` is not referenced by some task in the query when
+     * you call this function.
+     *
+     * The `task` in this store should be non-null when this function is called but
+     * if you hold onto this reference for long enough you may see `task` become
+     * null because the task becomes unauthorized.
+     */
+    public getReferencedTaskEntryStore(taskId: TaskId): Store<TaskClientStoreTaskEntry> {
+        const referencedTaskEntryStore = this._referencedTaskEntryStoreById.get(taskId);
+        if (!referencedTaskEntryStore) throw new InternalError("Task is not referenced in query");
+        return referencedTaskEntryStore.store;
+    }
+
+    /**
+     * Get the store associated with the provided `TaskCollectionId`.
+     *
+     * Throws an error if `TaskCollectionId` is not referenced by some task in the
+     * query when you call this function.
+     *
+     * The `collection` in this store should be non-null when this function is
+     * called but if you hold onto this reference for long enough you may see
+     * `collection` become null because the collection becomes unauthorized.
+     */
+    public getReferencedCollectionEntryStore(
+        collectionId: TaskCollectionId,
+    ): Store<TaskClientStoreCollectionEntry> {
+        const referencedCollectionEntryStore =
+            this._referencedCollectionEntryStoreById.get(collectionId);
+        if (!referencedCollectionEntryStore)
+            throw new InternalError("Collection is not referenced in query");
+        return referencedCollectionEntryStore.store;
     }
 
     // This is a private function we expose publicly so `TaskClientStoreInternal`

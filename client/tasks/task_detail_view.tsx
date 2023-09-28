@@ -1,5 +1,15 @@
-import {DotsThree} from "phosphor-react";
-import {ReactNode, useCallback, useId, useImperativeHandle, useMemo, useRef, useState} from "react";
+import {DotsThree, IconContext, Trash} from "phosphor-react";
+import {
+    CSSProperties,
+    ReactNode,
+    useCallback,
+    useContext,
+    useId,
+    useImperativeHandle,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
@@ -15,6 +25,7 @@ import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/get_new_task_position_for_query_sorted_by_position.js";
 import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
+import {getTaskSubscriptionAccessStore} from "~/client/tasks/internal/get_task_subscription_access_store.js";
 import {TaskAssigneeInput} from "~/client/tasks/internal/task_assignee_input.js";
 import {TaskChildTasksProgressWheel} from "~/client/tasks/internal/task_child_tasks_progress_wheel.js";
 import {TaskDateInput} from "~/client/tasks/internal/task_date_input.js";
@@ -38,10 +49,16 @@ import {Context} from "~/shared/context/context.js";
 import {Spacing, assertSpacing, spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
-import {sprinkles} from "~/shared/styles/styles.js";
+import {
+    colorSchemeVars,
+    invertSelectionColorsClassName,
+    sprinkles,
+} from "~/shared/styles/styles.js";
 import {emptyTaskTitleModel, taskFallbackTitle} from "~/shared/tasks/model/task_title_model.js";
+import {hasTaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
@@ -64,6 +81,7 @@ export function TaskDetailView({
     initialNotesVersion: number;
     initialNotesContent: TaskNotesContentWithReferences;
 }) {
+    const {currentAccount} = useSpaceContext();
     const {store} = taskSubscription;
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
@@ -122,8 +140,47 @@ export function TaskDetailView({
         [shiftRenderedRangeForChildrenGridView],
     );
 
-    // NOCOMMIT
-    const isReadOnly = true;
+    const readOnlyReason = useStore(
+        useMemo(
+            () =>
+                getTaskSubscriptionAccessStore(currentAccount.id, taskSubscription).map(access => {
+                    switch (access.type) {
+                        case "Deleted": {
+                            // TODO(calebmer): Add an "undelete" button when we support undo?
+                            return {
+                                icon: <Trash />,
+                                message: "This task was deleted. You can’t make changes",
+                            };
+                        }
+                        case "PermissionDenied": {
+                            // TODO(calebmer): If the user removed their own access by removing a
+                            // collection or changing the assignee, we should hint to them that they're
+                            // allowed to undo and give them an undo button.
+                            return {
+                                icon: <PencilSimpleSlash />,
+                                message: "You’ve lost access to this task. You can’t make changes",
+                            };
+                        }
+                        case "PermissionGranted": {
+                            if (hasTaskCollectionAccessLevel(access.level, "Edit")) return null;
+
+                            // TODO(calebmer): If the user removed their own access by removing a
+                            // collection or changing the assignee, we should hint to them that they're
+                            // allowed to undo and give them an undo button.
+                            return {
+                                icon: <PencilSimpleSlash />,
+                                message: "You’re aren’t allowed to make changes to this task",
+                            };
+                        }
+                        default:
+                            throw exhaustive(access);
+                    }
+                }),
+            [currentAccount.id, taskSubscription],
+        ),
+    );
+
+    const isReadOnly = readOnlyReason !== null;
 
     const {
         modals: childrenGridViewModals,
@@ -216,7 +273,7 @@ export function TaskDetailView({
                                         taskSubscription={taskSubscription}
                                         initialNotesVersion={initialNotesVersion}
                                         initialNotesContent={initialNotesContent}
-                                        isReadOnly={isReadOnly}
+                                        readOnlyReason={readOnlyReason}
                                         focusChildrenGridViewStart={focusChildrenGridViewStart}
                                     />
                                 ),
@@ -229,7 +286,7 @@ export function TaskDetailView({
                         focusChildrenGridViewStart,
                         initialNotesContent,
                         initialNotesVersion,
-                        isReadOnly,
+                        readOnlyReason,
                         renderChildrenGridViewItem,
                         taskSubscription,
                     ],
@@ -248,19 +305,21 @@ function TaskDetailViewMain({
     taskSubscription,
     initialNotesVersion,
     initialNotesContent,
-    isReadOnly,
+    readOnlyReason,
     focusChildrenGridViewStart,
 }: {
     taskSubscription: TaskClientTaskSubscription;
     initialNotesVersion: number;
     initialNotesContent: TaskNotesContentWithReferences;
-    isReadOnly: boolean;
+    readOnlyReason: {icon: ReactNode; message: string} | null;
     focusChildrenGridViewStart: () => void;
 }) {
     const context = useAppContext();
     const isMobile = useIsMobile();
     const {timeZone} = useClientInfo();
     const {currentAccount} = useSpaceContext();
+
+    const isReadOnly = readOnlyReason !== null;
 
     const {store, taskId, taskEntryStore} = taskSubscription;
     const {task} = useStore(taskEntryStore);
@@ -497,102 +556,122 @@ function TaskDetailViewMain({
     })();
 
     return (
-        <Box
-            width="full"
-            overflow="hidden"
-            maxWidth={taskDetailViewMaxWidth}
-            display="flex"
-            flexDirection="column"
-            position="relative"
-        >
-            <ContextMenuActions actions={contextMenuActions}>
+        <>
+            {readOnlyReason && (
+                // TODO(calebmer): This should really be a sticky header. We should probably
+                // have a sticky header for the task title too.
                 <Box
-                    paddingTop={padding}
-                    paddingBottom="8"
-                    paddingX={padding}
+                    className={invertSelectionColorsClassName}
+                    height="8"
+                    paddingX="2"
+                    color="grey-0"
+                    backgroundColor={{light: "grey-80", dark: "grey-90"}}
                     display="flex"
-                    flexDirection="column"
-                    gap="3"
+                    alignItems="center"
+                    gap="1.5"
                 >
-                    {task ? (
-                        <TaskStatusButton
-                            size="5"
-                            store={store}
-                            task={task}
-                            isDisabled={isReadOnly}
-                        />
-                    ) : (
-                        <Box
-                            width="5"
-                            height="5"
-                            borderRadius="full"
-                            border="grey-10"
-                            pointerEvents="none"
-                        />
-                    )}
-                    <Box
-                        position="absolute"
-                        top={assertSpacing(`${parseInt(padding, 10) - 2}`)}
-                        right={assertSpacing(`${parseInt(padding, 10) - 2}`)}
-                    >
-                        <MenuButton actions={contextMenuActions}>
-                            <IconButton size="md" description="More" withoutTooltip={true}>
-                                <DotsThree />
-                            </IconButton>
-                        </MenuButton>
-                    </Box>
-                    <TaskDetailTitleInput
-                        isReadOnly={isReadOnly}
-                        title={task?.getTitle() ?? emptyTaskTitleModel.get()}
-                        onTitleChange={onTitleChange}
-                        placeholder={taskFallbackTitle}
-                    />
+                    <IconContext.Provider value={{color: "currentColor", size: spacing["4"]}}>
+                        {readOnlyReason.icon}
+                    </IconContext.Provider>
+                    <Box userSelect="text">{readOnlyReason.message}</Box>
                 </Box>
-            </ContextMenuActions>
+            )}
             <Box
-                paddingX={padding}
-                display="grid"
-                gap="5"
-                style={{
-                    gridTemplateColumns: "auto minmax(0, 1fr)",
-                    gridTemplateRows: "repeat(auto-fill, auto)",
-                    gridAutoFlow: "row dense",
-                }}
+                width="full"
+                overflow="hidden"
+                maxWidth={taskDetailViewMaxWidth}
+                display="flex"
+                flexDirection="column"
+                position="relative"
             >
-                <TaskDetailViewDenseField label="Assignee">
-                    {({"aria-labelledby": ariaLabelledBy}) => (
-                        <TaskAssigneeInput
+                <ContextMenuActions actions={contextMenuActions}>
+                    <Box
+                        paddingTop={padding}
+                        paddingBottom="8"
+                        paddingX={padding}
+                        display="flex"
+                        flexDirection="column"
+                        gap="3"
+                    >
+                        {task ? (
+                            <TaskStatusButton
+                                size="5"
+                                store={store}
+                                task={task}
+                                isDisabled={isReadOnly}
+                            />
+                        ) : (
+                            <Box
+                                width="5"
+                                height="5"
+                                borderRadius="full"
+                                border="grey-10"
+                                pointerEvents="none"
+                            />
+                        )}
+                        <Box
+                            position="absolute"
+                            top={assertSpacing(`${parseInt(padding, 10) - 2}`)}
+                            right={assertSpacing(`${parseInt(padding, 10) - 2}`)}
+                        >
+                            <MenuButton actions={contextMenuActions}>
+                                <IconButton size="md" description="More" withoutTooltip={true}>
+                                    <DotsThree />
+                                </IconButton>
+                            </MenuButton>
+                        </Box>
+                        <TaskDetailTitleInput
                             isReadOnly={isReadOnly}
-                            aria-labelledby={ariaLabelledBy}
-                            assigneeAccountData={assigneeAccountData}
-                            onAssigneeAccountChange={assigneeAccount => {
-                                const time = store.clock.now();
-
-                                store.commitTaskActionTransaction(context, [
-                                    {
-                                        type: "UpdateTask",
-                                        time,
-                                        taskId,
-                                        taskAction: {
-                                            type: "UpdateAssignee",
-                                            assignee: assigneeAccount
-                                                ? {
-                                                      assigneeId: assigneeAccount.id,
-                                                      assignerId: currentAccount.id,
-                                                      assignedTime: new TaskFilterableTime({
-                                                          absoluteTime: time,
-                                                          setterTimeZone: timeZone,
-                                                      }),
-                                                  }
-                                                : null,
-                                        },
-                                    },
-                                ]);
-                            }}
+                            title={task?.getTitle() ?? emptyTaskTitleModel.get()}
+                            onTitleChange={onTitleChange}
+                            placeholder={taskFallbackTitle}
                         />
-                    )}
-                </TaskDetailViewDenseField>
-                {/* NOCOMMIT: <TaskDetailViewDenseField label="Collections">
+                    </Box>
+                </ContextMenuActions>
+                <Box
+                    paddingX={padding}
+                    display="grid"
+                    gap="5"
+                    style={{
+                        gridTemplateColumns: "auto minmax(0, 1fr)",
+                        gridTemplateRows: "repeat(auto-fill, auto)",
+                        gridAutoFlow: "row dense",
+                    }}
+                >
+                    <TaskDetailViewDenseField label="Assignee">
+                        {({"aria-labelledby": ariaLabelledBy}) => (
+                            <TaskAssigneeInput
+                                isReadOnly={isReadOnly}
+                                aria-labelledby={ariaLabelledBy}
+                                assigneeAccountData={assigneeAccountData}
+                                onAssigneeAccountChange={assigneeAccount => {
+                                    const time = store.clock.now();
+
+                                    store.commitTaskActionTransaction(context, [
+                                        {
+                                            type: "UpdateTask",
+                                            time,
+                                            taskId,
+                                            taskAction: {
+                                                type: "UpdateAssignee",
+                                                assignee: assigneeAccount
+                                                    ? {
+                                                          assigneeId: assigneeAccount.id,
+                                                          assignerId: currentAccount.id,
+                                                          assignedTime: new TaskFilterableTime({
+                                                              absoluteTime: time,
+                                                              setterTimeZone: timeZone,
+                                                          }),
+                                                      }
+                                                    : null,
+                                            },
+                                        },
+                                    ]);
+                                }}
+                            />
+                        )}
+                    </TaskDetailViewDenseField>
+                    {/* NOCOMMIT: <TaskDetailViewDenseField label="Collections">
                     {({"aria-labelledby": ariaLabelledBy}) => (
                         <TaskCollectionsInput
                             allCollections={allCollections}
@@ -604,140 +683,150 @@ function TaskDetailViewMain({
                         />
                     )}
                 </TaskDetailViewDenseField> */}
-                {priorityInputState.isVisible && (
-                    <TaskDetailViewDenseField label="Priority">
-                        {({"aria-labelledby": ariaLabelledBy}) => (
-                            <Box
-                                ref={priorityInputRef}
-                                onFocus={() => {
-                                    setPriorityInputState(priorityInputState => {
-                                        if (!priorityInputState.isVisible)
-                                            return priorityInputState;
-                                        if (priorityInputState.isFocused) return priorityInputState;
-                                        return {...priorityInputState, isFocused: true};
-                                    });
-                                }}
-                                onBlur={event => {
-                                    // If focus is moving within the element, don't unfocus.
-                                    if (event.currentTarget.contains(event.relatedTarget)) return;
-
-                                    setPriorityInputState(priorityInputState => {
-                                        if (!priorityInputState.isVisible)
-                                            return priorityInputState;
-                                        if (!priorityInputState.isFocused)
-                                            return priorityInputState;
-                                        return {...priorityInputState, isFocused: false};
-                                    });
-                                }}
-                            >
-                                <TaskPriorityInput
-                                    isReadOnly={isReadOnly}
-                                    priority={priority}
-                                    onPriorityChange={priority => {
-                                        store.commitTaskActionTransaction(context, [
-                                            {
-                                                type: "UpdateTask",
-                                                time: store.clock.now(),
-                                                taskId,
-                                                taskAction: {
-                                                    type: "UpdatePriority",
-                                                    priority,
-                                                },
-                                            },
-                                        ]);
+                    {priorityInputState.isVisible && (
+                        <TaskDetailViewDenseField label="Priority">
+                            {({"aria-labelledby": ariaLabelledBy}) => (
+                                <Box
+                                    ref={priorityInputRef}
+                                    onFocus={() => {
+                                        setPriorityInputState(priorityInputState => {
+                                            if (!priorityInputState.isVisible)
+                                                return priorityInputState;
+                                            if (priorityInputState.isFocused)
+                                                return priorityInputState;
+                                            return {...priorityInputState, isFocused: true};
+                                        });
                                     }}
-                                    aria-labelledby={ariaLabelledBy}
-                                />
-                            </Box>
-                        )}
-                    </TaskDetailViewDenseField>
-                )}
-                {dueDateInputState.isVisible && (
-                    <TaskDetailViewDenseField label="Due date">
-                        {({"aria-labelledby": ariaLabelledBy}) => (
-                            <Box
-                                ref={dueDateInputRef}
-                                onFocus={() => {
-                                    setDueDateInputState(dueDateInputState => {
-                                        if (!dueDateInputState.isVisible) return dueDateInputState;
-                                        if (dueDateInputState.isFocused) return dueDateInputState;
-                                        return {...dueDateInputState, isFocused: true};
-                                    });
-                                }}
-                                onBlur={event => {
-                                    // If focus is moving within the element, don't unfocus.
-                                    if (event.currentTarget.contains(event.relatedTarget)) return;
+                                    onBlur={event => {
+                                        // If focus is moving within the element, don't unfocus.
+                                        if (event.currentTarget.contains(event.relatedTarget))
+                                            return;
 
-                                    setDueDateInputState(dueDateInputState => {
-                                        if (!dueDateInputState.isVisible) return dueDateInputState;
-                                        if (!dueDateInputState.isFocused) return dueDateInputState;
-                                        return {...dueDateInputState, isFocused: false};
-                                    });
-                                }}
-                            >
-                                <TaskDateInput
-                                    isReadOnly={isReadOnly}
-                                    date={dueDate}
-                                    onDateChange={dueDate => {
-                                        store.commitTaskActionTransaction(context, [
-                                            {
-                                                type: "UpdateTask",
-                                                time: store.clock.now(),
-                                                taskId,
-                                                taskAction: {
-                                                    type: "UpdateDueDate",
-                                                    dueDate,
-                                                },
-                                            },
-                                        ]);
+                                        setPriorityInputState(priorityInputState => {
+                                            if (!priorityInputState.isVisible)
+                                                return priorityInputState;
+                                            if (!priorityInputState.isFocused)
+                                                return priorityInputState;
+                                            return {...priorityInputState, isFocused: false};
+                                        });
                                     }}
-                                    shouldIncludeCalendarIcon={true}
-                                    shouldWarnIfAfterDate={task?.getDisplayStatus() !== "Closed"}
-                                    shouldFormatAroundToday={true}
-                                    aria-labelledby={ariaLabelledBy}
-                                />
-                            </Box>
-                        )}
-                    </TaskDetailViewDenseField>
-                )}
-            </Box>
-            <Spacer space="9" />
-            <TaskDetailNotesField
-                taskId={taskId}
-                initialNotesVersion={initialNotesVersion}
-                initialNotesContent={initialNotesContent}
-                isReadOnly={isReadOnly}
-                padding={padding}
-            />
-            <Spacer space="10" />
-            <Box>
-                <label
-                    className={sprinkles({
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "3",
-                        paddingX: padding,
-                        paddingBottom: "2",
-                        color: "grey-60",
-                    })}
-                    // Affordance for mouse users. Clicking on a label focuses child tasks.
-                    onClick={focusChildrenGridViewStart}
-                >
-                    <Box>Subtasks</Box>
-                    {task && task.getChildTaskCount() > 0 && (
-                        <Box display="flex" alignItems="center" gap="1">
-                            <TaskChildTasksProgressWheel
-                                childTaskCount={task.getChildTaskCount()}
-                                closedChildTaskCount={task.getClosedChildTaskCount()}
-                            />
-                            <Box color="grey-70">
-                                {task.getClosedChildTaskCount()}/{task.getChildTaskCount()}
-                            </Box>
-                        </Box>
+                                >
+                                    <TaskPriorityInput
+                                        isReadOnly={isReadOnly}
+                                        priority={priority}
+                                        onPriorityChange={priority => {
+                                            store.commitTaskActionTransaction(context, [
+                                                {
+                                                    type: "UpdateTask",
+                                                    time: store.clock.now(),
+                                                    taskId,
+                                                    taskAction: {
+                                                        type: "UpdatePriority",
+                                                        priority,
+                                                    },
+                                                },
+                                            ]);
+                                        }}
+                                        aria-labelledby={ariaLabelledBy}
+                                    />
+                                </Box>
+                            )}
+                        </TaskDetailViewDenseField>
                     )}
-                </label>
+                    {dueDateInputState.isVisible && (
+                        <TaskDetailViewDenseField label="Due date">
+                            {({"aria-labelledby": ariaLabelledBy}) => (
+                                <Box
+                                    ref={dueDateInputRef}
+                                    onFocus={() => {
+                                        setDueDateInputState(dueDateInputState => {
+                                            if (!dueDateInputState.isVisible)
+                                                return dueDateInputState;
+                                            if (dueDateInputState.isFocused)
+                                                return dueDateInputState;
+                                            return {...dueDateInputState, isFocused: true};
+                                        });
+                                    }}
+                                    onBlur={event => {
+                                        // If focus is moving within the element, don't unfocus.
+                                        if (event.currentTarget.contains(event.relatedTarget))
+                                            return;
+
+                                        setDueDateInputState(dueDateInputState => {
+                                            if (!dueDateInputState.isVisible)
+                                                return dueDateInputState;
+                                            if (!dueDateInputState.isFocused)
+                                                return dueDateInputState;
+                                            return {...dueDateInputState, isFocused: false};
+                                        });
+                                    }}
+                                >
+                                    <TaskDateInput
+                                        isReadOnly={isReadOnly}
+                                        date={dueDate}
+                                        onDateChange={dueDate => {
+                                            store.commitTaskActionTransaction(context, [
+                                                {
+                                                    type: "UpdateTask",
+                                                    time: store.clock.now(),
+                                                    taskId,
+                                                    taskAction: {
+                                                        type: "UpdateDueDate",
+                                                        dueDate,
+                                                    },
+                                                },
+                                            ]);
+                                        }}
+                                        shouldIncludeCalendarIcon={true}
+                                        shouldWarnIfAfterDate={
+                                            task?.getDisplayStatus() !== "Closed"
+                                        }
+                                        shouldFormatAroundToday={true}
+                                        aria-labelledby={ariaLabelledBy}
+                                    />
+                                </Box>
+                            )}
+                        </TaskDetailViewDenseField>
+                    )}
+                </Box>
+                <Spacer space="9" />
+                <TaskDetailNotesField
+                    taskId={taskId}
+                    initialNotesVersion={initialNotesVersion}
+                    initialNotesContent={initialNotesContent}
+                    isReadOnly={isReadOnly}
+                    padding={padding}
+                />
+                <Spacer space="10" />
+                <Box>
+                    <label
+                        className={sprinkles({
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "3",
+                            paddingX: padding,
+                            paddingBottom: "2",
+                            color: "grey-60",
+                        })}
+                        // Affordance for mouse users. Clicking on a label focuses child tasks.
+                        onClick={focusChildrenGridViewStart}
+                    >
+                        <Box>Subtasks</Box>
+                        {task && task.getChildTaskCount() > 0 && (
+                            <Box display="flex" alignItems="center" gap="1">
+                                <TaskChildTasksProgressWheel
+                                    childTaskCount={task.getChildTaskCount()}
+                                    closedChildTaskCount={task.getClosedChildTaskCount()}
+                                />
+                                <Box color="grey-70">
+                                    {task.getClosedChildTaskCount()}/{task.getChildTaskCount()}
+                                </Box>
+                            </Box>
+                        )}
+                    </label>
+                </Box>
             </Box>
-        </Box>
+        </>
     );
 }
 
@@ -777,5 +866,44 @@ function TaskDetailViewDenseField({
                 {typeof children === "function" ? children({"aria-labelledby": labelId}) : children}
             </Box>
         </>
+    );
+}
+
+// NOTE(calebmer): The `<PencilSimpleSlash>` icon is in Phosphor v2. Upgrading
+// to v2 looks difficult so for now, inlining the SVG.
+function PencilSimpleSlash({
+    color,
+    size,
+    style,
+}: {
+    color?: string;
+    size?: string | number;
+    style?: CSSProperties;
+}) {
+    const {
+        color: contextColor,
+        size: contextSize,
+        weight,
+        mirrored,
+        ...context
+    } = useContext(IconContext);
+
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill={color ?? contextColor}
+            viewBox="0 0 256 256"
+            {...context}
+            // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being
+            // set to rem units so use `style` instead.
+            style={{
+                width: size ?? contextSize,
+                height: size ?? contextSize,
+                ...context.style,
+                ...style,
+            }}
+        >
+            <path d="M53.92 34.62a8 8 0 1 0-11.84 10.76l48.2 53L36.68 152A15.89 15.89 0 0 0 32 163.31V208a16 16 0 0 0 16 16h44.69a15.86 15.86 0 0 0 11.31-4.69l50.4-50.39 47.69 52.46a8 8 0 1 0 11.84-10.76ZM92.69 208H48v-44.69l53.06-53 42.56 46.81ZM227.32 73.37l-44.69-44.68a16 16 0 0 0-22.63 0l-41.67 41.67a8 8 0 0 0 11.32 11.31l6.35-6.36L180.69 120l-9 9A8 8 0 0 0 183 140.34L227.32 96a16 16 0 0 0 0-22.63ZM192 108.69 147.32 64l24-24L216 84.69Z" />
+        </svg>
     );
 }

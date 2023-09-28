@@ -7,7 +7,10 @@
 
 import {globalStyle} from "@vanilla-extract/css";
 import {mobilePlatformMediaQuery, remPxByPlatform, spacing} from "~/shared/design/spacing.js";
-import {colorSchemeVars} from "~/shared/styles/internal/color_scheme.css.js";
+import {
+    colorSchemeVars,
+    invertSelectionColorsClassName,
+} from "~/shared/styles/internal/color_scheme.css.js";
 import {fontSizes, fontStyles} from "~/shared/styles/internal/fonts.css.js";
 import {inputPlaceholderStyles} from "~/shared/styles/internal/input_placeholder.css.js";
 import {backgroundColorVar} from "~/shared/styles/internal/sprinkles.css.js";
@@ -71,9 +74,10 @@ globalStyle("::selection", {
     background: colorSchemeVars["theme-selection"],
 });
 
-globalStyle("::-moz-selection", {
-    background: colorSchemeVars["theme-selection"],
-});
+globalStyle(
+    `${invertSelectionColorsClassName}::selection, ${invertSelectionColorsClassName} ::selection`,
+    {background: colorSchemeVars["theme-selection-inverted"]},
+);
 
 // Customize our scrollbars in Chrome and Safari.
 //

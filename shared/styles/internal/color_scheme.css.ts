@@ -123,18 +123,30 @@ export type CssVarFunction = `var(--${string})` | `var(--${string}, ${string | n
  * the context.
  */
 const baseColorSchemeVars: {
-    [K in keyof typeof colorsWithShade | keyof typeof selectionColors]: CssVarFunction;
-} = createGlobalTheme(":root", {
-    ...colorsWithShade,
-    ...selectionColors,
-});
+    [K in keyof typeof colorsWithShade]: CssVarFunction;
+} = createGlobalTheme(":root", colorsWithShade);
 
 globalStyle(darkColorSchemeSelector, {
-    vars: assignVars(baseColorSchemeVars, {
-        ...invertedColorsWithShade,
-        ...invertedSelectionColors,
-    }),
+    vars: assignVars(baseColorSchemeVars, invertedColorsWithShade),
 });
+
+const selectionColorSchemeVars: {
+    [K in keyof typeof selectionColors]: CssVarFunction;
+} = createGlobalTheme(":root", selectionColors);
+
+globalStyle(darkColorSchemeSelector, {
+    vars: assignVars(selectionColorSchemeVars, invertedSelectionColors),
+});
+
+const invertedSelectionColorSchemeVars: {
+    [K in keyof typeof selectionColors]: CssVarFunction;
+} = createGlobalTheme(":root", invertedSelectionColors);
+
+globalStyle(darkColorSchemeSelector, {
+    vars: assignVars(invertedSelectionColorSchemeVars, selectionColors),
+});
+
+export const invertSelectionColorsClassName = style({});
 
 /**
  * Constant colors don't change based on whether we are in light mode or dark
@@ -162,7 +174,8 @@ function createTheme(color: ThemeColor) {
         "theme-70": baseColorSchemeVars[`${color}-70`],
         "theme-80": baseColorSchemeVars[`${color}-80`],
         "theme-90": baseColorSchemeVars[`${color}-90`],
-        "theme-selection": baseColorSchemeVars[`${color}-selection`],
+        "theme-selection": selectionColorSchemeVars[`${color}-selection`],
+        "theme-selection-inverted": invertedSelectionColorSchemeVars[`${color}-selection`],
         "theme-5-const": constantColors[`${color}-5-const`],
         "theme-10-const": constantColors[`${color}-10-const`],
         "theme-20-const": constantColors[`${color}-20-const`],
@@ -223,6 +236,8 @@ export const colorSchemeVars = {
     // constant here.
     ...colors,
     ...baseColorSchemeVars,
+    ...selectionColorSchemeVars,
+    ...invertedSelectionColorSchemeVars,
     ...constantColors,
     ...themeColorSchemeVars,
     ...specialGreyColorVars,
