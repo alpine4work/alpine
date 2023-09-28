@@ -14,7 +14,7 @@ import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
-import {TaskModel, TaskModelData} from "~/shared/tasks/model/task_model.js";
+import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskAssigneeActivePositionRegister} from "~/shared/tasks/task_assignee_active_position.js";
 import {TaskPositionByAccountIdAndNotepadPageIdMap} from "~/shared/tasks/task_position_by_account_id_and_notepad_page_id.js";
@@ -200,24 +200,5 @@ export function prepareTaskActionForClient(
         }
         default:
             throw exhaustive(action);
-    }
-}
-
-/**
- * Get all the `AccountId`s referenced by a task model.
- */
-export function collectReferencedAccountIdsFromTaskModelData(
-    accountIds: Set<AccountId>,
-    task: TaskModelData,
-) {
-    accountIds.add(task.creator.accountId);
-
-    if (task.status.value.type === "Closed") {
-        accountIds.add(task.status.value.closer.accountId);
-    }
-
-    if (task.assignee.value) {
-        accountIds.add(task.assignee.value.assignee.accountId);
-        accountIds.add(task.assignee.value.assigner.accountId);
     }
 }

@@ -7,7 +7,6 @@ import {getAccount} from "~/server/spaces/spaces_table.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {
-    collectReferencedAccountIdsFromTaskModelData,
     prepareTaskCollectionForClient,
     prepareTaskForClient,
 } from "~/server/tasks/data/task_realtime_protocol_helpers.js";
@@ -32,6 +31,7 @@ import {
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
+import {collectReferencedAccountIdsFromTaskModelData} from "~/shared/tasks/model/collected_referenced_account_ids_from_task_model_data.js";
 import {
     TaskGridViewExpansionState,
     TaskGridViewExpansionTaskState,

@@ -9,6 +9,7 @@ import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_colle
 import {TaskClientQuery, TaskClientQueryInternal} from "~/client/tasks/task_client_query.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
 import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_clock.js";
+import {AccountModelData} from "~/shared/accounts/account_model.js";
 import {Context} from "~/shared/context/context.js";
 import {DeadlineExceededError, InternalError} from "~/shared/error/error.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
@@ -37,6 +38,7 @@ import {
     TaskUpdateCollectionAction,
     TaskUpdateTaskAction,
 } from "~/shared/tasks/actions/task_action.js";
+import {collectReferencedAccountIdsFromTaskModelData} from "~/shared/tasks/model/collected_referenced_account_ids_from_task_model_data.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
@@ -366,6 +368,21 @@ export class TaskClientStoreInternal {
     >();
 
     /**
+     * Accounts referenced by our tasks.
+     *
+     * We can't rely on `AccountClientStore.weakGetAccountStoreByIdIfExists()` to
+     * get an account referenced by a task. Since the account might be garbage
+     * collected.
+     */
+    private readonly _referencedAccountStoreById = new Map<
+        AccountId,
+        {
+            referenceCount: number;
+            store: Store<AccountModelData>;
+        }
+    >();
+
+    /**
      * The various subscriptions our client is currently holding on to.
      */
     private readonly _subscriptionsStore = new ValueStore<{
@@ -505,6 +522,7 @@ export class TaskClientStoreInternal {
                 this._delayReleaseTaskEntryStoreIds.add(taskId);
             } else {
                 this._taskEntryStoreById.delete(taskId);
+                this._updateReferencedAccountStores(taskEntryStore.store.getSnapshot(), null);
             }
         }
     }
@@ -2517,6 +2535,8 @@ export class TaskClientStoreInternal {
                         newTaskEntry,
                     });
 
+                    this._updateReferencedAccountStores(oldTaskEntry, newTaskEntry);
+
                     // If the old task entry was not deleted but the new task entry is then if we
                     // have a query for this task's children, delete the reference to that query.
                     if (
@@ -2582,7 +2602,17 @@ export class TaskClientStoreInternal {
 
                     if (delayReleaseTaskEntryStoreIds) {
                         for (const taskId of delayReleaseTaskEntryStoreIds) {
+                            const taskEntryStore = assertExists(
+                                this._taskEntryStoreById.get(taskId),
+                            );
+                            assert(taskEntryStore.referenceCount === 0);
+
                             this._taskEntryStoreById.delete(taskId);
+
+                            this._updateReferencedAccountStores(
+                                taskEntryStore.store.getSnapshot(),
+                                null,
+                            );
                         }
                     }
 
@@ -2615,6 +2645,7 @@ export class TaskClientStoreInternal {
                                 this._temporarilyRetainTaskEntryStore(taskId);
                             } else {
                                 this._taskEntryStoreById.delete(taskId);
+                                this._updateReferencedAccountStores(taskEntry, null);
                             }
                         }
                     }
@@ -2679,6 +2710,69 @@ export class TaskClientStoreInternal {
         }) => void,
     ) {
         return this._batchUpdateEventEmitter.subscribe(listener);
+    }
+
+    private _updateReferencedAccountStores(
+        oldTaskEntry: TaskClientStoreTaskEntry | null,
+        newTaskEntry: TaskClientStoreTaskEntry | null,
+    ) {
+        const oldReferencedAccountIds = new Set<AccountId>();
+        if (oldTaskEntry?.task) {
+            collectReferencedAccountIdsFromTaskModelData(
+                oldReferencedAccountIds,
+                oldTaskEntry.task.rawData,
+            );
+        }
+
+        const newReferencedAccountIds = new Set<AccountId>();
+        if (newTaskEntry?.task) {
+            collectReferencedAccountIdsFromTaskModelData(
+                newReferencedAccountIds,
+                newTaskEntry.task.rawData,
+            );
+        }
+
+        for (const oldReferencedAccountId of oldReferencedAccountIds) {
+            if (newReferencedAccountIds.delete(oldReferencedAccountId)) continue;
+
+            const referencedAccountStore = assertExists(
+                this._referencedAccountStoreById.get(oldReferencedAccountId),
+            );
+
+            referencedAccountStore.referenceCount--;
+
+            if (referencedAccountStore.referenceCount === 0) {
+                this._referencedAccountStoreById.delete(oldReferencedAccountId);
+            }
+        }
+
+        for (const newReferencedAccountId of newReferencedAccountIds) {
+            const referencedAccountStore =
+                this._referencedAccountStoreById.get(newReferencedAccountId);
+
+            if (referencedAccountStore) {
+                referencedAccountStore.referenceCount++;
+            } else {
+                const accountStore =
+                    this.accountStore.weakGetAccountStoreByIdIfExists(newReferencedAccountId);
+
+                // It's expected that when a `newTaskEntry` is introduced by the server, the
+                // server has made referenced accounts available through `referencedAccounts`.
+                // When `newTaskEntry` is introduced by the client (through an optimistic
+                // update) it's expected that the account is available since it's rendered
+                // somewhere in the UI.
+                if (!accountStore) {
+                    throw new InternalError(
+                        "Couldn't find `AccountId` referenced by `TaskModel` in `AccountClientStore`",
+                    );
+                }
+
+                this._referencedAccountStoreById.set(newReferencedAccountId, {
+                    referenceCount: 1,
+                    store: accountStore,
+                });
+            }
+        }
     }
 
     /**
@@ -3215,16 +3309,22 @@ export class TaskClientStoreInternal {
      * listens to our subscribed tasks and will subscribe to the task on the server.
      */
     public createAndRetainTaskSubscription(taskId: TaskId): TaskClientTaskSubscription {
-        const taskEntryStore = getOrSetDefaultMapValue(this._taskEntryStoreById, taskId, () => ({
-            referenceCount: 0,
-            store: new ValueStore<TaskClientStoreTaskEntry>({
+        const taskEntryStore = getOrSetDefaultMapValue(this._taskEntryStoreById, taskId, () => {
+            const taskEntry: TaskClientStoreTaskEntry = {
                 task: null,
                 actions: [],
                 optimisticState: null,
                 isAuthorized: null,
                 authorizationEventNumber: null,
-            }),
-        }));
+            };
+
+            this._updateReferencedAccountStores(null, taskEntry);
+
+            return {
+                referenceCount: 0,
+                store: new ValueStore<TaskClientStoreTaskEntry>(taskEntry),
+            };
+        });
 
         const taskSubscription = new TaskClientTaskSubscription(this, taskId, taskEntryStore.store);
 
@@ -3278,16 +3378,22 @@ export class TaskClientStoreInternal {
         const taskEntryStore = getOrSetDefaultMapValue(
             this._taskEntryStoreById,
             taskSubscription.taskId,
-            () => ({
-                referenceCount: 0,
-                store: new ValueStore<TaskClientStoreTaskEntry>({
+            () => {
+                const taskEntry: TaskClientStoreTaskEntry = {
                     task: null,
                     actions: [],
                     optimisticState: null,
                     isAuthorized: null,
                     authorizationEventNumber: null,
-                }),
-            }),
+                };
+
+                this._updateReferencedAccountStores(null, taskEntry);
+
+                return {
+                    referenceCount: 0,
+                    store: new ValueStore<TaskClientStoreTaskEntry>(taskEntry),
+                };
+            },
         );
 
         // Add the store back to our subscriptions.
