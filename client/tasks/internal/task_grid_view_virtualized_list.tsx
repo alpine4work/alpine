@@ -1,16 +1,6 @@
 import {SpinnerGap} from "phosphor-react";
 import {Selection} from "prosemirror-state";
-import {
-    Key,
-    Memo,
-    ReactNode,
-    RefObject,
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-} from "react";
+import {Key, Memo, ReactNode, RefObject, useEffect, useMemo, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
@@ -552,6 +542,7 @@ export function useTaskGridViewVirtualizedList({
                         node: (
                             <>
                                 <TaskRowShimmer
+                                    capabilities={capabilities}
                                     randomSeed="MoreUnloadedTasks"
                                     index={itemIndex}
                                     indentation={0}
@@ -559,6 +550,7 @@ export function useTaskGridViewVirtualizedList({
                                     focusPreviousTaskTitleAll={focusPreviousTaskTitleAll}
                                 />
                                 <TaskRowShimmer
+                                    capabilities={capabilities}
                                     randomSeed="MoreUnloadedTasks"
                                     index={itemIndex + 1}
                                     indentation={0}
@@ -566,6 +558,7 @@ export function useTaskGridViewVirtualizedList({
                                     focusPreviousTaskTitleAll={focusPreviousTaskTitleAll}
                                 />
                                 <TaskRowShimmer
+                                    capabilities={capabilities}
                                     randomSeed="MoreUnloadedTasks"
                                     index={itemIndex + 2}
                                     indentation={0}
@@ -626,7 +619,9 @@ export function useTaskGridViewVirtualizedList({
                                 }
                                 parents={emptyArray}
                                 // NOCOMMIT: Ghost row placeholder sequence!
-                                titlePlaceholder="Add a task…"
+                                titlePlaceholder={
+                                    !capabilities.isReadOnly ? "Add a task…" : undefined
+                                }
                                 getNextIndentation={() => 0}
                                 areChildTasksExpandedStore={undefinedConstStore}
                                 onAreChildTasksExpandedToggle={noop}
@@ -665,6 +660,7 @@ export function useTaskGridViewVirtualizedList({
                     minHeight: spacing[taskRowViewMinHeight],
                     node: (
                         <TaskGridViewDecorativeGhostTask
+                            capabilities={capabilities}
                             itemIndex={itemIndex}
                             itemCount={itemCount}
                             focusPreviousTaskTitleEnd={focusPreviousTaskTitleEnd}
@@ -1054,6 +1050,7 @@ export function useTaskGridViewVirtualizedList({
                     minHeight: spacing[taskRowViewMinHeight],
                     node: (
                         <TaskRowShimmer
+                            capabilities={capabilities}
                             randomSeed={parentTaskKey}
                             index={item.unloadedChildTaskIndex}
                             indentation={item.parents.length}
@@ -1105,11 +1102,13 @@ export function useTaskGridViewVirtualizedList({
 }
 
 function TaskGridViewDecorativeGhostTask({
+    capabilities,
     itemIndex,
     itemCount,
     focusPreviousTaskTitleEnd,
     focusPreviousTaskTitleAll,
 }: {
+    capabilities: TaskGridViewCapabilities;
     itemIndex: number;
     itemCount: number;
     focusPreviousTaskTitleEnd: () => void;
@@ -1125,8 +1124,9 @@ function TaskGridViewDecorativeGhostTask({
             //
             // This is an affordance for mouse users, does not need to be usable
             // by keyboard.
-            cursor="text"
+            cursor={!capabilities.isReadOnly ? "text" : undefined}
             {...useOutOfBoundsClickSelection({
+                isDisabled: capabilities.isReadOnly,
                 onSelect: focusPreviousTaskTitleEnd,
                 onSelectAll: focusPreviousTaskTitleAll,
             })}

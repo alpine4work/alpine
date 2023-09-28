@@ -302,9 +302,11 @@ function TaskRowTitleInput(
 
     const titleRef = useRef(title);
     const handleKeyDownRef = useRef(handleKeyDown);
+    const isReadOnlyRef = useRef(capabilities.isReadOnly);
     useLayoutEffectWithoutServerSideWarning(() => {
         titleRef.current = title;
         handleKeyDownRef.current = handleKeyDown;
+        isReadOnlyRef.current = capabilities.isReadOnly;
     });
 
     // We initially consider ourselves to be fully scrolled to the left and to the
@@ -333,6 +335,9 @@ function TaskRowTitleInput(
             // user clicks into the editor focus goes to where the user clicked. Not to the
             // selection currently in state.
             shouldUseDOMSelectionOnFocus: true,
+
+            // Disable editing when the `isReadOnly` prop is set.
+            editable: () => !isReadOnlyRef.current,
 
             attributes: {
                 // Title row inputs are focusable but are not a part of the tab order.
@@ -666,13 +671,16 @@ function TaskRowTitleInput(
             )}
             <div
                 className={classNames(
-                    tasksStyles.textCursorNotInheritedClassName,
+                    !capabilities.isReadOnly
+                        ? tasksStyles.textCursorNotInheritedClassName
+                        : undefined,
                     sprinkles({
                         flexGrow: "1",
                         alignSelf: "stretch",
                     }),
                 )}
                 {...useOutOfBoundsClickSelection({
+                    isDisabled: capabilities.isReadOnly,
                     onSelect: focusEnd,
                     onSelectAll: focusAll,
                 })}

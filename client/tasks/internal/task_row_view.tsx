@@ -105,16 +105,6 @@ function TaskRowView(
         parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>;
         titlePlaceholder?: string;
         // NOCOMMIT:
-        // capabilities: TaskGridViewCapabilities;
-        // taskRow: TaskRow | null;
-        // status: TaskStatus | null;
-        // onStatusChange: (status: TaskStatus) => void;
-        // assignee: TaskAssignee | null;
-        // onAssigneeChange: (assignee: TaskAssignee | null) => void;
-        // priority: TaskPriority | null;
-        // onPriorityChange: (priority: TaskPriority | null) => void;
-        // dueDate: CalendarDate | null;
-        // onDueDateChange: (dueDate: CalendarDate | null) => void;
         // allCollections: ReadonlyArray<LocalTaskCollection>;
         // collections: ReadonlyArray<LocalTaskCollection>;
         // createCollectionAndAddToTask: (collection: {
@@ -127,17 +117,11 @@ function TaskRowView(
         // isEditingCollections: boolean;
         // onEditingCollectionsChange: (isEditingCollections: boolean) => void;
         // editingCollectionsContainerRef: RefCallback<HTMLElement> | null;
-        // parentTaskTitle: TaskTitle | null;
-        // onExpand: (() => Promise<void>) | null;
         getNextIndentation: () => number;
         areChildTasksExpandedStore: Store<boolean | undefined>;
         onAreChildTasksExpandedToggle: () => void;
         withoutPaddingLeft?: boolean;
         withPaddingBottom?: boolean;
-        // NOCOMMIT:
-        // createTaskAbove: () => void;
-        // createTaskBelowAndFocus: () => void;
-        // createTaskChildAtStartAndFocus: () => void;
         getMoveTaskToQueryActions: (
             taskId: TaskId,
             position:
@@ -383,49 +367,53 @@ function TaskRowView(
                     },
                 },
             ]);
-
-            contextMenuActions.push(
-                getTaskStatusMenuActions({
-                    context,
-                    timeZone,
-                    currentAccount,
-                    store: query.store,
-                    task,
-                }),
-            );
         }
 
-        // NOCOMMIT:
-        // if (capabilities.hasDenseAssigneeAndDueDate) {
-        //     contextMenuActions.push([
-        //         {
-        //             label: assignee ? "Edit assignee" : "Add assignee",
-        //             onPress: () => {
-        //                 assertExists(denseAssigneeAndDueDateRef.current).focusAssigneeInput();
-        //             },
-        //         },
-        //         {
-        //             label: priority ? "Edit priority" : "Add priority",
-        //             onPress: () => {
-        //                 assertExists(denseAssigneeAndDueDateRef.current).focusPriorityInput();
-        //             },
-        //         },
-        //         {
-        //             label: dueDate ? "Edit due date" : "Add due date",
-        //             onPress: () => {
-        //                 assertExists(denseAssigneeAndDueDateRef.current).focusDueDateInput();
-        //             },
-        //         },
-        //     ]);
-        // }
+        if (!capabilities.isReadOnly) {
+            if (task) {
+                contextMenuActions.push(
+                    getTaskStatusMenuActions({
+                        context,
+                        timeZone,
+                        currentAccount,
+                        store: query.store,
+                        task,
+                    }),
+                );
+            }
 
-        if (taskId !== null) {
-            contextMenuActions.push([
-                {
-                    label: "Delete",
-                    onPress: () => deleteTaskAndAllChildren({withConfirmation: true}),
-                },
-            ]);
+            // NOCOMMIT:
+            // if (capabilities.hasDenseAssigneeAndDueDate) {
+            //     contextMenuActions.push([
+            //         {
+            //             label: assignee ? "Edit assignee" : "Add assignee",
+            //             onPress: () => {
+            //                 assertExists(denseAssigneeAndDueDateRef.current).focusAssigneeInput();
+            //             },
+            //         },
+            //         {
+            //             label: priority ? "Edit priority" : "Add priority",
+            //             onPress: () => {
+            //                 assertExists(denseAssigneeAndDueDateRef.current).focusPriorityInput();
+            //             },
+            //         },
+            //         {
+            //             label: dueDate ? "Edit due date" : "Add due date",
+            //             onPress: () => {
+            //                 assertExists(denseAssigneeAndDueDateRef.current).focusDueDateInput();
+            //             },
+            //         },
+            //     ]);
+            // }
+
+            if (taskId !== null) {
+                contextMenuActions.push([
+                    {
+                        label: "Delete",
+                        onPress: () => deleteTaskAndAllChildren({withConfirmation: true}),
+                    },
+                ]);
+            }
         }
 
         return contextMenuActions;
@@ -621,8 +609,13 @@ function TaskRowView(
                             //
                             // This is an affordance for mouse users, does not need to be usable
                             // by keyboard.
-                            className={tasksStyles.textCursorNotInheritedClassName}
+                            className={
+                                !capabilities.isReadOnly
+                                    ? tasksStyles.textCursorNotInheritedClassName
+                                    : undefined
+                            }
                             {...useOutOfBoundsClickSelection({
+                                isDisabled: capabilities.isReadOnly,
                                 onSelect: focusTitleStart,
                                 onSelectAll: focusTitleAll,
                             })}
@@ -641,7 +634,7 @@ function TaskRowView(
                                             tasksStyles.pointerEventsNoneNotInheritedClassName
                                         }
                                     >
-                                        {isHovered && task && (
+                                        {!capabilities.isReadOnly && isHovered && task && (
                                             <button
                                                 {...mergeProps(
                                                     draggableAttributes,
@@ -725,6 +718,7 @@ function TaskRowView(
                                                 // the `Tab` keyboard shortcut indents a task, we don't rely on `Tab` for focus
                                                 // navigation.
                                                 isFocusable={false}
+                                                isDisabled={capabilities.isReadOnly}
                                             />
                                         ) : (
                                             <Box
@@ -830,9 +824,16 @@ function TaskRowView(
                             //
                             // This is an affordance for mouse users, does not need to be usable
                             // by keyboard.
-                            cursor={false && capabilities.hasColumns ? undefined : "text"} // NOCOMMIT
+                            cursor={
+                                false && capabilities.hasColumns // NOCOMMIT
+                                    ? undefined
+                                    : !capabilities.isReadOnly
+                                    ? "text"
+                                    : undefined
+                            }
                             pointerEvents={false && capabilities.hasColumns ? "none" : undefined} // NOCOMMIT
                             {...useOutOfBoundsClickSelection({
+                                isDisabled: capabilities.isReadOnly,
                                 onSelect: focusTitleEnd,
                                 onSelectAll: focusTitleAll,
                             })}
@@ -872,7 +873,7 @@ function TaskRowView(
                         focusTitleAll={focusTitleAll}
                     />
                 )} */}
-                    {cursor && task && (
+                    {!capabilities.isReadOnly && cursor && task && (
                         <TaskRowViewDroppableIndentations
                             query={query}
                             cursor={cursor}

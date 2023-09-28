@@ -18,6 +18,7 @@ ts_project(
         "//:node_modules/react",
         "//:node_modules/react-aria",
         "//:node_modules/react-dom",
+        "//:node_modules/unicode-default-word-boundary",
         "//client/context",
         "//client/dev",
         "//client/helpers",

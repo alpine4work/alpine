@@ -10,6 +10,7 @@ import {
     useState,
 } from "react";
 import {createPortal} from "react-dom";
+import {findSpans as findUnicodeDefaultWordBoundarySpans} from "unicode-default-word-boundary";
 import {Box} from "~/client/design/box.js";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.js";
 import {MenuAction, MenuItem, defaultMenuWidth} from "~/client/design/menu_button.js";
@@ -26,6 +27,7 @@ import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
 import {greyElevated2ClassName, sprinkles} from "~/shared/styles/styles.js";
 
 const contextMenuEventActionsSymbol = Symbol("actions");
@@ -126,6 +128,9 @@ export function ContextMenuManager() {
             // If we right-clicked on a text input then add our standard text
             // processing actions.
             if (document.activeElement && isTextInputElement(document.activeElement)) {
+                // Emulate default browser behavior of selecting word the user right clicked.
+                selectWordIfSelectionEmpty(event.target);
+
                 const isTextSelectedInInput =
                     document.activeElement instanceof HTMLInputElement &&
                     document.activeElement.selectionStart !== document.activeElement.selectionEnd;
@@ -172,13 +177,27 @@ export function ContextMenuManager() {
             // If we right-clicked on selectable text then add our standard text
             // processing actions.
             else if (
-                event.target instanceof HTMLElement &&
-                (getComputedStyle(event.target).userSelect ??
-                    // In Safari `user-select` is behind a vendor prefix.
-                    getComputedStyle(event.target).webkitUserSelect) !== "none"
+                (event.target instanceof HTMLElement &&
+                    (getComputedStyle(event.target).userSelect ??
+                        // In Safari `user-select` is behind a vendor prefix.
+                        getComputedStyle(event.target).webkitUserSelect) !== "none") ||
+                // If this is a disabled or read-only input element we allow text
+                // processing actions.
+                (event.target instanceof HTMLInputElement &&
+                    (event.target.disabled || event.target.readOnly))
             ) {
+                // Emulate default browser behavior of selecting word the user right clicked.
+                selectWordIfSelectionEmpty(event.target);
+
                 const selection = window.getSelection();
-                if (selection && selection.anchorOffset !== selection.focusOffset) {
+
+                if (
+                    event.target instanceof HTMLInputElement ||
+                    // If user is right-clicking in the margins of some selectable text (e.g. a
+                    // document) don't give them an option to copy. If the right click on a word
+                    // then we'll select a word and let them copy.
+                    (selection && selection.anchorOffset !== selection.focusOffset)
+                ) {
                     actions.unshift([
                         {
                             label: "Copy",
@@ -189,22 +208,6 @@ export function ContextMenuManager() {
                         },
                     ]);
                 }
-            }
-            // If we right-clicked on a disabled or read-only `<input>` element we allow
-            // copying but not pasting.
-            else if (
-                event.target instanceof HTMLInputElement &&
-                event.target.selectionStart !== event.target.selectionEnd
-            ) {
-                actions.unshift([
-                    {
-                        label: "Copy",
-                        keyboardShortcutHint: isMac ? "⌘+C" : "Ctrl+C",
-                        onPress: () => {
-                            document.execCommand("copy");
-                        },
-                    },
-                ]);
             }
 
             if (actions.length > 0) {
@@ -590,3 +593,64 @@ const ContextMenu = forwardRef(function ContextMenu(
         </div>
     );
 });
+
+/**
+ * If we have an empty DOM selection then select the word around that selection
+ * point using the Unicode word boundary algorithm.
+ */
+function selectWordIfSelectionEmpty(mouseEventTarget: MouseEvent["target"]) {
+    // The DOM selection API doesn't work with `<input>` elements. So if we're
+    // selecting inside of an `<input>` element we need to run custom logic.
+    if (mouseEventTarget instanceof HTMLInputElement) {
+        const inputElement = mouseEventTarget;
+
+        // No input selection.
+        if (inputElement.selectionStart === null) return;
+
+        // Selection is not empty.
+        if (inputElement.selectionStart !== inputElement.selectionEnd) return;
+
+        const selectionStart = inputElement.selectionStart;
+        const textSpans = findUnicodeDefaultWordBoundarySpans(inputElement.value);
+
+        const span = iterableFind(
+            textSpans,
+            span => span.start <= selectionStart && selectionStart < span.end,
+        );
+
+        // Text is probably empty if there's no span.
+        if (!span) return;
+
+        inputElement.selectionStart = span.start;
+        inputElement.selectionEnd = span.end;
+        return;
+    }
+
+    const selection = window.getSelection();
+
+    // No DOM selection. Maybe our selection is in an `<input>`?
+    if (!selection?.anchorNode) return;
+
+    // Selection is not a text node.
+    if (!(selection.anchorNode instanceof Text)) return;
+
+    // Selection is not empty.
+    if (selection.anchorOffset !== selection.focusOffset) return;
+
+    const textSpans = findUnicodeDefaultWordBoundarySpans(selection.anchorNode.nodeValue!);
+
+    const span = iterableFind(
+        textSpans,
+        span => span.start <= selection.anchorOffset && selection.anchorOffset < span.end,
+    );
+
+    // Text is probably empty if there's no span.
+    if (!span) return;
+
+    const range = document.createRange();
+    range.setStart(selection.anchorNode, span.start);
+    range.setEnd(selection.anchorNode, span.end);
+
+    selection.removeAllRanges();
+    selection.addRange(range);
+}

@@ -222,6 +222,7 @@ export default function TasksRoute() {
             <TaskGridView
                 capabilities={useMemo(
                     () => ({
+                        isReadOnly: false,
                         hasParentTaskTitle: true,
                         hasMultilineTitle: false,
                         hasColumns: true,

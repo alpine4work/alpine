@@ -9,9 +9,11 @@ import {doubleClickDelayMs} from "~/client/design/timing_constants.js";
  * This hook implements the timing logic for selection.
  */
 export function useOutOfBoundsClickSelection({
+    isDisabled,
     onSelect,
     onSelectAll,
 }: {
+    isDisabled?: boolean;
     onSelect: () => void;
     onSelectAll: () => void;
 }): {
@@ -24,6 +26,8 @@ export function useOutOfBoundsClickSelection({
 
     return {
         onClick: event => {
+            if (isDisabled) return;
+
             // Only accept direct clicks on the element.
             if (event.target !== event.currentTarget) return;
 
@@ -37,6 +41,8 @@ export function useOutOfBoundsClickSelection({
             }
         },
         onDoubleClick: event => {
+            if (isDisabled) return;
+
             // Only accept direct clicks on the element.
             if (event.target !== event.currentTarget) return;
 
@@ -50,6 +56,8 @@ export function useOutOfBoundsClickSelection({
             lastDoubleClickTimeRef.current = Date.now();
         },
         onMouseDown: event => {
+            if (isDisabled) return;
+
             // Only accept direct clicks on the element.
             if (event.target !== event.currentTarget) return;
 
@@ -66,6 +74,8 @@ export function useOutOfBoundsClickSelection({
         // area would. This also will make sure we open up the context menu when the
         // event finishes bubbling up.
         onContextMenu: event => {
+            if (isDisabled) return;
+
             // Only accept direct clicks on the element.
             if (event.target !== event.currentTarget) return;
 

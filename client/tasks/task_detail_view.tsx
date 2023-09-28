@@ -122,6 +122,9 @@ export function TaskDetailView({
         [shiftRenderedRangeForChildrenGridView],
     );
 
+    // NOCOMMIT
+    const isReadOnly = true;
+
     const {
         modals: childrenGridViewModals,
         itemCount: childrenGridViewItemCount,
@@ -131,12 +134,13 @@ export function TaskDetailView({
     } = useTaskGridViewVirtualizedList({
         capabilities: useMemo(
             () => ({
+                isReadOnly,
                 hasParentTaskTitle: false,
                 hasMultilineTitle: true,
                 hasDenseFields: true,
                 hasColumns: false,
             }),
-            [],
+            [isReadOnly],
         ),
         query: childrenQuery,
         initialExpansionState: initialChildrenGridViewExpansionState,
@@ -212,6 +216,7 @@ export function TaskDetailView({
                                         taskSubscription={taskSubscription}
                                         initialNotesVersion={initialNotesVersion}
                                         initialNotesContent={initialNotesContent}
+                                        isReadOnly={isReadOnly}
                                         focusChildrenGridViewStart={focusChildrenGridViewStart}
                                     />
                                 ),
@@ -224,6 +229,7 @@ export function TaskDetailView({
                         focusChildrenGridViewStart,
                         initialNotesContent,
                         initialNotesVersion,
+                        isReadOnly,
                         renderChildrenGridViewItem,
                         taskSubscription,
                     ],
@@ -242,11 +248,13 @@ function TaskDetailViewMain({
     taskSubscription,
     initialNotesVersion,
     initialNotesContent,
+    isReadOnly,
     focusChildrenGridViewStart,
 }: {
     taskSubscription: TaskClientTaskSubscription;
     initialNotesVersion: number;
     initialNotesContent: TaskNotesContentWithReferences;
+    isReadOnly: boolean;
     focusChildrenGridViewStart: () => void;
 }) {
     const context = useAppContext();
@@ -260,9 +268,6 @@ function TaskDetailViewMain({
     const assigneeAccountData = useStore(assigneeAccountStore);
     const priority = task?.getPriority() ?? null;
     const dueDate = task?.getDueDate() ?? null;
-
-    // NOCOMMIT
-    const isReadOnly = true;
 
     const titleCommitStateRef = useRef<{
         pendingActionTransactionBuilder: {

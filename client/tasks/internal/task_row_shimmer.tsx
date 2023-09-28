@@ -1,6 +1,7 @@
 import {useRef} from "react";
 import {Box} from "~/client/design/box.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {taskRowViewMinHeight} from "~/client/tasks/task_row_shared_styles.js";
 import {RemLength, Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
@@ -40,12 +41,14 @@ const taskRowShimmerWidths: Array<Spacing> = [
 ];
 
 export function TaskRowShimmer({
+    capabilities,
     randomSeed,
     index,
     indentation,
     focusPreviousTaskTitleEnd,
     focusPreviousTaskTitleAll,
 }: {
+    capabilities: TaskGridViewCapabilities;
     randomSeed: string;
     index: number;
     indentation: number;
@@ -85,8 +88,9 @@ export function TaskRowShimmer({
             // means the task row drop indicator lines can't render on top of
             // adjacent rows.
             zIndex={undefined}
-            cursor="text"
+            cursor={!capabilities.isReadOnly ? "text" : undefined}
             {...useOutOfBoundsClickSelection({
+                isDisabled: capabilities.isReadOnly,
                 onSelect: focusPreviousTaskTitleEnd,
                 onSelectAll: focusPreviousTaskTitleAll,
             })}

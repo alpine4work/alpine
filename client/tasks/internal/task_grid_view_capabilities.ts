@@ -15,33 +15,33 @@
  * instead of doing `variant === X || variant === Y`. The interface of the
  * component is more clear.
  */
-export type TaskGridViewCapabilities =
-    // Can't set both `hasParentTaskTitle` and `hasMultilineTitle` to true.
-    (
-        | {
-              hasParentTaskTitle: false;
-              hasMultilineTitle: false;
+export type TaskGridViewCapabilities = {
+    isReadOnly: boolean;
+} & // Can't set both `hasParentTaskTitle` and `hasMultilineTitle` to true.
+(| {
+          hasParentTaskTitle: false;
+          hasMultilineTitle: false;
+      }
+    | {
+          hasParentTaskTitle: true;
+          hasMultilineTitle: false;
+      }
+    | {
+          hasParentTaskTitle: false;
+          hasMultilineTitle: true;
+      }
+) &
+    // Can't set both `hasDenseFields` and `hasColumns` to true.
+    (| {
+              hasDenseFields: false;
+              hasColumns: false;
           }
         | {
-              hasParentTaskTitle: true;
-              hasMultilineTitle: false;
+              hasDenseFields: true;
+              hasColumns: false;
           }
         | {
-              hasParentTaskTitle: false;
-              hasMultilineTitle: true;
+              hasDenseFields: false;
+              hasColumns: true;
           }
-    ) &
-        // Can't set both `hasDenseFields` and `hasColumns` to true.
-        (| {
-                  hasDenseFields: false;
-                  hasColumns: false;
-              }
-            | {
-                  hasDenseFields: true;
-                  hasColumns: false;
-              }
-            | {
-                  hasDenseFields: false;
-                  hasColumns: true;
-              }
-        );
+    );
