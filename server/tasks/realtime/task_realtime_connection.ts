@@ -657,10 +657,21 @@ export class TaskRealtimeConnection {
                 },
             );
         },
-        unsubscribe: async (context, {querySubscriptionIds}) => {
+        unsubscribe: async (
+            context,
+            {querySubscriptionIds, taskSubscriptionIds, collectionSubscriptionIds},
+        ) => {
             await runAllPromises(
-                querySubscriptionIds.map(querySubscriptionId =>
-                    this._unsubscribeFromQuery(querySubscriptionId),
+                concatIterables(
+                    querySubscriptionIds.map(querySubscriptionId =>
+                        this._unsubscribeFromQuery(querySubscriptionId),
+                    ),
+                    taskSubscriptionIds.map(taskSubscriptionId =>
+                        this._unsubscribeFromTask(taskSubscriptionId),
+                    ),
+                    collectionSubscriptionIds.map(collectionSubscriptionId =>
+                        this._unsubscribeFromCollection(collectionSubscriptionId),
+                    ),
                 ),
             );
 

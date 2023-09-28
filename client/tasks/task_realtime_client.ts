@@ -124,6 +124,8 @@ export class TaskRealtimeClient {
                     subscribedQuery.unsubscribeFromLoadMoreTaskCount();
                 }
                 subscribedQueries.clear();
+                subscribedTasks.clear();
+                subscribedCollections.clear();
                 return;
             }
 
