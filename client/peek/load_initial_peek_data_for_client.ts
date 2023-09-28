@@ -11,14 +11,14 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 // including redirects and deferred data. But it supports enough for our
 // critical path.
 export async function loadInitialPeekDataForClient(
-    peekRoutes: Array<DataRouteObject>,
+    peekRoutes: ReadonlyArray<DataRouteObject>,
     path: Path,
     signal: AbortSignal,
 ): Promise<{
     loaderData: {[key: string]: unknown};
     errors: {[key: string]: unknown} | null;
 }> {
-    const routeMatches = matchRoutes(peekRoutes, path.pathname);
+    const routeMatches = matchRoutes(peekRoutes as Array<DataRouteObject>, path.pathname);
     if (!routeMatches) throw new NotFoundError("Route not found");
 
     const url = new URL(`${path.pathname}${path.search ?? ""}`, window.location.origin);

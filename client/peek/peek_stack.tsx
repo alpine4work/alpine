@@ -59,6 +59,7 @@ import {
     GlobalKeyDownManualContextProviderRef,
 } from "~/client/helpers/global_key_down_event.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
 import {loadInitialPeekDataForClient} from "~/client/peek/load_initial_peek_data_for_client.js";
@@ -83,7 +84,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {generateId} from "~/shared/id/id.js";
 import {PeekId} from "~/shared/id/types/id_types.js";
 import {
@@ -110,7 +110,7 @@ const peekUnderlayOffset = spacing["2"];
 type PeekStackEntry = {
     readonly id: PeekId;
     readonly history: MemoryHistory;
-    readonly routerPromise: Lazy<PromiseImmediate<PeekRemixEmbedRouter>>;
+    readonly initialRouterPromiseRef: MutableRefObject<PromiseImmediate<PeekRemixEmbedRouter> | null>;
     readonly autoFocus: boolean;
 };
 
@@ -321,7 +321,7 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
             entry: {
                 id: generateId(),
                 history,
-                routerPromise: new Lazy(() => PromiseImmediate.resolve(router)),
+                initialRouterPromiseRef: {current: PromiseImmediate.resolve(router)},
                 autoFocus: focus,
             },
         });
@@ -405,14 +405,18 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
         if (!stack[0]) {
             dispatch({type: "Restore", stack});
         } else {
-            const routerPromise = stack[0].routerPromise.get();
-            if (routerPromise.getStateWithoutListening().status !== "pending") {
+            const routerPromise = stack[0].initialRouterPromiseRef.current;
+            if (routerPromise?.getStateWithoutListening().status !== "pending") {
                 dispatch({type: "Restore", stack});
-            } else {
+            }
+            // Wait a bit for our top peek's data to load before restoring it so we can
+            // avoid showing a loading spinner.
+            //
+            // We still need to reset our stack so if we're navigating back to a previous
+            // page we don't see the old peeks on the new page.
+            else {
                 dispatch({type: "Reset"});
 
-                // Wait a bit for our top peek's data to load before restoring it so we can
-                // avoid showing a loading spinner.
                 Promise.race([routerPromise, wait(delayLoadingIndicatorLimitMs)]).finally(() => {
                     dispatch({type: "Restore", stack});
                 });
@@ -555,6 +559,8 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
                             ref={stackRef}
                             state={state}
                             dispatch={dispatch}
+                            peekRoutes={peekRoutes}
+                            createPeekRouter={createPeekRouter}
                             expandingIdRef={expandingIdRef}
                         />
                     </GlobalKeyDownManualContextProvider>
@@ -593,10 +599,17 @@ const PeekStack = forwardRef(function PeekStack(
     {
         state,
         dispatch,
+        peekRoutes,
+        createPeekRouter,
         expandingIdRef,
     }: {
         state: PeekStackState;
         dispatch: (action: PeekStackAction) => void;
+        peekRoutes: ReadonlyArray<DataRouteObject>;
+        createPeekRouter: (options: {
+            history: MemoryHistory;
+            hydrationData?: HydrationState;
+        }) => PeekRemixEmbedRouter;
         expandingIdRef: MutableRefObject<PeekId | null>;
     },
     ref: Ref<PeekStackRef>,
@@ -666,6 +679,8 @@ const PeekStack = forwardRef(function PeekStack(
                 parentRef={ref}
                 state={state}
                 dispatch={dispatch}
+                peekRoutes={peekRoutes}
+                createPeekRouter={createPeekRouter}
                 deltaXPercentage={deltaXPercentage}
                 expandingIdRef={expandingIdRef}
             />
@@ -677,12 +692,19 @@ function PeekStackDraggable({
     parentRef,
     state,
     dispatch,
+    peekRoutes,
+    createPeekRouter,
     deltaXPercentage,
     expandingIdRef,
 }: {
     parentRef: Ref<PeekStackRef>;
     state: PeekStackState;
     dispatch: (action: PeekStackAction) => void;
+    peekRoutes: ReadonlyArray<DataRouteObject>;
+    createPeekRouter: (options: {
+        history: MemoryHistory;
+        hydrationData?: HydrationState;
+    }) => PeekRemixEmbedRouter;
     deltaXPercentage: number;
     expandingIdRef: MutableRefObject<PeekId | null>;
 }) {
@@ -754,6 +776,8 @@ function PeekStackDraggable({
                                 key={entry.id}
                                 state={state}
                                 dispatch={dispatch}
+                                peekRoutes={peekRoutes}
+                                createPeekRouter={createPeekRouter}
                                 entry={entry}
                                 index={index}
                                 isDragging={isDragging}
@@ -769,6 +793,8 @@ function PeekStackDraggable({
                             key={entry.id}
                             state={state}
                             dispatch={dispatch}
+                            peekRoutes={peekRoutes}
+                            createPeekRouter={createPeekRouter}
                             entry={entry}
                             index={-(index + 1)}
                             isDragging={isDragging}
@@ -797,6 +823,8 @@ function PeekStackDraggable({
 function PeekOverlay({
     state,
     dispatch,
+    peekRoutes,
+    createPeekRouter,
     entry,
     index,
     isDragging,
@@ -807,6 +835,11 @@ function PeekOverlay({
 }: {
     state: PeekStackState;
     dispatch: (action: PeekStackAction) => void;
+    peekRoutes: ReadonlyArray<DataRouteObject>;
+    createPeekRouter: (options: {
+        history: MemoryHistory;
+        hydrationData?: HydrationState;
+    }) => PeekRemixEmbedRouter;
     entry: PeekStackEntry;
     index: number;
     isDragging: boolean;
@@ -994,19 +1027,41 @@ function PeekOverlay({
     }
 
     // Animation 3: Hide the content of a peek and eventually unmount it.
-    const shouldRenderContent = index <= 0;
-    const [isRenderingContent, setIsRenderingContent] = useState(shouldRenderContent);
+    const shouldHideContent = index !== 0;
+    const [isContentHidden, setIsContentHidden] = useState(shouldHideContent);
+
+    // Render:
+    //
+    // - The first peek
+    // - The second peek
+    // - Peeks that aren't finished with the hide animation
+    //
+    // We render the second peek to preload its data and keep it up-to-date so if
+    // the first peek is closed we can immediately render the second.
+    const isContentRendered = index === 0 || index === 1 || !isContentHidden;
+
     {
-        const lastShouldRenderContentRef = useRef(shouldRenderContent);
+        const lastShouldHideContentRef = useRef(shouldHideContent);
         useLayoutEffect(() => {
             // Fade out content...
-            if (!shouldRenderContent && lastShouldRenderContentRef.current) {
-                // If React already isn't rendering our content then we're good.
-                if (!isRenderingContent) return;
+            if (shouldHideContent && !lastShouldHideContentRef.current) {
+                lastShouldHideContentRef.current = true;
+
+                // If React already isn't rendering our content then we don't need to animate.
+                if (!isContentRendered) {
+                    setIsContentHidden(true);
+                    return;
+                }
+
                 assert(overlayContentContainerRef.current);
                 const overlayContentContainerElement = overlayContentContainerRef.current;
 
-                lastShouldRenderContentRef.current = false;
+                // If our content is already hidden then make sure opacity is 0
+                // without animating.
+                if (isContentHidden) {
+                    overlayContentContainerElement.style.opacity = "0";
+                    return;
+                }
 
                 const animation = animate(
                     overlayContentContainerElement,
@@ -1024,7 +1079,7 @@ function PeekOverlay({
 
                 void animation.finished.then(() => {
                     if (isCancelled) return;
-                    setIsRenderingContent(false);
+                    setIsContentHidden(true);
                 });
 
                 return () => {
@@ -1033,21 +1088,26 @@ function PeekOverlay({
             }
 
             // Fade in content...
-            if (shouldRenderContent && !lastShouldRenderContentRef.current) {
-                // If our content is not being rendered by React then we can't fade it in.
-                if (!isRenderingContent) {
-                    setIsRenderingContent(true);
-                    return;
-                }
+            if (!shouldHideContent && lastShouldHideContentRef.current) {
+                // If our content is not being rendered by React then we can't make progress.
+                if (!isContentRendered) return;
+
+                lastShouldHideContentRef.current = false;
+
                 assert(overlayContentContainerRef.current);
                 const overlayContentContainerElement = overlayContentContainerRef.current;
-
-                lastShouldRenderContentRef.current = true;
 
                 // Start from an opacity of 0.
                 overlayContentContainerElement.style.opacity = "0";
 
-                animate(
+                // If our content is already shown then make sure opacity is 1
+                // without animating.
+                if (!isContentHidden) {
+                    overlayContentContainerElement.style.opacity = "1";
+                    return;
+                }
+
+                const animation = animate(
                     overlayContentContainerElement,
                     {
                         opacity: "1",
@@ -1057,10 +1117,32 @@ function PeekOverlay({
                         easing: "linear",
                     },
                 );
-                return;
+
+                let isCancelled = false;
+
+                void animation.finished.then(() => {
+                    if (isCancelled) return;
+                    setIsContentHidden(false);
+                });
+
+                return () => {
+                    isCancelled = true;
+                };
             }
-        }, [isRenderingContent, shouldRenderContent]);
+        }, [isContentHidden, isContentRendered, shouldHideContent]);
     }
+
+    // If the content is hidden but still rendered then make double sure the
+    // opacity is 0. This happens on component initial mount since our animation
+    // assumes `isContentHidden` means the content isn't rendered either.
+    useLayoutEffect(() => {
+        if (isContentHidden && isContentRendered) {
+            assert(overlayContentContainerRef.current);
+            const overlayContentContainerElement = overlayContentContainerRef.current;
+
+            overlayContentContainerElement.style.opacity = "0";
+        }
+    }, [isContentHidden, isContentRendered]);
 
     return (
         <>
@@ -1087,12 +1169,26 @@ function PeekOverlay({
                         paddingBottom: peekBottomBuffer,
                     }}
                 >
-                    {isRenderingContent && (
+                    {isContentRendered && (
                         <Box
                             ref={overlayContentContainerRef}
                             width="full"
                             height="full"
                             overflow="hidden"
+                            // The [`<Offscreen>` component][1] React claims is coming may be a better
+                            // fit here so we don't actually render content in the DOM. `inert` has good
+                            // browser support though!
+                            //
+                            // [1]: https://react.dev/blog/2022/03/29/react-v18
+                            // [2]: https://caniuse.com/?search=inert
+                            //
+                            // TypeScript doesn't know about this property yet. True is the [empty string
+                            // and false is null][3].
+                            //
+                            // [3]: https://github.com/WICG/inert/issues/58#issuecomment-618016847
+                            //
+                            // @ts-expect-error
+                            inert={isContentHidden ? "" : null}
                         >
                             <OverlayScopeContextProvider
                             // Render overlays here so they get the `greyElevatedClassName` styles.
@@ -1101,6 +1197,8 @@ function PeekOverlay({
                                     ref={overlayContentRef}
                                     state={state}
                                     dispatch={dispatch}
+                                    peekRoutes={peekRoutes}
+                                    createPeekRouter={createPeekRouter}
                                     entry={entry}
                                     index={index}
                                     isDragging={isDragging}
@@ -1150,6 +1248,8 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
     {
         state,
         dispatch,
+        peekRoutes,
+        createPeekRouter,
         entry,
         index,
         isDragging,
@@ -1161,6 +1261,11 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
     }: {
         state: PeekStackState;
         dispatch: (action: PeekStackAction) => void;
+        peekRoutes: ReadonlyArray<DataRouteObject>;
+        createPeekRouter: (options: {
+            history: MemoryHistory;
+            hydrationData?: HydrationState;
+        }) => PeekRemixEmbedRouter;
         entry: PeekStackEntry;
         index: number;
         isDragging: boolean;
@@ -1247,16 +1352,50 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
         dispatch({type: "Pop"});
     };
 
-    const routerResult = usePromise(entry.routerPromise.get());
-
-    // Once we've finished loading the data the peek whose content we're rendering,
-    // start loading the data for the next peek in the stack so that it's ready
-    // when we close our current peek.
-    useEffect(() => {
-        if (!routerResult.isPending) {
-            void state.stack[index + 1]?.routerPromise.get();
+    const [{abortController, routerPromise}] = useState(() => {
+        // If there's an initial router promise then take it. If this peek is
+        // unmounted/remounted we want to complete reload its data.
+        if (entry.initialRouterPromiseRef.current) {
+            const routerPromise = entry.initialRouterPromiseRef.current;
+            entry.initialRouterPromiseRef.current = null;
+            return {abortController: null, routerPromise};
         }
-    }, [index, routerResult.isPending, state.stack]);
+
+        const abortController = new AbortController();
+
+        const routerPromise = PromiseImmediate.resolve(
+            (async () => {
+                const {loaderData, errors} = await loadInitialPeekDataForClient(
+                    peekRoutes,
+                    entry.history.location,
+                    abortController.signal,
+                );
+
+                return createPeekRouter({
+                    history: entry.history,
+                    hydrationData: {loaderData, errors},
+                });
+            })(),
+        );
+
+        return {
+            abortController,
+            routerPromise,
+        };
+    });
+
+    const isMounted = useIsMounted();
+
+    // Abort our `routerPromise` load if this component unmounts.
+    useEffect(() => {
+        return () => {
+            if (!isMounted() && routerPromise.getStateWithoutListening().status === "pending") {
+                abortController?.abort();
+            }
+        };
+    }, [abortController, isMounted, routerPromise]);
+
+    const routerResult = usePromise(routerPromise);
 
     const [historyPosition, setHistoryPosition] = useState(() => ({
         index: entry.history.index,
@@ -1523,22 +1662,7 @@ function restorePeekStack(
         return {
             id: entry.id,
             history,
-            routerPromise: new Lazy(() =>
-                PromiseImmediate.resolve(
-                    (async () => {
-                        const {loaderData, errors} = await loadInitialPeekDataForClient(
-                            peekRoutes,
-                            history.location,
-                            abortController.signal,
-                        );
-
-                        return createPeekRouter({
-                            history,
-                            hydrationData: {loaderData, errors},
-                        });
-                    })(),
-                ),
-            ),
+            initialRouterPromiseRef: {current: null},
             autoFocus: false,
         };
     });
@@ -1546,7 +1670,24 @@ function restorePeekStack(
     // Start preloading the data for the first entry in the stack. So that
     // hopefully when we render, all the data is available and the user doesn't see
     // a loading spinner.
-    void stack[0]?.routerPromise.get();
+    if (stack[0]) {
+        const firstEntry = stack[0];
+
+        firstEntry.initialRouterPromiseRef.current = PromiseImmediate.resolve(
+            (async () => {
+                const {loaderData, errors} = await loadInitialPeekDataForClient(
+                    peekRoutes,
+                    firstEntry.history.location,
+                    abortController.signal,
+                );
+
+                return createPeekRouter({
+                    history: firstEntry.history,
+                    hydrationData: {loaderData, errors},
+                });
+            })(),
+        );
+    }
 
     return {
         abortController,

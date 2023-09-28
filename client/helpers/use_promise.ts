@@ -1,6 +1,8 @@
-import {useEffect, useMemo, useState} from "react";
+import {Memo, useEffect, useMemo, useState} from "react";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {PromiseState} from "~/shared/helpers/async/promise_state.js";
+
+const pendingState: PromiseState<never> = {status: "pending"};
 
 /**
  * Use the value of a promise in a React component. If the promise fails we
@@ -12,7 +14,7 @@ import {PromiseState} from "~/shared/helpers/async/promise_state.js";
  */
 export function usePromise<Value>(
     promise: PromiseLike<Value>,
-): {isPending: true; value?: undefined} | {isPending: false; value: Value} {
+): Memo<{isPending: true; value?: undefined} | {isPending: false; value: Value}> {
     const [stateWithPromise, setStateWithPromise] = useState<{
         promise: PromiseLike<Value>;
         state: PromiseState<Value>;
@@ -20,17 +22,25 @@ export function usePromise<Value>(
         if (promise instanceof PromiseImmediate)
             return {promise, state: promise.getStateWithoutListening()};
 
-        return {promise, state: {status: "pending"}};
+        return {promise, state: pendingState};
     });
 
     useEffect(() => {
+        // Promise is synchronously available, no effect needed.
+        if (
+            promise instanceof PromiseImmediate &&
+            promise.getStateWithoutListening().status !== "pending"
+        ) {
+            return;
+        }
+
         setStateWithPromise(state => {
             if (state.promise === promise) return state;
 
             if (promise instanceof PromiseImmediate)
                 return {promise, state: promise.getStateWithoutListening()};
 
-            return {promise, state: {status: "pending"}};
+            return {promise, state: pendingState};
         });
 
         let isCancelled = false;
@@ -56,7 +66,7 @@ export function usePromise<Value>(
             ? stateWithPromise.state
             : promise instanceof PromiseImmediate
             ? promise.getStateWithoutListening()
-            : {status: "pending"};
+            : pendingState;
 
     // Memoize the result so we can use it in dependency arrays.
     return useMemo(() => {
