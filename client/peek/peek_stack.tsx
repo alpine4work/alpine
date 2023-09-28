@@ -51,7 +51,10 @@ import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {
+    delayLoadingIndicatorLimitMs,
+    doubleClickDelayMs,
+} from "~/client/design/timing_constants.js";
 import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
 import {
     GlobalKeyDownEvent,
@@ -750,6 +753,52 @@ function PeekStackDraggable({
         [],
     );
 
+    // We manually implement double-click support instead of using the operating
+    // system double click. This means we aren't using the operating system double
+    // click timer! This is bad for accessibility since users with motor skill
+    // issues struggle to double click fast enough.
+    //
+    // The reason we need to manually implement double clicking is we need to delay
+    // closing the peek overlay for some amount of time to detect a double click.
+    // If we waited the max operating system double click timeout ([5s on
+    // Windows][1]) without responding to a single click that would be ridiculous.
+    // (We also can't get the double click time from JavaScript.)
+    //
+    // [1]: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getdoubleclicktime
+    const doubleClickTimeoutRef = useRef<Timeout | null>(null);
+
+    const onClosePress = (event: PressEvent) => {
+        if (doubleClickTimeoutRef.current) {
+            doubleClickTimeoutRef.current.clear();
+            dispatch({type: "PopAll"});
+            return;
+        }
+
+        if (event.shiftKey) {
+            dispatch({type: "PopAll"});
+            return;
+        }
+
+        // Double click to close all only works when using a mouse. On keyboards you
+        // may use the shift keyboard modifier. For touch platforms you may swipe down.
+        //
+        // TODO(calebmer): Implement swipe down to close all peeks on touch devices
+        // like iPads.
+        if (
+            event.pointerType === "mouse" &&
+            state.stack.length > 1 &&
+            !doubleClickTimeoutRef.current
+        ) {
+            doubleClickTimeoutRef.current = createTimeout(() => {
+                doubleClickTimeoutRef.current = null;
+                dispatch({type: "Pop"});
+            }, doubleClickDelayMs);
+            return;
+        }
+
+        dispatch({type: "Pop"});
+    };
+
     return (
         <>
             <Box
@@ -785,6 +834,7 @@ function PeekStackDraggable({
                                 draggableAttributes={draggableAttributes}
                                 draggableListeners={draggableListeners}
                                 expandingIdRef={expandingIdRef}
+                                onClosePress={onClosePress}
                             />
                         ))
                         .reverse(),
@@ -802,6 +852,7 @@ function PeekStackDraggable({
                             draggableAttributes={draggableAttributes}
                             draggableListeners={draggableListeners}
                             expandingIdRef={expandingIdRef}
+                            onClosePress={onClosePress}
                         />
                     )),
                 ]}
@@ -832,6 +883,7 @@ function PeekOverlay({
     draggableAttributes,
     draggableListeners,
     expandingIdRef,
+    onClosePress,
 }: {
     state: PeekStackState;
     dispatch: (action: PeekStackAction) => void;
@@ -847,6 +899,7 @@ function PeekOverlay({
     draggableAttributes: DraggableAttributes;
     draggableListeners: SyntheticListenerMap | undefined;
     expandingIdRef: MutableRefObject<PeekId | null>;
+    onClosePress: (event: PressEvent) => void;
 }) {
     const overlayRef = useRef<HTMLDivElement>(null);
     const overlayContainerRef = useRef<HTMLDivElement>(null);
@@ -1207,6 +1260,7 @@ function PeekOverlay({
                                     draggableListeners={draggableListeners}
                                     expandingIdRef={expandingIdRef}
                                     isAnimatingOpen={isAnimatingOpen}
+                                    onClosePress={onClosePress}
                                 />
                             </OverlayScopeContextProvider>
                         </Box>
@@ -1258,6 +1312,7 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
         draggableListeners,
         expandingIdRef,
         isAnimatingOpen,
+        onClosePress,
     }: {
         state: PeekStackState;
         dispatch: (action: PeekStackAction) => void;
@@ -1274,6 +1329,7 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
         draggableListeners: SyntheticListenerMap | undefined;
         expandingIdRef: MutableRefObject<PeekId | null>;
         isAnimatingOpen: boolean;
+        onClosePress: (event: PressEvent) => void;
     },
     ref: Ref<PeekOverlayContentRef>,
 ) {
@@ -1295,62 +1351,6 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
         }),
         [],
     );
-
-    const [doubleClickTimeout, setDoubleClickTimeout] = useState<Timeout | null>(null);
-
-    // We manually implement double-click support instead of using the operating
-    // system double click. This means we aren't using the operating system double
-    // click timer! This is bad for accessibility since users with motor skill
-    // issues struggle to double click fast enough.
-    //
-    // The reason we need to manually implement double clicking is we need to delay
-    // closing the peek overlay for some amount of time to detect a double click.
-    // If we waited the max operating system double click timeout ([5s on
-    // Windows][1]) without responding to a single click that would be ridiculous.
-    // (We also can't get the double click time from JavaScript.)
-    //
-    // So we pick a reasonable delay that balances wanting to immediately respond
-    // to users in the single click case and allowing users who can to double click
-    // as a convenience. Users who can not double click in our chosen delay may use
-    // the shift keyboard shortcut. The [default double click time on Windows is
-    // 500ms][2]. We pick a delay of [300ms which is the delay mobile browsers
-    // used][3] to apply to all taps to try and detect a double tap or pinch zoom.
-    // That makes 300ms an industry standard delay for detecting double taps/clicks.
-    // Though to be fair the mobile delay was for taps and our delay is for clicks.
-    //
-    // [1]: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getdoubleclicktime
-    // [2]: https://en.wikipedia.org/wiki/Double-click
-    // [3]: https://developer.chrome.com/blog/300ms-tap-delay-gone-away/
-    const doubleClickDelay = 300;
-
-    const handlePressClose = (event: PressEvent) => {
-        if (doubleClickTimeout) {
-            doubleClickTimeout.clear();
-            dispatch({type: "PopAll"});
-            return;
-        }
-
-        if (event.shiftKey) {
-            dispatch({type: "PopAll"});
-            return;
-        }
-
-        // Double click to close all only works when using a mouse. On keyboards you
-        // may use the shift keyboard modifier. For touch platforms you may swipe down.
-        //
-        // TODO(calebmer): Implement swipe down to close all peeks on touch devices
-        // like iPads.
-        if (event.pointerType === "mouse" && state.stack.length > 1 && !doubleClickTimeout) {
-            setDoubleClickTimeout(
-                createTimeout(() => {
-                    dispatch({type: "Pop"});
-                }, doubleClickDelay),
-            );
-            return;
-        }
-
-        dispatch({type: "Pop"});
-    };
 
     const [{abortController, routerPromise}] = useState(() => {
         // If there's an initial router promise then take it. If this peek is
@@ -1550,7 +1550,7 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
                                 tooltipContentOverride={
                                     state.stack.length > 1 ? "Double-click to close all" : undefined
                                 }
-                                onPress={handlePressClose}
+                                onPress={onClosePress}
                             >
                                 <X />
                             </IconButton>

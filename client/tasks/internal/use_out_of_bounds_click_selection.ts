@@ -1,6 +1,5 @@
 import {MouseEvent, useRef} from "react";
-
-const doubleClickSelectThrottleMs = 500;
+import {doubleClickDelayMs} from "~/client/design/timing_constants.js";
 
 /**
  * When a user clicks out of bounds on a document it selects the nearest line
@@ -30,7 +29,7 @@ export function useOutOfBoundsClickSelection({
 
             if (
                 lastDoubleClickTimeRef.current === null ||
-                Date.now() - lastDoubleClickTimeRef.current > doubleClickSelectThrottleMs
+                Date.now() - lastDoubleClickTimeRef.current > doubleClickDelayMs
             ) {
                 onSelect();
             } else {
@@ -43,7 +42,7 @@ export function useOutOfBoundsClickSelection({
 
             if (
                 lastDoubleClickTimeRef.current === null ||
-                Date.now() - lastDoubleClickTimeRef.current > doubleClickSelectThrottleMs
+                Date.now() - lastDoubleClickTimeRef.current > doubleClickDelayMs
             ) {
                 onSelectAll();
             }
@@ -58,7 +57,7 @@ export function useOutOfBoundsClickSelection({
             // double, triple, whatever clicking don't unfocus.
             if (
                 lastDoubleClickTimeRef.current !== null &&
-                Date.now() - lastDoubleClickTimeRef.current <= doubleClickSelectThrottleMs
+                Date.now() - lastDoubleClickTimeRef.current <= doubleClickDelayMs
             ) {
                 event.preventDefault();
             }
