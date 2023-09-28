@@ -3180,23 +3180,6 @@ export class TaskClientStoreInternal {
         });
     }
 
-    public onQueryRetainedAgainAfterFinalRelease(query: TaskClientQueryInternal) {
-        batchStoreUpdates(() => {
-            this._subscriptionsStore.set(subscriptions => {
-                const newQueries = new Set(subscriptions.queries);
-                newQueries.add(query.external);
-                return {...subscriptions, queries: newQueries};
-            });
-
-            // If this is a child task query then add it to our child task query map if
-            // there's not already another query.
-            const parentTaskId = getParentTaskIdIfChildrenQuery(query);
-            if (parentTaskId && !this._taskChildrenQueryByParentTaskId.getSnapshot(parentTaskId)) {
-                this._taskChildrenQueryByParentTaskId.set(parentTaskId, query.external);
-            }
-        });
-    }
-
     /**
      * Finish loading tasks into the query with the provided `TaskQueryModelId` we
      * assigned on the client. This will extend the query's loaded range.
@@ -3372,52 +3355,6 @@ export class TaskClientStoreInternal {
         });
     }
 
-    public onTaskSubscriptionRetainedAgainAfterFinalRelease(
-        taskSubscription: TaskClientTaskSubscription,
-    ) {
-        const taskEntryStore = getOrSetDefaultMapValue(
-            this._taskEntryStoreById,
-            taskSubscription.taskId,
-            () => {
-                const taskEntry: TaskClientStoreTaskEntry = {
-                    task: null,
-                    actions: [],
-                    optimisticState: null,
-                    isAuthorized: null,
-                    authorizationEventNumber: null,
-                };
-
-                this._updateReferencedAccountStores(null, taskEntry);
-
-                return {
-                    referenceCount: 0,
-                    store: new ValueStore<TaskClientStoreTaskEntry>(taskEntry),
-                };
-            },
-        );
-
-        // Add the store back to our subscriptions.
-        this._subscriptionsStore.set(oldSubscriptions => {
-            const taskSubscriptionsById = new Map(oldSubscriptions.taskSubscriptionsById);
-
-            const oldTaskSubscriptions = taskSubscriptionsById.get(taskSubscription.taskId);
-            if (!oldTaskSubscriptions) {
-                taskSubscriptionsById.set(taskSubscription.taskId, new Set([taskSubscription]));
-            } else {
-                const taskSubscriptions = new Set(oldTaskSubscriptions);
-                taskSubscriptions.add(taskSubscription);
-                taskSubscriptionsById.set(taskSubscription.taskId, taskSubscriptions);
-            }
-
-            return {...oldSubscriptions, taskSubscriptionsById};
-        });
-
-        // Retain the store.
-        this.retainTaskEntryStore(taskSubscription.taskId);
-
-        return taskEntryStore.store;
-    }
-
     /**
      * Create and retain a new collection subscription. You must call `release()`
      * on the subscription when you're done with it to free up resources.
@@ -3508,55 +3445,6 @@ export class TaskClientStoreInternal {
 
             return {...oldSubscriptions, collectionSubscriptionsById};
         });
-    }
-
-    public onCollectionSubscriptionRetainedAgainAfterFinalRelease(
-        collectionSubscription: TaskClientCollectionSubscription,
-    ) {
-        const collectionEntryStore = getOrSetDefaultMapValue(
-            this._collectionEntryStoreById,
-            collectionSubscription.collectionId,
-            () => ({
-                referenceCount: 0,
-                store: new ValueStore<TaskClientStoreCollectionEntry>({
-                    collection: null,
-                    actions: [],
-                    isAuthorized: null,
-                    authorizationEventNumber: null,
-                }),
-            }),
-        );
-
-        // Add the store back to our subscriptions.
-        this._subscriptionsStore.set(oldSubscriptions => {
-            const collectionSubscriptionsById = new Map(
-                oldSubscriptions.collectionSubscriptionsById,
-            );
-
-            const oldCollectionSubscriptions = collectionSubscriptionsById.get(
-                collectionSubscription.collectionId,
-            );
-            if (!oldCollectionSubscriptions) {
-                collectionSubscriptionsById.set(
-                    collectionSubscription.collectionId,
-                    new Set([collectionSubscription]),
-                );
-            } else {
-                const collectionSubscriptions = new Set(oldCollectionSubscriptions);
-                collectionSubscriptions.add(collectionSubscription);
-                collectionSubscriptionsById.set(
-                    collectionSubscription.collectionId,
-                    collectionSubscriptions,
-                );
-            }
-
-            return {...oldSubscriptions, collectionSubscriptionsById};
-        });
-
-        // Retain the store.
-        this.retainCollectionEntryStore(collectionSubscription.collectionId);
-
-        return collectionEntryStore.store;
     }
 }
 

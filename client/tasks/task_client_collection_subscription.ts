@@ -1,4 +1,3 @@
-import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {
@@ -18,7 +17,7 @@ import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 export class TaskClientCollectionSubscription extends TaskClientTaskReferencesSubscriptionBase {
     private readonly _store: TaskClientStoreInternal;
     public readonly collectionId: TaskCollectionId;
-    private readonly _collectionEntryStore: ValueStore<Store<TaskClientStoreCollectionEntry>>;
+    private readonly _collectionEntryStore: Store<TaskClientStoreCollectionEntry>;
 
     private readonly _errorStateStore = new ValueStore<
         {hasError: false} | {hasError: true; error: unknown}
@@ -42,10 +41,10 @@ export class TaskClientCollectionSubscription extends TaskClientTaskReferencesSu
         super();
         this._store = store;
         this.collectionId = collectionId;
-        this._collectionEntryStore = new ValueStore(collectionEntryStore);
+        this._collectionEntryStore = collectionEntryStore;
 
         this.collectionEntryStore = Store.map(
-            this._collectionEntryStore.flat(),
+            this._collectionEntryStore,
             this._errorStateStore,
             (collectionEntry, errorState) => {
                 if (errorState.hasError) throw errorState.error;
@@ -71,22 +70,9 @@ export class TaskClientCollectionSubscription extends TaskClientTaskReferencesSu
      * we will clean up this subscription and all its data.
      */
     public retain() {
-        this._referenceCount++;
+        assert(this._referenceCount > 0, "Can't retain a released subscription");
 
-        // If our subscription went to zero references then `retain()` is called again,
-        // we need to revive the subscription class.
-        //
-        // TODO(calebmer): If we are retaining again we should probably incorporate the
-        // old data in our class back into the store? So we can show data while the
-        // realtime client is re-subscribing.
-        if (this._referenceCount === 1) {
-            batchStoreUpdates(() => {
-                // Add the subscription back to our store.
-                const collectionEntryStore =
-                    this._store.onCollectionSubscriptionRetainedAgainAfterFinalRelease(this);
-                this._collectionEntryStore.set(collectionEntryStore);
-            });
-        }
+        this._referenceCount++;
     }
 
     /**
@@ -99,10 +85,8 @@ export class TaskClientCollectionSubscription extends TaskClientTaskReferencesSu
         this._referenceCount--;
 
         if (this._referenceCount === 0) {
-            batchStoreUpdates(() => {
-                // Delete the subscription from our store.
-                this._store.onCollectionSubscriptionFinallyReleased(this);
-            });
+            // Delete the subscription from our store.
+            this._store.onCollectionSubscriptionFinallyReleased(this);
         }
     }
 

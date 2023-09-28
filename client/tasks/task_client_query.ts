@@ -411,19 +411,9 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
      * up this query and all its data.
      */
     public retain() {
-        this._referenceCount++;
+        assert(this._referenceCount > 0, "Can't retain a released query");
 
-        // If our query went to zero references then `retain()` is called again, we
-        // need to revive the query class.
-        //
-        // TODO(calebmer): If we are retaining again we should probably incorporate the
-        // old data in our class back into the store? So we can show data while the
-        // realtime client is re-subscribing.
-        if (this._referenceCount === 1) {
-            batchStoreUpdates(() => {
-                this.store.onQueryRetainedAgainAfterFinalRelease(this);
-            });
-        }
+        this._referenceCount++;
     }
 
     /**
