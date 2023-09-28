@@ -68,6 +68,7 @@ export {TaskPriorityInputForwardRef as TaskPriorityInput};
 
 function TaskPriorityInput(
     {
+        isReadOnly,
         priority,
         onPriorityChange,
         "aria-label": ariaLabel,
@@ -78,6 +79,7 @@ function TaskPriorityInput(
     }: {
         priority: TaskPriority | null;
         onPriorityChange: (priority: TaskPriority | null) => void;
+        isReadOnly?: boolean;
         "aria-label"?: string;
         "aria-labelledby"?: string;
         color?: "grey-text" | "grey-60";
@@ -129,6 +131,8 @@ function TaskPriorityInput(
         menuTrigger: "focus",
         // Don't close when there are no items.
         allowsEmptyCollection: true,
+
+        isDisabled: isReadOnly,
 
         inputValue,
         onInputChange: inputValue => {
@@ -298,7 +302,9 @@ function TaskPriorityInput(
                         display="inline-flex"
                         alignItems="center"
                         gap="1"
-                        className={tasksStyles.textCursorNotInheritedClassName}
+                        className={
+                            !isReadOnly ? tasksStyles.textCursorNotInheritedClassName : undefined
+                        }
                         style={{
                             // `display: inline-block` creates an inline layout which adds extra space
                             // below the element. Adding `vertical-align` stops the space from being added.
@@ -314,7 +320,9 @@ function TaskPriorityInput(
                             }
 
                             // Make sure to reopen the combobox whenever the pointer clicks the input.
-                            comboBoxState.open();
+                            if (!isReadOnly) {
+                                comboBoxState.open();
+                            }
                         }}
                     >
                         <Box width="4" height="4" pointerEvents="none">
@@ -329,6 +337,12 @@ function TaskPriorityInput(
                             ref={inputRef}
                             placeholder={priority ? selectionInputValue : getTaskPriorityName(null)}
                             className={sprinkles({color, height: "4"})}
+                            style={{
+                                ...inputProps.style,
+                                // We want a text cursor even if `isReadOnly` is true. But not if we have a
+                                // placeholder.
+                                cursor: inputValue.length > 0 ? "text" : undefined,
+                            }}
                         />
                     </Box>
                 </FocusRing>

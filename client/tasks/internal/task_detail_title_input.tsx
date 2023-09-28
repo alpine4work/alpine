@@ -29,10 +29,12 @@ export function TaskDetailTitleInput({
     title,
     onTitleChange,
     placeholder,
+    isReadOnly,
 }: {
     title: TaskTitleModel;
     onTitleChange: (titleUpdate: TaskTitleUpdate) => void;
-    placeholder?: string;
+    placeholder: string;
+    isReadOnly: boolean;
 }) {
     const isInitialAppRender = useIsInitialAppRender();
     const containerRef = useRef<HTMLDivElement>(null);
@@ -45,8 +47,10 @@ export function TaskDetailTitleInput({
     const titleYDoc = useTaskTitleModelYDoc(title, onTitleChange);
 
     const titleRef = useRef(title);
+    const isReadOnlyRef = useRef(isReadOnly);
     useLayoutEffectWithoutServerSideWarning(() => {
         titleRef.current = title;
+        isReadOnlyRef.current = isReadOnly;
     });
 
     useLayoutEffectWithoutServerSideWarning(() => {
@@ -63,6 +67,9 @@ export function TaskDetailTitleInput({
                 doc: getTaskTitleProsemirrorNode(titleRef.current.raw),
                 plugins: [ySyncPlugin(titleYDoc.getXmlFragment("doc"))],
             }),
+
+            // Disable editing when the `isReadOnly` prop is set.
+            editable: () => !isReadOnlyRef.current,
 
             attributes: {
                 // Native spellcheck is often more distracting then it's worth. It puts a red

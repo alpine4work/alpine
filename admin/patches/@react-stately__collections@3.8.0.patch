@@ -1,0 +1,60 @@
+diff --git a/dist/import.mjs b/dist/import.mjs
+index 4fdb443a31f0ea679842659e3eeff79d65a25548..3c9ca947e90ce7ea6a341ae3ffcea5ccd9806325 100644
+--- a/dist/import.mjs
++++ b/dist/import.mjs
+@@ -30,7 +30,9 @@ $c1d7fb2ec91bae71$var$Item.getCollectionNode = function* getCollectionNode(props
+     let rendered = props.title || props.children;
+     let textValue = props.textValue || (typeof rendered === "string" ? rendered : "") || props["aria-label"] || "";
+     // suppressTextValueWarning is used in components like Tabs, which don't have type to select support.
+-    if (!textValue && !(context === null || context === void 0 ? void 0 : context.suppressTextValueWarning)) console.warn("<Item> with non-plain text contents is unsupported by type to select for accessibility. Please add a `textValue` prop.");
++    //
++    // NOTE(calebmer): Allow empty string
++    if (typeof textValue !== "string" && !(context === null || context === void 0 ? void 0 : context.suppressTextValueWarning)) console.warn("<Item> with non-plain text contents is unsupported by type to select for accessibility. Please add a `textValue` prop.");
+     yield {
+         type: "item",
+         props: props,
+diff --git a/dist/main.js b/dist/main.js
+index 8d3b785dde0a0e5a27ae79024a721c75a1fe46af..877c89f64aa7612bf1d6e2ca70b74166926fcc93 100644
+--- a/dist/main.js
++++ b/dist/main.js
+@@ -46,7 +46,9 @@ $c870f3b549c61b6b$var$Item.getCollectionNode = function* getCollectionNode(props
+     let rendered = props.title || props.children;
+     let textValue = props.textValue || (typeof rendered === "string" ? rendered : "") || props["aria-label"] || "";
+     // suppressTextValueWarning is used in components like Tabs, which don't have type to select support.
+-    if (!textValue && !(context === null || context === void 0 ? void 0 : context.suppressTextValueWarning)) console.warn("<Item> with non-plain text contents is unsupported by type to select for accessibility. Please add a `textValue` prop.");
++    //
++    // NOTE(calebmer): Allow empty string
++    if (typeof textValue !== "string" && !(context === null || context === void 0 ? void 0 : context.suppressTextValueWarning)) console.warn("<Item> with non-plain text contents is unsupported by type to select for accessibility. Please add a `textValue` prop.");
+     yield {
+         type: "item",
+         props: props,
+diff --git a/dist/module.js b/dist/module.js
+index 4fdb443a31f0ea679842659e3eeff79d65a25548..3c9ca947e90ce7ea6a341ae3ffcea5ccd9806325 100644
+--- a/dist/module.js
++++ b/dist/module.js
+@@ -30,7 +30,9 @@ $c1d7fb2ec91bae71$var$Item.getCollectionNode = function* getCollectionNode(props
+     let rendered = props.title || props.children;
+     let textValue = props.textValue || (typeof rendered === "string" ? rendered : "") || props["aria-label"] || "";
+     // suppressTextValueWarning is used in components like Tabs, which don't have type to select support.
+-    if (!textValue && !(context === null || context === void 0 ? void 0 : context.suppressTextValueWarning)) console.warn("<Item> with non-plain text contents is unsupported by type to select for accessibility. Please add a `textValue` prop.");
++    //
++    // NOTE(calebmer): Allow empty string
++    if (typeof textValue !== "string" && !(context === null || context === void 0 ? void 0 : context.suppressTextValueWarning)) console.warn("<Item> with non-plain text contents is unsupported by type to select for accessibility. Please add a `textValue` prop.");
+     yield {
+         type: "item",
+         props: props,
+diff --git a/src/Item.ts b/src/Item.ts
+index 9b070c0813d130eb009041db4bc2a03419e7b6b3..54d4dd7754cc08e8acc5c2f3c367e78f2d1cf6dc 100644
+--- a/src/Item.ts
++++ b/src/Item.ts
+@@ -25,7 +25,9 @@ Item.getCollectionNode = function* getCollectionNode<T>(props: ItemProps<T>, con
+   let textValue = props.textValue || (typeof rendered === 'string' ? rendered : '') || props['aria-label'] || '';
+ 
+   // suppressTextValueWarning is used in components like Tabs, which don't have type to select support.
+-  if (!textValue && !context?.suppressTextValueWarning) {
++  //
++  // NOTE(calebmer): Allow empty string
++  if (typeof textValue !== 'string' && !context?.suppressTextValueWarning) {
+     console.warn('<Item> with non-plain text contents is unsupported by type to select for accessibility. Please add a `textValue` prop.');
+   }
+ 

@@ -23,6 +23,7 @@ import {greyElevated2ClassName} from "~/shared/styles/styles.js";
 export function TaskDateInput({
     date,
     onDateChange,
+    isReadOnly = false,
     shouldIncludeCalendarIcon = false,
     shouldWarnIfAfterDate = false,
     shouldFormatAroundToday = false,
@@ -41,6 +42,7 @@ export function TaskDateInput({
 }: {
     date: CalendarDate | null;
     onDateChange: (date: CalendarDate | null) => void;
+    isReadOnly?: boolean;
     shouldIncludeCalendarIcon?: boolean;
     shouldWarnIfAfterDate?: boolean;
     shouldFormatAroundToday?: boolean;
@@ -78,7 +80,7 @@ export function TaskDateInput({
     const [isFocusWithinInput, setIsFocusWithinInput] = useState(false);
     const [isFocusWithinOverlay, setIsFocusWithinOverlay] = useState(false);
 
-    const isEditing = isFocusWithinInput || isFocusWithinOverlay;
+    const isEditing = !isReadOnly && (isFocusWithinInput || isFocusWithinOverlay);
 
     return (
         <Box position="relative" height={height} width={display === "block" ? "full" : undefined}>
@@ -90,7 +92,8 @@ export function TaskDateInput({
                     alignItems="stretch"
                     height="full"
                     color={shouldWarnIfAfterDate && formattedDate.isAfterDate ? "red-60" : color}
-                    cursor="text"
+                    cursor={!isReadOnly ? "text" : undefined}
+                    userSelect={isReadOnly ? "text" : undefined}
                 >
                     {shouldIncludeCalendarIcon && (
                         <Box
@@ -107,7 +110,9 @@ export function TaskDateInput({
                             <CalendarBlank size={spacing["4"]} />
                         </Box>
                     )}
-                    {formattedDate.isFormattedAroundToday ? (
+                    {isReadOnly || formattedDate.isFormattedAroundToday ? (
+                        // Render read-only date inputs as a single div so they may be easily selected
+                        // and copied/pasted.
                         <Box
                             flexGrow={display === "block" ? "1" : undefined}
                             display="flex"
@@ -215,6 +220,7 @@ export function TaskDateInput({
                         onDateChange={onDateChange}
                         aria-label={ariaLabel}
                         aria-labelledby={ariaLabelledBy}
+                        isReadOnly={isReadOnly}
                         isEditing={isEditing}
                         shouldIncludeCalendarIcon={shouldIncludeCalendarIcon}
                         display={display}

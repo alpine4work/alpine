@@ -7,6 +7,7 @@ import {
 } from "~/client/content/collaborative_content_editor_state.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {reduceContentReferences} from "~/client/content/content_editor_state.js";
+import {ContentView} from "~/client/content/content_view.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useShowToast} from "~/client/design/toast.js";
@@ -17,7 +18,6 @@ import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {Spacing, assertSpacing} from "~/shared/design/spacing.js";
 import {UnavailableError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Id, generateId} from "~/shared/id/id.js";
@@ -62,11 +62,13 @@ export function TaskDetailNotesField({
     taskId,
     initialNotesVersion,
     initialNotesContent,
+    isReadOnly,
     padding,
 }: {
     taskId: TaskId;
     initialNotesVersion: number;
     initialNotesContent: TaskNotesContentWithReferences;
+    isReadOnly: boolean;
     padding: Spacing;
 }) {
     const showToast = useShowToast();
@@ -286,24 +288,36 @@ export function TaskDetailNotesField({
                 })}
                 // Affordance for mouse users. Clicking on a label focuses the editor.
                 onClick={() => {
-                    assertExists(editorRef.current).focus();
+                    editorRef.current?.focus();
                 }}
             >
                 Notes
             </label>
             <FocusRing insetX={padding} insetBottom={hitSlopBottom} isVisibleWhenFocusWithin>
                 <Box marginBottom={`-${hitSlopBottom}`}>
-                    <ContentEditor
-                        ref={editorRef}
-                        aria-labelledby={labelId}
-                        state={state.editorState}
-                        onChange={state => dispatch([{type: "Edit", editorState: state}])}
-                        placeholder="Add more details…"
-                        className={sprinkles({
-                            paddingX: assertSpacing(`${parseInt(padding, 10) - 2}`),
-                            paddingBottom: hitSlopBottom,
-                        })}
-                    />
+                    {isReadOnly ? (
+                        <ContentView
+                            aria-labelledby={labelId}
+                            content={state.editorState.getContent()}
+                            placeholder="Add more details…"
+                            className={sprinkles({
+                                paddingX: assertSpacing(`${parseInt(padding, 10) - 2}`),
+                                paddingBottom: hitSlopBottom,
+                            })}
+                        />
+                    ) : (
+                        <ContentEditor
+                            ref={editorRef}
+                            aria-labelledby={labelId}
+                            state={state.editorState}
+                            onChange={state => dispatch([{type: "Edit", editorState: state}])}
+                            placeholder="Add more details…"
+                            className={sprinkles({
+                                paddingX: assertSpacing(`${parseInt(padding, 10) - 2}`),
+                                paddingBottom: hitSlopBottom,
+                            })}
+                        />
+                    )}
                 </Box>
             </FocusRing>
         </Box>

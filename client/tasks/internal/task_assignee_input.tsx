@@ -92,6 +92,7 @@ function TaskAssigneeInput(
     {
         assigneeAccountData,
         onAssigneeAccountChange,
+        isReadOnly,
         "aria-label": ariaLabel,
         "aria-labelledby": ariaLabelledBy,
         color = "grey-text",
@@ -102,6 +103,7 @@ function TaskAssigneeInput(
     }: {
         assigneeAccountData: AccountModelData | null;
         onAssigneeAccountChange: (assigneeAccount: AccountModel | null) => void;
+        isReadOnly?: boolean;
         "aria-label"?: string;
         "aria-labelledby"?: string;
         color?: "grey-text" | "grey-60";
@@ -201,6 +203,8 @@ function TaskAssigneeInput(
         // Don't close when there are no items.
         allowsEmptyCollection: true,
 
+        isDisabled: isReadOnly,
+
         inputValue,
         onInputChange: inputValue => {
             setInputState(inputState => {
@@ -273,7 +277,7 @@ function TaskAssigneeInput(
 
         items: searchedItems,
         children: item => (
-            <Item textValue={item.accountData?.name ?? nullAssigneeLabel}>
+            <Item textValue={item.accountData?.name ?? ""}>
                 <TaskAssigneeInputListBoxOptionItem item={item} />
             </Item>
         ),
@@ -394,7 +398,9 @@ function TaskAssigneeInput(
                         display="inline-flex"
                         alignItems="center"
                         gap={avatarSize === "5" ? "1.5" : "1"}
-                        className={tasksStyles.textCursorNotInheritedClassName}
+                        className={
+                            !isReadOnly ? tasksStyles.textCursorNotInheritedClassName : undefined
+                        }
                         style={{
                             // `display: inline-block` creates an inline layout which adds extra space
                             // below the element. Adding `vertical-align` stops the space from being added.
@@ -410,7 +416,9 @@ function TaskAssigneeInput(
                             }
 
                             // Make sure to reopen the combobox whenever the pointer clicks the input.
-                            comboBoxState.open();
+                            if (!isReadOnly) {
+                                comboBoxState.open();
+                            }
                         }}
                     >
                         <Box flexShrink="0" pointerEvents="none">
@@ -427,6 +435,12 @@ function TaskAssigneeInput(
                                 assigneeAccountData ? selectionInputValue : nullAssigneeLabel
                             }
                             className={sprinkles({color, height: "4"})}
+                            style={{
+                                ...inputProps.style,
+                                // We want a text cursor even if `isReadOnly` is true. But not if we have a
+                                // placeholder.
+                                cursor: inputValue.length > 0 ? "text" : undefined,
+                            }}
                         />
                     </Box>
                 </FocusRing>

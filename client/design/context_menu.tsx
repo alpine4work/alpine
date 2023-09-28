@@ -190,6 +190,22 @@ export function ContextMenuManager() {
                     ]);
                 }
             }
+            // If we right-clicked on a disabled or read-only `<input>` element we allow
+            // copying but not pasting.
+            else if (
+                event.target instanceof HTMLInputElement &&
+                event.target.selectionStart !== event.target.selectionEnd
+            ) {
+                actions.unshift([
+                    {
+                        label: "Copy",
+                        keyboardShortcutHint: isMac ? "⌘+C" : "Ctrl+C",
+                        onPress: () => {
+                            document.execCommand("copy");
+                        },
+                    },
+                ]);
+            }
 
             if (actions.length > 0) {
                 setContextMenuState({

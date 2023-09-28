@@ -261,6 +261,9 @@ function TaskDetailViewMain({
     const priority = task?.getPriority() ?? null;
     const dueDate = task?.getDueDate() ?? null;
 
+    // NOCOMMIT
+    const isReadOnly = true;
+
     const titleCommitStateRef = useRef<{
         pendingActionTransactionBuilder: {
             add: (titleUpdate: TaskTitleUpdate) => void;
@@ -415,71 +418,75 @@ function TaskDetailViewMain({
                     },
                 },
             ]);
-
-            contextMenuActions.push(
-                getTaskStatusMenuActions({
-                    context,
-                    timeZone,
-                    currentAccount,
-                    store,
-                    task,
-                }),
-            );
         }
 
-        contextMenuActions.push([
-            {
-                label: priorityInputState.isVisible ? "Edit priority" : "Add priority",
-                onPress: () => {
-                    if (priorityInputState.isVisible) {
-                        assertExists(
-                            getNextFocusableElementIfExists(null, {
-                                withinElement: assertExists(priorityInputRef.current),
-                            }),
-                        ).focus({preventScroll: true});
-                    } else {
-                        setPriorityInputState({
-                            isVisible: true,
-                            shouldFocus: true,
-                            isFocused: false,
-                        });
-                    }
-                },
-            },
-            {
-                label: dueDateInputState.isVisible ? "Edit due date" : "Add due date",
-                onPress: () => {
-                    if (dueDateInputState.isVisible) {
-                        assertExists(
-                            getNextFocusableElementIfExists(null, {
-                                withinElement: assertExists(dueDateInputRef.current),
-                            }),
-                        ).focus({preventScroll: true});
-                    } else {
-                        setDueDateInputState({
-                            isVisible: true,
-                            shouldFocus: true,
-                            isFocused: false,
-                        });
-                    }
-                },
-            },
-        ]);
+        if (!isReadOnly) {
+            if (task) {
+                contextMenuActions.push(
+                    getTaskStatusMenuActions({
+                        context,
+                        timeZone,
+                        currentAccount,
+                        store,
+                        task,
+                    }),
+                );
+            }
 
-        // NOCOMMIT:
-        // [
-        //     {
-        //         label: "Delete",
-        //         onPress: () => {
-        //             deleteTaskAndAllChildrenMaybeWithConfirmation({
-        //                 // If the task is open in a peek this will close the peek.
-        //                 onAfterDelete: () => {
-        //                     void navigate(-1);
-        //                 },
-        //             });
-        //         },
-        //     },
-        // ],
+            contextMenuActions.push([
+                {
+                    label: priorityInputState.isVisible ? "Edit priority" : "Add priority",
+                    onPress: () => {
+                        if (priorityInputState.isVisible) {
+                            assertExists(
+                                getNextFocusableElementIfExists(null, {
+                                    withinElement: assertExists(priorityInputRef.current),
+                                }),
+                            ).focus({preventScroll: true});
+                        } else {
+                            setPriorityInputState({
+                                isVisible: true,
+                                shouldFocus: true,
+                                isFocused: false,
+                            });
+                        }
+                    },
+                },
+                {
+                    label: dueDateInputState.isVisible ? "Edit due date" : "Add due date",
+                    onPress: () => {
+                        if (dueDateInputState.isVisible) {
+                            assertExists(
+                                getNextFocusableElementIfExists(null, {
+                                    withinElement: assertExists(dueDateInputRef.current),
+                                }),
+                            ).focus({preventScroll: true});
+                        } else {
+                            setDueDateInputState({
+                                isVisible: true,
+                                shouldFocus: true,
+                                isFocused: false,
+                            });
+                        }
+                    },
+                },
+            ]);
+
+            // NOCOMMIT:
+            // [
+            //     {
+            //         label: "Delete",
+            //         onPress: () => {
+            //             deleteTaskAndAllChildrenMaybeWithConfirmation({
+            //                 // If the task is open in a peek this will close the peek.
+            //                 onAfterDelete: () => {
+            //                     void navigate(-1);
+            //                 },
+            //             });
+            //         },
+            //     },
+            // ],
+        }
 
         return contextMenuActions;
     })();
@@ -503,7 +510,12 @@ function TaskDetailViewMain({
                     gap="3"
                 >
                     {task ? (
-                        <TaskStatusButton size="5" store={store} task={task} />
+                        <TaskStatusButton
+                            size="5"
+                            store={store}
+                            task={task}
+                            isDisabled={isReadOnly}
+                        />
                     ) : (
                         <Box
                             width="5"
@@ -525,6 +537,7 @@ function TaskDetailViewMain({
                         </MenuButton>
                     </Box>
                     <TaskDetailTitleInput
+                        isReadOnly={isReadOnly}
                         title={task?.getTitle() ?? emptyTaskTitleModel.get()}
                         onTitleChange={onTitleChange}
                         placeholder={taskFallbackTitle}
@@ -544,6 +557,7 @@ function TaskDetailViewMain({
                 <TaskDetailViewDenseField label="Assignee">
                     {({"aria-labelledby": ariaLabelledBy}) => (
                         <TaskAssigneeInput
+                            isReadOnly={isReadOnly}
                             aria-labelledby={ariaLabelledBy}
                             assigneeAccountData={assigneeAccountData}
                             onAssigneeAccountChange={assigneeAccount => {
@@ -612,6 +626,7 @@ function TaskDetailViewMain({
                                 }}
                             >
                                 <TaskPriorityInput
+                                    isReadOnly={isReadOnly}
                                     priority={priority}
                                     onPriorityChange={priority => {
                                         store.commitTaskActionTransaction(context, [
@@ -656,6 +671,7 @@ function TaskDetailViewMain({
                                 }}
                             >
                                 <TaskDateInput
+                                    isReadOnly={isReadOnly}
                                     date={dueDate}
                                     onDateChange={dueDate => {
                                         store.commitTaskActionTransaction(context, [
@@ -685,6 +701,7 @@ function TaskDetailViewMain({
                 taskId={taskId}
                 initialNotesVersion={initialNotesVersion}
                 initialNotesContent={initialNotesContent}
+                isReadOnly={isReadOnly}
                 padding={padding}
             />
             <Spacer space="10" />

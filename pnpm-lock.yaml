@@ -34,6 +34,9 @@ patchedDependencies:
   '@react-aria/ssr@3.6.0':
     hash: ykd4naedzjmzggcdstyfvaxp2e
     path: admin/patches/@react-aria__ssr@3.6.0.patch
+  '@react-stately/collections@3.8.0':
+    hash: slz4pzdcbvbjn4fwlcqqf22y5y
+    path: admin/patches/@react-stately__collections@3.8.0.patch
   '@remix-run/dev@1.18.0':
     hash: rinjp45mpbrt6gc3siziif7zkm
     path: admin/patches/@remix-run__dev@1.18.0.patch
@@ -3949,7 +3952,7 @@ packages:
       '@react-aria/selection': 3.15.0(patch_hash=2ya35hyd3pivprsuzms54bet4u)(react@18.2.0)
       '@react-aria/textfield': 3.9.2(react@18.2.0)
       '@react-aria/utils': 3.17.0(react@18.2.0)
-      '@react-stately/collections': 3.8.0(react@18.2.0)
+      '@react-stately/collections': 3.8.0(patch_hash=slz4pzdcbvbjn4fwlcqqf22y5y)(react@18.2.0)
       '@react-stately/combobox': 3.5.1(react@18.2.0)
       '@react-stately/layout': 3.12.1(react@18.2.0)
       '@react-types/button': 3.7.3(react@18.2.0)
@@ -4050,7 +4053,7 @@ packages:
       '@react-aria/live-announcer': 3.3.0
       '@react-aria/selection': 3.15.0(patch_hash=2ya35hyd3pivprsuzms54bet4u)(react@18.2.0)
       '@react-aria/utils': 3.17.0(react@18.2.0)
-      '@react-stately/collections': 3.8.0(react@18.2.0)
+      '@react-stately/collections': 3.8.0(patch_hash=slz4pzdcbvbjn4fwlcqqf22y5y)(react@18.2.0)
       '@react-stately/grid': 3.6.1(react@18.2.0)
       '@react-stately/selection': 3.13.1(react@18.2.0)
       '@react-stately/virtualizer': 3.5.2(react@18.2.0)
@@ -4147,7 +4150,7 @@ packages:
       '@react-aria/label': 3.5.2(react@18.2.0)
       '@react-aria/selection': 3.15.0(patch_hash=2ya35hyd3pivprsuzms54bet4u)(react@18.2.0)
       '@react-aria/utils': 3.17.0(react@18.2.0)
-      '@react-stately/collections': 3.8.0(react@18.2.0)
+      '@react-stately/collections': 3.8.0(patch_hash=slz4pzdcbvbjn4fwlcqqf22y5y)(react@18.2.0)
       '@react-stately/list': 3.8.1(react@18.2.0)
       '@react-types/listbox': 3.4.2(react@18.2.0)
       '@react-types/shared': 3.18.1(react@18.2.0)
@@ -4172,7 +4175,7 @@ packages:
       '@react-aria/overlays': 3.14.1(react-dom@18.2.0)(react@18.2.0)
       '@react-aria/selection': 3.15.0(patch_hash=2ya35hyd3pivprsuzms54bet4u)(react@18.2.0)
       '@react-aria/utils': 3.17.0(react@18.2.0)
-      '@react-stately/collections': 3.8.0(react@18.2.0)
+      '@react-stately/collections': 3.8.0(patch_hash=slz4pzdcbvbjn4fwlcqqf22y5y)(react@18.2.0)
       '@react-stately/menu': 3.5.2(react@18.2.0)
       '@react-stately/tree': 3.6.1(react@18.2.0)
       '@react-types/button': 3.7.3(react@18.2.0)
@@ -4318,7 +4321,7 @@ packages:
       '@react-aria/i18n': 3.7.2(react@18.2.0)
       '@react-aria/interactions': 3.15.1(patch_hash=erumekjxdesheif6sx4c6lxcrq)(react@18.2.0)
       '@react-aria/utils': 3.17.0(react@18.2.0)
-      '@react-stately/collections': 3.8.0(react@18.2.0)
+      '@react-stately/collections': 3.8.0(patch_hash=slz4pzdcbvbjn4fwlcqqf22y5y)(react@18.2.0)
       '@react-stately/selection': 3.13.1(react@18.2.0)
       '@react-types/shared': 3.18.1(react@18.2.0)
       '@swc/helpers': 0.4.14
@@ -4408,7 +4411,7 @@ packages:
       '@react-aria/selection': 3.15.0(patch_hash=2ya35hyd3pivprsuzms54bet4u)(react@18.2.0)
       '@react-aria/utils': 3.17.0(react@18.2.0)
       '@react-aria/visually-hidden': 3.8.1(react@18.2.0)
-      '@react-stately/collections': 3.8.0(react@18.2.0)
+      '@react-stately/collections': 3.8.0(patch_hash=slz4pzdcbvbjn4fwlcqqf22y5y)(react@18.2.0)
       '@react-stately/table': 3.9.1(react@18.2.0)
       '@react-stately/virtualizer': 3.5.2(react@18.2.0)
       '@react-types/checkbox': 3.4.4(react@18.2.0)
@@ -4556,7 +4559,7 @@ packages:
       react: 18.2.0
     dev: false
 
-  /@react-stately/collections@3.8.0(react@18.2.0):
+  /@react-stately/collections@3.8.0(patch_hash=slz4pzdcbvbjn4fwlcqqf22y5y)(react@18.2.0):
     resolution: {integrity: sha512-NIRE8Gha0XZTnbvh9JRZM7oI/6uLf6ozjB7myja29IX7hDvsZxITe0RFXBapcujlpXLU2uufssJPKpiwJm3vZQ==}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
@@ -4565,13 +4568,14 @@ packages:
       '@swc/helpers': 0.4.14
       react: 18.2.0
     dev: false
+    patched: true
 
   /@react-stately/combobox@3.5.1(react@18.2.0):
     resolution: {integrity: sha512-E7eEggbVaueLEeSAOXzB2wUsjxgA3vpfTsghWdxYU6hWPB2ek6cSWfjAp7NPtf0b56n07kZRqa1lFx6kPJSCYw==}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
     dependencies:
-      '@react-stately/collections': 3.8.0(react@18.2.0)
+      '@react-stately/collections': 3.8.0(patch_hash=slz4pzdcbvbjn4fwlcqqf22y5y)(react@18.2.0)
       '@react-stately/list': 3.8.1(react@18.2.0)
       '@react-stately/menu': 3.5.2(react@18.2.0)
       '@react-stately/select': 3.5.1(react@18.2.0)
@@ -4623,7 +4627,7 @@ packages:
     peerDependencies:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
     dependencies:
-      '@react-stately/collections': 3.8.0(react@18.2.0)
+      '@react-stately/collections': 3.8.0(patch_hash=slz4pzdcbvbjn4fwlcqqf22y5y)(react@18.2.0)
       '@react-stately/selection': 3.13.1(react@18.2.0)
       '@react-types/grid': 3.1.8(react@18.2.0)
       '@react-types/shared': 3.18.1(react@18.2.0)
@@ -4636,7 +4640,7 @@ packages:
     peerDependencies:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
     dependencies:
-      '@react-stately/collections': 3.8.0(react@18.2.0)
+      '@react-stately/collections': 3.8.0(patch_hash=slz4pzdcbvbjn4fwlcqqf22y5y)(react@18.2.0)
       '@react-stately/table': 3.9.1(react@18.2.0)
       '@react-stately/virtualizer': 3.5.2(react@18.2.0)
       '@react-types/grid': 3.1.8(react@18.2.0)
@@ -4651,7 +4655,7 @@ packages:
     peerDependencies:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
     dependencies:
-      '@react-stately/collections': 3.8.0(react@18.2.0)
+      '@react-stately/collections': 3.8.0(patch_hash=slz4pzdcbvbjn4fwlcqqf22y5y)(react@18.2.0)
       '@react-stately/selection': 3.13.1(react@18.2.0)
       '@react-stately/utils': 3.6.0(react@18.2.0)
       '@react-types/shared': 3.18.1(react@18.2.0)
@@ -4725,7 +4729,7 @@ packages:
     peerDependencies:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
     dependencies:
-      '@react-stately/collections': 3.8.0(react@18.2.0)
+      '@react-stately/collections': 3.8.0(patch_hash=slz4pzdcbvbjn4fwlcqqf22y5y)(react@18.2.0)
       '@react-stately/list': 3.8.1(react@18.2.0)
       '@react-stately/menu': 3.5.2(react@18.2.0)
       '@react-stately/selection': 3.13.1(react@18.2.0)
@@ -4741,7 +4745,7 @@ packages:
     peerDependencies:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
     dependencies:
-      '@react-stately/collections': 3.8.0(react@18.2.0)
+      '@react-stately/collections': 3.8.0(patch_hash=slz4pzdcbvbjn4fwlcqqf22y5y)(react@18.2.0)
       '@react-stately/utils': 3.6.0(react@18.2.0)
       '@react-types/shared': 3.18.1(react@18.2.0)
       '@swc/helpers': 0.4.14
@@ -4767,7 +4771,7 @@ packages:
     peerDependencies:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
     dependencies:
-      '@react-stately/collections': 3.8.0(react@18.2.0)
+      '@react-stately/collections': 3.8.0(patch_hash=slz4pzdcbvbjn4fwlcqqf22y5y)(react@18.2.0)
       '@react-stately/grid': 3.6.1(react@18.2.0)
       '@react-stately/selection': 3.13.1(react@18.2.0)
       '@react-types/grid': 3.1.8(react@18.2.0)
@@ -4819,7 +4823,7 @@ packages:
     peerDependencies:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
     dependencies:
-      '@react-stately/collections': 3.8.0(react@18.2.0)
+      '@react-stately/collections': 3.8.0(patch_hash=slz4pzdcbvbjn4fwlcqqf22y5y)(react@18.2.0)
       '@react-stately/selection': 3.13.1(react@18.2.0)
       '@react-stately/utils': 3.6.0(react@18.2.0)
       '@react-types/shared': 3.18.1(react@18.2.0)
@@ -13305,7 +13309,7 @@ packages:
     dependencies:
       '@react-stately/calendar': 3.2.1(react@18.2.0)
       '@react-stately/checkbox': 3.4.2(react@18.2.0)
-      '@react-stately/collections': 3.8.0(react@18.2.0)
+      '@react-stately/collections': 3.8.0(patch_hash=slz4pzdcbvbjn4fwlcqqf22y5y)(react@18.2.0)
       '@react-stately/combobox': 3.5.1(react@18.2.0)
       '@react-stately/data': 3.9.2(react@18.2.0)
       '@react-stately/datepicker': 3.4.1(react@18.2.0)

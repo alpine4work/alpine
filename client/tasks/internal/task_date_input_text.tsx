@@ -22,6 +22,7 @@ export function TaskDateInputText({
     onDateChange,
     "aria-label": ariaLabel,
     "aria-labelledby": ariaLabelledBy,
+    isReadOnly,
     isEditing,
     shouldIncludeCalendarIcon,
     display,
@@ -37,6 +38,7 @@ export function TaskDateInputText({
     onDateChange: (date: CalendarDate | null) => void;
     "aria-label"?: string;
     "aria-labelledby"?: string;
+    isReadOnly: boolean;
     isEditing: boolean;
     shouldIncludeCalendarIcon: boolean;
     display: "inline" | "block";
@@ -53,6 +55,7 @@ export function TaskDateInputText({
     const {locale} = useClientInfo();
 
     const datePickerProps: DateFieldStateOptions & AriaDateFieldProps<CalendarDate> = {
+        isDisabled: isReadOnly,
         locale,
         createCalendar,
         "aria-label": ariaLabel,
