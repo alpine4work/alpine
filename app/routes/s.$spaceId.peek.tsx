@@ -1,6 +1,6 @@
 import {Outlet} from "@remix-run/react";
 import {useContext, useMemo} from "react";
-import {UNSAFE_DataRouterStateContext as DataRouterStateContext} from "react-router";
+import {UNSAFE_DataRouterStateContext as DataRouterStateContext, useRouteError} from "react-router";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
@@ -99,11 +99,11 @@ export default function PeekLayout() {
     );
 }
 
-export function ErrorBoundary({error: _error}: {error: unknown}) {
+export function ErrorBoundary() {
     // It appears that Remix does not `useMemo()` its error object. So stabilize
     // the object reference here. Our error rendering components use referential
     // identity to determine whether we need to log the error.
-    const error = useStableValue(ErrorSchema, _error);
+    const error = useStableValue(ErrorSchema, useRouteError());
 
     return (
         <Box display="flex" justifyContent="center">

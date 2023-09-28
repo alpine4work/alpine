@@ -54,7 +54,11 @@ export async function loadInitialPeekDataForServer(
 
                 loaderData[match.route.id] = await processLoaderResult(result);
             } catch (error) {
-                (errors ??= {})[match.route.id] = await processLoaderResult(error);
+                // Errors are placed at the nearest error boundary route. Not the match that
+                // threw the error's route.
+                // https://github.com/remix-run/react-router/blob/f9b3dbd9cbf513366c456b33d95227f42f36da63/packages/router/router.ts#L3893-L3910
+                (errors ??= {})[findNearestBoundary(routeMatches, match.route.id).route.id] =
+                    await processLoaderResult(error);
             }
         }),
     );
@@ -81,4 +85,17 @@ async function processLoaderResult(result: unknown): Promise<unknown> {
     } else {
         return result.text();
     }
+}
+
+function findNearestBoundary(
+    matches: NonNullable<ReturnType<typeof matchServerRoutes>>,
+    routeId?: string,
+) {
+    const eligibleMatches = routeId
+        ? matches.slice(0, matches.findIndex(match => match.route.id === routeId) + 1)
+        : [...matches];
+
+    return (
+        eligibleMatches.reverse().find(match => !!match.route.module.ErrorBoundary) ?? matches[0]!
+    );
 }
