@@ -136,6 +136,13 @@ export function TaskDetailView({
         [shiftRenderedRangeForChildrenGridView],
     );
 
+    const hasSubtasks = useStore(
+        useMemo(
+            () => taskSubscription.taskEntryStore.map(({task}) => !task?.isDeleted()),
+            [taskSubscription.taskEntryStore],
+        ),
+    );
+
     const readOnlyReason = useStore(
         useMemo(
             () =>
@@ -244,7 +251,7 @@ export function TaskDetailView({
             <VirtualizedScrollView
                 ref={viewRef}
                 bufferedItemHeight={spacing[taskRowViewMinHeight]}
-                itemCount={childrenGridViewItemCount + 1}
+                itemCount={hasSubtasks ? childrenGridViewItemCount + 1 : 1}
                 renderItem={useCallback(
                     index => {
                         if (index === 0) {
@@ -269,6 +276,7 @@ export function TaskDetailView({
                                         taskSubscription={taskSubscription}
                                         initialNotesVersion={initialNotesVersion}
                                         initialNotesContent={initialNotesContent}
+                                        hasSubtasks={hasSubtasks}
                                         readOnlyReason={readOnlyReason}
                                         focusChildrenGridViewStart={focusChildrenGridViewStart}
                                     />
@@ -282,6 +290,7 @@ export function TaskDetailView({
                         focusChildrenGridViewStart,
                         initialNotesContent,
                         initialNotesVersion,
+                        hasSubtasks,
                         readOnlyReason,
                         renderChildrenGridViewItem,
                         taskSubscription,
@@ -301,12 +310,14 @@ function TaskDetailViewMain({
     taskSubscription,
     initialNotesVersion,
     initialNotesContent,
+    hasSubtasks,
     readOnlyReason,
     focusChildrenGridViewStart,
 }: {
     taskSubscription: TaskClientTaskSubscription;
     initialNotesVersion: number;
     initialNotesContent: TaskNotesContentWithReferences;
+    hasSubtasks: boolean;
     readOnlyReason: {icon: ReactNode; message: string} | null;
     focusChildrenGridViewStart: () => void;
 }) {
@@ -793,34 +804,39 @@ function TaskDetailViewMain({
                     isReadOnly={isReadOnly}
                     padding={padding}
                 />
-                <Spacer space="8" />
-                <Box>
-                    <label
-                        className={sprinkles({
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "3",
-                            paddingX: padding,
-                            paddingBottom: "2",
-                            color: "grey-60",
-                        })}
-                        // Affordance for mouse users. Clicking on a label focuses child tasks.
-                        onClick={focusChildrenGridViewStart}
-                    >
-                        <Box>Subtasks</Box>
-                        {task && task.getChildTaskCount() > 0 && (
-                            <Box display="flex" alignItems="center" gap="1">
-                                <TaskChildTasksProgressWheel
-                                    childTaskCount={task.getChildTaskCount()}
-                                    closedChildTaskCount={task.getClosedChildTaskCount()}
-                                />
-                                <Box color="grey-70">
-                                    {task.getClosedChildTaskCount()}/{task.getChildTaskCount()}
-                                </Box>
-                            </Box>
-                        )}
-                    </label>
-                </Box>
+                {hasSubtasks && (
+                    <>
+                        <Spacer space="8" />
+                        <Box>
+                            <label
+                                className={sprinkles({
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "3",
+                                    paddingX: padding,
+                                    paddingBottom: "2",
+                                    color: "grey-60",
+                                })}
+                                // Affordance for mouse users. Clicking on a label focuses child tasks.
+                                onClick={focusChildrenGridViewStart}
+                            >
+                                <Box>Subtasks</Box>
+                                {task && task.getChildTaskCount() > 0 && (
+                                    <Box display="flex" alignItems="center" gap="1">
+                                        <TaskChildTasksProgressWheel
+                                            childTaskCount={task.getChildTaskCount()}
+                                            closedChildTaskCount={task.getClosedChildTaskCount()}
+                                        />
+                                        <Box color="grey-70">
+                                            {task.getClosedChildTaskCount()}/
+                                            {task.getChildTaskCount()}
+                                        </Box>
+                                    </Box>
+                                )}
+                            </label>
+                        </Box>
+                    </>
+                )}
             </Box>
         </>
     );

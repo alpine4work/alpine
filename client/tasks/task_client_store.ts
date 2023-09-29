@@ -566,7 +566,21 @@ export class TaskClientStoreInternal {
             if (
                 taskEntryStore.referenceCount === 1 &&
                 taskEntry.task === null &&
-                taskEntry.actions.length > 0
+                taskEntry.actions.length > 0 &&
+                // TODO(calebmer): With `deleteTaskAndAllChildren()` when the server responds
+                // to the RPC we commit the delete releasing our tasks. Later the server will
+                // send us a realtime event with `Delete` actions. Since this is an expected
+                // scenario we don't log an error.
+                //
+                // This may cause some false negatives! We may get an out-of-order delete the
+                // client misses and we won't report a glitch afterwards. Accept this for now.
+                // If there's actually some out-of-order glitches happening it should fire on
+                // all kinds of actions, not just deletes.
+                !taskEntry.actions.every(
+                    action =>
+                        action.action.type === "UpdateTask" &&
+                        action.action.taskAction.type === "Delete",
+                )
             ) {
                 this._onError({
                     // We don't display the error in a toast to the user since while this error
@@ -574,7 +588,7 @@ export class TaskClientStoreInternal {
                     // toast.)
                     display: false,
                     error: new DeadlineExceededError(
-                        "Received actions for a task that was never loaded",
+                        "Received actions for a task that wasn't loaded",
                     ),
                 });
             }
