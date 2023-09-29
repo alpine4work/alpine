@@ -2,10 +2,13 @@ import {internalUpdateSessionActorAccountNameWithoutUpdatingTasks} from "~/serve
 import {ServerSessionActionContextModules} from "~/server/context/server_action_context.js";
 import {TaskContextModuleBase} from "~/server/tasks/data/task_context_module.js";
 import {internalGetUpdateSessionActorAccountNameTaskTransactionEntries} from "~/server/tasks/data/task_table.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
 import {Context} from "~/shared/context/context.js";
 
 /**
  * Update our currently authenticated session actor account's name.
+ *
+ * Returns an `AccountModel` with the new name.
  *
  * The implementation of this is a little more complicated than just updating
  * the account's name in the account table. The account name is inlined in the
@@ -14,8 +17,10 @@ import {Context} from "~/shared/context/context.js";
 export async function updateSessionActorAccountName(
     context: Context<ServerSessionActionContextModules & {tasks: TaskContextModuleBase}>,
     name: string,
-) {
-    await internalUpdateSessionActorAccountNameWithoutUpdatingTasks(context, name, {
+): Promise<AccountModel> {
+    const account = await internalUpdateSessionActorAccountNameWithoutUpdatingTasks(context, name, {
         getTaskTransactionEntries: internalGetUpdateSessionActorAccountNameTaskTransactionEntries,
     });
+
+    return account;
 }

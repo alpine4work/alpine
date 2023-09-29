@@ -23,6 +23,7 @@ ts_project(
     deps = [
         ":all_rpc_implementations",
         "//server/accounts",
+        "//server/accounts/update_name",
         "//server/alpha",
         "//server/chat/data",
         "//server/content",

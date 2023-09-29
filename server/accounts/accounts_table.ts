@@ -951,7 +951,7 @@ export async function internalUpdateSessionActorAccountNameWithoutUpdatingTasks<
             onAfterTransactionExecutedSuccessfully: () => void;
         }>;
     },
-) {
+): Promise<AccountModel> {
     return context.dynamo.retryTransaction(async context => {
         const accountItem = await AccountsTable.getItem(context, {
             partitionType: "Account",
@@ -974,16 +974,20 @@ export async function internalUpdateSessionActorAccountNameWithoutUpdatingTasks<
             context.actor.getAccountId(),
         );
 
+        const newAccountItem = {
+            ...accountItem,
+            name,
+            nameVersion,
+        };
+
         await DynamoTableSchema.executeTransaction(context, [
-            AccountsTable.transactionDirectlyUpdateItem({
-                ...accountItem,
-                name,
-                nameVersion,
-            }),
+            AccountsTable.transactionDirectlyUpdateItem(newAccountItem),
             ...taskTransactionEntries,
         ]);
 
         // After we've committed our transaction, we need to update the task index.
         onAfterTransactionExecutedSuccessfully();
+
+        return createAccountModelFromItem(newAccountItem);
     });
 }

@@ -1,9 +1,12 @@
 import {ReactNode, createContext, useContext, useEffect, useState} from "react";
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
+import {useAppContext} from "~/client/context/app_context.js";
+import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {AccountModel, AccountModelData} from "~/shared/accounts/account_model.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {updateSessionActorAccountName} from "~/shared/rpc/accounts_rpc_definitions.js";
 
 const AccountClientStoreContext = createContext<AccountClientStore | null>(null);
 
@@ -34,6 +37,8 @@ export function getAccountClientStoreForClient(): AccountClientStore {
  * context for server-side rendering.
  */
 export function AccountClientStoreContextProvider({children}: {children?: ReactNode}) {
+    const context = useAppContext();
+
     const [store] = useState(() => {
         // On the server, there is no global access to the task realtime client.
         if (typeof window === "undefined") {
@@ -61,6 +66,14 @@ export function AccountClientStoreContextProvider({children}: {children?: ReactN
             accountClientStoreForClient.isMounted = false;
         };
     }, []);
+
+    useDevConsoleTool("accounts", () => ({
+        store,
+        updateOurName: async (name: string) => {
+            const {account} = await updateSessionActorAccountName(context, {name});
+            store.getAndImmediatelyUpdateStore(account);
+        },
+    }));
 
     return (
         <AccountClientStoreContext.Provider value={store}>

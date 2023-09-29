@@ -1,3 +1,4 @@
+import {updateSessionActorAccountName} from "~/server/accounts/update_name/update_session_actor_account_name.js";
 import {implementRpc} from "~/server/rpc/internal/implement_rpc.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -18,5 +19,18 @@ implementRpc(
             ),
         );
         return {accounts};
+    },
+);
+
+implementRpc(
+    definition.updateSessionActorAccountName,
+    {visibility: ["AppClient"]},
+    async (context, input) => {
+        const account = await updateSessionActorAccountName(
+            context.actor.authorizeSession(),
+            input.name,
+        );
+
+        return {account};
     },
 );
