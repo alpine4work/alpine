@@ -293,12 +293,18 @@ export class TaskClientStore {
         this._internal.loadTasksIntoQuery(query, options);
     }
 
-    public ensureAndRetainTaskChildrenQuery(parentTaskId: TaskId): TaskClientQuery {
-        return this._internal.ensureAndRetainTaskChildrenQuery(parentTaskId);
+    public ensureAndRetainTaskChildrenQuery(
+        parentTaskId: TaskId,
+        options: {isDeleted: boolean},
+    ): TaskClientQuery {
+        return this._internal.ensureAndRetainTaskChildrenQuery(parentTaskId, options);
     }
 
-    public getTaskChildrenQueryStore(parentTaskId: TaskId): Store<TaskClientQuery | undefined> {
-        return this._internal.getTaskChildrenQueryStore(parentTaskId);
+    public getTaskChildrenQueryStore(
+        parentTaskId: TaskId,
+        options: {isDeleted: boolean},
+    ): Store<TaskClientQuery | undefined> {
+        return this._internal.getTaskChildrenQueryStore(parentTaskId, options);
     }
 
     public createAndRetainTaskSubscription(taskId: TaskId): TaskClientTaskSubscription {
@@ -410,7 +416,10 @@ export class TaskClientStoreInternal {
     /**
      * Queries for the child tasks of a given parent task.
      */
-    private readonly _taskChildrenQueryByParentTaskId = new StoreMap<TaskId, TaskClientQuery>();
+    private readonly _taskChildrenQueryByParentTaskIdByIsDeleted = {
+        true: new StoreMap<TaskId, TaskClientQuery>(),
+        false: new StoreMap<TaskId, TaskClientQuery>(),
+    };
 
     /**
      * We want to send our `commitTaskActionTransaction()` calls in order. If one
@@ -1662,7 +1671,9 @@ export class TaskClientStoreInternal {
                 taskAction: {type: "Delete"},
             });
 
-            const childrenQuery = this.getTaskChildrenQueryStore(taskId).getSnapshot();
+            const childrenQuery = this.getTaskChildrenQueryStore(taskId, {
+                isDeleted: false,
+            }).getSnapshot();
             if (!childrenQuery) return;
 
             const childrenQueryIterator = childrenQuery.taskOrderStore.getSnapshot().begin;
@@ -2561,15 +2572,6 @@ export class TaskClientStoreInternal {
                     });
 
                     this._updateReferencedAccountStores(oldTaskEntry, newTaskEntry);
-
-                    // If the old task entry was not deleted but the new task entry is then if we
-                    // have a query for this task's children, delete the reference to that query.
-                    if (
-                        !(oldTaskEntry?.task?.isDeleted() ?? true) &&
-                        (newTaskEntry.task?.isDeleted() ?? true)
-                    ) {
-                        this._taskChildrenQueryByParentTaskId.delete(taskId);
-                    }
                 }
 
                 // Update all our collection stores and create new ones when necessary.
@@ -3092,7 +3094,9 @@ export class TaskClientStoreInternal {
             const parentTaskId = getParentTaskIdIfChildrenQuery({filters, sorts});
             if (parentTaskId) {
                 const existingQuery =
-                    this._taskChildrenQueryByParentTaskId.getSnapshot(parentTaskId);
+                    this._taskChildrenQueryByParentTaskIdByIsDeleted[
+                        filters.deletedFilter.isDeleted ? "true" : "false"
+                    ].getSnapshot(parentTaskId);
                 if (existingQuery) {
                     existingQuery.retain();
                     return existingQuery;
@@ -3106,7 +3110,9 @@ export class TaskClientStoreInternal {
             });
 
             if (parentTaskId) {
-                this._taskChildrenQueryByParentTaskId.set(parentTaskId, query.external);
+                this._taskChildrenQueryByParentTaskIdByIsDeleted[
+                    filters.deletedFilter.isDeleted ? "true" : "false"
+                ].set(parentTaskId, query.external);
             }
 
             this._subscriptionsStore.set(subscriptions => {
@@ -3139,7 +3145,9 @@ export class TaskClientStoreInternal {
                 const parentTaskId = getParentTaskIdIfChildrenQuery({filters, sorts});
                 if (parentTaskId) {
                     const existingQuery =
-                        this._taskChildrenQueryByParentTaskId.getSnapshot(parentTaskId);
+                        this._taskChildrenQueryByParentTaskIdByIsDeleted[
+                            filters.deletedFilter.isDeleted ? "true" : "false"
+                        ].getSnapshot(parentTaskId);
                     if (existingQuery) {
                         existingQuery.retain();
                         return existingQuery;
@@ -3153,7 +3161,9 @@ export class TaskClientStoreInternal {
                 });
 
                 if (parentTaskId) {
-                    this._taskChildrenQueryByParentTaskId.set(parentTaskId, query.external);
+                    this._taskChildrenQueryByParentTaskIdByIsDeleted[
+                        filters.deletedFilter.isDeleted ? "true" : "false"
+                    ].set(parentTaskId, query.external);
                 }
 
                 return query.external;
@@ -3191,9 +3201,13 @@ export class TaskClientStoreInternal {
             const parentTaskId = getParentTaskIdIfChildrenQuery(query);
             if (
                 parentTaskId &&
-                this._taskChildrenQueryByParentTaskId.getSnapshot(parentTaskId) === query.external
+                this._taskChildrenQueryByParentTaskIdByIsDeleted[
+                    query.filters.deletedFilter.isDeleted ? "true" : "false"
+                ].getSnapshot(parentTaskId) === query.external
             ) {
-                this._taskChildrenQueryByParentTaskId.delete(parentTaskId);
+                this._taskChildrenQueryByParentTaskIdByIsDeleted[
+                    query.filters.deletedFilter.isDeleted ? "true" : "false"
+                ].delete(parentTaskId);
             }
         });
     }
@@ -3256,8 +3270,15 @@ export class TaskClientStoreInternal {
      *
      * You should call `release()` when done with the query to free up resources.
      */
-    public ensureAndRetainTaskChildrenQuery(taskId: TaskId): TaskClientQuery {
-        const existingChildrenQuery = this._taskChildrenQueryByParentTaskId.getSnapshot(taskId);
+    public ensureAndRetainTaskChildrenQuery(
+        taskId: TaskId,
+        {isDeleted}: {isDeleted: boolean},
+    ): TaskClientQuery {
+        const existingChildrenQuery =
+            this._taskChildrenQueryByParentTaskIdByIsDeleted[
+                isDeleted ? "true" : "false"
+            ].getSnapshot(taskId);
+
         if (existingChildrenQuery) {
             existingChildrenQuery.retain();
             return existingChildrenQuery;
@@ -3265,6 +3286,9 @@ export class TaskClientStoreInternal {
 
         const query = this.createAndRetainQuery({
             filters: {
+                deletedFilter: {
+                    isDeleted,
+                },
                 displayStatusFilter: {
                     ifOpenInactive: true,
                     ifOpenActive: true,
@@ -3289,7 +3313,11 @@ export class TaskClientStoreInternal {
         });
 
         // Make sure the created query was added as a children query for this task.
-        assert(this._taskChildrenQueryByParentTaskId.getSnapshot(taskId));
+        assert(
+            this._taskChildrenQueryByParentTaskIdByIsDeleted[
+                isDeleted ? "true" : "false"
+            ].getSnapshot(taskId),
+        );
 
         return query;
     }
@@ -3298,8 +3326,13 @@ export class TaskClientStoreInternal {
      * Gets the query for the provided task's children if it exists. If the query
      * doesn't exist it means the task's children are not loaded.
      */
-    public getTaskChildrenQueryStore(parentTaskId: TaskId): Store<TaskClientQuery | undefined> {
-        return this._taskChildrenQueryByParentTaskId.get(parentTaskId);
+    public getTaskChildrenQueryStore(
+        parentTaskId: TaskId,
+        {isDeleted}: {isDeleted: boolean},
+    ): Store<TaskClientQuery | undefined> {
+        return this._taskChildrenQueryByParentTaskIdByIsDeleted[isDeleted ? "true" : "false"].get(
+            parentTaskId,
+        );
     }
 
     /**
@@ -3478,7 +3511,7 @@ export function getParentTaskIdIfChildrenQuery({
         filters.displayStatusFilter.ifOpenInactive &&
         filters.displayStatusFilter.ifOpenActive &&
         filters.displayStatusFilter.ifClosed &&
-        Object.keys(filters).length === 2 &&
+        Object.keys(filters).length === 3 &&
         sorts.length === 2 &&
         sorts[0]!.type === "ParentPosition" &&
         sorts[0]!.direction === "Ascending" &&

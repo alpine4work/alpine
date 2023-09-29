@@ -187,7 +187,9 @@ export function useTaskGridViewVirtualizedList({
     const listItemCount = list.getItemCount();
 
     const itemCount =
-        loadedState !== "FullyLoaded" ? listItemCount + 1 : Math.max(listItemCount + 1, 3);
+        loadedState !== "FullyLoaded"
+            ? listItemCount + 1
+            : Math.max(listItemCount + (!capabilities.isReadOnly ? 1 : 0), 3);
 
     const tryLoadingMoreData = useEvent(
         (renderedRange: {startIndex: number; endIndex: number} | null) => {
@@ -246,7 +248,10 @@ export function useTaskGridViewVirtualizedList({
                     });
 
                     for (const taskId of parentTaskIdsToLoad) {
-                        const childrenQuery = query.store.ensureAndRetainTaskChildrenQuery(taskId);
+                        const childrenQuery = query.store.ensureAndRetainTaskChildrenQuery(
+                            taskId,
+                            query.filters.deletedFilter,
+                        );
                         retainedChildrenQueries.push(childrenQuery);
 
                         childrenQuery?.loadMoreTasks(
@@ -258,8 +263,10 @@ export function useTaskGridViewVirtualizedList({
                         for (const {taskId: expandedChildTaskId} of iterateExpandedTaskIdsUnderPath(
                             [taskId],
                         )) {
-                            const childrenQuery =
-                                query.store.ensureAndRetainTaskChildrenQuery(expandedChildTaskId);
+                            const childrenQuery = query.store.ensureAndRetainTaskChildrenQuery(
+                                expandedChildTaskId,
+                                query.filters.deletedFilter,
+                            );
                             retainedChildrenQueries.push(childrenQuery);
 
                             childrenQuery?.loadMoreTasks(
@@ -858,7 +865,7 @@ export function useTaskGridViewVirtualizedList({
                         const time2 = query.store.clock.now();
 
                         const newChildrenQuery = query.store
-                            .getTaskChildrenQueryStore(newParentTaskId)
+                            .getTaskChildrenQueryStore(newParentTaskId, query.filters.deletedFilter)
                             .getSnapshot();
 
                         query.store.commitTaskActionTransaction(context, [

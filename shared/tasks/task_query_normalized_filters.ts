@@ -60,6 +60,7 @@ export function assertNonEmptyReadonlyMap<K, V>(map: ReadonlyMap<K, V>): NonEmpt
  * Leverages TypeScript to make sure impossible states are actually impossible.
  */
 export type TaskQueryNormalizedFilters = {
+    readonly deletedFilter: TaskQueryDeletedNormalizedFilter;
     readonly displayStatusFilter: TaskQueryDisplayStatusNormalizedFilter;
     readonly collectionsFilter?: TaskQueryCollectionsNormalizedFilter;
     readonly priorityFilter?: TaskQueryPriorityNormalizedFilter;
@@ -77,8 +78,19 @@ export type TaskQueryNormalizedFilters = {
 };
 
 export const defaultTaskQueryNormalizedFilters: TaskQueryNormalizedFilters = {
+    deletedFilter: {isDeleted: false},
     displayStatusFilter: {ifOpenInactive: true, ifOpenActive: true, ifClosed: false},
 };
+
+// You can filter for non-deleted tasks, you can filter for deleted tasks, but
+// you can not filter for both non-deleted and deleted tasks at the same time.
+export type TaskQueryDeletedNormalizedFilter = {
+    readonly isDeleted: boolean;
+};
+
+const TaskQueryDeletedNormalizedFilterSchema = Schema.object({
+    isDeleted: Schema.boolean,
+});
 
 // At least one of the three statuses must be included in this filter. Otherwise
 // the filter is impossible.
@@ -322,6 +334,7 @@ const TaskQueryNotepadPageNormalizedFilterSchema = Schema.object({
 });
 
 export const TaskQueryNormalizedFiltersSchema: Schema<TaskQueryNormalizedFilters> = Schema.object({
+    deletedFilter: TaskQueryDeletedNormalizedFilterSchema,
     displayStatusFilter: TaskQueryDisplayStatusNormalizedFilterSchema,
     collectionsFilter: TaskQueryCollectionsNormalizedFilterSchema.optional(),
     priorityFilter: TaskQueryPriorityNormalizedFilterSchema.optional(),
@@ -359,6 +372,9 @@ export function normalizeTaskQueryFilters(
     const normalizedFilters: {
         -readonly [K in keyof TaskQueryNormalizedFilters]: TaskQueryNormalizedFilters[K];
     } = {
+        deletedFilter: {
+            isDeleted: false,
+        },
         displayStatusFilter: {
             ifOpenInactive: true,
             ifOpenActive: true,

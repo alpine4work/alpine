@@ -17,6 +17,7 @@ import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort
 // `mightTaskActionAddVisibleTaskInQueryNormalizedFilters()`.
 assertEqualTypes<
     keyof TaskQueryNormalizedFilters,
+    | "deletedFilter"
     | "displayStatusFilter"
     | "collectionsFilter"
     | "priorityFilter"
@@ -111,12 +112,10 @@ export function mightTaskActionAddTaskToQueryLoadedRange(
             );
         }
         case "Delete": {
-            return false;
+            return filters.deletedFilter.isDeleted;
         }
         case "Undelete": {
-            // We have no idea what was in the deleted task. Any undelete may expose
-            // the task.
-            return true;
+            return !filters.deletedFilter.isDeleted;
         }
         case "UpdateParentTaskId": {
             // This action updates the task's parent position. If you are sorting by parent

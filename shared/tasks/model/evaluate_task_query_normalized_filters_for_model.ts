@@ -17,6 +17,7 @@ import {
 // `evaluateTaskQueryNormalizedFiltersForIndexDoc()`.
 assertEqualTypes<
     keyof TaskQueryNormalizedFilters,
+    | "deletedFilter"
     | "displayStatusFilter"
     | "collectionsFilter"
     | "priorityFilter"
@@ -40,8 +41,8 @@ export function evaluateTaskQueryNormalizedFiltersForModel(
     filters: TaskQueryNormalizedFilters,
     task: TaskModel,
 ): boolean {
-    // Deleted tasks should always be filtered out.
-    if (task.isDeleted()) return false;
+    if (!filters.deletedFilter.isDeleted && task.isDeleted()) return false;
+    if (filters.deletedFilter.isDeleted && !task.isDeleted()) return false;
 
     {
         const displayStatus = task.getDisplayStatus();

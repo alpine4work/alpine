@@ -74,7 +74,9 @@ function createTaskGridViewExpansionStateManager({
                     areChildTasksExpandedStoreByTaskPath.set(change.taskPath.join("-"), true);
 
                     const taskId = change.taskPath[change.taskPath.length - 1]!;
-                    addRetainedQueryStore(store.getTaskChildrenQueryStore(taskId));
+                    addRetainedQueryStore(
+                        store.getTaskChildrenQueryStore(taskId, filters.deletedFilter),
+                    );
                 } else {
                     areChildTasksExpandedStoreByTaskPath.delete(change.taskPath.join("-"));
 
@@ -87,7 +89,9 @@ function createTaskGridViewExpansionStateManager({
             // retained by a later change.
             for (const [taskId, count] of releaseTaskIds) {
                 for (let i = 0; i < count; i++) {
-                    removeRetainedQueryStore(store.getTaskChildrenQueryStore(taskId));
+                    removeRetainedQueryStore(
+                        store.getTaskChildrenQueryStore(taskId, filters.deletedFilter),
+                    );
                 }
             }
         });
@@ -365,14 +369,18 @@ export function useTaskGridViewExpansionState({
 
         batchStoreUpdates(() => {
             for (const {taskId} of stateManager.iterateExpandedTaskIds()) {
-                addRetainedQueryStore(store.getTaskChildrenQueryStore(taskId));
+                addRetainedQueryStore(
+                    store.getTaskChildrenQueryStore(taskId, query.filters.deletedFilter),
+                );
             }
         });
 
         return () => {
             batchStoreUpdates(() => {
                 for (const {taskId} of stateManager.iterateExpandedTaskIds()) {
-                    removeRetainedQueryStore(store.getTaskChildrenQueryStore(taskId));
+                    removeRetainedQueryStore(
+                        store.getTaskChildrenQueryStore(taskId, query.filters.deletedFilter),
+                    );
                 }
             });
 
@@ -384,7 +392,13 @@ export function useTaskGridViewExpansionState({
 
             isMountedRef.current = false;
         };
-    }, [addRetainedQueryStore, removeRetainedQueryStore, stateManager, store]);
+    }, [
+        addRetainedQueryStore,
+        query.filters.deletedFilter,
+        removeRetainedQueryStore,
+        stateManager,
+        store,
+    ]);
 
     const toggleAreChildTasksExpanded = useEvent(
         (taskPath: ReadonlyArray<TaskId>, {onFinish}: {onFinish?: () => void} = {}) => {
@@ -420,7 +434,7 @@ export function useTaskGridViewExpansionState({
                     // visible once the task is expanded. We wait a bit for these tasks to load
                     // then actually expand.
                     const queries = Array.from(taskIdsToLoad, taskId =>
-                        store.ensureAndRetainTaskChildrenQuery(taskId),
+                        store.ensureAndRetainTaskChildrenQuery(taskId, query.filters.deletedFilter),
                     );
 
                     // If all the children queries are loaded, expand immediately!
@@ -612,16 +626,17 @@ export function useTaskGridViewExpansionState({
                             ?.getSnapshot()
                             .task?.getChildTaskCount() === 1
                     ) {
-                        const query = store.ensureAndRetainTaskChildrenQuery(
+                        const childrenQuery = store.ensureAndRetainTaskChildrenQuery(
                             newTaskPath[newTaskPath.length - 1]!,
+                            query.filters.deletedFilter,
                         );
 
                         // Release our query at the end of this code block. `stateManager` will grab
                         // its own reference to the query if we need it.
-                        finallyCallbacks.push(() => query.release());
+                        finallyCallbacks.push(() => childrenQuery.release());
 
-                        if (query.loadedStateStore.getSnapshot() === "Unloaded") {
-                            store.loadTasksIntoQuery(query, {
+                        if (childrenQuery.loadedStateStore.getSnapshot() === "Unloaded") {
+                            store.loadTasksIntoQuery(childrenQuery, {
                                 limit: 1,
                                 loadedState: {type: "Full"},
                                 previouslyBackfilledTaskIds: [newTaskEntry.task.id],
@@ -713,7 +728,7 @@ export function useTaskGridViewExpansionState({
                         }
 
                         const childrenQuery = query.store
-                            .getTaskChildrenQueryStore(taskId)
+                            .getTaskChildrenQueryStore(taskId, query.filters.deletedFilter)
                             .getSnapshot();
                         if (!childrenQuery) continue;
 

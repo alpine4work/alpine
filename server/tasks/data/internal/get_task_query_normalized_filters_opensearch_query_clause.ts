@@ -29,6 +29,7 @@ import {
 // `getTaskQueryNormalizedFiltersTaskIndexQueryClause()`.
 assertEqualTypes<
     keyof TaskQueryNormalizedFilters,
+    | "deletedFilter"
     | "displayStatusFilter"
     | "collectionsFilter"
     | "priorityFilter"
@@ -66,7 +67,7 @@ export function getTaskQueryNormalizedFiltersOpensearchQueryClause(
                 // Only return tasks in a single space.
                 {term: {spaceId: new OpensearchQueryValue(spaceId)}},
                 // Never return deleted tasks.
-                {term: {isDeleted: new OpensearchQueryValue(false)}},
+                {term: {isDeleted: new OpensearchQueryValue(filters.deletedFilter.isDeleted)}},
 
                 ...getTaskQueryNormalizedFiltersOpensearchFilterQueryClauses(filters),
             ],

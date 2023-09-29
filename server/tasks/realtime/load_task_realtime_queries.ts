@@ -305,7 +305,8 @@ export async function loadTaskRealtimeQueries(
                 ) => {
                     if (!taskState.isExpanded) return;
 
-                    const filters: TaskQueryNormalizedFilters = {
+                    const childrenFilters: TaskQueryNormalizedFilters = {
+                        deletedFilter: filters.deletedFilter,
                         displayStatusFilter: {
                             ifOpenInactive: true,
                             ifOpenActive: true,
@@ -316,7 +317,7 @@ export async function loadTaskRealtimeQueries(
                         },
                     };
 
-                    const sorts: ReadonlyArray<TaskQueryNormalizedSort> = [
+                    const childrenSorts: ReadonlyArray<TaskQueryNormalizedSort> = [
                         {
                             type: "ParentPosition",
                             direction: "Ascending",
@@ -329,7 +330,7 @@ export async function loadTaskRealtimeQueries(
                         },
                     ];
 
-                    const queryPromise = (async () => {
+                    const childrenQueryPromise = (async () => {
                         const task = await server.getTask(context, spaceId, taskId);
 
                         const isAccessAuthorized = await isTaskIndexDocAccessAuthorized(
@@ -350,21 +351,21 @@ export async function loadTaskRealtimeQueries(
                         if (!isAccessAuthorized) return null;
 
                         return loadQuery(context, {
-                            filters,
-                            sorts,
+                            filters: childrenFilters,
+                            sorts: childrenSorts,
                             limit,
                         });
                     })();
 
-                    context.process.waitUntil(queryPromise);
+                    context.process.waitUntil(childrenQueryPromise);
 
                     taskChildrenQueryPromises.push(
-                        queryPromise.then(queryOutput => {
+                        childrenQueryPromise.then(queryOutput => {
                             if (!queryOutput) return null;
 
                             return {
-                                filters,
-                                sorts,
+                                filters: childrenFilters,
+                                sorts: childrenSorts,
                                 limit,
                                 loadedState: queryOutput.loadedState,
                             };
