@@ -52,11 +52,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
-import {
-    colorSchemeVars,
-    invertSelectionColorsClassName,
-    sprinkles,
-} from "~/shared/styles/styles.js";
+import {invertSelectionColorsClassName, sprinkles} from "~/shared/styles/styles.js";
 import {emptyTaskTitleModel, taskFallbackTitle} from "~/shared/tasks/model/task_title_model.js";
 import {hasTaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
@@ -789,7 +785,7 @@ function TaskDetailViewMain({
                         </TaskDetailViewDenseField>
                     )}
                 </Box>
-                <Spacer space="9" />
+                <Spacer space="8" />
                 <TaskDetailNotesField
                     taskId={taskId}
                     initialNotesVersion={initialNotesVersion}
@@ -797,7 +793,7 @@ function TaskDetailViewMain({
                     isReadOnly={isReadOnly}
                     padding={padding}
                 />
-                <Spacer space="10" />
+                <Spacer space="8" />
                 <Box>
                     <label
                         className={sprinkles({

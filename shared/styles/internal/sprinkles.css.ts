@@ -9,6 +9,15 @@
  * [2]: https://tailwindcss.com
  */
 
+// Make sure our sprinkles styles come after our content schema styles in the
+// final CSS style sheet. That way sprinkles classes can override content
+// schema styles.
+//
+// We added this ordering for `<TaskDetailNotesField>` which sets a `minHeight`
+// on a `<ContentEditor>` whereas `content_schema.css.ts` sets `minHeight`
+// to 100%.
+import "~/shared/styles/internal/content_schema.css.js";
+
 import {createVar} from "@vanilla-extract/css";
 import {createSprinkles, defineProperties} from "@vanilla-extract/sprinkles";
 import {

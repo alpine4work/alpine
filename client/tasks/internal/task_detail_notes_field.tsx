@@ -271,10 +271,9 @@ export function TaskDetailNotesField({
         }
     }, [dispatch, isConnected, state.pendingSendableSteps, updateContent]);
 
-    // Space at the end of our notes field we allow the user to click and focus the
-    // field. Name comes from a similar property in React Native:
-    // https://reactnative.dev/docs/pressable#hitslop
-    const hitSlopBottom: Spacing = "8";
+    // 20 perfectly fits 4 lines of regular text before the input needs to
+    // start growing.
+    const minHeight: Spacing = "20";
 
     return (
         <Box>
@@ -293,19 +292,20 @@ export function TaskDetailNotesField({
             >
                 Notes
             </label>
-            <FocusRing insetX={padding} insetBottom={hitSlopBottom} isVisibleWhenFocusWithin>
-                <Box marginBottom={`-${hitSlopBottom}`}>
-                    {isReadOnly ? (
+            <FocusRing insetX={padding} isVisibleWhenFocusWithin>
+                {isReadOnly ? (
+                    <Box height="full" minHeight={minHeight}>
                         <ContentView
                             aria-labelledby={labelId}
                             content={state.editorState.getContent()}
                             placeholder="Add more details…"
                             className={sprinkles({
                                 paddingX: assertSpacing(`${parseInt(padding, 10) - 2}`),
-                                paddingBottom: hitSlopBottom,
                             })}
                         />
-                    ) : (
+                    </Box>
+                ) : (
+                    <Box>
                         <ContentEditor
                             ref={editorRef}
                             aria-labelledby={labelId}
@@ -314,11 +314,12 @@ export function TaskDetailNotesField({
                             placeholder="Add more details…"
                             className={sprinkles({
                                 paddingX: assertSpacing(`${parseInt(padding, 10) - 2}`),
-                                paddingBottom: hitSlopBottom,
+                                height: "full",
+                                minHeight,
                             })}
                         />
-                    )}
-                </Box>
+                    </Box>
+                )}
             </FocusRing>
         </Box>
     );
