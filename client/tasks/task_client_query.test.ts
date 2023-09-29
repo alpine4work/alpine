@@ -11,13 +11,17 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, TaskId} from "~/shared/id/types/id_types.js";
-import {commitTaskActionTransaction} from "~/shared/rpc/tasks_rpc_definitions.js";
+import {
+    commitTaskActionTransaction,
+    deleteTaskAndAllChildren,
+} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {TestRpcContextModule} from "~/shared/rpc/test_rpc_context_module.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCreateAction} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {
+    assertNonEmptyReadonlyMap,
     assertNonEmptyReadonlySet,
     defaultTaskQueryNormalizedFilters,
 } from "~/shared/tasks/task_query_normalized_filters.js";
@@ -3793,4 +3797,221 @@ test("optimistic update retains task until rejected", async () => {
 
     expect(errors.length).toEqual(1);
     errors = [];
+});
+
+test("deleting task and all children when subscribed to task and its children", async () => {
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onError: handleError,
+    });
+
+    const collection = TaskCollectionModel.createFromAction(
+        store.spaceId,
+        generateId(),
+        store.clock.now(),
+        {
+            type: "Create",
+            name: "Test",
+            accessPolicy: {
+                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                defaultGrant: null,
+            },
+        },
+    );
+
+    let task1 = createTask(store);
+
+    task1 = task1
+        .applyAction(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection.id,
+                    orderKey: initialOrderKey,
+                },
+            },
+            getSortableAccount,
+        )
+        .applyAction(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 3,
+                    removedChildTaskCount: 0,
+                    addedClosedChildTaskCount: 0,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+            getSortableAccount,
+        );
+
+    let task2 = createTask(store);
+
+    task2 = task2.applyAction(
+        {
+            type: "UpdateTask",
+            time: store.clock.now(),
+            taskId: task2.id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: task1.id,
+            },
+        },
+        getSortableAccount,
+    );
+
+    let task3 = createTask(store);
+
+    task3 = task3.applyAction(
+        {
+            type: "UpdateTask",
+            time: store.clock.now(),
+            taskId: task3.id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: task1.id,
+            },
+        },
+        getSortableAccount,
+    );
+
+    let task4 = createTask(store);
+
+    task4 = task4.applyAction(
+        {
+            type: "UpdateTask",
+            time: store.clock.now(),
+            taskId: task4.id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: task1.id,
+            },
+        },
+        getSortableAccount,
+    );
+
+    let task5 = createTask(store);
+
+    task5 = task5.applyAction(
+        {
+            type: "UpdateTask",
+            time: store.clock.now(),
+            taskId: task5.id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId: collection.id,
+                orderKey: initialOrderKey,
+            },
+        },
+        getSortableAccount,
+    );
+
+    const query1 = store.createAndRetainQuery({
+        filters: {
+            ...defaultTaskQueryNormalizedFilters,
+            collectionsFilter: [assertNonEmptyReadonlyMap(new Map([[collection.id, false]]))],
+        },
+        sorts: defaultTaskQueryNormalizedSorts,
+    });
+
+    const query2 = store.ensureAndRetainTaskChildrenQuery(task1.id, {isDeleted: false});
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 1,
+        actions: [],
+        backfillAuthorizedTasks: [task1, task2, task3, task4, task5],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [collection],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [account1],
+    });
+
+    store.loadTasksIntoQuery(query1, {
+        limit: 100,
+        loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
+    });
+
+    store.loadTasksIntoQuery(query2, {
+        limit: 100,
+        loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
+    });
+
+    expect(query1.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
+        task1.id,
+        task5.id,
+    ]);
+
+    expect(query2.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
+        task2.id,
+        task3.id,
+        task4.id,
+    ]);
+
+    const deleteTime = store.clock.now();
+
+    store.deleteTaskAndAllChildren(context, task1.id, {time: deleteTime});
+
+    expect(query1.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
+        task5.id,
+    ]);
+
+    expect(query2.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
+
+    await TestRpcContextModule.resolveLastExecution(deleteTaskAndAllChildren, {
+        actions: [
+            {
+                type: "UpdateTask",
+                time: deleteTime,
+                taskId: task1.id,
+                taskAction: {type: "Delete"},
+            },
+            {
+                type: "UpdateTask",
+                time: deleteTime,
+                taskId: task2.id,
+                taskAction: {type: "Delete"},
+            },
+            {
+                type: "UpdateTask",
+                time: deleteTime,
+                taskId: task3.id,
+                taskAction: {type: "Delete"},
+            },
+            {
+                type: "UpdateTask",
+                time: deleteTime,
+                taskId: task4.id,
+                taskAction: {type: "Delete"},
+            },
+            {
+                type: "UpdateTask",
+                time: deleteTime,
+                taskId: task1.id,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 3,
+                    removedChildTaskCount: 3,
+                    addedClosedChildTaskCount: 0,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+        ],
+        referencedAccounts: [],
+    });
+
+    expect(query1.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
+        task5.id,
+    ]);
+
+    expect(query2.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
 });

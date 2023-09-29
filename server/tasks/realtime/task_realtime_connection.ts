@@ -38,6 +38,7 @@ import {
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -133,15 +134,15 @@ export class TaskRealtimeConnection {
         this._closeWithError = closeWithError;
     }
 
-    public async handleClose() {
+    public async handleClose(context: ServerProcessContext) {
         await runAllPromises(
             mapIterable(
-                concatIterables<{unsubscribe: () => Promise<void>}>(
+                concatIterables<{unsubscribe: (context: ServerProcessContext) => Promise<void>}>(
                     this._querySubscriptionById.values(),
                     this._taskSubscriptionById.values(),
                     this._collectionSubscriptionById.values(),
                 ),
-                subscription => subscription.unsubscribe(),
+                subscription => subscription.unsubscribe(context),
             ),
         );
     }
@@ -269,7 +270,7 @@ export class TaskRealtimeConnection {
                 } catch (error) {
                     this._querySubscriptionById.delete(querySubscriptionId);
 
-                    await querySubscription.unsubscribe();
+                    await querySubscription.unsubscribe(systemContext);
 
                     throw error;
                 }
@@ -277,13 +278,16 @@ export class TaskRealtimeConnection {
         );
     }
 
-    private async _unsubscribeFromQuery(querySubscriptionId: TaskRealtimeQuerySubscriptionId) {
+    private async _unsubscribeFromQuery(
+        context: Context<{process: ProcessContextModule}>,
+        querySubscriptionId: TaskRealtimeQuerySubscriptionId,
+    ) {
         const querySubscription = this._querySubscriptionById.get(querySubscriptionId);
         if (!querySubscription) throw new NotFoundError("Query subscription not found");
 
         this._querySubscriptionById.delete(querySubscriptionId);
 
-        await querySubscription.unsubscribe();
+        await querySubscription.unsubscribe(context);
     }
 
     private _subscribeToTask(
@@ -321,13 +325,16 @@ export class TaskRealtimeConnection {
         });
     }
 
-    private async _unsubscribeFromTask(taskSubscriptionId: TaskRealtimeTaskSubscriptionId) {
+    private async _unsubscribeFromTask(
+        context: Context<{process: ProcessContextModule}>,
+        taskSubscriptionId: TaskRealtimeTaskSubscriptionId,
+    ) {
         const taskSubscription = this._taskSubscriptionById.get(taskSubscriptionId);
         if (!taskSubscription) throw new NotFoundError("Task subscription not found");
 
         this._taskSubscriptionById.delete(taskSubscriptionId);
 
-        await taskSubscription.unsubscribe();
+        await taskSubscription.unsubscribe(context);
     }
 
     private _subscribeToCollection(
@@ -396,16 +403,21 @@ export class TaskRealtimeConnection {
             return this._dangerouslyEscalateToSystemContext(
                 sessionContext,
                 this._spaceId,
-                async context => {
+                async systemContext => {
                     const eventBuilder = new TaskRealtimeUpdateEventBuilder({
                         actionReferencedAccountById: null,
                     });
 
                     const {querySubscriptionId, loadedState, getPreviouslyBackfilledTaskIds} =
-                        await this._subscribeToQuery(sessionContext, context, eventBuilder, input);
+                        await this._subscribeToQuery(
+                            sessionContext,
+                            systemContext,
+                            eventBuilder,
+                            input,
+                        );
 
                     try {
-                        await eventBuilder.send(context, this._spaceId);
+                        await eventBuilder.send(systemContext, this._spaceId);
 
                         return {
                             querySubscriptionId,
@@ -413,14 +425,14 @@ export class TaskRealtimeConnection {
                             previouslyBackfilledTaskIds: getPreviouslyBackfilledTaskIds(),
                         };
                     } catch (error) {
-                        await this._unsubscribeFromQuery(querySubscriptionId);
+                        await this._unsubscribeFromQuery(systemContext, querySubscriptionId);
                         throw error;
                     }
                 },
             );
         },
         unsubscribeFromQuery: async (context, {querySubscriptionId}) => {
-            await this._unsubscribeFromQuery(querySubscriptionId);
+            await this._unsubscribeFromQuery(context, querySubscriptionId);
             return {};
         },
         loadMoreQueryTasks: (context, {querySubscriptionId, limit}) => {
@@ -467,31 +479,31 @@ export class TaskRealtimeConnection {
             return this._dangerouslyEscalateToSystemContext(
                 sessionContext,
                 this._spaceId,
-                async context => {
+                async systemContext => {
                     const eventBuilder = new TaskRealtimeUpdateEventBuilder({
                         actionReferencedAccountById: null,
                     });
 
                     const {taskSubscriptionId} = await this._subscribeToTask(
                         sessionContext,
-                        context,
+                        systemContext,
                         eventBuilder,
                         input.taskId,
                     );
 
                     try {
-                        await eventBuilder.send(context, this._spaceId);
+                        await eventBuilder.send(systemContext, this._spaceId);
 
                         return {taskSubscriptionId};
                     } catch (error) {
-                        await this._unsubscribeFromTask(taskSubscriptionId);
+                        await this._unsubscribeFromTask(systemContext, taskSubscriptionId);
                         throw error;
                     }
                 },
             );
         },
         unsubscribeFromTask: async (context, {taskSubscriptionId}) => {
-            await this._unsubscribeFromTask(taskSubscriptionId);
+            await this._unsubscribeFromTask(context, taskSubscriptionId);
             return {};
         },
         subscribeToCollection: (sessionContext, input) => {
@@ -624,6 +636,7 @@ export class TaskRealtimeConnection {
                                 querySubscriptionResults.map(async queryResult => {
                                     if (queryResult.status === "fulfilled") {
                                         await this._unsubscribeFromQuery(
+                                            systemContext,
                                             queryResult.value.querySubscriptionId,
                                         );
                                     }
@@ -633,6 +646,7 @@ export class TaskRealtimeConnection {
                                 taskSubscriptionResults.map(async taskSubscriptionResult => {
                                     if (taskSubscriptionResult.status === "fulfilled") {
                                         await this._unsubscribeFromTask(
+                                            systemContext,
                                             taskSubscriptionResult.value.taskSubscriptionId,
                                         );
                                     }
@@ -664,10 +678,10 @@ export class TaskRealtimeConnection {
             await runAllPromises(
                 concatIterables(
                     querySubscriptionIds.map(querySubscriptionId =>
-                        this._unsubscribeFromQuery(querySubscriptionId),
+                        this._unsubscribeFromQuery(context, querySubscriptionId),
                     ),
                     taskSubscriptionIds.map(taskSubscriptionId =>
-                        this._unsubscribeFromTask(taskSubscriptionId),
+                        this._unsubscribeFromTask(context, taskSubscriptionId),
                     ),
                     collectionSubscriptionIds.map(collectionSubscriptionId =>
                         this._unsubscribeFromCollection(collectionSubscriptionId),
@@ -829,7 +843,7 @@ export class TaskRealtimeConnection {
                     },
                 );
 
-                eventBuilder.waitUntil(promise);
+                eventBuilder.waitUntil(context, promise);
 
                 referencedTaskState.isAccessAuthorizedPromise = promise;
                 this._directlySubscribedTaskReferenceCountById.set(newTask.id, 1);
@@ -894,7 +908,7 @@ export class TaskRealtimeConnection {
                     },
                 );
 
-                eventBuilder.waitUntil(promise);
+                eventBuilder.waitUntil(context, promise);
 
                 referencedCollectionState.isAccessAuthorizedPromise = promise;
                 this._directlySubscribedCollectionReferenceCountById.set(newCollection.id, 1);
@@ -1028,7 +1042,7 @@ export class TaskRealtimeConnection {
                         return isAccessAuthorized;
                     });
 
-                    eventBuilder.waitUntil(promise);
+                    eventBuilder.waitUntil(context, promise);
 
                     this._referencedTaskStateById.set(newTask.id, {
                         referenceCount: 1,
@@ -1068,6 +1082,7 @@ export class TaskRealtimeConnection {
             // Only add update actions for this referenced task if the referenced task
             // is authorized.
             eventBuilder.waitUntil(
+                context,
                 referencedTaskState.isAccessAuthorizedPromise.then(isAccessAuthorized => {
                     if (!isAccessAuthorized) return;
                     eventBuilder.addActions(this._sender, actions);
@@ -1145,7 +1160,7 @@ export class TaskRealtimeConnection {
                         return isAccessAuthorized;
                     });
 
-                    eventBuilder.waitUntil(promise);
+                    eventBuilder.waitUntil(context, promise);
 
                     this._referencedCollectionStateById.set(newCollection.id, {
                         referenceCount: 1,
@@ -1195,6 +1210,7 @@ export class TaskRealtimeConnection {
             // Only add update actions for this referenced collection if the referenced
             // collection is authorized.
             eventBuilder.waitUntil(
+                context,
                 referencedCollectionState.isAccessAuthorizedPromise.then(isAccessAuthorized => {
                     if (!isAccessAuthorized) return;
                     eventBuilder.addActions(this._sender, actions);

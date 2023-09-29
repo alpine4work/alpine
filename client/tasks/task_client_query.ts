@@ -13,6 +13,7 @@ import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {evaluateTaskQueryNormalizedFiltersForModel} from "~/shared/tasks/model/evaluate_task_query_normalized_filters_for_model.js";
 import {getTaskQueryNormalizedSortCursorForModel} from "~/shared/tasks/model/get_task_query_normalized_sort_cursor_for_model.js";
@@ -25,6 +26,15 @@ import {
     getTaskQuerySortCursorTaskId,
 } from "~/shared/tasks/task_query_sort_cursor.js";
 import {TaskRealtimeQueryLoadedState} from "~/shared/tasks/task_realtime_protocol.js";
+
+// Keep track of the previous task object the query saw so we can check if
+// we've missed any updates. We run this validation in `development` and
+// `test` since maintaining task update state correctly is a little tricky to
+// get right but critical to the operation of this class.
+const previousTaskByIdByQueryForTest =
+    process.env.NODE_ENV !== "production"
+        ? new WeakMap<TaskClientQueryInternal, Map<TaskId, TaskClientStoreTaskEntry>>()
+        : null;
 
 /**
  * Maintains the state of a query on the client. Whenever a task is updated in
@@ -524,113 +534,150 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
             this._taskOrderAndLoadedStateStore.getSnapshot();
         let taskOrder = previousTaskOrder;
 
-        const originalReferencedTaskIds = new Set(this._referencedTaskEntryStoreById.keys());
-        const updatedReferencedTaskIds = new Set<TaskId>();
+        const alreadyUpdatedReferencedTaskIds = new Set<TaskId>();
 
-        for (const [taskId, {taskEntryStore, oldTaskEntry, newTaskEntry}] of taskEntryUpdateById) {
-            // We need to check `originalReferencedTaskIds` since referenced tasks may be
-            // added while we update the query. We do not need to process updates for them.
-            if (originalReferencedTaskIds.has(taskId)) {
-                updatedReferencedTaskIds.add(taskId);
+        const onBeforeReferencedTaskRemove = (taskId: TaskId) => {
+            if (alreadyUpdatedReferencedTaskIds.has(taskId)) return;
+            alreadyUpdatedReferencedTaskIds.add(taskId);
+
+            const taskEntryUpdate = taskEntryUpdateById.get(taskId);
+            if (!taskEntryUpdate) return;
+
+            // If we started this function call with a reference to this task then a task
+            // entry must have already existed in our store.
+            assert(taskEntryUpdate.oldTaskEntry);
+
+            this._onReferencedTaskUpdate(
+                taskId,
+                taskEntryUpdate.oldTaskEntry,
+                taskEntryUpdate.newTaskEntry,
+            );
+        };
+
+        assert(this._onBeforeReferencedTaskRemove === null);
+        this._onBeforeReferencedTaskRemove = onBeforeReferencedTaskRemove;
+        try {
+            // Get the referenced `TaskId`s we need to update.
+            const updatedOriginalReferencedTaskIds = new Set<TaskId>();
+            for (const taskId of taskEntryUpdateById.keys()) {
+                if (this._referencedTaskEntryStoreById.has(taskId)) {
+                    updatedOriginalReferencedTaskIds.add(taskId);
+                }
             }
 
-            if (newTaskEntry.task === null) {
-                // Ignore tasks that haven't been backfilled yet.
-                if (oldTaskEntry === null || oldTaskEntry.task === null) continue;
+            for (const taskId of updatedOriginalReferencedTaskIds) {
+                // Double check that the task wasn't removed while updating another task.
+                if (!this._referencedTaskEntryStoreById.has(taskId)) continue;
 
-                // If a task is being reverted we need to remove it from our query. But we
-                // don't have to remove tasks that don't exist in our query.
-                if (!this._loadedTaskEntryStoreById.has(taskId)) continue;
+                if (alreadyUpdatedReferencedTaskIds.has(taskId)) continue;
+                alreadyUpdatedReferencedTaskIds.add(taskId);
 
-                const oldCursor = getTaskQueryNormalizedSortCursorForModel(
-                    this.sorts,
-                    oldTaskEntry.task,
+                const taskEntryUpdate = taskEntryUpdateById.get(taskId);
+                if (!taskEntryUpdate) continue;
+
+                // If we started this function call with a reference to this task then a task
+                // entry must have already existed in our store.
+                assert(taskEntryUpdate.oldTaskEntry);
+
+                this._onReferencedTaskUpdate(
+                    taskId,
+                    taskEntryUpdate.oldTaskEntry,
+                    taskEntryUpdate.newTaskEntry,
+                );
+            }
+
+            for (const [
+                taskId,
+                {taskEntryStore, oldTaskEntry, newTaskEntry},
+            ] of taskEntryUpdateById) {
+                if (newTaskEntry.task === null) {
+                    // Ignore tasks that haven't been backfilled yet.
+                    if (oldTaskEntry === null || oldTaskEntry.task === null) continue;
+
+                    // If a task is being reverted we need to remove it from our query. But we
+                    // don't have to remove tasks that don't exist in our query.
+                    if (!this._loadedTaskEntryStoreById.has(taskId)) continue;
+
+                    const oldCursor = getTaskQueryNormalizedSortCursorForModel(
+                        this.sorts,
+                        oldTaskEntry.task,
+                    );
+
+                    this._onLoadedTaskRemove(taskId, oldTaskEntry);
+
+                    taskOrder = taskOrder.remove(oldCursor);
+
+                    // Get rid of our task entry store reference so it can be garbage collected.
+                    this._loadedTaskEntryStoreById.delete(taskId);
+                    continue;
+                }
+
+                const isVisible = evaluateTaskQueryNormalizedFiltersForModel(
+                    this.filters,
+                    newTaskEntry.task,
                 );
 
-                this._onLoadedTaskRemove(taskId, oldTaskEntry);
+                // If a task was not visible in our query, check if it's visible now and add it
+                // if so.
+                if (!this._loadedTaskEntryStoreById.has(taskId)) {
+                    if (!isVisible) continue;
 
-                taskOrder = taskOrder.remove(oldCursor);
+                    const newCursor = getTaskQueryNormalizedSortCursorForModel(
+                        this.sorts,
+                        newTaskEntry.task,
+                    );
 
-                // Get rid of our task entry store reference so it can be garbage collected.
-                this._loadedTaskEntryStoreById.delete(taskId);
-                continue;
-            }
+                    this._onLoadedTaskAdd(taskId, newTaskEntry);
 
-            const isVisible = evaluateTaskQueryNormalizedFiltersForModel(
-                this.filters,
-                newTaskEntry.task,
-            );
+                    taskOrder = taskOrder.insert(newCursor, null);
 
-            // If a task was not visible in our query, check if it's visible now and add it
-            // if so.
-            if (!this._loadedTaskEntryStoreById.has(taskId)) {
-                if (!isVisible) continue;
+                    // Capture a reference to the task entry store so it's not garbage collected.
+                    this._loadedTaskEntryStoreById.set(taskId, taskEntryStore);
+                    continue;
+                }
+
+                // If this task exists in our query that means we've seen the backfilled
+                // task before.
+                assert(oldTaskEntry?.task);
+
+                // Task used to be visible in the query but not anymore.
+                if (!isVisible) {
+                    const oldCursor = getTaskQueryNormalizedSortCursorForModel(
+                        this.sorts,
+                        oldTaskEntry.task,
+                    );
+
+                    this._onLoadedTaskRemove(taskId, oldTaskEntry);
+
+                    taskOrder = taskOrder.remove(oldCursor);
+
+                    // Get rid of our task entry store reference so it can be garbage collected.
+                    this._loadedTaskEntryStoreById.delete(taskId);
+                    continue;
+                }
 
                 const newCursor = getTaskQueryNormalizedSortCursorForModel(
                     this.sorts,
                     newTaskEntry.task,
                 );
-
-                this._onLoadedTaskAdd(taskId, newTaskEntry);
-
-                taskOrder = taskOrder.insert(newCursor, null);
-
-                // Capture a reference to the task entry store so it's not garbage collected.
-                this._loadedTaskEntryStoreById.set(taskId, taskEntryStore);
-                continue;
-            }
-
-            // If this task exists in our query that means we've seen the backfilled
-            // task before.
-            assert(oldTaskEntry?.task);
-
-            // Task used to be visible in the query but not anymore.
-            if (!isVisible) {
                 const oldCursor = getTaskQueryNormalizedSortCursorForModel(
                     this.sorts,
                     oldTaskEntry.task,
                 );
 
-                this._onLoadedTaskRemove(taskId, oldTaskEntry);
+                this._onLoadedTaskUpdate(taskId, oldTaskEntry, newTaskEntry);
 
-                taskOrder = taskOrder.remove(oldCursor);
+                const haveSortValuesChanged =
+                    compareTaskQuerySortCursors(this.sorts, oldCursor, newCursor) !== 0;
 
-                // Get rid of our task entry store reference so it can be garbage collected.
-                this._loadedTaskEntryStoreById.delete(taskId);
-                continue;
+                // The task is visible in the query but the change does not affect its position
+                // in the query.
+                if (!haveSortValuesChanged) continue;
+
+                taskOrder = taskOrder.remove(oldCursor).insert(newCursor, null);
             }
-
-            const newCursor = getTaskQueryNormalizedSortCursorForModel(
-                this.sorts,
-                newTaskEntry.task,
-            );
-            const oldCursor = getTaskQueryNormalizedSortCursorForModel(
-                this.sorts,
-                oldTaskEntry.task,
-            );
-
-            this._onLoadedTaskUpdate(taskId, oldTaskEntry, newTaskEntry);
-
-            const haveSortValuesChanged =
-                compareTaskQuerySortCursors(this.sorts, oldCursor, newCursor) !== 0;
-
-            // The task is visible in the query but the change does not affect its position
-            // in the query.
-            if (!haveSortValuesChanged) continue;
-
-            taskOrder = taskOrder.remove(oldCursor).insert(newCursor, null);
-        }
-
-        for (const taskId of updatedReferencedTaskIds) {
-            // If the referenced task was removed when updating our query then don't
-            // update it.
-            if (!this._referencedTaskEntryStoreById.has(taskId)) continue;
-
-            const {oldTaskEntry, newTaskEntry} = assertExists(taskEntryUpdateById.get(taskId));
-
-            assert(oldTaskEntry);
-
-            this._onReferencedTaskUpdate(oldTaskEntry, newTaskEntry);
+        } finally {
+            this._onBeforeReferencedTaskRemove = null;
         }
 
         if (taskOrder !== previousTaskOrder) {
@@ -716,6 +763,23 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
     }
 
     private _onLoadedTaskAdd(taskId: TaskId, newTaskEntry: TaskClientStoreTaskEntry) {
+        // When testing, keep track of the tasks we've seen so we can guarantee we've
+        // seen every relevant update for a task.
+        if (process.env.NODE_ENV !== "production") {
+            const previousTaskById = getOrSetDefaultMapValue(
+                assertExists(previousTaskByIdByQueryForTest),
+                this,
+                () => new Map(),
+            );
+
+            assert(
+                !previousTaskById.has(taskId),
+                "Query can't add task that's already referenced with `_onLoadedTaskAdd()`",
+            );
+
+            previousTaskById.set(taskId, newTaskEntry);
+        }
+
         // Hold a reference to all loaded tasks.
         this.store.retainTaskEntryStore(taskId);
 
@@ -727,10 +791,44 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
         oldTaskEntry: TaskClientStoreTaskEntry,
         newTaskEntry: TaskClientStoreTaskEntry,
     ) {
+        // When testing, keep track of the tasks we've seen so we can guarantee we've
+        // seen every relevant update for a task.
+        if (process.env.NODE_ENV !== "production") {
+            const previousTaskById = getOrSetDefaultMapValue(
+                assertExists(previousTaskByIdByQueryForTest),
+                this,
+                () => new Map(),
+            );
+
+            assert(
+                previousTaskById.get(taskId) === oldTaskEntry,
+                "Query must observe all updates to a referenced task through `_onLoadedTaskUpdate()`",
+            );
+
+            previousTaskById.set(taskId, newTaskEntry);
+        }
+
         this._trackTaskDependenciesFromUpdate(oldTaskEntry, newTaskEntry);
     }
 
     private _onLoadedTaskRemove(taskId: TaskId, oldTaskEntry: TaskClientStoreTaskEntry) {
+        // When testing, keep track of the tasks we've seen so we can guarantee we've
+        // seen every relevant update for a task.
+        if (process.env.NODE_ENV !== "production") {
+            const previousTaskById = getOrSetDefaultMapValue(
+                assertExists(previousTaskByIdByQueryForTest),
+                this,
+                () => new Map(),
+            );
+
+            assert(
+                previousTaskById.get(taskId) === oldTaskEntry,
+                "Query can't remove task that is not referenced with `_onLoadedTaskRemove()`",
+            );
+
+            previousTaskById.delete(taskId);
+        }
+
         // Release our loaded task reference.
         this.store.releaseTaskEntryStore(taskId);
 

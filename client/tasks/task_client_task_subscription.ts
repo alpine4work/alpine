@@ -171,13 +171,82 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
     // We could also do a `TaskClientTaskSubscription`
     // `TaskClientTaskSubscriptionInternal` class split like we do for
     // `TaskClientQuery` but that feels like too much for one method.
-    public _onTaskUpdate(
+    public _onTasksUpdated(
         internal: TaskClientStoreInternal,
-        taskId: TaskId,
-        oldTaskEntry: TaskClientStoreTaskEntry,
-        newTaskEntry: TaskClientStoreTaskEntry,
+        taskEntryUpdateById: Map<
+            TaskId,
+            {
+                taskEntryStore: ValueStore<TaskClientStoreTaskEntry>;
+                oldTaskEntry: TaskClientStoreTaskEntry | null;
+                newTaskEntry: TaskClientStoreTaskEntry;
+            }
+        >,
     ) {
         assert(internal instanceof TaskClientStoreInternal);
-        this._trackTaskDependenciesFromUpdate(oldTaskEntry, newTaskEntry);
+
+        const alreadyUpdatedReferencedTaskIds = new Set<TaskId>();
+
+        const onBeforeReferencedTaskRemove = (taskId: TaskId) => {
+            if (alreadyUpdatedReferencedTaskIds.has(taskId)) return;
+            alreadyUpdatedReferencedTaskIds.add(taskId);
+
+            const taskEntryUpdate = taskEntryUpdateById.get(taskId);
+            if (!taskEntryUpdate) return;
+
+            // If we started this function call with a reference to this task then a task
+            // entry must have already existed in our store.
+            assert(taskEntryUpdate.oldTaskEntry);
+
+            this._onReferencedTaskUpdate(
+                taskId,
+                taskEntryUpdate.oldTaskEntry,
+                taskEntryUpdate.newTaskEntry,
+            );
+        };
+
+        assert(this._onBeforeReferencedTaskRemove === null);
+        this._onBeforeReferencedTaskRemove = onBeforeReferencedTaskRemove;
+        try {
+            // Get the referenced `TaskId`s we need to update.
+            const updatedOriginalReferencedTaskIds = new Set<TaskId>();
+            for (const taskId of taskEntryUpdateById.keys()) {
+                if (this._referencedTaskEntryStoreById.has(taskId)) {
+                    updatedOriginalReferencedTaskIds.add(taskId);
+                }
+            }
+
+            for (const taskId of updatedOriginalReferencedTaskIds) {
+                if (alreadyUpdatedReferencedTaskIds.has(taskId)) continue;
+
+                const taskEntryUpdate = taskEntryUpdateById.get(taskId);
+                if (!taskEntryUpdate) continue;
+
+                // If we started this function call with a reference to this task then a task
+                // entry must have already existed in our store.
+                assert(taskEntryUpdate.oldTaskEntry);
+
+                this._onReferencedTaskUpdate(
+                    taskId,
+                    taskEntryUpdate.oldTaskEntry,
+                    taskEntryUpdate.newTaskEntry,
+                );
+            }
+
+            {
+                const taskEntryUpdate = taskEntryUpdateById.get(this.taskId);
+                if (taskEntryUpdate) {
+                    // If we have a subscription for this task then a task entry must have already
+                    // existed in our store.
+                    assert(taskEntryUpdate.oldTaskEntry);
+
+                    this._trackTaskDependenciesFromUpdate(
+                        taskEntryUpdate.oldTaskEntry,
+                        taskEntryUpdate.newTaskEntry,
+                    );
+                }
+            }
+        } finally {
+            this._onBeforeReferencedTaskRemove = null;
+        }
     }
 }

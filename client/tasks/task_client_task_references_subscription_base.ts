@@ -4,8 +4,18 @@ import {
     TaskClientStoreInternal,
     TaskClientStoreTaskEntry,
 } from "~/client/tasks/task_client_store.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+
+const previousReferencedTaskByIdBySubscriptionForTest =
+    process.env.NODE_ENV !== "production"
+        ? new WeakMap<
+              TaskClientTaskReferencesSubscriptionBase,
+              Map<TaskId, TaskClientStoreTaskEntry>
+          >()
+        : null;
 
 /**
  * Base class for `TaskClientQueryInternal` and `TaskClientTaskSubscription`.
@@ -17,6 +27,8 @@ import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
  * references in realtime.
  */
 export abstract class TaskClientTaskReferencesSubscriptionBase {
+    protected _onBeforeReferencedTaskRemove: ((taskId: TaskId) => void) | null = null;
+
     protected abstract _getStore(): TaskClientStoreInternal;
 
     protected readonly _referencedTaskEntryStoreById = new Map<
@@ -29,18 +41,91 @@ export abstract class TaskClientTaskReferencesSubscriptionBase {
         {referenceCount: number; store: Store<TaskClientStoreCollectionEntry>}
     >();
 
-    private _onReferencedTaskAdd(newTaskEntry: TaskClientStoreTaskEntry) {
+    private _onReferencedTaskAdd(taskId: TaskId, newTaskEntry: TaskClientStoreTaskEntry) {
+        // When testing, keep track of the tasks we've seen so we can guarantee we've
+        // seen every relevant update for a task.
+        if (process.env.NODE_ENV !== "production") {
+            const previousTaskById = getOrSetDefaultMapValue(
+                assertExists(previousReferencedTaskByIdBySubscriptionForTest),
+                this,
+                () => new Map(),
+            );
+
+            assert(
+                !previousTaskById.has(taskId),
+                "Subscription can't add task that's already referenced with `_onReferencedTaskAdd()`",
+            );
+
+            previousTaskById.set(taskId, newTaskEntry);
+        }
+
         this._trackTaskDependenciesFromAdd(newTaskEntry);
     }
 
     protected _onReferencedTaskUpdate(
+        taskId: TaskId,
         oldTaskEntry: TaskClientStoreTaskEntry,
         newTaskEntry: TaskClientStoreTaskEntry,
     ) {
+        // When testing, keep track of the tasks we've seen so we can guarantee we've
+        // seen every relevant update for a task.
+        if (process.env.NODE_ENV !== "production") {
+            const previousTaskById = getOrSetDefaultMapValue(
+                assertExists(previousReferencedTaskByIdBySubscriptionForTest),
+                this,
+                () => new Map(),
+            );
+
+            assert(
+                previousTaskById.get(taskId) === oldTaskEntry,
+                "Subscription must observe all updates to a referenced task through `onReferencedTaskUpdate()`",
+            );
+
+            previousTaskById.set(taskId, newTaskEntry);
+        }
+
         this._trackTaskDependenciesFromUpdate(oldTaskEntry, newTaskEntry);
     }
 
-    private _onReferencedTaskRemove(oldTaskEntry: TaskClientStoreTaskEntry) {
+    private _onReferencedTaskRemove(taskId: TaskId, oldTaskEntry: TaskClientStoreTaskEntry) {
+        // When we apply an action transaction, there are potentially many updates to
+        // many tasks that we apply all at once. Let's say a query references a parent
+        // task and we both need to update the parent task and remove it from the query
+        // in the same action transaction.
+        //
+        // This happens when deleting a task and all its children if you're subscribed
+        // to the children query, for instance. The parent task of the children is
+        // referenced and its children counts update (since the children are all
+        // deleted).
+        //
+        // So in this case we need to see the update to the referenced task BEFORE we
+        // can remove it. We assert that EVERY update to a task must be witnessed by
+        // this class in order. Otherwise our tracked references might be left in a
+        // bad state.
+        //
+        // So while applying an action transaction, the class provides an
+        // implementation for this function that if we're removing a task that has a
+        // pending update the class can tell us about the update immediately before
+        // continuing with the remove.
+        this._onBeforeReferencedTaskRemove?.(taskId);
+
+        // When testing, keep track of the tasks we've seen so we can guarantee we've
+        // seen every relevant update for a task.
+        if (process.env.NODE_ENV !== "production") {
+            const previousTaskById = getOrSetDefaultMapValue(
+                assertExists(previousReferencedTaskByIdBySubscriptionForTest),
+                this,
+                () => new Map(),
+            );
+
+            assert(
+                previousTaskById.get(taskId) === oldTaskEntry,
+                "Subscription can't remove task that is not referenced with `_onReferencedTaskRemove()`",
+            );
+
+            previousTaskById.delete(taskId);
+        }
+
         this._trackTaskDependenciesFromRemove(oldTaskEntry);
     }
 
@@ -216,7 +301,7 @@ export abstract class TaskClientTaskReferencesSubscriptionBase {
             // referenced in the store.
             this._getStore().retainTaskEntryStore(newParentTaskId);
 
-            this._onReferencedTaskAdd(taskEntryStore.getSnapshot());
+            this._onReferencedTaskAdd(newParentTaskId, taskEntryStore.getSnapshot());
         }
     }
 
@@ -235,7 +320,10 @@ export abstract class TaskClientTaskReferencesSubscriptionBase {
         if (referencedTaskEntryStore.referenceCount === 0) {
             this._referencedTaskEntryStoreById.delete(oldParentTaskId);
             this._getStore().releaseTaskEntryStore(oldParentTaskId);
-            this._onReferencedTaskRemove(referencedTaskEntryStore.store.getSnapshot());
+            this._onReferencedTaskRemove(
+                oldParentTaskId,
+                referencedTaskEntryStore.store.getSnapshot(),
+            );
         }
         // If we have a cycle then a task entry's one remaining reference might be a
         // reference to itself! Loop through the task's parents to see if we have a
@@ -262,7 +350,7 @@ export abstract class TaskClientTaskReferencesSubscriptionBase {
                     try {
                         this._referencedTaskEntryStoreById.delete(taskEntry.task.id);
                         this._getStore().releaseTaskEntryStore(oldParentTaskId);
-                        this._onReferencedTaskRemove(taskEntry);
+                        this._onReferencedTaskRemove(taskEntry.task.id, taskEntry);
                     } finally {
                         removingCycleStartingWithTaskId = previousRemovingCycleFromInitialTaskId;
                     }

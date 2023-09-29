@@ -7,6 +7,8 @@ import {
     TaskRealtimeTaskReferencesSubscriptionCallbacks,
 } from "~/server/tasks/realtime/task_realtime_task_references_subscription_base.js";
 import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
+import {Context} from "~/shared/context/context.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
@@ -80,8 +82,8 @@ export class TaskRealtimeTaskSubscription {
         return this._internal.taskEntry.task.id;
     }
 
-    public unsubscribe(): Promise<void> {
-        return this._internal.unsubscribe();
+    public unsubscribe(context: Context<{process: ProcessContextModule}>): Promise<void> {
+        return this._internal.unsubscribe(context);
     }
 }
 
@@ -115,7 +117,7 @@ export class TaskRealtimeTaskSubscriptionInternal extends TaskRealtimeTaskRefere
      * `onReferencedTaskRemove`, and `onReferencedCollectionRemove` for all tasks
      * and collections that appeared in our query.
      */
-    public unsubscribe() {
+    public unsubscribe(context: Context<{process: ProcessContextModule}>) {
         assert(this._isSubscribed);
         this._isSubscribed = false;
         this.taskEntry.removeTaskSubscriptionDependent(this);
@@ -127,7 +129,7 @@ export class TaskRealtimeTaskSubscriptionInternal extends TaskRealtimeTaskRefere
         });
 
         const oldTask = this.taskEntry.task;
-        this._trackTaskDependenciesFromRemove(eventBuilder, oldTask);
+        this._trackTaskDependenciesFromRemove(context, eventBuilder, oldTask);
         this._callbacks.onTaskUnsubscribe(eventBuilder, oldTask);
 
         return eventBuilder.waitWithoutSending();

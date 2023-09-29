@@ -6,6 +6,7 @@ import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -240,9 +241,16 @@ export class TaskRealtimeUpdateEventBuilder {
      * We will wait until all promises passed into this function resolve before
      * sending out events to clients.
      */
-    public waitUntil(promise: PromiseLike<unknown>) {
+    public waitUntil(
+        context: Context<{process: ProcessContextModule}>,
+        promise: PromiseLike<unknown>,
+    ) {
         assert(this._isBuilding);
         this._promises.push(promise);
+
+        // You must pass in a context where you create the promise so we can call
+        // `waitUntil()` on the context as well to make sure it's not destroyed.
+        context.process.waitUntil(promise instanceof Promise ? promise : Promise.resolve(promise));
     }
 
     /**

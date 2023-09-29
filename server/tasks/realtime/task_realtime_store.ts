@@ -637,7 +637,7 @@ export class TaskRealtimeStoreInternal {
         actionReferencedAccountById: ReadonlyMap<AccountId, AccountModel>,
         eventBuilder: TaskRealtimeUpdateEventBuilder,
     ) {
-        const updatedTaskEntriesById = new Map<
+        const taskEntryUpdateById = new Map<
             TaskId,
             {
                 taskEntry: TaskRealtimeStoreTaskEntry;
@@ -653,7 +653,7 @@ export class TaskRealtimeStoreInternal {
             }
         >();
 
-        const updatedCollectionEntriesById = new Map<
+        const collectionEntryUpdateById = new Map<
             TaskCollectionId,
             {
                 collectionEntry: TaskRealtimeStoreCollectionEntry;
@@ -697,7 +697,7 @@ export class TaskRealtimeStoreInternal {
                         //
                         // This also means we deliver all actions to the client regardless of whether
                         // its a noop. This seems like good behavior.
-                        getOrSetDefaultMapValue(updatedTaskEntriesById, action.taskId, () => ({
+                        getOrSetDefaultMapValue(taskEntryUpdateById, action.taskId, () => ({
                             taskEntry,
                             oldTask,
                             actions: [],
@@ -728,7 +728,7 @@ export class TaskRealtimeStoreInternal {
                         });
                         this._taskEntryById.set(action.taskId, taskEntry);
 
-                        getOrSetDefaultMapValue(updatedTaskEntriesById, action.taskId, () => ({
+                        getOrSetDefaultMapValue(taskEntryUpdateById, action.taskId, () => ({
                             taskEntry,
                             oldTask: null,
                             actions: [],
@@ -771,7 +771,7 @@ export class TaskRealtimeStoreInternal {
                         collectionEntry.collection = newCollection;
 
                         getOrSetDefaultMapValue(
-                            updatedCollectionEntriesById,
+                            collectionEntryUpdateById,
                             action.collectionId,
                             () => ({
                                 collectionEntry,
@@ -796,7 +796,7 @@ export class TaskRealtimeStoreInternal {
                         this._collectionEntryById.set(action.collectionId, collectionEntry);
 
                         getOrSetDefaultMapValue(
-                            updatedCollectionEntriesById,
+                            collectionEntryUpdateById,
                             action.collectionId,
                             () => ({
                                 collectionEntry,
@@ -834,7 +834,7 @@ export class TaskRealtimeStoreInternal {
                         // we choose to send noop actions for completeness. Sending a noop update
                         // account name action to every task regardless of whether it's affected seems
                         // inefficient so we're ok sacrificing completeness.
-                        getOrSetDefaultMapValue(updatedTaskEntriesById, newTask.id, () => ({
+                        getOrSetDefaultMapValue(taskEntryUpdateById, newTask.id, () => ({
                             taskEntry,
                             oldTask,
                             actions: [],
@@ -850,15 +850,19 @@ export class TaskRealtimeStoreInternal {
             }
         }
 
+        // 1. Process collection updates in task references subscriptions (query
+        // subscriptions and task subscriptions) and direct collection subscriptions.
         for (const {
             collectionEntry,
             oldCollection,
             actions,
             taskReferencesSubscriptions,
-        } of updatedCollectionEntriesById.values()) {
+        } of collectionEntryUpdateById.values()) {
             assert(isNonEmptyReadonlyArray(actions));
 
             if (oldCollection !== null) {
+                // Update task references subscriptions (query subscriptions and task
+                // subscriptions):
                 for (const subscription of taskReferencesSubscriptions) {
                     subscription.onReferencedCollectionUpdate(
                         context,
@@ -870,6 +874,7 @@ export class TaskRealtimeStoreInternal {
                     );
                 }
 
+                // Update direct collection subscriptions:
                 for (const subscription of collectionEntry.iterateCollectionSubscriptionDependents()) {
                     subscription.onCollectionUpdate(
                         context,
@@ -883,87 +888,27 @@ export class TaskRealtimeStoreInternal {
             }
         }
 
-        // HACK: Consider the following transaction. Let's say before the transaction
-        // `task1`'s parent is `task2`.
-        //
-        // ```
-        // [
-        //     {
-        //         type: "UpdateTask",
-        //         taskId: task1,
-        //         taskAction: {type: "UpdateParentTaskId", parentTaskId: null},
-        //     },
-        //     {
-        //         type: "UpdateTask",
-        //         taskId: task2,
-        //         taskAction: {type: "UpdateChildrenCounts"},
-        //     },
-        // ]
-        // ```
-        //
-        // This is a fairly common transaction in our system. e.g. When
-        // indenting/dedenting tasks. The first action may call
-        // `querySubscription._onReferencedTaskRemove()` because `task2` is no longer
-        // referenced. The second action will call
-        // `querySubscription.onReferencedTaskUpdate()` for `task2`. We need to call
-        // `querySubscription.onReferencedTaskUpdate()` before
-        // `querySubscription._onReferencedTaskRemove()` since query subscriptions need
-        // to observe every update to a task (we have assertions for this in test + dev
-        // environments).
-        //
-        // So this a hacky fix. If a task has an `UpdateParentTaskId` action we apply
-        // updates for that task last. This could still break if we have two
-        // `UpdateParentTaskId`s in the same transaction since we don't try to
-        // determine a proper order between them. A more correct fix would be: when
-        // `_onReferencedTaskRemove()` is called check if there's a pending
-        // `onReferencedTaskUpdate()` call for the task and run it first. But this
-        // hacky fix works in all practical cases (we don't have any double
-        // `UpdateParentTaskId` actions) so it's fine for now.
-        const updatedTaskEntries = Array.from(updatedTaskEntriesById.values()).sort(
-            ({actions: actions1}, {actions: actions2}) => {
-                const getActionPriority = (action: TaskAction) => {
-                    if (action.type !== "UpdateTask") return 0;
-                    if (action.taskAction.type === "AddCollection") return 1;
-                    if (action.taskAction.type === "RemoveCollection") return 1;
-                    if (action.taskAction.type === "UpdateParentTaskId") return 2;
-                    return 0;
-                };
+        const alreadyAppliedTaskEntryUpdateIds = new Set<TaskId>();
 
-                const priority1 = Math.max(...actions1.map(getActionPriority));
-                const priority2 = Math.max(...actions2.map(getActionPriority));
-
-                return priority1 - priority2;
-            },
-        );
-
-        for (const {
+        const applyTaskEntryUpdate = ({
             taskEntry,
             oldTask,
             actions,
             taskReferencesSubscriptions,
-        } of updatedTaskEntries) {
+        }: {
+            taskEntry: TaskRealtimeStoreTaskEntry;
+            oldTask: TaskIndexDoc | null;
+            actions: Array<TaskAction>;
+            taskReferencesSubscriptions: Array<TaskRealtimeTaskReferencesSubscriptionBase>;
+        }) => {
+            if (alreadyAppliedTaskEntryUpdateIds.has(taskEntry.task.id)) return;
+            alreadyAppliedTaskEntryUpdateIds.add(taskEntry.task.id);
+
             assert(isNonEmptyReadonlyArray(actions));
 
-            const addedQueryDependencies = new Set();
-
-            // For queries this task is not currently visible in, see if it is now visible.
-            for (const query of this._queries.values()) {
-                if (taskEntry.hasQueryDependent(query)) continue;
-
-                const {isVisible} = query.maybeAddVisibleTask(
-                    context,
-                    eventBuilder,
-                    taskEntry.task,
-                );
-                if (isVisible) {
-                    addedQueryDependencies.add(query);
-                    taskEntry.addQueryDependent(query);
-                }
-            }
-
-            // If this task is referenced as a parent task in any query subscriptions then
-            // send updates to those subscriptions.
             if (oldTask !== null) {
+                // Update task references subscriptions (query subscriptions and task
+                // subscriptions):
                 for (const subscription of taskReferencesSubscriptions) {
                     subscription.onReferencedTaskUpdate(
                         context,
@@ -975,6 +920,7 @@ export class TaskRealtimeStoreInternal {
                     );
                 }
 
+                // Update direct task subscriptions:
                 for (const subscription of taskEntry.iterateTaskSubscriptionDependents()) {
                     subscription.onTaskUpdate(
                         context,
@@ -985,14 +931,9 @@ export class TaskRealtimeStoreInternal {
                         actions,
                     );
                 }
-            }
 
-            // For queries this task is currently visible in, update the query and see if
-            // the task is now hidden from the query.
-            if (oldTask !== null) {
+                // Update direct query subscriptions:
                 for (const query of taskEntry.iterateQueryDependents()) {
-                    if (addedQueryDependencies.has(query)) continue;
-
                     const {isStillVisible} = query.onVisibleTaskUpdate(
                         context,
                         eventBuilder,
@@ -1006,6 +947,42 @@ export class TaskRealtimeStoreInternal {
                     }
                 }
             }
+
+            // Attempt to add updated tasks to all our queries in case an update made
+            // the task visible in the query.
+            for (const query of this._queries.values()) {
+                if (taskEntry.hasQueryDependent(query)) continue;
+
+                const {isVisible} = query.maybeAddVisibleTask(
+                    context,
+                    eventBuilder,
+                    taskEntry.task,
+                );
+                if (isVisible) {
+                    taskEntry.addQueryDependent(query);
+                }
+            }
+        };
+
+        const onReferencedTaskRemove = (taskId: TaskId) => {
+            const taskEntryUpdate = taskEntryUpdateById.get(taskId);
+
+            if (taskEntryUpdate) {
+                applyTaskEntryUpdate(taskEntryUpdate);
+            }
+        };
+
+        assert(this._onReferencedTaskRemove === null);
+        this._onReferencedTaskRemove = onReferencedTaskRemove;
+        try {
+            // 2. Process task updates in task references subscriptions (query
+            // subscriptions and task subscriptions), direct task subscriptions, and direct
+            // query subscriptions.
+            for (const taskEntryUpdate of taskEntryUpdateById.values()) {
+                applyTaskEntryUpdate(taskEntryUpdate);
+            }
+        } finally {
+            this._onReferencedTaskRemove = null;
         }
 
         return queriesByMaybeAddVisibleTaskIdToLoad;
@@ -1043,6 +1020,12 @@ export class TaskRealtimeStoreInternal {
         // actions need to go to which clients while still preserving the atomicity of
         // a transaction.
         await eventBuilder.send(context, this.spaceId);
+    }
+
+    private _onReferencedTaskRemove: ((taskId: TaskId) => void) | null = null;
+
+    public onReferencedTaskRemove(taskId: TaskId) {
+        this._onReferencedTaskRemove?.(taskId);
     }
 
     /**

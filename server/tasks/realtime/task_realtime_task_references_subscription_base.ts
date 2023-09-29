@@ -7,6 +7,8 @@ import {
 } from "~/server/tasks/realtime/task_realtime_store.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
 import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
+import {Context} from "~/shared/context/context.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {createPromiseImmediateResolver} from "~/shared/helpers/async/promise_immediate_resolver.js";
@@ -217,9 +219,31 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
     }
 
     private _onReferencedTaskRemove(
+        context: Context<{process: ProcessContextModule}>,
         eventBuilder: TaskRealtimeUpdateEventBuilder,
         oldTask: TaskIndexDoc,
     ) {
+        // When we apply an action transaction, there are potentially many updates to
+        // many tasks that we apply all at once. Let's say a query references a parent
+        // task and we both need to update the parent task and remove it from the query
+        // in the same action transaction.
+        //
+        // This happens when deleting a task and all its children if you're subscribed
+        // to the children query, for instance. The parent task of the children is
+        // referenced and its children counts update (since the children are all
+        // deleted).
+        //
+        // So in this case we need to see the update to the referenced task BEFORE we
+        // can remove it. We assert that EVERY update to a task must be witnessed by
+        // this class in order. Otherwise our tracked references might be left in a
+        // bad state.
+        //
+        // So while applying an action transaction, our store provides an
+        // implementation for this function that if we're removing a task that has a
+        // pending update the store can tell us about the update immediately before
+        // continuing with the remove.
+        this._getStore().onReferencedTaskRemove(oldTask.id);
+
         // When testing, keep track of the tasks we've seen so we can guarantee we've
         // seen every relevant update for a task.
         if (process.env.NODE_ENV !== "production") {
@@ -237,7 +261,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
             previousTaskById.delete(oldTask.id);
         }
 
-        this._trackTaskDependenciesFromRemove(eventBuilder, oldTask);
+        this._trackTaskDependenciesFromRemove(context, eventBuilder, oldTask);
 
         this._callbacks.onReferencedTaskRemove(eventBuilder, oldTask);
     }
@@ -274,7 +298,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
                             return collectionEntry;
                         });
 
-                    eventBuilder.waitUntil(collectionEntryPromise);
+                    eventBuilder.waitUntil(context, collectionEntryPromise);
 
                     return {
                         referenceCount: 0,
@@ -307,7 +331,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
             }
 
             if (oldParentTaskId) {
-                this._trackOldParentTaskDependency(eventBuilder, oldParentTaskId);
+                this._trackOldParentTaskDependency(context, eventBuilder, oldParentTaskId);
             }
         }
 
@@ -344,7 +368,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
                                 return collectionEntry;
                             });
 
-                        eventBuilder.waitUntil(collectionEntryPromise);
+                        eventBuilder.waitUntil(context, collectionEntryPromise);
 
                         return {
                             referenceCount: 0,
@@ -365,6 +389,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
 
                 if (referencedCollectionEntry.referenceCount === 0) {
                     eventBuilder.waitUntil(
+                        context,
                         referencedCollectionEntry.promise.then(collectionEntry => {
                             collectionEntry.removeTaskReferencesSubscriptionDependent(this);
                             this._onReferencedCollectionRemove(
@@ -380,13 +405,14 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
     }
 
     protected _trackTaskDependenciesFromRemove(
+        context: Context<{process: ProcessContextModule}>,
         eventBuilder: TaskRealtimeUpdateEventBuilder,
         oldTask: TaskIndexDoc,
     ) {
         // Remove the reference to the parent task of this loaded task
         const oldParentTaskId = oldTask.parent.taskId.value;
         if (oldParentTaskId) {
-            this._trackOldParentTaskDependency(eventBuilder, oldParentTaskId);
+            this._trackOldParentTaskDependency(context, eventBuilder, oldParentTaskId);
         }
 
         // Remove the references to the collections of this loaded task
@@ -402,6 +428,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
 
             if (referencedCollectionEntry.referenceCount === 0) {
                 eventBuilder.waitUntil(
+                    context,
                     referencedCollectionEntry.promise.then(collectionEntry => {
                         collectionEntry.removeTaskReferencesSubscriptionDependent(this);
                         this._onReferencedCollectionRemove(
@@ -438,6 +465,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
             this._referencedTaskEntryById.set(newParentTaskId, newReferencedTaskEntry);
 
             eventBuilder.waitUntil(
+                context,
                 this._getStore()
                     .loadTaskEntry(context, newParentTaskId)
                     .then(taskEntry => {
@@ -475,6 +503,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
     }
 
     private _trackOldParentTaskDependency(
+        context: Context<{process: ProcessContextModule}>,
         eventBuilder: TaskRealtimeUpdateEventBuilder,
         oldParentTaskId: TaskId,
     ) {
@@ -495,6 +524,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
             this._referencedTaskEntryById.delete(oldParentTaskId);
 
             eventBuilder.waitUntil(
+                context,
                 referencedTaskEntry.promise.then(taskEntry => {
                     // If we've already synchronously removed this task then stop. We don't need to
                     // remove it again. This may happen when removing a cycle from an asynchronously
@@ -505,7 +535,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
                     detectCycleWhenRemovingTaskId ??= taskEntry.task.id;
                     try {
                         taskEntry.removeTaskReferencesSubscriptionDependent(this);
-                        this._onReferencedTaskRemove(eventBuilder, taskEntry.task);
+                        this._onReferencedTaskRemove(context, eventBuilder, taskEntry.task);
                     } finally {
                         detectCycleWhenRemovingTaskId = previousDetectCycleWhenRemovingTaskId;
                     }
@@ -540,7 +570,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
                     try {
                         this._referencedTaskEntryById.delete(taskEntry.task.id);
                         taskEntry.removeTaskReferencesSubscriptionDependent(this);
-                        this._onReferencedTaskRemove(eventBuilder, taskEntry.task);
+                        this._onReferencedTaskRemove(context, eventBuilder, taskEntry.task);
                     } finally {
                         removingCycleStartingWithTaskId = previousRemovingCycleFromInitialTaskId;
                     }

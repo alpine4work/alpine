@@ -7,6 +7,7 @@ import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {queryTaskIndexTestCounter} from "~/server/tasks/data/task_index.js";
+import {deleteTaskAndAllChildren} from "~/server/tasks/data/task_table.js";
 import {TaskRealtimeConnection} from "~/server/tasks/realtime/task_realtime_connection.js";
 import {
     taskRealtimeStoreBeforeLoadCollectionTestCheckpoint,
@@ -18,6 +19,7 @@ import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {ForkActionContextModule} from "~/shared/context/fork_action_context_module.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {
     FailedPreconditionError,
     NotFoundError,
@@ -32,14 +34,18 @@ import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_str
 import {generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {
     TaskQueryNormalizedFilters,
+    assertNonEmptyReadonlyMap,
+    defaultTaskQueryNormalizedFilters,
     normalizeTaskQueryFilters,
 } from "~/shared/tasks/task_query_normalized_filters.js";
 import {
     TaskQueryNormalizedSort,
+    defaultTaskQueryNormalizedSorts,
     normalizeTaskQuerySorts,
 } from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
@@ -6580,7 +6586,7 @@ test("collections of parent tasks are backfilled when task is updated", async ()
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    taskId: parentTask2.id,
+                    taskId: parentTask1.id,
                     taskAction: expect.objectContaining({
                         type: "UpdateChildrenCounts",
                     }),
@@ -6588,7 +6594,7 @@ test("collections of parent tasks are backfilled when task is updated", async ()
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    taskId: parentTask1.id,
+                    taskId: parentTask2.id,
                     taskAction: expect.objectContaining({
                         type: "UpdateChildrenCounts",
                     }),
@@ -8308,18 +8314,7 @@ test("unauthorized referenced task will be authorized if later loaded", async ()
         {
             type: "Update",
             number: expect.any(Number),
-            actions: [
-                {
-                    type: "UpdateTask",
-                    time: expect.any(Array),
-                    taskId: parentTask1.id,
-                    taskAction: {
-                        type: "AddCollection",
-                        collectionId: collection.id,
-                        orderKey: initialOrderKey,
-                    },
-                },
-            ],
+            actions: [],
             backfillAuthorizedTasks: [expect.objectContaining({id: parentTask1.id})],
             backfillUnauthorizedTaskIds: [],
             backfillAuthorizedCollections: [],
@@ -8672,19 +8667,19 @@ test("a loaded task may then become referenced", async () => {
                 {
                     type: "UpdateTask",
                     time: expect.any(Array),
-                    taskId: parentTask1.id,
-                    taskAction: expect.objectContaining({
-                        type: "UpdateChildrenCounts",
-                    }),
-                },
-                {
-                    type: "UpdateTask",
-                    time: expect.any(Array),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateParentTaskId",
                         parentTaskId: parentTask1.id,
                     },
+                },
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: parentTask1.id,
+                    taskAction: expect.objectContaining({
+                        type: "UpdateChildrenCounts",
+                    }),
                 },
             ],
             backfillAuthorizedTasks: [],
@@ -13447,4 +13442,87 @@ test("subscribed collection will become unauthorized after unsubscribed", async 
             referencedAccounts: [],
         },
     ]);
+});
+
+test("deleting task and all children when subscribed to task and its children", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const [task1, task2, task3, task4, task5] = await runAllPromises([
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+    ]);
+
+    const collection = await TestTaskCollection.createPrivate(session);
+
+    await runAllPromises([
+        task2.updateParentTask(session, task1),
+        task3.updateParentTask(session, task1),
+        task4.updateParentTask(session, task1),
+        task1.addCollection(session, collection),
+        task5.addCollection(session, collection),
+    ]);
+
+    const server = createWebSocketServer(space);
+    await server.wait();
+    await ProcessContextModule.waitForTestTasks();
+
+    const connection = await server.connectForTest(session.action());
+
+    expect(connection.takeEvents()).toEqual([]);
+
+    await connection.procedures.subscribe({
+        queries: [
+            {
+                limit: 100,
+                filters: {
+                    ...defaultTaskQueryNormalizedFilters,
+                    collectionsFilter: [
+                        assertNonEmptyReadonlyMap(new Map([[collection.id, false]])),
+                    ],
+                },
+                sorts: defaultTaskQueryNormalizedSorts,
+            },
+            {
+                limit: 100,
+                filters: {
+                    ...defaultTaskQueryNormalizedFilters,
+                    parentFilter: {
+                        parentTaskId: task1.id,
+                    },
+                },
+                sorts: defaultTaskQueryNormalizedSorts,
+            },
+        ],
+        taskIds: [],
+        collectionIds: [],
+    });
+
+    const events = connection.takeEvents();
+
+    (events[0]?.backfillAuthorizedTasks as Array<TaskModel> | undefined)?.sort((task1, task2) =>
+        defaultCompareStrings(task1.id, task2.id),
+    );
+
+    expect(events).toEqual([
+        {
+            type: "Update",
+            number: expect.any(Number),
+            actions: [],
+            backfillAuthorizedTasks: [task1.id, task2.id, task3.id, task4.id, task5.id]
+                .sort(defaultCompareStrings)
+                .map(id => expect.objectContaining({id})),
+            backfillUnauthorizedTaskIds: [],
+            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
+            backfillUnauthorizedCollectionIds: [],
+            referencedAccounts: [await session.get()],
+        },
+    ]);
+
+    await deleteTaskAndAllChildren(TestTask.action(session), task1.id, testClock.nowLogical());
+
+    await server.wait();
 });

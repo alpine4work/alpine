@@ -16,6 +16,7 @@ import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {Clock} from "~/shared/helpers/clock/clock.js";
 import {
     HybridLogicalClock,
+    HybridLogicalTime,
     maxHybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
@@ -260,8 +261,9 @@ export class TaskClientStore {
     public deleteTaskAndAllChildren(
         context: Context<{rpc: RpcContextModuleBase}>,
         taskId: TaskId,
+        options?: {time: HybridLogicalTime},
     ): {finally: (callback: () => void) => void} {
-        return this._internal.deleteTaskAndAllChildren(context, taskId);
+        return this._internal.deleteTaskAndAllChildren(context, taskId, options);
     }
 
     public createAndRetainQuery(options: {
@@ -562,7 +564,7 @@ export class TaskClientStoreInternal {
             // receive the task we consider it an error.
             const taskEntry = taskEntryStore.store.getSnapshot();
             if (
-                taskEntryStore.referenceCount === 0 &&
+                taskEntryStore.referenceCount === 1 &&
                 taskEntry.task === null &&
                 taskEntry.actions.length > 0
             ) {
@@ -616,7 +618,7 @@ export class TaskClientStoreInternal {
             // thereafter! If we don't receive the collection we consider it an error.
             const collectionEntry = collectionEntryStore.store.getSnapshot();
             if (
-                collectionEntryStore.referenceCount === 0 &&
+                collectionEntryStore.referenceCount === 1 &&
                 collectionEntry.collection === null &&
                 collectionEntry.actions.length > 0
             ) {
@@ -1635,9 +1637,8 @@ export class TaskClientStoreInternal {
     public deleteTaskAndAllChildren(
         context: Context<{rpc: RpcContextModuleBase}>,
         taskId: TaskId,
+        {time: actionTime = this.clock.now()}: {time?: HybridLogicalTime} = {},
     ): {finally: (callback: () => void) => void} {
-        const actionTime = this.clock.now();
-
         // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
         // close the page if we haven't finished committing their task action. It will
         // look committed on their machine but might not be on the server.
@@ -2597,16 +2598,9 @@ export class TaskClientStoreInternal {
                     query._getInternal(this).onTasksUpdated(taskEntryUpdateById);
                 }
 
-                for (const [taskId, {oldTaskEntry, newTaskEntry}] of taskEntryUpdateById) {
-                    const taskSubscriptions = subscriptions.taskSubscriptionsById.get(taskId);
-                    if (!taskSubscriptions) continue;
-
-                    // If we have subscriptions for this task then a task entry must have already
-                    // existed in our store.
-                    assert(oldTaskEntry);
-
+                for (const taskSubscriptions of subscriptions.taskSubscriptionsById.values()) {
                     for (const taskSubscription of taskSubscriptions) {
-                        taskSubscription._onTaskUpdate(this, taskId, oldTaskEntry, newTaskEntry);
+                        taskSubscription._onTasksUpdated(this, taskEntryUpdateById);
                     }
                 }
 

@@ -8,6 +8,8 @@ import {
     TaskRealtimeTaskReferencesSubscriptionCallbacks,
 } from "~/server/tasks/realtime/task_realtime_task_references_subscription_base.js";
 import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
+import {Context} from "~/shared/context/context.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {CancelledError, InternalError} from "~/shared/error/error.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
@@ -107,8 +109,8 @@ export class TaskRealtimeQuerySubscription {
         this._withFatalErrorHandling = withFatalErrorHandling;
     }
 
-    public unsubscribe(): Promise<void> {
-        return this._internal.unsubscribe();
+    public unsubscribe(context: Context<{process: ProcessContextModule}>): Promise<void> {
+        return this._internal.unsubscribe(context);
     }
 
     public getFilters() {
@@ -219,7 +221,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
      * `onReferencedTaskRemove`, and `onReferencedCollectionRemove` for all tasks
      * and collections that appeared in our query.
      */
-    public unsubscribe(): Promise<void> {
+    public unsubscribe(context: Context<{process: ProcessContextModule}>): Promise<void> {
         assert(this._isSubscribed);
         this._isSubscribed = false;
 
@@ -234,7 +236,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
         });
 
         for (const task of tasks) {
-            this._onLoadedTaskRemove(eventBuilder, task, []);
+            this._onLoadedTaskRemove(context, eventBuilder, task, []);
         }
 
         return eventBuilder.waitWithoutSending();
@@ -356,7 +358,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
             );
 
             if (oldCursorComparison <= 0 && newCursorComparison > 0) {
-                this._onLoadedTaskRemove(eventBuilder, oldTask, actions);
+                this._onLoadedTaskRemove(context, eventBuilder, oldTask, actions);
             } else if (oldCursorComparison > 0 && newCursorComparison <= 0) {
                 this._onLoadedTaskAdd(context, eventBuilder, newTask);
             } else if (oldCursorComparison <= 0 && newCursorComparison <= 0) {
@@ -382,7 +384,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
                     this._loadedBeforeCursor,
                 ) <= 0)
         ) {
-            this._onLoadedTaskRemove(eventBuilder, oldTask, actions);
+            this._onLoadedTaskRemove(context, eventBuilder, oldTask, actions);
         }
     }
 
@@ -453,6 +455,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
     }
 
     private _onLoadedTaskRemove(
+        context: Context<{process: ProcessContextModule}>,
         eventBuilder: TaskRealtimeUpdateEventBuilder,
         oldTask: TaskIndexDoc,
         actions: ReadonlyArray<TaskAction>,
@@ -476,7 +479,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
 
         this._loadedCount--;
 
-        this._trackTaskDependenciesFromRemove(eventBuilder, oldTask);
+        this._trackTaskDependenciesFromRemove(context, eventBuilder, oldTask);
 
         this._callbacks.onLoadedTaskRemove(eventBuilder, oldTask, actions);
     }

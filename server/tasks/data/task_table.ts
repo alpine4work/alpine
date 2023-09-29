@@ -466,6 +466,7 @@ export const afterCommitTaskActionTransactionEventEmitterForTest = import.meta.j
           spaceId: SpaceId;
           committedTime: Date;
           actions: ReadonlyArray<TaskAction>;
+          processPromise: Promise<void>;
       }>()
     : null;
 
@@ -532,14 +533,9 @@ function afterCommitTaskActionTransaction(
     context: Context<ServerSessionActionContextModules & {tasks: TaskContextModuleBase}>,
     actionTransactionItem: TaskActionTransactionItem,
 ) {
-    afterCommitTaskActionTransactionEventEmitterForTest?.emit({
-        spaceId: actionTransactionItem.spaceId,
-        committedTime: actionTransactionItem.committedTime,
-        actions: actionTransactionItem.actions,
-    });
-
-    context.process.waitUntil(
-        context.tracer.withSpan("Process task action transaction", async (context, span) => {
+    const processPromise = context.tracer.withSpan(
+        "Process task action transaction",
+        async (context, span) => {
             span.addData({
                 tasks: {
                     actions: actionTransactionItem.actions.map(getTaskActionLabel).join(","),
@@ -564,8 +560,17 @@ function afterCommitTaskActionTransaction(
                 ...actionTransactionItem,
                 wasProcessed: true,
             });
-        }),
+        },
     );
+
+    context.process.waitUntil(processPromise);
+
+    afterCommitTaskActionTransactionEventEmitterForTest?.emit({
+        spaceId: actionTransactionItem.spaceId,
+        committedTime: actionTransactionItem.committedTime,
+        actions: actionTransactionItem.actions,
+        processPromise,
+    });
 }
 
 /**
