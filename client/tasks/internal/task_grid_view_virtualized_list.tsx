@@ -248,10 +248,7 @@ export function useTaskGridViewVirtualizedList({
                     });
 
                     for (const taskId of parentTaskIdsToLoad) {
-                        const childrenQuery = query.store.ensureAndRetainTaskChildrenQuery(
-                            taskId,
-                            query.filters.deletedFilter,
-                        );
+                        const childrenQuery = query.store.ensureAndRetainTaskChildrenQuery(taskId);
                         retainedChildrenQueries.push(childrenQuery);
 
                         childrenQuery?.loadMoreTasks(
@@ -263,10 +260,8 @@ export function useTaskGridViewVirtualizedList({
                         for (const {taskId: expandedChildTaskId} of iterateExpandedTaskIdsUnderPath(
                             [taskId],
                         )) {
-                            const childrenQuery = query.store.ensureAndRetainTaskChildrenQuery(
-                                expandedChildTaskId,
-                                query.filters.deletedFilter,
-                            );
+                            const childrenQuery =
+                                query.store.ensureAndRetainTaskChildrenQuery(expandedChildTaskId);
                             retainedChildrenQueries.push(childrenQuery);
 
                             childrenQuery?.loadMoreTasks(
@@ -865,7 +860,7 @@ export function useTaskGridViewVirtualizedList({
                         const time2 = query.store.clock.now();
 
                         const newChildrenQuery = query.store
-                            .getTaskChildrenQueryStore(newParentTaskId, query.filters.deletedFilter)
+                            .getTaskChildrenQueryStore(newParentTaskId)
                             .getSnapshot();
 
                         query.store.commitTaskActionTransaction(context, [

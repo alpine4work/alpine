@@ -2700,12 +2700,11 @@ async function isTaskAccessAuthorized(
             collectionId: TaskCollectionId,
         ) => TaskCollectionIndexDoc | undefined;
     } | null,
-): Promise<{spaceId: SpaceId; isDeleted: boolean; hasAccess: boolean}> {
+): Promise<{spaceId: SpaceId; hasAccess: boolean}> {
     const taskItem = await getTaskItemForAuthorization(context, taskId, loaders);
 
     return {
         spaceId: taskItem.spaceId,
-        isDeleted: !!taskItem.deletedTime,
         hasAccess: await isTaskItemAccessAuthorized(
             context,
             context.actor.getAccountId(),
@@ -2740,7 +2739,7 @@ export async function authorizeTaskAccess(
         ) => TaskCollectionIndexDoc | undefined;
     } | null,
 ) {
-    const {spaceId, isDeleted, hasAccess} = await isTaskAccessAuthorized(
+    const {spaceId, hasAccess} = await isTaskAccessAuthorized(
         context,
         taskId,
         expectedAccessLevel,
@@ -2759,7 +2758,7 @@ export async function authorizeTaskAccess(
         );
     }
 
-    return {spaceId, isDeleted};
+    return {spaceId};
 }
 
 /**

@@ -85,10 +85,7 @@ function createTaskGridViewVirtualizedTaskTree(
                 // Tasks with no children are always treated as collapsed.
                 if (childTaskCount === 0) return nullConstStore;
 
-                const taskChildrenQueryStore = query.store.getTaskChildrenQueryStore(
-                    taskId,
-                    query.filters.deletedFilter,
-                );
+                const taskChildrenQueryStore = query.store.getTaskChildrenQueryStore(taskId);
                 return taskChildrenQueryStore.flatMap(taskChildrenQuery => {
                     if (!taskChildrenQuery) {
                         return new ConstStore({

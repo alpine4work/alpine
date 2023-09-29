@@ -23,7 +23,6 @@ import {getTaskTitleText} from "~/shared/tasks/task_title.js";
 // `evaluateTaskQueryNormalizedFiltersForIndexDoc()`.
 assertEqualTypes<
     keyof TaskQueryNormalizedFilters,
-    | "deletedFilter"
     | "displayStatusFilter"
     | "collectionsFilter"
     | "priorityFilter"
@@ -47,8 +46,8 @@ export function evaluateTaskQueryNormalizedFiltersForIndexDoc(
     filters: TaskQueryNormalizedFilters,
     task: Omit<TaskIndexDoc, "id" | "spaceId" | "creator"> & {creator: {accountId: AccountId}},
 ): boolean {
-    if (!filters.deletedFilter.isDeleted && getTaskIndexDocIsDeleted(task)) return false;
-    if (filters.deletedFilter.isDeleted && !getTaskIndexDocIsDeleted(task)) return false;
+    // Deleted tasks should always be filtered out.
+    if (getTaskIndexDocIsDeleted(task)) return false;
 
     {
         const displayStatus = getTaskIndexDocDisplayStatus(task);

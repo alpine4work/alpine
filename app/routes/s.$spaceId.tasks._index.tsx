@@ -68,9 +68,6 @@ export async function loader({params, context: _context}: LoaderArgs) {
         limit: getTaskGridViewLoadQueryLimit(context.loader.getClientInfo()),
 
         filters: {
-            deletedFilter: {
-                isDeleted: false,
-            },
             displayStatusFilter: {
                 ifOpenInactive: false,
                 ifOpenActive: true,
@@ -104,9 +101,6 @@ export async function loader({params, context: _context}: LoaderArgs) {
         limit: getTaskGridViewLoadQueryLimit(context.loader.getClientInfo()),
 
         filters: {
-            deletedFilter: {
-                isDeleted: false,
-            },
             displayStatusFilter: {
                 ifOpenInactive: true,
                 ifOpenActive: true,

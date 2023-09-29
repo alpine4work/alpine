@@ -1,7 +1,5 @@
-import {useEffect, useState} from "react";
+import {useEffect} from "react";
 import {Box} from "~/client/design/box.js";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
@@ -14,8 +12,7 @@ import {
 } from "~/client/tasks/task_realtime_client_context_provider.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {authorizeTaskAccess, getTaskNotesContent} from "~/server/tasks/data/task_table.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
+import {getTaskNotesContent} from "~/server/tasks/data/task_table.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -47,14 +44,6 @@ export async function loader({params, context: _context}: LoaderArgs) {
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
     const taskId = Schema.id<TaskId>().deserialize(params.taskId ?? null);
 
-    const {spaceId: actualSpaceId, isDeleted} = await authorizeTaskAccess(
-        context,
-        taskId,
-        "View",
-        null,
-    );
-    if (actualSpaceId !== spaceId) throw new FailedPreconditionError("Incorrect space for task");
-
     const childrenQuery: {
         limit: number;
         filters: TaskQueryNormalizedFilters;
@@ -64,10 +53,6 @@ export async function loader({params, context: _context}: LoaderArgs) {
         limit: getTaskGridViewLoadQueryLimit(context.loader.getClientInfo()),
 
         filters: {
-            deletedFilter: {
-                // If our task is deleted, then load its deleted children.
-                isDeleted,
-            },
             displayStatusFilter: {
                 ifOpenInactive: true,
                 ifOpenActive: true,
@@ -157,23 +142,13 @@ export default function TaskRoute({withMobileLayout}: {withMobileLayout?: boolea
         notesContent: initialNotesContent,
     } = useLoaderDataWithSchema(LoaderSchema);
     const {
-        queries: [initialChildrenQuery],
+        queries: [childrenQuery],
         taskSubscriptions: [taskSubscription],
     } = useTaskStoreLoaderDataWithoutRetaining();
-    assert(initialChildrenQuery && taskSubscription);
-
-    const [childrenQueryState, setChildrenQueryState] = useState({
-        taskSubscription,
-        childrenQuery: initialChildrenQuery,
-    });
-    const {childrenQuery} = childrenQueryState;
-
-    if (childrenQueryState.taskSubscription !== taskSubscription) {
-        setChildrenQueryState({taskSubscription, childrenQuery: initialChildrenQuery});
-    }
+    assert(childrenQuery && taskSubscription);
 
     // Retain our queries so they aren't destroyed while we're using them.
-    useLayoutEffectWithoutServerSideWarning(() => {
+    useEffect(() => {
         childrenQuery.retain();
         taskSubscription.retain();
 
@@ -187,43 +162,6 @@ export default function TaskRoute({withMobileLayout}: {withMobileLayout?: boolea
                 });
             });
         };
-    }, [childrenQuery, taskSubscription]);
-
-    // If our task is deleted/undeleted then we want to change our children query to
-    // fetch either the deleted or undeleted children.
-    useLayoutEffectWithoutServerSideWarning(() => {
-        const update = () => {
-            const {task} = taskSubscription.taskEntryStore.getSnapshot();
-
-            // Task is not loaded. Don't update our children query.
-            if (!task) return;
-
-            if (childrenQuery.filters.deletedFilter.isDeleted !== task.isDeleted()) {
-                const newChildrenQuery = taskSubscription.store.ensureAndRetainTaskChildrenQuery(
-                    task.id,
-                    {isDeleted: task.isDeleted()},
-                );
-
-                runWithImmediatePriority(() => {
-                    setChildrenQueryState({
-                        taskSubscription,
-                        childrenQuery: newChildrenQuery,
-                    });
-                });
-
-                // Release our reference to the new children query. Because we're in a layout
-                // effect, React should synchronously re-render and our effect above will take
-                // a reference on the new children query and maintain the reference until the
-                // component unmounts.
-                scheduleMicrotask(() => {
-                    newChildrenQuery.release();
-                });
-            }
-        };
-
-        update();
-
-        return taskSubscription.taskEntryStore.subscribe(update);
     }, [childrenQuery, taskSubscription]);
 
     const updateMetaTitle = useUpdateMetaTitle();

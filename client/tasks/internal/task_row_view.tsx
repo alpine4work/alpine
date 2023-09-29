@@ -450,9 +450,7 @@ function TaskRowView(
         // Otherwise we fall down to the branch below and create a task below ours in
         // our query.
         if (task && task.getChildTaskCount() > 0 && areChildTasksExpanded) {
-            const childrenQuery = query.store
-                .getTaskChildrenQueryStore(task.id, query.filters.deletedFilter)
-                .getSnapshot();
+            const childrenQuery = query.store.getTaskChildrenQueryStore(task.id).getSnapshot();
             if (childrenQuery && childrenQuery.loadedStateStore.getSnapshot() !== "Unloaded") {
                 const time1 = query.store.clock.now();
                 const time2 = query.store.clock.now();
@@ -926,7 +924,7 @@ function TaskRowViewDroppableIndentations({
                     const time2 = query.store.clock.now();
 
                     const childrenQuery = query.store
-                        .getTaskChildrenQueryStore(task.id, query.filters.deletedFilter)
+                        .getTaskChildrenQueryStore(task.id)
                         .getSnapshot();
 
                     return [

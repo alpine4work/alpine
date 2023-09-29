@@ -306,7 +306,6 @@ export async function loadTaskRealtimeQueries(
                     if (!taskState.isExpanded) return;
 
                     const childrenFilters: TaskQueryNormalizedFilters = {
-                        deletedFilter: filters.deletedFilter,
                         displayStatusFilter: {
                             ifOpenInactive: true,
                             ifOpenActive: true,
