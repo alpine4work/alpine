@@ -1101,7 +1101,12 @@ class TaskActionTransactionCommitState {
         if (!hasAccess) {
             throw new PermissionDeniedError(
                 quote`Actor does not have ${expectedAccessLevel} access level to task`,
-                {displayMessage: getTaskItemPermissionDeniedErrorDisplayMessage(taskItem)},
+                {
+                    displayMessage: getTaskItemPermissionDeniedErrorDisplayMessage(
+                        taskItem,
+                        expectedAccessLevel,
+                    ),
+                },
             );
         }
     }
@@ -1121,7 +1126,12 @@ class TaskActionTransactionCommitState {
         if (!hasAccess) {
             throw new PermissionDeniedError(
                 quote`Actor does not have ${expectedAccessLevel} access level to task`,
-                {displayMessage: getTaskItemPermissionDeniedErrorDisplayMessage(taskItem)},
+                {
+                    displayMessage: getTaskItemPermissionDeniedErrorDisplayMessage(
+                        taskItem,
+                        expectedAccessLevel,
+                    ),
+                },
             );
         }
     }
@@ -2743,6 +2753,7 @@ export async function authorizeTaskAccess(
             {
                 displayMessage: getTaskItemPermissionDeniedErrorDisplayMessage(
                     await getTaskItemForAuthorization(context, taskId, loaders),
+                    expectedAccessLevel,
                 ),
             },
         );
@@ -2786,15 +2797,23 @@ async function authorizeTaskItemAccess(
     if (!hasAccess) {
         throw new PermissionDeniedError(
             quote`Actor does not have ${expectedAccessLevel} access level to task`,
-            {displayMessage: getTaskItemPermissionDeniedErrorDisplayMessage(taskItem)},
+            {
+                displayMessage: getTaskItemPermissionDeniedErrorDisplayMessage(
+                    taskItem,
+                    expectedAccessLevel,
+                ),
+            },
         );
     }
 }
 
 function getTaskItemPermissionDeniedErrorDisplayMessage(
     taskItem: Omit<TaskEssentialAttributesItem, "childTaskIds">,
+    expectedAccessLevel: TaskCollectionAccessLevel,
 ) {
-    if (taskItem.deletedTime) {
+    // If the user can't view a deleted task it's because they don't have view
+    // access. If a task is deleted, you can still view it but you can't edit it.
+    if (taskItem.deletedTime && hasTaskCollectionAccessLevel(expectedAccessLevel, "Edit")) {
         // TODO(calebmer): In the future we should have some kind of task trash
         // feature. When we add trash we should direct the user to restore tasks from
         // their trash in the "hint" part of the error message.
