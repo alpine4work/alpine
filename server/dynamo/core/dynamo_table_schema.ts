@@ -2544,6 +2544,32 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         });
     }
 
+    public dangerousTransactionUpdateItemWithCustomUpdateExpression(
+        key: Types["ItemKey"],
+        {
+            updateExpression,
+            expressionAttributeValues,
+        }: {
+            updateExpression: string;
+            expressionAttributeValues: {[key: string]: SchemaSerializedValue};
+        },
+    ) {
+        const {partitionKey, sortKey} = this._serializeItemKey(key);
+
+        return DynamoTransactionEntry._newFromClient(DynamoClient, {
+            transactItem: {
+                Update: {
+                    TableName: this._name,
+                    Key: intoDynamoAttributeValueObject({partitionKey, sortKey}),
+                    UpdateExpression: updateExpression,
+                    ExpressionAttributeValues:
+                        intoDynamoAttributeValueObject(expressionAttributeValues),
+                },
+            },
+            isConditionCheckErrorRetriable: false,
+        });
+    }
+
     /**
      * Gets multiple items from DynamoDB with a serializable transaction isolation
      * level. Corresponds to the [`TransactGetItems`][1] command. Each item in the

@@ -110,9 +110,10 @@ export class TestTask {
         ]);
     }
 
-    public async undelete(session: TestSpaceSession) {
-        const time = testClock.nowLogical();
-
+    public async undelete(
+        session: TestSpaceSession,
+        {time = testClock.nowLogical()}: {time?: HybridLogicalTime} = {},
+    ) {
         await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
             {
                 type: "UpdateTask",
@@ -200,9 +201,11 @@ export class TestTask {
         ]);
     }
 
-    public async addCollection(session: TestSpaceSession, collection: TestTaskCollection) {
-        const time = testClock.nowLogical();
-
+    public async addCollection(
+        session: TestSpaceSession,
+        collection: TestTaskCollection,
+        {time = testClock.nowLogical()}: {time?: HybridLogicalTime} = {},
+    ) {
         await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
             {
                 type: "UpdateTask",

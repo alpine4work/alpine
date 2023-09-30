@@ -71,7 +71,6 @@ import {
     normalizeTaskQuerySorts,
 } from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
-import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {wordTaskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_test_scenarios.js";
 
 const context = createTestContext();
@@ -13460,7 +13459,7 @@ test("can't authorize a query with a parent filter for a task you don't have acc
     ).rejects.toThrow(new PermissionDeniedError('Actor does not have "View" access level to task'));
 });
 
-test("can't authorize a query with a parent filter for a deleted task", async () => {
+test("can authorize a query with a parent filter for a deleted task", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -13480,16 +13479,14 @@ test("can't authorize a query with a parent filter for a deleted task", async ()
 
     await task.delete(session1);
 
-    await expect(
-        testAuthorizeTaskQueryAccess(session2.action(), {
-            filters: {
-                ...defaultTaskQueryNormalizedFilters,
-                parentFilter: {
-                    parentTaskId: task.id,
-                },
+    await testAuthorizeTaskQueryAccess(session2.action(), {
+        filters: {
+            ...defaultTaskQueryNormalizedFilters,
+            parentFilter: {
+                parentTaskId: task.id,
             },
-        }),
-    ).rejects.toThrow(new PermissionDeniedError('Actor does not have "View" access level to task'));
+        },
+    });
 
     await task.undelete(session1);
 
@@ -15283,4 +15280,963 @@ test("commits an update name action when the account's name updates to every spa
             ],
         },
     ]);
+});
+
+test("correctly updates collection task counts on collection for any task action", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const [task1, task2, task3, task4, collection1, collection2] = await runAllPromises([
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTaskCollection.createPrivate(session),
+        TestTaskCollection.createPrivate(session),
+    ]);
+
+    expect(await collection1.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 0,
+            openTaskCount: 0,
+            lastTaskAddedTime: null,
+        }),
+    );
+    expect(await collection2.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 0,
+            openTaskCount: 0,
+            lastTaskAddedTime: null,
+        }),
+    );
+
+    const time1 = testClock.nowLogical();
+    await task1.addCollection(session, collection1, {time: time1});
+
+    expect(await collection1.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 1,
+            openTaskCount: 1,
+            lastTaskAddedTime: time1,
+        }),
+    );
+    expect(await collection2.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 0,
+            openTaskCount: 0,
+            lastTaskAddedTime: null,
+        }),
+    );
+
+    const time2 = testClock.nowLogical();
+    await task2.addCollection(session, collection2, {time: time2});
+
+    expect(await collection1.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 1,
+            openTaskCount: 1,
+            lastTaskAddedTime: time1,
+        }),
+    );
+    expect(await collection2.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 1,
+            openTaskCount: 1,
+            lastTaskAddedTime: time2,
+        }),
+    );
+
+    const time3 = testClock.nowLogical();
+    await task3.addCollection(session, collection2, {time: time3});
+
+    expect(await collection1.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 1,
+            openTaskCount: 1,
+            lastTaskAddedTime: time1,
+        }),
+    );
+    expect(await collection2.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 2,
+            openTaskCount: 2,
+            lastTaskAddedTime: time3,
+        }),
+    );
+
+    await task4.updateStatus(session, "Closed");
+
+    expect(await collection1.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 1,
+            openTaskCount: 1,
+            lastTaskAddedTime: time1,
+        }),
+    );
+    expect(await collection2.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 2,
+            openTaskCount: 2,
+            lastTaskAddedTime: time3,
+        }),
+    );
+
+    const time4 = testClock.nowLogical();
+    await task4.addCollection(session, collection1, {time: time4});
+
+    expect(await collection1.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 2,
+            openTaskCount: 1,
+            lastTaskAddedTime: time4,
+        }),
+    );
+    expect(await collection2.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 2,
+            openTaskCount: 2,
+            lastTaskAddedTime: time3,
+        }),
+    );
+
+    const time5 = testClock.nowLogical();
+    await task3.addCollection(session, collection1, {time: time5});
+
+    expect(await collection1.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 3,
+            openTaskCount: 2,
+            lastTaskAddedTime: time5,
+        }),
+    );
+    expect(await collection2.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 2,
+            openTaskCount: 2,
+            lastTaskAddedTime: time3,
+        }),
+    );
+
+    await task3.updateStatus(session, "Closed");
+
+    expect(await collection1.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 3,
+            openTaskCount: 1,
+            lastTaskAddedTime: time5,
+        }),
+    );
+    expect(await collection2.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 2,
+            openTaskCount: 1,
+            lastTaskAddedTime: time3,
+        }),
+    );
+
+    await task4.updateStatus(session, "Open");
+
+    expect(await collection1.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 3,
+            openTaskCount: 2,
+            lastTaskAddedTime: time5,
+        }),
+    );
+    expect(await collection2.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 2,
+            openTaskCount: 1,
+            lastTaskAddedTime: time3,
+        }),
+    );
+
+    await task1.delete(session);
+
+    expect(await collection1.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 2,
+            openTaskCount: 1,
+            lastTaskAddedTime: time5,
+        }),
+    );
+    expect(await collection2.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 2,
+            openTaskCount: 1,
+            lastTaskAddedTime: time3,
+        }),
+    );
+
+    await task2.delete(session);
+
+    expect(await collection1.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 2,
+            openTaskCount: 1,
+            lastTaskAddedTime: time5,
+        }),
+    );
+    expect(await collection2.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 1,
+            openTaskCount: 0,
+            lastTaskAddedTime: time3,
+        }),
+    );
+
+    const time6 = testClock.nowLogical();
+    await task2.undelete(session, {time: time6});
+
+    expect(await collection1.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 2,
+            openTaskCount: 1,
+            lastTaskAddedTime: time5,
+        }),
+    );
+    expect(await collection2.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 2,
+            openTaskCount: 1,
+            lastTaskAddedTime: time6,
+        }),
+    );
+
+    await task2.removeCollection(session, collection2);
+
+    expect(await collection1.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 2,
+            openTaskCount: 1,
+            lastTaskAddedTime: time5,
+        }),
+    );
+    expect(await collection2.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 1,
+            openTaskCount: 0,
+            lastTaskAddedTime: time6,
+        }),
+    );
+
+    await task3.delete(session);
+
+    expect(await collection1.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 1,
+            openTaskCount: 1,
+            lastTaskAddedTime: time5,
+        }),
+    );
+    expect(await collection2.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 0,
+            openTaskCount: 0,
+            lastTaskAddedTime: time6,
+        }),
+    );
+
+    const time7 = testClock.nowLogical();
+    await task3.undelete(session, {time: time7});
+
+    expect(await collection1.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 2,
+            openTaskCount: 1,
+            lastTaskAddedTime: time7,
+        }),
+    );
+    expect(await collection2.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 1,
+            openTaskCount: 0,
+            lastTaskAddedTime: time7,
+        }),
+    );
+
+    await task3.removeCollection(session, collection2);
+
+    expect(await collection1.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 2,
+            openTaskCount: 1,
+            lastTaskAddedTime: time7,
+        }),
+    );
+    expect(await collection2.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 0,
+            openTaskCount: 0,
+            lastTaskAddedTime: time7,
+        }),
+    );
+});
+
+test("correctly updates collection task counts when deleting task and all children", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const [
+        task1,
+        task2,
+        task3,
+        task4,
+        task5,
+        task6,
+        collection1,
+        collection2,
+        collection3,
+        collection4,
+    ] = await runAllPromises([
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTaskCollection.createPrivate(session),
+        TestTaskCollection.createPrivate(session),
+        TestTaskCollection.createPrivate(session),
+        TestTaskCollection.createPrivate(session),
+    ]);
+
+    const time1 = testClock.nowLogical();
+    const time2 = testClock.nowLogical();
+    const time3 = testClock.nowLogical();
+    const time4 = testClock.nowLogical();
+    const time5 = testClock.nowLogical();
+    const time6 = testClock.nowLogical();
+
+    await runAllPromises([
+        task2.updateParentTask(session, task1),
+        task3.updateParentTask(session, task2),
+        task4.updateParentTask(session, task2),
+        task5.updateParentTask(session, task2),
+        task6.updateParentTask(session, task4),
+        task6.addCollection(session, collection2, {time: time1}),
+        task6.addCollection(session, collection3, {time: time2}),
+        task2.addCollection(session, collection1, {time: time3}),
+        task3.addCollection(session, collection4, {time: time5}),
+        task3.updateStatus(session, "Closed"),
+    ]);
+
+    // Make sure these run after our other `addCollection()`s so their times are
+    // the ones reflected in the collection objects.
+    await task1.addCollection(session, collection2, {time: time4});
+    await task4.addCollection(session, collection4, {time: time6});
+
+    expect(await collection1.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 1,
+            openTaskCount: 1,
+            lastTaskAddedTime: time3,
+        }),
+    );
+    expect(await collection2.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 2,
+            openTaskCount: 2,
+            lastTaskAddedTime: time4,
+        }),
+    );
+    expect(await collection3.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 1,
+            openTaskCount: 1,
+            lastTaskAddedTime: time2,
+        }),
+    );
+    expect(await collection4.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 2,
+            openTaskCount: 1,
+            lastTaskAddedTime: time6,
+        }),
+    );
+
+    await deleteTaskAndAllChildren(TestTask.action(session), task2.id, testClock.nowLogical());
+
+    expect(await collection1.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 0,
+            openTaskCount: 0,
+            lastTaskAddedTime: time3,
+        }),
+    );
+    expect(await collection2.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 1,
+            openTaskCount: 1,
+            lastTaskAddedTime: time4,
+        }),
+    );
+    expect(await collection3.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 0,
+            openTaskCount: 0,
+            lastTaskAddedTime: time2,
+        }),
+    );
+    expect(await collection4.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 0,
+            openTaskCount: 0,
+            lastTaskAddedTime: time6,
+        }),
+    );
+});
+
+test("race condition: update collection task count is recognized if it conflicts with another update (count update commits first)", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const [task, collection] = await runAllPromises([
+        TestTask.create(session1),
+        TestTaskCollection.createPublic(session2),
+    ]);
+
+    expect(await collection.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 0,
+            openTaskCount: 0,
+            lastTaskAddedTime: null,
+        }),
+    );
+
+    const pausePromise = commitTaskActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
+        session2.account.id,
+    );
+
+    const updatePromise = collection.setPrivateAccessPolicy(session2);
+    const {unpause} = await pausePromise;
+
+    expect(await collection.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 0,
+            openTaskCount: 0,
+            lastTaskAddedTime: null,
+        }),
+    );
+
+    const time = testClock.nowLogical();
+    await task.addCollection(session1, collection, {time});
+
+    expect(await collection.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 1,
+            openTaskCount: 1,
+            lastTaskAddedTime: time,
+        }),
+    );
+
+    unpause();
+    await updatePromise;
+
+    expect(await collection.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 1,
+            openTaskCount: 1,
+            lastTaskAddedTime: time,
+        }),
+    );
+});
+
+test("race condition: update collection task count is recognized if it conflicts with another update (other update commits first)", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const [task, collection] = await runAllPromises([
+        TestTask.create(session1),
+        TestTaskCollection.createPublic(session2),
+    ]);
+
+    expect(await collection.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 0,
+            openTaskCount: 0,
+            lastTaskAddedTime: null,
+        }),
+    );
+
+    const pausePromise = commitTaskActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
+        session1.account.id,
+    );
+
+    const time = testClock.nowLogical();
+    const updatePromise = task.addCollection(session1, collection, {time});
+    const {unpause} = await pausePromise;
+
+    expect(await collection.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 0,
+            openTaskCount: 0,
+            lastTaskAddedTime: null,
+        }),
+    );
+
+    await collection.setPrivateAccessPolicy(session2);
+
+    expect(await collection.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 0,
+            openTaskCount: 0,
+            lastTaskAddedTime: null,
+        }),
+    );
+
+    unpause();
+    await updatePromise;
+
+    expect(await collection.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 1,
+            openTaskCount: 1,
+            lastTaskAddedTime: time,
+        }),
+    );
+});
+
+test("multiple actions that update collection item count in one transaction", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const [task1, task2, task3, task4, collection] = await runAllPromises([
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTaskCollection.createPublic(session),
+    ]);
+
+    await task3.updateStatus(session, "Closed");
+
+    expect(await collection.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 0,
+            openTaskCount: 0,
+            lastTaskAddedTime: null,
+        }),
+    );
+
+    const time1 = testClock.nowLogical();
+    await task1.addCollection(session, collection, {time: time1});
+
+    expect(await collection.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 1,
+            openTaskCount: 1,
+            lastTaskAddedTime: time1,
+        }),
+    );
+
+    const time2 = testClock.nowLogical();
+    await commitTaskActionTransaction(TestTask.action(session), space.id, [
+        {
+            type: "UpdateTask",
+            time: time2,
+            taskId: task2.id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId: collection.id,
+                orderKey: initialOrderKey,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time2,
+            taskId: task3.id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId: collection.id,
+                orderKey: initialOrderKey,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time2,
+            taskId: task4.id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId: collection.id,
+                orderKey: initialOrderKey,
+            },
+        },
+    ]);
+
+    expect(await collection.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 4,
+            openTaskCount: 3,
+            lastTaskAddedTime: time2,
+        }),
+    );
+});
+
+test("multiple actions that update collection item count in one transaction and a collection update at the end", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const [task1, task2, task3, task4, collection] = await runAllPromises([
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTaskCollection.createPublic(session),
+    ]);
+
+    await task3.updateStatus(session, "Closed");
+
+    expect(await collection.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 0,
+            openTaskCount: 0,
+            lastTaskAddedTime: null,
+        }),
+    );
+
+    const time1 = testClock.nowLogical();
+    await task1.addCollection(session, collection, {time: time1});
+
+    expect(await collection.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 1,
+            openTaskCount: 1,
+            lastTaskAddedTime: time1,
+        }),
+    );
+
+    const time2 = testClock.nowLogical();
+    await commitTaskActionTransaction(TestTask.action(session), space.id, [
+        {
+            type: "UpdateTask",
+            time: time2,
+            taskId: task2.id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId: collection.id,
+                orderKey: initialOrderKey,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time2,
+            taskId: task3.id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId: collection.id,
+                orderKey: initialOrderKey,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time2,
+            taskId: task4.id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId: collection.id,
+                orderKey: initialOrderKey,
+            },
+        },
+        {
+            type: "UpdateCollection",
+            time: time2,
+            collectionId: collection.id,
+            collectionAction: {
+                type: "UpdateAccessPolicy",
+                accessPolicy: {
+                    accountGrantById: new Map([[session.account.id, {level: "Manage"}]]),
+                    defaultGrant: {type: "Space", level: "Manage"},
+                },
+            },
+        },
+    ]);
+
+    expect(await collection.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 4,
+            openTaskCount: 3,
+            lastTaskAddedTime: time2,
+        }),
+    );
+});
+
+test("multiple actions that update collection item count in one transaction and a collection update at the beginning", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const [task1, task2, task3, task4, collection] = await runAllPromises([
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTaskCollection.createPublic(session),
+    ]);
+
+    await task3.updateStatus(session, "Closed");
+
+    expect(await collection.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 0,
+            openTaskCount: 0,
+            lastTaskAddedTime: null,
+        }),
+    );
+
+    const time1 = testClock.nowLogical();
+    await task1.addCollection(session, collection, {time: time1});
+
+    expect(await collection.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 1,
+            openTaskCount: 1,
+            lastTaskAddedTime: time1,
+        }),
+    );
+
+    const time2 = testClock.nowLogical();
+    await commitTaskActionTransaction(TestTask.action(session), space.id, [
+        {
+            type: "UpdateCollection",
+            time: time2,
+            collectionId: collection.id,
+            collectionAction: {
+                type: "UpdateAccessPolicy",
+                accessPolicy: {
+                    accountGrantById: new Map([[session.account.id, {level: "Manage"}]]),
+                    defaultGrant: {type: "Space", level: "Manage"},
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time2,
+            taskId: task2.id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId: collection.id,
+                orderKey: initialOrderKey,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time2,
+            taskId: task3.id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId: collection.id,
+                orderKey: initialOrderKey,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time2,
+            taskId: task4.id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId: collection.id,
+                orderKey: initialOrderKey,
+            },
+        },
+    ]);
+
+    expect(await collection.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 4,
+            openTaskCount: 3,
+            lastTaskAddedTime: time2,
+        }),
+    );
+});
+
+test("multiple actions that update collection item count in one transaction and a collection update in the middle", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const [task1, task2, task3, task4, collection] = await runAllPromises([
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTaskCollection.createPublic(session),
+    ]);
+
+    await task3.updateStatus(session, "Closed");
+
+    expect(await collection.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 0,
+            openTaskCount: 0,
+            lastTaskAddedTime: null,
+        }),
+    );
+
+    const time1 = testClock.nowLogical();
+    await task1.addCollection(session, collection, {time: time1});
+
+    expect(await collection.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 1,
+            openTaskCount: 1,
+            lastTaskAddedTime: time1,
+        }),
+    );
+
+    const time2 = testClock.nowLogical();
+    await commitTaskActionTransaction(TestTask.action(session), space.id, [
+        {
+            type: "UpdateTask",
+            time: time2,
+            taskId: task2.id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId: collection.id,
+                orderKey: initialOrderKey,
+            },
+        },
+        {
+            type: "UpdateCollection",
+            time: time2,
+            collectionId: collection.id,
+            collectionAction: {
+                type: "UpdateAccessPolicy",
+                accessPolicy: {
+                    accountGrantById: new Map([[session.account.id, {level: "Manage"}]]),
+                    defaultGrant: {type: "Space", level: "Manage"},
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time2,
+            taskId: task3.id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId: collection.id,
+                orderKey: initialOrderKey,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time2,
+            taskId: task4.id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId: collection.id,
+                orderKey: initialOrderKey,
+            },
+        },
+    ]);
+
+    expect(await collection.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 4,
+            openTaskCount: 3,
+            lastTaskAddedTime: time2,
+        }),
+    );
+});
+
+test("a collection action and an action that indirectly updates collection task counts in the same transaction", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const [task, collection] = await runAllPromises([
+        TestTask.create(session),
+        TestTaskCollection.createPublic(session),
+    ]);
+
+    expect(await collection.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 0,
+            openTaskCount: 0,
+            lastTaskAddedTime: null,
+        }),
+    );
+
+    const time1 = testClock.nowLogical();
+    await task.addCollection(session, collection, {time: time1});
+
+    expect(await collection.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 1,
+            openTaskCount: 1,
+            lastTaskAddedTime: time1,
+        }),
+    );
+
+    const time2 = testClock.nowLogical();
+    await commitTaskActionTransaction(TestTask.action(session), space.id, [
+        {
+            type: "UpdateTask",
+            time: time2,
+            taskId: task.id,
+            taskAction: {
+                type: "UpdateStatus",
+                status: {
+                    type: "Closed",
+                    closerId: session.account.id,
+                    closedTime: new TaskFilterableTime({
+                        absoluteTime: time2,
+                        setterTimeZone: defaultTimeZone,
+                    }),
+                },
+            },
+        },
+        {
+            type: "UpdateCollection",
+            time: time2,
+            collectionId: collection.id,
+            collectionAction: {
+                type: "UpdateAccessPolicy",
+                accessPolicy: {
+                    accountGrantById: new Map([[session.account.id, {level: "Manage"}]]),
+                    defaultGrant: {type: "Space", level: "Manage"},
+                },
+            },
+        },
+    ]);
+
+    expect(await collection.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 1,
+            openTaskCount: 0,
+            lastTaskAddedTime: time1,
+        }),
+    );
+
+    const time3 = testClock.nowLogical();
+    await commitTaskActionTransaction(TestTask.action(session), space.id, [
+        {
+            type: "UpdateCollection",
+            time: time3,
+            collectionId: collection.id,
+            collectionAction: {
+                type: "UpdateAccessPolicy",
+                accessPolicy: {
+                    accountGrantById: new Map([[session.account.id, {level: "Manage"}]]),
+                    defaultGrant: null,
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time3,
+            taskId: task.id,
+            taskAction: {
+                type: "UpdateStatus",
+                status: {type: "Open"},
+            },
+        },
+    ]);
+
+    expect(await collection.getItem()).toEqual(
+        expect.objectContaining({
+            taskCount: 1,
+            openTaskCount: 1,
+            lastTaskAddedTime: time1,
+        }),
+    );
 });

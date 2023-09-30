@@ -64,7 +64,7 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {IdByteSetSchema} from "~/shared/schema/helpers/id_byte_set_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {
     TaskAction,
     TaskActionSchema,
@@ -221,7 +221,42 @@ const TaskTable = DynamoTableSchema.new({
                         spaceId: Schema.id<SpaceId>(),
                         createdTime: HybridLogicalTimeSchema,
                         deletedTime: HybridLogicalTimeSchema.nullable(),
+
+                        /**
+                         * Who is allowed to access the collection and with what permission
+                         * level.
+                         */
                         accessPolicy: TaskCollectionAccessPolicyRegister.schema,
+
+                        /**
+                         * The total number of tasks in the collection. Open and closed. Not
+                         * including deleted tasks.
+                         *
+                         * Doesn't use the same `addedChildTaskCount`/`removedChildTaskCount` format
+                         * as a task since these numbers aren't shared over realtime (since they would
+                         * update so frequently). Though if we wanted to migrate to that format it
+                         * should be pretty easy: rename this property to `addedTaskCount` and add a
+                         * `removedTaskCount` property that defaults to 0.
+                         */
+                        taskCount: Schema.integer,
+
+                        /**
+                         * The number of open tasks in the collection. Not including deleted tasks. You
+                         * can figure out the number of closed tasks with `taskCount - openTaskCount`.
+                         */
+                        openTaskCount: Schema.integer,
+
+                        /**
+                         * The last time a task was added to this collection.
+                         *
+                         * We present this to users as the task's last updated time.
+                         *
+                         * Unfortunately, DynamoDB doesn't have a `max()` function in update
+                         * expressions so we can't update this perfectly atomically. This value may not
+                         * monotonically go forwards and instead temporarily go backwards if we commit
+                         * an action with an older time than an action we previously committed.
+                         */
+                        lastTaskAddedTime: HybridLogicalTimeSchema.nullable(),
                     }),
                 },
             ],
@@ -433,7 +468,7 @@ export type TaskEssentialAttributesItem = DynamoTableItemType<
     "EssentialAttributes"
 >;
 
-type TaskCollectionEssentialAttributesItem = DynamoTableItemType<
+export type TaskCollectionEssentialAttributesItem = DynamoTableItemType<
     typeof TaskTable,
     "TaskCollection",
     "EssentialAttributes"
@@ -452,6 +487,22 @@ export async function getTaskItemForTest(
         partitionType: "Task",
         sortRangeType: "EssentialAttributes",
         taskId,
+    });
+}
+
+/**
+ * Get the item representing a task collection in unit tests.
+ */
+export async function getTaskCollectionItemForTest(
+    context: DynamoContext,
+    collectionId: TaskCollectionId,
+): Promise<TaskCollectionEssentialAttributesItem> {
+    assert(import.meta.jest);
+
+    return TaskTable.getItem(context, {
+        partitionType: "TaskCollection",
+        sortRangeType: "EssentialAttributes",
+        collectionId,
     });
 }
 
@@ -573,6 +624,9 @@ function afterCommitTaskActionTransaction(
     });
 }
 
+const taskCollectionAtomicallyUpdateItemTaskCountAttributesExpression =
+    "SET updateLockVersion = if_not_exists(updateLockVersion, :zero) + :one, taskCount = taskCount + :taskCountDelta, openTaskCount = openTaskCount + :openTaskCountDelta";
+
 /**
  * Abstraction for managing state during a `commitTaskActionTransaction()`
  * call. A task may be updated multiple times within a transaction so we need
@@ -599,10 +653,14 @@ class TaskActionTransactionCommitState {
     // merge all updates we want to make on an item into a single transaction entry.
     private readonly _transactionEntryByCollectionId = new Map<
         TaskCollectionId,
-        {
-            action: "CreateItem" | "DirectlyUpdateItem";
-            collectionItem: TaskCollectionEssentialAttributesItem;
-        }
+        | {action: "CreateItem"; collectionItem: TaskCollectionEssentialAttributesItem}
+        | {action: "DirectlyUpdateItem"; collectionItem: TaskCollectionEssentialAttributesItem}
+        | {
+              action: "AtomicallyUpdateItemAttributes";
+              taskCountDelta: number;
+              openTaskCountDelta: number;
+              lastTaskAddedTime: HybridLogicalTime | null;
+          }
     >();
 
     private _actorNotepadItemTransactionEntry: TaskAccountNotepadItem | null = null;
@@ -695,7 +753,7 @@ class TaskActionTransactionCommitState {
                 }
             }
 
-            for (const transactionEntry of state._transactionEntryByCollectionId.values()) {
+            for (const [collectionId, transactionEntry] of state._transactionEntryByCollectionId) {
                 switch (transactionEntry.action) {
                     case "CreateItem": {
                         transactionEntries.push(
@@ -711,8 +769,49 @@ class TaskActionTransactionCommitState {
                         );
                         break;
                     }
+                    case "AtomicallyUpdateItemAttributes": {
+                        const updateExpression =
+                            taskCollectionAtomicallyUpdateItemTaskCountAttributesExpression +
+                            (transactionEntry.lastTaskAddedTime
+                                ? ", lastTaskAddedTime = :lastTaskAddedTime"
+                                : "");
+
+                        const expressionAttributeValues: {[key: string]: SchemaSerializedValue} = {
+                            ":zero": 0,
+                            ":one": 1,
+                            ":taskCountDelta": transactionEntry.taskCountDelta,
+                            ":openTaskCountDelta": transactionEntry.openTaskCountDelta,
+                        };
+
+                        if (transactionEntry.lastTaskAddedTime) {
+                            expressionAttributeValues[":lastTaskAddedTime"] =
+                                HybridLogicalTimeSchema.serialize(
+                                    transactionEntry.lastTaskAddedTime,
+                                );
+                        }
+
+                        transactionEntries.push(
+                            // We use a custom atomic update expression to update our collection without:
+                            //
+                            // 1. Needing to read the current collection item (costing additional RCUs)
+                            // 2. Creating condition expression conflicts with other updates on the task
+                            //    collection
+                            TaskTable.dangerousTransactionUpdateItemWithCustomUpdateExpression(
+                                {
+                                    partitionType: "TaskCollection",
+                                    sortRangeType: "EssentialAttributes",
+                                    collectionId,
+                                },
+                                {
+                                    updateExpression,
+                                    expressionAttributeValues,
+                                },
+                            ),
+                        );
+                        break;
+                    }
                     default:
-                        throw exhaustive(transactionEntry.action);
+                        throw exhaustive(transactionEntry);
                 }
             }
 
@@ -804,8 +903,6 @@ class TaskActionTransactionCommitState {
     }
 
     public createTaskItem(taskItem: TaskEssentialAttributesItem) {
-        this._taskItemById.set(taskItem.taskId, Promise.resolve(taskItem));
-
         const transactionEntry = getOrSetDefaultMapValue(
             this._transactionEntryByTaskId,
             taskItem.taskId,
@@ -832,6 +929,7 @@ class TaskActionTransactionCommitState {
             );
 
         transactionEntry.taskItem = taskItem;
+        this._taskItemById.set(taskItem.taskId, Promise.resolve(taskItem));
     }
 
     public updateTaskItem(
@@ -844,8 +942,6 @@ class TaskActionTransactionCommitState {
             shouldCommitExtraUpdateChildrenCountAction?: boolean;
         } = {},
     ) {
-        this._taskItemById.set(taskItem.taskId, Promise.resolve(taskItem));
-
         const transactionEntry = getOrSetDefaultMapValue(
             this._transactionEntryByTaskId,
             taskItem.taskId,
@@ -876,6 +972,7 @@ class TaskActionTransactionCommitState {
             );
 
         transactionEntry.taskItem = taskItem;
+        this._taskItemById.set(taskItem.taskId, Promise.resolve(taskItem));
     }
 
     public updateTaskItemLockVersion(taskItem: TaskEssentialAttributesItem) {
@@ -906,11 +1003,45 @@ class TaskActionTransactionCommitState {
         transactionEntry.taskItem = taskItem;
     }
 
+    /**
+     * If the action time was more than an hour in the past then we don't set it as
+     * the new `lastTaskAddedTime` since it would look like the last update time
+     * was skipping backwards since we can't run `max()` in a DynamoDB update
+     * expression.
+     */
+    private _isCollectionLastTaskAddedTimeReasonable(time: HybridLogicalTime) {
+        return this._startTime - time[0] < 1000 * 60;
+    }
+
+    private _applyCollectionUpdateItemAttributes(
+        collectionItem: TaskCollectionEssentialAttributesItem,
+        {
+            taskCountDelta,
+            openTaskCountDelta,
+            lastTaskAddedTime,
+        }: {
+            taskCountDelta: number;
+            openTaskCountDelta: number;
+            lastTaskAddedTime: HybridLogicalTime | null;
+        },
+    ): TaskCollectionEssentialAttributesItem {
+        return {
+            ...collectionItem,
+            taskCount: collectionItem.taskCount + taskCountDelta,
+            openTaskCount: collectionItem.openTaskCount + openTaskCountDelta,
+            lastTaskAddedTime:
+                lastTaskAddedTime &&
+                this._isCollectionLastTaskAddedTimeReasonable(lastTaskAddedTime)
+                    ? lastTaskAddedTime
+                    : collectionItem.lastTaskAddedTime,
+        };
+    }
+
     public getCollectionItemIfExists(
         collectionId: TaskCollectionId,
     ): Promise<TaskCollectionEssentialAttributesItem | null> {
         return getOrSetDefaultMapValue(this._collectionItemById, collectionId, async () => {
-            const collectionItem = await TaskTable.getItemIfExists(this._context, {
+            let collectionItem = await TaskTable.getItemIfExists(this._context, {
                 partitionType: "TaskCollection",
                 sortRangeType: "EssentialAttributes",
                 collectionId,
@@ -919,6 +1050,17 @@ class TaskActionTransactionCommitState {
 
             if (collectionItem.spaceId !== this._spaceId)
                 throw new FailedPreconditionError("Space mismatch");
+
+            // If we have an atomic update transaction entry, we need to apply it when the
+            // collection is loaded. Since we can't put an entry in `collectionItemById`
+            // when the update is applied.
+            const transactionEntry = this._transactionEntryByCollectionId.get(collectionId);
+            if (transactionEntry?.action === "AtomicallyUpdateItemAttributes") {
+                collectionItem = this._applyCollectionUpdateItemAttributes(
+                    collectionItem,
+                    transactionEntry,
+                );
+            }
 
             return collectionItem;
         });
@@ -936,8 +1078,6 @@ class TaskActionTransactionCommitState {
     }
 
     public createCollectionItem(collectionItem: TaskCollectionEssentialAttributesItem) {
-        this._collectionItemById.set(collectionItem.collectionId, Promise.resolve(collectionItem));
-
         const transactionEntry = getOrSetDefaultMapValue(
             this._transactionEntryByCollectionId,
             collectionItem.collectionId,
@@ -951,9 +1091,10 @@ class TaskActionTransactionCommitState {
             case "CreateItem":
                 break;
             case "DirectlyUpdateItem":
+            case "AtomicallyUpdateItemAttributes":
                 throw new FailedPreconditionError("Can't update a collection before it's created");
             default:
-                throw exhaustive(transactionEntry.action);
+                throw exhaustive(transactionEntry);
         }
 
         if (transactionEntry.collectionItem.updateLockVersion !== collectionItem.updateLockVersion)
@@ -962,34 +1103,111 @@ class TaskActionTransactionCommitState {
             );
 
         transactionEntry.collectionItem = collectionItem;
+        this._collectionItemById.set(collectionItem.collectionId, Promise.resolve(collectionItem));
     }
 
     public updateCollectionItem(collectionItem: TaskCollectionEssentialAttributesItem) {
-        this._collectionItemById.set(collectionItem.collectionId, Promise.resolve(collectionItem));
-
         const transactionEntry = getOrSetDefaultMapValue(
             this._transactionEntryByCollectionId,
             collectionItem.collectionId,
             () => ({
-                collectionItem,
                 action: "DirectlyUpdateItem" as const,
+                collectionItem,
             }),
         );
 
         switch (transactionEntry.action) {
             case "CreateItem":
-            case "DirectlyUpdateItem":
+            case "DirectlyUpdateItem": {
+                if (
+                    transactionEntry.collectionItem.updateLockVersion !==
+                    collectionItem.updateLockVersion
+                ) {
+                    throw new InternalError(
+                        "`updateLockVersion` should only change after we commit to the database",
+                    );
+                }
+
+                transactionEntry.collectionItem = collectionItem;
                 break;
+            }
+            case "AtomicallyUpdateItemAttributes": {
+                // We don't need to apply atomic updates here since they should have already
+                // been applied when the calling code read the collection from our state.
+
+                this._transactionEntryByCollectionId.set(collectionItem.collectionId, {
+                    action: "DirectlyUpdateItem",
+                    collectionItem,
+                });
+                break;
+            }
             default:
-                throw exhaustive(transactionEntry.action);
+                throw exhaustive(transactionEntry);
         }
 
-        if (transactionEntry.collectionItem.updateLockVersion !== collectionItem.updateLockVersion)
-            throw new InternalError(
-                "`updateLockVersion` should only change after we commit to the database",
-            );
+        this._collectionItemById.set(collectionItem.collectionId, Promise.resolve(collectionItem));
+    }
 
-        transactionEntry.collectionItem = collectionItem;
+    public updateCollectionItemAttributes(
+        collectionId: TaskCollectionId,
+        update: {
+            taskCountDelta: number;
+            openTaskCountDelta: number;
+            lastTaskAddedTime: HybridLogicalTime | null;
+        },
+    ) {
+        const transactionEntry = getOrSetDefaultMapValue(
+            this._transactionEntryByCollectionId,
+            collectionId,
+            () => ({
+                action: "AtomicallyUpdateItemAttributes" as const,
+                taskCountDelta: 0,
+                openTaskCountDelta: 0,
+                lastTaskAddedTime: null,
+            }),
+        );
+
+        switch (transactionEntry.action) {
+            case "CreateItem":
+            case "DirectlyUpdateItem": {
+                transactionEntry.collectionItem = this._applyCollectionUpdateItemAttributes(
+                    transactionEntry.collectionItem,
+                    update,
+                );
+
+                this._collectionItemById.set(
+                    collectionId,
+                    Promise.resolve(transactionEntry.collectionItem),
+                );
+                break;
+            }
+            case "AtomicallyUpdateItemAttributes": {
+                transactionEntry.taskCountDelta += update.taskCountDelta;
+                transactionEntry.openTaskCountDelta += update.openTaskCountDelta;
+                transactionEntry.lastTaskAddedTime =
+                    update.lastTaskAddedTime &&
+                    this._isCollectionLastTaskAddedTimeReasonable(update.lastTaskAddedTime)
+                        ? update.lastTaskAddedTime
+                        : transactionEntry.lastTaskAddedTime;
+
+                // If a collection item has been loaded then we need to apply our update to
+                // that item.
+                const collectionItemPromise = this._collectionItemById.get(collectionId);
+                if (collectionItemPromise) {
+                    this._collectionItemById.set(
+                        collectionId,
+                        collectionItemPromise.then(collectionItem =>
+                            collectionItem
+                                ? this._applyCollectionUpdateItemAttributes(collectionItem, update)
+                                : null,
+                        ),
+                    );
+                }
+                break;
+            }
+            default:
+                throw exhaustive(transactionEntry);
+        }
     }
 
     public getActorNotepadItem(): Promise<TaskAccountNotepadItem> {
@@ -1055,8 +1273,10 @@ class TaskActionTransactionCommitState {
             throw new PermissionDeniedError(
                 quote`Actor does not have ${expectedAccessLevel} access level to task collection`,
                 {
-                    displayMessage:
-                        getTaskCollectionItemPermissionDeniedErrorDisplayMessage(collectionItem),
+                    displayMessage: getTaskCollectionItemPermissionDeniedErrorDisplayMessage(
+                        collectionItem,
+                        expectedAccessLevel,
+                    ),
                 },
             );
         }
@@ -1079,8 +1299,10 @@ class TaskActionTransactionCommitState {
             throw new PermissionDeniedError(
                 quote`Actor does not have ${expectedAccessLevel} access level to task collection`,
                 {
-                    displayMessage:
-                        getTaskCollectionItemPermissionDeniedErrorDisplayMessage(collectionItem),
+                    displayMessage: getTaskCollectionItemPermissionDeniedErrorDisplayMessage(
+                        collectionItem,
+                        expectedAccessLevel,
+                    ),
                 },
             );
         }
@@ -1258,6 +1480,14 @@ async function actuallyCommitTaskActionTransaction(
                                 {shouldCommitExtraUpdateChildrenCountAction: true},
                             );
                         }
+
+                        for (const {collectionId} of taskItem.collections.getArray()) {
+                            state.updateCollectionItemAttributes(collectionId, {
+                                taskCountDelta: 1,
+                                openTaskCountDelta: taskItem.statusType.value === "Open" ? 1 : 0,
+                                lastTaskAddedTime: action.time,
+                            });
+                        }
                         break;
                     }
                     default: {
@@ -1301,6 +1531,15 @@ async function actuallyCommitTaskActionTransaction(
                                         },
                                         {shouldCommitExtraUpdateChildrenCountAction: true},
                                     );
+                                }
+
+                                for (const {collectionId} of taskItem.collections.getArray()) {
+                                    state.updateCollectionItemAttributes(collectionId, {
+                                        taskCountDelta: -1,
+                                        openTaskCountDelta:
+                                            taskItem.statusType.value === "Open" ? -1 : 0,
+                                        lastTaskAddedTime: null,
+                                    });
                                 }
                                 break;
                             }
@@ -1568,6 +1807,13 @@ async function actuallyCommitTaskActionTransaction(
                                         version: action.time,
                                     }),
                                 });
+
+                                state.updateCollectionItemAttributes(taskAction.collectionId, {
+                                    taskCountDelta: 1,
+                                    openTaskCountDelta:
+                                        taskItem.statusType.value === "Open" ? 1 : 0,
+                                    lastTaskAddedTime: action.time,
+                                });
                                 break;
                             }
                             case "RemoveCollection": {
@@ -1585,6 +1831,13 @@ async function actuallyCommitTaskActionTransaction(
                                         key: taskAction.collectionId,
                                         version: action.time,
                                     }),
+                                });
+
+                                state.updateCollectionItemAttributes(taskAction.collectionId, {
+                                    taskCountDelta: -1,
+                                    openTaskCountDelta:
+                                        taskItem.statusType.value === "Open" ? -1 : 0,
+                                    lastTaskAddedTime: null,
                                 });
                                 break;
                             }
@@ -1702,6 +1955,30 @@ async function actuallyCommitTaskActionTransaction(
                                         );
                                     }
                                 }
+
+                                for (const {collectionId} of taskItem.collections.getArray()) {
+                                    if (
+                                        oldStatusType.value !== "Closed" &&
+                                        newStatusType.value === "Closed"
+                                    ) {
+                                        state.updateCollectionItemAttributes(collectionId, {
+                                            taskCountDelta: 0,
+                                            openTaskCountDelta: -1,
+                                            lastTaskAddedTime: null,
+                                        });
+                                    }
+
+                                    if (
+                                        oldStatusType.value === "Closed" &&
+                                        newStatusType.value !== "Closed"
+                                    ) {
+                                        state.updateCollectionItemAttributes(collectionId, {
+                                            taskCountDelta: 0,
+                                            openTaskCountDelta: 1,
+                                            lastTaskAddedTime: null,
+                                        });
+                                    }
+                                }
                                 break;
                             }
                             case "UpdateAssignee": {
@@ -1816,6 +2093,9 @@ async function actuallyCommitTaskActionTransaction(
                                 collectionAction.accessPolicy,
                                 action.time,
                             ),
+                            taskCount: 0,
+                            openTaskCount: 0,
+                            lastTaskAddedTime: null,
                         };
 
                         if (
@@ -2027,6 +2307,11 @@ export function deleteTaskAndAllChildren(
             newTaskItem: TaskEssentialAttributesItem;
         }> = [];
 
+        const updatedCollectionById = new Map<
+            TaskCollectionId,
+            {taskCountDelta: number; openTaskCountDelta: number}
+        >();
+
         // Note that child tasks inherit the parent task's authorization.
         const addTaskItem = async (taskItem: TaskEssentialAttributesItem) => {
             const childTaskCount = taskItem.childTaskIds.size;
@@ -2063,6 +2348,20 @@ export function deleteTaskAndAllChildren(
                         taskItem.removedClosedChildTaskCount + closedChildTaskCount,
                 },
             });
+
+            for (const {collectionId} of taskItem.collections.getArray()) {
+                const updatedCollection = getOrSetDefaultMapValue(
+                    updatedCollectionById,
+                    collectionId,
+                    () => ({taskCountDelta: 0, openTaskCountDelta: 0}),
+                );
+
+                updatedCollection.taskCountDelta -= 1;
+
+                if (taskItem.statusType.value !== "Closed") {
+                    updatedCollection.openTaskCountDelta -= 1;
+                }
+            }
         };
 
         await addTaskItem(taskItem);
@@ -2104,6 +2403,28 @@ export function deleteTaskAndAllChildren(
 
         for (const {newTaskItem} of updatedTaskItems) {
             transactionEntries.push(TaskTable.transactionDirectlyUpdateItem(newTaskItem));
+        }
+
+        for (const [collectionId, updatedCollection] of updatedCollectionById) {
+            transactionEntries.push(
+                TaskTable.dangerousTransactionUpdateItemWithCustomUpdateExpression(
+                    {
+                        partitionType: "TaskCollection",
+                        sortRangeType: "EssentialAttributes",
+                        collectionId,
+                    },
+                    {
+                        updateExpression:
+                            taskCollectionAtomicallyUpdateItemTaskCountAttributesExpression,
+                        expressionAttributeValues: {
+                            ":zero": 0,
+                            ":one": 1,
+                            ":taskCountDelta": updatedCollection.taskCountDelta,
+                            ":openTaskCountDelta": updatedCollection.openTaskCountDelta,
+                        },
+                    },
+                ),
+            );
         }
 
         const actionTransactionItem: TaskActionTransactionItem = {
@@ -2372,7 +2693,9 @@ async function getTaskCollectionItemForAuthorization(
             taskId: TaskCollectionId,
         ) => TaskCollectionIndexDoc | undefined;
     } | null,
-): Promise<TaskCollectionEssentialAttributesItem> {
+): Promise<
+    Omit<TaskCollectionEssentialAttributesItem, "taskCount" | "openTaskCount" | "lastTaskAddedTime">
+> {
     const collectionIndexDoc = loaders?.getCollectionIndexDocIfExists(collectionId);
     if (collectionIndexDoc) return convertTaskCollectionIndexDocToItem(collectionIndexDoc);
 
@@ -2430,7 +2753,10 @@ async function isTaskCollectionItemAccessAuthorized(
         dynamo: DynamoContextModule;
     }>,
     accountId: AccountId,
-    collectionItem: TaskCollectionEssentialAttributesItem,
+    collectionItem: Omit<
+        TaskCollectionEssentialAttributesItem,
+        "taskCount" | "openTaskCount" | "lastTaskAddedTime"
+    >,
     expectedAccessLevel: TaskCollectionAccessLevel,
 ) {
     const isAuthorized = await isTaskCollectionItemAccessAuthorizedAllowingDeletedTasks(
@@ -2457,7 +2783,10 @@ async function isTaskCollectionItemAccessAuthorizedAllowingDeletedTasks(
         dynamo: DynamoContextModule;
     }>,
     accountId: AccountId,
-    collectionItem: TaskCollectionEssentialAttributesItem,
+    collectionItem: Omit<
+        TaskCollectionEssentialAttributesItem,
+        "taskCount" | "openTaskCount" | "lastTaskAddedTime"
+    >,
     expectedAccessLevel: TaskCollectionAccessLevel,
 ) {
     // Check that the account has access to the space the collection is in.
@@ -2510,8 +2839,10 @@ export async function authorizeTaskCollectionAccess(
         throw new PermissionDeniedError(
             quote`Actor does not have ${expectedAccessLevel} access level to task collection`,
             {
-                displayMessage:
-                    getTaskCollectionItemPermissionDeniedErrorDisplayMessage(collectionItem),
+                displayMessage: getTaskCollectionItemPermissionDeniedErrorDisplayMessage(
+                    collectionItem,
+                    expectedAccessLevel,
+                ),
             },
         );
     }
@@ -2577,7 +2908,12 @@ async function isTaskItemAccessAuthorized(
         getTaskItem: (taskId: TaskId) => Promise<Omit<TaskEssentialAttributesItem, "childTaskIds">>;
         getCollectionItem: (
             taskId: TaskCollectionId,
-        ) => Promise<TaskCollectionEssentialAttributesItem>;
+        ) => Promise<
+            Omit<
+                TaskCollectionEssentialAttributesItem,
+                "taskCount" | "openTaskCount" | "lastTaskAddedTime"
+            >
+        >;
     },
 ) {
     const isAuthorized = await isTaskItemAccessAuthorizedAllowingDeletedTasks(
@@ -2610,7 +2946,12 @@ async function isTaskItemAccessAuthorizedAllowingDeletedTasks(
         getTaskItem: (taskId: TaskId) => Promise<Omit<TaskEssentialAttributesItem, "childTaskIds">>;
         getCollectionItem: (
             taskId: TaskCollectionId,
-        ) => Promise<TaskCollectionEssentialAttributesItem>;
+        ) => Promise<
+            Omit<
+                TaskCollectionEssentialAttributesItem,
+                "taskCount" | "openTaskCount" | "lastTaskAddedTime"
+            >
+        >;
     },
 ): Promise<boolean> {
     // Check that the account has access to the space the task is in.
@@ -2823,9 +3164,16 @@ function getTaskItemPermissionDeniedErrorDisplayMessage(
 }
 
 function getTaskCollectionItemPermissionDeniedErrorDisplayMessage(
-    collectionItem: TaskCollectionEssentialAttributesItem,
+    collectionItem: Omit<
+        TaskCollectionEssentialAttributesItem,
+        "taskCount" | "openTaskCount" | "lastTaskAddedTime"
+    >,
+    expectedAccessLevel: TaskCollectionAccessLevel,
 ) {
-    if (collectionItem.deletedTime) {
+    // If the user can't view a deleted collection it's because they don't have
+    // view access. If a task is deleted, you can still view it but you can't
+    // edit it.
+    if (collectionItem.deletedTime && hasTaskCollectionAccessLevel(expectedAccessLevel, "Edit")) {
         // TODO(calebmer): In the future we should have some kind of task trash
         // feature. When we add trash we should direct the user to restore tasks from
         // their trash in the "hint" part of the error message.
@@ -3125,7 +3473,10 @@ function convertTaskIndexDocToItem(
  */
 function convertTaskCollectionIndexDocToItem(
     collection: TaskCollectionIndexDoc,
-): TaskCollectionEssentialAttributesItem {
+): Omit<
+    TaskCollectionEssentialAttributesItem,
+    "taskCount" | "openTaskCount" | "lastTaskAddedTime"
+> {
     return {
         partitionType: "TaskCollection",
         sortRangeType: "EssentialAttributes",
