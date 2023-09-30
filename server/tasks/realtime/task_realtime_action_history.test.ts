@@ -7,7 +7,6 @@ import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
-import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 import.meta.jest.useFakeTimers();
@@ -36,26 +35,25 @@ test("ignores actions before start is called", () => {
 
     history.assertCorrectForTest();
 
-    history.addActionTransaction({
-        spaceId,
-        committedTime: new Date(clock1.now()),
-        actions: [
-            {
-                type: "UpdateTask",
-                time: clock2.now(),
-                taskId: generateId(),
-                taskAction: {
-                    type: "Create",
-                    creator: new TaskSortableAccount({
-                        accountId: generateId(),
-                        workingAccountName: "Test",
-                        workingAccountNameVersion: 0,
-                    }),
-                    creatorTimeZone: defaultTimeZone,
+    history.addActionTransaction(
+        {
+            spaceId,
+            committedTime: new Date(clock1.now()),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: clock2.now(),
+                    taskId: generateId(),
+                    taskAction: {
+                        type: "Create",
+                        creatorId: generateId(),
+                        creatorTimeZone: defaultTimeZone,
+                    },
                 },
-            },
-        ],
-    });
+            ],
+        },
+        [],
+    );
 
     history.assertCorrectForTest();
 });
@@ -82,101 +80,97 @@ test("records actions after start is called", () => {
     expect(getActions(history, spaceId1).length).toEqual(0);
     expect(getActions(history, spaceId2).length).toEqual(0);
 
-    history.addActionTransaction({
-        spaceId: spaceId1,
-        committedTime: new Date(clock1.now()),
-        actions: [
-            {
-                type: "UpdateTask",
-                time: clock2.now(),
-                taskId: generateId(),
-                taskAction: {
-                    type: "Create",
-                    creator: new TaskSortableAccount({
-                        accountId: generateId(),
-                        workingAccountName: "Test",
-                        workingAccountNameVersion: 0,
-                    }),
-                    creatorTimeZone: defaultTimeZone,
+    history.addActionTransaction(
+        {
+            spaceId: spaceId1,
+            committedTime: new Date(clock1.now()),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: clock2.now(),
+                    taskId: generateId(),
+                    taskAction: {
+                        type: "Create",
+                        creatorId: generateId(),
+                        creatorTimeZone: defaultTimeZone,
+                    },
                 },
-            },
-        ],
-    });
+            ],
+        },
+        [],
+    );
 
     history.assertCorrectForTest();
     expect(getActions(history, spaceId1).length).toEqual(1);
     expect(getActions(history, spaceId2).length).toEqual(0);
 
-    history.addActionTransaction({
-        spaceId: spaceId1,
-        committedTime: new Date(clock1.now()),
-        actions: [
-            {
-                type: "UpdateTask",
-                time: clock2.now(),
-                taskId: generateId(),
-                taskAction: {
-                    type: "Create",
-                    creator: new TaskSortableAccount({
-                        accountId: generateId(),
-                        workingAccountName: "Test",
-                        workingAccountNameVersion: 0,
-                    }),
-                    creatorTimeZone: defaultTimeZone,
+    history.addActionTransaction(
+        {
+            spaceId: spaceId1,
+            committedTime: new Date(clock1.now()),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: clock2.now(),
+                    taskId: generateId(),
+                    taskAction: {
+                        type: "Create",
+                        creatorId: generateId(),
+                        creatorTimeZone: defaultTimeZone,
+                    },
                 },
-            },
-        ],
-    });
+            ],
+        },
+        [],
+    );
 
     history.assertCorrectForTest();
     expect(getActions(history, spaceId1).length).toEqual(2);
     expect(getActions(history, spaceId2).length).toEqual(0);
 
-    history.addActionTransaction({
-        spaceId: spaceId2,
-        committedTime: new Date(clock1.now()),
-        actions: [
-            {
-                type: "UpdateTask",
-                time: clock2.now(),
-                taskId: generateId(),
-                taskAction: {
-                    type: "Create",
-                    creator: new TaskSortableAccount({
-                        accountId: generateId(),
-                        workingAccountName: "Test",
-                        workingAccountNameVersion: 0,
-                    }),
-                    creatorTimeZone: defaultTimeZone,
+    history.addActionTransaction(
+        {
+            spaceId: spaceId2,
+            committedTime: new Date(clock1.now()),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: clock2.now(),
+                    taskId: generateId(),
+                    taskAction: {
+                        type: "Create",
+                        creatorId: generateId(),
+                        creatorTimeZone: defaultTimeZone,
+                    },
                 },
-            },
-        ],
-    });
+            ],
+        },
+        [],
+    );
 
     history.assertCorrectForTest();
     expect(getActions(history, spaceId1).length).toEqual(2);
     expect(getActions(history, spaceId2).length).toEqual(1);
 
-    history.addActionTransaction({
-        spaceId: spaceId2,
-        committedTime: new Date(clock1.now() - 1000 * 60 * 2),
-        actions: [
-            {
-                type: "UpdateTask",
-                time: clock2.now(),
-                taskId: generateId(),
-                taskAction: {
-                    type: "Create",
-                    creator: new TaskSortableAccount({
-                        accountId: generateId(),
-                        workingAccountName: "Test",
-                        workingAccountNameVersion: 0,
-                    }),
-                    creatorTimeZone: defaultTimeZone,
+    history.addActionTransaction(
+        {
+            spaceId: spaceId2,
+            committedTime: new Date(clock1.now() - 1000 * 60 * 2),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: clock2.now(),
+                    taskId: generateId(),
+                    taskAction: {
+                        type: "Create",
+                        creatorId: generateId(),
+                        creatorTimeZone: defaultTimeZone,
+                    },
                 },
-            },
-        ],
-    });
+            ],
+        },
+        [],
+    );
 
     history.assertCorrectForTest();
     expect(getActions(history, spaceId1).length).toEqual(2);
@@ -206,122 +200,117 @@ test("will expire some actions whenever the timer runs", () => {
         history.assertCorrectForTest();
         expect(getActions(history, spaceId).length).toEqual(0);
 
-        history.addActionTransaction({
-            spaceId,
-            committedTime: new Date(Math.floor(mockTime - 1000 * 60 * 10.4)),
-            actions: [
-                {
-                    type: "UpdateTask",
-                    time: clock2.now(),
-                    taskId: generateId(),
-                    taskAction: {
-                        type: "Create",
-                        creator: new TaskSortableAccount({
-                            accountId: generateId(),
-                            workingAccountName: "Test",
-                            workingAccountNameVersion: 0,
-                        }),
-                        creatorTimeZone: defaultTimeZone,
+        history.addActionTransaction(
+            {
+                spaceId,
+                committedTime: new Date(Math.floor(mockTime - 1000 * 60 * 10.4)),
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: clock2.now(),
+                        taskId: generateId(),
+                        taskAction: {
+                            type: "Create",
+                            creatorId: generateId(),
+                            creatorTimeZone: defaultTimeZone,
+                        },
                     },
-                },
-            ],
-        });
+                ],
+            },
+            [],
+        );
 
         history.assertCorrectForTest();
         expect(getActions(history, spaceId).length).toEqual(0);
 
-        history.addActionTransaction({
-            spaceId,
-            committedTime: new Date(Math.floor(mockTime - 1000 * 60 * 9.6)),
-            actions: [
-                {
-                    type: "UpdateTask",
-                    time: clock2.now(),
-                    taskId: generateId(),
-                    taskAction: {
-                        type: "Create",
-                        creator: new TaskSortableAccount({
-                            accountId: generateId(),
-                            workingAccountName: "Test",
-                            workingAccountNameVersion: 0,
-                        }),
-                        creatorTimeZone: defaultTimeZone,
+        history.addActionTransaction(
+            {
+                spaceId,
+                committedTime: new Date(Math.floor(mockTime - 1000 * 60 * 9.6)),
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: clock2.now(),
+                        taskId: generateId(),
+                        taskAction: {
+                            type: "Create",
+                            creatorId: generateId(),
+                            creatorTimeZone: defaultTimeZone,
+                        },
                     },
-                },
-            ],
-        });
+                ],
+            },
+            [],
+        );
 
         history.assertCorrectForTest();
         expect(getActions(history, spaceId).length).toEqual(1);
 
-        history.addActionTransaction({
-            spaceId,
-            committedTime: new Date(Math.floor(mockTime - 1000 * 60 * 5.6)),
-            actions: [
-                {
-                    type: "UpdateTask",
-                    time: clock2.now(),
-                    taskId: generateId(),
-                    taskAction: {
-                        type: "Create",
-                        creator: new TaskSortableAccount({
-                            accountId: generateId(),
-                            workingAccountName: "Test",
-                            workingAccountNameVersion: 0,
-                        }),
-                        creatorTimeZone: defaultTimeZone,
+        history.addActionTransaction(
+            {
+                spaceId,
+                committedTime: new Date(Math.floor(mockTime - 1000 * 60 * 5.6)),
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: clock2.now(),
+                        taskId: generateId(),
+                        taskAction: {
+                            type: "Create",
+                            creatorId: generateId(),
+                            creatorTimeZone: defaultTimeZone,
+                        },
                     },
-                },
-            ],
-        });
+                ],
+            },
+            [],
+        );
 
         history.assertCorrectForTest();
         expect(getActions(history, spaceId).length).toEqual(2);
 
-        history.addActionTransaction({
-            spaceId,
-            committedTime: new Date(Math.floor(mockTime - 1000 * 60 * 3.2)),
-            actions: [
-                {
-                    type: "UpdateTask",
-                    time: clock2.now(),
-                    taskId: generateId(),
-                    taskAction: {
-                        type: "Create",
-                        creator: new TaskSortableAccount({
-                            accountId: generateId(),
-                            workingAccountName: "Test",
-                            workingAccountNameVersion: 0,
-                        }),
-                        creatorTimeZone: defaultTimeZone,
+        history.addActionTransaction(
+            {
+                spaceId,
+                committedTime: new Date(Math.floor(mockTime - 1000 * 60 * 3.2)),
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: clock2.now(),
+                        taskId: generateId(),
+                        taskAction: {
+                            type: "Create",
+                            creatorId: generateId(),
+                            creatorTimeZone: defaultTimeZone,
+                        },
                     },
-                },
-            ],
-        });
+                ],
+            },
+            [],
+        );
 
         history.assertCorrectForTest();
         expect(getActions(history, spaceId).length).toEqual(3);
 
-        history.addActionTransaction({
-            spaceId,
-            committedTime: new Date(mockTime),
-            actions: [
-                {
-                    type: "UpdateTask",
-                    time: clock2.now(),
-                    taskId: generateId(),
-                    taskAction: {
-                        type: "Create",
-                        creator: new TaskSortableAccount({
-                            accountId: generateId(),
-                            workingAccountName: "Test",
-                            workingAccountNameVersion: 0,
-                        }),
-                        creatorTimeZone: defaultTimeZone,
+        history.addActionTransaction(
+            {
+                spaceId,
+                committedTime: new Date(mockTime),
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: clock2.now(),
+                        taskId: generateId(),
+                        taskAction: {
+                            type: "Create",
+                            creatorId: generateId(),
+                            creatorTimeZone: defaultTimeZone,
+                        },
                     },
-                },
-            ],
-        });
+                ],
+            },
+            [],
+        );
 
         history.assertCorrectForTest();
         expect(getActions(history, spaceId).length).toEqual(4);
@@ -389,74 +378,71 @@ test("will clear entire history", () => {
     history.assertCorrectForTest();
     expect(getActions(history, spaceId).length).toEqual(0);
 
-    history.addActionTransaction({
-        spaceId,
-        committedTime: new Date(Date.now()),
-        actions: [
-            {
-                type: "UpdateTask",
-                time: clock2.now(),
-                taskId: generateId(),
-                taskAction: {
-                    type: "Create",
-                    creator: new TaskSortableAccount({
-                        accountId: generateId(),
-                        workingAccountName: "Test",
-                        workingAccountNameVersion: 0,
-                    }),
-                    creatorTimeZone: defaultTimeZone,
+    history.addActionTransaction(
+        {
+            spaceId,
+            committedTime: new Date(Date.now()),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: clock2.now(),
+                    taskId: generateId(),
+                    taskAction: {
+                        type: "Create",
+                        creatorId: generateId(),
+                        creatorTimeZone: defaultTimeZone,
+                    },
                 },
-            },
-        ],
-    });
+            ],
+        },
+        [],
+    );
 
     history.assertCorrectForTest();
     expect(getActions(history, spaceId).length).toEqual(1);
 
-    history.addActionTransaction({
-        spaceId,
-        committedTime: new Date(Date.now()),
-        actions: [
-            {
-                type: "UpdateTask",
-                time: clock2.now(),
-                taskId: generateId(),
-                taskAction: {
-                    type: "Create",
-                    creator: new TaskSortableAccount({
-                        accountId: generateId(),
-                        workingAccountName: "Test",
-                        workingAccountNameVersion: 0,
-                    }),
-                    creatorTimeZone: defaultTimeZone,
+    history.addActionTransaction(
+        {
+            spaceId,
+            committedTime: new Date(Date.now()),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: clock2.now(),
+                    taskId: generateId(),
+                    taskAction: {
+                        type: "Create",
+                        creatorId: generateId(),
+                        creatorTimeZone: defaultTimeZone,
+                    },
                 },
-            },
-        ],
-    });
+            ],
+        },
+        [],
+    );
 
     history.assertCorrectForTest();
     expect(getActions(history, spaceId).length).toEqual(2);
 
-    history.addActionTransaction({
-        spaceId,
-        committedTime: new Date(Date.now()),
-        actions: [
-            {
-                type: "UpdateTask",
-                time: clock2.now(),
-                taskId: generateId(),
-                taskAction: {
-                    type: "Create",
-                    creator: new TaskSortableAccount({
-                        accountId: generateId(),
-                        workingAccountName: "Test",
-                        workingAccountNameVersion: 0,
-                    }),
-                    creatorTimeZone: defaultTimeZone,
+    history.addActionTransaction(
+        {
+            spaceId,
+            committedTime: new Date(Date.now()),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: clock2.now(),
+                    taskId: generateId(),
+                    taskAction: {
+                        type: "Create",
+                        creatorId: generateId(),
+                        creatorTimeZone: defaultTimeZone,
+                    },
                 },
-            },
-        ],
-    });
+            ],
+        },
+        [],
+    );
 
     history.assertCorrectForTest();
     expect(getActions(history, spaceId).length).toEqual(3);
@@ -466,26 +452,25 @@ test("will clear entire history", () => {
     history.assertCorrectForTest();
     expect(getActions(history, spaceId).length).toEqual(0);
 
-    history.addActionTransaction({
-        spaceId,
-        committedTime: new Date(Date.now() - 1000 * 20),
-        actions: [
-            {
-                type: "UpdateTask",
-                time: clock2.now(),
-                taskId: generateId(),
-                taskAction: {
-                    type: "Create",
-                    creator: new TaskSortableAccount({
-                        accountId: generateId(),
-                        workingAccountName: "Test",
-                        workingAccountNameVersion: 0,
-                    }),
-                    creatorTimeZone: defaultTimeZone,
+    history.addActionTransaction(
+        {
+            spaceId,
+            committedTime: new Date(Date.now() - 1000 * 20),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: clock2.now(),
+                    taskId: generateId(),
+                    taskAction: {
+                        type: "Create",
+                        creatorId: generateId(),
+                        creatorTimeZone: defaultTimeZone,
+                    },
                 },
-            },
-        ],
-    });
+            ],
+        },
+        [],
+    );
 
     history.assertCorrectForTest();
     expect(getActions(history, spaceId).length).toEqual(1);

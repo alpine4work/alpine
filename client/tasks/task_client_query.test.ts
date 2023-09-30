@@ -3921,7 +3921,7 @@ test("deleting task and all children when subscribed to task and its children", 
         sorts: defaultTaskQueryNormalizedSorts,
     });
 
-    const query2 = store.ensureAndRetainTaskChildrenQuery(task1.id, {isDeleted: false});
+    const query2 = store.ensureAndRetainTaskChildrenQuery(task1.id);
 
     store.applyUpdateEvent({
         type: "Update",
