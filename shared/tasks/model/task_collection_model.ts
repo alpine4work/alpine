@@ -1,22 +1,19 @@
-import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.js";
 import {
     HybridLogicalClock,
     HybridLogicalTime,
     compareHybridLogicalTimes,
-    maxHybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskUpdateCollectionAction} from "~/shared/tasks/actions/task_action.js";
-import {
-    TaskCollectionAction,
-    TaskCollectionCreateAction,
-} from "~/shared/tasks/actions/task_collection_action.js";
+import {TaskCollectionCreateAction} from "~/shared/tasks/actions/task_collection_action.js";
 import {LabelStringSchemaRegister} from "~/shared/tasks/label_string_schema_register.js";
+import {applyTaskCollectionActionToCollectionModelData} from "~/shared/tasks/model/apply_task_collection_action_to_collection_model_data.js";
+import {mergeTaskCollectionModelData} from "~/shared/tasks/model/merge_task_collection_model_data.js";
 import {TaskCollectionAccessPolicyRegister} from "~/shared/tasks/task_collection_access_policy.js";
+import {TaskCollectionColorRegister} from "~/shared/tasks/task_collection_color.js";
 
 export type TaskCollectionModelData = SchemaType<typeof TaskCollectionModelDataSchema>;
 
@@ -29,6 +26,7 @@ const TaskCollectionModelDataSchema = Schema.object({
     undeletedTime: HybridLogicalTimeSchema.nullable(),
 
     name: LabelStringSchemaRegister.schema,
+    color: TaskCollectionColorRegister.schema,
     accessPolicy: TaskCollectionAccessPolicyRegister.schema,
 });
 
@@ -62,6 +60,7 @@ export class TaskCollectionModel {
             deletedTime: null,
             undeletedTime: null,
             name: new LabelStringSchemaRegister(action.name, actionTime),
+            color: new TaskCollectionColorRegister(null, actionTime),
             accessPolicy: new TaskCollectionAccessPolicyRegister(action.accessPolicy, actionTime),
         });
     }
@@ -135,108 +134,12 @@ export class TaskCollectionModel {
         return this.rawData.name.value;
     }
 
+    public getColor() {
+        return this.rawData.color.value;
+    }
+
     public getAccessPolicy() {
         return this.rawData.accessPolicy.value;
-    }
-}
-
-function mergeTaskCollectionModelData(
-    collection1: TaskCollectionModelData,
-    collection2: TaskCollectionModelData,
-) {
-    if (collection1.id !== collection2.id)
-        throw new InternalError("Can only merge tasks with the same `TaskCollectionId`");
-
-    if (collection1.spaceId !== collection2.spaceId)
-        throw new InternalError("Incompatible task `spaceId` when merging");
-
-    if (compareHybridLogicalTimes(collection1.createdTime, collection2.createdTime) !== 0)
-        throw new InternalError("Incompatible task `createdTime` when merging");
-
-    const newCollection: TaskCollectionModelData = {
-        id: collection1.id,
-        spaceId: collection1.spaceId,
-
-        createdTime: collection1.createdTime,
-        deletedTime:
-            collection1.deletedTime !== null && collection2.deletedTime !== null
-                ? maxHybridLogicalTime(collection1.deletedTime, collection2.deletedTime)
-                : collection1.deletedTime ?? collection2.deletedTime,
-        undeletedTime:
-            collection1.undeletedTime !== null && collection2.undeletedTime !== null
-                ? maxHybridLogicalTime(collection1.undeletedTime, collection2.undeletedTime)
-                : collection1.undeletedTime ?? collection2.undeletedTime,
-
-        name: collection1.name.merge(collection2.name),
-        accessPolicy: collection1.accessPolicy.merge(collection2.accessPolicy),
-    };
-
-    // Optimization: If nothing changed between `collection1` and the merged
-    // collection then return `collection1` so the new collection is referentially
-    // equal to the old one.
-    if (isDeepEqual(collection1, newCollection)) return collection1;
-
-    return newCollection;
-}
-
-function applyTaskCollectionActionToCollectionModelData(
-    collection: TaskCollectionModelData,
-    actionTime: HybridLogicalTime,
-    action: TaskCollectionAction,
-): TaskCollectionModelData {
-    switch (action.type) {
-        case "Create": {
-            if (compareHybridLogicalTimes(collection.createdTime, actionTime)) {
-                throw new FailedPreconditionError("Incompatible create action");
-            }
-            return collection;
-        }
-        case "Delete": {
-            const newDeletedTime =
-                collection.deletedTime !== null
-                    ? maxHybridLogicalTime(collection.deletedTime, actionTime)
-                    : actionTime;
-
-            if (newDeletedTime === collection.deletedTime) return collection;
-            return {...collection, deletedTime: newDeletedTime};
-        }
-        case "Undelete": {
-            const newUndeletedTime =
-                collection.undeletedTime !== null
-                    ? maxHybridLogicalTime(collection.undeletedTime, actionTime)
-                    : actionTime;
-
-            if (newUndeletedTime === collection.undeletedTime) return collection;
-            return {...collection, undeletedTime: newUndeletedTime};
-        }
-        case "UpdateName": {
-            const newName = collection.name.apply({
-                value: action.name,
-                version: actionTime,
-            });
-
-            if (collection.name === newName) return collection;
-
-            return {
-                ...collection,
-                name: newName,
-            };
-        }
-        case "UpdateAccessPolicy": {
-            const newAccessPolicy = collection.accessPolicy.apply({
-                value: action.accessPolicy,
-                version: actionTime,
-            });
-
-            if (collection.accessPolicy === newAccessPolicy) return collection;
-
-            return {
-                ...collection,
-                accessPolicy: newAccessPolicy,
-            };
-        }
-        default:
-            throw exhaustive(action);
     }
 }
 

@@ -1,4 +1,3 @@
-import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {
     HybridLogicalTime,
@@ -7,18 +6,13 @@ import {
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TaskCollectionAction} from "~/shared/tasks/actions/task_collection_action.js";
+import {TaskCollectionModelData} from "~/shared/tasks/model/task_collection_model.js";
 
-/**
- * Applies a `TaskCollectionAction` to a `TaskCollectionIndexDoc`.
- * `TaskCollectionAction`s are commutative and idempotent. This means they can
- * be applied in any order or multiple times and we'll converge to the same
- * result every time.
- */
-export function applyTaskCollectionActionToCollectionIndexDoc(
-    collection: TaskCollectionIndexDoc,
+export function applyTaskCollectionActionToCollectionModelData(
+    collection: TaskCollectionModelData,
     actionTime: HybridLogicalTime,
     action: TaskCollectionAction,
-): TaskCollectionIndexDoc {
+): TaskCollectionModelData {
     switch (action.type) {
         case "Create": {
             if (compareHybridLogicalTimes(collection.createdTime, actionTime)) {
@@ -27,30 +21,22 @@ export function applyTaskCollectionActionToCollectionIndexDoc(
             return collection;
         }
         case "Delete": {
-            const newRawDeletedTime =
-                collection.rawDeletedTime !== null
-                    ? maxHybridLogicalTime(collection.rawDeletedTime, actionTime)
+            const newDeletedTime =
+                collection.deletedTime !== null
+                    ? maxHybridLogicalTime(collection.deletedTime, actionTime)
                     : actionTime;
 
-            if (newRawDeletedTime === collection.rawDeletedTime) return collection;
-
-            return {
-                ...collection,
-                rawDeletedTime: newRawDeletedTime,
-            };
+            if (newDeletedTime === collection.deletedTime) return collection;
+            return {...collection, deletedTime: newDeletedTime};
         }
         case "Undelete": {
-            const newRawUndeletedTime =
-                collection.rawUndeletedTime !== null
-                    ? maxHybridLogicalTime(collection.rawUndeletedTime, actionTime)
+            const newUndeletedTime =
+                collection.undeletedTime !== null
+                    ? maxHybridLogicalTime(collection.undeletedTime, actionTime)
                     : actionTime;
 
-            if (newRawUndeletedTime === collection.rawUndeletedTime) return collection;
-
-            return {
-                ...collection,
-                rawUndeletedTime: newRawUndeletedTime,
-            };
+            if (newUndeletedTime === collection.undeletedTime) return collection;
+            return {...collection, undeletedTime: newUndeletedTime};
         }
         case "UpdateName": {
             const newName = collection.name.apply({

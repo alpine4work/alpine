@@ -67,13 +67,16 @@ export function collectReferencedAccountIdsFromTaskAction(
         }
         case "UpdateCollection": {
             switch (action.collectionAction.type) {
+                case "UpdateAccessPolicy": {
+                    // The client doesn't expect access policy accounts to be loaded. We'll load
+                    // these accounts when the sharing modal opens.
+                    return;
+                }
                 case "Create":
                 case "Delete":
                 case "Undelete":
                 case "UpdateName":
-                case "UpdateAccessPolicy": {
-                    // The client doesn't expect access policy accounts to be loaded. We'll load
-                    // these accounts when the sharing modal opens.
+                case "UpdateColor": {
                     return;
                 }
                 default:

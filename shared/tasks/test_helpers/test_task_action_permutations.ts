@@ -1,6 +1,7 @@
 import {CalendarDate} from "@internationalized/date";
 import chalk from "chalk";
 import {AccountModel} from "~/shared/accounts/account_model.js";
+import {ThemeColor} from "~/shared/design/theme_colors.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {stableShuffleArray} from "~/shared/helpers/array/stable_shuffle_array.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
@@ -66,6 +67,7 @@ export type TaskCollectionTestInterface = {
     createdTime: HybridLogicalTime;
     isDeleted: boolean;
     name: string;
+    color: ThemeColor | null;
     accessPolicy: TaskCollectionAccessPolicy;
 };
 
@@ -3006,6 +3008,91 @@ const taskActionTestCases: Array<{
         },
     },
     {
+        name: "update task collection color",
+        create: ({getNextTime}): TaskActionTestArtifacts => {
+            const collectionId = generateId<TaskCollectionId>();
+
+            return {
+                actions: [
+                    {
+                        type: "UpdateCollection",
+                        time: getNextTime(),
+                        collectionId,
+                        collectionAction: {
+                            type: "Create",
+                            name: "Test",
+                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+                        },
+                    },
+                    {
+                        type: "UpdateCollection",
+                        time: getNextTime(),
+                        collectionId,
+                        collectionAction: {
+                            type: "UpdateColor",
+                            color: "purple",
+                        },
+                    },
+                ],
+                expect: [
+                    {
+                        collectionId,
+                        collection: {
+                            color: "purple",
+                        },
+                    },
+                ],
+            };
+        },
+    },
+    {
+        name: "update task collection color twice",
+        create: ({getNextTime}): TaskActionTestArtifacts => {
+            const collectionId = generateId<TaskCollectionId>();
+
+            return {
+                actions: [
+                    {
+                        type: "UpdateCollection",
+                        time: getNextTime(),
+                        collectionId,
+                        collectionAction: {
+                            type: "Create",
+                            name: "Test",
+                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+                        },
+                    },
+                    {
+                        type: "UpdateCollection",
+                        time: getNextTime(),
+                        collectionId,
+                        collectionAction: {
+                            type: "UpdateColor",
+                            color: "purple",
+                        },
+                    },
+                    {
+                        type: "UpdateCollection",
+                        time: getNextTime(),
+                        collectionId,
+                        collectionAction: {
+                            type: "UpdateColor",
+                            color: "orange",
+                        },
+                    },
+                ],
+                expect: [
+                    {
+                        collectionId,
+                        collection: {
+                            color: "orange",
+                        },
+                    },
+                ],
+            };
+        },
+    },
+    {
         name: "update task collection access policy",
         create: ({getNextTime}): TaskActionTestArtifacts => {
             const collectionId = generateId<TaskCollectionId>();
@@ -4549,6 +4636,7 @@ export function testTaskActionPermutations({
                                     const expectedCollection: TaskCollectionTestInterface = {
                                         isDeleted: false,
                                         name: "Test",
+                                        color: null,
                                         ...expectation.collection,
                                         createdTime:
                                             expectation.collection.createdTime ??

@@ -4579,6 +4579,38 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 }
                                                                             }
                                                                         },
+                                                                        "UpdateColor": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "UpdateColor"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "color": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Nullable",
+                                                                                        "schema": {
+                                                                                            "type": "Enum",
+                                                                                            "values": [
+                                                                                                "red",
+                                                                                                "orange",
+                                                                                                "yellow",
+                                                                                                "green",
+                                                                                                "cyan",
+                                                                                                "blue",
+                                                                                                "indigo",
+                                                                                                "purple",
+                                                                                                "pink"
+                                                                                            ]
+                                                                                        }
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
                                                                         "UpdateAccessPolicy": {
                                                                             "type": "Object",
                                                                             "propertySchemaByKey": {

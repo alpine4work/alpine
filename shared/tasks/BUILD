@@ -15,6 +15,7 @@ ts_project(
         "//shared/accounts",
         "//shared/content",
         "//shared/crdt",
+        "//shared/design",
         "//shared/error",
         "//shared/helpers",
         "//shared/id",

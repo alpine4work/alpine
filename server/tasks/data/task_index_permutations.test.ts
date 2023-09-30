@@ -139,6 +139,7 @@ testTaskActionPermutations({
                 (!collection.rawUndeletedTime ||
                     collection.rawDeletedTime > collection.rawUndeletedTime),
             name: collection.name.value,
+            color: collection.color.value,
             accessPolicy: collection.accessPolicy.value,
         };
     },

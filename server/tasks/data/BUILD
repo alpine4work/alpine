@@ -52,6 +52,7 @@ ts_project(
         "//server/tasks/router",
         "//shared/context",
         "//shared/crdt",
+        "//shared/design",
         "//shared/error",
         "//shared/helpers",
         "//shared/id",

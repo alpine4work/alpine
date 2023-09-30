@@ -1,3 +1,4 @@
+import {themeColors} from "~/shared/design/theme_colors.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskCollectionAccessPolicySchema} from "~/shared/tasks/task_collection_access_policy.js";
@@ -56,11 +57,26 @@ const TaskCollectionUndeleteActionSchema = Schema.object({
  * don't bother attempting to resolve conflicts with a data structure like that
  * provided by Y.js.
  */
-export type TaskCollectionUpdateNameAction = SchemaType<typeof TaskCollectionUpdateNameSchema>;
+export type TaskCollectionUpdateNameAction = SchemaType<
+    typeof TaskCollectionUpdateNameActionSchema
+>;
 
-const TaskCollectionUpdateNameSchema = Schema.object({
+const TaskCollectionUpdateNameActionSchema = Schema.object({
     type: Schema.value("UpdateName"),
     name: LabelStringSchema,
+});
+
+/**
+ * Updates the color associated with a task collection. Task collections may
+ * also have no color which is the equivalent of grey.
+ */
+export type TaskCollectionUpdateColorAction = SchemaType<
+    typeof TaskCollectionUpdateColorActionSchema
+>;
+
+const TaskCollectionUpdateColorActionSchema = Schema.object({
+    type: Schema.value("UpdateColor"),
+    color: Schema.enum(themeColors).nullable(),
 });
 
 /**
@@ -82,6 +98,7 @@ export const TaskCollectionActionSchema = Schema.union({
     Create: TaskCollectionCreateActionSchema,
     Delete: TaskCollectionDeleteActionSchema,
     Undelete: TaskCollectionUndeleteActionSchema,
-    UpdateName: TaskCollectionUpdateNameSchema,
+    UpdateName: TaskCollectionUpdateNameActionSchema,
+    UpdateColor: TaskCollectionUpdateColorActionSchema,
     UpdateAccessPolicy: TaskCollectionUpdateAccessPolicyActionSchema,
 });

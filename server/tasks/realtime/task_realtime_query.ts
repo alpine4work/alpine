@@ -674,6 +674,7 @@ export class TaskRealtimeQuery {
                             case "Delete":
                             case "Undelete":
                             case "UpdateName":
+                            case "UpdateColor":
                             case "UpdateAccessPolicy": {
                                 // Doesn't affect query
                                 break;

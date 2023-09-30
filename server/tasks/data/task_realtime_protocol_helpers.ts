@@ -130,6 +130,7 @@ export function prepareTaskCollectionForClient(
         deletedTime: collection.rawDeletedTime,
         undeletedTime: collection.rawUndeletedTime,
         name: collection.name,
+        color: collection.color,
         accessPolicy: collection.accessPolicy,
     });
 }
@@ -185,6 +186,7 @@ export function prepareTaskActionForClient(
                 case "Delete":
                 case "Undelete":
                 case "UpdateName":
+                case "UpdateColor":
                 case "UpdateAccessPolicy":
                     return action;
                 default:

@@ -176,6 +176,7 @@ testTaskActionPermutations({
             createdTime: collection.getCreatedTime(),
             isDeleted: collection.isDeleted(),
             name: collection.getName(),
+            color: collection.getColor(),
             accessPolicy: collection.getAccessPolicy(),
         };
     },

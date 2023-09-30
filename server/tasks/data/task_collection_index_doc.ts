@@ -12,6 +12,7 @@ import {
     HybridLogicalTimeType,
     SortableHybridLogicalTimeType,
 } from "~/server/tasks/data/internal/hybrid_logical_time_type.js";
+import {ThemeColor} from "~/shared/design/theme_colors.js";
 import {compareHybridLogicalTimes} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
@@ -22,6 +23,7 @@ import {
     TaskCollectionAccessPolicyRegister,
     TaskCollectionAccessPolicySchema,
 } from "~/shared/tasks/task_collection_access_policy.js";
+import {TaskCollectionColorRegister} from "~/shared/tasks/task_collection_color.js";
 
 const TaskCollectionNameType = createCrdtRegisterOpensearchType(
     LabelStringSchemaRegister,
@@ -31,6 +33,16 @@ const TaskCollectionNameType = createCrdtRegisterOpensearchType(
         // language analyzers.
         analyzer: "english",
     }),
+);
+
+const TaskCollectionColorType = createCrdtRegisterOpensearchType(
+    TaskCollectionColorRegister,
+    new OpensearchIndexKeywordType()
+        .transform<ThemeColor>({
+            serialize: themeColor => themeColor,
+            deserialize: themeColor => themeColor as ThemeColor,
+        })
+        .nullable(),
 );
 
 const TaskCollectionAccessPolicyType = createCrdtRegisterOpensearchType(
@@ -65,6 +77,7 @@ export const TaskCollectionIndexDocType = OpensearchIndexObjectType.new({
         rawUndeletedTime: HybridLogicalTimeType.nullable(),
 
         name: TaskCollectionNameType,
+        color: TaskCollectionColorType,
         accessPolicy: TaskCollectionAccessPolicyType,
     },
     computed: {

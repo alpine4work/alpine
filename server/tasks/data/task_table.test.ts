@@ -3056,7 +3056,7 @@ describe("old style", () => {
         ).rejects.toThrow(NotFoundError);
     });
 
-    test("can't update a deleted collection's title", async () => {
+    test("can't update a deleted collection's name", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3270,6 +3270,275 @@ describe("old style", () => {
                 collectionAction: {
                     type: "UpdateName",
                     name: "test2",
+                },
+            },
+        ]);
+    });
+
+    test("can update a collection's color", async () => {
+        const collectionId = generateId<TaskCollectionId>();
+
+        await commitTaskActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateCollection",
+                time: clock.now(),
+                collectionId,
+                collectionAction: {
+                    type: "Create",
+                    name: "Test",
+                    accessPolicy: {
+                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                        defaultGrant: null,
+                    },
+                },
+            },
+        ]);
+
+        await commitTaskActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateCollection",
+                time: clock.now(),
+                collectionId,
+                collectionAction: {
+                    type: "UpdateColor",
+                    color: "purple",
+                },
+            },
+        ]);
+    });
+
+    test("can't update a collection color for a collection that doesn't exist", async () => {
+        const collectionId = generateId<TaskCollectionId>();
+
+        await expect(
+            commitTaskActionTransaction(context.action(session1), space.id, [
+                {
+                    type: "UpdateCollection",
+                    time: clock.now(),
+                    collectionId,
+                    collectionAction: {
+                        type: "UpdateColor",
+                        color: "purple",
+                    },
+                },
+            ]),
+        ).rejects.toThrow(NotFoundError);
+    });
+
+    test("can't update a deleted collection's color", async () => {
+        const collectionId = generateId<TaskCollectionId>();
+
+        await commitTaskActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateCollection",
+                time: clock.now(),
+                collectionId,
+                collectionAction: {
+                    type: "Create",
+                    name: "Test",
+                    accessPolicy: {
+                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                        defaultGrant: null,
+                    },
+                },
+            },
+        ]);
+
+        await commitTaskActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateCollection",
+                time: clock.now(),
+                collectionId,
+                collectionAction: {
+                    type: "Delete",
+                },
+            },
+        ]);
+
+        await expect(
+            commitTaskActionTransaction(context.action(session1), space.id, [
+                {
+                    type: "UpdateCollection",
+                    time: clock.now(),
+                    collectionId,
+                    collectionAction: {
+                        type: "UpdateColor",
+                        color: "purple",
+                    },
+                },
+            ]),
+        ).rejects.toThrow(FailedPreconditionError);
+    });
+
+    test("can't update a collection color that's not yours", async () => {
+        const collectionId = generateId<TaskCollectionId>();
+
+        await commitTaskActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateCollection",
+                time: clock.now(),
+                collectionId,
+                collectionAction: {
+                    type: "Create",
+                    name: "Test",
+                    accessPolicy: {
+                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                        defaultGrant: null,
+                    },
+                },
+            },
+        ]);
+
+        await expect(
+            commitTaskActionTransaction(context.action(session2), space.id, [
+                {
+                    type: "UpdateCollection",
+                    time: clock.now(),
+                    collectionId,
+                    collectionAction: {
+                        type: "UpdateColor",
+                        color: "purple",
+                    },
+                },
+            ]),
+        ).rejects.toThrow(PermissionDeniedError);
+    });
+
+    test("can't update a collection color with an unreasonable time", async () => {
+        const collectionId = generateId<TaskCollectionId>();
+
+        await commitTaskActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateCollection",
+                time: clock.now(),
+                collectionId,
+                collectionAction: {
+                    type: "Create",
+                    name: "Test",
+                    accessPolicy: {
+                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        defaultGrant: null,
+                    },
+                },
+            },
+        ]);
+
+        await expect(
+            commitTaskActionTransaction(context.action(session1), space.id, [
+                {
+                    type: "UpdateCollection",
+                    time: getUnreasonableTime(),
+                    collectionId,
+                    collectionAction: {
+                        type: "UpdateColor",
+                        color: "purple",
+                    },
+                },
+            ]),
+        ).rejects.toThrow(InvalidArgumentError);
+    });
+
+    test("can't update a collection color you don't have access to", async () => {
+        const collectionId = generateId<TaskCollectionId>();
+
+        await commitTaskActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateCollection",
+                time: clock.now(),
+                collectionId,
+                collectionAction: {
+                    type: "Create",
+                    name: "Test",
+                    accessPolicy: {
+                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        defaultGrant: null,
+                    },
+                },
+            },
+        ]);
+
+        await expect(
+            commitTaskActionTransaction(context.action(session2), space.id, [
+                {
+                    type: "UpdateCollection",
+                    time: clock.now(),
+                    collectionId,
+                    collectionAction: {
+                        type: "UpdateColor",
+                        color: "purple",
+                    },
+                },
+            ]),
+        ).rejects.toThrow(PermissionDeniedError);
+    });
+
+    test("can't update a collection color you only have access to as an editor", async () => {
+        const collectionId = generateId<TaskCollectionId>();
+
+        await commitTaskActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateCollection",
+                time: clock.now(),
+                collectionId,
+                collectionAction: {
+                    type: "Create",
+                    name: "Test",
+                    accessPolicy: {
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage"}],
+                            [taskAccount2.accountId, {level: "Edit"}],
+                        ]),
+                        defaultGrant: null,
+                    },
+                },
+            },
+        ]);
+
+        await expect(
+            commitTaskActionTransaction(context.action(session2), space.id, [
+                {
+                    type: "UpdateCollection",
+                    time: clock.now(),
+                    collectionId,
+                    collectionAction: {
+                        type: "UpdateColor",
+                        color: "purple",
+                    },
+                },
+            ]),
+        ).rejects.toThrow(PermissionDeniedError);
+    });
+
+    test("can update a collection color you have access to as a manager", async () => {
+        const collectionId = generateId<TaskCollectionId>();
+
+        await commitTaskActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateCollection",
+                time: clock.now(),
+                collectionId,
+                collectionAction: {
+                    type: "Create",
+                    name: "Test",
+                    accessPolicy: {
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage"}],
+                            [taskAccount2.accountId, {level: "Manage"}],
+                        ]),
+                        defaultGrant: null,
+                    },
+                },
+            },
+        ]);
+
+        await commitTaskActionTransaction(context.action(session2), space.id, [
+            {
+                type: "UpdateCollection",
+                time: clock.now(),
+                collectionId,
+                collectionAction: {
+                    type: "UpdateColor",
+                    color: "purple",
                 },
             },
         ]);

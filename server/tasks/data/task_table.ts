@@ -2168,6 +2168,10 @@ async function actuallyCommitTaskActionTransaction(
                                 await state.authorizeCollectionAccess(collectionId, "Manage");
                                 break;
                             }
+                            case "UpdateColor": {
+                                await state.authorizeCollectionAccess(collectionId, "Manage");
+                                break;
+                            }
                             case "UpdateAccessPolicy": {
                                 if (
                                     iterableEvery(
