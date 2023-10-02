@@ -5,6 +5,7 @@ import fs from "fs-extra";
 import getPort from "get-port";
 import {networkInterfaces} from "os";
 import {basename, dirname, join as joinPath} from "path";
+import {inspect} from "util";
 import {
     bazelBuildCompilationMode,
     bazelBuildTargetCpu,
@@ -15,6 +16,7 @@ import {createDevProxyServer} from "~/admin/dev/dev_proxy_server.js";
 import {startRemixDevServer} from "~/admin/dev/remix_dev_server.js";
 import {
     spawnWithCoordinatedStdio,
+    writeToCoordinatedStderr,
     writeToCoordinatedStdout,
 } from "~/admin/dev/stdio_coordinator.js";
 import {startDynamoLocal} from "~/admin/dynamo/local/start_dynamo_local.js";
@@ -29,7 +31,10 @@ import {
     ensureDevServiceKeys,
 } from "~/admin/helpers/dev_service_keys.js";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
-import {waitForProcessExitWithAnyCode} from "~/admin/helpers/wait_for_process_exit.js";
+import {
+    waitForProcessExit,
+    waitForProcessExitWithAnyCode,
+} from "~/admin/helpers/wait_for_process_exit.js";
 import {waitForProcessSpawn} from "~/admin/helpers/wait_for_process_spawn.js";
 import {workspacePath} from "~/admin/helpers/workspace_path.js";
 import {startOpensearchLocal} from "~/admin/opensearch/local/start_opensearch_local.js";
@@ -183,7 +188,7 @@ let fileUpdateQueue: {
     paths: Array<string>;
 } | null = null;
 
-const remixDevServerPromise = startRemixDevServer({remixDevServerPort});
+const remixDevServerPromise = startRemixDevServer({remixDevServerPort, logError});
 
 const fastSetupPromise = runAllPromises([
     ensureDevServiceKeys(),
@@ -217,7 +222,7 @@ const artifactsPromise = createArtifacts().then(artifacts =>
             await runAllPromises([
                 rebuildArtifact(artifact),
                 updateArtifactDependencyBazelPackagePaths(artifact),
-                createDevProxyServer(artifact),
+                createDevProxyServer(artifact, {logError}),
             ]);
         }),
     ),
@@ -269,11 +274,12 @@ mainPromise.catch(scheduleUncaughtError);
 
 // Log uncaught exceptions, don't kill the process.
 process.on("uncaughtException", error => {
-    // eslint-disable-next-line no-console
-    console.error("Uncaught exception from dev process manager:");
-    // eslint-disable-next-line no-console
-    console.error(error);
+    logError("Uncaught exception from dev process manager", error);
 });
+
+function logError(reason: string, error: unknown) {
+    writeToCoordinatedStderr(`${reason}:\n${inspect(error)}\n`);
+}
 
 /**
  * Build the artifact and restart the server associated with the artifact.
@@ -301,8 +307,7 @@ async function rebuildArtifact(artifact: Artifact) {
                     waitForProcessExitWithAnyCode(artifactServer.subprocess).then(() => true),
                 ]).then(hasGracefullyExited => {
                     if (!hasGracefullyExited) {
-                        // eslint-disable-next-line no-console
-                        console.error(
+                        scheduleUncaughtError(
                             new DeadlineExceededError(
                                 "Server graceful exit timeout exceeded, sending SIGKILL",
                             ),
@@ -322,7 +327,11 @@ async function rebuildArtifact(artifact: Artifact) {
         // If the artifact server failed to build we kill the old artifact server and
         // wait for a successful build.
         if (hasBuildFailed) {
-            artifactServerRef.current = {buildId, hasBuildFailed, subprocess: null};
+            artifactServerRef.current = {
+                buildId,
+                hasBuildFailed,
+                subprocess: null,
+            };
             return;
         }
 
@@ -346,13 +355,32 @@ async function rebuildArtifact(artifact: Artifact) {
             },
         );
 
+        // Make sure to assign this before our `await` below which may throw if the
+        // process exists.
+        artifactServerRef.current = {
+            buildId,
+            hasBuildFailed,
+            subprocess,
+        };
+
         await runAllPromises([
             waitForProcessSpawn(subprocess).then(() =>
-                waitForHttpServer(`http://localhost:${artifact.privatePort}`),
+                Promise.race([
+                    waitForHttpServer(`http://localhost:${artifact.privatePort}`).catch(error => {
+                        // Don't log an error. If a server never starts, the user will see a 504
+                        // gateway timeout when they try to access the artifact's URL.
+                    }),
+
+                    // If the process exits immediately after starting then immediately free the
+                    // mutex instead of continuing to wait for the HTTP server to start.
+                    waitForProcessExit(subprocess).catch(error => {
+                        // Don't log an error. If the process exits, the developer will see when they
+                        // try to access the artifact's  URL.
+                    }),
+                ]),
             ),
             artifact.onServerRestart?.(),
         ]);
-        artifactServerRef.current = {buildId, hasBuildFailed, subprocess};
     });
 }
 

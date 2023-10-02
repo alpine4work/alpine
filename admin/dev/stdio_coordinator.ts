@@ -194,6 +194,22 @@ export function writeToCoordinatedStdout(chunk: string) {
     }
 }
 
+/**
+ * Write a message to our coordinated stderr. If there is a blocking process
+ * then we will wait for it to complete before printing.
+ */
+export function writeToCoordinatedStderr(chunk: string) {
+    if (blockingStdioSubprocesses.length > 0) {
+        coordinatedStdioBufferedChunks.push({
+            where: "stderr",
+            chunk: Buffer.from(chunk),
+            stdioPrefix: null,
+        });
+    } else {
+        writeWithStdioPrefix(process.stderr, chunk, null);
+    }
+}
+
 let previousWritePrefix: string | null = null;
 let wasPreviousWriteEndedWithNewline: boolean | (() => boolean) = true;
 

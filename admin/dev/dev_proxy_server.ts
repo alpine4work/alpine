@@ -15,7 +15,10 @@ const maxRetryAttemptCount = 200;
  * way a developer may hit the server in their browser and will see a loading
  * spinner while we wait for the server to be ready.
  */
-export async function createDevProxyServer(artifact: Artifact) {
+export async function createDevProxyServer(
+    artifact: Artifact,
+    {logError}: {logError: (reason: string, error: unknown) => void},
+) {
     let lastPrivatePort = artifact.privatePort;
 
     let keepAliveAgent = new http.Agent({keepAlive: true});
@@ -79,10 +82,7 @@ export async function createDevProxyServer(artifact: Artifact) {
                     return;
                 }
 
-                // eslint-disable-next-line no-console
-                console.error("Failed request to proxied server:");
-                // eslint-disable-next-line no-console
-                console.error(error);
+                logError("Failed request to proxied server", error);
 
                 proxyRes.writeHead(504, {"content-type": "text/plain"});
                 proxyRes.end("504 Gateway Timeout");
@@ -90,10 +90,7 @@ export async function createDevProxyServer(artifact: Artifact) {
 
             req.on("response", res => {
                 res.on("error", error => {
-                    // eslint-disable-next-line no-console
-                    console.error("Exception in response from proxied server:");
-                    // eslint-disable-next-line no-console
-                    console.error(error);
+                    logError("Exception in response from proxied server", error);
                 });
 
                 proxyRes.writeHead(res.statusCode!, res.headers);
@@ -175,10 +172,7 @@ export async function createDevProxyServer(artifact: Artifact) {
                     return;
                 }
 
-                // eslint-disable-next-line no-console
-                console.error("Failed request to proxied server:");
-                // eslint-disable-next-line no-console
-                console.error(error);
+                logError("Failed request to proxied server", error);
 
                 proxySocket.write(
                     "HTTP/1.1 504 Gateway Timeout\r\n" +
@@ -191,10 +185,7 @@ export async function createDevProxyServer(artifact: Artifact) {
 
             req.on("response", res => {
                 res.on("error", error => {
-                    // eslint-disable-next-line no-console
-                    console.error("Exception in response from proxied server:");
-                    // eslint-disable-next-line no-console
-                    console.error(error);
+                    logError("Exception in response from proxied server", error);
                 });
 
                 const headers = [];
@@ -212,10 +203,7 @@ export async function createDevProxyServer(artifact: Artifact) {
 
             req.on("upgrade", (res, socket, head) => {
                 res.on("error", error => {
-                    // eslint-disable-next-line no-console
-                    console.error("Exception in (upgraded) response from proxied server:");
-                    // eslint-disable-next-line no-console
-                    console.error(error);
+                    logError("Exception in (upgraded) response from proxied server", error);
                 });
 
                 const headers = [];

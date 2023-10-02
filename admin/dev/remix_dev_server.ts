@@ -17,7 +17,13 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
  *
  * [1]: https://github.com/remix-run/remix/blob/fae7cd1931e21ed1196a1d59bd168cba6898ac78/packages/remix-dev/devServer_unstable/socket.ts#L1
  */
-export async function startRemixDevServer({remixDevServerPort}: {remixDevServerPort: number}) {
+export async function startRemixDevServer({
+    remixDevServerPort,
+    logError,
+}: {
+    remixDevServerPort: number;
+    logError: (reason: string, error: unknown) => void;
+}) {
     const remixDevServer = express();
 
     const actualRemixDevServer = createServer();
@@ -70,17 +76,11 @@ export async function startRemixDevServer({remixDevServerPort}: {remixDevServerP
     });
 
     actualRemixDevServer.on("error", error => {
-        // eslint-disable-next-line no-console
-        console.error("Uncaught exception from Remix dev server:");
-        // eslint-disable-next-line no-console
-        console.error(error);
+        logError("Uncaught exception from Remix dev server", error);
     });
 
     remixDevWebSocketServer.on("error", error => {
-        // eslint-disable-next-line no-console
-        console.error("Uncaught exception from Remix dev server:");
-        // eslint-disable-next-line no-console
-        console.error(error);
+        logError("Uncaught exception from Remix dev server", error);
     });
 
     await new Promise<void>(resolve => {
