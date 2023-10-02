@@ -808,7 +808,7 @@ function TaskDetailViewMain({
                     <>
                         <Spacer space="8" />
                         <Box>
-                            <label
+                            <span
                                 className={sprinkles({
                                     display: "inline-flex",
                                     alignItems: "center",
@@ -833,7 +833,7 @@ function TaskDetailViewMain({
                                         </Box>
                                     </Box>
                                 )}
-                            </label>
+                            </span>
                         </Box>
                     </>
                 )}
@@ -856,7 +856,7 @@ function TaskDetailViewDenseField({
         // Doesn't have a parent to horizontally align elements since we layout fields
         // with CSS grid.
         <>
-            <label
+            <span
                 id={labelId}
                 className={sprinkles({
                     display: "block",
@@ -873,7 +873,7 @@ function TaskDetailViewDenseField({
                 }}
             >
                 {label}
-            </label>
+            </span>
             <Box ref={valueRef}>
                 {typeof children === "function" ? children({"aria-labelledby": labelId}) : children}
             </Box>

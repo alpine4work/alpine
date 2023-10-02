@@ -277,7 +277,7 @@ export function TaskDetailNotesField({
 
     return (
         <Box>
-            <label
+            <span
                 id={labelId}
                 className={sprinkles({
                     display: "inline-block",
@@ -291,7 +291,7 @@ export function TaskDetailNotesField({
                 }}
             >
                 Notes
-            </label>
+            </span>
             <FocusRing insetX={padding} isVisibleWhenFocusWithin>
                 {isReadOnly ? (
                     <Box height="full" minHeight={minHeight}>
