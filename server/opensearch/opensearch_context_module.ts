@@ -108,6 +108,10 @@ export class TestDisabledOpensearchClient implements OpensearchClientInterface {
         throw this._newUnavailableError();
     }
 
+    public searchWithoutReturningDocs(): never {
+        throw this._newUnavailableError();
+    }
+
     public refresh(): never {
         throw this._newUnavailableError();
     }
