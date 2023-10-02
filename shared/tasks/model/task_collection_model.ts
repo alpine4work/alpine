@@ -9,7 +9,7 @@ import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_ti
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskUpdateCollectionAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionCreateAction} from "~/shared/tasks/actions/task_collection_action.js";
-import {LabelStringSchemaRegister} from "~/shared/tasks/label_string_schema_register.js";
+import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
 import {applyTaskCollectionActionToCollectionModelData} from "~/shared/tasks/model/apply_task_collection_action_to_collection_model_data.js";
 import {mergeTaskCollectionModelData} from "~/shared/tasks/model/merge_task_collection_model_data.js";
 import {TaskCollectionAccessPolicyRegister} from "~/shared/tasks/task_collection_access_policy.js";
@@ -25,7 +25,7 @@ const TaskCollectionModelDataSchema = Schema.object({
     deletedTime: HybridLogicalTimeSchema.nullable(),
     undeletedTime: HybridLogicalTimeSchema.nullable(),
 
-    name: LabelStringSchemaRegister.schema,
+    name: LabelStringRegister.schema,
     color: TaskCollectionColorRegister.schema,
     accessPolicy: TaskCollectionAccessPolicyRegister.schema,
 });
@@ -59,7 +59,7 @@ export class TaskCollectionModel {
             createdTime: actionTime,
             deletedTime: null,
             undeletedTime: null,
-            name: new LabelStringSchemaRegister(action.name, actionTime),
+            name: new LabelStringRegister(action.name, actionTime),
             color: new TaskCollectionColorRegister(null, actionTime),
             accessPolicy: new TaskCollectionAccessPolicyRegister(action.accessPolicy, actionTime),
         });

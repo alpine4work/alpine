@@ -3,6 +3,10 @@ import {waitForHttpServer} from "~/server/helpers/wait_for_http_server.js";
 import {
     OpensearchIndex,
     OpensearchIndexConfig,
+    OpensearchIndexDocIdType,
+    OpensearchIndexDocType,
+    OpensearchIndexFlattenedKeysType,
+    OpensearchIndexRoutingType,
     omitOpensearchStaticIndexConfig,
     pickOpensearchStaticIndexConfig,
 } from "~/server/opensearch/opensearch_index.js";
@@ -72,18 +76,16 @@ export interface OpensearchClientInterface {
      *
      * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/get-documents/
      */
-    getDocIfExists<
-        Routing extends string,
-        DocId extends string,
-        Doc extends {},
-        FlattenedKeys extends string,
-    >(
+    getDocIfExists<Index extends OpensearchIndex<any, any, any, any>>(
         tracer: TracerBase,
-        index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
-        routing: Routing,
-        id: DocId,
+        index: Index,
+        routing: OpensearchIndexRoutingType<Index>,
+        id: OpensearchIndexDocIdType<Index>,
         options?: {realtime?: boolean},
-    ): Promise<OpensearchClientDocWithIdAndVersion<DocId, Doc> | null>;
+    ): Promise<OpensearchClientDocWithIdAndVersion<
+        OpensearchIndexDocIdType<Index>,
+        OpensearchIndexDocType<Index>
+    > | null>;
 
     /**
      * Gets multiple documents in one network request using the [multi-get
@@ -93,17 +95,17 @@ export interface OpensearchClientInterface {
      *
      * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/multi-get/
      */
-    multiGetDocsIfExist<
-        Routing extends string,
-        DocId extends string,
-        Doc extends {},
-        FlattenedKeys extends string,
-    >(
+    multiGetDocsIfExist<Index extends OpensearchIndex<any, any, any, any>>(
         tracer: TracerBase,
-        index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
-        routing: Routing,
-        ids: ReadonlyArray<DocId>,
-    ): Promise<Array<OpensearchClientDocWithIdAndVersion<DocId, Doc> | null>>;
+        index: Index,
+        routing: OpensearchIndexRoutingType<Index>,
+        ids: ReadonlyArray<OpensearchIndexDocIdType<Index>>,
+    ): Promise<
+        Array<OpensearchClientDocWithIdAndVersion<
+            OpensearchIndexDocIdType<Index>,
+            OpensearchIndexDocType<Index>
+        > | null>
+    >;
 
     /**
      * Lets you add, update, or delete multiple documents in a single request using
@@ -116,11 +118,16 @@ export interface OpensearchClientInterface {
      * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/bulk/
      * [2]: https://www.elastic.co/guide/en/elasticsearch/reference/current/optimistic-concurrency-control.html
      */
-    bulkWrite<Routing extends string, DocId extends string, Doc, FlattenedKeys extends string>(
+    bulkWrite<Index extends OpensearchIndex<any, any, any, any>>(
         tracer: TracerBase,
-        index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
-        routing: Routing,
-        operations: ReadonlyArray<OpensearchClientBulkWriteOperation<DocId, Doc>>,
+        index: Index,
+        routing: OpensearchIndexRoutingType<Index>,
+        operations: ReadonlyArray<
+            OpensearchClientBulkWriteOperation<
+                OpensearchIndexDocIdType<Index>,
+                OpensearchIndexDocType<Index>
+            >
+        >,
         options?: OpensearchClientBulkWriteOptions,
     ): Promise<void>;
 
@@ -130,36 +137,50 @@ export interface OpensearchClientInterface {
      *
      * [1]: https://opensearch.org/docs/latest/api-reference/search/
      */
-    search<
-        Routing extends string,
-        DocId extends string,
-        Doc extends {},
-        FlattenedKeys extends string,
-    >(
+    search<Index extends OpensearchIndex<any, any, any, any>>(
         tracer: TracerBase,
-        index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
-        routing: Routing,
+        index: Index,
+        routing: OpensearchIndexRoutingType<Index>,
         options: {
-            query: OpensearchQueryClause<FlattenedKeys>;
-            sort: OpensearchSortClause<FlattenedKeys>;
             size: number;
+            query: OpensearchQueryClause<OpensearchIndexFlattenedKeysType<Index>>;
+            sort?: OpensearchSortClause<OpensearchIndexFlattenedKeysType<Index>>;
             searchAfter?: ReadonlyArray<JsonScalarValue | bigint>;
         },
-    ): Promise<Array<Doc & {readonly id: DocId}>>;
+    ): Promise<
+        Array<OpensearchIndexDocType<Index> & {readonly id: OpensearchIndexDocIdType<Index>}>
+    >;
+
+    /**
+     * Lets you execute a search against an OpenSearch index with the [search
+     * API][1] without returning the OpenSearch docs, just there IDs.
+     *
+     * This can be much more efficient than a regular `search()` since looking up
+     * docs in OpenSearch can be an expensive step once query results are
+     * determined.
+     *
+     * [1]: https://opensearch.org/docs/latest/api-reference/search/
+     */
+    searchWithoutReturningDocs<Index extends OpensearchIndex<any, any, any, any>>(
+        tracer: TracerBase,
+        index: Index,
+        routing: OpensearchIndexRoutingType<Index>,
+        options: {
+            size: number;
+            query: OpensearchQueryClause<OpensearchIndexFlattenedKeysType<Index>>;
+            sort?: OpensearchSortClause<OpensearchIndexFlattenedKeysType<Index>>;
+            searchAfter?: ReadonlyArray<JsonScalarValue | bigint>;
+        },
+    ): Promise<Array<OpensearchIndexDocIdType<Index>>>;
 
     /**
      * Manually refresh an OpenSearch index using the [refresh API][1].
      *
      * [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-refresh.html
      */
-    refresh<
-        Routing extends string,
-        DocId extends string,
-        Doc extends {},
-        FlattenedKeys extends string,
-    >(
+    refresh<Index extends OpensearchIndex<any, any, any, any>>(
         tracer: TracerBase,
-        index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
+        index: Index,
     ): Promise<void>;
 
     /**
@@ -174,20 +195,12 @@ export interface OpensearchClientInterface {
      * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/update-by-query/
      * [2]: https://github.com/elastic/elasticsearch/issues/22723#issuecomment-274156818
      */
-    updateByQuery<
-        Routing extends string,
-        DocId extends string,
-        Doc extends {},
-        FlattenedKeys extends string,
-    >(
+    updateByQuery<Index extends OpensearchIndex<any, any, any, any>>(
         tracer: TracerBase,
-        index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
-        routing: Routing,
-        {
-            query,
-            script,
-        }: {
-            query: OpensearchQueryClause<FlattenedKeys>;
+        index: Index,
+        routing: OpensearchIndexRoutingType<Index>,
+        options: {
+            query: OpensearchQueryClause<OpensearchIndexFlattenedKeysType<Index>>;
             script: {
                 lang: "painless";
                 source: string;
@@ -482,18 +495,16 @@ export class OpensearchClient implements OpensearchClientInterface {
      *
      * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/get-documents/
      */
-    public async getDocIfExists<
-        Routing extends string,
-        DocId extends string,
-        Doc extends {},
-        FlattenedKeys extends string,
-    >(
+    public async getDocIfExists<Index extends OpensearchIndex<any, any, any, any>>(
         tracer: TracerBase,
-        index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
-        routing: Routing,
-        id: DocId,
+        index: Index,
+        routing: OpensearchIndexRoutingType<Index>,
+        id: OpensearchIndexDocIdType<Index>,
         {realtime = true}: {realtime?: boolean} = {},
-    ): Promise<OpensearchClientDocWithIdAndVersion<DocId, Doc> | null> {
+    ): Promise<OpensearchClientDocWithIdAndVersion<
+        OpensearchIndexDocIdType<Index>,
+        OpensearchIndexDocType<Index>
+    > | null> {
         if (process.env.NODE_ENV !== "production") {
             await this._ensureLocalIndex(tracer, index);
         }
@@ -526,7 +537,7 @@ export class OpensearchClient implements OpensearchClientInterface {
 
         // Add the version number to the doc so we can perform updates.
         return Object.assign(doc, {
-            id: body._id as DocId,
+            id: body._id,
             version: {
                 sequenceNumber: body._seq_no,
                 primaryTerm: body._primary_term,
@@ -542,17 +553,17 @@ export class OpensearchClient implements OpensearchClientInterface {
      *
      * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/multi-get/
      */
-    public async multiGetDocsIfExist<
-        Routing extends string,
-        DocId extends string,
-        Doc extends {},
-        FlattenedKeys extends string,
-    >(
+    public async multiGetDocsIfExist<Index extends OpensearchIndex<any, any, any, any>>(
         tracer: TracerBase,
-        index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
-        routing: Routing,
-        ids: ReadonlyArray<DocId>,
-    ): Promise<Array<OpensearchClientDocWithIdAndVersion<DocId, Doc> | null>> {
+        index: Index,
+        routing: OpensearchIndexRoutingType<Index>,
+        ids: ReadonlyArray<OpensearchIndexDocIdType<Index>>,
+    ): Promise<
+        Array<OpensearchClientDocWithIdAndVersion<
+            OpensearchIndexDocIdType<Index>,
+            OpensearchIndexDocType<Index>
+        > | null>
+    > {
         if (process.env.NODE_ENV !== "production") {
             await this._ensureLocalIndex(tracer, index);
         }
@@ -592,7 +603,13 @@ export class OpensearchClient implements OpensearchClientInterface {
             >;
         } = await response.json();
 
-        const docById = new Map<string, OpensearchClientDocWithIdAndVersion<DocId, Doc>>();
+        const docById = new Map<
+            string,
+            OpensearchClientDocWithIdAndVersion<
+                OpensearchIndexDocIdType<Index>,
+                OpensearchIndexDocType<Index>
+            >
+        >();
 
         for (const bodyDoc of body.docs) {
             if (!bodyDoc.found) continue;
@@ -602,7 +619,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             docById.set(
                 bodyDoc._id,
                 Object.assign(doc, {
-                    id: bodyDoc._id as DocId,
+                    id: bodyDoc._id,
                     version: {
                         sequenceNumber: bodyDoc._seq_no,
                         primaryTerm: bodyDoc._primary_term,
@@ -625,17 +642,17 @@ export class OpensearchClient implements OpensearchClientInterface {
      * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/bulk/
      * [2]: https://www.elastic.co/guide/en/elasticsearch/reference/current/optimistic-concurrency-control.html
      */
-    public async bulkWrite<
-        Routing extends string,
-        DocId extends string,
-        Doc,
-        FlattenedKeys extends string,
-    >(
+    public async bulkWrite<Index extends OpensearchIndex<any, any, any, any>>(
         tracer: TracerBase,
-        index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
-        routing: Routing,
-        operations: ReadonlyArray<OpensearchClientBulkWriteOperation<DocId, Doc>>,
-        {retryVersionConflictError}: OpensearchClientBulkWriteOptions,
+        index: Index,
+        routing: OpensearchIndexRoutingType<Index>,
+        operations: ReadonlyArray<
+            OpensearchClientBulkWriteOperation<
+                OpensearchIndexDocIdType<Index>,
+                OpensearchIndexDocType<Index>
+            >
+        >,
+        {retryVersionConflictError}: OpensearchClientBulkWriteOptions = {},
     ): Promise<void> {
         if (process.env.NODE_ENV !== "production") {
             await this._ensureLocalIndex(tracer, index);
@@ -723,38 +740,24 @@ export class OpensearchClient implements OpensearchClientInterface {
         }
     }
 
-    /**
-     * Lets you execute a search against an OpenSearch index with the [search
-     * API][1].
-     *
-     * Returned documents do not include the document version (`sequenceNumber` and
-     * `primaryTerm`). This is not returned by default from the OpenSearch search
-     * API. It may be expensive to fetch the version because search is operating on
-     * potentially stale data until the next refresh.
-     *
-     * [1]: https://opensearch.org/docs/latest/api-reference/search/
-     */
-    public async search<
-        Routing extends string,
-        DocId extends string,
-        Doc extends {},
-        FlattenedKeys extends string,
-    >(
+    private async _search<Index extends OpensearchIndex<any, any, any, any>>(
         tracer: TracerBase,
-        index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
-        routing: Routing,
+        index: Index,
+        routing: OpensearchIndexRoutingType<Index>,
         {
-            query,
-            sort,
             size,
+            query,
+            sort = ["_score"],
             searchAfter,
+            withoutDocs = false,
         }: {
-            query: OpensearchQueryClause<FlattenedKeys>;
-            sort: OpensearchSortClause<FlattenedKeys>;
             size: number;
+            query: OpensearchQueryClause<OpensearchIndexFlattenedKeysType<Index>>;
+            sort?: OpensearchSortClause<OpensearchIndexFlattenedKeysType<Index>>;
             searchAfter?: ReadonlyArray<JsonScalarValue | bigint>;
+            withoutDocs?: boolean;
         },
-    ): Promise<Array<OpensearchClientDocWithId<DocId, Doc>>> {
+    ): Promise<Array<{_id: string; _source?: JsonValue}>> {
         if (process.env.NODE_ENV !== "production") {
             await this._ensureLocalIndex(tracer, index);
         }
@@ -787,7 +790,12 @@ export class OpensearchClient implements OpensearchClientInterface {
             // NOTE(#opensearch-important-json-disclaimer): `searchAfter` may contain
             // bigints we want to stringify as JSON integer literals so we need to use
             // `json-bigint`.
-            body: JsonBigInt.stringify({query, sort, search_after: searchAfter}),
+            body: JsonBigInt.stringify({
+                query,
+                sort,
+                search_after: searchAfter,
+                _source: !withoutDocs,
+            }),
         });
 
         span.addData({
@@ -811,7 +819,7 @@ export class OpensearchClient implements OpensearchClientInterface {
         // If we ignore `sort` values we'll be fine. Keep in mind that you can't use
         // `sort` values unless you parse with `json-bigint`.
         const body:
-            | {hits: {hits: Array<{_id: string; _source: JsonValue}>}; error?: undefined}
+            | {hits: {hits: Array<{_id: string; _source?: JsonValue}>}; error?: undefined}
             | {error: OpensearchError; hits?: undefined} = await response.json();
 
         if (body.error) {
@@ -819,9 +827,48 @@ export class OpensearchClient implements OpensearchClientInterface {
             throw new UnknownError(`OpenSearch search failed: ${errorType}`);
         }
 
-        const docs = body.hits.hits.map(hit =>
-            Object.assign(index.type.deserialize(hit._source), {
-                id: hit._id as DocId,
+        return body.hits.hits;
+    }
+
+    /**
+     * Lets you execute a search against an OpenSearch index with the [search
+     * API][1].
+     *
+     * Returned documents do not include the document version (`sequenceNumber` and
+     * `primaryTerm`). This is not returned by default from the OpenSearch search
+     * API. It may be expensive to fetch the version because search is operating on
+     * potentially stale data until the next refresh.
+     *
+     * [1]: https://opensearch.org/docs/latest/api-reference/search/
+     */
+    public async search<Index extends OpensearchIndex<any, any, any, any>>(
+        tracer: TracerBase,
+        index: Index,
+        routing: OpensearchIndexRoutingType<Index>,
+        {
+            size,
+            query,
+            sort,
+            searchAfter,
+        }: {
+            size: number;
+            query: OpensearchQueryClause<OpensearchIndexFlattenedKeysType<Index>>;
+            sort?: OpensearchSortClause<OpensearchIndexFlattenedKeysType<Index>>;
+            searchAfter?: ReadonlyArray<JsonScalarValue | bigint>;
+        },
+    ): Promise<
+        Array<OpensearchIndexDocType<Index> & {readonly id: OpensearchIndexDocIdType<Index>}>
+    > {
+        const hits = await this._search(tracer, index, routing, {
+            size,
+            query,
+            sort,
+            searchAfter,
+        });
+
+        const docs = hits.map(hit =>
+            Object.assign(index.type.deserialize(hit._source!), {
+                id: hit._id,
             }),
         );
 
@@ -829,16 +876,56 @@ export class OpensearchClient implements OpensearchClientInterface {
     }
 
     /**
+     * Lets you execute a search against an OpenSearch index with the [search
+     * API][1] without returning the OpenSearch docs, just there IDs.
+     *
+     * This can be much more efficient than a regular `search()` since looking up
+     * docs in OpenSearch can be an expensive step once query results are
+     * determined.
+     *
+     * [1]: https://opensearch.org/docs/latest/api-reference/search/
+     */
+    public async searchWithoutReturningDocs<Index extends OpensearchIndex<any, any, any, any>>(
+        tracer: TracerBase,
+        index: Index,
+        routing: OpensearchIndexRoutingType<Index>,
+        {
+            size,
+            query,
+            sort,
+            searchAfter,
+        }: {
+            size: number;
+            query: OpensearchQueryClause<OpensearchIndexFlattenedKeysType<Index>>;
+            sort?: OpensearchSortClause<OpensearchIndexFlattenedKeysType<Index>>;
+            searchAfter?: ReadonlyArray<JsonScalarValue | bigint>;
+        },
+    ): Promise<Array<OpensearchIndexDocIdType<Index>>> {
+        const hits = await this._search(tracer, index, routing, {
+            size,
+            query,
+            sort,
+            searchAfter,
+            withoutDocs: true,
+        });
+
+        const docIds = hits.map(hit => {
+            assert(!hit._source);
+            return hit._id as OpensearchIndexDocIdType<Index>;
+        });
+
+        return docIds;
+    }
+
+    /**
      * Manually refresh an OpenSearch index using the [refresh API][1].
      *
      * [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-refresh.html
      */
-    public async refresh<
-        Routing extends string,
-        DocId extends string,
-        Doc extends {},
-        FlattenedKeys extends string,
-    >(tracer: TracerBase, index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>) {
+    public async refresh<Index extends OpensearchIndex<any, any, any, any>>(
+        tracer: TracerBase,
+        index: Index,
+    ): Promise<void> {
         if (process.env.NODE_ENV !== "production") {
             await this._ensureLocalIndex(tracer, index);
         }
@@ -866,20 +953,15 @@ export class OpensearchClient implements OpensearchClientInterface {
      * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/update-by-query/
      * [2]: https://github.com/elastic/elasticsearch/issues/22723#issuecomment-274156818
      */
-    public async updateByQuery<
-        Routing extends string,
-        DocId extends string,
-        Doc extends {},
-        FlattenedKeys extends string,
-    >(
+    public async updateByQuery<Index extends OpensearchIndex<any, any, any, any>>(
         tracer: TracerBase,
-        index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>,
-        routing: Routing,
+        index: Index,
+        routing: OpensearchIndexRoutingType<Index>,
         {
             query,
             script,
         }: {
-            query: OpensearchQueryClause<FlattenedKeys>;
+            query: OpensearchQueryClause<OpensearchIndexFlattenedKeysType<Index>>;
             script: {
                 lang: "painless";
                 source: string;

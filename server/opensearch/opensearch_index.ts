@@ -1,9 +1,15 @@
+import {
+    OpensearchIndexAnalysisCustomAnalyzer,
+    OpensearchIndexAnalysisCustomFilter,
+} from "~/server/opensearch/opensearch_index_analysis.js";
 import {OpensearchIndexObjectType} from "~/server/opensearch/opensearch_index_type.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
-import {JsonObjectValue} from "~/shared/helpers/types/json_value.js";
+import {JsonObjectValue, JsonValue} from "~/shared/helpers/types/json_value.js";
 
 export type OpensearchIndexConfig<FlattenedKeys extends string> = {
     readonly settings: {
@@ -19,6 +25,10 @@ export type OpensearchIndexConfig<FlattenedKeys extends string> = {
             readonly number_of_replicas: number;
             readonly routing_partition_size: number;
             readonly codec: string;
+        };
+        readonly analysis: {
+            readonly filter: JsonObjectValue;
+            readonly analyzer: JsonObjectValue;
         };
     };
     readonly mappings: JsonObjectValue;
@@ -66,6 +76,23 @@ export function omitOpensearchStaticIndexConfig(config: OpensearchIndexConfig<st
         },
     };
 }
+
+export type OpensearchIndexRoutingType<Index extends OpensearchIndex<any, any, any, any>> =
+    Index extends OpensearchIndex<infer Routing, any, any, any> ? Routing : never;
+
+export type OpensearchIndexDocIdType<Index extends OpensearchIndex<any, any, any, any>> =
+    Index extends OpensearchIndex<any, infer DocId, any, any> ? DocId : never;
+
+export type OpensearchIndexDocType<Index extends OpensearchIndex<any, any, any, any>> =
+    Index extends OpensearchIndex<any, any, infer Doc, any> ? Doc : never;
+
+export type OpensearchIndexFlattenedKeysType<Index extends OpensearchIndex<any, any, any, any>> =
+    Index extends OpensearchIndex<any, any, any, infer FlattenedKeys> ? FlattenedKeys : never;
+
+export type OpensearchIndexConfigBuilder = {
+    addCustomAnalyzer(analyzer: OpensearchIndexAnalysisCustomAnalyzer): void;
+    addCustomFilter(filter: OpensearchIndexAnalysisCustomFilter): void;
+};
 
 export class OpensearchIndex<
     Routing extends string,
@@ -177,6 +204,71 @@ export class OpensearchIndex<
         this.type = type;
         this.name = name;
 
+        const customAnalyzerByName = new Map<string, OpensearchIndexAnalysisCustomAnalyzer>();
+        const customFilterByName = new Map<string, OpensearchIndexAnalysisCustomFilter>();
+
+        const builder: OpensearchIndexConfigBuilder = {
+            addCustomAnalyzer: analyzer => {
+                const existingAnalyzer = getOrSetDefaultMapValue(
+                    customAnalyzerByName,
+                    analyzer.name,
+                    () => analyzer,
+                );
+
+                assert(
+                    existingAnalyzer === analyzer,
+                    "Can't have two analyzers with the same name in one index",
+                );
+            },
+            addCustomFilter: filter => {
+                const existingFilter = getOrSetDefaultMapValue(
+                    customFilterByName,
+                    filter.name,
+                    () => filter,
+                );
+
+                assert(
+                    existingFilter === filter,
+                    "Can't have two filters with the same name in one index",
+                );
+            },
+        };
+
+        const typeConfig = omitObject(type.getConfig(builder), ["type"]);
+
+        const customAnalyzerDefinitionByName = new Map<string, JsonValue>();
+        const customFilterDefinitionByName = new Map<string, JsonValue>();
+
+        while (true) {
+            const initialCustomAnalyzerByNameSize = customAnalyzerByName.size;
+            const initialCustomFilterByNameSize = customFilterByName.size;
+
+            for (const [name, customAnalyzer] of customAnalyzerByName) {
+                if (customAnalyzerDefinitionByName.has(name)) continue;
+                customAnalyzerDefinitionByName.set(
+                    name,
+                    customAnalyzer.getDefinitionConfig(builder),
+                );
+            }
+
+            for (const [name, customFilter] of customFilterByName) {
+                if (customFilterDefinitionByName.has(name)) continue;
+                customFilterDefinitionByName.set(name, customFilter.getDefinitionConfig(builder));
+            }
+
+            // Break out of our loop once there are no new custom analyzers/filters we need
+            // to add to our config.
+            //
+            // When getting custom analyzer/filter definitions they may recursively add new
+            // custom analyzers/filters which is why we need to loop.
+            if (
+                initialCustomAnalyzerByNameSize === customAnalyzerByName.size &&
+                initialCustomFilterByNameSize === customFilterByName.size
+            ) {
+                break;
+            }
+        }
+
         this.config = {
             settings: {
                 index: {
@@ -201,6 +293,10 @@ export class OpensearchIndex<
                     // `default` for the same read performance. Seems like a better default.
                     codec: "zstd_no_dict",
                 },
+                analysis: {
+                    filter: Object.fromEntries(customFilterDefinitionByName),
+                    analyzer: Object.fromEntries(customAnalyzerDefinitionByName),
+                },
             },
             mappings: {
                 // Always require a custom routing value. Searches are almost always scoped
@@ -208,7 +304,7 @@ export class OpensearchIndex<
                 _routing: {
                     required: true,
                 },
-                ...omitObject(type.getConfig(), ["type"]),
+                ...typeConfig,
             },
         };
     }

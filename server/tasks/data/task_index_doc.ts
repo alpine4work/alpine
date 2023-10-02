@@ -548,7 +548,7 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
         },
         compute: task => {
             return {
-                isDeleted: getTaskIndexDocIsDeleted(task),
+                isDeleted: isTaskIndexDocDeleted(task),
                 displayStatus: getTaskIndexDocDisplayStatus(task),
                 assigneeStatus:
                     task.status.value.type === "Open" && task.assignee.value
@@ -560,7 +560,7 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
     },
 });
 
-export function getTaskIndexDocIsDeleted(task: {
+export function isTaskIndexDocDeleted(task: {
     rawDeletedTime: HybridLogicalTime | null;
     rawUndeletedTime: HybridLogicalTime | null;
 }): boolean {

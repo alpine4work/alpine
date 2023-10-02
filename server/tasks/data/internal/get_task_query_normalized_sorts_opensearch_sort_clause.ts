@@ -1,4 +1,4 @@
-import {OpensearchIndexFlattenedKeysType} from "~/server/opensearch/opensearch_index_type.js";
+import {OpensearchIndexTypeFlattenedKeysType} from "~/server/opensearch/opensearch_index_type.js";
 import {
     OpensearchSortClause,
     OpensearchSortClauseItem,
@@ -15,7 +15,7 @@ import {
     TaskQuerySortCursorValue,
 } from "~/shared/tasks/task_query_sort_cursor.js";
 
-type TaskIndexFlattenedKeys = OpensearchIndexFlattenedKeysType<typeof TaskIndexDocType>;
+type TaskIndexFlattenedKeys = OpensearchIndexTypeFlattenedKeysType<typeof TaskIndexDocType>;
 
 export function getTaskQueryNormalizedSortsOpensearchSortClause(
     sorts: ReadonlyArray<TaskQueryNormalizedSort>,

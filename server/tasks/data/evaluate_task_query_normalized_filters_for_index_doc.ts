@@ -3,7 +3,7 @@ import {
     TaskIndexDoc,
     getTaskIndexDocAssigneeStatus,
     getTaskIndexDocDisplayStatus,
-    getTaskIndexDocIsDeleted,
+    isTaskIndexDocDeleted,
 } from "~/server/tasks/data/task_index_doc.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -47,7 +47,7 @@ export function evaluateTaskQueryNormalizedFiltersForIndexDoc(
     task: Omit<TaskIndexDoc, "id" | "spaceId" | "creator"> & {creator: {accountId: AccountId}},
 ): boolean {
     // Deleted tasks should always be filtered out.
-    if (getTaskIndexDocIsDeleted(task)) return false;
+    if (isTaskIndexDocDeleted(task)) return false;
 
     {
         const displayStatus = getTaskIndexDocDisplayStatus(task);

@@ -35,7 +35,9 @@ export type OpensearchQueryClause<FlattenedKeys extends string> =
     | OpensearchTermsQueryClause<FlattenedKeys>
     | OpensearchExistsQueryClause<FlattenedKeys>
     | OpensearchRangeQueryClause<FlattenedKeys>
+    | OpensearchMatchQueryClause<FlattenedKeys>
     | OpensearchMatchPhraseQueryClause<FlattenedKeys>
+    | OpensearchMultiMatchQueryClause<FlattenedKeys>
     | OpensearchBooleanQueryClause<FlattenedKeys>;
 
 type OpensearchQueryClauseField<FlattenedKeys extends string, Value> = {
@@ -87,6 +89,26 @@ export type OpensearchRangeQueryClause<FlattenedKeys extends string> = {
 };
 
 /**
+ * Use the `match` query for full-text search of a specific document field. The
+ * `match` query analyzes the provided search string and returns documents that
+ * match any of the string’s terms.
+ *
+ * https://opensearch.org/docs/latest/query-dsl/full-text/index/#match
+ */
+export type OpensearchMatchQueryClause<FlattenedKeys extends string> = {
+    match: OpensearchQueryClauseField<
+        FlattenedKeys,
+        {
+            query: OpensearchQueryValue<string>;
+            analyzer?: string;
+            fuzziness?: "AUTO" | number;
+            prefix_length?: number;
+            boost?: number;
+        }
+    >;
+};
+
+/**
  * Match documents that contain an exact phrase in a specified order.
  *
  * https://opensearch.org/docs/latest/query-dsl/full-text/#match-phrase
@@ -96,6 +118,20 @@ export type OpensearchMatchPhraseQueryClause<FlattenedKeys extends string> = {
         FlattenedKeys,
         {query: OpensearchQueryValue<string>; analyzer?: string}
     >;
+};
+
+/**
+ * You can use the `multi_match` query type to search multiple fields.
+ * Multi-match operation functions similarly to the match operation.
+ *
+ * https://opensearch.org/docs/latest/query-dsl/full-text/index/#multi-match
+ */
+export type OpensearchMultiMatchQueryClause<FlattenedKeys extends string> = {
+    multi_match: {
+        query: OpensearchQueryValue<string>;
+        type?: "phrase_prefix" | "bool_prefix";
+        fields: Array<FlattenedKeys>;
+    };
 };
 
 /**
@@ -144,6 +180,8 @@ export type OpensearchMustNotBooleanQueryClause<FlattenedKeys extends string> = 
 export type OpensearchShouldBooleanQueryClause<FlattenedKeys extends string> = {
     minimum_should_match: number;
     should: Array<OpensearchQueryClause<FlattenedKeys>>;
+    // Allow for convenient and/or queries.
+    must?: Array<OpensearchQueryClause<FlattenedKeys>>;
 };
 
 /**
@@ -156,7 +194,16 @@ export type OpensearchShouldBooleanQueryClause<FlattenedKeys extends string> = {
  */
 export type OpensearchFilterBooleanQueryClause<FlattenedKeys extends string> = {
     filter: OpensearchQueryClause<FlattenedKeys> | Array<OpensearchQueryClause<FlattenedKeys>>;
-};
+    // Allow some non-filter context `and`ed clauses alongside.
+    must?: Array<OpensearchQueryClause<FlattenedKeys>>;
+} & (
+    | {
+          // Allow some non-filter context `or`ed clauses alongside.
+          minimum_should_match: number;
+          should: Array<OpensearchQueryClause<FlattenedKeys>>;
+      }
+    | {}
+);
 
 /**
  * Get a string description of the OpenSearch query clause. It is JSON except

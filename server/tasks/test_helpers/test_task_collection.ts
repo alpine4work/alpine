@@ -25,7 +25,14 @@ export class TestTaskCollection {
         this.id = id;
     }
 
-    public static async createPrivate(session: TestSpaceSession) {
+    public static getNewName() {
+        return `Test Collection ${testTaskCollectionCount++}`;
+    }
+
+    public static async createPrivate(
+        session: TestSpaceSession,
+        {name = TestTaskCollection.getNewName()}: {name?: string} = {},
+    ) {
         const id = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
@@ -35,7 +42,7 @@ export class TestTaskCollection {
                 collectionId: id,
                 collectionAction: {
                     type: "Create",
-                    name: `Test Collection ${testTaskCollectionCount++}`,
+                    name,
                     accessPolicy: {
                         accountGrantById: new Map([[session.account.id, {level: "Manage"}]]),
                         defaultGrant: null,
@@ -47,7 +54,10 @@ export class TestTaskCollection {
         return new TestTaskCollection(session.context, session.space, id);
     }
 
-    public static async createPublic(session: TestSpaceSession) {
+    public static async createPublic(
+        session: TestSpaceSession,
+        {name = TestTaskCollection.getNewName()}: {name?: string} = {},
+    ) {
         const id = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
@@ -57,7 +67,7 @@ export class TestTaskCollection {
                 collectionId: id,
                 collectionAction: {
                     type: "Create",
-                    name: "Test",
+                    name,
                     accessPolicy: {
                         accountGrantById: new Map([[session.account.id, {level: "Manage"}]]),
                         defaultGrant: {type: "Space", level: "Manage"},

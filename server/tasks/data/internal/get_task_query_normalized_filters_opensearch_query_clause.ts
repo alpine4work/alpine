@@ -1,4 +1,4 @@
-import {OpensearchIndexFlattenedKeysType} from "~/server/opensearch/opensearch_index_type.js";
+import {OpensearchIndexTypeFlattenedKeysType} from "~/server/opensearch/opensearch_index_type.js";
 import {
     OpensearchQueryClause,
     OpensearchQueryValue,
@@ -45,7 +45,7 @@ assertEqualTypes<
     | "notepadPageFilter"
 >();
 
-type TaskIndexFlattenedKeys = OpensearchIndexFlattenedKeysType<typeof TaskIndexDocType>;
+type TaskIndexFlattenedKeys = OpensearchIndexTypeFlattenedKeysType<typeof TaskIndexDocType>;
 
 /**
  * Get the OpenSearch query for the provided normalized filters.

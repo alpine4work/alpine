@@ -4,4 +4,4 @@ import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js"
 /**
  * A CRDT register for a label string.
  */
-export const LabelStringSchemaRegister = createCrdtRegister(LabelStringSchema);
+export const LabelStringRegister = createCrdtRegister(LabelStringSchema);

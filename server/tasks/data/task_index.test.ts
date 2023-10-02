@@ -1,6 +1,9 @@
 import {updateSessionActorAccountName} from "~/server/accounts/update_name/update_session_actor_account_name.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
+import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {
     getTaskIndexDocIfExistsForTest,
     indexTaskActionTransactionAfterUpdateTestCheckpoint,
@@ -8,6 +11,8 @@ import {
     indexTaskActionTransactionBeforeUpdateTestCheckpoint,
     indexTaskUpdateAccountNameActionAfterUpdateTestCheckpoint,
     indexTaskUpdateAccountNameActionBeforeUpdateTestCheckpoint,
+    refreshTaskCollectionIndexForTest,
+    searchTaskCollectionIndex,
 } from "~/server/tasks/data/task_index.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
@@ -401,6 +406,8 @@ test("updating account name updates inlined creator account name in index", asyn
         TestTask.create(session2),
     ]);
 
+    await task2.delete(session1);
+
     const newAccountName1 = generateId();
     const newAccountName2 = generateId();
 
@@ -457,9 +464,10 @@ test("updating account name updates inlined closer account name in index", async
         space.createSession(),
     ]);
 
-    const [task1, task2, task3] = await runAllPromises([
+    const [task1, task2, task3, task4] = await runAllPromises([
         TestTask.create(session1),
         TestTask.create(session1),
+        TestTask.create(session2),
         TestTask.create(session2),
     ]);
 
@@ -476,10 +484,14 @@ test("updating account name updates inlined closer account name in index", async
     expect((await task1.getIndexDoc()).status.value).toEqual({type: "Open"});
     expect((await task2.getIndexDoc()).status.value).toEqual({type: "Open"});
     expect((await task3.getIndexDoc()).status.value).toEqual({type: "Open"});
+    expect((await task4.getIndexDoc()).status.value).toEqual({type: "Open"});
 
     await task1.updateStatus(session1, "Closed");
     await task2.updateStatus(session2, "Closed");
     await task3.updateStatus(session2, "Closed");
+    await task4.updateStatus(session2, "Closed");
+
+    await task4.delete(session2);
 
     expect((await task1.getIndexDoc()).status.value).toEqual({
         type: "Closed",
@@ -500,6 +512,15 @@ test("updating account name updates inlined closer account name in index", async
         closedTime: expect.any(TaskFilterableTime),
     });
     expect((await task3.getIndexDoc()).status.value).toEqual({
+        type: "Closed",
+        closer: {
+            accountId: session2.account.id,
+            workingAccountName: session2.account.initialName,
+            workingAccountNameVersion: 0,
+        },
+        closedTime: expect.any(TaskFilterableTime),
+    });
+    expect((await task4.getIndexDoc()).status.value).toEqual({
         type: "Closed",
         closer: {
             accountId: session2.account.id,
@@ -538,6 +559,15 @@ test("updating account name updates inlined closer account name in index", async
         },
         closedTime: expect.any(TaskFilterableTime),
     });
+    expect((await task4.getIndexDoc()).status.value).toEqual({
+        type: "Closed",
+        closer: {
+            accountId: session2.account.id,
+            workingAccountName: newAccountName1,
+            workingAccountNameVersion: 1,
+        },
+        closedTime: expect.any(TaskFilterableTime),
+    });
 
     await updateSessionActorAccountName(TestTask.action(session2), newAccountName2);
 
@@ -567,6 +597,188 @@ test("updating account name updates inlined closer account name in index", async
             workingAccountNameVersion: 2,
         },
         closedTime: expect.any(TaskFilterableTime),
+    });
+    expect((await task4.getIndexDoc()).status.value).toEqual({
+        type: "Closed",
+        closer: {
+            accountId: session2.account.id,
+            workingAccountName: newAccountName2,
+            workingAccountNameVersion: 2,
+        },
+        closedTime: expect.any(TaskFilterableTime),
+    });
+});
+
+test("processing account name update action only updates one space", async () => {
+    const space1 = await TestSpace.create(context);
+    const space2 = await TestSpace.create(context);
+    const account = await TestAccount.create(context);
+    await space1.addAccount(account);
+    await space2.addAccount(account);
+
+    const session1 = await TestSpaceSession.createForSpace(space1, account);
+    const session2 = await TestSpaceSession.createForSpace(space2, account);
+
+    const [task1, task2, task3, task4] = await runAllPromises([
+        TestTask.create(session1),
+        TestTask.create(session1),
+        TestTask.create(session2),
+        TestTask.create(session2),
+    ]);
+
+    await task2.delete(session1);
+
+    const newAccountName1 = generateId();
+    const newAccountName2 = generateId();
+
+    expect(session1.account.id).toEqual(session2.account.id);
+    expect(session1.account.initialName).toEqual(session2.account.initialName);
+    expect(session1.account.initialName).not.toEqual(newAccountName1);
+    expect(session1.account.initialName).not.toEqual(newAccountName2);
+
+    expect((await task1.getIndexDoc()).creator).toEqual({
+        accountId: account.id,
+        workingAccountName: account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect((await task2.getIndexDoc()).creator).toEqual({
+        accountId: account.id,
+        workingAccountName: account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect((await task3.getIndexDoc()).creator).toEqual({
+        accountId: account.id,
+        workingAccountName: account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect((await task4.getIndexDoc()).creator).toEqual({
+        accountId: account.id,
+        workingAccountName: account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    await indexTaskActionTransactionAssumingItsCommitted(space1.systemAction(), space1.id, [
+        {
+            type: "UpdateAccountName",
+            time: testClock.nowLogical(),
+            accountId: account.id,
+            accountName: newAccountName1,
+            accountNameVersion: 1,
+        },
+    ]);
+
+    expect((await task1.getIndexDoc()).creator).toEqual({
+        accountId: account.id,
+        workingAccountName: newAccountName1,
+        workingAccountNameVersion: 1,
+    });
+    expect((await task2.getIndexDoc()).creator).toEqual({
+        accountId: account.id,
+        workingAccountName: newAccountName1,
+        workingAccountNameVersion: 1,
+    });
+    expect((await task3.getIndexDoc()).creator).toEqual({
+        accountId: account.id,
+        workingAccountName: account.initialName,
+        workingAccountNameVersion: 0,
+    });
+    expect((await task4.getIndexDoc()).creator).toEqual({
+        accountId: account.id,
+        workingAccountName: account.initialName,
+        workingAccountNameVersion: 0,
+    });
+
+    await indexTaskActionTransactionAssumingItsCommitted(space2.systemAction(), space2.id, [
+        {
+            type: "UpdateAccountName",
+            time: testClock.nowLogical(),
+            accountId: account.id,
+            accountName: newAccountName2,
+            accountNameVersion: 2,
+        },
+    ]);
+
+    expect((await task1.getIndexDoc()).creator).toEqual({
+        accountId: account.id,
+        workingAccountName: newAccountName1,
+        workingAccountNameVersion: 1,
+    });
+    expect((await task2.getIndexDoc()).creator).toEqual({
+        accountId: account.id,
+        workingAccountName: newAccountName1,
+        workingAccountNameVersion: 1,
+    });
+    expect((await task3.getIndexDoc()).creator).toEqual({
+        accountId: account.id,
+        workingAccountName: newAccountName2,
+        workingAccountNameVersion: 2,
+    });
+    expect((await task4.getIndexDoc()).creator).toEqual({
+        accountId: account.id,
+        workingAccountName: newAccountName2,
+        workingAccountNameVersion: 2,
+    });
+
+    await indexTaskActionTransactionAssumingItsCommitted(space1.systemAction(), space1.id, [
+        {
+            type: "UpdateAccountName",
+            time: testClock.nowLogical(),
+            accountId: account.id,
+            accountName: newAccountName2,
+            accountNameVersion: 2,
+        },
+    ]);
+
+    expect((await task1.getIndexDoc()).creator).toEqual({
+        accountId: account.id,
+        workingAccountName: newAccountName2,
+        workingAccountNameVersion: 2,
+    });
+    expect((await task2.getIndexDoc()).creator).toEqual({
+        accountId: account.id,
+        workingAccountName: newAccountName2,
+        workingAccountNameVersion: 2,
+    });
+    expect((await task3.getIndexDoc()).creator).toEqual({
+        accountId: account.id,
+        workingAccountName: newAccountName2,
+        workingAccountNameVersion: 2,
+    });
+    expect((await task4.getIndexDoc()).creator).toEqual({
+        accountId: account.id,
+        workingAccountName: newAccountName2,
+        workingAccountNameVersion: 2,
+    });
+
+    await indexTaskActionTransactionAssumingItsCommitted(space2.systemAction(), space2.id, [
+        {
+            type: "UpdateAccountName",
+            time: testClock.nowLogical(),
+            accountId: account.id,
+            accountName: newAccountName1,
+            accountNameVersion: 1,
+        },
+    ]);
+
+    expect((await task1.getIndexDoc()).creator).toEqual({
+        accountId: account.id,
+        workingAccountName: newAccountName2,
+        workingAccountNameVersion: 2,
+    });
+    expect((await task2.getIndexDoc()).creator).toEqual({
+        accountId: account.id,
+        workingAccountName: newAccountName2,
+        workingAccountNameVersion: 2,
+    });
+    expect((await task3.getIndexDoc()).creator).toEqual({
+        accountId: account.id,
+        workingAccountName: newAccountName2,
+        workingAccountNameVersion: 2,
+    });
+    expect((await task4.getIndexDoc()).creator).toEqual({
+        accountId: account.id,
+        workingAccountName: newAccountName2,
+        workingAccountNameVersion: 2,
     });
 });
 
@@ -768,7 +980,7 @@ test("updating account name updates inlined assigner and assignee account names 
     });
 });
 
-test("if account name updates during indexing it will still be correctly update in creator", async () => {
+test("if account name updates during indexing it will still be correctly updated in creator", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1023,4 +1235,233 @@ test("account name update will still work when there's a version conflict", asyn
         },
         closedTime: expect.any(TaskFilterableTime),
     });
+});
+
+test("effective task collection name fuzzy searching", async () => {
+    const bookNames = [
+        "Old Man's War",
+        "The Lock Artist",
+        "HTML5",
+        "Thank You Jeeves",
+        "The Code of the Wooster",
+        "Right Ho Jeeves",
+        "The DaVinci Code",
+        "Angels & Demons",
+        "The Silmarillion",
+        "Syrup",
+        "The Lost Symbol",
+        "The Book of Lies",
+        "Lamb",
+        "Fool",
+        "Incompetence",
+        "Fat",
+        "Colony",
+        "Backwards, Red Dwarf",
+        "The Grand Design",
+        "The Book of Samson",
+        "The Preservationist",
+        "Fallen",
+        "Monster 1959",
+        "Test Mabc",
+        "Test Mxyz",
+        "Core Product FY2024Q3",
+        "Core Product FY2023Q3",
+        "Core Product FY2024Q2",
+    ];
+
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    await runAllPromises(
+        bookNames.map(bookName => TestTaskCollection.createPublic(session, {name: bookName})),
+    );
+
+    await ProcessContextModule.waitForTestTasks();
+    await refreshTaskCollectionIndexForTest(context);
+
+    const testSearch = async (nameQuery: string) => {
+        const results = await searchTaskCollectionIndex(session.action(), {
+            spaceId: space.id,
+            nameQuery,
+            limit: 100,
+        });
+
+        return results.map(({collection}) => collection.getName());
+    };
+
+    // Testing prefix matching
+    expect(await testSearch("inc")).toEqual(["Incompetence"]);
+    expect(await testSearch("f")).toEqual([
+        "Core Product FY2024Q2",
+        "Core Product FY2023Q3",
+        "Core Product FY2024Q3",
+        "Fallen",
+        "Fat",
+        "Fool",
+    ]);
+
+    // Testing not first word matching
+    expect(await testSearch("jeeves")).toEqual(["Right Ho Jeeves", "Thank You Jeeves"]);
+
+    // Testing not first word prefix matching
+    expect(await testSearch("jee")).toEqual(["Right Ho Jeeves", "Thank You Jeeves"]);
+
+    // Testing stop word removal
+    expect(await testSearch("th")).toEqual(["Thank You Jeeves"]);
+    expect(await testSearch("t")).toEqual(["Test Mxyz", "Test Mabc", "Thank You Jeeves"]);
+    expect(await testSearch("the")).toEqual([]);
+
+    // Testing word position swaps
+    expect(await testSearch("Backwards, Red Dwarf")).toEqual(["Backwards, Red Dwarf"]);
+    expect(await testSearch("Backwards Red Dwarf")).toEqual(["Backwards, Red Dwarf"]);
+    expect(await testSearch("Backwards Dwarf Red")).toEqual(["Backwards, Red Dwarf"]);
+    expect(await testSearch("Red Backwards Dwarf")).toEqual(["Backwards, Red Dwarf"]);
+    expect(await testSearch("Dwarf Red Backwards")).toEqual(["Backwards, Red Dwarf"]);
+    expect(await testSearch("thank jeeves")).toEqual(["Thank You Jeeves", "Right Ho Jeeves"]);
+    expect(await testSearch("jeeves thank")).toEqual(["Thank You Jeeves", "Right Ho Jeeves"]);
+    expect(await testSearch("jeeves thank you")).toEqual(["Thank You Jeeves", "Right Ho Jeeves"]);
+    expect(await testSearch("jeeves you thank")).toEqual(["Thank You Jeeves", "Right Ho Jeeves"]);
+
+    // Testing word in different positions
+    expect(await testSearch("code")).toEqual([
+        "The DaVinci Code",
+        "The Code of the Wooster",
+        "Core Product FY2024Q2",
+        "Core Product FY2023Q3",
+        "Core Product FY2024Q3",
+    ]);
+
+    // Testing last word prefix matching
+    expect(await testSearch("test")).toEqual(["Test Mxyz", "Test Mabc"]);
+    expect(await testSearch("test m")).toEqual([
+        "Test Mxyz",
+        "Test Mabc",
+        "Monster 1959",
+        "Old Man's War",
+    ]);
+    expect(await testSearch("test ma")).toEqual(["Test Mabc", "Test Mxyz", "Old Man's War"]);
+    expect(await testSearch("test mab")).toEqual(["Test Mabc", "Test Mxyz", "Old Man's War"]);
+    expect(await testSearch("test mabc")).toEqual(["Test Mabc", "Test Mxyz"]);
+    expect(await testSearch("test mx")).toEqual(["Test Mxyz", "Test Mabc"]);
+    expect(await testSearch("tes m")).toEqual([
+        "Test Mxyz",
+        "Test Mabc",
+        "Monster 1959",
+        "Old Man's War",
+    ]);
+
+    // Testing typos
+    expect(await testSearch("Preservationist")).toEqual(["The Preservationist"]);
+    expect(await testSearch("Preseravtionist")).toEqual(["The Preservationist"]);
+    expect(await testSearch("Preseravtoinist")).toEqual(["The Preservationist"]);
+    expect(await testSearch("Perseravtoinist")).toEqual([]);
+    expect(await testSearch("Perseravtoisnit")).toEqual([]);
+    expect(await testSearch("Mnoster 1")).toEqual(["Monster 1959"]);
+
+    // Testing typos in prefix
+    expect(await testSearch("Preserv")).toEqual(["The Preservationist"]);
+    expect(await testSearch("Presevr")).toEqual([]);
+    expect(await testSearch("Perserv")).toEqual([]);
+    expect(await testSearch("rPeserv")).toEqual([]);
+
+    // Testing identifiers are analyzed properly
+    expect(await testSearch("2024")).toEqual([
+        "Core Product FY2024Q2",
+        "Core Product FY2024Q3",
+        "Core Product FY2023Q3",
+    ]);
+    expect(await testSearch("Q3")).toEqual([
+        "Core Product FY2023Q3",
+        "Core Product FY2024Q3",
+        "Core Product FY2024Q2",
+    ]);
+    expect(await testSearch("2024 Q3")).toEqual([
+        "Core Product FY2024Q3",
+        "Core Product FY2024Q2",
+        "Core Product FY2023Q3",
+    ]);
+    expect(await testSearch("Q3 2024")).toEqual([
+        "Core Product FY2024Q3",
+        "Core Product FY2023Q3",
+        "Core Product FY2024Q2",
+    ]);
+    expect(await testSearch("FY2024Q3")).toEqual([
+        "Core Product FY2024Q3",
+        "Core Product FY2024Q2",
+        "Core Product FY2023Q3",
+    ]);
+    expect(await testSearch("Q3FY2024")).toEqual([
+        "Core Product FY2024Q3",
+        "Core Product FY2023Q3",
+        "Core Product FY2024Q2",
+    ]);
+    expect(await testSearch("FY2024 Q3")).toEqual([
+        "Core Product FY2024Q3",
+        "Core Product FY2024Q2",
+        "Core Product FY2023Q3",
+    ]);
+    expect(await testSearch("Q3 FY2024")).toEqual([
+        "Core Product FY2024Q3",
+        "Core Product FY2023Q3",
+        "Core Product FY2024Q2",
+    ]);
+});
+
+test("excludes collections account doesn't have access to when searching", async () => {
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const session3 = await space.createSession();
+    const otherSession = await otherSpace.createSession();
+
+    const [, , , , collection5, collection6, collection7, collection8, collection9, collection10] =
+        await runAllPromises([
+            TestTaskCollection.createPrivate(session1),
+            TestTaskCollection.createPrivate(session2),
+            TestTaskCollection.createPrivate(session1),
+            TestTaskCollection.createPrivate(session2),
+            TestTaskCollection.createPrivate(session1),
+            TestTaskCollection.createPrivate(session2),
+            TestTaskCollection.createPrivate(session1),
+            TestTaskCollection.createPrivate(session2),
+            TestTaskCollection.createPublic(session1),
+            TestTaskCollection.createPublic(session1),
+            TestTaskCollection.createPublic(otherSession),
+        ]);
+
+    await collection5.updateAccessPolicy(session1, {
+        accountGrantById: new Map([
+            [session1.account.id, {level: "Manage"}],
+            [session3.account.id, {level: "Manage"}],
+        ]),
+        defaultGrant: null,
+    });
+
+    await collection6.updateAccessPolicy(session2, {
+        accountGrantById: new Map([
+            [session2.account.id, {level: "Manage"}],
+            [session3.account.id, {level: "Manage"}],
+        ]),
+        defaultGrant: null,
+    });
+
+    await collection10.delete(session1);
+
+    await ProcessContextModule.waitForTestTasks();
+    await refreshTaskCollectionIndexForTest(context);
+
+    const testSearch = async (session: TestSpaceSession, limit: number) => {
+        const results = await searchTaskCollectionIndex(session.action(), {
+            spaceId: space.id,
+            nameQuery: "test",
+            limit: 3,
+        });
+
+        return results.map(({collection}) => collection.id);
+    };
+
+    expect(await testSearch(session1, 3)).toEqual([collection9.id, collection7.id, collection5.id]);
+    expect(await testSearch(session2, 3)).toEqual([collection9.id, collection8.id, collection6.id]);
+    expect(await testSearch(session3, 4)).toEqual([collection9.id, collection6.id, collection5.id]);
 });

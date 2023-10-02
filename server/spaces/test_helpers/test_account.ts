@@ -21,6 +21,10 @@ export class TestAccount {
         this.initialName = initialName;
     }
 
+    public static getNewName() {
+        return `Test Account ${testAccountCount++}`;
+    }
+
     public static async create(
         context: TestContext,
         {
@@ -37,10 +41,6 @@ export class TestAccount {
         });
 
         return new TestAccount(context, id, name);
-    }
-
-    public static getNewName() {
-        return `Test Account ${testAccountCount++}`;
     }
 
     public async get(): Promise<AccountModel> {

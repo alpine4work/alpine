@@ -4837,11 +4837,74 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
-                                    "deletedTime": {
+                                    "rawDeletedTime": {
                                         "valueSchema": {
                                             "type": "Nullable",
                                             "schema": {
                                                 "type": "Uint64"
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "rawUndeletedTime": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Uint64"
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "name": {
+                                        "valueSchema": {
+                                            "type": "Object",
+                                            "propertySchemaByKey": {
+                                                "value": {
+                                                    "valueSchema": {
+                                                        "type": "String"
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "version": {
+                                                    "valueSchema": {
+                                                        "type": "Uint64"
+                                                    },
+                                                    "optional": false
+                                                }
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "color": {
+                                        "valueSchema": {
+                                            "type": "Object",
+                                            "propertySchemaByKey": {
+                                                "value": {
+                                                    "valueSchema": {
+                                                        "type": "Nullable",
+                                                        "schema": {
+                                                            "type": "Enum",
+                                                            "values": [
+                                                                "red",
+                                                                "orange",
+                                                                "yellow",
+                                                                "green",
+                                                                "cyan",
+                                                                "blue",
+                                                                "indigo",
+                                                                "purple",
+                                                                "pink"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "version": {
+                                                    "valueSchema": {
+                                                        "type": "Uint64"
+                                                    },
+                                                    "optional": false
+                                                }
                                             }
                                         },
                                         "optional": false

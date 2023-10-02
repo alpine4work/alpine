@@ -1,4 +1,6 @@
 import {parseISO} from "date-fns";
+import {OpensearchIndexConfigBuilder} from "~/server/opensearch/opensearch_index.js";
+import {OpensearchIndexAnalysisAnalyzer} from "~/server/opensearch/opensearch_index_analysis.js";
 import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -11,7 +13,7 @@ import {ObjectSchema} from "~/shared/schema/schema.js";
 export type OpensearchIndexTypeType<Type extends OpensearchIndexTypeBase<any, any>> =
     Type extends OpensearchIndexTypeBase<infer Value, any> ? Value : never;
 
-export type OpensearchIndexFlattenedKeysType<Type extends OpensearchIndexTypeBase<any, any>> =
+export type OpensearchIndexTypeFlattenedKeysType<Type extends OpensearchIndexTypeBase<any, any>> =
     Type extends OpensearchIndexTypeBase<any, infer FlattenedKeys> ? FlattenedKeys : never;
 
 /**
@@ -24,7 +26,7 @@ export abstract class OpensearchIndexTypeBase<Value, FlattenedKeys extends strin
     /**
      * Gets the config object we pass into the OpenSearch index create API.
      */
-    public abstract getConfig(): {type: string};
+    public abstract getConfig(builder: OpensearchIndexConfigBuilder): {type: string};
 
     /**
      * Serializes our value to a JSON value to be passed on to OpenSearch.
@@ -75,8 +77,8 @@ class OpensearchIndexNullableType<
         this._sourceType = sourceType;
     }
 
-    public override getConfig() {
-        return this._sourceType.getConfig();
+    public override getConfig(builder: OpensearchIndexConfigBuilder) {
+        return this._sourceType.getConfig(builder);
     }
 
     public override serialize(value: Value | null): JsonValue {
@@ -120,8 +122,8 @@ class OpensearchIndexTransformedType<
         this._deserialize = deserialize;
     }
 
-    public override getConfig() {
-        return this._sourceType.getConfig();
+    public override getConfig(builder: OpensearchIndexConfigBuilder) {
+        return this._sourceType.getConfig(builder);
     }
 
     public override serialize(newValue: NewValue): JsonValue {
@@ -157,8 +159,8 @@ class OpensearchIndexValidatedType<
         this._validate = validate;
     }
 
-    public override getConfig() {
-        return this._sourceType.getConfig();
+    public override getConfig(builder: OpensearchIndexConfigBuilder) {
+        return this._sourceType.getConfig(builder);
     }
 
     public override serialize(value: NewValue): JsonValue {
@@ -213,7 +215,7 @@ function getOpensearchIndexTypeCapabilitiesConfig({
  *
  * [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/boolean/
  */
-export class OpensearchIndexBooleanType extends OpensearchIndexTypeBase<boolean, never> {
+export class OpensearchIndexBooleanType extends OpensearchIndexTypeBase<boolean, "this"> {
     private readonly _capabilities: OpensearchIndexTypeCapabilities;
 
     constructor(capabilities: OpensearchIndexTypeCapabilities = {}) {
@@ -244,7 +246,7 @@ export class OpensearchIndexBooleanType extends OpensearchIndexTypeBase<boolean,
  *
  * [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/numeric/
  */
-export class OpensearchIndexByteType extends OpensearchIndexTypeBase<number, never> {
+export class OpensearchIndexByteType extends OpensearchIndexTypeBase<number, "this"> {
     private readonly _capabilities: OpensearchIndexTypeCapabilities;
 
     constructor(capabilities: OpensearchIndexTypeCapabilities = {}) {
@@ -277,7 +279,7 @@ export class OpensearchIndexByteType extends OpensearchIndexTypeBase<number, nev
  *
  * [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/numeric/
  */
-export class OpensearchIndexIntegerType extends OpensearchIndexTypeBase<number, never> {
+export class OpensearchIndexIntegerType extends OpensearchIndexTypeBase<number, "this"> {
     private readonly _capabilities: OpensearchIndexTypeCapabilities;
 
     constructor(capabilities: OpensearchIndexTypeCapabilities = {}) {
@@ -310,7 +312,7 @@ export class OpensearchIndexIntegerType extends OpensearchIndexTypeBase<number, 
  *
  * [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/numeric/
  */
-export class OpensearchIndexLongType extends OpensearchIndexTypeBase<bigint, never> {
+export class OpensearchIndexLongType extends OpensearchIndexTypeBase<bigint, "this"> {
     private readonly _capabilities: OpensearchIndexTypeCapabilities;
 
     constructor(capabilities: OpensearchIndexTypeCapabilities = {}) {
@@ -341,7 +343,7 @@ export class OpensearchIndexLongType extends OpensearchIndexTypeBase<bigint, nev
  *
  * [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/date/
  */
-export class OpensearchIndexDateType extends OpensearchIndexTypeBase<Date, never> {
+export class OpensearchIndexDateType extends OpensearchIndexTypeBase<Date, "this"> {
     private readonly _capabilities: OpensearchIndexTypeCapabilities;
 
     constructor(capabilities: OpensearchIndexTypeCapabilities = {}) {
@@ -373,7 +375,7 @@ export class OpensearchIndexDateType extends OpensearchIndexTypeBase<Date, never
  *
  * [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/binary/
  */
-export class OpensearchIndexBinaryType extends OpensearchIndexTypeBase<Uint8Array, never> {
+export class OpensearchIndexBinaryType extends OpensearchIndexTypeBase<Uint8Array, "this"> {
     public override getConfig() {
         return {
             type: "binary",
@@ -398,7 +400,7 @@ export class OpensearchIndexBinaryType extends OpensearchIndexTypeBase<Uint8Arra
  *
  * [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/keyword/
  */
-export class OpensearchIndexKeywordType extends OpensearchIndexTypeBase<string, never> {
+export class OpensearchIndexKeywordType extends OpensearchIndexTypeBase<string, "this"> {
     private readonly _capabilities: OpensearchIndexTypeCapabilities;
 
     constructor(capabilities: OpensearchIndexTypeCapabilities = {}) {
@@ -431,18 +433,21 @@ export class OpensearchIndexKeywordType extends OpensearchIndexTypeBase<string, 
  *
  * [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/text/
  */
-export class OpensearchIndexTextType extends OpensearchIndexTypeBase<string, never> {
-    private readonly _analyzer: string;
+export class OpensearchIndexTextType extends OpensearchIndexTypeBase<string, "this"> {
+    private readonly _analyzer: OpensearchIndexAnalysisAnalyzer;
 
-    constructor({analyzer}: {analyzer: string}) {
+    constructor({analyzer}: {analyzer: OpensearchIndexAnalysisAnalyzer}) {
         super();
         this._analyzer = analyzer;
     }
 
-    public override getConfig() {
+    public override getConfig(builder: OpensearchIndexConfigBuilder) {
         return {
             type: "text",
-            analyzer: this._analyzer,
+            analyzer:
+                typeof this._analyzer === "string"
+                    ? this._analyzer
+                    : this._analyzer.getConfig(builder),
             index: true,
         };
     }
@@ -464,18 +469,24 @@ export class OpensearchIndexTextType extends OpensearchIndexTypeBase<string, nev
  *
  * [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/search-as-you-type/
  */
-export class OpensearchIndexSearchAsYouTypeType extends OpensearchIndexTypeBase<string, never> {
-    private readonly _analyzer: string;
+export class OpensearchIndexSearchAsYouTypeType extends OpensearchIndexTypeBase<
+    string,
+    "this" | "_2gram" | "_3gram"
+> {
+    private readonly _analyzer: OpensearchIndexAnalysisAnalyzer;
 
-    constructor({analyzer}: {analyzer: string}) {
+    constructor({analyzer}: {analyzer: OpensearchIndexAnalysisAnalyzer}) {
         super();
         this._analyzer = analyzer;
     }
 
-    public override getConfig() {
+    public override getConfig(builder: OpensearchIndexConfigBuilder) {
         return {
             type: "search_as_you_type",
-            analyzer: this._analyzer,
+            analyzer:
+                typeof this._analyzer === "string"
+                    ? this._analyzer
+                    : this._analyzer.getConfig(builder),
             index: true,
         };
     }
@@ -506,8 +517,8 @@ export class OpensearchIndexArrayType<
         this._itemType = itemType;
     }
 
-    public override getConfig() {
-        return this._itemType.getConfig();
+    public override getConfig(builder: OpensearchIndexConfigBuilder) {
+        return this._itemType.getConfig(builder);
     }
 
     public override serialize(value: ReadonlyArray<Value>): JsonValue {
@@ -526,7 +537,10 @@ export class OpensearchIndexArrayType<
  *
  * [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/object/
  */
-export class OpensearchIndexIgnoredObjectType<Value> extends OpensearchIndexTypeBase<Value, never> {
+export class OpensearchIndexIgnoredObjectType<Value> extends OpensearchIndexTypeBase<
+    Value,
+    "this"
+> {
     private readonly _schema: ObjectSchema<Value>;
 
     constructor(schema: ObjectSchema<Value>) {
@@ -551,11 +565,12 @@ export class OpensearchIndexIgnoredObjectType<Value> extends OpensearchIndexType
     }
 }
 
-type OpensearchIndexTypePrependKey<ParentKey extends string, ChildFlattenedKeys extends string> = [
-    ChildFlattenedKeys,
-] extends [never]
+type OpensearchIndexTypePrependKey<
+    ParentKey extends string,
+    ChildFlattenedKeys extends string,
+> = ChildFlattenedKeys extends "this"
     ? ParentKey
-    : `${ParentKey}.${ChildFlattenedKeys}`;
+    : `${ParentKey}.${Exclude<ChildFlattenedKeys, "this">}`;
 
 /**
  * An OpenSearch [object field type][1]. Objects themselves are not indexed.
@@ -602,13 +617,13 @@ export class OpensearchIndexObjectType<
         | {
               readonly [Key in keyof Fields & string]: OpensearchIndexTypePrependKey<
                   Key,
-                  OpensearchIndexFlattenedKeysType<Fields[Key]>
+                  OpensearchIndexTypeFlattenedKeysType<Fields[Key]>
               >;
           }[keyof Fields & string]
         | {
               readonly [Key in keyof ComputedFields & string]: OpensearchIndexTypePrependKey<
                   Key,
-                  OpensearchIndexFlattenedKeysType<ComputedFields[Key]>
+                  OpensearchIndexTypeFlattenedKeysType<ComputedFields[Key]>
               >;
           }[keyof ComputedFields & string]
     > {
@@ -645,7 +660,7 @@ export class OpensearchIndexObjectType<
         return [...this._fields.keys(), ...this._computed.fields.keys()];
     }
 
-    public override getConfig(): {
+    public override getConfig(builder: OpensearchIndexConfigBuilder): {
         type: string;
         dynamic: "strict";
         properties: {[key: string]: {type: string}};
@@ -654,8 +669,11 @@ export class OpensearchIndexObjectType<
             type: "object",
             dynamic: "strict",
             properties: Object.fromEntries([
-                ...mapIterable(this._fields, ([key, field]) => [key, field.getConfig()]),
-                ...mapIterable(this._computed.fields, ([key, field]) => [key, field.getConfig()]),
+                ...mapIterable(this._fields, ([key, field]) => [key, field.getConfig(builder)]),
+                ...mapIterable(this._computed.fields, ([key, field]) => [
+                    key,
+                    field.getConfig(builder),
+                ]),
             ]),
         };
     }
@@ -702,14 +720,14 @@ export class OpensearchIndexUnionObjectType<
     Value extends {readonly type: string},
     FlattenedKeys extends string,
 > extends OpensearchIndexTypeBase<Value, FlattenedKeys> {
-    private readonly _type: OpensearchIndexTypeBase<Value["type"], never>;
+    private readonly _type: OpensearchIndexTypeBase<Value["type"], "this">;
     private readonly _variants: ReadonlyMap<string, OpensearchIndexObjectType<any, any>>;
 
     public static new<const Variants extends {[key: string]: OpensearchIndexObjectType<any, any>}>({
         type,
         variants,
     }: {
-        type: OpensearchIndexTypeBase<keyof Variants, never>;
+        type: OpensearchIndexTypeBase<keyof Variants, "this">;
         variants: Variants;
     }): OpensearchIndexUnionObjectType<
         {
@@ -717,7 +735,7 @@ export class OpensearchIndexUnionObjectType<
         }[keyof Variants],
         | "type"
         | {
-              [Key in keyof Variants]: OpensearchIndexFlattenedKeysType<Variants[Key]>;
+              [Key in keyof Variants]: OpensearchIndexTypeFlattenedKeysType<Variants[Key]>;
           }[keyof Variants]
     > {
         return new OpensearchIndexUnionObjectType({type, variants});
@@ -727,7 +745,7 @@ export class OpensearchIndexUnionObjectType<
         type,
         variants,
     }: {
-        type: OpensearchIndexTypeBase<Value["type"], never>;
+        type: OpensearchIndexTypeBase<Value["type"], "this">;
         variants: {[key: string]: OpensearchIndexObjectType<any, any>};
     }) {
         super();
@@ -745,17 +763,17 @@ export class OpensearchIndexUnionObjectType<
         }
     }
 
-    public override getConfig() {
+    public override getConfig(builder: OpensearchIndexConfigBuilder) {
         return {
             type: "object",
             dynamic: "strict",
             properties: {
-                type: this._type.getConfig(),
+                type: this._type.getConfig(builder),
                 ...Object.assign(
                     {},
                     ...mapIterable(
                         this._variants.values(),
-                        variant => variant.getConfig().properties,
+                        variant => variant.getConfig(builder).properties,
                     ),
                 ),
             },

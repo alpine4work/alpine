@@ -22,7 +22,7 @@ import {
 } from "~/server/spaces/spaces_table.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskContextModuleBase} from "~/server/tasks/data/task_context_module.js";
-import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
+import {TaskIndexDoc, isTaskIndexDocDeleted} from "~/server/tasks/data/task_index_doc.js";
 import {CacheContextModule, ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -71,12 +71,15 @@ import {
     getTaskActionLabel,
 } from "~/shared/tasks/actions/task_action.js";
 import {TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_task_action.js";
+import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
+import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {
     TaskCollectionAccessLevel,
     TaskCollectionAccessPolicy,
     TaskCollectionAccessPolicyRegister,
     hasTaskCollectionAccessLevel,
 } from "~/shared/tasks/task_collection_access_policy.js";
+import {TaskCollectionColorRegister} from "~/shared/tasks/task_collection_color.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {
     TaskGridViewExpansionState,
@@ -220,7 +223,19 @@ const TaskTable = DynamoTableSchema.new({
                     attributes: Schema.object({
                         spaceId: Schema.id<SpaceId>(),
                         createdTime: HybridLogicalTimeSchema,
-                        deletedTime: HybridLogicalTimeSchema.nullable(),
+
+                        // We keep track of both `rawDeletedTime` and `rawUndeletedTime` for our
+                        // collection in DynamoDB so we can create a full `TaskCollectionModel`. The
+                        // collection is considered deleted if `rawDeletedTime` is null or
+                        // `rawUndeletedTime` is larger than `rawDeletedTime`.
+                        rawDeletedTime: HybridLogicalTimeSchema.nullable(),
+                        rawUndeletedTime: HybridLogicalTimeSchema.nullable(),
+
+                        // We include the `name` and `color` of our collection in its
+                        // `EssentialAttributes` since we load the `EssentialAttributes` object to
+                        // render searched collections.
+                        name: LabelStringRegister.schema,
+                        color: TaskCollectionColorRegister.schema,
 
                         /**
                          * Who is allowed to access the collection and with what permission
@@ -504,6 +519,22 @@ export async function getTaskCollectionItemForTest(
         sortRangeType: "EssentialAttributes",
         collectionId,
     });
+}
+
+function isTaskCollectionItemDeleted(
+    collectionItem: Pick<
+        TaskCollectionEssentialAttributesItem,
+        "rawDeletedTime" | "rawUndeletedTime"
+    >,
+): boolean {
+    return (
+        !!collectionItem.rawDeletedTime &&
+        (!collectionItem.rawUndeletedTime ||
+            compareHybridLogicalTimes(
+                collectionItem.rawDeletedTime,
+                collectionItem.rawUndeletedTime,
+            ) > 0)
+    );
 }
 
 export const commitTaskActionTransactionBeforeExecuteTestCheckpoint =
@@ -2088,7 +2119,10 @@ async function actuallyCommitTaskActionTransaction(
                             collectionId,
                             spaceId,
                             createdTime: action.time,
-                            deletedTime: null,
+                            rawDeletedTime: null,
+                            rawUndeletedTime: null,
+                            name: new LabelStringRegister(collectionAction.name, action.time),
+                            color: new TaskCollectionColorRegister(null, action.time),
                             accessPolicy: new TaskCollectionAccessPolicyRegister(
                                 collectionAction.accessPolicy,
                                 action.time,
@@ -2115,8 +2149,12 @@ async function actuallyCommitTaskActionTransaction(
                     case "Undelete": {
                         const collectionItem = await state.getCollectionItemIfExists(collectionId);
                         if (!collectionItem) throw new NotFoundError("Task collection not found");
-                        if (!collectionItem.deletedTime)
+                        if (!isTaskCollectionItemDeleted(collectionItem))
                             throw new FailedPreconditionError("Expected task to be deleted");
+
+                        // If `isTaskCollectionItemDeleted()` returns true then we have
+                        // `rawDeletedTime`.
+                        assert(collectionItem.rawDeletedTime);
 
                         await state.authorizeCollectionAccessAllowingDeletedCollections(
                             collectionId,
@@ -2124,7 +2162,8 @@ async function actuallyCommitTaskActionTransaction(
                         );
 
                         if (
-                            compareHybridLogicalTimes(action.time, collectionItem.deletedTime) <= 0
+                            compareHybridLogicalTimes(action.time, collectionItem.rawDeletedTime) <=
+                            0
                         ) {
                             throw new FailedPreconditionError(
                                 "Undelete action time is less than delete action time",
@@ -2133,14 +2172,14 @@ async function actuallyCommitTaskActionTransaction(
 
                         state.updateCollectionItem({
                             ...collectionItem,
-                            deletedTime: null,
+                            rawUndeletedTime: action.time,
                         });
                         break;
                     }
                     default: {
                         const collectionItem = await state.getCollectionItemIfExists(collectionId);
                         if (!collectionItem) throw new NotFoundError("Task collection not found");
-                        if (collectionItem.deletedTime)
+                        if (isTaskCollectionItemDeleted(collectionItem))
                             throw new FailedPreconditionError("Task collection was deleted");
 
                         switch (collectionAction.type) {
@@ -2156,20 +2195,56 @@ async function actuallyCommitTaskActionTransaction(
                                     );
                                 }
 
+                                if (
+                                    collectionItem.rawUndeletedTime &&
+                                    compareHybridLogicalTimes(
+                                        action.time,
+                                        collectionItem.rawUndeletedTime,
+                                    ) <= 0
+                                ) {
+                                    throw new FailedPreconditionError(
+                                        "Delete action time is less than undelete action time",
+                                    );
+                                }
+
                                 await state.authorizeCollectionAccess(collectionId, "Manage");
 
                                 state.updateCollectionItem({
                                     ...collectionItem,
-                                    deletedTime: action.time,
+                                    rawDeletedTime: action.time,
                                 });
                                 break;
                             }
                             case "UpdateName": {
                                 await state.authorizeCollectionAccess(collectionId, "Manage");
+
+                                const newName = collectionItem.name.apply({
+                                    value: collectionAction.name,
+                                    version: action.time,
+                                });
+
+                                if (collectionItem.name !== newName) {
+                                    state.updateCollectionItem({
+                                        ...collectionItem,
+                                        name: newName,
+                                    });
+                                }
                                 break;
                             }
                             case "UpdateColor": {
                                 await state.authorizeCollectionAccess(collectionId, "Manage");
+
+                                const newColor = collectionItem.color.apply({
+                                    value: collectionAction.color,
+                                    version: action.time,
+                                });
+
+                                if (collectionItem.color !== newColor) {
+                                    state.updateCollectionItem({
+                                        ...collectionItem,
+                                        color: newColor,
+                                    });
+                                }
                                 break;
                             }
                             case "UpdateAccessPolicy": {
@@ -2773,7 +2848,7 @@ async function isTaskCollectionItemAccessAuthorized(
     // If you were authorized to view, edit, whatever, but the collection is
     // deleted then you don't have edit access anymore but you can still view the
     // collection.
-    if (collectionItem.deletedTime && isAuthorized) {
+    if (isTaskCollectionItemDeleted(collectionItem) && isAuthorized) {
         return hasTaskCollectionAccessLevel("View", expectedAccessLevel);
     }
 
@@ -2987,7 +3062,7 @@ async function isTaskItemAccessAuthorizedAllowingDeletedTasks(
             const collectionItem = await loaders.getCollectionItem(collectionId);
 
             // Deleted collections don't grant any access.
-            if (collectionItem.deletedTime) return null;
+            if (isTaskCollectionItemDeleted(collectionItem)) return null;
 
             const hasAccess = await evaluateTaskCollectionAccessPolicy(
                 context,
@@ -3177,7 +3252,10 @@ function getTaskCollectionItemPermissionDeniedErrorDisplayMessage(
     // If the user can't view a deleted collection it's because they don't have
     // view access. If a task is deleted, you can still view it but you can't
     // edit it.
-    if (collectionItem.deletedTime && hasTaskCollectionAccessLevel(expectedAccessLevel, "Edit")) {
+    if (
+        isTaskCollectionItemDeleted(collectionItem) &&
+        hasTaskCollectionAccessLevel(expectedAccessLevel, "Edit")
+    ) {
         // TODO(calebmer): In the future we should have some kind of task trash
         // feature. When we add trash we should direct the user to restore tasks from
         // their trash in the "hint" part of the error message.
@@ -3452,7 +3530,7 @@ function convertTaskIndexDocToItem(
         spaceId: task.spaceId,
         creatorId: task.creator.accountId,
         createdTime: task.createdTime.absoluteTime,
-        deletedTime: task.rawDeletedTime ?? null,
+        deletedTime: isTaskIndexDocDeleted(task) ? task.rawDeletedTime : null,
         statusType: new TaskStatusTypeRegister(task.status.value.type, task.status.version),
         parentTaskId: task.parent.taskId,
         addedChildTaskCount: task.addedChildTaskCount,
@@ -3487,7 +3565,10 @@ function convertTaskCollectionIndexDocToItem(
         collectionId: collection.id,
         spaceId: collection.spaceId,
         createdTime: collection.createdTime,
-        deletedTime: collection.rawDeletedTime,
+        rawDeletedTime: collection.rawDeletedTime,
+        rawUndeletedTime: collection.rawUndeletedTime,
+        name: collection.name,
+        color: collection.color,
         accessPolicy: collection.accessPolicy,
     };
 }
@@ -3813,4 +3894,66 @@ export async function getTaskGridViewExpansionState(
     }
 
     return item?.state ?? null;
+}
+
+/**
+ * Assembles the result objects for `searchTaskCollectionIndex()`. Our
+ * collection index doesn't have access to all the data we need to return
+ * collection objects (e.g. `openTaskCount`). We get that here from DynamoDB.
+ *
+ * May return fewer collections than the `TaskCollectionId`s that were passed
+ * in. Happens when the collection search index thinks our actor has access to
+ * the collection but in fact the actor recently lost access and our search
+ * index hasn't been refreshed.
+ */
+export async function assembleTaskCollectionIndexSearchResults(
+    context: ServerSessionActionContext,
+    collectionIds: Array<TaskCollectionId>,
+): Promise<
+    Array<{
+        openTaskCount: number;
+        lastTaskAddedTime: HybridLogicalTime | null;
+        collection: TaskCollectionModel;
+    }>
+> {
+    const collectionItems = await runAllPromises(
+        collectionIds.map(async collectionId => {
+            const collectionItem = await TaskTable.getItem(context, {
+                partitionType: "TaskCollection",
+                sortRangeType: "EssentialAttributes",
+                collectionId,
+            });
+
+            // We need to double check that we have access to this collection. Since the
+            // collection search index might be out of date.
+            const hasAccess = await isTaskCollectionItemAccessAuthorized(
+                context,
+                context.actor.getAccountId(),
+                collectionItem,
+                "View",
+            );
+
+            if (!hasAccess) return null;
+            return collectionItem;
+        }),
+    );
+
+    return filterMapArray(collectionItems, collectionItem => {
+        if (!collectionItem) return null;
+
+        return {
+            openTaskCount: collectionItem.openTaskCount,
+            lastTaskAddedTime: collectionItem.lastTaskAddedTime,
+            collection: new TaskCollectionModel({
+                id: collectionItem.collectionId,
+                spaceId: collectionItem.spaceId,
+                createdTime: collectionItem.createdTime,
+                deletedTime: collectionItem.rawDeletedTime,
+                undeletedTime: collectionItem.rawUndeletedTime,
+                name: collectionItem.name,
+                color: collectionItem.color,
+                accessPolicy: collectionItem.accessPolicy,
+            }),
+        };
+    });
 }

@@ -10,7 +10,7 @@ import {
 } from "~/server/tasks/data/task_index.js";
 import {
     getTaskIndexDocAssigneeActivePosition,
-    getTaskIndexDocIsDeleted,
+    isTaskIndexDocDeleted,
 } from "~/server/tasks/data/task_index_doc.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -92,7 +92,7 @@ testTaskActionPermutations({
         return {
             creator: task.creator,
             createdTime: task.createdTime,
-            isDeleted: getTaskIndexDocIsDeleted(task),
+            isDeleted: isTaskIndexDocDeleted(task),
             parent: task.parent.taskId.value
                 ? {taskId: task.parent.taskId.value, position: task.parent.rawPosition.value}
                 : null,

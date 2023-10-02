@@ -1,6 +1,9 @@
 import {dangerouslyGetAccountIfExistsWithoutCaching} from "~/server/accounts/accounts_table.js";
 import {DynamoSystemActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
-import {ServerSystemActionContext} from "~/server/context/server_action_context.js";
+import {
+    ServerSessionActionContext,
+    ServerSystemActionContext,
+} from "~/server/context/server_action_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
@@ -8,7 +11,7 @@ import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {OpensearchIndex} from "~/server/opensearch/opensearch_index.js";
 import {
-    OpensearchIndexFlattenedKeysType,
+    OpensearchIndexTypeFlattenedKeysType,
     OpensearchIndexTypeType,
 } from "~/server/opensearch/opensearch_index_type.js";
 import {OpensearchQueryValue} from "~/server/opensearch/opensearch_query_clause.js";
@@ -27,6 +30,7 @@ import {
     TaskCollectionIndexDocWithVersion,
 } from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDocType, TaskIndexDocWithVersion} from "~/server/tasks/data/task_index_doc.js";
+import {assembleTaskCollectionIndexSearchResults} from "~/server/tasks/data/task_table.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -35,6 +39,7 @@ import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
+import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -44,6 +49,7 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {collectReferencedAccountIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_account_ids_from_task_action.js";
 import {TaskAction, TaskUpdateAccountNameAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
@@ -61,7 +67,7 @@ const TaskIndex = new OpensearchIndex<
     SpaceId,
     TaskId,
     OpensearchIndexTypeType<typeof TaskIndexDocType>,
-    OpensearchIndexFlattenedKeysType<typeof TaskIndexDocType>
+    OpensearchIndexTypeFlattenedKeysType<typeof TaskIndexDocType>
 >(TaskIndexDocType, {
     name: "tasks",
     numberOfShards: 12,
@@ -90,7 +96,7 @@ const TaskCollectionIndex = new OpensearchIndex<
     SpaceId,
     TaskCollectionId,
     OpensearchIndexTypeType<typeof TaskCollectionIndexDocType>,
-    OpensearchIndexFlattenedKeysType<typeof TaskCollectionIndexDocType>
+    OpensearchIndexTypeFlattenedKeysType<typeof TaskCollectionIndexDocType>
 >(TaskCollectionIndexDocType, {
     name: "task_collections",
     numberOfShards: 3,
@@ -98,18 +104,8 @@ const TaskCollectionIndex = new OpensearchIndex<
     // Our searches are basically always within a specific space and basically
     // always exclude deleted collections.
     //
-    // We need to exclude collections from searches an account doesn't have access
-    // to. We can't implement all access rules in OpenSearch but given personal
-    // collections are common, as an optimization we include whether a collection
-    // is personal or not to efficiently filter them out.
-    //
     // Finally sort by `createdTime` since that's generally useful.
-    sort: [
-        {field: "spaceId"},
-        {field: "isDeleted"},
-        {field: "personalAccessPolicyAccountId"},
-        {field: "createdTime"},
-    ],
+    sort: [{field: "spaceId"}, {field: "isDeleted"}, {field: "createdTime"}],
     // We want to see new collections in search in near realtime.
     refreshInterval: "1s",
 });
@@ -220,6 +216,18 @@ export function refreshTaskIndexForTest(
     assert(import.meta.jest);
 
     return context.opensearch.client.refresh(context.tracer.getTracer(), TaskIndex);
+}
+
+/**
+ * Manually refresh the task collection index in tests. This means any changes
+ * to the task index will be available when searching.
+ */
+export function refreshTaskCollectionIndexForTest(
+    context: Context<{tracer: TracerContextModule; opensearch: OpensearchContextModule}>,
+) {
+    assert(import.meta.jest);
+
+    return context.opensearch.client.refresh(context.tracer.getTracer(), TaskCollectionIndex);
 }
 
 export const indexTaskActionTransactionBeforeUpdateTestCheckpoint = new TestCheckpoint<SpaceId>();
@@ -867,43 +875,43 @@ function indexTaskUpdateAccountNameActionAssumingItsCommitted(
                         bool: {
                             // Enter a filter context. Query clauses in a filter context may be cached.
                             // https://opensearch.org/docs/latest/query-dsl/query-filter-context/#filter-context
-                            filter: [
-                                // Only update tasks in this space:
-                                {term: {spaceId: new OpensearchQueryValue(spaceId)}},
+                            filter: {
+                                bool: {
+                                    must: [
+                                        // Only update tasks in this space:
+                                        {term: {spaceId: new OpensearchQueryValue(spaceId)}},
 
-                                // We want to update deleted tasks in addition to undeleted tasks. Which is why
-                                // we don't have a deleted task filter here.
+                                        // We want to update deleted tasks in addition to undeleted tasks. Which is why
+                                        // we don't have a deleted task filter here.
+                                    ],
 
-                                {
-                                    bool: {
-                                        minimum_should_match: 1,
-                                        should: sortableAccountFields.map(sortableAccountField => ({
-                                            bool: {
-                                                must: [
-                                                    {
-                                                        term: {
-                                                            [`${sortableAccountField}.accountId`]:
-                                                                new OpensearchQueryValue(
-                                                                    action.accountId,
+                                    minimum_should_match: 1,
+                                    should: sortableAccountFields.map(sortableAccountField => ({
+                                        bool: {
+                                            must: [
+                                                {
+                                                    term: {
+                                                        [`${sortableAccountField}.accountId`]:
+                                                            new OpensearchQueryValue(
+                                                                action.accountId,
+                                                            ),
+                                                    },
+                                                },
+                                                {
+                                                    range: {
+                                                        [`${sortableAccountField}.workingAccountNameVersion`]:
+                                                            {
+                                                                lt: new OpensearchQueryValue(
+                                                                    action.accountNameVersion,
                                                                 ),
-                                                        },
+                                                            },
                                                     },
-                                                    {
-                                                        range: {
-                                                            [`${sortableAccountField}.workingAccountNameVersion`]:
-                                                                {
-                                                                    lt: new OpensearchQueryValue(
-                                                                        action.accountNameVersion,
-                                                                    ),
-                                                                },
-                                                        },
-                                                    },
-                                                ],
-                                            },
-                                        })),
-                                    },
+                                                },
+                                            ],
+                                        },
+                                    })),
                                 },
-                            ],
+                            },
                         },
                     },
                     script: {
@@ -1014,4 +1022,132 @@ export async function queryTaskIndex(
     );
 
     return tasks;
+}
+
+/**
+ * Searches our task collection index for collections matching the provided
+ * name query.
+ */
+export async function searchTaskCollectionIndex(
+    context: ServerSessionActionContext,
+    {spaceId, nameQuery, limit}: {spaceId: SpaceId; nameQuery: string; limit: number},
+): Promise<
+    Array<{
+        collection: TaskCollectionModel;
+        openTaskCount: number;
+        lastTaskAddedTime: HybridLogicalTime | null;
+    }>
+> {
+    await authorizeSpaceAccess(context, spaceId);
+
+    const collectionIds = await context.opensearch.client.searchWithoutReturningDocs(
+        context.tracer.getTracer(),
+        TaskCollectionIndex,
+        spaceId,
+        {
+            size: limit,
+            sort: [
+                "_score",
+                // If score is tied, put the newer collections first.
+                {createdTime: {order: "desc", missing: "_last"}},
+            ],
+            query: {
+                bool: {
+                    // Components of our task collection name search implementation:
+                    //
+                    // 1. We use the [OpenSearch search-as-you-type field type][1]. This gives us an
+                    //    extra 2-gram field, 3-gram field, and prefix search optimized field.
+                    //    2-grams and 3-grams are used to improve search ranking when you use a
+                    //    sequence of words in the right order. The prefix search optimized field
+                    //    improves the performance of otherwise slow prefix queries.
+                    //
+                    // 2. We use [`match_bool_prefix`][2] as the search operator (as opposed to
+                    //    [`match_phrase_prefix`][3] or a plain [`match`][4]). This allows us to
+                    //    match words in any order (`match_phrase_prefix` requires words to be in
+                    //    order) while letting the last word act as a prefix search. Our 2-gram and
+                    //    3-gram fields boosts the score when words are in the right order so
+                    //    they'll show first but correct order is not required. (Actually we use
+                    //    `multi_match` + `bool_prefix` which performs `match_bool_prefix` on
+                    //    multiple fields.)
+                    //
+                    // 3. In addition to a `match_bool_prefix` we have a plain [`match`][4] with
+                    //    `fuzziness: "AUTO"`. This allows us to search single word typos since
+                    //    `match_bool_prefix` doesn't support `fuzziness`. (I'm not sure of the
+                    //    implementation reason for this.) We downrank this match so typo matches
+                    //    appear below full text matches.
+                    //
+                    // 4. We use a custom analyzer built from the `english` language analyzer plus
+                    //    the [`word_delimiter_graph`][5] token filter. This filter takes strings
+                    //    like `"FY2024Q3"` and turns it into the tokens `["FY", "2024", "Q", "3"]`.
+                    //    Businesses have plenty of identifiers (like this one), by tokenizing
+                    //    identifiers we allow searches like `"Q3"` to match any identifier
+                    //    containing that substring.
+                    //
+                    // [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/search-as-you-type/
+                    // [2]: https://opensearch.org/docs/latest/search-plugins/sql/full-text/#match-boolean-prefix
+                    // [3]: https://opensearch.org/docs/latest/search-plugins/sql/full-text/#match-phrase-prefix
+                    // [4]: https://opensearch.org/docs/latest/search-plugins/sql/full-text/#match
+                    // [5]: https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis-word-delimiter-graph-tokenfilter.html
+                    minimum_should_match: 1,
+                    should: [
+                        {
+                            multi_match: {
+                                query: new OpensearchQueryValue(nameQuery),
+                                type: "bool_prefix",
+                                fields: ["name.value", "name.value._2gram", "name.value._3gram"],
+                            },
+                        },
+                        {
+                            match: {
+                                "name.value": {
+                                    query: new OpensearchQueryValue(nameQuery),
+                                    fuzziness: "AUTO",
+                                    // Reduce the number of fuzzy expansions.
+                                    prefix_length: 1,
+                                    // Misspellings should rank lower than proper spellings.
+                                    boost: 0.5,
+                                },
+                            },
+                        },
+                    ],
+
+                    // Enter a filter context. Query clauses in a filter context may be cached.
+                    // https://opensearch.org/docs/latest/query-dsl/query-filter-context/#filter-context
+                    filter: {
+                        bool: {
+                            must: [
+                                // Always filter for non-deleted collections in our space. These filters should
+                                // be pretty fast thanks to our OpenSearch index sort.
+                                {term: {spaceId: new OpensearchQueryValue(spaceId)}},
+                                {term: {isDeleted: new OpensearchQueryValue(false)}},
+                            ],
+
+                            minimum_should_match: 1,
+                            // Can only search collections the account has access to. So that's collections
+                            // where we have an account grant and collections where there's a default grant
+                            // of type `Space`.
+                            should: [
+                                {
+                                    term: {
+                                        accessPolicyDefaultGrantType: new OpensearchQueryValue(
+                                            "Space",
+                                        ),
+                                    },
+                                },
+                                {
+                                    term: {
+                                        accessPolicyAccountGrantIds: new OpensearchQueryValue(
+                                            context.actor.getAccountId(),
+                                        ),
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                },
+            },
+        },
+    );
+
+    return assembleTaskCollectionIndexSearchResults(context, collectionIds);
 }
