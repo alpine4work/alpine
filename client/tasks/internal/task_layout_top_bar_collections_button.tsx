@@ -20,51 +20,41 @@ import {useShowToast} from "~/client/design/toast.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {TaskCollectionOption} from "~/client/tasks/demo_2/internal/task_collection_option.js";
-import {TaskCollectionsListBoxCreateCollectionOption} from "~/client/tasks/demo_2/internal/task_collections_list_box_create_collection_option.js";
-import {TaskCollectionsListBoxInstructionalPlaceholder} from "~/client/tasks/demo_2/internal/task_collections_list_box_instructional_placeholder.js";
-import {LocalTaskCollection, LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state.js";
+import {TaskCollectionsListBoxCreateCollectionOption} from "~/client/tasks/internal/task_collections_list_box_create_collection_option.js";
+import {TaskCollectionsListBoxInstructionalPlaceholder} from "~/client/tasks/internal/task_collections_list_box_instructional_placeholder.js";
 import {spacing} from "~/shared/design/spacing.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {generateId, isId} from "~/shared/id/id.js";
-import {LocalTaskCollectionId} from "~/shared/id/types/id_types.js";
-import {sprinkles} from "~/shared/styles/styles.js";
+import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {greyElevated2ClassName, sprinkles} from "~/shared/styles/styles.js";
 
 // Node.js ESM interop (#node-esm-migration)
 const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
 
 export function TaskLayoutTopBarCollectionsButton({
-    state,
     isCollectionsTabActive,
 }: {
-    state: LocalTasksState;
     isCollectionsTabActive: boolean;
 }) {
     const navigate = useNavigate();
     const {space} = useSpaceContext();
 
-    const allCollections = useMemo(
-        () =>
-            state.database
-                .getAllTaskCollections()
-                .sort((collection1, collection2) =>
-                    collection1.name.localeCompare(collection2.name),
-                ),
-        [state.database],
-    );
+    // NOCOMMIT
+    const allCollections = emptyArray;
 
     return (
         <OverlayTriggerButton
             aria-haspopup="listbox"
             overlay={({onCloseWithoutAnimation}) => (
                 <Box
+                    className={greyElevated2ClassName}
                     width="64"
                     maxHeight="96"
                     overflow="hidden"
                     borderRadius="md"
-                    // NOCOMMIT: Overlay colors changed
-                    backgroundColor={{light: "grey-0", dark: "grey-5"}}
+                    backgroundColor="grey-0"
                     boxShadow="elevation-20"
                     display="flex"
                     flexDirection="column"
@@ -118,8 +108,8 @@ type TaskLayoutTopBarCollectionsComboBoxItem =
 
 type TaskLayoutTopBarCollectionsComboBoxCollectionItem = {
     readonly type: "Collection";
-    readonly key: `Collection:${LocalTaskCollectionId}`;
-    readonly collection: LocalTaskCollection;
+    readonly key: `Collection:${TaskCollectionId}`;
+    // NOCOMMIT: readonly collection: LocalTaskCollection;
 };
 
 type TaskLayoutTopBarCollectionsComboBoxCreateCollectionItem = {
@@ -131,7 +121,8 @@ function TaskLayoutTopBarCollectionsComboBoxOverlay({
     allCollections,
     onCloseWithoutAnimation,
 }: {
-    allCollections: ReadonlyArray<LocalTaskCollection>;
+    // NOCOMMIT: This!
+    allCollections: ReadonlyArray<never>;
     onCloseWithoutAnimation: () => void;
 }) {
     const navigate = useNavigate();
@@ -198,7 +189,7 @@ function TaskLayoutTopBarCollectionsComboBoxOverlay({
 
             if (key.startsWith("Collection:")) {
                 const collectionId = key.slice("Collection:".length);
-                assert(isId<LocalTaskCollectionId>(collectionId));
+                assert(isId<TaskCollectionId>(collectionId));
 
                 setPendingKey(`Collection:${collectionId}`);
 

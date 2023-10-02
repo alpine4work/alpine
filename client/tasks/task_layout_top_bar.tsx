@@ -1,15 +1,12 @@
-// @ts-nocheck NOCOMMIT: This file will be refactored later
-
 import {CaretDown, Plus, User, UserPlus, Users} from "phosphor-react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {TaskLayoutTopBarCollectionsButton} from "~/client/tasks/demo_2/internal/task_layout_top_bar_collections_button.js";
-import {useLocalTasksState} from "~/client/tasks/demo_2/local_tasks_state.js";
-import {serializeTaskQuerySortsSearchParam} from "~/shared/tasks/task_query_sort.js";
+import {TaskLayoutTopBarCollectionsButton} from "~/client/tasks/internal/task_layout_top_bar_collections_button.js";
 import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
+import {serializeTaskQuerySortsSearchParam} from "~/shared/tasks/task_query_sort.js";
 
 export function TaskLayoutTopBar({
     isNotepadTabActive,
@@ -22,7 +19,6 @@ export function TaskLayoutTopBar({
 }) {
     const navigate = useNavigate();
     const {space} = useSpaceContext();
-    const [state] = useLocalTasksState();
 
     return (
         <Box
@@ -42,14 +38,11 @@ export function TaskLayoutTopBar({
                 height="6"
                 paddingX="2"
                 pressErrorTitle="Couldn’t open notepad"
-                onPress={() => navigate(`/s/${space.id}/tasks/demo-2`)}
+                onPress={() => navigate(`/s/${space.id}/tasks`)}
             >
                 Notepad
             </Button>
-            <TaskLayoutTopBarCollectionsButton
-                state={state}
-                isCollectionsTabActive={isCollectionsTabActive}
-            />
+            <TaskLayoutTopBarCollectionsButton isCollectionsTabActive={isCollectionsTabActive} />
             <MenuButton
                 width="64"
                 iconSize="4"
@@ -60,7 +53,7 @@ export function TaskLayoutTopBar({
                             icon: <Plus />,
                             pressErrorTitle: "Couldn’t create new view",
                             onPress: async () => {
-                                await navigate(`/s/${space.id}/tasks/demo-2/view`);
+                                await navigate(`/s/${space.id}/tasks/view`);
                             },
                         },
                     ],
@@ -82,13 +75,13 @@ export function TaskLayoutTopBar({
 
                                 const sortsSearchParam = serializeTaskQuerySortsSearchParam([
                                     {
-                                        type: "CreatedDate",
+                                        type: "CreatedTime",
                                         direction: "Descending",
                                     },
                                 ]);
 
                                 await navigate(
-                                    `/s/${space.id}/tasks/demo-2/view?filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
+                                    `/s/${space.id}/tasks/view?filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
                                 );
                             },
                         },
@@ -109,13 +102,13 @@ export function TaskLayoutTopBar({
 
                                 const sortsSearchParam = serializeTaskQuerySortsSearchParam([
                                     {
-                                        type: "CreatedDate",
+                                        type: "CreatedTime",
                                         direction: "Descending",
                                     },
                                 ]);
 
                                 await navigate(
-                                    `/s/${space.id}/tasks/demo-2/view?filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
+                                    `/s/${space.id}/tasks/view?filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
                                 );
                             },
                         },
@@ -136,13 +129,13 @@ export function TaskLayoutTopBar({
 
                                 const sortsSearchParam = serializeTaskQuerySortsSearchParam([
                                     {
-                                        type: "CreatedDate",
+                                        type: "CreatedTime",
                                         direction: "Descending",
                                     },
                                 ]);
 
                                 await navigate(
-                                    `/s/${space.id}/tasks/demo-2/view?filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
+                                    `/s/${space.id}/tasks/view?filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
                                 );
                             },
                         },
