@@ -30,6 +30,7 @@ import {useStableJsonValue} from "~/client/helpers/use_stable_json_value.js";
 import {RemLength, Spacing, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
@@ -136,6 +137,15 @@ export type OverlayProps = {
     sameHeight?: boolean;
 
     /**
+     * Does this overlay block interaction with everything else on the page? If
+     * true then we render in the root overlay boundary and render a cover
+     * across the entire DOM.
+     *
+     * Defaults to `false`.
+     */
+    isBlocking?: boolean;
+
+    /**
      * The element our overlay content will be rendered around. Must
      * provide a ref to an HTML element or we will throw an error.
      *
@@ -180,6 +190,7 @@ function Overlay(
         preventOverflow = true,
         sameWidth = false,
         sameHeight = false,
+        isBlocking = false,
         children,
         targetElement,
     }: OverlayProps,
@@ -210,15 +221,17 @@ function Overlay(
 
     const defaultTargetElementId = useId();
 
-    const [_portalElement, setPortalElement] = useState(overlaySink.portalRef.current);
+    const portalRef = isBlocking ? overlaySink.rootBlockingPortalRef : overlaySink.portalRef;
+
+    const [_portalElement, setPortalElement] = useState(portalRef.current);
     let portalElement = _portalElement;
 
     // If we are making the overlay visible and we initially read the portal ref as
     // `null` but not the portal ref has a value, update our state without waiting
     // for an effect.
-    if (isVisible && portalElement === null && overlaySink.portalRef.current !== null) {
-        portalElement = overlaySink.portalRef.current;
-        setPortalElement(overlaySink.portalRef.current);
+    if (isVisible && portalElement === null && portalRef.current !== null) {
+        portalElement = portalRef.current;
+        setPortalElement(portalRef.current);
     }
 
     // If this component is rendered at the same time as our
@@ -230,8 +243,8 @@ function Overlay(
     // effect here to prevent flashes.
     useEffect(() => {
         if (!isVisible) return;
-        setPortalElement(overlaySink.portalRef.current);
-    }, [isVisible, overlaySink.portalRef]);
+        setPortalElement(portalRef.current);
+    }, [isVisible, portalRef]);
 
     const targetLifecycleRef = useCallback(
         (targetElement: HTMLElement) => {
@@ -432,7 +445,28 @@ function Overlay(
                 portalElement &&
                 // This intentionally comes before `children` so that React executes
                 // `overlayRef` before `targetRef`.
-                createPortal(overlay, portalElement)}
+                createPortal(
+                    !isBlocking ? (
+                        overlay
+                    ) : (
+                        // If a blocking overlay itself renders overlays then those need to go in the
+                        // blocking overlay portal element.
+                        <BlockingOverlayScopeContextProvider>
+                            {overlay}
+                        </BlockingOverlayScopeContextProvider>
+                    ),
+                    portalElement,
+                )}
+            {isVisible &&
+                isBlocking &&
+                portalElement &&
+                // When we have a blocking overlay add a cover to the document to prevent
+                // scrolling, hover effects, and any other interaction while the context menu
+                // is open. Renders at z-index 60 to be below the blocking overlay container.
+                createPortal(
+                    <Box position="absolute" inset="0" zIndex="60" />,
+                    assertExists(portalElement.parentElement),
+                )}
             {useElementWithRef(children, useLifecycleRef(targetLifecycleRef))}
         </>
     );
@@ -440,6 +474,7 @@ function Overlay(
 
 const OverlaySinkContext = createContext<{
     rootPortalRef: RefObject<HTMLDivElement>;
+    rootBlockingPortalRef: RefObject<HTMLDivElement>;
     portalRef: RefObject<HTMLDivElement>;
 } | null>(null);
 
@@ -450,24 +485,21 @@ const OverlaySinkContext = createContext<{
  * That way the overlays naturally scroll with the element and can't render
  * outside the element.
  */
-export function OverlayScopeContextProvider({
-    children,
-    zIndex = "50",
-}: {
-    children: ReactNode;
-    zIndex?: "50" | "60" | "70";
-}) {
+export function OverlayScopeContextProvider({children}: {children: ReactNode}) {
     const parentOverlaySink = useContext(OverlaySinkContext);
     const portalRef = useRef<HTMLDivElement>(null);
+    const blockingPortalRef = useRef<HTMLDivElement>(null);
 
     return (
         <OverlaySinkContext.Provider
             value={useMemo(
                 () => ({
                     rootPortalRef: parentOverlaySink?.rootPortalRef ?? portalRef,
+                    rootBlockingPortalRef:
+                        parentOverlaySink?.rootBlockingPortalRef ?? blockingPortalRef,
                     portalRef,
                 }),
-                [parentOverlaySink?.rootPortalRef],
+                [parentOverlaySink],
             )}
         >
             {children}
@@ -479,11 +511,47 @@ export function OverlayScopeContextProvider({
                 right="0"
                 // The root portal element has a height of 0 because when you use it in a
                 // nested scroll view we don't want the overlay height to extend from the top
-                // to the bottom of the nested scroll view.
+                // to the bottom of the nested scroll view which is not the scroll view's
+                // content height.
                 height="0"
                 // Render above anything on the page.
-                zIndex={zIndex}
+                zIndex="50"
             />
+            {!parentOverlaySink && (
+                <Box
+                    ref={blockingPortalRef}
+                    position="absolute"
+                    top="0"
+                    left="0"
+                    right="0"
+                    // The root portal element has a height of 0 because when you use it in a
+                    // nested scroll view we don't want the overlay height to extend from the top
+                    // to the bottom of the nested scroll view which is not the scroll view's
+                    // content height.
+                    height="0"
+                    // Render at the absolute top of the page. Even over other overlays.
+                    zIndex="70"
+                />
+            )}
+        </OverlaySinkContext.Provider>
+    );
+}
+
+function BlockingOverlayScopeContextProvider({children}: {children: ReactNode}) {
+    const parentOverlaySink = assertExists(useContext(OverlaySinkContext));
+
+    return (
+        <OverlaySinkContext.Provider
+            value={useMemo(
+                () => ({
+                    rootPortalRef: parentOverlaySink.rootBlockingPortalRef,
+                    rootBlockingPortalRef: parentOverlaySink.rootBlockingPortalRef,
+                    portalRef: parentOverlaySink.rootBlockingPortalRef,
+                }),
+                [parentOverlaySink],
+            )}
+        >
+            {children}
         </OverlaySinkContext.Provider>
     );
 }
@@ -506,12 +574,30 @@ const overlaySinkContextForTest = import.meta.jest
               zIndex: "50",
           });
 
+          const blockingPortalElement = document.createElement("div");
+
+          blockingPortalElement.className = sprinkles({
+              position: "absolute",
+              top: "0",
+              left: "0",
+              right: "0",
+              // The root portal element has a height of 0 because when you use it in a
+              // nested scroll view we don't want the overlay height to extend from the top
+              // to the bottom of the nested scroll view.
+              height: "0",
+              // Render above anything on the page.
+              zIndex: "70",
+          });
+
           document.body.appendChild(portalElement);
+          document.body.appendChild(blockingPortalElement);
 
           const portalRef = {current: portalElement};
+          const blockingPortalRef = {current: blockingPortalElement};
 
           return {
               rootPortalRef: portalRef,
+              rootBlockingPortalRef: blockingPortalRef,
               portalRef,
           };
       })()

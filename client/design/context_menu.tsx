@@ -239,60 +239,51 @@ export function ContextMenuManager() {
     return (
         <>
             {createPortal(
-                <OverlayScopeContextProvider
-                    // Position above our other overlays.
-                    zIndex="70"
+                <OverlayAnimated
+                    isBlocking={true}
+                    isVisible={contextMenuState.isOpen}
+                    placement="bottom-start"
+                    disableAnimationIn={true}
+                    disableAnimationOut={
+                        !contextMenuState.isOpen && !contextMenuState.shouldAnimateOut
+                    }
+                    overlay={
+                        <ContextMenu
+                            actions={instance.actions}
+                            focusedMenuItemIndex={instance.focusedMenuItemIndex}
+                            onFocusedMenuItemIndexChange={focusedMenuItemIndex => {
+                                setContextMenuState(contextMenuState => {
+                                    if (!contextMenuState.isOpen) return contextMenuState;
+                                    return {
+                                        ...contextMenuState,
+                                        instance: {
+                                            ...contextMenuState.instance,
+                                            focusedMenuItemIndex,
+                                        },
+                                    };
+                                });
+                            }}
+                            onCloseWithAnimation={() => {
+                                setContextMenuState({
+                                    isOpen: false,
+                                    shouldAnimateOut: true,
+                                    lastInstance: instance,
+                                });
+                            }}
+                            onCloseWithoutAnimation={() => {
+                                setContextMenuState({
+                                    isOpen: false,
+                                    shouldAnimateOut: false,
+                                    lastInstance: instance,
+                                });
+                            }}
+                        />
+                    }
                 >
-                    <OverlayAnimated
-                        isVisible={contextMenuState.isOpen}
-                        placement="bottom-start"
-                        disableAnimationIn={true}
-                        disableAnimationOut={
-                            !contextMenuState.isOpen && !contextMenuState.shouldAnimateOut
-                        }
-                        overlay={
-                            <ContextMenu
-                                actions={instance.actions}
-                                focusedMenuItemIndex={instance.focusedMenuItemIndex}
-                                onFocusedMenuItemIndexChange={focusedMenuItemIndex => {
-                                    setContextMenuState(contextMenuState => {
-                                        if (!contextMenuState.isOpen) return contextMenuState;
-                                        return {
-                                            ...contextMenuState,
-                                            instance: {
-                                                ...contextMenuState.instance,
-                                                focusedMenuItemIndex,
-                                            },
-                                        };
-                                    });
-                                }}
-                                onCloseWithAnimation={() => {
-                                    setContextMenuState({
-                                        isOpen: false,
-                                        shouldAnimateOut: true,
-                                        lastInstance: instance,
-                                    });
-                                }}
-                                onCloseWithoutAnimation={() => {
-                                    setContextMenuState({
-                                        isOpen: false,
-                                        shouldAnimateOut: false,
-                                        lastInstance: instance,
-                                    });
-                                }}
-                            />
-                        }
-                    >
-                        <Box position="absolute" style={{left: instance.x, top: instance.y}} />
-                    </OverlayAnimated>
-                </OverlayScopeContextProvider>,
+                    <Box position="absolute" style={{left: instance.x, top: instance.y}} />
+                </OverlayAnimated>,
                 document.body,
             )}
-            {contextMenuState.isOpen &&
-                // Add a cover to the document to prevent scrolling and hover effects while the
-                // context menu is open. Should render over all overlays except the current open
-                // menu.
-                createPortal(<Box position="absolute" inset="0" zIndex="60" />, document.body)}
             {shouldShowPasteWarningDialog && (
                 <ModalDialog
                     title={`Can only paste with ${isMac ? "⌘+V" : "Ctrl+V"}`}
@@ -533,11 +524,15 @@ const ContextMenu = forwardRef(function ContextMenu(
                     event.key === "Control" ||
                     event.key === "Shift"
                 ) {
+                    event.preventDefault();
+                    event.stopPropagation();
                     return;
                 }
 
                 // Close our context menu after any unrecognized keypress.
-                onCloseWithoutAnimation();
+                event.preventDefault();
+                event.stopPropagation();
+                onCloseWithAnimation();
                 return;
             }
         }

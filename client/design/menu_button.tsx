@@ -21,7 +21,7 @@ import {
     OverlayTriggerButton,
     OverlayTriggerButtonChildrenProps,
     OverlayTriggerButtonState,
-} from "~/client/design/overlay_trigger.js";
+} from "~/client/design/overlay_trigger_button.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {Tooltip, defaultTooltipOffset} from "~/client/design/tooltip.js";

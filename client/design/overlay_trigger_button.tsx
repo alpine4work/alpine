@@ -33,6 +33,7 @@ import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {Spacing} from "~/shared/design/spacing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {overlayFadeOutAnimationDurationMs} from "~/shared/styles/styles.js";
 
@@ -415,6 +416,9 @@ export function OverlayTriggerButton({
 
     return (
         <OverlayAnimated
+            // Menus opened with `<OverlayTriggerButton>` block you from interacting with
+            // content below the overlay.
+            isBlocking={true}
             isVisible={state.isExpanded}
             placement={placement}
             offset={offset}
@@ -441,6 +445,8 @@ export function OverlayTriggerButton({
         </OverlayAnimated>
     );
 }
+
+let isReDispatchingKeyboardEvent = false;
 
 const OverlayTriggerOverlay = forwardRef(function OverlayTriggerOverlay(
     {
@@ -501,41 +507,94 @@ const OverlayTriggerOverlay = forwardRef(function OverlayTriggerOverlay(
     // application.
     useShouldDisableTooltips();
 
+    // Our overlay opened by an overlay trigger blocks all other UI on the page
+    // with the `isBlocking` prop on `<Overlay>`. It should consume all keyboard
+    // events as well.
+    //
+    // If we can't handle a key event, we dispatch call `dispatchEvent()` on our
+    // overlay element so it can handle the event.
+    const handleGlobalKeyDown = useEvent((event: KeyboardEvent) => {
+        // If we're re-dispatching a `keydown` event then don't run our handler again.
+        if (isReDispatchingKeyboardEvent) return;
+
+        switch (event.key) {
+            // Close the menu that contains focus and return focus to the element
+            // or context, e.g., menu button, from which the menu was opened.
+            //
+            // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
+            case "Escape": {
+                event.preventDefault();
+                event.stopPropagation();
+                onClose({returnFocusTo: "TriggerElement"});
+                return;
+            }
+            // Moves focus to the next (or previous) element in the tab sequence,
+            // and closes its `menu` and all open parent menu containers.
+            //
+            // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
+            case "Tab": {
+                event.preventDefault();
+                event.stopPropagation();
+                onClose({
+                    returnFocusTo: event.shiftKey ? "PreviousElement" : "NextElement",
+                });
+                return;
+            }
+
+            default: {
+                event.preventDefault();
+                event.stopPropagation();
+
+                // Allow our overlay element to handle the keyboard event but don't let anyone
+                // else handle keyboard events. If the overlay element doesn't handle the
+                // keyboard event then we close the overlay.
+                const overlayElement = assertExists(overlayRef.current);
+                isReDispatchingKeyboardEvent = true;
+                try {
+                    const newEvent = new KeyboardEvent("keydown", event);
+
+                    // If focus is within the overlay then dispatch the keyboard event from the
+                    // focused element. Otherwise dispatch it from the overlay root.
+                    (document.activeElement && overlayElement.contains(document.activeElement)
+                        ? document.activeElement
+                        : overlayElement
+                    ).dispatchEvent(newEvent);
+
+                    if (newEvent.defaultPrevented) break;
+                } finally {
+                    isReDispatchingKeyboardEvent = false;
+                }
+
+                // Ignore modifier keys since the user may be starting a keyboard shortcut and
+                // they need to see the context menu for the keyboard shortcut hint.
+                if (
+                    event.key === "Meta" ||
+                    event.key === "Alt" ||
+                    event.key === "Control" ||
+                    event.key === "Shift"
+                ) {
+                    return;
+                }
+
+                // Close our context menu after any unrecognized keypress.
+                onClose();
+                return;
+            }
+        }
+    });
+
+    useEffect(() => {
+        document.addEventListener("keydown", handleGlobalKeyDown, {capture: true});
+        return () => {
+            document.removeEventListener("keydown", handleGlobalKeyDown, {capture: true});
+        };
+    }, [handleGlobalKeyDown]);
+
     return (
         // While tooltips are disabled outside our overlay, we still want to allow
         // tooltips within our overlay.
         <TooltipCoordinationContextProvider>
-            <div
-                ref={ref}
-                onKeyDown={event => {
-                    switch (event.key) {
-                        // Close the menu that contains focus and return focus to the element
-                        // or context, e.g., menu button, from which the menu was opened.
-                        //
-                        // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
-                        case "Escape": {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            onClose({returnFocusTo: "TriggerElement"});
-                            return;
-                        }
-                        // Moves focus to the next (or previous) element in the tab sequence,
-                        // and closes its `menu` and all open parent menu containers.
-                        //
-                        // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
-                        case "Tab": {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            onClose({
-                                returnFocusTo: event.shiftKey ? "PreviousElement" : "NextElement",
-                            });
-                            return;
-                        }
-                    }
-                }}
-            >
-                {useElementWithRef(overlay, overlayRef)}
-            </div>
+            <div ref={ref}>{useElementWithRef(overlay, overlayRef)}</div>
         </TooltipCoordinationContextProvider>
     );
 });

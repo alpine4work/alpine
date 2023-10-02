@@ -15,7 +15,7 @@ import {ComboBoxState, Item, useSingleSelectListState} from "react-stately";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {OverlayTriggerButton} from "~/client/design/overlay_trigger.js";
+import {OverlayTriggerButton} from "~/client/design/overlay_trigger_button.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
