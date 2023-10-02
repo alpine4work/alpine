@@ -186,7 +186,7 @@ export function useDevConsoleSettingsObject<Config extends UnknownDevConsoleSett
 
 function readSessionStorage<T>(key: string, schema: Schema<T>, defaultValue: T): T {
     try {
-        const item = sessionStorage.getItem(`cyberworldsDevConsole.${key}`);
+        const item = sessionStorage.getItem(`cyberworlds/devConsole/${key}`);
         if (!item) return defaultValue;
         return schema.deserialize(JSON.parse(item));
     } catch {
@@ -196,13 +196,13 @@ function readSessionStorage<T>(key: string, schema: Schema<T>, defaultValue: T):
 
 function writeSessionStorage<T>(key: string, schema: Schema<T>, newValue: T) {
     sessionStorage.setItem(
-        `cyberworldsDevConsole.${key}`,
+        `cyberworlds/devConsole/${key}`,
         JSON.stringify(schema.serialize(newValue)),
     );
 }
 
 function clearSessionStoragePrefix(keyToFind: string) {
-    const prefix = `cyberworldsDevConsole.${keyToFind}`;
+    const prefix = `cyberworlds/devConsole/${keyToFind}`;
     const keysToClear = [];
     for (let i = 0; i < sessionStorage.length; i++) {
         const key = sessionStorage.key(i);

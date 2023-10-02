@@ -1605,12 +1605,12 @@ const PeekStackStorageSchema = Schema.object({
 
 function storePeekStack(locationKey: string, stack: ReadonlyArray<PeekStackEntry>) {
     if (stack.length === 0) {
-        sessionStorage.removeItem(`location/${locationKey}/peekStack`);
+        sessionStorage.removeItem(`cyberworlds/location/${locationKey}/peekStack`);
         return;
     }
 
     sessionStorage.setItem(
-        `location/${locationKey}/peekStack`,
+        `cyberworlds/location/${locationKey}/peekStack`,
         JSON.stringify(
             PeekStackStorageSchema.serialize({
                 stack: stack.map(entry => ({
@@ -1639,7 +1639,7 @@ function restorePeekStack(
     abortController: AbortController;
     stack: Array<PeekStackEntry>;
 } | null {
-    const stateString = sessionStorage.getItem(`location/${locationKey}/peekStack`);
+    const stateString = sessionStorage.getItem(`cyberworlds/location/${locationKey}/peekStack`);
     if (stateString === null) return null;
 
     let state;

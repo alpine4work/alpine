@@ -48,8 +48,10 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {stringifyForDeepEqualCheck} from "~/shared/helpers/control/stringify_for_deep_equal_check.js";
+import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
+import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
@@ -79,6 +81,10 @@ import {
     TaskCollectionAccessPolicyRegister,
     hasTaskCollectionAccessLevel,
 } from "~/shared/tasks/task_collection_access_policy.js";
+import {
+    addTaskToCollectionAffinityPoints,
+    createTaskCollectionAffinityPoints,
+} from "~/shared/tasks/task_collection_affinity_constants.js";
 import {TaskCollectionColorRegister} from "~/shared/tasks/task_collection_color.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {
@@ -207,6 +213,46 @@ const TaskTable = DynamoTableSchema.new({
                     sortKeyAttributes: {},
                     attributes: Schema.object({
                         pageIds: TaskNotepadPageIdCompressedSetSchema,
+                    }),
+                },
+
+                /**
+                 * The collection affinity system helps us know what collections are most
+                 * important to an account. When an account takes actions against a collection
+                 * they add points to their affinity score for that collection. We apply an
+                 * [exponential decay][1] function to the account's affinity score. If they
+                 * stop interacting with one collection and start interacting with another then
+                 * the new collection should have a higher affinity score. We round scores of
+                 * less than <0.05 to zero. That gives 1 point 3 months (a quarter) to decay.
+                 * When a score reaches zero it's expired and we can remove it from our table
+                 * to save storage space.
+                 *
+                 * This system is definitely more art than science and should be tweaked over
+                 * time. Eventually we also want an account affinity score (so we know who an
+                 * account's "friends" are) and affinity scores for all kinds of other things.
+                 * We prioritized affinity scores for collections because we anticipate many
+                 * collections will be created in a space and we need a way to make them
+                 * manageable.
+                 *
+                 * [1]: https://en.wikipedia.org/wiki/Exponential_decay#Natural_sciences
+                 */
+                {
+                    name: "TaskCollectionAffinity",
+                    sortKeyAttributes: {
+                        collectionId: DynamoKeyAttributeSchema.id<TaskCollectionId>(),
+                    },
+                    withExpirationTime: "Required",
+                    attributes: Schema.object({
+                        /**
+                         * The number of affinity points this account has.
+                         */
+                        points: Schema.float,
+
+                        /**
+                         * The last time we updated `points`. Used to determine how much decay we need
+                         * to apply to `points`.
+                         */
+                        lastUpdatedTime: Schema.integer,
                     }),
                 },
             ],
@@ -606,6 +652,47 @@ export function commitTaskActionTransaction(
         }
 
         afterCommitTaskActionTransaction(context, actionTransactionItem);
+
+        // Update relevant affinity scores.
+        //
+        // Unlike `afterCommitTaskActionTransaction()` the updates we make here are not
+        // idempotent. It's also not essential that we make these updates. If the
+        // process crashes it doesn't really matter to users that affinity scores don't
+        // update. Whereas it's critical we eventually index actions in OpenSearch.
+        {
+            const addAffinityPointsByCollectionId = new Map<TaskCollectionId, number>();
+
+            for (const action of actions) {
+                if (action.type === "UpdateTask" && action.taskAction.type === "AddCollection") {
+                    addAffinityPointsByCollectionId.set(
+                        action.taskAction.collectionId,
+                        (addAffinityPointsByCollectionId.get(action.taskAction.collectionId) ?? 0) +
+                            addTaskToCollectionAffinityPoints,
+                    );
+                }
+
+                if (
+                    action.type === "UpdateCollection" &&
+                    action.collectionAction.type === "Create"
+                ) {
+                    addAffinityPointsByCollectionId.set(
+                        action.collectionId,
+                        (addAffinityPointsByCollectionId.get(action.collectionId) ?? 0) +
+                            createTaskCollectionAffinityPoints,
+                    );
+                }
+            }
+
+            for (const [collectionId, addAffinityPoints] of addAffinityPointsByCollectionId) {
+                context.process.waitUntil(
+                    addTaskCollectionAffinityPoints(context, {
+                        spaceId,
+                        collectionId,
+                        points: addAffinityPoints,
+                    }),
+                );
+            }
+        }
 
         return {extraActions};
     });
@@ -3896,6 +3983,23 @@ export async function getTaskGridViewExpansionState(
     return item?.state ?? null;
 }
 
+function createTaskCollectionModelFromItem(collectionItem: TaskCollectionEssentialAttributesItem) {
+    return {
+        openTaskCount: collectionItem.openTaskCount,
+        lastTaskAddedTime: collectionItem.lastTaskAddedTime,
+        collection: new TaskCollectionModel({
+            id: collectionItem.collectionId,
+            spaceId: collectionItem.spaceId,
+            createdTime: collectionItem.createdTime,
+            deletedTime: collectionItem.rawDeletedTime,
+            undeletedTime: collectionItem.rawUndeletedTime,
+            name: collectionItem.name,
+            color: collectionItem.color,
+            accessPolicy: collectionItem.accessPolicy,
+        }),
+    };
+}
+
 /**
  * Assembles the result objects for `searchTaskCollectionIndex()`. Our
  * collection index doesn't have access to all the data we need to return
@@ -3940,20 +4044,206 @@ export async function assembleTaskCollectionIndexSearchResults(
 
     return filterMapArray(collectionItems, collectionItem => {
         if (!collectionItem) return null;
-
-        return {
-            openTaskCount: collectionItem.openTaskCount,
-            lastTaskAddedTime: collectionItem.lastTaskAddedTime,
-            collection: new TaskCollectionModel({
-                id: collectionItem.collectionId,
-                spaceId: collectionItem.spaceId,
-                createdTime: collectionItem.createdTime,
-                deletedTime: collectionItem.rawDeletedTime,
-                undeletedTime: collectionItem.rawUndeletedTime,
-                name: collectionItem.name,
-                color: collectionItem.color,
-                accessPolicy: collectionItem.accessPolicy,
-            }),
-        };
+        return createTaskCollectionModelFromItem(collectionItem);
     });
+}
+
+/**
+ * Add some points to an account's affinity score for a task collection. 1
+ * point will decay to 0 after 3 months (more accurately, 90 days).
+ *
+ * We have constants for how many points correspond to which actions in
+ * `task_collection_affinity_constants.ts`.
+ */
+export async function addTaskCollectionAffinityPoints(
+    context: ServerSessionActionContext,
+    {
+        spaceId,
+        collectionId,
+        points,
+    }: {
+        spaceId: SpaceId;
+        collectionId: TaskCollectionId;
+        points: number;
+    },
+) {
+    if (points <= 0.05) throw new InvalidArgumentError("Invalid points");
+
+    // We don't authorize whether the actor has access to the collection since
+    // it's efficient. Since this is a personal score it doesn't really matter
+    // if the user gives themselves affinity points to a collection they don't have
+    // access to.
+
+    const currentTime = Date.now();
+
+    await TaskTable.updateItem(
+        context,
+        {
+            partitionType: "Account",
+            sortRangeType: "TaskCollectionAffinity",
+            spaceId,
+            accountId: context.actor.getAccountId(),
+            collectionId,
+        },
+        affinityItem => {
+            let newPoints = affinityItem
+                ? getCurrentTaskCollectionAccountAffinityPoints(currentTime, affinityItem)
+                : 0;
+
+            newPoints += points;
+
+            const expirationDuration = Math.ceil(
+                getTaskCollectionAccountAffinityExpirationDuration(newPoints),
+            );
+            const expirationTime = new Date(currentTime + expirationDuration);
+
+            return {
+                ...affinityItem,
+                partitionType: "Account",
+                sortRangeType: "TaskCollectionAffinity",
+                spaceId,
+                accountId: context.actor.getAccountId(),
+                collectionId,
+                points: newPoints,
+                lastUpdatedTime: currentTime,
+                expirationTime,
+            };
+        },
+    );
+}
+
+/**
+ * Get the collections our session actor has the highest affinity score with.
+ * If the user has never interacted with any collections or all their
+ * collection affinity scores have expired then this will return an empty
+ * array.
+ *
+ * Affinitive is the adjective form of "affinity". I learned this from ChatGPT,
+ * thanks! (Though ChatGPT did warn me that affinitive is an uncommon word
+ * people may not be familiar with.)
+ */
+export async function getAffinitiveTaskCollections(
+    context: ServerSessionActionContext,
+    {spaceId, limit}: {spaceId: SpaceId; limit: number},
+): Promise<
+    Array<{
+        openTaskCount: number;
+        lastTaskAddedTime: HybridLogicalTime | null;
+        collection: TaskCollectionModel;
+    }>
+> {
+    const currentTime = Date.now();
+
+    // We hope the number of collections a user reasonably interacts with over
+    // three months is reasonably low (less than 1000). Then it makes sense to
+    // query all their collection affinities and sort them in memory.
+    //
+    // If we find some users with too many affinities then we can delete their
+    // lowest affinities.
+    const affinityItems = await arrayFromAsyncIterable(
+        mapAsyncIterableIterator(
+            TaskTable.query(context, {
+                partitionKey: {
+                    partitionType: "Account",
+                    spaceId,
+                    accountId: context.actor.getAccountId(),
+                },
+                startSortKey: {
+                    sortRangeType: "TaskCollectionAffinity",
+                    collectionId: DynamoKeyAttributeSchema.id.getMinValue<TaskCollectionId>(),
+                },
+                endSortKey: {
+                    sortRangeType: "TaskCollectionAffinity",
+                    collectionId: DynamoKeyAttributeSchema.id.getMaxValue<TaskCollectionId>(),
+                },
+                limit: "All",
+            }),
+            affinityItem => ({
+                collectionId: affinityItem.collectionId,
+                points: getCurrentTaskCollectionAccountAffinityPoints(currentTime, affinityItem),
+            }),
+        ),
+    );
+
+    affinityItems.sort(
+        (affinityItem1, affinityItem2) => affinityItem2.points - affinityItem1.points,
+    );
+
+    let startAffinityItemIndex = 0;
+    const collections = [];
+
+    // Take a slice of length `limit` from our affinity items and fetch those
+    // collections. If some of the collections the account no longer has access to
+    // then we want to fetch some more collections from our affinity items until
+    // we've satisfied `limit`.
+    while (collections.length < limit && startAffinityItemIndex < affinityItems.length) {
+        const affinityItemsSlice = affinityItems.slice(
+            startAffinityItemIndex,
+            startAffinityItemIndex + (limit - collections.length),
+        );
+        startAffinityItemIndex += limit - collections.length;
+
+        const collectionItems = await runAllPromises(
+            affinityItemsSlice.map(async ({collectionId}) => {
+                const collectionItem = await TaskTable.getItemIfExists(context, {
+                    partitionType: "TaskCollection",
+                    sortRangeType: "EssentialAttributes",
+                    collectionId,
+                });
+                if (!collectionItem) return null;
+
+                // We need to double check that we have access to this collection. Since
+                // affinity scores might be out of date.
+                const hasAccess = await isTaskCollectionItemAccessAuthorized(
+                    context,
+                    context.actor.getAccountId(),
+                    collectionItem,
+                    "View",
+                );
+
+                if (!hasAccess) return null;
+                return collectionItem;
+            }),
+        );
+
+        for (const collectionItem of collectionItems) {
+            if (!collectionItem) continue;
+            collections.push(createTaskCollectionModelFromItem(collectionItem));
+        }
+    }
+
+    return collections;
+}
+
+/**
+ * Apply our exponential decay function to figure out how many affinity points
+ * we currently have.
+ *
+ * Our function is `f(t) = e^-t` where `t` is measured in months. This function
+ * will decay 1 point to 0.05 (which we round down to 0) in 3 months.
+ */
+export function getCurrentTaskCollectionAccountAffinityPoints(
+    currentTime: number,
+    {points, lastUpdatedTime}: {points: number; lastUpdatedTime: number},
+): number {
+    // 30 days (~1 month) in milliseconds
+    const monthTime = 1000 * 60 * 60 * 24 * 30;
+
+    const elapsedTime = currentTime - lastUpdatedTime;
+
+    return points * Math.exp(-(elapsedTime / monthTime));
+}
+
+/**
+ * Return the time in milliseconds for `points` to decay to 0.05 (which we
+ * round down to 0). We set an expiration time on our item with this number.
+ */
+export function getTaskCollectionAccountAffinityExpirationDuration(points: number): number {
+    // Any number less than this is negative.
+    assert(points > 0.05);
+
+    // 30 days (~1 month) in milliseconds
+    const monthTime = 1000 * 60 * 60 * 24 * 30;
+
+    return Math.log(points / 0.05) * monthTime;
 }

@@ -1,10 +1,13 @@
 import {useEffect} from "react";
 import {useParams} from "react-router";
 import {useSearchParams} from "react-router-dom";
+import {useAppContext} from "~/client/context/app_context.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
+import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {
     TaskCollectionView,
     newTaskCollectionNamePlaceholder,
@@ -22,10 +25,15 @@ import {
 } from "~/server/tasks/data/task_table.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
+import {MonotonicClock} from "~/shared/helpers/clock/monotonic_clock.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
 import {BrowserId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {addTaskCollectionAffinityPoints} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {Schema, SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
+import {taskCollectionAffinityPointsPer5MinOfViewingTime} from "~/shared/tasks/task_collection_affinity_constants.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {
     TaskQueryNormalizedFilters,
@@ -265,6 +273,8 @@ function TaskCollectionRouteInner({collectionId}: {collectionId: TaskCollectionI
         }
     }, [collectionSubscription]);
 
+    useAddTaskCollectionViewingTimeAffinityPoints(collectionSubscription);
+
     return (
         <TaskCollectionView
             store={store}
@@ -283,4 +293,97 @@ function TaskCollectionRouteInner({collectionId}: {collectionId: TaskCollectionI
             }}
         />
     );
+}
+
+function useAddTaskCollectionViewingTimeAffinityPoints(
+    collectionSubscription: TaskClientCollectionSubscription | undefined,
+) {
+    const context = useAppContext();
+    const {space} = useSpaceContext();
+
+    // Every 5min while our collection route is visible we add to the collection's
+    // affinity score. We don't add to the affinity scores while the page is
+    // hidden. We resume if the user reopens the page.
+    useEffect(() => {
+        if (!collectionSubscription) return;
+        const {collectionId} = collectionSubscription;
+
+        const clock = new MonotonicClock(unsynchronizedSystemClock);
+
+        let state: {
+            timeout: Timeout;
+            lastUpdatedTime: number;
+        } | null = null;
+
+        const update = () => {
+            const currentTime = clock.now();
+
+            // Stop our affinity update loop:
+            if (document.visibilityState !== "visible" && state) {
+                sessionStorage.setItem(
+                    `cyberworlds/taskCollectionDurationSinceLastUpdate/${collectionId}`,
+                    JSON.stringify(currentTime - state.lastUpdatedTime),
+                );
+                state.timeout.clear();
+                state = null;
+            }
+
+            // Start our affinity update loop:
+            if (document.visibilityState === "visible" && !state) {
+                const durationSinceLastUpdate = JSON.parse(
+                    sessionStorage.getItem(
+                        `cyberworlds/taskCollectionDurationSinceLastUpdate/${collectionId}`,
+                    ) ?? "0",
+                );
+
+                const updateIntervalDuration = 1000 * 60 * 5; // 5min
+
+                let updateCount = 0;
+                const maxUpdateCount = 12;
+
+                const updateLoop = () => {
+                    // If this errs it will show up in our telemetry but we don't care about
+                    // it here.
+                    void addTaskCollectionAffinityPoints(context, {
+                        spaceId: space.id,
+                        collectionId,
+                        points: taskCollectionAffinityPointsPer5MinOfViewingTime,
+                    });
+
+                    // Stop loop after we hit a max number of updates (1hr) to defend against the
+                    // user leaving their computer open and unattended for a long time. If the user
+                    // is continuously interacting with the page then we'll continue adding points.
+                    updateCount++;
+                    if (updateCount >= maxUpdateCount) return;
+
+                    state = {
+                        lastUpdatedTime: currentTime,
+                        timeout: createTimeout(updateLoop, updateIntervalDuration),
+                    };
+                };
+
+                if (
+                    durationSinceLastUpdate <= 0 ||
+                    updateIntervalDuration - durationSinceLastUpdate <= 0
+                ) {
+                    updateLoop();
+                } else {
+                    state = {
+                        lastUpdatedTime: currentTime - durationSinceLastUpdate,
+                        timeout: createTimeout(
+                            updateLoop,
+                            updateIntervalDuration - durationSinceLastUpdate,
+                        ),
+                    };
+                }
+            }
+        };
+
+        update();
+
+        document.addEventListener("visibilitychange", update);
+        return () => {
+            document.removeEventListener("visibilitychange", update);
+        };
+    }, [collectionSubscription, context, space.id]);
 }

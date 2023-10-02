@@ -1,6 +1,6 @@
 import {Memo, ReactNode, createContext, useContext, useMemo} from "react";
-import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
+import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {InternalError} from "~/shared/error/error.js";
 import {MyAccountEvent, MyAccountProtocol} from "~/shared/notifications/my_account_protocol.js";
@@ -55,7 +55,10 @@ export function SpaceContextProvider({
         `/api/durable-objects/my-account/${currentAccount.id}`,
     );
 
-    useDevConsoleTool("myAccount", () => ({toggleShouldConnect}));
+    useDevConsoleTool("myAccount", () => ({
+        id: currentAccount.id,
+        toggleShouldConnect,
+    }));
 
     return (
         <SpaceContext.Provider

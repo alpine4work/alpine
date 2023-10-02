@@ -2,7 +2,7 @@ import {AccountModel} from "~/shared/accounts/account_model.js";
 import {ContentReferencedIdsSchema} from "~/shared/content/content_referenced_ids.js";
 import {ContentReferencesSchema} from "~/shared/content/content_references.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {BrowserId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {BrowserId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -102,4 +102,14 @@ export const authorizeTaskAccess = defineRpc({
             Schema.object({ok: Schema.value(false), error: ErrorSchema}),
         ),
     },
+});
+
+export const addTaskCollectionAffinityPoints = defineRpc({
+    name: "addTaskCollectionAffinityPoints",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        collectionId: Schema.id<TaskCollectionId>(),
+        points: Schema.float,
+    },
+    output: {},
 });

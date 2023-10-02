@@ -2,6 +2,7 @@ import {getContentReferences} from "~/server/content/get_content_references.js";
 import {implementRpc} from "~/server/rpc/internal/implement_rpc.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
 import {
+    addTaskCollectionAffinityPoints,
     authorizeTaskAccess,
     commitTaskActionTransaction,
     deleteTaskAndAllChildren,
@@ -119,5 +120,17 @@ implementRpc(
             spaceId,
             editResult,
         };
+    },
+);
+
+implementRpc(
+    definition.addTaskCollectionAffinityPoints,
+    {visibility: ["AppClient"]},
+    async (_context, input) => {
+        const context = _context.actor.authorizeSession();
+
+        await addTaskCollectionAffinityPoints(context, input);
+
+        return {};
     },
 );
