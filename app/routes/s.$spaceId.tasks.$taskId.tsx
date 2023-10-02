@@ -27,15 +27,15 @@ import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_f
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 
 const LoaderSchema = Schema.object({
-    initialTitleText: Schema.string,
+    initialMetaTitleText: Schema.string,
     childrenGridViewExpansionState: TaskGridViewExpansionStateSchema,
     initialBottomGhostTaskId: Schema.id<TaskId>(),
     notesVersion: Schema.integer,
     notesContent: TaskNotesContentWithReferencesSchema,
 });
 
-export const meta = createMetaFunction(LoaderSchema, ({data: {initialTitleText}}) => [
-    {title: addFallbackToTaskTitle(initialTitleText)},
+export const meta = createMetaFunction(LoaderSchema, ({data: {initialMetaTitleText}}) => [
+    {title: addFallbackToTaskTitle(initialMetaTitleText)},
 ]);
 
 export async function loader({params, context: _context}: LoaderArgs) {
@@ -94,7 +94,7 @@ export async function loader({params, context: _context}: LoaderArgs) {
     return jsonWithSchema(
         LoaderSchema,
         {
-            initialTitleText: task?.getTitle().getText() ?? "",
+            initialMetaTitleText: task?.getTitle().getText() ?? "",
             childrenGridViewExpansionState: childrenQueryOutput.gridViewExpansionState,
             initialBottomGhostTaskId: generateId<TaskId>(),
             notesVersion,

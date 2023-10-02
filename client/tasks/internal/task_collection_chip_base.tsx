@@ -6,6 +6,7 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {Spacing, addRemLengths, spacing} from "~/shared/design/spacing.js";
 import {ThemeColor} from "~/shared/design/theme_colors.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {Sprinkles} from "~/shared/styles/styles.js";
 
 export const taskCollectionChipHeight: Spacing = "5";
 export const taskCollectionChipPaddingY: Spacing = "0.5";
@@ -21,7 +22,7 @@ function TaskCollectionChipBase(
         onPress,
         onRemove,
     }: {
-        color: ThemeColor;
+        color: ThemeColor | null;
         name: ReactNode;
         onPress?: () => void;
         onRemove?: () => void;
@@ -59,7 +60,7 @@ function TaskCollectionChipBase(
                     width="1.5"
                     height="1.5"
                     borderRadius="full"
-                    backgroundColor={`${color}-50-const`}
+                    backgroundColor={getTaskCollectionColor(color)}
                 />
             </Box>
             <Box fontStyle="truncate">{name}</Box>
@@ -82,4 +83,9 @@ function TaskCollectionChipBase(
             )}
         </Box>
     );
+}
+
+export function getTaskCollectionColor(color: ThemeColor | null): Sprinkles["color"] {
+    if (color === null) return "grey-20";
+    return `${color}-50-const`;
 }

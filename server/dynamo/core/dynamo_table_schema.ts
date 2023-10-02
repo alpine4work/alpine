@@ -1188,7 +1188,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
         if (!item) {
             throw new NotFoundError(
-                `Item not found (partition type "${key.partitionType}", sort range type "${key.sortRangeType}")`,
+                `Item not found (partition type: "${key.partitionType}", sort range type: "${key.sortRangeType}")`,
             );
         }
 
@@ -1316,7 +1316,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
         if (!item) {
             throw new NotFoundError(
-                `Item not found (partition type "${key.partitionType}", sort range type "${key.sortRangeType}")`,
+                `Item not found (partition type: "${key.partitionType}", sort range type: "${key.sortRangeType}")`,
             );
         }
 

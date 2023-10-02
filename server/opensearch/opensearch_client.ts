@@ -405,6 +405,25 @@ export class OpensearchClient implements OpensearchClientInterface {
                 else {
                     const previousIndexConfig = assertExists(getBody[index.name]);
 
+                    // If there are no custom filters/analyzers in our settings then set the
+                    // empty object.
+                    if (!previousIndexConfig.settings.analysis) {
+                        (previousIndexConfig.settings as any).analysis = {
+                            filter: {},
+                            analyzer: {},
+                        };
+                    }
+
+                    // We observe that when reading index settings, analysis properties are nested
+                    // under `index`. But the documentation says we should create analyzers at the
+                    // root level. Confusing!
+                    if ((previousIndexConfig.settings.index as any).analysis) {
+                        (previousIndexConfig.settings as any).analysis = (
+                            previousIndexConfig.settings.index as any
+                        ).analysis;
+                        delete (previousIndexConfig.settings.index as any).analysis;
+                    }
+
                     // `number_of_shards` and `routing_partition_size` are returned as strings.
                     // Treat them as integers.
                     (previousIndexConfig.settings as any).index.number_of_shards = parseInt(
@@ -415,6 +434,20 @@ export class OpensearchClient implements OpensearchClientInterface {
                         (previousIndexConfig.settings as any).index.routing_partition_size,
                         10,
                     );
+
+                    // The `stem_english_possessive` property is converted into a `string`. Convert
+                    // it back to a boolean.
+                    if (previousIndexConfig.settings.analysis?.filter) {
+                        for (const filter of Object.values(
+                            previousIndexConfig.settings.analysis.filter,
+                        )) {
+                            if ((filter as any).stem_english_possessive) {
+                                (filter as any).stem_english_possessive = JSON.parse(
+                                    (filter as any).stem_english_possessive,
+                                );
+                            }
+                        }
+                    }
 
                     // Unfortunately, when we read settings ElasticSearch doesn't return
                     // `number_of_routing_shards`. We need to get it from a separate endpoint to

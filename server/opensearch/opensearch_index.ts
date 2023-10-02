@@ -60,6 +60,7 @@ export function pickOpensearchStaticIndexConfig(config: OpensearchIndexConfig<st
     return {
         settings: {
             index: pickObject(config.settings.index, opensearchIndexStaticSettingsKeys),
+            analysis: config.settings.analysis,
         },
     };
 }
@@ -71,7 +72,7 @@ export function omitOpensearchStaticIndexConfig(config: OpensearchIndexConfig<st
     return {
         ...config,
         settings: {
-            ...config.settings,
+            ...omitObject(config.settings, ["index", "analysis"]),
             index: omitObject(config.settings.index, opensearchIndexStaticSettingsKeys),
         },
     };

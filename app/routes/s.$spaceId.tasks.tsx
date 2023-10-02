@@ -16,10 +16,12 @@ export default function TasksLayoutRoute() {
 
     // NOCOMMIT:
     let isNotepadTabActive = false;
-    const isCollectionsTabActive = false;
+    let isCollectionsTabActive = false;
     const isViewsTabActive = false;
     for (const match of dataRouterStateContext.matches) {
         if (match.route.id === "routes/s.$spaceId.tasks._index") isNotepadTabActive = true;
+        if (match.route.id === "routes/s.$spaceId.tasks.collections.$collectionId")
+            isCollectionsTabActive = true;
     }
 
     return (

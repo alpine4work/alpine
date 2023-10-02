@@ -72,8 +72,9 @@ export function TaskLayoutTopBarCollectionsButton({
                                         await navigate(
                                             `/s/${
                                                 space.id
-                                            }/tasks/demo-2/collections/${generateId()}?create`,
+                                            }/tasks/collections/${generateId()}?create`,
                                         );
+                                        onCloseWithoutAnimation();
                                     }}
                                 >
                                     Create collection

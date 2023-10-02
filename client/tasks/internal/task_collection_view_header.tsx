@@ -1,5 +1,6 @@
 import {DotsThree} from "phosphor-react";
 import {useRef, useState} from "react";
+import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
@@ -8,26 +9,51 @@ import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growing_width.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {useStore} from "~/client/helpers/store/use_store.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
-import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state.js";
+import {getTaskCollectionColor} from "~/client/tasks/internal/task_collection_chip_base.js";
+import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
+import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 
+export const newTaskCollectionNamePlaceholder = "New collection";
+
 export function TaskCollectionViewHeader({
-    collection,
-    onCollectionNameChange,
+    store,
+    collectionId,
+    collectionSubscription,
+    createCollection,
 }: {
-    collection: Pick<LocalTaskCollection, "id" | "name" | "color">;
-    onCollectionNameChange: (name: string) => void;
+    store: TaskClientStore;
+    collectionId: TaskCollectionId;
+    // If `collectionSubscription` is null, that means we are creating a
+    // new collection.
+    collectionSubscription: TaskClientCollectionSubscription | null;
+    createCollection: (name: string) => Promise<void>;
 }) {
+    const context = useAppContext();
     const navigate = useNavigate();
-    const [isEditingName, setIsEditingName] = useState(false);
+
+    // Reset `isEditingName` if `collectionSubscription` changes. e.g. If it goes
+    // from `null` to a non-null value when we create a collection.
+    const [isEditingName, setIsEditingName] = useStateWithDependencies(!collectionSubscription, [
+        collectionSubscription,
+    ]);
 
     // If the collection doesn't have a name you need to add one! Only optimistic
     // collections will have an empty name. Empty collection names are not allowed.
-    if (collection.name === "" && !isEditingName) setIsEditingName(true);
+    if (!collectionSubscription && !isEditingName) setIsEditingName(true);
+
+    const collectionEntry = useStore(collectionSubscription?.collectionEntryStore ?? null);
+    const collection = collectionEntry?.collection ?? null;
+
+    const name = collection?.getName() ?? "";
+    const color = collection?.getColor() ?? null;
 
     return (
         <Box
@@ -39,35 +65,60 @@ export function TaskCollectionViewHeader({
             gap="2"
         >
             <Box display="flex" alignItems="center" gap="1">
-                <Box display="flex" justifyContent="center" width="3">
-                    <Box
-                        // Carefully positioned so it aligns with the "+" icon in the
-                        // "Add filter" button.
-                        width="2"
-                        height="2"
-                        borderRadius="full"
-                        backgroundColor={`${collection.color}-50-const`}
-                    />
-                </Box>
+                {collectionSubscription && (
+                    <Box display="flex" justifyContent="center" width="3">
+                        <Box
+                            // Carefully positioned so it aligns with the "+" icon in the
+                            // "Add filter" button.
+                            width="2"
+                            height="2"
+                            borderRadius="full"
+                            backgroundColor={getTaskCollectionColor(color)}
+                        />
+                    </Box>
+                )}
                 {!isEditingName ? (
                     <Box fontSize="200" fontStyle="truncate-semi-bold">
-                        {collection.name}
+                        {name}
                     </Box>
                 ) : (
-                    <TaskCollectionViewHeaderTitleEditor
-                        initialName={collection.name}
+                    <TaskCollectionViewHeaderNameEditor
+                        initialName={name}
                         onCancel={() => {
                             // If we cancel editing an optimistic collection with no name then return to
                             // the route we came from.
-                            if (collection.name.length === 0) {
+                            if (name.length === 0) {
                                 return navigate(-1);
                             } else {
                                 setIsEditingName(false);
                             }
                         }}
                         onSave={name => {
-                            if (name.length > 0) onCollectionNameChange(name);
-                            setIsEditingName(false);
+                            // If you try to save an empty name, it cancels editing. Unless the collection
+                            // has not been created yet. Then it does nothing. Your collection needs
+                            // a name!
+                            if (name.length === 0) {
+                                if (collectionSubscription) setIsEditingName(false);
+                                return;
+                            }
+
+                            if (!collectionSubscription) {
+                                return createCollection(name);
+                            } else {
+                                store.commitTaskActionTransaction(context, [
+                                    {
+                                        type: "UpdateCollection",
+                                        time: store.clock.now(),
+                                        collectionId,
+                                        collectionAction: {
+                                            type: "UpdateName",
+                                            name,
+                                        },
+                                    },
+                                ]);
+
+                                setIsEditingName(false);
+                            }
                         }}
                     />
                 )}
@@ -112,14 +163,14 @@ export function TaskCollectionViewHeader({
     );
 }
 
-function TaskCollectionViewHeaderTitleEditor({
+function TaskCollectionViewHeaderNameEditor({
     initialName,
     onCancel,
     onSave,
 }: {
     initialName: string;
     onCancel: () => MaybePromise<void>;
-    onSave: (name: string) => void;
+    onSave: (name: string) => MaybePromise<void>;
 }) {
     const inputRef = useRef<HTMLInputElement>(null);
     const [name, setName] = useState(initialName);
@@ -159,7 +210,9 @@ function TaskCollectionViewHeaderTitleEditor({
                                 onConfirmSave: () => setShouldShowConfirmSaveDialog(true),
                             }),
                         )}
-                        placeholder={initialName.length > 0 ? initialName : "Collection"}
+                        placeholder={
+                            initialName.length > 0 ? initialName : newTaskCollectionNamePlaceholder
+                        }
                         value={name}
                         onChange={event => setName(event.currentTarget.value)}
                         className={sprinkles({
@@ -179,7 +232,9 @@ function TaskCollectionViewHeaderTitleEditor({
                                 case "Enter": {
                                     event.preventDefault();
                                     event.stopPropagation();
-                                    onSave(name);
+                                    // TODO(calebmer, #global-loading-indicator): Show a saving indicator until
+                                    // save has finished.
+                                    void onSave(name);
                                     break;
                                 }
                                 case "Escape": {
@@ -205,9 +260,10 @@ function TaskCollectionViewHeaderTitleEditor({
                             setShouldShowConfirmSaveDialog(false);
                         }}
                         primaryButtonLabel="Save"
+                        primaryButtonPressErrorTitle="Couldn’t save name"
                         onPrimaryButtonPress={() => onSave(name)}
                         cancelButtonLabel="Discard name"
-                        cancelButtonPressErrorTitle="Can’t discard name"
+                        cancelButtonPressErrorTitle="Couldn’t discard name"
                         onCancelButtonPress={onCancel}
                     />
                 ) : name.length !== 0 ? (
@@ -221,9 +277,10 @@ function TaskCollectionViewHeaderTitleEditor({
                             setShouldShowConfirmSaveDialog(false);
                         }}
                         primaryButtonLabel="Save"
+                        primaryButtonPressErrorTitle="Couldn’t save collection"
                         onPrimaryButtonPress={() => onSave(name)}
                         cancelButtonLabel="Discard collection"
-                        cancelButtonPressErrorTitle="Can’t discard collection"
+                        cancelButtonPressErrorTitle="Couldn’t discard collection"
                         onCancelButtonPress={onCancel}
                     />
                 ) : (
@@ -240,7 +297,7 @@ function TaskCollectionViewHeaderTitleEditor({
                         isPrimaryButtonDisabled={true}
                         onPrimaryButtonPress={() => {}}
                         cancelButtonLabel="Discard collection"
-                        cancelButtonPressErrorTitle="Can’t discard collection"
+                        cancelButtonPressErrorTitle="Couldn’t discard collection"
                         onCancelButtonPress={onCancel}
                     />
                 ))}

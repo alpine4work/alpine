@@ -1,5 +1,5 @@
 import {useLoaderData} from "@remix-run/react";
-import {ReactNode, useContext, useEffect, useRef, useState} from "react";
+import {ReactNode, createContext, useContext, useEffect, useRef, useState} from "react";
 import {UNSAFE_DataRouterStateContext as DataRouterStateContext} from "react-router";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
 import {useAppContext} from "~/client/context/app_context.js";
@@ -10,6 +10,7 @@ import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
+import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
 import {TaskRealtimeClient} from "~/client/tasks/task_realtime_client.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -149,6 +150,24 @@ export function useTaskStoreLoaderDataWithoutRetaining(): {
     );
 }
 
+const TaskClientStoreContext = createContext<TaskClientStore | null>(null);
+
+/**
+ * Get the `TaskClientStore` in our React context. Maybe only be used from a
+ * space route.
+ */
+export function useTaskClientStore(): TaskClientStore {
+    const store = useContext(TaskClientStoreContext);
+
+    if (!store) {
+        throw new InternalError(
+            "Expected component to be rendered inside a `<TaskRealtimeClientContextProvider>`",
+        );
+    }
+
+    return store;
+}
+
 /**
  * The task realtime client lives at the space route (`/s/:spaceId`) so the
  * client is available to any UI that needs it in the space.
@@ -277,5 +296,9 @@ export function TaskRealtimeClientContextProvider({
 
     useDevConsoleTool("tasks", () => ({store: client.store}));
 
-    return <>{children}</>;
+    return (
+        <TaskClientStoreContext.Provider value={client.store}>
+            {children}
+        </TaskClientStoreContext.Provider>
+    );
 }
