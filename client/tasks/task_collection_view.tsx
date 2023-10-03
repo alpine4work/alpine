@@ -20,7 +20,7 @@ export function TaskCollectionView({
     createCollection: (name: string) => Promise<void>;
 }) {
     return (
-        <Box flexGrow="1" overflow="hidden" backgroundColor="grey-0">
+        <Box flexGrow="1" width="full" overflow="hidden" backgroundColor="grey-0">
             <TaskCollectionViewHeader
                 store={store}
                 collectionId={collectionId}

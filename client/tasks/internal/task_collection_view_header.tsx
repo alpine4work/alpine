@@ -57,31 +57,32 @@ export function TaskCollectionViewHeader({
 
     return (
         <Box
-            paddingTop="5"
-            paddingBottom="3"
+            width="full"
+            overflow="hidden"
+            paddingTop="4"
+            paddingBottom="2"
             paddingX="5"
             display="flex"
             alignItems="center"
-            gap="2"
         >
-            <Box display="flex" alignItems="center" gap="1">
-                {collectionSubscription && (
-                    <Box display="flex" justifyContent="center" width="3">
-                        <Box
-                            // Carefully positioned so it aligns with the "+" icon in the
-                            // "Add filter" button.
-                            width="2"
-                            height="2"
-                            borderRadius="full"
-                            backgroundColor={getTaskCollectionColor(color)}
-                        />
-                    </Box>
-                )}
-                {!isEditingName ? (
-                    <Box fontSize="200" fontStyle="truncate-semi-bold">
-                        {name}
-                    </Box>
-                ) : (
+            {collectionSubscription && (
+                <Box flexShrink="0" display="flex" justifyContent="center" width="3">
+                    <Box
+                        // Carefully positioned so it aligns with the "+" icon in the
+                        // "Add filter" button.
+                        width="2"
+                        height="2"
+                        borderRadius="full"
+                        backgroundColor={getTaskCollectionColor(color)}
+                    />
+                </Box>
+            )}
+            {!isEditingName ? (
+                <Box padding="1" fontSize="200" fontStyle="truncate-semi-bold">
+                    {name}
+                </Box>
+            ) : (
+                <Box overflow="hidden">
                     <TaskCollectionViewHeaderNameEditor
                         initialName={name}
                         onCancel={() => {
@@ -121,44 +122,46 @@ export function TaskCollectionViewHeader({
                             }
                         }}
                     />
-                )}
+                </Box>
+            )}
+            <Box flexShrink="0" paddingLeft="2">
+                <MenuButton
+                    actions={[
+                        [
+                            {
+                                label: "Copy link",
+                                onPress: () => {
+                                    // NOCOMMIT
+                                },
+                            },
+                        ],
+                        [
+                            {
+                                label: "Edit name",
+                                onPress: () => setIsEditingName(true),
+                            },
+                            {
+                                label: "Edit color",
+                                onPress: () => {
+                                    // NOCOMMIT
+                                },
+                            },
+                        ],
+                        [
+                            {
+                                label: "Delete",
+                                onPress: () => {
+                                    // NOCOMMIT
+                                },
+                            },
+                        ],
+                    ]}
+                >
+                    <IconButton size="sm" description="More" withoutTooltip>
+                        <DotsThree />
+                    </IconButton>
+                </MenuButton>
             </Box>
-            <MenuButton
-                actions={[
-                    [
-                        {
-                            label: "Copy link",
-                            onPress: () => {
-                                // NOCOMMIT
-                            },
-                        },
-                    ],
-                    [
-                        {
-                            label: "Edit name",
-                            onPress: () => setIsEditingName(true),
-                        },
-                        {
-                            label: "Edit color",
-                            onPress: () => {
-                                // NOCOMMIT
-                            },
-                        },
-                    ],
-                    [
-                        {
-                            label: "Delete",
-                            onPress: () => {
-                                // NOCOMMIT
-                            },
-                        },
-                    ],
-                ]}
-            >
-                <IconButton size="sm" description="More" withoutTooltip>
-                    <DotsThree />
-                </IconButton>
-            </MenuButton>
         </Box>
     );
 }
@@ -192,7 +195,7 @@ function TaskCollectionViewHeaderNameEditor({
 
     return (
         <>
-            <Box height="7" margin="-1">
+            <Box maxWidth="full" height="7">
                 <FocusRing offset="border" isVisibleFromAnyFocus={true}>
                     <InputWithAutoGrowingWidth
                         ref={useMergedRefs(
@@ -213,6 +216,7 @@ function TaskCollectionViewHeaderNameEditor({
                         placeholder={
                             initialName.length > 0 ? initialName : newTaskCollectionNamePlaceholder
                         }
+                        autoComplete="false"
                         value={name}
                         onChange={event => setName(event.currentTarget.value)}
                         className={sprinkles({
