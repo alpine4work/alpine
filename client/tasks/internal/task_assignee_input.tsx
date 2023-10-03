@@ -35,7 +35,10 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
+import {
+    useExpensivelyLoadAllSpaceAccounts,
+    useExpensivelyPreloadAllSpaceAccounts,
+} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
 import {TaskMissingAccountAvatar} from "~/client/tasks/internal/task_missing_account_avatar.js";
 import {AccountModel, AccountModelData} from "~/shared/accounts/account_model.js";
 import {spacing} from "~/shared/design/spacing.js";
@@ -140,7 +143,12 @@ function TaskAssigneeInput(
 
     const inputValue = inputState.type === "Selection" ? selectionInputValue : inputState.value;
 
-    const allUnsortedAccounts = useExpensivelyLoadAllSpaceAccounts() ?? emptyArray;
+    // Preload accounts since we don't load accounts until the dropdown is open.
+    useExpensivelyPreloadAllSpaceAccounts();
+
+    const [shouldLoadAccounts, setShouldLoadAccounts] = useState(false);
+    const allUnsortedAccounts =
+        useExpensivelyLoadAllSpaceAccounts({isDisabled: !shouldLoadAccounts}) ?? emptyArray;
 
     const accountById = useMemo(() => {
         const accountById = new Map<AccountId, AccountModel>();
@@ -199,6 +207,10 @@ function TaskAssigneeInput(
     const selectedKey = assigneeAccountData ? `Account:${assigneeAccountData.id}` : "Null";
 
     const comboBoxProps: ComboBoxStateOptions<TaskAssigneeInputItem> = {
+        // We need to know whether the combobox is open or not to decide whether we
+        // should load accounts.
+        onOpenChange: setShouldLoadAccounts,
+
         menuTrigger: "focus",
         // Don't close when there are no items.
         allowsEmptyCollection: true,

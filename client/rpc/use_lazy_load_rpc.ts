@@ -1,6 +1,8 @@
 import {useMemo, useRef} from "react";
+import {unstable_IdlePriority, unstable_scheduleCallback} from "scheduler";
 import _useSwr, {preload} from "swr";
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
 
@@ -30,16 +32,16 @@ function createFetcher<Input, Output extends {}>(
  * the SWR lifecycle.
  *
  * WARNING: Generally avoid using this hook since it leads to request
- * waterfalls! If your data is required to render a component, you should
- * render it in the route loader and pass it down. This is why we have "lazy
+ * waterfalls! If some data is required to render a component, you should
+ * fetch it in the route loader and pass it down. This is why we have "lazy
  * load" in the name, to force you to think about performance when using the
- * hook. Use this hook when you have a conditionally rendered component whose
- * data needs change with its state.
+ * hook. Use this hook when you have a conditionally rendered component where
+ * the data it needs changes with its state.
  *
  * We get the name from Relay's [`useLazyLoadQuery()`][3]. In the future we may
  * have a `usePreloadedRpc()` like Relay's `usePreloadedQuery()`. A
- * `usePreloadedRpc()` hook we could recommend as a good, performant solution
- * that doesn't cause request waterfalls!
+ * `usePreloadedRpc()` hook that can load data on the server we could recommend
+ * as a good, performant solution that doesn't cause request waterfalls!
  *
  * [1]: https://swr.vercel.app
  * [2]: https://swr.vercel.app/docs/advanced/understanding
@@ -60,7 +62,7 @@ export function useLazyLoadLoadRpc<Input, Output extends {}>(
          * We attach the input to the output so that when we return a stale output
          * you know what the input that created it is.
          *
-         * [This diagram][1] is helpful for understanding the lifecycle.
+         * [This diagram][1] is helpful for understanding the hook's lifecycle.
          *
          * [1]: https://swr.vercel.app/docs/advanced/understanding#key-change--previous-data
          */
@@ -158,4 +160,40 @@ export function preloadRpc<Input, Output extends {}>(
     const inputString = JSON.stringify(rpc.inputSchema.serialize(input));
     const fetcher = createFetcher(context, rpc);
     preload(`${rpc.name}:${inputString}`, fetcher, {dedupe: true});
+}
+
+let scheduledIdlePreloadRpcCallbacks: Array<() => void> | null = null;
+
+/**
+ * Schedule a `preloadRpc()` call for when the main thread is idle. This will
+ * end up batching multiple `preloadRpc()` calls into one network request which
+ * won't happen if you schedule your own idle callbacks.
+ */
+export function scheduleIdlePreloadRpc<Input, Output extends {}>(
+    context: AppContext,
+    rpc: RpcDefinition<Input, Output>,
+    input: Input,
+) {
+    if (scheduledIdlePreloadRpcCallbacks === null) {
+        scheduledIdlePreloadRpcCallbacks = [];
+
+        // Use the React scheduler to schedule an idle callback.
+        // `requestIdleCallback()` is not implemented in Safari. Generally we recommend
+        // using the React scheduler since it has centralized knowledge of all our
+        // tasks (including UI rendering).
+        unstable_scheduleCallback(unstable_IdlePriority, () => {
+            assert(scheduledIdlePreloadRpcCallbacks !== null);
+
+            const callbacks = scheduledIdlePreloadRpcCallbacks;
+            scheduledIdlePreloadRpcCallbacks = null;
+
+            for (const callback of callbacks) {
+                callback();
+            }
+        });
+    }
+
+    scheduledIdlePreloadRpcCallbacks.push(() => {
+        preloadRpc(context, rpc, input);
+    });
 }

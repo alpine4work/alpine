@@ -7,6 +7,7 @@ import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TaskActionSchema} from "~/shared/tasks/actions/task_action.js";
+import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {
     TaskNotesContentSchema,
@@ -112,4 +113,21 @@ export const addTaskCollectionAffinityPoints = defineRpc({
         points: Schema.float,
     },
     output: {},
+});
+
+export const getAffinitiveTaskCollections = defineRpc({
+    name: "getAffinitiveTaskCollections",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        limit: Schema.integer,
+    },
+    output: {
+        collectionResults: Schema.array(
+            Schema.object({
+                openTaskCount: Schema.integer,
+                lastTaskAddedTime: HybridLogicalTimeSchema.nullable(),
+                collection: TaskCollectionModel.schema,
+            }),
+        ),
+    },
 });

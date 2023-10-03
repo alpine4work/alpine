@@ -22,6 +22,7 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {TaskCollectionsListBoxCreateCollectionOption} from "~/client/tasks/internal/task_collections_list_box_create_collection_option.js";
 import {TaskCollectionsListBoxInstructionalPlaceholder} from "~/client/tasks/internal/task_collections_list_box_instructional_placeholder.js";
+import {usePreloadAffinitiveTaskCollections} from "~/client/tasks/internal/use_affinitive_task_collections.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -40,6 +41,10 @@ export function TaskLayoutTopBarCollectionsButton({
 }) {
     const navigate = useNavigate();
     const {space} = useSpaceContext();
+
+    // Preload task collections the account has an affinity for in case they open
+    // the collections dropdown.
+    usePreloadAffinitiveTaskCollections();
 
     // NOCOMMIT
     const allCollections = emptyArray;

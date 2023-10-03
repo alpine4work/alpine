@@ -6,6 +6,7 @@ import {
     authorizeTaskAccess,
     commitTaskActionTransaction,
     deleteTaskAndAllChildren,
+    getAffinitiveTaskCollections,
     getTaskNotesContentWithoutReferences,
     updateTaskGridViewExpansionState,
     updateTaskNotesContent,
@@ -126,11 +127,20 @@ implementRpc(
 implementRpc(
     definition.addTaskCollectionAffinityPoints,
     {visibility: ["AppClient"]},
+    async (context, input) => {
+        await addTaskCollectionAffinityPoints(context.actor.authorizeSession(), input);
+        return {};
+    },
+);
+
+implementRpc(
+    definition.getAffinitiveTaskCollections,
+    {visibility: ["AppClient"]},
     async (_context, input) => {
         const context = _context.actor.authorizeSession();
 
-        await addTaskCollectionAffinityPoints(context, input);
+        const collectionResults = await getAffinitiveTaskCollections(context, input);
 
-        return {};
+        return {collectionResults};
     },
 );

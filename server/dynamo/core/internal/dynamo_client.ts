@@ -12,6 +12,7 @@ import {
 import {DynamoClientInternal} from "~/server/dynamo/core/internal/dynamo_client_internal.js";
 import {DeadlineExceededError, InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -23,8 +24,6 @@ import {isObject} from "~/shared/helpers/object/is_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {SchemaSerializedObjectValue, SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
-
-const originalSetTimeout = setTimeout;
 
 export type DynamoReadConsistency = "Eventual" | "Strong";
 
@@ -744,13 +743,9 @@ export class DynamoClientBatchContext {
                 tableBatches: new Map(),
             };
 
-            // We create a macrotask with a timeout that will run after the microtask queue
+            // We schedule a macrotask that will run after the microtask queue
             // is exhausted.
-            //
-            // We can't use `setTimeout()` directly since Jest will override `setTimeout()`
-            // when `jest.useFakeTimers()` is on. The fact that we use a timer here under
-            // the hood should not be a testable implementation detail.
-            originalSetTimeout(() => {
+            scheduleMacrotask(() => {
                 assert(this._scheduledBatchByBatcher.delete(batcher));
                 batcher._executeFullBatch(tracer, scheduledBatch);
             });

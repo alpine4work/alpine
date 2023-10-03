@@ -1,23 +1,27 @@
 import {useEffect} from "react";
-import {unstable_IdlePriority, unstable_scheduleCallback} from "scheduler";
 import {useAppContext} from "~/client/context/app_context.js";
-import {preloadRpc, useLazyLoadLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
+import {scheduleIdlePreloadRpc, useLazyLoadLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 
 /**
- * Return all the accounts in this space and a Fuse.js search index for those
- * accounts. Returns `null` if we are loading the accounts from the network.
- * Throws an error if we are not in a space route.
+ * Return all the accounts in this space. Returns `null` while we are loading
+ * the accounts from the network. Throws an error if we are not in a space
+ * route.
  *
  * Using this hook will load the accounts in the space. If the space accounts were
  * already loaded we will return stale data for a bit while we reload. It's
  * recommended that you use `usePreloadSpaceAccounts()` in some parent component so
  * that stale accounts are ready when this hook is called.
  */
-export function useExpensivelyLoadAllSpaceAccounts() {
+export function useExpensivelyLoadAllSpaceAccounts({
+    isDisabled = false,
+}: {isDisabled?: boolean} = {}) {
     const {space} = useSpaceContext();
-    const {output} = useLazyLoadLoadRpc(expensivelyGetAllSpaceAccounts, {spaceId: space.id});
+    const {output} = useLazyLoadLoadRpc(
+        expensivelyGetAllSpaceAccounts,
+        !isDisabled ? {spaceId: space.id} : null,
+    );
     return output?.accounts ?? null;
 }
 
@@ -30,11 +34,6 @@ export function useExpensivelyPreloadAllSpaceAccounts() {
     const {space} = useSpaceContext();
 
     useEffect(() => {
-        // If we get some time preload accounts. `requestIdleCallback()` is not
-        // implemented on Safari. Generally we recommend using the React scheduler
-        // since it has centralized knowledge of all our tasks.
-        unstable_scheduleCallback(unstable_IdlePriority, () => {
-            preloadRpc(context, expensivelyGetAllSpaceAccounts, {spaceId: space.id});
-        });
+        scheduleIdlePreloadRpc(context, expensivelyGetAllSpaceAccounts, {spaceId: space.id});
     }, [context, space.id]);
 }

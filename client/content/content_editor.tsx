@@ -281,6 +281,16 @@ function ContentEditorWrapper<Content extends ContentWithReferences>(
 ) {
     const isInitialAppRender = useIsInitialAppRender();
 
+    // Preload space accounts so when the user tries to mention one they
+    // are available.
+    //
+    // Only preload space accounts outside of Jest unit tests! That way we don't
+    // depend on space context in unit tests.
+    if (!import.meta.jest) {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        useExpensivelyPreloadAllSpaceAccounts();
+    }
+
     if (isInitialAppRender) {
         return <ContentEditorInitialAppRender {...props} editorRef={ref} />;
     } else {
@@ -368,16 +378,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         onBlur,
         phantomSelections,
     } = props;
-
-    // Preload space accounts so when the user tries to mention one they
-    // are available.
-    //
-    // Only preload space accounts outside of Jest unit tests! That way we don't
-    // depend on space context in unit tests.
-    if (!import.meta.jest) {
-        // eslint-disable-next-line react-hooks/rules-of-hooks
-        useExpensivelyPreloadAllSpaceAccounts();
-    }
 
     // The props for the current React commit. We are integrating with a stateful
     // component (ProseMirror's `EditorView`) so we need to be able to
