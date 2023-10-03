@@ -78,6 +78,9 @@ let recentOverlayTransitionCoordination:
       }
     | null = null;
 
+export const onTriggeredOverlayOpenSymbol = Symbol("onTriggeredOverlayOpen");
+export const onTriggeredOverlayCloseSymbol = Symbol("onTriggeredOverlayClose");
+
 /**
  * An overlay trigger button opens an overlay when pressed and moves focus into
  * that overlay.
@@ -440,6 +443,30 @@ export function OverlayTriggerButton({
                     onClose={onClose}
                 />
             }
+            onActuallyVisibleChange={isActuallyVisible => {
+                const overlayTriggerElement = overlayTriggerRef.current;
+                if (!overlayTriggerElement) return;
+
+                // Overlay trigger buttons may attach custom event listeners to their DOM
+                // element if they'd like to know if their overlay is open or closed.
+                if (isActuallyVisible) {
+                    (overlayTriggerElement as any)[onTriggeredOverlayOpenSymbol]?.();
+                } else {
+                    const pointerOverListener = () => {
+                        // Wait for a `pointerover` event to fire before marking our triggered overlay
+                        // as closed. This prevents a race condition where buttons briefly flash with
+                        // no background color because the new `pointerenter` event hasn't fired on the
+                        // button setting its state to hovered.
+                        (overlayTriggerElement as any)[onTriggeredOverlayCloseSymbol]?.();
+
+                        document.removeEventListener("pointerover", pointerOverListener, {
+                            capture: true,
+                        });
+                    };
+
+                    document.addEventListener("pointerover", pointerOverListener, {capture: true});
+                }
+            }}
         >
             {children}
         </OverlayAnimated>

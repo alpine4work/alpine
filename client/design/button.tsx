@@ -5,13 +5,19 @@ import {ReactNode, Ref, forwardRef, useEffect, useRef, useState} from "react";
 import {AriaButtonProps, mergeProps, useButton, useHover} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
+import {
+    onTriggeredOverlayCloseSymbol,
+    onTriggeredOverlayOpenSymbol,
+} from "~/client/design/overlay_trigger_button.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {Tooltip} from "~/client/design/tooltip.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
     Sprinkles,
     colorSchemeVars,
@@ -200,6 +206,20 @@ function Button(
 
     const {hoverProps, isHovered} = useHover({});
 
+    // If we are rendered inside an `<OverlayTriggerButton>` we want to apply our
+    // hover styles even though we aren't receiving pointer events since there's a
+    // cover over the DOM.
+    const [isTriggeredOverlayOpen, setIsTriggeredOverlayOpen] = useState(false);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        Object.assign(assertExists(localRef.current), {
+            [onTriggeredOverlayOpenSymbol]: () => setIsTriggeredOverlayOpen(true),
+            [onTriggeredOverlayCloseSymbol]: () => setIsTriggeredOverlayOpen(false),
+        });
+    }, []);
+
+    const isHoveredOrTriggeredOverlayOpen = isHovered || isTriggeredOverlayOpen;
+
     // We wait a bit before showing our pending spinner. Some actions are very fast so we
     // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
     const [shouldShowPendingSpinner, setShouldShowPendingSpinner] = useState(false);
@@ -250,7 +270,11 @@ function Button(
     const stylesByVariant: {[K in ButtonVariant]: Sprinkles} = {
         quiet: !isDisabled
             ? {
-                  backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
+                  backgroundColor: isPressed
+                      ? "grey-10"
+                      : isHoveredOrTriggeredOverlayOpen
+                      ? "grey-5"
+                      : undefined,
                   color: "grey-text",
               }
             : {
@@ -259,7 +283,11 @@ function Button(
               },
         quieter: !isDisabled
             ? {
-                  backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
+                  backgroundColor: isPressed
+                      ? "grey-10"
+                      : isHoveredOrTriggeredOverlayOpen
+                      ? "grey-5"
+                      : undefined,
                   color: isPressed ? "grey-text" : "grey-70",
               }
             : {
@@ -277,7 +305,11 @@ function Button(
               },
         "quiet-off": !isDisabled
             ? {
-                  backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
+                  backgroundColor: isPressed
+                      ? "grey-10"
+                      : isHoveredOrTriggeredOverlayOpen
+                      ? "grey-5"
+                      : undefined,
                   color: isPressed ? "grey-text" : "grey-50",
               }
             : {
@@ -288,7 +320,7 @@ function Button(
             ? {
                   backgroundColor: isPressed
                       ? {light: "grey-10", dark: "grey-20"}
-                      : isHovered
+                      : isHoveredOrTriggeredOverlayOpen
                       ? {light: "grey-5", dark: "grey-10"}
                       : undefined,
                   color: "grey-text",

@@ -15,13 +15,19 @@ import {Box} from "~/client/design/box.js";
 import {buttonPressedOverlayOpacity} from "~/client/design/button.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {OverlayPlacement} from "~/client/design/overlay.js";
+import {
+    onTriggeredOverlayCloseSymbol,
+    onTriggeredOverlayOpenSymbol,
+} from "~/client/design/overlay_trigger_button.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {Tooltip, defaultTooltipOffset} from "~/client/design/tooltip.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {Sprinkles, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 
@@ -231,7 +237,24 @@ function IconButton(
         },
         localRef,
     );
-    const {hoverProps, isHovered} = useHover({onHoverStart, onHoverEnd});
+    const {hoverProps, isHovered} = useHover({
+        onHoverStart,
+        onHoverEnd,
+    });
+
+    // If we are rendered inside an `<OverlayTriggerButton>` we want to apply our
+    // hover styles even though we aren't receiving pointer events since there's a
+    // cover over the DOM.
+    const [isTriggeredOverlayOpen, setIsTriggeredOverlayOpen] = useState(false);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        Object.assign(assertExists(localRef.current), {
+            [onTriggeredOverlayOpenSymbol]: () => setIsTriggeredOverlayOpen(true),
+            [onTriggeredOverlayCloseSymbol]: () => setIsTriggeredOverlayOpen(false),
+        });
+    }, []);
+
+    const isHoveredOrTriggeredOverlayOpen = isHovered || isTriggeredOverlayOpen;
 
     const stylesByVariant: {[K in IconButtonVariant]: Sprinkles} = {
         accent: !isDisabled
@@ -245,7 +268,11 @@ function IconButton(
               },
         quiet: !isDisabled
             ? {
-                  backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
+                  backgroundColor: isPressed
+                      ? "grey-10"
+                      : isHoveredOrTriggeredOverlayOpen
+                      ? "grey-5"
+                      : undefined,
                   color: isPressed ? "grey-text" : "grey-70",
               }
             : {
@@ -254,7 +281,11 @@ function IconButton(
               },
         "quiet-above-grey-5-background": !isDisabled
             ? {
-                  backgroundColor: isPressed ? "grey-20" : isHovered ? "grey-10" : undefined,
+                  backgroundColor: isPressed
+                      ? "grey-20"
+                      : isHoveredOrTriggeredOverlayOpen
+                      ? "grey-10"
+                      : undefined,
                   color: isPressed ? "grey-text" : "grey-70",
               }
             : {
@@ -265,7 +296,7 @@ function IconButton(
             ? {
                   backgroundColor: isPressed
                       ? {light: "grey-10", dark: "grey-20"}
-                      : isHovered
+                      : isHoveredOrTriggeredOverlayOpen
                       ? {light: "grey-5", dark: "grey-10"}
                       : undefined,
                   color: isPressed ? "grey-90" : "grey-70",

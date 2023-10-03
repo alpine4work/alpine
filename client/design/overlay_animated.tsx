@@ -40,6 +40,7 @@ function OverlayAnimated(
         disableAnimationIn = false,
         disableAnimationOut = false,
         overlay: originalOverlay,
+        onActuallyVisibleChange,
         ...props
     }: OverlayProps & {
         /**
@@ -63,6 +64,13 @@ function OverlayAnimated(
          * Defaults to `false`.
          */
         disableAnimationOut?: boolean;
+
+        /**
+         * Called when whether the overlay is actually hidden/visible changes. If the
+         * `isVisible` prop is false then we may still be visible until our overlay's
+         * animation is finished.
+         */
+        onActuallyVisibleChange?: (isActuallyVisible: boolean) => void;
     },
     ref: Ref<OverlayRef>,
 ) {
@@ -133,12 +141,15 @@ function OverlayAnimated(
         }
     }, [state.isAnimating, state.isVisible]);
 
-    return (
-        <Overlay
-            {...props}
-            ref={ref}
-            isVisible={state.isVisible || state.isAnimating}
-            overlay={overlay}
-        />
-    );
+    const isActuallyVisible = state.isVisible || state.isAnimating;
+
+    const wasActuallyVisibleRef = useRef(isActuallyVisible);
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (wasActuallyVisibleRef.current !== isActuallyVisible) {
+            wasActuallyVisibleRef.current = isActuallyVisible;
+            onActuallyVisibleChange?.(isActuallyVisible);
+        }
+    });
+
+    return <Overlay {...props} ref={ref} isVisible={isActuallyVisible} overlay={overlay} />;
 }
