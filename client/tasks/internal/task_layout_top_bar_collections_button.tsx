@@ -1,7 +1,16 @@
 import {isFocusVisible} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
-import {CaretDown, MagnifyingGlass} from "phosphor-react";
-import {ReactNode, RefObject, cloneElement, isValidElement, useMemo, useRef, useState} from "react";
+import {CaretDown, MagnifyingGlass, SpinnerGap} from "phosphor-react";
+import {
+    ReactNode,
+    RefObject,
+    cloneElement,
+    isValidElement,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {
     AriaListBoxOptions,
     mergeProps,
@@ -15,6 +24,7 @@ import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {OverlayTriggerButton} from "~/client/design/overlay_trigger_button.js";
+import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
@@ -30,13 +40,20 @@ import {
     useAffinitiveTaskCollections,
     usePreloadAffinitiveTaskCollections,
 } from "~/client/tasks/internal/use_affinitive_task_collections.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {searchTaskCollections} from "~/shared/rpc/tasks_rpc_definitions.js";
-import {fontSizes, greyElevated2ClassName, sprinkles} from "~/shared/styles/styles.js";
+import {
+    fontSizes,
+    greyElevated2ClassName,
+    spinAnimationClassName,
+    sprinkles,
+} from "~/shared/styles/styles.js";
 import {
     TaskCollectionModelSearchResult,
     taskCollectionSearchResultLimit,
@@ -66,33 +83,9 @@ export function TaskLayoutTopBarCollectionsButton({
                     display="flex"
                     flexDirection="column"
                 >
-                    {/* NOCOMMIT: {allCollections.length === 0 ? (
-                        <TaskCollectionsListBoxInstructionalPlaceholder
-                            createCollectionButton={
-                                <Button
-                                    variant="neutral"
-                                    fullWidth={true}
-                                    height="7"
-                                    icon={<Plus />}
-                                    pressErrorTitle="Couldn’t create collection"
-                                    onPress={async () => {
-                                        await navigate(
-                                            `/s/${
-                                                space.id
-                                            }/tasks/collections/${generateId()}?create`,
-                                        );
-                                        onCloseWithoutAnimation();
-                                    }}
-                                >
-                                    Create collection
-                                </Button>
-                            }
-                        />
-                    ) : ( */}
                     <TaskLayoutTopBarCollectionsComboBoxOverlay
                         onCloseWithoutAnimation={onCloseWithoutAnimation}
                     />
-                    {/* )} */}
                 </Box>
             )}
         >
@@ -140,19 +133,59 @@ function TaskLayoutTopBarCollectionsComboBoxOverlay({
 
     const affinitiveCollectionResults = useAffinitiveTaskCollections();
 
-    const {output: searchCollectionsOutput} = useLazyLoadLoadRpc(
+    const [currentlyLoadingInputValue, setCurrentlyLoadingInputValue] = useState<string>(
+        inputValue.trim(),
+    );
+
+    const {isLoading: isSearchLoading, output: searchCollectionsOutput} = useLazyLoadLoadRpc(
         searchTaskCollections,
-        inputValue.length === 0
+        currentlyLoadingInputValue.length === 0
             ? null
             : {
                   spaceId: space.id,
-                  nameQuery: inputValue,
+                  nameQuery: currentlyLoadingInputValue,
                   limit: taskCollectionSearchResultLimit,
               },
         {keepPreviousData: true},
     );
 
-    // NOCOMMIT: Loading indicators? Throttle network requests? Updated data from store if it exists?
+    // In an effect so React renders intermediate results as it receives them.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        // Throttle our RPC call. Only load search results for a new input value after
+        // we're done loading search results for the old one.
+        if (!isSearchLoading && currentlyLoadingInputValue !== inputValue.trim()) {
+            setCurrentlyLoadingInputValue(inputValue.trim());
+        }
+    }, [currentlyLoadingInputValue, inputValue, isSearchLoading]);
+
+    const isEverythingLoading = !affinitiveCollectionResults && !searchCollectionsOutput;
+
+    const [shouldShowSearchLoadingIndicator, setShouldShowSearchLoadingIndicator] = useState(false);
+
+    useEffect(() => {
+        if (!isSearchLoading) {
+            let isCancelled = false;
+
+            // Set to `false` after a microtask in case React immediately re-renders from
+            // `isSearchLoading: false` back to `isSearchLoading: true` (happens when we're
+            // throttling search requests). We don't want to clear the spinner and wait for
+            // another timeout in this case.
+            scheduleMicrotask(() => {
+                if (isCancelled) return;
+                setShouldShowSearchLoadingIndicator(false);
+            });
+
+            return () => {
+                isCancelled = true;
+            };
+        } else {
+            const timeout = createTimeout(() => {
+                setShouldShowSearchLoadingIndicator(true);
+            }, delayLoadingIndicatorLimitMs);
+
+            return () => timeout.clear();
+        }
+    }, [isSearchLoading]);
 
     const items: ReadonlyArray<TaskLayoutTopBarCollectionsComboBoxItem> = useMemo(() => {
         const items: Array<TaskLayoutTopBarCollectionsComboBoxItem> = [];
@@ -228,9 +261,7 @@ function TaskLayoutTopBarCollectionsComboBoxOverlay({
                 <TaskCollectionOption collectionResult={item.collectionResult} />
             </Item>
         ) : (
-            <Item>
-                {inputValue.length > 0 ? `Create collection “${inputValue}”` : "Create collection"}
-            </Item>
+            <Item>Create collection</Item>
         );
 
     const {collection, selectionManager, disabledKeys} = useSingleSelectListState({
@@ -372,7 +403,7 @@ function TaskLayoutTopBarCollectionsComboBoxOverlay({
                             width: "full",
                             height: "8",
                             paddingLeft: "7",
-                            paddingRight: "2.5",
+                            paddingRight: shouldShowSearchLoadingIndicator ? "7" : "2.5",
                             backgroundColor: "transparent",
                             borderTopRadius: "md",
                             borderBottom: "grey-10",
@@ -387,6 +418,11 @@ function TaskLayoutTopBarCollectionsComboBoxOverlay({
                         }}
                     />
                 </FocusRing>
+                {shouldShowSearchLoadingIndicator && (
+                    <Box position="absolute" top="2.5" right="2.5" pointerEvents="none">
+                        <SpinnerGap className={spinAnimationClassName} size={spacing["3"]} />
+                    </Box>
+                )}
             </Box>
             <Box
                 ref={popoverRef}
@@ -396,6 +432,7 @@ function TaskLayoutTopBarCollectionsComboBoxOverlay({
                 flexDirection="column"
             >
                 <TaskLayoutTopBarCollectionsListBox
+                    isEverythingLoading={isEverythingLoading}
                     comboBoxState={comboBoxState}
                     listBoxRef={listBoxRef}
                     listBoxProps={listBoxProps}
@@ -407,11 +444,13 @@ function TaskLayoutTopBarCollectionsComboBoxOverlay({
 }
 
 function TaskLayoutTopBarCollectionsListBox({
+    isEverythingLoading,
     comboBoxState,
     listBoxRef,
     listBoxProps: _listBoxProps,
     pendingKey,
 }: {
+    isEverythingLoading: boolean;
     comboBoxState: ComboBoxState<TaskLayoutTopBarCollectionsComboBoxItem>;
     listBoxRef: RefObject<HTMLUListElement>;
     listBoxProps: AriaListBoxOptions<TaskLayoutTopBarCollectionsComboBoxItem>;
@@ -446,6 +485,7 @@ function TaskLayoutTopBarCollectionsListBox({
     }, [comboBoxState, pendingKey]);
 
     const shouldShowInstructionalPlaceholder =
+        !isEverythingLoading &&
         createCollectionButtonItem &&
         comboBoxState.inputValue.length === 0 &&
         itemsWithoutCreateCollectionButton.length === 0;
@@ -463,7 +503,24 @@ function TaskLayoutTopBarCollectionsListBox({
                     display: shouldShowInstructionalPlaceholder ? "none" : undefined,
                 })}
             >
-                {itemsWithoutCreateCollectionButton.length === 0 ? (
+                {isEverythingLoading ? (
+                    <Box
+                        padding="1.5"
+                        display="flex"
+                        justifyContent="center"
+                        alignItems="center"
+                        style={{
+                            height: addRemLengths(
+                                spacing["1.5"],
+                                fontSizes["75"].lineHeight,
+                                fontSizes["50"].lineHeight,
+                                spacing["1.5"],
+                            ),
+                        }}
+                    >
+                        <SpinnerGap className={spinAnimationClassName} size={spacing["4"]} />
+                    </Box>
+                ) : itemsWithoutCreateCollectionButton.length === 0 ? (
                     // Mimic the structure of a `<TaskCollectionOption>`
                     <Box padding="1.5" display="flex" alignItems="flex-start" gap="1.5">
                         <Box
@@ -553,11 +610,15 @@ function TaskLayoutTopBarCollectionsListBoxOption({
                     backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
                 })}
             >
-                {isValidElement(item.rendered)
-                    ? cloneElement(item.rendered, {
-                          isPending: item.key === pendingKey,
-                      } as any)
-                    : item.rendered}
+                {useMemo(
+                    () =>
+                        isValidElement(item.rendered)
+                            ? cloneElement(item.rendered, {
+                                  isPending: item.key === pendingKey,
+                              } as any)
+                            : item.rendered,
+                    [item.key, item.rendered, pendingKey],
+                )}
             </li>
         </FocusRing>
     );

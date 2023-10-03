@@ -11,6 +11,7 @@ import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js"
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 
 export function TaskCollectionsListBoxCreateCollectionOption<T>({
@@ -56,6 +57,11 @@ export function TaskCollectionsListBoxCreateCollectionOption<T>({
 
     // Only show the pending spinner if we are actually pending.
     if (shouldShowPendingSpinner && !isPending) setShouldShowPendingSpinner(false);
+
+    // We expect the rendered item to be a simple string since we want to render
+    // our own text that includes the `inputValue`. If the `inputValue` was in
+    // `item.rendered` it would only change if the underlying item changes.
+    assert(item.rendered === "Create collection");
 
     return (
         <FocusRing
@@ -114,7 +120,11 @@ export function TaskCollectionsListBoxCreateCollectionOption<T>({
                         className={sprinkles({flexShrink: "0"})}
                     />
                 )}
-                <Box fontStyle={!isQuiet ? "truncate-semi-bold" : "truncate"}>{item.rendered}</Box>
+                <Box fontStyle={!isQuiet ? "truncate-semi-bold" : "truncate"}>
+                    {comboBoxState.inputValue.length > 0
+                        ? `Create collection “${comboBoxState.inputValue}”`
+                        : "Create collection"}
+                </Box>
             </Box>
         </FocusRing>
     );

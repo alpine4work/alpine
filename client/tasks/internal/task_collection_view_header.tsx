@@ -1,4 +1,4 @@
-import {DotsThree} from "phosphor-react";
+import {DotsThree, LockOpen} from "phosphor-react";
 import {useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -142,6 +142,20 @@ export function TaskCollectionViewHeader({
                             },
                             {
                                 label: "Edit color",
+                                onPress: () => {
+                                    // NOCOMMIT
+                                },
+                            },
+                        ],
+                        [
+                            // TODO(calebmer): Collections support more involved permission rules than just
+                            // public/private. Eventually I want a full sharing dialog (like in Google
+                            // Docs) but I want that sharing dialog to work across all stuff in the space.
+                            // Including docs and channels.
+                            {
+                                label: "Make public",
+                                icon: <LockOpen />,
+                                iconPlacement: "end",
                                 onPress: () => {
                                     // NOCOMMIT
                                 },
