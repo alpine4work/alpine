@@ -25,6 +25,17 @@ export async function createDevProxyServer(
     const dontKeepAliveAgent = new http.Agent({keepAlive: false});
 
     const proxyServer = http.createServer((proxyReq, proxyRes) => {
+        let isProxyReqEnded = false;
+        const proxyReqChunks: Array<any> = [];
+
+        proxyReq.on("data", chunk => {
+            proxyReqChunks.push(chunk);
+        });
+
+        proxyReq.on("end", () => {
+            isProxyReqEnded = true;
+        });
+
         let requestAttemptCount = 0;
         request();
 
@@ -97,12 +108,39 @@ export async function createDevProxyServer(
                 res.pipe(proxyRes);
             });
 
-            proxyReq.pipe(req);
+            // If we're retrying a request then we need to replay writing any chunks from
+            // our proxy request body.
+            for (const chunk of proxyReqChunks) {
+                req.write(chunk);
+            }
+
+            if (isProxyReqEnded) {
+                req.end();
+            } else {
+                proxyReq.on("data", chunk => {
+                    req.write(chunk);
+                });
+
+                proxyReq.on("end", () => {
+                    req.end();
+                });
+            }
         }
     });
 
     proxyServer.on("upgrade", (proxyReq, proxySocket, proxyHead) => {
         assert(proxySocket instanceof net.Socket);
+
+        let isProxyReqEnded = false;
+        const proxyReqChunks: Array<any> = [];
+
+        proxyReq.on("data", chunk => {
+            proxyReqChunks.push(chunk);
+        });
+
+        proxyReq.on("end", () => {
+            isProxyReqEnded = true;
+        });
 
         proxySocket.on("error", error => {
             // Thrown when the other side of the socket closes. This is normal. Ignore
@@ -223,7 +261,23 @@ export async function createDevProxyServer(
                 socket.pipe(proxySocket);
             });
 
-            proxyReq.pipe(req);
+            // If we're retrying a request then we need to replay writing any chunks from
+            // our proxy request body.
+            for (const chunk of proxyReqChunks) {
+                req.write(chunk);
+            }
+
+            if (isProxyReqEnded) {
+                req.end();
+            } else {
+                proxyReq.on("data", chunk => {
+                    req.write(chunk);
+                });
+
+                proxyReq.on("end", () => {
+                    req.end();
+                });
+            }
         }
     });
 
