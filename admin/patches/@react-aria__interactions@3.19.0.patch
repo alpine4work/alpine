@@ -1,12 +1,11 @@
 diff --git a/dist/import.mjs b/dist/import.mjs
-index 4c3bacad099f18c8a2c3d7f108fa083bd83b0d9a..19a91d218596bc797ee21b4eb3cf0f9efa1e628d 100644
+index 8304c96402b2f2b285445c005b5078b34993a100..faca5d5981d7bc78cae871dc24649ac9b4be879d 100644
 --- a/dist/import.mjs
 +++ b/dist/import.mjs
-@@ -808,8 +808,13 @@ function $a1ea59d68270f0dd$export$f8168d8dd8fd66e6(props) {
- // See https://github.com/facebook/react/tree/cc7c1aece46a6b69b41958d731e0fd27c94bfc6c/packages/react-interactions
+@@ -885,7 +885,13 @@ function $a1ea59d68270f0dd$export$f8168d8dd8fd66e6(props) {
  
  
--
+ 
 -let $507fabe10e71c6fb$var$currentModality = null;
 +// NOTE(calebmer): Default modality to `pointer`. The types say modality is
 +// non-null which isn't quite true. We expect pointer interaction to be the
@@ -18,7 +17,7 @@ index 4c3bacad099f18c8a2c3d7f108fa083bd83b0d9a..19a91d218596bc797ee21b4eb3cf0f9e
  let $507fabe10e71c6fb$var$changeHandlers = new Set();
  let $507fabe10e71c6fb$var$hasSetupGlobalListeners = false;
  let $507fabe10e71c6fb$var$hasEventBeforeFocus = false;
-@@ -1282,7 +1287,10 @@ function $e0b6e0b68ec7f50f$var$isValidEvent(event, ref) {
+@@ -1359,7 +1365,10 @@ function $e0b6e0b68ec7f50f$var$isValidEvent(event, ref) {
                  return e.isDefaultPrevented();
              },
              stopPropagation () {
@@ -31,10 +30,10 @@ index 4c3bacad099f18c8a2c3d7f108fa083bd83b0d9a..19a91d218596bc797ee21b4eb3cf0f9e
              continuePropagation () {
                  shouldStopPropagation = false;
 diff --git a/dist/main.js b/dist/main.js
-index b4115b501a23f92a4cbe3fcbfe0b3495053590dd..e8ba90fbb4d45e6f8fd360db7ea391c8f744c1f6 100644
+index dca2b48e87b91891af244269a71d87c3162a7006..625b0fdbb580d9950e88f1139a10298a6fd97d1e 100644
 --- a/dist/main.js
 +++ b/dist/main.js
-@@ -833,7 +833,13 @@ function $5cb73d0ce355b0dc$export$f8168d8dd8fd66e6(props) {
+@@ -910,7 +910,13 @@ function $5cb73d0ce355b0dc$export$f8168d8dd8fd66e6(props) {
  
  
  
@@ -49,7 +48,7 @@ index b4115b501a23f92a4cbe3fcbfe0b3495053590dd..e8ba90fbb4d45e6f8fd360db7ea391c8
  let $e77252a287ef94ab$var$changeHandlers = new Set();
  let $e77252a287ef94ab$var$hasSetupGlobalListeners = false;
  let $e77252a287ef94ab$var$hasEventBeforeFocus = false;
-@@ -1306,7 +1312,10 @@ function $edcfa848c42f94f4$var$isValidEvent(event, ref) {
+@@ -1384,7 +1390,10 @@ function $edcfa848c42f94f4$var$isValidEvent(event, ref) {
                  return e.isDefaultPrevented();
              },
              stopPropagation () {
@@ -62,10 +61,10 @@ index b4115b501a23f92a4cbe3fcbfe0b3495053590dd..e8ba90fbb4d45e6f8fd360db7ea391c8
              continuePropagation () {
                  shouldStopPropagation = false;
 diff --git a/dist/module.js b/dist/module.js
-index 4c3bacad099f18c8a2c3d7f108fa083bd83b0d9a..20b0f6a9211ad3bb4df32c89b34645dd6be49065 100644
+index 8304c96402b2f2b285445c005b5078b34993a100..faca5d5981d7bc78cae871dc24649ac9b4be879d 100644
 --- a/dist/module.js
 +++ b/dist/module.js
-@@ -809,7 +809,13 @@ function $a1ea59d68270f0dd$export$f8168d8dd8fd66e6(props) {
+@@ -885,7 +885,13 @@ function $a1ea59d68270f0dd$export$f8168d8dd8fd66e6(props) {
  
  
  
@@ -80,7 +79,7 @@ index 4c3bacad099f18c8a2c3d7f108fa083bd83b0d9a..20b0f6a9211ad3bb4df32c89b34645dd
  let $507fabe10e71c6fb$var$changeHandlers = new Set();
  let $507fabe10e71c6fb$var$hasSetupGlobalListeners = false;
  let $507fabe10e71c6fb$var$hasEventBeforeFocus = false;
-@@ -1282,7 +1288,10 @@ function $e0b6e0b68ec7f50f$var$isValidEvent(event, ref) {
+@@ -1359,7 +1365,10 @@ function $e0b6e0b68ec7f50f$var$isValidEvent(event, ref) {
                  return e.isDefaultPrevented();
              },
              stopPropagation () {

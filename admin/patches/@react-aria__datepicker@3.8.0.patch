@@ -1,8 +1,8 @@
 diff --git a/dist/import.mjs b/dist/import.mjs
-index 8ff0b5bd929ab46203f2e719793c4af61dc1711c..d4dac1c2e36d9b111d056044fdce0402bf370975 100644
+index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..a4938034287fc25d83b34f2dba3dab8163d42635 100644
 --- a/dist/import.mjs
 +++ b/dist/import.mjs
-@@ -836,10 +836,13 @@ function $3dfb0f96be0d6a08$export$4a931266a3838b86(state, ref, disableArrowNavig
+@@ -837,10 +837,13 @@ function $3dfb0f96be0d6a08$export$4a931266a3838b86(state, ref, disableArrowNavig
          }
      };
      // Focus the first placeholder segment from the end on mouse down/touch up in the field.
@@ -19,8 +19,8 @@ index 8ff0b5bd929ab46203f2e719793c4af61dc1711c..d4dac1c2e36d9b111d056044fdce0402
          let walker = (0, $cIPI0$getFocusableTreeWalker)(ref.current, {
              tabbable: true
          });
-@@ -866,15 +869,15 @@ function $3dfb0f96be0d6a08$export$4a931266a3838b86(state, ref, disableArrowNavig
-     let { pressProps: pressProps  } = (0, $cIPI0$usePress)({
+@@ -867,15 +870,15 @@ function $3dfb0f96be0d6a08$export$4a931266a3838b86(state, ref, disableArrowNavig
+     let { pressProps: pressProps } = (0, $cIPI0$usePress)({
          preventFocusOnPress: true,
          allowTextSelectionOnPress: true,
 -        onPressStart (e) {
@@ -40,10 +40,10 @@ index 8ff0b5bd929ab46203f2e719793c4af61dc1711c..d4dac1c2e36d9b111d056044fdce0402
  }
  
 diff --git a/dist/main.js b/dist/main.js
-index 6f6dc83a926718624afd8aea18800ad7f2293eba..2e9ad1df99f3f4d3075b8911f8bea6f1ae5887a0 100644
+index 3764f4836ada2f3a3d0da8ba1872cbd92e67849b..857fa2f320486ff9a94e2afef390d33397189d65 100644
 --- a/dist/main.js
 +++ b/dist/main.js
-@@ -846,10 +846,13 @@ function $715562ad3b4cced4$export$4a931266a3838b86(state, ref, disableArrowNavig
+@@ -847,10 +847,13 @@ function $715562ad3b4cced4$export$4a931266a3838b86(state, ref, disableArrowNavig
          }
      };
      // Focus the first placeholder segment from the end on mouse down/touch up in the field.
@@ -60,8 +60,8 @@ index 6f6dc83a926718624afd8aea18800ad7f2293eba..2e9ad1df99f3f4d3075b8911f8bea6f1
          let walker = (0, $IwcIq$reactariafocus.getFocusableTreeWalker)(ref.current, {
              tabbable: true
          });
-@@ -876,15 +879,15 @@ function $715562ad3b4cced4$export$4a931266a3838b86(state, ref, disableArrowNavig
-     let { pressProps: pressProps  } = (0, $IwcIq$reactariainteractions.usePress)({
+@@ -877,15 +880,15 @@ function $715562ad3b4cced4$export$4a931266a3838b86(state, ref, disableArrowNavig
+     let { pressProps: pressProps } = (0, $IwcIq$reactariainteractions.usePress)({
          preventFocusOnPress: true,
          allowTextSelectionOnPress: true,
 -        onPressStart (e) {
@@ -81,10 +81,10 @@ index 6f6dc83a926718624afd8aea18800ad7f2293eba..2e9ad1df99f3f4d3075b8911f8bea6f1
  }
  
 diff --git a/dist/module.js b/dist/module.js
-index 8ff0b5bd929ab46203f2e719793c4af61dc1711c..d4dac1c2e36d9b111d056044fdce0402bf370975 100644
+index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..a4938034287fc25d83b34f2dba3dab8163d42635 100644
 --- a/dist/module.js
 +++ b/dist/module.js
-@@ -836,10 +836,13 @@ function $3dfb0f96be0d6a08$export$4a931266a3838b86(state, ref, disableArrowNavig
+@@ -837,10 +837,13 @@ function $3dfb0f96be0d6a08$export$4a931266a3838b86(state, ref, disableArrowNavig
          }
      };
      // Focus the first placeholder segment from the end on mouse down/touch up in the field.
@@ -101,8 +101,8 @@ index 8ff0b5bd929ab46203f2e719793c4af61dc1711c..d4dac1c2e36d9b111d056044fdce0402
          let walker = (0, $cIPI0$getFocusableTreeWalker)(ref.current, {
              tabbable: true
          });
-@@ -866,15 +869,15 @@ function $3dfb0f96be0d6a08$export$4a931266a3838b86(state, ref, disableArrowNavig
-     let { pressProps: pressProps  } = (0, $cIPI0$usePress)({
+@@ -867,15 +870,15 @@ function $3dfb0f96be0d6a08$export$4a931266a3838b86(state, ref, disableArrowNavig
+     let { pressProps: pressProps } = (0, $cIPI0$usePress)({
          preventFocusOnPress: true,
          allowTextSelectionOnPress: true,
 -        onPressStart (e) {
@@ -122,10 +122,10 @@ index 8ff0b5bd929ab46203f2e719793c4af61dc1711c..d4dac1c2e36d9b111d056044fdce0402
  }
  
 diff --git a/src/useDatePickerGroup.ts b/src/useDatePickerGroup.ts
-index d09cbc5cc433adc6016a100526be39c460933033..04c31d1ebea546235ae6979ff6117e06309bd108 100644
+index 5892fecccc52080f0a122ee657cceae88efe82f2..a23005c3d28ad47fc04804bed33338b7c5c19d4b 100644
 --- a/src/useDatePickerGroup.ts
 +++ b/src/useDatePickerGroup.ts
-@@ -45,9 +45,13 @@ export function useDatePickerGroup(state: DatePickerState | DateRangePickerState
+@@ -49,9 +49,13 @@ export function useDatePickerGroup(state: DatePickerState | DateRangePickerState
    };
  
    // Focus the first placeholder segment from the end on mouse down/touch up in the field.
@@ -141,7 +141,7 @@ index d09cbc5cc433adc6016a100526be39c460933033..04c31d1ebea546235ae6979ff6117e06
      let walker = getFocusableTreeWalker(ref.current, {tabbable: true});
      if (target) {
        walker.currentNode = target;
-@@ -83,11 +87,6 @@ export function useDatePickerGroup(state: DatePickerState | DateRangePickerState
+@@ -87,11 +91,6 @@ export function useDatePickerGroup(state: DatePickerState | DateRangePickerState
    let {pressProps} = usePress({
      preventFocusOnPress: true,
      allowTextSelectionOnPress: true,
@@ -153,7 +153,7 @@ index d09cbc5cc433adc6016a100526be39c460933033..04c31d1ebea546235ae6979ff6117e06
      onPress(e) {
        if (e.pointerType !== 'mouse') {
          focusLast();
-@@ -95,5 +94,10 @@ export function useDatePickerGroup(state: DatePickerState | DateRangePickerState
+@@ -99,5 +98,10 @@ export function useDatePickerGroup(state: DatePickerState | DateRangePickerState
      }
    });
  

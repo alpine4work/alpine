@@ -1,8 +1,8 @@
 diff --git a/dist/import.mjs b/dist/import.mjs
-index 4fdb443a31f0ea679842659e3eeff79d65a25548..3c9ca947e90ce7ea6a341ae3ffcea5ccd9806325 100644
+index 06fd9dd1921699569521ef70e76120a528b6a128..54b113857f7ac736e50eb0d131022321f7e2539d 100644
 --- a/dist/import.mjs
 +++ b/dist/import.mjs
-@@ -30,7 +30,9 @@ $c1d7fb2ec91bae71$var$Item.getCollectionNode = function* getCollectionNode(props
+@@ -29,7 +29,9 @@ $c1d7fb2ec91bae71$var$Item.getCollectionNode = function* getCollectionNode(props
      let rendered = props.title || props.children;
      let textValue = props.textValue || (typeof rendered === "string" ? rendered : "") || props["aria-label"] || "";
      // suppressTextValueWarning is used in components like Tabs, which don't have type to select support.
@@ -14,7 +14,7 @@ index 4fdb443a31f0ea679842659e3eeff79d65a25548..3c9ca947e90ce7ea6a341ae3ffcea5cc
          type: "item",
          props: props,
 diff --git a/dist/main.js b/dist/main.js
-index 8d3b785dde0a0e5a27ae79024a721c75a1fe46af..877c89f64aa7612bf1d6e2ca70b74166926fcc93 100644
+index 3b9f62389c44678869a956036487b2485e887f74..461a9a77de1c00bfcc810f15bf734223d9c56c52 100644
 --- a/dist/main.js
 +++ b/dist/main.js
 @@ -46,7 +46,9 @@ $c870f3b549c61b6b$var$Item.getCollectionNode = function* getCollectionNode(props
@@ -29,10 +29,10 @@ index 8d3b785dde0a0e5a27ae79024a721c75a1fe46af..877c89f64aa7612bf1d6e2ca70b74166
          type: "item",
          props: props,
 diff --git a/dist/module.js b/dist/module.js
-index 4fdb443a31f0ea679842659e3eeff79d65a25548..3c9ca947e90ce7ea6a341ae3ffcea5ccd9806325 100644
+index 06fd9dd1921699569521ef70e76120a528b6a128..54b113857f7ac736e50eb0d131022321f7e2539d 100644
 --- a/dist/module.js
 +++ b/dist/module.js
-@@ -30,7 +30,9 @@ $c1d7fb2ec91bae71$var$Item.getCollectionNode = function* getCollectionNode(props
+@@ -29,7 +29,9 @@ $c1d7fb2ec91bae71$var$Item.getCollectionNode = function* getCollectionNode(props
      let rendered = props.title || props.children;
      let textValue = props.textValue || (typeof rendered === "string" ? rendered : "") || props["aria-label"] || "";
      // suppressTextValueWarning is used in components like Tabs, which don't have type to select support.

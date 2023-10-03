@@ -1,8 +1,8 @@
 diff --git a/dist/import.mjs b/dist/import.mjs
-index 082d6d995a730880885197b993084b26ff5cde35..0f604e5f4c289da58e0ee0786e61a8ef7a60ec19 100644
+index 7a74bf83b13fc60e93af776fe90250ff13085201..49d125f8037941c9323c931c14affcfea4a0e9e3 100644
 --- a/dist/import.mjs
 +++ b/dist/import.mjs
-@@ -310,15 +310,25 @@ function $ae20dd8cbca75726$export$d6daf82dcd84e87c(options) {
+@@ -325,16 +325,26 @@ function $ae20dd8cbca75726$export$d6daf82dcd84e87c(options) {
      }, []);
      // If not virtualized, scroll the focused element into view when the focusedKey changes.
      // When virtualized, Virtualizer handles this internally.
@@ -13,13 +13,15 @@ index 082d6d995a730880885197b993084b26ff5cde35..0f604e5f4c289da58e0ee0786e61a8ef
 +    //
 +    // 1. Don't scroll on hover. Only scroll on mouse movement.
 +    // 2. If scrolling to the first or last element then completely scroll the view.
+     let lastFocusedKey = (0, $eCAIO$useRef)(manager.focusedKey);
      (0, $eCAIO$useEffect)(()=>{
          let modality = (0, $eCAIO$getInteractionModality)();
-         if (!isVirtualized && manager.isFocused && manager.focusedKey != null && (scrollRef === null || scrollRef === void 0 ? void 0 : scrollRef.current)) {
+-        if (manager.isFocused && manager.focusedKey != null && (scrollRef === null || scrollRef === void 0 ? void 0 : scrollRef.current)) {
++        if (!isVirtualized && manager.isFocused && manager.focusedKey != null && (scrollRef === null || scrollRef === void 0 ? void 0 : scrollRef.current)) {
              let element = scrollRef.current.querySelector(`[data-key="${manager.focusedKey}"]`);
--            if (element) {
--                (0, $eCAIO$scrollIntoView)(scrollRef.current, element);
--                if (modality === "keyboard") (0, $eCAIO$scrollIntoViewport)(element, {
+-            if (element && modality === "keyboard") {
+-                if (!isVirtualized) (0, $eCAIO$scrollIntoView)(scrollRef.current, element);
+-                (0, $eCAIO$scrollIntoViewport)(element, {
 -                    containingElement: ref.current
 -                });
 +            if (element && modality === 'keyboard') {
@@ -32,12 +34,12 @@ index 082d6d995a730880885197b993084b26ff5cde35..0f604e5f4c289da58e0ee0786e61a8ef
 +                }
              }
          }
-     }, [
+         // If the focused key becomes null (e.g. the last item is deleted), focus the whole collection.
 diff --git a/dist/main.js b/dist/main.js
-index 149bb229227e5d37235f544f75f20797da27ffe2..f030bf3f3c454171a1133666ff87e596f95be3c6 100644
+index baf02f818ffbb3fd39c325396f54f4b3f5d57878..47f809806d07a90e8d9a28e73978d876a5ebcc58 100644
 --- a/dist/main.js
 +++ b/dist/main.js
-@@ -319,15 +319,25 @@ function $b6837c2f80a3c32f$export$d6daf82dcd84e87c(options) {
+@@ -334,16 +334,26 @@ function $b6837c2f80a3c32f$export$d6daf82dcd84e87c(options) {
      }, []);
      // If not virtualized, scroll the focused element into view when the focusedKey changes.
      // When virtualized, Virtualizer handles this internally.
@@ -48,13 +50,15 @@ index 149bb229227e5d37235f544f75f20797da27ffe2..f030bf3f3c454171a1133666ff87e596
 +    //
 +    // 1. Don't scroll on hover. Only scroll on mouse movement.
 +    // 2. If scrolling to the first or last element then completely scroll the view.
+     let lastFocusedKey = (0, $glPPV$react.useRef)(manager.focusedKey);
      (0, $glPPV$react.useEffect)(()=>{
          let modality = (0, $glPPV$reactariainteractions.getInteractionModality)();
-         if (!isVirtualized && manager.isFocused && manager.focusedKey != null && (scrollRef === null || scrollRef === void 0 ? void 0 : scrollRef.current)) {
+-        if (manager.isFocused && manager.focusedKey != null && (scrollRef === null || scrollRef === void 0 ? void 0 : scrollRef.current)) {
++        if (!isVirtualized && manager.isFocused && manager.focusedKey != null && (scrollRef === null || scrollRef === void 0 ? void 0 : scrollRef.current)) {
              let element = scrollRef.current.querySelector(`[data-key="${manager.focusedKey}"]`);
--            if (element) {
--                (0, $glPPV$reactariautils.scrollIntoView)(scrollRef.current, element);
--                if (modality === "keyboard") (0, $glPPV$reactariautils.scrollIntoViewport)(element, {
+-            if (element && modality === "keyboard") {
+-                if (!isVirtualized) (0, $glPPV$reactariautils.scrollIntoView)(scrollRef.current, element);
+-                (0, $glPPV$reactariautils.scrollIntoViewport)(element, {
 -                    containingElement: ref.current
 -                });
 +            if (element && modality === 'keyboard') {
@@ -67,12 +71,12 @@ index 149bb229227e5d37235f544f75f20797da27ffe2..f030bf3f3c454171a1133666ff87e596
 +                }
              }
          }
-     }, [
+         // If the focused key becomes null (e.g. the last item is deleted), focus the whole collection.
 diff --git a/dist/module.js b/dist/module.js
-index 082d6d995a730880885197b993084b26ff5cde35..0f604e5f4c289da58e0ee0786e61a8ef7a60ec19 100644
+index 7a74bf83b13fc60e93af776fe90250ff13085201..49d125f8037941c9323c931c14affcfea4a0e9e3 100644
 --- a/dist/module.js
 +++ b/dist/module.js
-@@ -310,15 +310,25 @@ function $ae20dd8cbca75726$export$d6daf82dcd84e87c(options) {
+@@ -325,16 +325,26 @@ function $ae20dd8cbca75726$export$d6daf82dcd84e87c(options) {
      }, []);
      // If not virtualized, scroll the focused element into view when the focusedKey changes.
      // When virtualized, Virtualizer handles this internally.
@@ -83,13 +87,15 @@ index 082d6d995a730880885197b993084b26ff5cde35..0f604e5f4c289da58e0ee0786e61a8ef
 +    //
 +    // 1. Don't scroll on hover. Only scroll on mouse movement.
 +    // 2. If scrolling to the first or last element then completely scroll the view.
+     let lastFocusedKey = (0, $eCAIO$useRef)(manager.focusedKey);
      (0, $eCAIO$useEffect)(()=>{
          let modality = (0, $eCAIO$getInteractionModality)();
-         if (!isVirtualized && manager.isFocused && manager.focusedKey != null && (scrollRef === null || scrollRef === void 0 ? void 0 : scrollRef.current)) {
+-        if (manager.isFocused && manager.focusedKey != null && (scrollRef === null || scrollRef === void 0 ? void 0 : scrollRef.current)) {
++        if (!isVirtualized && manager.isFocused && manager.focusedKey != null && (scrollRef === null || scrollRef === void 0 ? void 0 : scrollRef.current)) {
              let element = scrollRef.current.querySelector(`[data-key="${manager.focusedKey}"]`);
--            if (element) {
--                (0, $eCAIO$scrollIntoView)(scrollRef.current, element);
--                if (modality === "keyboard") (0, $eCAIO$scrollIntoViewport)(element, {
+-            if (element && modality === "keyboard") {
+-                if (!isVirtualized) (0, $eCAIO$scrollIntoView)(scrollRef.current, element);
+-                (0, $eCAIO$scrollIntoViewport)(element, {
 -                    containingElement: ref.current
 -                });
 +            if (element && modality === 'keyboard') {
@@ -102,12 +108,12 @@ index 082d6d995a730880885197b993084b26ff5cde35..0f604e5f4c289da58e0ee0786e61a8ef
 +                }
              }
          }
-     }, [
+         // If the focused key becomes null (e.g. the last item is deleted), focus the whole collection.
 diff --git a/src/useSelectableCollection.ts b/src/useSelectableCollection.ts
-index 355370c4c14f7074d16330bc35da0cb46f21176a..33177baf15351821aff93a87feff73211a229994 100644
+index df489ad31c31dc7e7dd570718f277b95b0336b30..bd14d89950f32910247fce02664b15ce3b865584 100644
 --- a/src/useSelectableCollection.ts
 +++ b/src/useSelectableCollection.ts
-@@ -364,14 +364,24 @@ export function useSelectableCollection(options: AriaSelectableCollectionOptions
+@@ -396,16 +396,26 @@ export function useSelectableCollection(options: AriaSelectableCollectionOptions
  
    // If not virtualized, scroll the focused element into view when the focusedKey changes.
    // When virtualized, Virtualizer handles this internally.
@@ -118,21 +124,22 @@ index 355370c4c14f7074d16330bc35da0cb46f21176a..33177baf15351821aff93a87feff7321
 +  //
 +  // 1. Don't scroll on hover. Only scroll on mouse movement.
 +  // 2. If scrolling to the first or last element then completely scroll the view.
+   let lastFocusedKey = useRef(manager.focusedKey);
    useEffect(() => {
      let modality = getInteractionModality();
-     if (!isVirtualized && manager.isFocused && manager.focusedKey != null && scrollRef?.current) {
+-    if (manager.isFocused && manager.focusedKey != null && scrollRef?.current) {
++    if (!isVirtualized && manager.isFocused && manager.focusedKey != null && scrollRef?.current) {
        let element = scrollRef.current.querySelector(`[data-key="${manager.focusedKey}"]`) as HTMLElement;
--      if (element) {
--        scrollIntoView(scrollRef.current, element);
--        if (modality === 'keyboard') {
--          scrollIntoViewport(element, {containingElement: ref.current});
-+      if (element && modality === 'keyboard') {
+       if (element && modality === 'keyboard') {
+-        if (!isVirtualized) {
 +        if (!element.previousSibling) {
 +          scrollRef.current.scrollTop = 0;
 +        } else if (!element.nextSibling) {
 +          scrollRef.current.scrollTop = scrollRef.current.scrollHeight - scrollRef.current.clientHeight;
 +        } else {
-+          scrollIntoView(scrollRef.current, element);
+           scrollIntoView(scrollRef.current, element);
          }
+-        scrollIntoViewport(element, {containingElement: ref.current});
        }
      }
+ 
