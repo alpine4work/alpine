@@ -11,12 +11,14 @@ import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definition
  *
  * Using this hook will load the accounts in the space. If the space accounts were
  * already loaded we will return stale data for a bit while we reload. It's
- * recommended that you use `usePreloadSpaceAccounts()` in some parent component so
- * that stale accounts are ready when this hook is called.
+ * recommended that you use `useExpensivelyPreloadAllSpaceAccounts()` in some
+ * parent component so that stale accounts are ready when this hook is called.
  */
 export function useExpensivelyLoadAllSpaceAccounts({
     isDisabled = false,
-}: {isDisabled?: boolean} = {}) {
+}: {
+    isDisabled?: boolean;
+} = {}) {
     const {space} = useSpaceContext();
     const {output} = useLazyLoadLoadRpc(
         expensivelyGetAllSpaceAccounts,
@@ -27,7 +29,8 @@ export function useExpensivelyLoadAllSpaceAccounts({
 
 /**
  * Preload space accounts so that they are immediately available when you
- * call `useSpaceAccounts()` and you don't have to wait for a network request.
+ * call `useExpensivelyLoadAllSpaceAccounts()` and you don't have to wait for a
+ * network request.
  */
 export function useExpensivelyPreloadAllSpaceAccounts() {
     const context = useAppContext();

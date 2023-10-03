@@ -9,13 +9,13 @@ export function TaskCollectionsListBoxInstructionalPlaceholder({
 }) {
     return (
         <Box display="flex" flexDirection="column" padding="3" gap="3">
-            <Box display="flex" alignItems="flex-end" gap="1">
+            <Box display="flex" alignItems="center" gap="2">
                 <Box>
                     <Box fontStyle="semi-bold" fontSize="75" color="grey-text" paddingBottom="1">
-                        Shared collections
+                        My collections
                     </Box>
                     <Box fontSize="50" color="grey-50">
-                        Collections help you organize related tasks
+                        We’ll recommend the collections you use most here
                     </Box>
                 </Box>
                 <Box

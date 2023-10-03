@@ -4,16 +4,17 @@ import {useEffect, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
-import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state.js";
+import {getTaskCollectionColor} from "~/client/tasks/internal/task_collection_chip_base.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {spinAnimationClassName} from "~/shared/styles/styles.js";
+import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 
 export function TaskCollectionOption({
-    collection,
+    collectionResult,
     isPending,
 }: {
-    collection: LocalTaskCollection;
+    collectionResult: TaskCollectionModelSearchResult;
     isPending?: boolean;
 }) {
     // We wait a bit before showing our pending spinner. Some actions are very fast so we
@@ -50,15 +51,15 @@ export function TaskCollectionOption({
                     width="1.5"
                     height="1.5"
                     borderRadius="full"
-                    backgroundColor={`${collection.color}-50-const`}
+                    backgroundColor={getTaskCollectionColor(collectionResult.collection.getColor())}
                 />
             </Box>
             <Box flexGrow="1" overflow="hidden">
-                <Box fontStyle="truncate">{collection.name}</Box>
+                <Box fontStyle="truncate">{collectionResult.collection.getName()}</Box>
                 <Box fontSize="50" color="grey-40">
-                    {getTaskCollectionTaskCountSummary(collection)},{" "}
+                    {getTaskCollectionTaskCountSummary(collectionResult)},{" "}
                     {getTaskCollectionLastUpdateTimeSummary(
-                        collection,
+                        collectionResult,
                         useCurrentTimeRoundedToHour(),
                     )}
                 </Box>
@@ -72,12 +73,12 @@ export function TaskCollectionOption({
     );
 }
 
-function getTaskCollectionTaskCountSummary(collection: LocalTaskCollection) {
-    if (collection.taskCount === 0) {
+function getTaskCollectionTaskCountSummary(collectionResult: TaskCollectionModelSearchResult) {
+    if (collectionResult.openTaskCount === 0) {
         return "No tasks";
-    } else if (collection.taskCount < 100) {
+    } else if (collectionResult.openTaskCount < 100) {
         return "Several tasks";
-    } else if (collection.taskCount < 1000) {
+    } else if (collectionResult.openTaskCount < 1000) {
         return "Hundreds of tasks";
     } else {
         return "Thousands of tasks";
@@ -85,11 +86,12 @@ function getTaskCollectionTaskCountSummary(collection: LocalTaskCollection) {
 }
 
 function getTaskCollectionLastUpdateTimeSummary(
-    collection: LocalTaskCollection,
+    collectionResult: TaskCollectionModelSearchResult,
     currentTime: Date,
 ) {
-    if (!collection.lastTaskAddedOrRemovedTimeRoundedToDay) {
-        const years = differenceInYears(currentTime, collection.createdTime);
+    if (!collectionResult.lastTaskAddedTime) {
+        const createdTime = new Date(collectionResult.collection.getCreatedTime()[0]);
+        const years = differenceInYears(currentTime, createdTime);
 
         if (years === 1) {
             return "created 1 year ago";
@@ -97,7 +99,7 @@ function getTaskCollectionLastUpdateTimeSummary(
             return `created ${years} year ago`;
         }
 
-        const months = differenceInMonths(currentTime, collection.createdTime);
+        const months = differenceInMonths(currentTime, createdTime);
 
         if (months === 1) {
             return "created 1 month ago";
@@ -107,10 +109,9 @@ function getTaskCollectionLastUpdateTimeSummary(
             return "created recently";
         }
     } else {
-        const years = differenceInYears(
-            currentTime,
-            collection.lastTaskAddedOrRemovedTimeRoundedToDay,
-        );
+        const lastTaskAddedTime = new Date(collectionResult.lastTaskAddedTime[0]);
+
+        const years = differenceInYears(currentTime, lastTaskAddedTime);
 
         if (years === 1) {
             return "last updated 1 year ago";
@@ -118,10 +119,7 @@ function getTaskCollectionLastUpdateTimeSummary(
             return `last updated ${years} year ago`;
         }
 
-        const months = differenceInMonths(
-            currentTime,
-            collection.lastTaskAddedOrRemovedTimeRoundedToDay,
-        );
+        const months = differenceInMonths(currentTime, lastTaskAddedTime);
 
         if (months === 1) {
             return "last updated 1 month ago";

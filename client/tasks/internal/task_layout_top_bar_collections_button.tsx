@@ -1,7 +1,6 @@
 import {isFocusVisible} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
-import _Fuse from "fuse.js";
-import {CaretDown, MagnifyingGlass, Plus} from "phosphor-react";
+import {CaretDown, MagnifyingGlass} from "phosphor-react";
 import {ReactNode, RefObject, cloneElement, isValidElement, useMemo, useRef, useState} from "react";
 import {
     AriaListBoxOptions,
@@ -20,34 +19,29 @@ import {useShowToast} from "~/client/design/toast.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {TaskCollectionOption} from "~/client/tasks/internal/task_collection_option.js";
 import {TaskCollectionsListBoxCreateCollectionOption} from "~/client/tasks/internal/task_collections_list_box_create_collection_option.js";
 import {TaskCollectionsListBoxInstructionalPlaceholder} from "~/client/tasks/internal/task_collections_list_box_instructional_placeholder.js";
-import {usePreloadAffinitiveTaskCollections} from "~/client/tasks/internal/use_affinitive_task_collections.js";
+import {
+    useAffinitiveTaskCollections,
+    usePreloadAffinitiveTaskCollections,
+} from "~/client/tasks/internal/use_affinitive_task_collections.js";
 import {spacing} from "~/shared/design/spacing.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {greyElevated2ClassName, sprinkles} from "~/shared/styles/styles.js";
-
-// Node.js ESM interop (#node-esm-migration)
-const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
+import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 
 export function TaskLayoutTopBarCollectionsButton({
     isCollectionsTabActive,
 }: {
     isCollectionsTabActive: boolean;
 }) {
-    const navigate = useNavigate();
-    const {space} = useSpaceContext();
-
     // Preload task collections the account has an affinity for in case they open
     // the collections dropdown.
     usePreloadAffinitiveTaskCollections();
-
-    // NOCOMMIT
-    const allCollections = emptyArray;
 
     return (
         <OverlayTriggerButton
@@ -64,7 +58,7 @@ export function TaskLayoutTopBarCollectionsButton({
                     display="flex"
                     flexDirection="column"
                 >
-                    {allCollections.length === 0 ? (
+                    {/* NOCOMMIT: {allCollections.length === 0 ? (
                         <TaskCollectionsListBoxInstructionalPlaceholder
                             createCollectionButton={
                                 <Button
@@ -86,12 +80,11 @@ export function TaskLayoutTopBarCollectionsButton({
                                 </Button>
                             }
                         />
-                    ) : (
-                        <TaskLayoutTopBarCollectionsComboBoxOverlay
-                            allCollections={allCollections}
-                            onCloseWithoutAnimation={onCloseWithoutAnimation}
-                        />
-                    )}
+                    ) : ( */}
+                    <TaskLayoutTopBarCollectionsComboBoxOverlay
+                        onCloseWithoutAnimation={onCloseWithoutAnimation}
+                    />
+                    {/* )} */}
                 </Box>
             )}
         >
@@ -115,7 +108,7 @@ type TaskLayoutTopBarCollectionsComboBoxItem =
 type TaskLayoutTopBarCollectionsComboBoxCollectionItem = {
     readonly type: "Collection";
     readonly key: `Collection:${TaskCollectionId}`;
-    // NOCOMMIT: readonly collection: LocalTaskCollection;
+    readonly collectionResult: TaskCollectionModelSearchResult;
 };
 
 type TaskLayoutTopBarCollectionsComboBoxCreateCollectionItem = {
@@ -124,11 +117,8 @@ type TaskLayoutTopBarCollectionsComboBoxCreateCollectionItem = {
 };
 
 function TaskLayoutTopBarCollectionsComboBoxOverlay({
-    allCollections,
     onCloseWithoutAnimation,
 }: {
-    // NOCOMMIT: This!
-    allCollections: ReadonlyArray<never>;
     onCloseWithoutAnimation: () => void;
 }) {
     const navigate = useNavigate();
@@ -140,42 +130,33 @@ function TaskLayoutTopBarCollectionsComboBoxOverlay({
         TaskLayoutTopBarCollectionsComboBoxItem["key"] | null
     >(null);
 
-    const allCollectionsSearchIndex = useMemo(
-        () => new Fuse(allCollections, {keys: ["name"]}),
-        [allCollections],
-    );
+    const affinitiveCollectionResults = useAffinitiveTaskCollections();
 
-    const searchedCollections = useMemo(
-        () =>
-            inputValue === ""
-                ? allCollections
-                : allCollectionsSearchIndex.search(inputValue).map(({item}) => item),
-        [inputValue, allCollections, allCollectionsSearchIndex],
-    );
+    const items: ReadonlyArray<TaskLayoutTopBarCollectionsComboBoxItem> = useMemo(() => {
+        const items: Array<TaskLayoutTopBarCollectionsComboBoxItem> = [];
 
-    const searchedItems: ReadonlyArray<TaskLayoutTopBarCollectionsComboBoxItem> = useMemo(() => {
-        const searchedItems: Array<TaskLayoutTopBarCollectionsComboBoxItem> = [];
-
-        for (const collection of searchedCollections) {
-            searchedItems.push({
-                type: "Collection",
-                key: `Collection:${collection.id}`,
-                collection,
-            });
+        if (affinitiveCollectionResults) {
+            for (const collectionResult of affinitiveCollectionResults) {
+                items.push({
+                    type: "Collection",
+                    key: `Collection:${collectionResult.collection.id}`,
+                    collectionResult,
+                });
+            }
         }
 
-        searchedItems.push({
+        items.push({
             type: "CreateCollection",
             key: "CreateCollection",
         });
 
-        return searchedItems;
-    }, [searchedCollections]);
+        return items;
+    }, [affinitiveCollectionResults]);
 
     const renderItem = (item: TaskLayoutTopBarCollectionsComboBoxItem) =>
         item.type === "Collection" ? (
-            <Item textValue={item.collection.name}>
-                <TaskCollectionOption collection={item.collection} />
+            <Item textValue={item.collectionResult.collection.getName()}>
+                <TaskCollectionOption collectionResult={item.collectionResult} />
             </Item>
         ) : (
             <Item>
@@ -184,7 +165,7 @@ function TaskLayoutTopBarCollectionsComboBoxOverlay({
         );
 
     const {collection, selectionManager, disabledKeys} = useSingleSelectListState({
-        items: searchedItems,
+        items,
         children: renderItem,
 
         selectedKey: null,
@@ -199,7 +180,7 @@ function TaskLayoutTopBarCollectionsComboBoxOverlay({
 
                 setPendingKey(`Collection:${collectionId}`);
 
-                navigate(`/s/${space.id}/tasks/demo-2/collections/${collectionId}`).then(
+                navigate(`/s/${space.id}/tasks/collections/${collectionId}`).then(
                     () => {
                         setPendingKey(pendingKey => {
                             if (pendingKey !== `Collection:${collectionId}`) return pendingKey;
@@ -226,7 +207,7 @@ function TaskLayoutTopBarCollectionsComboBoxOverlay({
 
                 setPendingKey("CreateCollection");
 
-                navigate(`/s/${space.id}/tasks/demo-2/collections/${generateId()}?create`).then(
+                navigate(`/s/${space.id}/tasks/collections/${generateId()}?create`).then(
                     () => {
                         setPendingKey(pendingKey => {
                             if (pendingKey !== "CreateCollection") return pendingKey;
@@ -297,37 +278,43 @@ function TaskLayoutTopBarCollectionsComboBoxOverlay({
             listBoxRef,
             autoFocus: false,
             shouldFocusWrap: false,
-            items: searchedItems,
+            items,
         },
         comboBoxState,
     );
 
     return (
         <>
-            <FocusRing offset="border">
-                <input
-                    {...inputProps}
-                    ref={inputRef}
-                    className={sprinkles({
-                        flexShrink: "0",
-                        display: "block",
-                        width: "full",
-                        height: "8",
-                        paddingX: "2.5",
-                        backgroundColor: "transparent",
-                        borderTopRadius: "md",
-                        borderBottom: "grey-10",
-                    })}
-                    placeholder="Collection"
-                    onKeyDown={event => {
-                        // Don't handle a tab keypress with `react-aria`. Instead let our
-                        // `<OverlayTriggerButton>` handle it.
-                        if (event.key === "Tab") return;
+            <Box position="relative">
+                <Box position="absolute" top="2.5" left="2.5" pointerEvents="none" color="grey-70">
+                    <MagnifyingGlass size={spacing["3"]} />
+                </Box>
+                <FocusRing offset="border">
+                    <input
+                        {...inputProps}
+                        ref={inputRef}
+                        className={sprinkles({
+                            flexShrink: "0",
+                            display: "block",
+                            width: "full",
+                            height: "8",
+                            paddingLeft: "7",
+                            paddingRight: "2.5",
+                            backgroundColor: "transparent",
+                            borderTopRadius: "md",
+                            borderBottom: "grey-10",
+                        })}
+                        placeholder="Search all collections"
+                        onKeyDown={event => {
+                            // Don't handle a tab keypress with `react-aria`. Instead let our
+                            // `<OverlayTriggerButton>` handle it.
+                            if (event.key === "Tab") return;
 
-                        inputProps.onKeyDown?.(event);
-                    }}
-                />
-            </FocusRing>
+                            inputProps.onKeyDown?.(event);
+                        }}
+                    />
+                </FocusRing>
+            </Box>
             <Box
                 ref={popoverRef}
                 flexGrow="1"
@@ -385,6 +372,11 @@ function TaskLayoutTopBarCollectionsListBox({
         return {itemsWithoutCreateCollectionButton, createCollectionButtonItem};
     }, [comboBoxState, pendingKey]);
 
+    const shouldShowInstructionalPlaceholder =
+        createCollectionButtonItem &&
+        comboBoxState.inputValue.length === 0 &&
+        itemsWithoutCreateCollectionButton.length === 0;
+
     return (
         <Box flexGrow="1" overflow="hidden" display="flex" flexDirection="column">
             <ul
@@ -394,10 +386,12 @@ function TaskLayoutTopBarCollectionsListBox({
                     flexGrow: "1",
                     padding: "1",
                     overflowX: "hidden",
-                    overflowY: "scroll",
+                    overflowY: "auto",
+                    display: shouldShowInstructionalPlaceholder ? "none" : undefined,
                 })}
             >
                 {itemsWithoutCreateCollectionButton.length === 0 ? (
+                    // NOCOMMIT: Better UI here
                     <Box padding="1.5" display="flex" alignItems="center" gap="1" color="grey-70">
                         <MagnifyingGlass size={spacing["3"]} />
                         <Box>No results</Box>
@@ -406,15 +400,28 @@ function TaskLayoutTopBarCollectionsListBox({
                     itemsWithoutCreateCollectionButton
                 )}
             </ul>
-            {createCollectionButtonItem && (
-                <Box borderTop="grey-10" padding="1">
-                    <TaskCollectionsListBoxCreateCollectionOption
-                        comboBoxState={comboBoxState}
-                        item={createCollectionButtonItem}
-                        isQuiet={true}
-                        isPending={createCollectionButtonItem.key === pendingKey}
-                    />
-                </Box>
+            {shouldShowInstructionalPlaceholder ? (
+                <TaskCollectionsListBoxInstructionalPlaceholder
+                    createCollectionButton={
+                        <TaskCollectionsListBoxCreateCollectionOption
+                            comboBoxState={comboBoxState}
+                            item={createCollectionButtonItem}
+                            isQuiet={false}
+                            isPending={createCollectionButtonItem.key === pendingKey}
+                        />
+                    }
+                />
+            ) : (
+                createCollectionButtonItem && (
+                    <Box borderTop="grey-10" padding="1">
+                        <TaskCollectionsListBoxCreateCollectionOption
+                            comboBoxState={comboBoxState}
+                            item={createCollectionButtonItem}
+                            isQuiet={true}
+                            isPending={createCollectionButtonItem.key === pendingKey}
+                        />
+                    </Box>
+                )
             )}
         </Box>
     );
@@ -452,11 +459,7 @@ function TaskLayoutTopBarCollectionsListBoxOption({
                     padding: "1.5",
                     borderRadius: "base",
                     color: "grey-text",
-                    backgroundColor: isPressed
-                        ? {light: "grey-10", dark: "grey-20"}
-                        : isHovered
-                        ? {light: "grey-5", dark: "grey-10"}
-                        : undefined,
+                    backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
                 })}
             >
                 {isValidElement(item.rendered)

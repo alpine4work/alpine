@@ -8,15 +8,26 @@ import {getAffinitiveTaskCollections} from "~/shared/rpc/tasks_rpc_definitions.j
 // show in a collection dropdown.
 const affinitiveTaskCollectionLimit = 30;
 
-function useAffinitiveTaskCollections() {
+/**
+ * Return this account's affinitive task collections. Returns `null` while we
+ * are loading the collections from the network.
+ */
+export function useAffinitiveTaskCollections({isDisabled = false}: {isDisabled?: boolean} = {}) {
     const {space} = useSpaceContext();
 
-    const {output} = useLazyLoadLoadRpc(getAffinitiveTaskCollections, {
-        spaceId: space.id,
-        limit: affinitiveTaskCollectionLimit,
-    });
+    const {output} = useLazyLoadLoadRpc(
+        getAffinitiveTaskCollections,
+        !isDisabled ? {spaceId: space.id, limit: affinitiveTaskCollectionLimit} : null,
+    );
+
+    return output?.collectionResults ?? null;
 }
 
+/**
+ * Preload affinitive task collections when we have some idle time so that they
+ * are immediately available when you call `useAffinitiveTaskCollections()` and
+ * you don't have to wait for a network request.
+ */
 export function usePreloadAffinitiveTaskCollections() {
     const context = useAppContext();
     const {space} = useSpaceContext();

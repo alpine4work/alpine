@@ -152,6 +152,13 @@ export function useLazyLoadLoadRpc<Input, Output extends {}>(
  * called with the same arguments we will be able to use that cached or in
  * progress request.
  */
+// TODO(calebmer): It would appear that preloaded data is not treated as stale.
+// What I would have expected is when an SWC hook is mounted, it uses preloaded
+// data while revalidating. Consider adding a patch for this behavior.
+//
+// If preloaded data is unused for more than n seconds it is considered stale
+// and needs to be revalidated. Or if the page visibility changes (as is
+// the regular SWC behavior).
 export function preloadRpc<Input, Output extends {}>(
     context: AppContext,
     rpc: RpcDefinition<Input, Output>,

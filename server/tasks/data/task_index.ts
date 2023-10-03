@@ -39,7 +39,6 @@ import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
-import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -49,7 +48,7 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {collectReferencedAccountIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_account_ids_from_task_action.js";
 import {TaskAction, TaskUpdateAccountNameAction} from "~/shared/tasks/actions/task_action.js";
-import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
+import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
@@ -1031,13 +1030,7 @@ export async function queryTaskIndex(
 export async function searchTaskCollectionIndex(
     context: ServerSessionActionContext,
     {spaceId, nameQuery, limit}: {spaceId: SpaceId; nameQuery: string; limit: number},
-): Promise<
-    Array<{
-        collection: TaskCollectionModel;
-        openTaskCount: number;
-        lastTaskAddedTime: HybridLogicalTime | null;
-    }>
-> {
+): Promise<Array<TaskCollectionModelSearchResult>> {
     await authorizeSpaceAccess(context, spaceId);
 
     const collectionIds = await context.opensearch.client.searchWithoutReturningDocs(

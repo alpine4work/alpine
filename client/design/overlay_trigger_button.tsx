@@ -26,6 +26,7 @@ import {
     defaultTooltipOffset,
     useShouldDisableTooltips,
 } from "~/client/design/tooltip.js";
+import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
@@ -569,13 +570,24 @@ const OverlayTriggerOverlay = forwardRef(function OverlayTriggerOverlay(
             }
 
             default: {
-                event.preventDefault();
+                const overlayElement = assertExists(overlayRef.current);
+
+                // If focus is within a text element then let the text element handle wayward
+                // keyboard events.
+                if (
+                    document.activeElement &&
+                    overlayElement.contains(document.activeElement) &&
+                    isTextInputElement(document.activeElement)
+                ) {
+                    return;
+                }
+
                 event.stopPropagation();
+                event.preventDefault();
 
                 // Allow our overlay element to handle the keyboard event but don't let anyone
                 // else handle keyboard events. If the overlay element doesn't handle the
                 // keyboard event then we close the overlay.
-                const overlayElement = assertExists(overlayRef.current);
                 isReDispatchingKeyboardEvent = true;
                 try {
                     const newEvent = new KeyboardEvent("keydown", event);

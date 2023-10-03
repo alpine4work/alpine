@@ -75,6 +75,7 @@ import {
 import {TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_task_action.js";
 import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
+import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 import {
     TaskCollectionAccessLevel,
     TaskCollectionAccessPolicy,
@@ -4013,13 +4014,7 @@ function createTaskCollectionModelFromItem(collectionItem: TaskCollectionEssenti
 export async function assembleTaskCollectionIndexSearchResults(
     context: ServerSessionActionContext,
     collectionIds: Array<TaskCollectionId>,
-): Promise<
-    Array<{
-        openTaskCount: number;
-        lastTaskAddedTime: HybridLogicalTime | null;
-        collection: TaskCollectionModel;
-    }>
-> {
+): Promise<Array<TaskCollectionModelSearchResult>> {
     const collectionItems = await runAllPromises(
         collectionIds.map(async collectionId => {
             const collectionItem = await TaskTable.getItem(context, {
@@ -4125,13 +4120,7 @@ export async function addTaskCollectionAffinityPoints(
 export async function getAffinitiveTaskCollections(
     context: ServerSessionActionContext,
     {spaceId, limit}: {spaceId: SpaceId; limit: number},
-): Promise<
-    Array<{
-        openTaskCount: number;
-        lastTaskAddedTime: HybridLogicalTime | null;
-        collection: TaskCollectionModel;
-    }>
-> {
+): Promise<Array<TaskCollectionModelSearchResult>> {
     const currentTime = Date.now();
 
     // We hope the number of collections a user reasonably interacts with over
