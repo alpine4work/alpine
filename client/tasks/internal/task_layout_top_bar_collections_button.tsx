@@ -18,8 +18,12 @@ import {OverlayTriggerButton} from "~/client/design/overlay_trigger_button.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useLazyLoadLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {TaskCollectionOption} from "~/client/tasks/internal/task_collection_option.js";
+import {
+    TaskCollectionOption,
+    taskCollectionOptionSecondaryTextColor,
+} from "~/client/tasks/internal/task_collection_option.js";
 import {TaskCollectionsListBoxCreateCollectionOption} from "~/client/tasks/internal/task_collections_list_box_create_collection_option.js";
 import {TaskCollectionsListBoxInstructionalPlaceholder} from "~/client/tasks/internal/task_collections_list_box_instructional_placeholder.js";
 import {
@@ -31,8 +35,12 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
-import {greyElevated2ClassName, sprinkles} from "~/shared/styles/styles.js";
-import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
+import {searchTaskCollections} from "~/shared/rpc/tasks_rpc_definitions.js";
+import {fontSizes, greyElevated2ClassName, sprinkles} from "~/shared/styles/styles.js";
+import {
+    TaskCollectionModelSearchResult,
+    taskCollectionSearchResultLimit,
+} from "~/shared/tasks/model/task_collection_model_search_result.js";
 
 export function TaskLayoutTopBarCollectionsButton({
     isCollectionsTabActive,
@@ -132,10 +140,71 @@ function TaskLayoutTopBarCollectionsComboBoxOverlay({
 
     const affinitiveCollectionResults = useAffinitiveTaskCollections();
 
+    const {output: searchCollectionsOutput} = useLazyLoadLoadRpc(
+        searchTaskCollections,
+        inputValue.length === 0
+            ? null
+            : {
+                  spaceId: space.id,
+                  nameQuery: inputValue,
+                  limit: taskCollectionSearchResultLimit,
+              },
+        {keepPreviousData: true},
+    );
+
+    // NOCOMMIT: Loading indicators? Throttle network requests? Updated data from store if it exists?
+
     const items: ReadonlyArray<TaskLayoutTopBarCollectionsComboBoxItem> = useMemo(() => {
         const items: Array<TaskLayoutTopBarCollectionsComboBoxItem> = [];
 
-        if (affinitiveCollectionResults) {
+        // Show search results if we have them, otherwise show collections the account
+        // has some affinity for.
+        if (searchCollectionsOutput) {
+            const affinitiveCollectionResultById = new Map(
+                affinitiveCollectionResults?.map(collectionResult => [
+                    collectionResult.collection.id,
+                    collectionResult.score,
+                ]),
+            );
+
+            for (const collectionResult of searchCollectionsOutput.collectionResults) {
+                items.push({
+                    type: "Collection",
+                    key: `Collection:${collectionResult.collection.id}`,
+                    collectionResult,
+                });
+            }
+
+            // Re-sort items using affinity scores if we have them. Any searched
+            // collections with equal score will be re-ranked by affinity if it's in the
+            // account's top 30 affinitive collections.
+            items.sort((item1, item2) => {
+                if (item1.type !== "Collection" && item2.type !== "Collection") return 0;
+                if (item1.type !== "Collection") return 1;
+                if (item2.type !== "Collection") return -1;
+
+                if (item1.collectionResult.score !== item2.collectionResult.score) {
+                    return item2.collectionResult.score - item1.collectionResult.score;
+                }
+
+                const affinitiveCollectionResult1 = affinitiveCollectionResultById.get(
+                    item1.collectionResult.collection.id,
+                );
+                const affinitiveCollectionResult2 = affinitiveCollectionResultById.get(
+                    item2.collectionResult.collection.id,
+                );
+
+                if (
+                    affinitiveCollectionResult1 === undefined &&
+                    affinitiveCollectionResult2 === undefined
+                ) {
+                    return 0;
+                }
+                if (affinitiveCollectionResult1 === undefined) return 1;
+                if (affinitiveCollectionResult2 === undefined) return -1;
+                return affinitiveCollectionResult2 - affinitiveCollectionResult1;
+            });
+        } else if (affinitiveCollectionResults) {
             for (const collectionResult of affinitiveCollectionResults) {
                 items.push({
                     type: "Collection",
@@ -151,7 +220,7 @@ function TaskLayoutTopBarCollectionsComboBoxOverlay({
         });
 
         return items;
-    }, [affinitiveCollectionResults]);
+    }, [affinitiveCollectionResults, searchCollectionsOutput]);
 
     const renderItem = (item: TaskLayoutTopBarCollectionsComboBoxItem) =>
         item.type === "Collection" ? (
@@ -207,7 +276,11 @@ function TaskLayoutTopBarCollectionsComboBoxOverlay({
 
                 setPendingKey("CreateCollection");
 
-                navigate(`/s/${space.id}/tasks/collections/${generateId()}?create`).then(
+                navigate(
+                    `/s/${space.id}/tasks/collections/${generateId()}?create${
+                        inputValue.length > 0 ? `=${encodeURIComponent(inputValue)}` : ""
+                    }`,
+                ).then(
                     () => {
                         setPendingKey(pendingKey => {
                             if (pendingKey !== "CreateCollection") return pendingKey;
@@ -391,10 +464,28 @@ function TaskLayoutTopBarCollectionsListBox({
                 })}
             >
                 {itemsWithoutCreateCollectionButton.length === 0 ? (
-                    // NOCOMMIT: Better UI here
-                    <Box padding="1.5" display="flex" alignItems="center" gap="1" color="grey-70">
-                        <MagnifyingGlass size={spacing["3"]} />
-                        <Box>No results</Box>
+                    // Mimic the structure of a `<TaskCollectionOption>`
+                    <Box padding="1.5" display="flex" alignItems="flex-start" gap="1.5">
+                        <Box
+                            flexShrink="0"
+                            height="4"
+                            paddingLeft="1"
+                            paddingRight="0.5"
+                            display="flex"
+                            justifyContent="center"
+                            alignItems="center"
+                        >
+                            <Box width="1.5" height="1.5" borderRadius="full" />
+                        </Box>
+                        <Box>
+                            <Box
+                                fontStyle="truncate"
+                                color={taskCollectionOptionSecondaryTextColor}
+                            >
+                                No results, try a different search
+                            </Box>
+                            <Box style={{height: fontSizes["50"].lineHeight}}></Box>
+                        </Box>
                     </Box>
                 ) : (
                     itemsWithoutCreateCollectionButton

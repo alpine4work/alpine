@@ -171,7 +171,12 @@ export interface OpensearchClientInterface {
             sort?: OpensearchSortClause<OpensearchIndexFlattenedKeysType<Index>>;
             searchAfter?: ReadonlyArray<JsonScalarValue | bigint>;
         },
-    ): Promise<Array<OpensearchIndexDocIdType<Index>>>;
+    ): Promise<
+        Array<{
+            score: number;
+            id: OpensearchIndexDocIdType<Index>;
+        }>
+    >;
 
     /**
      * Manually refresh an OpenSearch index using the [refresh API][1].
@@ -790,7 +795,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             searchAfter?: ReadonlyArray<JsonScalarValue | bigint>;
             withoutDocs?: boolean;
         },
-    ): Promise<Array<{_id: string; _source?: JsonValue}>> {
+    ): Promise<Array<{_id: string; _score: number; _source?: JsonValue}>> {
         if (process.env.NODE_ENV !== "production") {
             await this._ensureLocalIndex(tracer, index);
         }
@@ -852,7 +857,10 @@ export class OpensearchClient implements OpensearchClientInterface {
         // If we ignore `sort` values we'll be fine. Keep in mind that you can't use
         // `sort` values unless you parse with `json-bigint`.
         const body:
-            | {hits: {hits: Array<{_id: string; _source?: JsonValue}>}; error?: undefined}
+            | {
+                  hits: {hits: Array<{_id: string; _score: number; _source?: JsonValue}>};
+                  error?: undefined;
+              }
             | {error: OpensearchError; hits?: undefined} = await response.json();
 
         if (body.error) {
@@ -933,7 +941,12 @@ export class OpensearchClient implements OpensearchClientInterface {
             sort?: OpensearchSortClause<OpensearchIndexFlattenedKeysType<Index>>;
             searchAfter?: ReadonlyArray<JsonScalarValue | bigint>;
         },
-    ): Promise<Array<OpensearchIndexDocIdType<Index>>> {
+    ): Promise<
+        Array<{
+            score: number;
+            id: OpensearchIndexDocIdType<Index>;
+        }>
+    > {
         const hits = await this._search(tracer, index, routing, {
             size,
             query,
@@ -944,7 +957,10 @@ export class OpensearchClient implements OpensearchClientInterface {
 
         const docIds = hits.map(hit => {
             assert(!hit._source);
-            return hit._id as OpensearchIndexDocIdType<Index>;
+            return {
+                id: hit._id as OpensearchIndexDocIdType<Index>,
+                score: hit._score,
+            };
         });
 
         return docIds;

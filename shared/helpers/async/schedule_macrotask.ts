@@ -10,5 +10,5 @@ const originalSetTimeout = globalThis.setTimeout;
  * [1]: https://javascript.info/event-loop
  */
 export function scheduleMacrotask(callback: () => void) {
-    originalSetTimeout(callback, 0);
+    originalSetTimeout(callback);
 }

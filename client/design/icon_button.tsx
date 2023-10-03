@@ -388,7 +388,6 @@ function IconButton(
                     )}
                     ref={useMergedRefs(foreignRef, localRef)}
                     className={sprinkles({
-                        flexShrink: "0",
                         display: "flex",
                         justifyContent: "center",
                         alignItems: "center",
@@ -399,6 +398,9 @@ function IconButton(
                         cursor: "default",
                         position: "relative",
                         zIndex: "0",
+                        // If this button is in a `display: flex` element, don't shrink the button based
+                        // on other contents.
+                        flexShrink: "0",
                         ...stylesByVariant[variant],
                     })}
                     style={{

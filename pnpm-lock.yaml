@@ -32,7 +32,7 @@ patchedDependencies:
     hash: eg54rmngwn4ny6roak6qnk7bfu
     path: admin/patches/@react-aria__selection@3.17.0.patch
   '@react-aria/ssr@3.8.0':
-    hash: fgjsvzkcxvq4n55rxczbicmcbu
+    hash: cgn3hbn7gnmhjyutyvkech445y
     path: admin/patches/@react-aria__ssr@3.8.0.patch
   '@react-stately/collections@3.10.2':
     hash: c7k6giwt342kog44mzlradtusa
@@ -149,7 +149,7 @@ dependencies:
     version: 3.17.0(patch_hash=eg54rmngwn4ny6roak6qnk7bfu)(react-dom@18.2.0)(react@18.2.0)
   '@react-aria/ssr':
     specifier: 3.8.0
-    version: 3.8.0(patch_hash=fgjsvzkcxvq4n55rxczbicmcbu)(react@18.2.0)
+    version: 3.8.0(patch_hash=cgn3hbn7gnmhjyutyvkech445y)(react@18.2.0)
   '@react-stately/collections':
     specifier: 3.10.2
     version: 3.10.2(patch_hash=c7k6giwt342kog44mzlradtusa)(react@18.2.0)
@@ -4097,7 +4097,7 @@ packages:
       '@internationalized/message': 3.1.1
       '@internationalized/number': 3.3.0
       '@internationalized/string': 3.1.1
-      '@react-aria/ssr': 3.8.0(patch_hash=fgjsvzkcxvq4n55rxczbicmcbu)(react@18.2.0)
+      '@react-aria/ssr': 3.8.0(patch_hash=cgn3hbn7gnmhjyutyvkech445y)(react@18.2.0)
       '@react-aria/utils': 3.21.0(react@18.2.0)
       '@react-types/shared': 3.21.0(react@18.2.0)
       '@swc/helpers': 0.5.2
@@ -4109,7 +4109,7 @@ packages:
     peerDependencies:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
     dependencies:
-      '@react-aria/ssr': 3.8.0(patch_hash=fgjsvzkcxvq4n55rxczbicmcbu)(react@18.2.0)
+      '@react-aria/ssr': 3.8.0(patch_hash=cgn3hbn7gnmhjyutyvkech445y)(react@18.2.0)
       '@react-aria/utils': 3.21.0(react@18.2.0)
       '@react-types/shared': 3.21.0(react@18.2.0)
       '@swc/helpers': 0.5.2
@@ -4235,7 +4235,7 @@ packages:
       '@react-aria/focus': 3.14.2(react@18.2.0)
       '@react-aria/i18n': 3.8.3(react@18.2.0)
       '@react-aria/interactions': 3.19.0(patch_hash=qy7ky7oxkrbz4pp5u4vsf3wrri)(react@18.2.0)
-      '@react-aria/ssr': 3.8.0(patch_hash=fgjsvzkcxvq4n55rxczbicmcbu)(react@18.2.0)
+      '@react-aria/ssr': 3.8.0(patch_hash=cgn3hbn7gnmhjyutyvkech445y)(react@18.2.0)
       '@react-aria/utils': 3.21.0(react@18.2.0)
       '@react-aria/visually-hidden': 3.8.5(react@18.2.0)
       '@react-stately/overlays': 3.6.3(react@18.2.0)
@@ -4383,7 +4383,7 @@ packages:
       react-dom: 18.2.0(react@18.2.0)
     dev: false
 
-  /@react-aria/ssr@3.8.0(patch_hash=fgjsvzkcxvq4n55rxczbicmcbu)(react@18.2.0):
+  /@react-aria/ssr@3.8.0(patch_hash=cgn3hbn7gnmhjyutyvkech445y)(react@18.2.0):
     resolution: {integrity: sha512-Y54xs483rglN5DxbwfCPHxnkvZ+gZ0LbSYmR72LyWPGft8hN/lrl1VRS1EW2SMjnkEWlj+Km2mwvA3kEHDUA0A==}
     engines: {node: '>= 12'}
     peerDependencies:
@@ -4523,7 +4523,7 @@ packages:
     peerDependencies:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
     dependencies:
-      '@react-aria/ssr': 3.8.0(patch_hash=fgjsvzkcxvq4n55rxczbicmcbu)(react@18.2.0)
+      '@react-aria/ssr': 3.8.0(patch_hash=cgn3hbn7gnmhjyutyvkech445y)(react@18.2.0)
       '@react-stately/utils': 3.8.0(react@18.2.0)
       '@react-types/shared': 3.21.0(react@18.2.0)
       '@swc/helpers': 0.5.2
@@ -13259,7 +13259,7 @@ packages:
       '@react-aria/selection': 3.17.0(patch_hash=eg54rmngwn4ny6roak6qnk7bfu)(react-dom@18.2.0)(react@18.2.0)
       '@react-aria/separator': 3.3.6(react@18.2.0)
       '@react-aria/slider': 3.7.1(react@18.2.0)
-      '@react-aria/ssr': 3.8.0(patch_hash=fgjsvzkcxvq4n55rxczbicmcbu)(react@18.2.0)
+      '@react-aria/ssr': 3.8.0(patch_hash=cgn3hbn7gnmhjyutyvkech445y)(react@18.2.0)
       '@react-aria/switch': 3.5.5(react@18.2.0)
       '@react-aria/table': 3.13.0(react-dom@18.2.0)(react@18.2.0)
       '@react-aria/tabs': 3.8.0(react-dom@18.2.0)(react@18.2.0)

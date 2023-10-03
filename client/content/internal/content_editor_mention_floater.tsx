@@ -342,7 +342,7 @@ export function ContentEditorMentionFloater({
                     // Hide the scrollbar while animating closed by setting overflow to `hidden`
                     // while animating.
                     overflowX="hidden"
-                    overflowY={!isClosing ? "scroll" : "hidden"}
+                    overflowY={!isClosing ? "auto" : "hidden"}
                     borderRadius="md"
                     padding="1"
                     className={greyElevated2ClassName}

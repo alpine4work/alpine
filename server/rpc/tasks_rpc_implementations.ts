@@ -1,6 +1,7 @@
 import {getContentReferences} from "~/server/content/get_content_references.js";
 import {implementRpc} from "~/server/rpc/internal/implement_rpc.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
+import {searchTaskCollections} from "~/server/tasks/data/task_index.js";
 import {
     addTaskCollectionAffinityPoints,
     authorizeTaskAccess,
@@ -140,6 +141,18 @@ implementRpc(
         const context = _context.actor.authorizeSession();
 
         const collectionResults = await getAffinitiveTaskCollections(context, input);
+
+        return {collectionResults};
+    },
+);
+
+implementRpc(
+    definition.searchTaskCollections,
+    {visibility: ["AppClient"]},
+    async (_context, input) => {
+        const context = _context.actor.authorizeSession();
+
+        const collectionResults = await searchTaskCollections(context, input);
 
         return {collectionResults};
     },

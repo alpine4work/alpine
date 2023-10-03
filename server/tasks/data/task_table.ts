@@ -3984,8 +3984,12 @@ export async function getTaskGridViewExpansionState(
     return item?.state ?? null;
 }
 
-function createTaskCollectionModelFromItem(collectionItem: TaskCollectionEssentialAttributesItem) {
+function createTaskCollectionModelSearchResultFromItem(
+    score: number,
+    collectionItem: TaskCollectionEssentialAttributesItem,
+): TaskCollectionModelSearchResult {
     return {
+        score,
         openTaskCount: collectionItem.openTaskCount,
         lastTaskAddedTime: collectionItem.lastTaskAddedTime,
         collection: new TaskCollectionModel({
@@ -4002,7 +4006,7 @@ function createTaskCollectionModelFromItem(collectionItem: TaskCollectionEssenti
 }
 
 /**
- * Assembles the result objects for `searchTaskCollectionIndex()`. Our
+ * Assembles the result objects for `searchTaskCollections()`. Our
  * collection index doesn't have access to all the data we need to return
  * collection objects (e.g. `openTaskCount`). We get that here from DynamoDB.
  *
@@ -4011,12 +4015,12 @@ function createTaskCollectionModelFromItem(collectionItem: TaskCollectionEssenti
  * the collection but in fact the actor recently lost access and our search
  * index hasn't been refreshed.
  */
-export async function assembleTaskCollectionIndexSearchResults(
+export async function assembleTaskCollectionSearchResults(
     context: ServerSessionActionContext,
-    collectionIds: Array<TaskCollectionId>,
+    collections: Array<{score: number; id: TaskCollectionId}>,
 ): Promise<Array<TaskCollectionModelSearchResult>> {
     const collectionItems = await runAllPromises(
-        collectionIds.map(async collectionId => {
+        collections.map(async ({score, id: collectionId}) => {
             const collectionItem = await TaskTable.getItem(context, {
                 partitionType: "TaskCollection",
                 sortRangeType: "EssentialAttributes",
@@ -4033,14 +4037,11 @@ export async function assembleTaskCollectionIndexSearchResults(
             );
 
             if (!hasAccess) return null;
-            return collectionItem;
+            return createTaskCollectionModelSearchResultFromItem(score, collectionItem);
         }),
     );
 
-    return filterMapArray(collectionItems, collectionItem => {
-        if (!collectionItem) return null;
-        return createTaskCollectionModelFromItem(collectionItem);
-    });
+    return collectionItems.filter(isNonNullable);
 }
 
 /**
@@ -4159,21 +4160,21 @@ export async function getAffinitiveTaskCollections(
     );
 
     let startAffinityItemIndex = 0;
-    const collections = [];
+    const collectionResults = [];
 
     // Take a slice of length `limit` from our affinity items and fetch those
     // collections. If some of the collections the account no longer has access to
     // then we want to fetch some more collections from our affinity items until
     // we've satisfied `limit`.
-    while (collections.length < limit && startAffinityItemIndex < affinityItems.length) {
+    while (collectionResults.length < limit && startAffinityItemIndex < affinityItems.length) {
         const affinityItemsSlice = affinityItems.slice(
             startAffinityItemIndex,
-            startAffinityItemIndex + (limit - collections.length),
+            startAffinityItemIndex + (limit - collectionResults.length),
         );
-        startAffinityItemIndex += limit - collections.length;
+        startAffinityItemIndex += limit - collectionResults.length;
 
-        const collectionItems = await runAllPromises(
-            affinityItemsSlice.map(async ({collectionId}) => {
+        const collectionResultsSlice = await runAllPromises(
+            affinityItemsSlice.map(async ({points, collectionId}) => {
                 const collectionItem = await TaskTable.getItemIfExists(context, {
                     partitionType: "TaskCollection",
                     sortRangeType: "EssentialAttributes",
@@ -4191,17 +4192,17 @@ export async function getAffinitiveTaskCollections(
                 );
 
                 if (!hasAccess) return null;
-                return collectionItem;
+                return createTaskCollectionModelSearchResultFromItem(points, collectionItem);
             }),
         );
 
-        for (const collectionItem of collectionItems) {
-            if (!collectionItem) continue;
-            collections.push(createTaskCollectionModelFromItem(collectionItem));
+        for (const collectionResult of collectionResultsSlice) {
+            if (!collectionResult) continue;
+            collectionResults.push(collectionResult);
         }
     }
 
-    return collections;
+    return collectionResults;
 }
 
 /**

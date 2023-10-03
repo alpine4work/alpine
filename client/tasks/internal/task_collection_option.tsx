@@ -10,6 +10,8 @@ import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {spinAnimationClassName} from "~/shared/styles/styles.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 
+export const taskCollectionOptionSecondaryTextColor = "grey-40" as const;
+
 export function TaskCollectionOption({
     collectionResult,
     isPending,
@@ -42,7 +44,8 @@ export function TaskCollectionOption({
             <Box
                 flexShrink="0"
                 height="4"
-                paddingX="0.5"
+                paddingLeft="1"
+                paddingRight="0.5"
                 display="flex"
                 justifyContent="center"
                 alignItems="center"
@@ -56,7 +59,7 @@ export function TaskCollectionOption({
             </Box>
             <Box flexGrow="1" overflow="hidden">
                 <Box fontStyle="truncate">{collectionResult.collection.getName()}</Box>
-                <Box fontSize="50" color="grey-40">
+                <Box fontSize="50" color={taskCollectionOptionSecondaryTextColor}>
                     {getTaskCollectionTaskCountSummary(collectionResult)},{" "}
                     {getTaskCollectionLastUpdateTimeSummary(
                         collectionResult,

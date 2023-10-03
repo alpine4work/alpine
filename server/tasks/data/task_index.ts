@@ -30,7 +30,7 @@ import {
     TaskCollectionIndexDocWithVersion,
 } from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDocType, TaskIndexDocWithVersion} from "~/server/tasks/data/task_index_doc.js";
-import {assembleTaskCollectionIndexSearchResults} from "~/server/tasks/data/task_table.js";
+import {assembleTaskCollectionSearchResults} from "~/server/tasks/data/task_table.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -1027,13 +1027,13 @@ export async function queryTaskIndex(
  * Searches our task collection index for collections matching the provided
  * name query.
  */
-export async function searchTaskCollectionIndex(
+export async function searchTaskCollections(
     context: ServerSessionActionContext,
     {spaceId, nameQuery, limit}: {spaceId: SpaceId; nameQuery: string; limit: number},
 ): Promise<Array<TaskCollectionModelSearchResult>> {
     await authorizeSpaceAccess(context, spaceId);
 
-    const collectionIds = await context.opensearch.client.searchWithoutReturningDocs(
+    const collections = await context.opensearch.client.searchWithoutReturningDocs(
         context.tracer.getTracer(),
         TaskCollectionIndex,
         spaceId,
@@ -1142,5 +1142,5 @@ export async function searchTaskCollectionIndex(
         },
     );
 
-    return assembleTaskCollectionIndexSearchResults(context, collectionIds);
+    return assembleTaskCollectionSearchResults(context, collections);
 }

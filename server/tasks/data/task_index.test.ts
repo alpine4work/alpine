@@ -12,7 +12,7 @@ import {
     indexTaskUpdateAccountNameActionAfterUpdateTestCheckpoint,
     indexTaskUpdateAccountNameActionBeforeUpdateTestCheckpoint,
     refreshTaskCollectionIndexForTest,
-    searchTaskCollectionIndex,
+    searchTaskCollections,
 } from "~/server/tasks/data/task_index.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
@@ -1280,7 +1280,7 @@ test("effective task collection name fuzzy searching", async () => {
     await refreshTaskCollectionIndexForTest(context);
 
     const testSearch = async (nameQuery: string) => {
-        const results = await searchTaskCollectionIndex(session.action(), {
+        const results = await searchTaskCollections(session.action(), {
             spaceId: space.id,
             nameQuery,
             limit: 100,
@@ -1452,7 +1452,7 @@ test("excludes collections account doesn't have access to when searching", async
     await refreshTaskCollectionIndexForTest(context);
 
     const testSearch = async (session: TestSpaceSession, limit: number) => {
-        const results = await searchTaskCollectionIndex(session.action(), {
+        const results = await searchTaskCollections(session.action(), {
             spaceId: space.id,
             nameQuery: "test",
             limit: 3,
