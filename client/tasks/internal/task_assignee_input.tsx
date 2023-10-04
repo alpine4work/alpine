@@ -298,6 +298,12 @@ function TaskAssigneeInput(
         onSelectionChange: key => {
             assert(typeof key === "string");
 
+            // Don't re-select the selected key.
+            //
+            // This fires when tabbing through an assignee field and throws an error if we
+            // don't return here because `accountById` is empty.
+            if (key === selectedKey) return;
+
             let newAssigneeAccount: AccountModel | null;
             if (key === "Null") {
                 newAssigneeAccount = null;

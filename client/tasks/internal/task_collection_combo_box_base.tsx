@@ -1,0 +1,471 @@
+import {isFocusVisible} from "@react-aria/interactions";
+import {Node} from "@react-types/shared";
+import {MagnifyingGlass, SpinnerGap} from "phosphor-react";
+import {
+    ReactNode,
+    RefObject,
+    cloneElement,
+    isValidElement,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
+import {AriaListBoxOptions, mergeProps, useHover, useListBox, useOption} from "react-aria";
+import {ComboBoxState, Item} from "react-stately";
+import {Box} from "~/client/design/box.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {computeStore} from "~/client/helpers/store/compute_store.js";
+import {useStore} from "~/client/helpers/store/use_store.js";
+import {useLazyLoadLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {TaskCollectionComboBoxCreateCollectionOption} from "~/client/tasks/internal/task_collection_combo_box_create_collection_option.js";
+import {TaskCollectionComboBoxInstructionalPlaceholder} from "~/client/tasks/internal/task_collection_combo_box_instructional_placeholder.js";
+import {
+    TaskCollectionOption,
+    taskCollectionOptionSecondaryTextColor,
+} from "~/client/tasks/internal/task_collection_option.js";
+import {useAffinitiveTaskCollections} from "~/client/tasks/internal/use_affinitive_task_collections.js";
+import {useTaskClientStore} from "~/client/tasks/task_realtime_client_context_provider.js";
+import {addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {searchTaskCollections} from "~/shared/rpc/tasks_rpc_definitions.js";
+import {fontSizes, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
+import {
+    TaskCollectionModelSearchResult,
+    taskCollectionSearchResultLimit,
+} from "~/shared/tasks/model/task_collection_model_search_result.js";
+
+export type TaskCollectionComboBoxItem =
+    | TaskCollectionComboBoxCollectionItem
+    | TaskCollectionComboBoxCreateCollectionItem;
+
+export type TaskCollectionComboBoxCollectionItem = {
+    readonly type: "Collection";
+    readonly key: `Collection:${TaskCollectionId}`;
+    readonly collectionResult: TaskCollectionModelSearchResult;
+};
+
+export type TaskCollectionComboBoxCreateCollectionItem = {
+    readonly type: "CreateCollection";
+    readonly key: "CreateCollection";
+    readonly isInputValueEmpty: boolean;
+};
+
+export function renderTaskCollectionComboBoxItem(item: TaskCollectionComboBoxItem) {
+    return item.type === "Collection" ? (
+        <Item textValue={item.collectionResult.collection.getName()}>
+            <TaskCollectionOption collectionResult={item.collectionResult} />
+        </Item>
+    ) : (
+        <Item>Create collection</Item>
+    );
+}
+
+export function useTaskCollectionComboBoxSearchState({
+    inputValue,
+    shouldLoadItems,
+    excludeCollectionIds,
+}: {
+    inputValue: string;
+    shouldLoadItems: boolean;
+    excludeCollectionIds?: ReadonlySet<TaskCollectionId>;
+}) {
+    const {space} = useSpaceContext();
+    const store = useTaskClientStore();
+
+    const affinitiveCollectionResults = useAffinitiveTaskCollections({
+        isDisabled: !shouldLoadItems,
+    });
+
+    const trimmedInputValue = inputValue.trim();
+    const isInputValueEmpty = trimmedInputValue.length === 0;
+
+    const [currentlyLoadingInputValue, setCurrentlyLoadingInputValue] =
+        useState<string>(trimmedInputValue);
+
+    const {isLoading: isSearchLoading, output: searchCollectionsOutput} = useLazyLoadLoadRpc(
+        searchTaskCollections,
+        !shouldLoadItems || currentlyLoadingInputValue.length === 0
+            ? null
+            : {
+                  spaceId: space.id,
+                  nameQuery: currentlyLoadingInputValue,
+                  limit: taskCollectionSearchResultLimit,
+              },
+        {keepPreviousData: true},
+    );
+
+    // In an effect so React renders intermediate results as it receives them.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        // Throttle our RPC call. Only load search results for a new input value after
+        // we're done loading search results for the old one.
+        if (!isSearchLoading && currentlyLoadingInputValue !== trimmedInputValue) {
+            setCurrentlyLoadingInputValue(trimmedInputValue);
+        }
+    }, [currentlyLoadingInputValue, trimmedInputValue, isSearchLoading]);
+
+    const [shouldShowSearchLoadingIndicator, setShouldShowSearchLoadingIndicator] = useState(false);
+
+    useEffect(() => {
+        if (!isSearchLoading) {
+            let isCancelled = false;
+
+            // Set to `false` after a microtask in case React immediately re-renders from
+            // `isSearchLoading: false` back to `isSearchLoading: true` (happens when we're
+            // throttling search requests). We don't want to clear the spinner and wait for
+            // another timeout in this case.
+            scheduleMicrotask(() => {
+                if (isCancelled) return;
+                setShouldShowSearchLoadingIndicator(false);
+            });
+
+            return () => {
+                isCancelled = true;
+            };
+        } else {
+            const timeout = createTimeout(() => {
+                setShouldShowSearchLoadingIndicator(true);
+            }, delayLoadingIndicatorLimitMs);
+
+            return () => timeout.clear();
+        }
+    }, [isSearchLoading]);
+
+    const items: ReadonlyArray<TaskCollectionComboBoxItem> | null = useStore(
+        useMemo(() => {
+            return computeStore(get => {
+                // If we have no item data available then return null which should render a
+                // loading spinner.
+                if (!affinitiveCollectionResults && !searchCollectionsOutput) {
+                    return null;
+                }
+
+                const items: Array<TaskCollectionComboBoxItem> = [];
+
+                // Show search results if we have them, otherwise show collections the account
+                // has some affinity for.
+                if (searchCollectionsOutput) {
+                    const affinitiveCollectionResultById = new Map(
+                        affinitiveCollectionResults?.map(collectionResult => [
+                            collectionResult.collection.id,
+                            collectionResult.score,
+                        ]),
+                    );
+
+                    for (const collectionResult of searchCollectionsOutput.collectionResults) {
+                        if (excludeCollectionIds?.has(collectionResult.collection.id)) {
+                            continue;
+                        }
+
+                        // If the same collection exists in our store and is kept up-to-date in
+                        // realtime then let's merge our realtime data with the searched data from the
+                        // server. We don't put our searched data in the store because it's not kept
+                        // up-to-date in realtime.
+                        const collectionEntryStore = store.getCollectionEntryStoreIfExists(
+                            collectionResult.collection.id,
+                        );
+
+                        const collection = collectionEntryStore
+                            ? get(collectionEntryStore).collection
+                            : null;
+
+                        items.push({
+                            type: "Collection",
+                            key: `Collection:${collectionResult.collection.id}`,
+                            collectionResult: {
+                                ...collectionResult,
+                                collection: collection
+                                    ? collectionResult.collection.merge(collection)
+                                    : collectionResult.collection,
+                            },
+                        });
+                    }
+
+                    // Re-sort items using affinity scores if we have them. Any searched
+                    // collections with equal score will be re-ranked by affinity if it's in the
+                    // account's top 30 affinitive collections.
+                    items.sort((item1, item2) => {
+                        if (item1.type !== "Collection" && item2.type !== "Collection") return 0;
+                        if (item1.type !== "Collection") return 1;
+                        if (item2.type !== "Collection") return -1;
+
+                        if (item1.collectionResult.score !== item2.collectionResult.score) {
+                            return item2.collectionResult.score - item1.collectionResult.score;
+                        }
+
+                        const affinitiveCollectionResult1 = affinitiveCollectionResultById.get(
+                            item1.collectionResult.collection.id,
+                        );
+                        const affinitiveCollectionResult2 = affinitiveCollectionResultById.get(
+                            item2.collectionResult.collection.id,
+                        );
+
+                        if (
+                            affinitiveCollectionResult1 === undefined &&
+                            affinitiveCollectionResult2 === undefined
+                        ) {
+                            return 0;
+                        }
+                        if (affinitiveCollectionResult1 === undefined) return 1;
+                        if (affinitiveCollectionResult2 === undefined) return -1;
+                        return affinitiveCollectionResult2 - affinitiveCollectionResult1;
+                    });
+                } else if (affinitiveCollectionResults) {
+                    for (const collectionResult of affinitiveCollectionResults) {
+                        if (excludeCollectionIds?.has(collectionResult.collection.id)) {
+                            continue;
+                        }
+
+                        // If the same collection exists in our store and is kept up-to-date in
+                        // realtime then let's merge our realtime data with the searched data from the
+                        // server. We don't put our searched data in the store because it's not kept
+                        // up-to-date in realtime.
+                        const collectionEntryStore = store.getCollectionEntryStoreIfExists(
+                            collectionResult.collection.id,
+                        );
+
+                        const collection = collectionEntryStore
+                            ? get(collectionEntryStore).collection
+                            : null;
+
+                        items.push({
+                            type: "Collection",
+                            key: `Collection:${collectionResult.collection.id}`,
+                            collectionResult: {
+                                ...collectionResult,
+                                collection: collection
+                                    ? collectionResult.collection.merge(collection)
+                                    : collectionResult.collection,
+                            },
+                        });
+                    }
+                }
+
+                items.push({
+                    type: "CreateCollection",
+                    key: "CreateCollection",
+                    isInputValueEmpty,
+                });
+
+                return items;
+            });
+        }, [
+            affinitiveCollectionResults,
+            excludeCollectionIds,
+            isInputValueEmpty,
+            searchCollectionsOutput,
+            store,
+        ]),
+    );
+
+    return {
+        shouldShowSearchLoadingIndicator,
+        items,
+    };
+}
+
+export function TaskCollectionComboBoxListBox({
+    comboBoxState,
+    listBoxRef,
+    listBoxProps: _listBoxProps,
+    pendingKey = null,
+    autoFocus,
+    shouldHideNoResultsIcon,
+}: {
+    comboBoxState: ComboBoxState<TaskCollectionComboBoxItem>;
+    listBoxRef: RefObject<HTMLUListElement>;
+    listBoxProps: AriaListBoxOptions<TaskCollectionComboBoxItem>;
+    pendingKey?: TaskCollectionComboBoxItem["key"] | null;
+    autoFocus?: boolean;
+    shouldHideNoResultsIcon?: boolean;
+}) {
+    const {listBoxProps} = useListBox(
+        autoFocus !== undefined && autoFocus !== _listBoxProps.autoFocus
+            ? {..._listBoxProps, autoFocus}
+            : _listBoxProps,
+        comboBoxState,
+        listBoxRef,
+    );
+
+    const {itemsWithoutCreateCollectionButton, createCollectionButtonItem} = useMemo(() => {
+        const itemsWithoutCreateCollectionButton: Array<ReactNode> = [];
+        let createCollectionButtonItem: Node<TaskCollectionComboBoxCreateCollectionItem> | null =
+            null;
+
+        for (const item of comboBoxState.collection) {
+            if (item.value!.type === "CreateCollection") {
+                createCollectionButtonItem =
+                    item as Node<TaskCollectionComboBoxCreateCollectionItem>;
+            } else {
+                itemsWithoutCreateCollectionButton.push(
+                    <TaskCollectionComboBoxListBoxOption
+                        key={item.key}
+                        comboBoxState={comboBoxState}
+                        item={item}
+                        pendingKey={pendingKey}
+                    />,
+                );
+            }
+        }
+
+        return {itemsWithoutCreateCollectionButton, createCollectionButtonItem};
+    }, [comboBoxState, pendingKey]);
+
+    // If there are 0 items then we're in a loading state. If there's 1 item (the
+    // create button) then we either have no search results (input value is
+    // non-empty) or we should render our instructional placeholder as the
+    // empty state.
+    const shouldShowInstructionalPlaceholder =
+        comboBoxState.collection.size > 0 &&
+        createCollectionButtonItem &&
+        // NOTE(calebmer): We need to use `isInputValueEmpty` from items since when
+        // react-aria closes a combobox overlay it renders the old set of items. If we
+        // use `comboBoxState.inputValue` with the old items of an empty search result
+        // then we'll flash the instructional placeholder.
+        createCollectionButtonItem.value!.isInputValueEmpty &&
+        itemsWithoutCreateCollectionButton.length === 0;
+
+    return (
+        <Box flexGrow="1" overflow="hidden" display="flex" flexDirection="column">
+            <ul
+                {...listBoxProps}
+                ref={listBoxRef}
+                className={sprinkles({
+                    flexGrow: "1",
+                    padding: "1",
+                    overflowX: "hidden",
+                    overflowY: "auto",
+                    display: shouldShowInstructionalPlaceholder ? "none" : undefined,
+                })}
+            >
+                {comboBoxState.collection.size === 0 ? (
+                    <Box
+                        padding="1.5"
+                        display="flex"
+                        justifyContent="center"
+                        alignItems="center"
+                        style={{
+                            height: addRemLengths(
+                                spacing["1.5"],
+                                fontSizes["75"].lineHeight,
+                                fontSizes["50"].lineHeight,
+                                spacing["1.5"],
+                            ),
+                        }}
+                    >
+                        <SpinnerGap className={spinAnimationClassName} size={spacing["4"]} />
+                    </Box>
+                ) : itemsWithoutCreateCollectionButton.length === 0 ? (
+                    // Mimic the structure of a `<TaskCollectionOption>`
+                    <Box padding="1.5" display="flex" alignItems="flex-start" gap="1.5">
+                        <Box
+                            flexShrink="0"
+                            height="4"
+                            display="flex"
+                            justifyContent="center"
+                            alignItems="center"
+                        >
+                            <Box
+                                width="3"
+                                height="3"
+                                color={taskCollectionOptionSecondaryTextColor}
+                            >
+                                {!shouldHideNoResultsIcon && (
+                                    <MagnifyingGlass size={spacing["3"]} />
+                                )}
+                            </Box>
+                        </Box>
+                        <Box>
+                            <Box
+                                fontStyle="truncate"
+                                color={taskCollectionOptionSecondaryTextColor}
+                            >
+                                No results, try a different search
+                            </Box>
+                            <Box style={{height: fontSizes["50"].lineHeight}}></Box>
+                        </Box>
+                    </Box>
+                ) : (
+                    itemsWithoutCreateCollectionButton
+                )}
+            </ul>
+            {shouldShowInstructionalPlaceholder ? (
+                <TaskCollectionComboBoxInstructionalPlaceholder
+                    createCollectionButton={
+                        <TaskCollectionComboBoxCreateCollectionOption
+                            comboBoxState={comboBoxState}
+                            item={createCollectionButtonItem}
+                            isQuiet={false}
+                            isPending={createCollectionButtonItem.key === pendingKey}
+                        />
+                    }
+                />
+            ) : (
+                createCollectionButtonItem && (
+                    <Box borderTop="grey-10" padding="1">
+                        <TaskCollectionComboBoxCreateCollectionOption
+                            comboBoxState={comboBoxState}
+                            item={createCollectionButtonItem}
+                            isQuiet={true}
+                            isPending={createCollectionButtonItem.key === pendingKey}
+                        />
+                    </Box>
+                )
+            )}
+        </Box>
+    );
+}
+
+function TaskCollectionComboBoxListBoxOption({
+    comboBoxState,
+    item,
+    pendingKey,
+}: {
+    comboBoxState: ComboBoxState<TaskCollectionComboBoxItem>;
+    item: Node<TaskCollectionComboBoxItem>;
+    pendingKey: TaskCollectionComboBoxItem["key"] | null;
+}) {
+    const optionRef = useRef(null);
+    const {isHovered, hoverProps} = useHover({});
+    const {optionProps, isFocused, isPressed} = useOption(
+        {key: item.key},
+        comboBoxState,
+        optionRef,
+    );
+
+    const [wasFocusVisibleWhenFocused, setWasFocusVisibleWhenFocused] = useState(false);
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (isFocused) setWasFocusVisibleWhenFocused(isFocusVisible());
+    }, [isFocused]);
+
+    return (
+        <FocusRing offset="0" isVisible={isFocused && wasFocusVisibleWhenFocused}>
+            <li
+                {...mergeProps(optionProps, hoverProps)}
+                ref={optionRef}
+                className={sprinkles({
+                    width: "full",
+                    padding: "1.5",
+                    borderRadius: "base",
+                    color: "grey-text",
+                    backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
+                })}
+            >
+                {useMemo(
+                    () =>
+                        isValidElement(item.rendered)
+                            ? cloneElement(item.rendered, {
+                                  isPending: item.key === pendingKey,
+                              } as any)
+                            : item.rendered,
+                    [item.key, item.rendered, pendingKey],
+                )}
+            </li>
+        </FocusRing>
+    );
+}

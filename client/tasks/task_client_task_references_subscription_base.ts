@@ -4,10 +4,13 @@ import {
     TaskClientStoreInternal,
     TaskClientStoreTaskEntry,
 } from "~/client/tasks/task_client_store.js";
+import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
+import {TaskModel} from "~/shared/tasks/model/task_model.js";
 
 const previousReferencedTaskByIdBySubscriptionForTest =
     process.env.NODE_ENV !== "production"
@@ -40,6 +43,66 @@ export abstract class TaskClientTaskReferencesSubscriptionBase {
         TaskCollectionId,
         {referenceCount: number; store: Store<TaskClientStoreCollectionEntry>}
     >();
+
+    /**
+     * Get the store associated with the provided `TaskId`.
+     *
+     * Throws an error if `TaskId` is not referenced by this class when you call
+     * this function.
+     *
+     * The `task` in this store should be non-null when this function is called but
+     * if you hold onto this reference for long enough you may see `task` become
+     * null because the task becomes unauthorized.
+     */
+    public getReferencedTaskEntryStore(taskId: TaskId): Store<TaskClientStoreTaskEntry> {
+        const taskEntryStore = this._referencedTaskEntryStoreById.get(taskId);
+        if (!taskEntryStore) throw new InternalError("Task is not referenced");
+        return taskEntryStore.store;
+    }
+
+    /**
+     * Get a snapshot of the task associated with the provided `TaskId`. Prefer
+     * using `getReferencedTaskEntryStore()` since it will give you changes to the
+     * task over time.
+     *
+     * Throws an error if `TaskId` is not referenced by this class when you call
+     * this function.
+     */
+    public getReferencedTaskSnapshot(taskId: TaskId): TaskModel {
+        return assertExists(this.getReferencedTaskEntryStore(taskId).getSnapshot().task);
+    }
+
+    /**
+     * Get the collection associated with the provided `TaskCollectionId`.
+     *
+     * Throws an error if `TaskCollectionId` is not referenced by this class
+     * when you call this function.
+     *
+     * The `collection` in this store should be non-null when this function is
+     * called but if you hold onto this reference for long enough you may see
+     * `collection` become null because the task becomes unauthorized.
+     */
+    public getReferencedCollectionEntryStore(
+        collectionId: TaskCollectionId,
+    ): Store<TaskClientStoreCollectionEntry> {
+        const collectionEntryStore = this._referencedCollectionEntryStoreById.get(collectionId);
+        if (!collectionEntryStore) throw new InternalError("Collection is not referenced");
+        return collectionEntryStore.store;
+    }
+
+    /**
+     * Get a snapshot of the task associated with the provided `TaskCollectionId`.
+     * Prefer using `getReferencedCollectionEntryStore()` since it will give you
+     * changes to the task over time.
+     *
+     * Throws an error if `TaskCollectionId` is not referenced by this class when
+     * you call this function.
+     */
+    public getReferencedCollectionSnapshot(collectionId: TaskCollectionId): TaskCollectionModel {
+        return assertExists(
+            this.getReferencedCollectionEntryStore(collectionId).getSnapshot().collection,
+        );
+    }
 
     private _onReferencedTaskAdd(taskId: TaskId, newTaskEntry: TaskClientStoreTaskEntry) {
         // When testing, keep track of the tasks we've seen so we can guarantee we've
@@ -156,6 +219,7 @@ export abstract class TaskClientTaskReferencesSubscriptionBase {
                 // and it was garbage collected.
                 const collectionEntryStore = assertExists(
                     this._getStore().getCollectionEntryStoreIfExists(newCollectionId),
+                    "Referenced task is not present in store",
                 );
 
                 this._referencedCollectionEntryStoreById.set(newCollectionId, {
@@ -222,6 +286,7 @@ export abstract class TaskClientTaskReferencesSubscriptionBase {
                     // and it was garbage collected.
                     const collectionEntryStore = assertExists(
                         this._getStore().getCollectionEntryStoreIfExists(addedCollectionId),
+                        "Referenced collection is not present in store",
                     );
 
                     this._referencedCollectionEntryStoreById.set(addedCollectionId, {

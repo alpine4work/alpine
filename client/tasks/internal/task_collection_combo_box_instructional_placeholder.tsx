@@ -2,7 +2,7 @@ import {ReactNode} from "react";
 import {Box} from "~/client/design/box.js";
 import {TaskCollectionChipBase} from "~/client/tasks/internal/task_collection_chip_base.js";
 
-export function TaskCollectionsListBoxInstructionalPlaceholder({
+export function TaskCollectionComboBoxInstructionalPlaceholder({
     createCollectionButton,
 }: {
     createCollectionButton: ReactNode;

@@ -1,5 +1,7 @@
-import {TaskCollectionChipBase} from "~/client/tasks/demo_2/internal/task_collection_chip_base.js";
-import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state.js";
+import {Store} from "~/client/helpers/store/store.js";
+import {useStore} from "~/client/helpers/store/use_store.js";
+import {TaskCollectionChipBase} from "~/client/tasks/internal/task_collection_chip_base.js";
+import {TaskClientStoreCollectionEntry} from "~/client/tasks/task_client_store.js";
 import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 
 /**
@@ -11,18 +13,20 @@ export const taskCollectionChipContainerMaxWidth = `max(calc(50% - ${spacing["2.
 }rem)`;
 
 export function TaskCollectionChip({
-    collection,
+    collectionEntryStore,
     onPress,
     onRemove,
 }: {
-    collection: LocalTaskCollection;
+    collectionEntryStore: Store<TaskClientStoreCollectionEntry>;
     onPress?: () => void;
     onRemove?: () => void;
 }) {
+    const collectionEntry = useStore(collectionEntryStore);
+
     return (
         <TaskCollectionChipBase
-            color={collection.color}
-            name={collection.name}
+            color={collectionEntry.collection?.getColor() ?? null}
+            name={collectionEntry.collection?.getName() ?? ""}
             onPress={onPress}
             onRemove={onRemove}
         />

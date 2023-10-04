@@ -113,26 +113,26 @@ export default function SpaceLayoutRoute() {
             space={space}
             currentAccount={currentAccount}
         >
-            <ContextMenuManager />
-            <Box
-                display="flex"
-                flexDirection="column"
-                height="full"
-                overflow="hidden"
-                position="relative"
-                zIndex="0"
-            >
-                <PeekStackContextProvider>
-                    <TaskRealtimeClientContextProvider spaceId={space.id}>
+            <TaskRealtimeClientContextProvider spaceId={space.id}>
+                <ContextMenuManager />
+                <Box
+                    display="flex"
+                    flexDirection="column"
+                    height="full"
+                    overflow="hidden"
+                    position="relative"
+                    zIndex="0"
+                >
+                    <PeekStackContextProvider>
                         <SpaceLayoutTopBar space={space} initialInbox={inbox} />
                         {error !== undefined ? (
                             <SpaceRouteErrorRenderer error={error} />
                         ) : (
                             <Outlet />
                         )}
-                    </TaskRealtimeClientContextProvider>
-                </PeekStackContextProvider>
-            </Box>
+                    </PeekStackContextProvider>
+                </Box>
+            </TaskRealtimeClientContextProvider>
         </SpaceContextProvider>
     );
 }

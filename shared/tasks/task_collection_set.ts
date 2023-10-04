@@ -98,6 +98,12 @@ export class TaskCollectionSet {
         return this._entries.getWithVersion(collectionId)?.version;
     }
 
+    public getLastOrderKey(): OrderKey | null {
+        const array = this.getArray();
+        if (array.length === 0) return null;
+        return array[array.length - 1]!.orderKey;
+    }
+
     public push(
         clock: HybridLogicalClock,
         collectionId: TaskCollectionId,

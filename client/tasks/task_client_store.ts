@@ -239,8 +239,9 @@ export class TaskClientStore {
     public commitTaskActionTransaction(
         context: Context<{rpc: RpcContextModuleBase}>,
         actions: ReadonlyArray<TaskAction>,
+        options?: {referencedCollections: ReadonlyArray<TaskCollectionModel>},
     ): {finally: (callback: () => void) => void} {
-        return this._internal.commitTaskActionTransaction(context, actions);
+        return this._internal.commitTaskActionTransaction(context, actions, options);
     }
 
     public getTaskUpdateTitleActionTransactionBuilder(
@@ -659,11 +660,11 @@ export class TaskClientStoreInternal {
      */
     public applyUpdateEvent(event: TaskRealtimeUpdateEvent): void {
         batchStoreUpdates(() => {
-            this._applyUpdateEvent(event);
+            this._applyUpdateEvent(event, noop);
         });
     }
 
-    private _applyUpdateEvent(event: TaskRealtimeUpdateEvent): void {
+    private _applyUpdateEvent<Value>(event: TaskRealtimeUpdateEvent, action: () => Value): Value {
         const newTaskEntryById = new Map<TaskId, TaskClientStoreTaskEntry>();
         const newCollectionEntryById = new Map<TaskCollectionId, TaskClientStoreCollectionEntry>();
 
@@ -1258,7 +1259,7 @@ export class TaskClientStoreInternal {
             }
         }
 
-        this._updateStore(newTaskEntryById, newCollectionEntryById);
+        return this._batchUpdateStore(newTaskEntryById, newCollectionEntryById, action);
     }
 
     /**
@@ -1272,10 +1273,17 @@ export class TaskClientStoreInternal {
      * reject our transaction we keep track of all changes made to the task. If the
      * server rejects our update then we take the original task and apply all
      * actions we saw after our optimistic action excluding the optimistic action.
+     *
+     * If you are referencing some collections in your transaction that don't
+     * already exist in the store then you need to provide the collections with
+     * `referencedCollections` so we can add their data to the store.
      */
     public commitTaskActionTransaction(
         context: Context<{rpc: RpcContextModuleBase}>,
         actions: ReadonlyArray<TaskAction>,
+        {
+            referencedCollections = [],
+        }: {referencedCollections?: ReadonlyArray<TaskCollectionModel>} = {},
     ): {finally: (callback: () => void) => void} {
         // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
         // close the page if we haven't finished committing their task action. It will
@@ -1290,11 +1298,44 @@ export class TaskClientStoreInternal {
             ? run()
             : this._commitTaskActionTransactionMutex.withLock(run);
 
-        const optimisticExtraActions = this._getOptimisticExtraActions(actions);
+        const {pendingActions: allPendingActions, release} = batchStoreUpdates(() => {
+            if (referencedCollections.length === 0) {
+                const optimisticExtraActions = this._getOptimisticExtraActions(actions);
 
-        const {pendingActions: allPendingActions, release} = this._applyOptimisticTaskActions(
-            optimisticExtraActions.length > 0 ? [...actions, ...optimisticExtraActions] : actions,
-        );
+                return this._applyOptimisticTaskActions(
+                    optimisticExtraActions.length > 0
+                        ? [...actions, ...optimisticExtraActions]
+                        : actions,
+                );
+            }
+
+            // If we have some `referencedCollections` then we want to backfill it in the
+            // store THEN apply our optimistic actions. We need to apply our optimistic
+            // actions in the `onBatchUpdate` callback or else the backfilled collections
+            // will be immediately released.
+            return this._applyUpdateEvent(
+                {
+                    type: "Update",
+                    // NOCOMMIT: Real number
+                    number: 0,
+                    actions: [],
+                    backfillAuthorizedTasks: [],
+                    backfillAuthorizedCollections: referencedCollections,
+                    backfillUnauthorizedCollectionIds: [],
+                    backfillUnauthorizedTaskIds: [],
+                    referencedAccounts: [],
+                },
+                () => {
+                    const optimisticExtraActions = this._getOptimisticExtraActions(actions);
+
+                    return this._applyOptimisticTaskActions(
+                        optimisticExtraActions.length > 0
+                            ? [...actions, ...optimisticExtraActions]
+                            : actions,
+                    );
+                },
+            );
+        });
 
         const pendingActions = allPendingActions.slice(0, actions.length);
         const optimisticExtraPendingActions = allPendingActions.slice(actions.length);
@@ -2026,7 +2067,7 @@ export class TaskClientStoreInternal {
         let releaseCollectionIds: Array<TaskCollectionId>;
 
         try {
-            this._updateStore(newTaskEntryById, newCollectionEntryById);
+            this._batchUpdateStore(newTaskEntryById, newCollectionEntryById, noop);
         } finally {
             // Any tasks or collections that were released while updating our store, we
             // want to retain until the optimistic action is committed or rejected. Because
@@ -2268,7 +2309,7 @@ export class TaskClientStoreInternal {
             }
         }
 
-        this._updateStore(newTaskEntryById, newCollectionEntryById);
+        this._batchUpdateStore(newTaskEntryById, newCollectionEntryById, noop);
     }
 
     private _revertOptimisticTaskActions(pendingActions: Iterable<TaskClientStorePendingAction>) {
@@ -2510,15 +2551,23 @@ export class TaskClientStoreInternal {
             }
         }
 
-        this._updateStore(newTaskEntryById, newCollectionEntryById);
+        this._batchUpdateStore(newTaskEntryById, newCollectionEntryById, noop);
     }
 
-    private _updateStore(
+    private _batchUpdateStore<Value>(
         newTaskEntryById: ReadonlyMap<TaskId, TaskClientStoreTaskEntry>,
         newCollectionEntryById: ReadonlyMap<TaskCollectionId, TaskClientStoreCollectionEntry>,
-    ) {
+        // This action is called after our updates have been applied to the store and
+        // before we clean up any new tasks/collections with zero references. It lets
+        // you "save" tasks/collections that were about to be released.
+        //
+        // We use the `action` function format (instead of an event callback like
+        // `onBatchUpdate`) to guarantee the action is called and its value is
+        // returned.
+        action: () => Value,
+    ): Value {
         // Apply all the updates to our store in one batch...
-        batchStoreUpdates(() => {
+        return batchStoreUpdates(() => {
             const taskEntryUpdateById = new Map<
                 TaskId,
                 {
@@ -2609,10 +2658,14 @@ export class TaskClientStoreInternal {
                     }
                 }
 
+                const actionValue = action();
+
                 this._batchUpdateEventEmitter.emit({
                     taskEntryUpdateById,
                     updatedCollectionIds: newCollectionEntryById.keys(),
                 });
+
+                return actionValue;
             } finally {
                 // We delay releasing tasks/collections until the end of our store update so
                 // that if one query releases a task (setting its `referenceCount` to 0) and

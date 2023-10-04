@@ -22,13 +22,16 @@ import {useStore} from "~/client/helpers/store/use_store.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/get_new_task_position_for_query_sorted_by_position.js";
 import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
 import {getTaskSubscriptionAccessStore} from "~/client/tasks/internal/get_task_subscription_access_store.js";
 import {TaskAssigneeInput} from "~/client/tasks/internal/task_assignee_input.js";
 import {TaskChildTasksProgressWheel} from "~/client/tasks/internal/task_child_tasks_progress_wheel.js";
+import {TaskCollectionsInput} from "~/client/tasks/internal/task_collections_input.js";
 import {TaskDateInput} from "~/client/tasks/internal/task_date_input.js";
+import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/internal/task_delete_confirmation_modal_dialog.js";
 import {TaskDetailNotesField} from "~/client/tasks/internal/task_detail_notes_field.js";
 import {TaskDetailTitleInput} from "~/client/tasks/internal/task_detail_title_input.js";
 import {TaskGridViewDndContext} from "~/client/tasks/internal/task_grid_view_dnd_context.js";
@@ -55,6 +58,7 @@ import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {invertSelectionColorsClassName, sprinkles} from "~/shared/styles/styles.js";
 import {emptyTaskTitleModel, taskFallbackTitle} from "~/shared/tasks/model/task_title_model.js";
 import {hasTaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
+import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
@@ -322,6 +326,7 @@ function TaskDetailViewMain({
     focusChildrenGridViewStart: () => void;
 }) {
     const context = useAppContext();
+    const navigate = useNavigate();
     const isMobile = useIsMobile();
     const {timeZone} = useClientInfo();
     const {currentAccount} = useSpaceContext();
@@ -472,6 +477,11 @@ function TaskDetailViewMain({
         }
     }, [dueDateInputState]);
 
+    const [taskDeleteConfirmationState, setTaskDeleteConfirmationState] = useState<{
+        taskId: TaskId;
+        onAfterDelete?: () => void;
+    } | null>(null);
+
     const contextMenuActions = (() => {
         const contextMenuActions: Array<ReadonlyArray<MenuAction>> = [];
 
@@ -543,20 +553,20 @@ function TaskDetailViewMain({
                 },
             ]);
 
-            // NOCOMMIT:
-            // [
-            //     {
-            //         label: "Delete",
-            //         onPress: () => {
-            //             deleteTaskAndAllChildrenMaybeWithConfirmation({
-            //                 // If the task is open in a peek this will close the peek.
-            //                 onAfterDelete: () => {
-            //                     void navigate(-1);
-            //                 },
-            //             });
-            //         },
-            //     },
-            // ],
+            contextMenuActions.push([
+                {
+                    label: "Delete",
+                    onPress: () => {
+                        setTaskDeleteConfirmationState({
+                            taskId,
+                            onAfterDelete: () => {
+                                // If the task is open in a peek this will close the peek.
+                                void navigate(-1);
+                            },
+                        });
+                    },
+                },
+            ]);
         }
 
         return contextMenuActions;
@@ -678,18 +688,18 @@ function TaskDetailViewMain({
                             />
                         )}
                     </TaskDetailViewDenseField>
-                    {/* NOCOMMIT: <TaskDetailViewDenseField label="Collections">
-                    {({"aria-labelledby": ariaLabelledBy}) => (
-                        <TaskCollectionsInput
-                            allCollections={allCollections}
-                            collections={collections}
-                            createCollectionAndAddToTask={createCollectionAndAddToTask}
-                            addCollectionToTask={addCollectionToTask}
-                            removeCollectionFromTask={removeCollectionFromTask}
-                            aria-labelledby={ariaLabelledBy}
-                        />
-                    )}
-                </TaskDetailViewDenseField> */}
+                    <TaskDetailViewDenseField label="Collections">
+                        {({"aria-labelledby": ariaLabelledBy}) => (
+                            <TaskCollectionsInput
+                                referencesSubscription={taskSubscription}
+                                taskId={taskId}
+                                collections={task?.getCollections() ?? TaskCollectionSet.empty}
+                                aria-labelledby={ariaLabelledBy}
+                                // NOCOMMIT: Test!
+                                isReadOnly={isReadOnly}
+                            />
+                        )}
+                    </TaskDetailViewDenseField>
                     {priorityInputState.isVisible && (
                         <TaskDetailViewDenseField label="Priority">
                             {({"aria-labelledby": ariaLabelledBy}) => (
@@ -838,6 +848,14 @@ function TaskDetailViewMain({
                     </>
                 )}
             </Box>
+            {taskDeleteConfirmationState && (
+                <TaskDeleteConfirmationModalDialog
+                    store={store}
+                    taskId={taskDeleteConfirmationState.taskId}
+                    onClose={() => setTaskDeleteConfirmationState(null)}
+                    onAfterDelete={taskDeleteConfirmationState.onAfterDelete}
+                />
+            )}
         </>
     );
 }

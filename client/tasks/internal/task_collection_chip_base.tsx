@@ -3,6 +3,7 @@ import {ReactNode, Ref, forwardRef} from "react";
 import {usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
+import {Spacer} from "~/client/design/spacer.js";
 import {Spacing, addRemLengths, spacing} from "~/shared/design/spacing.js";
 import {ThemeColor} from "~/shared/design/theme_colors.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
@@ -55,14 +56,18 @@ function TaskCollectionChipBase(
             maxWidth="full"
             overflow="hidden"
         >
-            <Box flexShrink="0" width="5" display="flex" justifyContent="center">
-                <Box
-                    width="1.5"
-                    height="1.5"
-                    borderRadius="full"
-                    backgroundColor={getTaskCollectionColor(color)}
-                />
-            </Box>
+            {color === null ? (
+                <Spacer space="1.5" />
+            ) : (
+                <Box flexShrink="0" width="5" display="flex" justifyContent="center">
+                    <Box
+                        width="1.5"
+                        height="1.5"
+                        borderRadius="full"
+                        backgroundColor={getTaskCollectionColor(color)}
+                    />
+                </Box>
+            )}
             <Box fontStyle="truncate">{name}</Box>
             {onRemove && (
                 <Box paddingLeft="0.5">

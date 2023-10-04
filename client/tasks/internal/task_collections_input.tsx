@@ -1,6 +1,5 @@
 import {getInteractionModality, isFocusVisible} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
-import _Fuse from "fuse.js";
 import {Lock, MagnifyingGlass, Plus} from "phosphor-react";
 import {
     KeyboardEvent,
@@ -38,44 +37,45 @@ import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     TaskCollectionChip,
     taskCollectionChipContainerMaxWidth,
-} from "~/client/tasks/demo_2/internal/task_collection_chip.js";
+} from "~/client/tasks/internal/task_collection_chip.js";
 import {
     TaskCollectionChipBase,
     taskCollectionChipBorderRadius,
     taskCollectionChipHeight,
     taskCollectionChipPaddingY,
-} from "~/client/tasks/demo_2/internal/task_collection_chip_base.js";
-import {TaskCollectionOption} from "~/client/tasks/demo_2/internal/task_collection_option.js";
-import {TaskCollectionsListBoxCreateCollectionOption} from "~/client/tasks/demo_2/internal/task_collections_list_box_create_collection_option.js";
-import {TaskCollectionsListBoxInstructionalPlaceholder} from "~/client/tasks/demo_2/internal/task_collections_list_box_instructional_placeholder.js";
-import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state.js";
+} from "~/client/tasks/internal/task_collection_chip_base.js";
+import {
+    TaskCollectionComboBoxCollectionItem,
+    TaskCollectionComboBoxItem,
+    TaskCollectionComboBoxListBox,
+    renderTaskCollectionComboBoxItem,
+    useTaskCollectionComboBoxSearchState,
+} from "~/client/tasks/internal/task_collection_combo_box_base.js";
+import {TaskCollectionOption} from "~/client/tasks/internal/task_collection_option.js";
+import {TaskCollectionComboBoxCreateCollectionOption} from "~/client/tasks/internal/task_collection_combo_box_create_collection_option.js";
+import {TaskCollectionComboBoxInstructionalPlaceholder} from "~/client/tasks/internal/task_collection_combo_box_instructional_placeholder.js";
+import {usePreloadAffinitiveTaskCollections} from "~/client/tasks/internal/use_affinitive_task_collections.js";
+import {TaskClientTaskReferencesSubscriptionBase} from "~/client/tasks/task_client_task_references_subscription_base.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {ThemeColor, themeColors} from "~/shared/design/theme_colors.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {generateId, isId} from "~/shared/id/id.js";
-import {LocalTaskCollectionId} from "~/shared/id/types/id_types.js";
-import {inputPlaceholderStyles, sprinkles, tasksStyles} from "~/shared/styles/styles.js";
-
-// Node.js ESM interop (#node-esm-migration)
-const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
-
-type TaskDetailCollectionsFieldItem =
-    | TaskDetailCollectionsFieldCollectionItem
-    | TaskDetailCollectionsFieldCreateCollectionItem;
-
-type TaskDetailCollectionsFieldCollectionItem = {
-    readonly type: "Collection";
-    readonly key: `Collection:${LocalTaskCollectionId}`;
-    readonly collection: LocalTaskCollection;
-};
-
-type TaskDetailCollectionsFieldCreateCollectionItem = {
-    readonly type: "CreateCollection";
-    readonly key: "CreateCollection";
-};
+import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {
+    greyElevated2ClassName,
+    inputPlaceholderStyles,
+    sprinkles,
+    tasksStyles,
+} from "~/shared/styles/styles.js";
+import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
+import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
+import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
+import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
+import {useAppContext} from "~/client/context/app_context.js";
 
 type TaskDetailCollectionsFieldInputState =
     | {
@@ -89,11 +89,9 @@ type TaskDetailCollectionsFieldInputState =
       };
 
 export function TaskCollectionsInput({
-    allCollections,
+    referencesSubscription,
+    taskId,
     collections,
-    createCollectionAndAddToTask,
-    addCollectionToTask,
-    removeCollectionFromTask,
     "aria-label": ariaLabel,
     "aria-labelledby": ariaLabelledBy,
     isReadOnly,
@@ -102,46 +100,46 @@ export function TaskCollectionsInput({
     paddingY,
     onArrowLeftLeaveKeyDown,
 }: {
-    allCollections: ReadonlyArray<LocalTaskCollection>;
-    collections: ReadonlyArray<LocalTaskCollection>;
-    createCollectionAndAddToTask: (collection: {
-        id: LocalTaskCollectionId;
-        name: string;
-        color: ThemeColor;
-    }) => void;
-    addCollectionToTask: (collection: LocalTaskCollectionId) => void;
-    removeCollectionFromTask: (collection: LocalTaskCollectionId) => void;
+    referencesSubscription: TaskClientQuery | TaskClientTaskSubscription;
+    taskId: TaskId;
+    collections: TaskCollectionSet;
     "aria-label"?: string;
     "aria-labelledby"?: string;
-    // The difference between being disabled and being read-only is that read-only
-    // fields are still focusable.
     isReadOnly?: boolean;
     areMarginsClickable?: boolean;
     paddingX?: "2.5";
     paddingY?: "2.5";
     onArrowLeftLeaveKeyDown?: () => void;
 }) {
+    const context = useAppContext();
     const rootNavigate = useRootNavigate();
     const showToast = useShowToast();
-    const {space} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
 
-    const allCollectionsWithoutSelection = useMemo(
-        () =>
-            allCollections.filter(otherCollection =>
-                collections.every(collection => collection.id !== otherCollection.id),
-            ),
-        [allCollections, collections],
-    );
+    const {store} = referencesSubscription;
 
-    const allCollectionsSearchIndex = useMemo(
-        () => new Fuse(allCollectionsWithoutSelection, {keys: ["name"]}),
-        [allCollectionsWithoutSelection],
-    );
+    // Preload task collections the account has an affinity for in case they open
+    // the collections dropdown.
+    usePreloadAffinitiveTaskCollections();
+
+    const [shouldLoadItems, setShouldLoadItems] = useState(false);
+
+    const collectionsArray = collections.getArray();
 
     const [inputState, setInputState] = useState<TaskDetailCollectionsFieldInputState>({
         type: "Unfocused",
         value: "",
         disableAnimationOut: false,
+    });
+
+    const {shouldShowSearchLoadingIndicator, items} = useTaskCollectionComboBoxSearchState({
+        inputValue: inputState.value,
+        // Only load items when our overlay is open.
+        shouldLoadItems,
+        excludeCollectionIds: useMemo(
+            () => new Set(collectionsArray.map(({collectionId}) => collectionId)),
+            [collectionsArray],
+        ),
     });
 
     const [createCollectionInputState, setCreateCollectionInputState] = useState<
@@ -150,38 +148,15 @@ export function TaskCollectionsInput({
         isVisible: false,
     });
 
-    const searchedCollections = useMemo(
-        () =>
-            inputState.value === ""
-                ? allCollectionsWithoutSelection
-                : allCollectionsSearchIndex.search(inputState.value).map(({item}) => item),
-        [allCollectionsWithoutSelection, allCollectionsSearchIndex, inputState.value],
-    );
+    const comboBoxProps: ComboBoxStateOptions<TaskCollectionComboBoxItem> = {
+        // We need to know whether the combobox is open or not to decide whether we
+        // should load collection items.
+        onOpenChange: setShouldLoadItems,
 
-    const searchedItems: ReadonlyArray<TaskDetailCollectionsFieldItem> = useMemo(() => {
-        const searchedItems: Array<TaskDetailCollectionsFieldItem> = [];
-
-        for (const collection of searchedCollections) {
-            searchedItems.push({
-                type: "Collection",
-                key: `Collection:${collection.id}`,
-                collection,
-            });
-        }
-
-        searchedItems.push({
-            type: "CreateCollection",
-            key: "CreateCollection",
-        });
-
-        return searchedItems;
-    }, [searchedCollections]);
-
-    const comboBoxProps: ComboBoxStateOptions<TaskDetailCollectionsFieldItem> = {
         menuTrigger: "focus",
         // Don't close when there are no items.
         allowsEmptyCollection: true,
-        isReadOnly,
+        isDisabled: isReadOnly,
 
         inputValue: inputState.value,
         onInputChange: inputValue => {
@@ -205,19 +180,8 @@ export function TaskCollectionsInput({
             });
         },
 
-        items: searchedItems,
-        children: item =>
-            item.type === "Collection" ? (
-                <Item textValue={item.collection.name}>
-                    <TaskCollectionOption collection={item.collection} />
-                </Item>
-            ) : (
-                <Item>
-                    {inputState.value.length > 0
-                        ? `Create collection “${inputState.value}”`
-                        : "Create collection"}
-                </Item>
-            ),
+        items: items ?? emptyArray,
+        children: renderTaskCollectionComboBoxItem,
 
         // No key is ever selected by the combobox. Instead when a selection occurs we
         // add it to a list of selected values.
@@ -229,8 +193,39 @@ export function TaskCollectionsInput({
 
             if (key.startsWith("Collection:")) {
                 const collectionId = key.slice("Collection:".length);
-                assert(isId<LocalTaskCollectionId>(collectionId));
-                addCollectionToTask(collectionId);
+                assert(isId<TaskCollectionId>(collectionId));
+
+                const item = assertExists(
+                    items?.find(
+                        (item): item is TaskCollectionComboBoxCollectionItem =>
+                            item.type === "Collection" &&
+                            item.collectionResult.collection.id === collectionId,
+                    ),
+                );
+
+                store.commitTaskActionTransaction(
+                    context,
+                    [
+                        {
+                            type: "UpdateTask",
+                            time: store.clock.now(),
+                            taskId,
+                            taskAction: {
+                                type: "AddCollection",
+                                collectionId,
+                                orderKey: generateOrderKeyBetween(
+                                    collections.getLastOrderKey(),
+                                    null,
+                                ),
+                            },
+                        },
+                    ],
+                    {
+                        // Provide the collection model to the store. It might be out of date. The
+                        // server will backfill the new collection once our action has been committed.
+                        referencedCollections: [item.collectionResult.collection],
+                    },
+                );
 
                 if (shouldReturnFocusToInput) {
                     setInputState(inputState => {
@@ -261,11 +256,38 @@ export function TaskCollectionsInput({
                         shouldReturnFocusToInput,
                     });
                 } else {
-                    createCollectionAndAddToTask({
-                        id: generateId(),
-                        name: inputState.value,
-                        color: themeColors[randomInteger(themeColors.length)]!,
-                    });
+                    const collectionId = generateId<TaskCollectionId>();
+
+                    store.commitTaskActionTransaction(context, [
+                        {
+                            type: "UpdateCollection",
+                            time: store.clock.now(),
+                            collectionId,
+                            collectionAction: {
+                                type: "Create",
+                                name: inputState.value,
+                                accessPolicy: {
+                                    accountGrantById: new Map([
+                                        [currentAccount.id, {level: "Manage"}],
+                                    ]),
+                                    defaultGrant: null,
+                                },
+                            },
+                        },
+                        {
+                            type: "UpdateTask",
+                            time: store.clock.now(),
+                            taskId,
+                            taskAction: {
+                                type: "AddCollection",
+                                collectionId,
+                                orderKey: generateOrderKeyBetween(
+                                    collections.getLastOrderKey(),
+                                    null,
+                                ),
+                            },
+                        },
+                    ]);
 
                     if (shouldReturnFocusToInput) {
                         setInputState(inputState => {
@@ -287,16 +309,13 @@ export function TaskCollectionsInput({
 
     const comboBoxState = useComboBoxState(comboBoxProps);
 
-    // If we are read-only, the combobox shouldn't be open.
-    if (comboBoxState.isOpen && isReadOnly) comboBoxState.close();
-
     const inputRef = useRef<HTMLInputElement>(null);
     const popoverRef = useRef<HTMLDivElement>(null);
     const listBoxRef = useRef<HTMLUListElement>(null);
 
     const collectionRefs = useMemo(
-        () => createArrayWithLength(collections.length, () => createRef<HTMLDivElement>()),
-        [collections.length],
+        () => createArrayWithLength(collectionsArray.length, () => createRef<HTMLDivElement>()),
+        [collectionsArray.length],
     );
 
     const {inputProps, listBoxProps} = useComboBox(
@@ -314,14 +333,27 @@ export function TaskCollectionsInput({
                     // will delete the last collection.
                     case "Backspace": {
                         if (
-                            !isReadOnly &&
-                            collections.length > 0 &&
+                            collectionsArray.length > 0 &&
                             event.currentTarget.selectionStart ===
                                 event.currentTarget.selectionEnd &&
                             event.currentTarget.selectionStart === 0
                         ) {
                             event.preventDefault();
-                            removeCollectionFromTask(collections[collections.length - 1]!.id);
+                            event.stopPropagation();
+
+                            const {collectionId} = collectionsArray[collectionsArray.length - 1]!;
+
+                            store.commitTaskActionTransaction(context, [
+                                {
+                                    type: "UpdateTask",
+                                    time: store.clock.now(),
+                                    taskId,
+                                    taskAction: {
+                                        type: "RemoveCollection",
+                                        collectionId,
+                                    },
+                                },
+                            ]);
                         }
                         break;
                     }
@@ -335,6 +367,8 @@ export function TaskCollectionsInput({
                             event.currentTarget.selectionStart === 0
                         ) {
                             event.preventDefault();
+                            event.stopPropagation();
+
                             if (isMac ? event.metaKey : event.ctrlKey) {
                                 collectionRefs[0]!.current!.focus();
                             } else {
@@ -350,11 +384,11 @@ export function TaskCollectionsInput({
     );
 
     const shouldShowPrivatePlaceholder =
-        !createCollectionInputState.isVisible && collections.length === 0;
+        !createCollectionInputState.isVisible && collectionsArray.length === 0;
 
     const inputPlaceholder = shouldShowPrivatePlaceholder ? "Private" : "Add";
 
-    const collectionsChildren = collections.map((collection, index) => {
+    const collectionsChildren = collectionsArray.map(({collectionId}, index) => {
         const handleKeyDown = (event: KeyboardEvent) => {
             switch (event.key) {
                 // Backspace or delete will remove our selected account.
@@ -363,13 +397,22 @@ export function TaskCollectionsInput({
                     event.preventDefault();
                     event.stopPropagation();
 
-                    if (!isReadOnly) {
-                        removeCollectionFromTask(collection.id);
-                        if (index + 1 < collectionRefs.length) {
-                            collectionRefs[index + 1]?.current?.focus();
-                        } else {
-                            inputRef.current?.focus();
-                        }
+                    store.commitTaskActionTransaction(context, [
+                        {
+                            type: "UpdateTask",
+                            time: store.clock.now(),
+                            taskId,
+                            taskAction: {
+                                type: "RemoveCollection",
+                                collectionId,
+                            },
+                        },
+                    ]);
+
+                    if (index + 1 < collectionRefs.length) {
+                        collectionRefs[index + 1]?.current?.focus();
+                    } else {
+                        inputRef.current?.focus();
                     }
                     break;
                 }
@@ -410,11 +453,20 @@ export function TaskCollectionsInput({
                         event.preventDefault();
                         event.stopPropagation();
 
-                        if (!isReadOnly) {
-                            removeCollectionFromTask(collection.id);
-                            setInputState({type: "Focused", value: event.key});
-                            inputRef.current?.focus();
-                        }
+                        store.commitTaskActionTransaction(context, [
+                            {
+                                type: "UpdateTask",
+                                time: store.clock.now(),
+                                taskId,
+                                taskAction: {
+                                    type: "RemoveCollection",
+                                    collectionId,
+                                },
+                            },
+                        ]);
+
+                        setInputState({type: "Focused", value: event.key});
+                        inputRef.current?.focus();
                     }
                     break;
                 }
@@ -422,7 +474,7 @@ export function TaskCollectionsInput({
         };
 
         return (
-            <FocusRing key={collection.id}>
+            <FocusRing key={collectionId}>
                 <Box
                     ref={collectionRefs[index]}
                     overflow="hidden"
@@ -436,27 +488,39 @@ export function TaskCollectionsInput({
                     style={{maxWidth: taskCollectionChipContainerMaxWidth}}
                     // The first selected account is focusable via tab and you can use arrow keys
                     // to focus the others.
-                    tabIndex={index === 0 ? 0 : -1}
+                    tabIndex={isReadOnly ? undefined : index === 0 ? 0 : -1}
                     onKeyDown={handleKeyDown}
                 >
                     <TaskCollectionChip
-                        collection={collection}
+                        collectionEntryStore={referencesSubscription.getReferencedCollectionEntryStore(
+                            collectionId,
+                        )}
                         onPress={() => {
                             // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-                            rootNavigate(
-                                `/s/${space.id}/tasks/demo-2/collections/${collection.id}`,
-                            ).catch(error => {
-                                showToast({
-                                    type: "Error",
-                                    title: "Can’t open collection",
-                                    error,
-                                });
-                            });
+                            rootNavigate(`/s/${space.id}/tasks/collections/${collectionId}`).catch(
+                                error => {
+                                    showToast({
+                                        type: "Error",
+                                        title: "Can’t open collection",
+                                        error,
+                                    });
+                                },
+                            );
                         }}
                         onRemove={() => {
                             // We don't remove the "x" button so layout doesn't shift when toggling `isReadOnly`.
                             if (!isReadOnly) {
-                                removeCollectionFromTask(collection.id);
+                                store.commitTaskActionTransaction(context, [
+                                    {
+                                        type: "UpdateTask",
+                                        time: store.clock.now(),
+                                        taskId,
+                                        taskAction: {
+                                            type: "RemoveCollection",
+                                            collectionId,
+                                        },
+                                    },
+                                ]);
                             }
                         }}
                     />
@@ -495,11 +559,14 @@ export function TaskCollectionsInput({
                     marginLeft="-0.5"
                     style={{maxWidth: taskCollectionChipContainerMaxWidth}}
                 >
-                    <TaskDetailCollectionsFieldCreateCollectionInput
+                    <TaskCollectionInputCreateCollectionInput
                         onCancel={() => {
                             setCreateCollectionInputState({isVisible: false});
 
-                            if (createCollectionInputState.shouldReturnFocusToInput) {
+                            if (
+                                createCollectionInputState.shouldReturnFocusToInput &&
+                                getInteractionModality() === "keyboard"
+                            ) {
                                 assertExists(inputRef.current).focus({preventScroll: true});
                             }
                         }}
@@ -507,7 +574,10 @@ export function TaskCollectionsInput({
                             setCreateCollectionInputState({isVisible: false});
                             createCollectionAndAddToTask(collection);
 
-                            if (createCollectionInputState.shouldReturnFocusToInput) {
+                            if (
+                                createCollectionInputState.shouldReturnFocusToInput &&
+                                getInteractionModality() === "keyboard"
+                            ) {
                                 assertExists(inputRef.current).focus({preventScroll: true});
                             }
                         }}
@@ -526,9 +596,20 @@ export function TaskCollectionsInput({
                 // flipping horizontally but still allow flipping vertically.
                 fallbackPlacements={["top-start"]}
                 overlay={
-                    <Box ref={popoverRef} position="relative">
-                        <TaskDetailCollectionsFieldListBox
-                            haveNoCollectionsBeenCreated={allCollections.length === 0}
+                    <Box
+                        ref={popoverRef}
+                        className={greyElevated2ClassName}
+                        position="relative"
+                        borderRadius="md"
+                        backgroundColor="grey-0"
+                        boxShadow="elevation-20"
+                        width="64"
+                        maxHeight="64"
+                        overflow="hidden"
+                        display="flex"
+                        flexDirection="column"
+                    >
+                        <TaskCollectionComboBoxListBox
                             comboBoxState={comboBoxState}
                             listBoxRef={listBoxRef}
                             listBoxProps={listBoxProps}
@@ -612,7 +693,11 @@ export function TaskCollectionsInput({
                             // Make sure the combobox is always open when the user clicks on the collection
                             // input. We've observed some bugs where `react-aria` doesn't happen to open
                             // the combobox consistently on focus.
-                            onPointerDown={() => comboBoxState.open()}
+                            onPointerDown={() => {
+                                if (!isReadOnly) {
+                                    comboBoxState.open();
+                                }
+                            }}
                         />
                     </FocusRing>
                 </Box>
@@ -621,157 +706,7 @@ export function TaskCollectionsInput({
     );
 }
 
-function TaskDetailCollectionsFieldListBox({
-    haveNoCollectionsBeenCreated,
-    comboBoxState,
-    listBoxRef,
-    listBoxProps: _listBoxProps,
-}: {
-    haveNoCollectionsBeenCreated: boolean;
-    comboBoxState: ComboBoxState<TaskDetailCollectionsFieldItem>;
-    listBoxRef: RefObject<HTMLUListElement>;
-    listBoxProps: AriaListBoxOptions<TaskDetailCollectionsFieldItem>;
-}) {
-    const {listBoxProps} = useListBox(_listBoxProps, comboBoxState, listBoxRef);
-
-    const {itemsWithoutCreateCollectionButton, createCollectionButtonItem} = useMemo(() => {
-        const itemsWithoutCreateCollectionButton: Array<ReactNode> = [];
-        let createCollectionButtonItem: Node<TaskDetailCollectionsFieldItem> | null = null;
-
-        for (const item of comboBoxState.collection) {
-            if (item.value!.type === "CreateCollection") {
-                createCollectionButtonItem = item;
-            } else {
-                itemsWithoutCreateCollectionButton.push(
-                    <TaskDetailCollectionsFieldListBoxOption
-                        key={item.key}
-                        comboBoxState={comboBoxState}
-                        item={item}
-                    />,
-                );
-            }
-        }
-
-        return {itemsWithoutCreateCollectionButton, createCollectionButtonItem};
-    }, [comboBoxState]);
-
-    return (
-        <Box
-            borderRadius="md"
-            // NOCOMMIT: Overlay colors changed
-            backgroundColor={{light: "grey-0", dark: "grey-5"}}
-            boxShadow="elevation-20"
-            width="64"
-            maxHeight="64"
-            overflow="hidden"
-            display="flex"
-            flexDirection="column"
-        >
-            {haveNoCollectionsBeenCreated ? (
-                <ul {...listBoxProps} ref={listBoxRef}>
-                    <TaskCollectionsListBoxInstructionalPlaceholder
-                        createCollectionButton={
-                            createCollectionButtonItem ? (
-                                <TaskCollectionsListBoxCreateCollectionOption
-                                    comboBoxState={comboBoxState}
-                                    item={createCollectionButtonItem}
-                                    isQuiet={false}
-                                    isPending={false}
-                                />
-                            ) : null
-                        }
-                    />
-                </ul>
-            ) : (
-                <>
-                    <ul
-                        {...listBoxProps}
-                        ref={listBoxRef}
-                        className={sprinkles({
-                            flexGrow: "1",
-                            width: "full",
-                            padding: "1",
-                            overflowX: "hidden",
-                            overflowY: "scroll",
-                        })}
-                    >
-                        {itemsWithoutCreateCollectionButton.length === 0 ? (
-                            <Box
-                                padding="1.5"
-                                display="flex"
-                                alignItems="center"
-                                gap="1"
-                                color="grey-70"
-                            >
-                                <MagnifyingGlass size={spacing["3"]} />
-                                <Box>No results</Box>
-                            </Box>
-                        ) : (
-                            itemsWithoutCreateCollectionButton
-                        )}
-                    </ul>
-                    {createCollectionButtonItem && (
-                        <Box borderTop="grey-10" padding="1">
-                            <TaskCollectionsListBoxCreateCollectionOption
-                                comboBoxState={comboBoxState}
-                                item={createCollectionButtonItem}
-                                isQuiet={true}
-                                isPending={false}
-                            />
-                        </Box>
-                    )}
-                </>
-            )}
-        </Box>
-    );
-}
-
-function TaskDetailCollectionsFieldListBoxOption({
-    comboBoxState,
-    item,
-}: {
-    comboBoxState: ComboBoxState<TaskDetailCollectionsFieldItem>;
-    item: Node<TaskDetailCollectionsFieldItem>;
-}) {
-    const optionRef = useRef(null);
-    const {isHovered, hoverProps} = useHover({});
-    const {optionProps, isFocused, isPressed} = useOption(
-        {key: item.key},
-        comboBoxState,
-        optionRef,
-    );
-
-    const [wasFocusVisibleWhenFocused, setWasFocusVisibleWhenFocused] = useState(false);
-    useLayoutEffectWithoutServerSideWarning(() => {
-        if (isFocused) setWasFocusVisibleWhenFocused(isFocusVisible());
-    }, [isFocused]);
-
-    assert(isValidElement(item.rendered));
-
-    return (
-        <FocusRing offset="0" isVisible={isFocused && wasFocusVisibleWhenFocused}>
-            <li
-                {...mergeProps(optionProps, hoverProps)}
-                ref={optionRef}
-                className={sprinkles({
-                    width: "full",
-                    padding: "1.5",
-                    borderRadius: "base",
-                    color: "grey-text",
-                    backgroundColor: isPressed
-                        ? {light: "grey-10", dark: "grey-20"}
-                        : isHovered
-                        ? {light: "grey-5", dark: "grey-10"}
-                        : undefined,
-                })}
-            >
-                {cloneElement(item.rendered, {isPressed} as any)}
-            </li>
-        </FocusRing>
-    );
-}
-
-function TaskDetailCollectionsFieldCreateCollectionInput({
+function TaskCollectionInputCreateCollectionInput({
     onCancel,
     createCollectionAndAddToTask,
 }: {
@@ -785,7 +720,6 @@ function TaskDetailCollectionsFieldCreateCollectionInput({
     const inputRef = useRef<HTMLInputElement>(null);
     const inputPlaceholder = "Name";
     const [inputValue, setInputValue] = useState("");
-    const [color] = useState(() => themeColors[randomInteger(themeColors.length)]!);
     const [shouldShowConfirmSaveDialog, setShouldShowConfirmSaveDialog] = useState(false);
 
     const shouldFocusNextRenderRef = useRef(true);
@@ -818,7 +752,7 @@ function TaskDetailCollectionsFieldCreateCollectionInput({
         <>
             <FocusRing isVisibleWhenFocusWithin>
                 <TaskCollectionChipBase
-                    color={color}
+                    color={null}
                     name={
                         <Box
                             height={taskCollectionChipHeight}

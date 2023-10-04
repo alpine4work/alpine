@@ -14,7 +14,7 @@ import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 
-export function TaskCollectionsListBoxCreateCollectionOption<T>({
+export function TaskCollectionComboBoxCreateCollectionOption<T>({
     comboBoxState,
     item,
     isQuiet,

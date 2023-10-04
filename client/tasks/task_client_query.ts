@@ -17,6 +17,7 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {evaluateTaskQueryNormalizedFiltersForModel} from "~/shared/tasks/model/evaluate_task_query_normalized_filters_for_model.js";
 import {getTaskQueryNormalizedSortCursorForModel} from "~/shared/tasks/model/get_task_query_normalized_sort_cursor_for_model.js";
+import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
@@ -200,7 +201,35 @@ export class TaskClientQuery {
      * you call this function.
      */
     public getReferencedTaskSnapshot(taskId: TaskId): TaskModel {
-        return assertExists(this._internal.getReferencedTaskEntryStore(taskId).getSnapshot().task);
+        return this._internal.getReferencedTaskSnapshot(taskId);
+    }
+
+    /**
+     * Get the collection associated with the provided `TaskCollectionId`.
+     *
+     * Throws an error if `TaskCollectionId` is not referenced by this class
+     * when you call this function.
+     *
+     * The `collection` in this store should be non-null when this function is
+     * called but if you hold onto this reference for long enough you may see
+     * `collection` become null because the task becomes unauthorized.
+     */
+    public getReferencedCollectionEntryStore(
+        collectionId: TaskCollectionId,
+    ): Store<TaskClientStoreCollectionEntry> {
+        return this._internal.getReferencedCollectionEntryStore(collectionId);
+    }
+
+    /**
+     * Get a snapshot of the task associated with the provided `TaskCollectionId`.
+     * Prefer using `getReferencedCollectionEntryStore()` since it will give you
+     * changes to the task over time.
+     *
+     * Throws an error if `TaskCollectionId` is not referenced by this class when
+     * you call this function.
+     */
+    public getReferencedCollectionSnapshot(collectionId: TaskCollectionId): TaskCollectionModel {
+        return this._internal.getReferencedCollectionSnapshot(collectionId);
     }
 
     /**
@@ -481,22 +510,6 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
         const taskEntryStore = this._loadedTaskEntryStoreById.get(taskId);
         if (!taskEntryStore) throw new InternalError("Task is not visible in query");
         return taskEntryStore;
-    }
-
-    public getReferencedTaskEntryStore(taskId: TaskId): Store<TaskClientStoreTaskEntry> {
-        const referencedTaskEntryStore = this._referencedTaskEntryStoreById.get(taskId);
-        if (!referencedTaskEntryStore) throw new InternalError("Task is not referenced in query");
-        return referencedTaskEntryStore.store;
-    }
-
-    public getReferencedCollectionEntryStore(
-        collectionId: TaskCollectionId,
-    ): Store<TaskClientStoreCollectionEntry> {
-        const referencedCollectionEntryStore =
-            this._referencedCollectionEntryStoreById.get(collectionId);
-        if (!referencedCollectionEntryStore)
-            throw new InternalError("Collection is not referenced in query");
-        return referencedCollectionEntryStore.store;
     }
 
     public loadMoreTasks(limit: number) {
