@@ -2,8 +2,6 @@
 // internal format to data structures expected by `TaskRealtimeProtocol`. For
 // instance converting `TaskIndexDoc` to `TaskModel`.
 
-// NOCOMMIT: Split this into individual files?
-
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {maxHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";

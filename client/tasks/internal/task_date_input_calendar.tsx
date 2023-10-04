@@ -113,13 +113,7 @@ export function TaskDateInputCalendar({
 
     // We manually adapt button props to our icon button component. Make sure there
     // are no more props than what we expect.
-    const expectedButtonProps = new Set([
-        "aria-label",
-        "isDisabled",
-        "onPress",
-        "onFocus",
-        "onBlur",
-    ]);
+    const expectedButtonProps = new Set(["aria-label", "isDisabled", "onPress", "onFocusChange"]);
     assert(isDeepEqual(new Set(Object.keys(nextButtonProps)), expectedButtonProps));
     assert(isDeepEqual(new Set(Object.keys(prevButtonProps)), expectedButtonProps));
 
@@ -138,8 +132,8 @@ export function TaskDateInputCalendar({
                     withoutTooltip
                     description={assertExists(prevButtonProps["aria-label"])}
                     isDisabled={assertExists(prevButtonProps["isDisabled"])}
-                    onFocus={assertExists(prevButtonProps["onFocus"])}
-                    onBlur={assertExists(prevButtonProps["onBlur"])}
+                    onFocus={() => assertExists(prevButtonProps["onFocusChange"])(true)}
+                    onBlur={() => assertExists(prevButtonProps["onFocusChange"])(false)}
                     onPress={assertExists(prevButtonProps["onPress"])}
                 >
                     <CaretLeft />
@@ -158,8 +152,8 @@ export function TaskDateInputCalendar({
                     withoutTooltip
                     description={assertExists(nextButtonProps["aria-label"])}
                     isDisabled={assertExists(nextButtonProps["isDisabled"])}
-                    onFocus={assertExists(nextButtonProps["onFocus"])}
-                    onBlur={assertExists(nextButtonProps["onBlur"])}
+                    onFocus={() => assertExists(prevButtonProps["onFocusChange"])(true)}
+                    onBlur={() => assertExists(prevButtonProps["onFocusChange"])(false)}
                     onPress={assertExists(nextButtonProps["onPress"])}
                 >
                     <CaretRight />

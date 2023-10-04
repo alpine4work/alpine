@@ -142,10 +142,10 @@ export function TaskCollectionView({
         capabilities: useMemo(
             () => ({
                 isReadOnly,
-                hasParentTaskTitle: false,
-                hasMultilineTitle: true,
-                hasDenseFields: true,
-                hasColumns: false,
+                hasParentTaskTitle: true,
+                hasMultilineTitle: false,
+                hasDenseFields: false,
+                hasColumns: true,
             }),
             [isReadOnly],
         ),
