@@ -384,6 +384,20 @@ function useAddTaskCollectionViewingTimeAffinityPoints(
         document.addEventListener("visibilitychange", update);
         return () => {
             document.removeEventListener("visibilitychange", update);
+
+            // If our component unmounts, save the duration since last update in our
+            // session storage so we can pick up adding affinity points from there if the
+            // user navigates back.
+            if (state) {
+                const currentTime = clock.now();
+
+                sessionStorage.setItem(
+                    `cyberworlds/taskCollectionDurationSinceLastUpdate/${collectionId}`,
+                    JSON.stringify(currentTime - state.lastUpdatedTime),
+                );
+                state.timeout.clear();
+                state = null;
+            }
         };
     }, [collectionSubscription, context, space.id]);
 }
