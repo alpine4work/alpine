@@ -1,7 +1,7 @@
 import {Box} from "~/client/design/box.js";
 import {ColorSchemeToggleButton} from "~/client/design/playground/color_scheme_toggle_button.js";
 import {DesignPlaygroundTooltipPage} from "~/client/design/playground/design_playground_tooltip_page.js";
-import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
+import {metaTitlePostfix} from "~/app/internal/use_update_meta_title.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
 export function meta() {

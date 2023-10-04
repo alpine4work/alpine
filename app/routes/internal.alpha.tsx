@@ -6,7 +6,7 @@ import {Spacer} from "~/client/design/spacer.js";
 import {TextInput} from "~/client/design/text_input.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
+import {metaTitlePostfix} from "~/app/internal/use_update_meta_title.js";
 import {
     getAlphaConfiguration,
     getUndecidedAlphaAccessRequests,

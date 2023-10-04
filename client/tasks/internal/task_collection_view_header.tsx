@@ -1,11 +1,16 @@
+import {getInteractionModality} from "@react-aria/interactions";
 import {DotsThree, LockOpen} from "phosphor-react";
-import {useRef, useState} from "react";
+import {RefCallback, useCallback, useRef, useState} from "react";
+import {mergeProps, useHover, usePress} from "react-aria";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
-import {FocusRing} from "~/client/design/focus_ring.js";
+import {FocusRing, useIsFocusRingVisible} from "~/client/design/focus_ring.js";
+import {useOutsideInteraction} from "~/client/design/helpers/use_outside_interaction.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
+import {OverlayAnimated} from "~/client/design/overlay_animated.js";
+import {Tooltip} from "~/client/design/tooltip.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growing_width.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -16,10 +21,11 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {getTaskCollectionColor} from "~/client/tasks/internal/task_collection_chip_base.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
+import {ThemeColor} from "~/shared/design/theme_colors.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
-import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
+import {colorSchemeVars, greyElevated2ClassName, sprinkles} from "~/shared/styles/styles.js";
 
 export const newTaskCollectionNamePlaceholder = "New collection";
 
@@ -49,6 +55,10 @@ export function TaskCollectionViewHeader({
     // collections will have an empty name. Empty collection names are not allowed.
     if (!collectionSubscription && !isEditingName) setIsEditingName(true);
 
+    const [colorSelectorState, setColorSelectorState] = useState<
+        {isExpanded: true} | {isExpanded: false; isFadingOut: boolean}
+    >({isExpanded: false, isFadingOut: false});
+
     const collectionEntry = useStore(collectionSubscription?.collectionEntryStore ?? null);
     const collection = collectionEntry?.collection ?? null;
 
@@ -67,18 +77,39 @@ export function TaskCollectionViewHeader({
         >
             {collectionSubscription && (
                 <Box flexShrink="0" display="flex" justifyContent="center" width="3">
-                    <Box
-                        // Carefully positioned so it aligns with the "+" icon in the
-                        // "Add filter" button.
-                        width="2"
-                        height="2"
-                        borderRadius="full"
-                        backgroundColor={getTaskCollectionColor(color)}
+                    <TaskCollectionViewHeaderColor
+                        color={color}
+                        onColorSelect={color => {
+                            store.commitTaskActionTransaction(context, [
+                                {
+                                    type: "UpdateCollection",
+                                    time: store.clock.now(),
+                                    collectionId,
+                                    collectionAction: {
+                                        type: "UpdateColor",
+                                        color,
+                                    },
+                                },
+                            ]);
+                        }}
+                        colorSelectorState={colorSelectorState}
+                        setColorSelectorState={setColorSelectorState}
                     />
                 </Box>
             )}
             {!isEditingName ? (
-                <Box padding="1" fontSize="200" fontStyle="truncate-semi-bold">
+                <Box
+                    padding="1"
+                    fontSize="200"
+                    fontStyle="truncate-semi-bold"
+                    userSelect="text"
+                    onDoubleClick={event => {
+                        // Disable selection from double click.
+                        event.preventDefault();
+
+                        setIsEditingName(true);
+                    }}
+                >
                     {name}
                 </Box>
             ) : (
@@ -135,6 +166,13 @@ export function TaskCollectionViewHeader({
                                 },
                             },
                         ],
+
+                        // Even though you can edit the collection name by double clicking and the
+                        // color by clicking on the dot, we still include menu items since these
+                        // interactions aren't necessarily obvious.
+                        //
+                        // Also, the color and name are not focusable. So the only way to edit
+                        // name/color via keyboard are these menu items.
                         [
                             {
                                 label: "Edit name",
@@ -142,16 +180,15 @@ export function TaskCollectionViewHeader({
                             },
                             {
                                 label: "Edit color",
-                                onPress: () => {
-                                    // NOCOMMIT
-                                },
+                                onPress: () => setColorSelectorState({isExpanded: true}),
                             },
                         ],
+
+                        // TODO(calebmer): Collections support more involved permission rules than just
+                        // public/private. Eventually I want a full sharing dialog (like in Google
+                        // Docs) but I want that sharing dialog to work across all stuff in the space.
+                        // Including docs and channels.
                         [
-                            // TODO(calebmer): Collections support more involved permission rules than just
-                            // public/private. Eventually I want a full sharing dialog (like in Google
-                            // Docs) but I want that sharing dialog to work across all stuff in the space.
-                            // Including docs and channels.
                             {
                                 label: "Make public",
                                 icon: <LockOpen />,
@@ -161,6 +198,7 @@ export function TaskCollectionViewHeader({
                                 },
                             },
                         ],
+
                         [
                             {
                                 label: "Delete",
@@ -320,5 +358,275 @@ function TaskCollectionViewHeaderNameEditor({
                     />
                 ))}
         </>
+    );
+}
+
+function TaskCollectionViewHeaderColor({
+    color,
+    onColorSelect,
+    colorSelectorState,
+    setColorSelectorState,
+}: {
+    color: ThemeColor | null;
+    onColorSelect: (color: ThemeColor | null) => void;
+    colorSelectorState: {isExpanded: true} | {isExpanded: false; isFadingOut: boolean};
+    setColorSelectorState: (
+        colorSelectorState: {isExpanded: true} | {isExpanded: false; isFadingOut: boolean},
+    ) => void;
+}) {
+    const {hoverProps, isHovered} = useHover({});
+
+    const {pressProps, isPressed} = usePress({
+        onPress: () => setColorSelectorState({isExpanded: true}),
+    });
+
+    return (
+        <OverlayAnimated
+            isBlocking={true}
+            offset="2.5"
+            isVisible={colorSelectorState.isExpanded}
+            disableAnimationIn={true}
+            disableAnimationOut={!colorSelectorState.isExpanded && !colorSelectorState.isFadingOut}
+            placement="bottom"
+            overlay={
+                <Box
+                    ref={useOutsideInteraction(() =>
+                        setColorSelectorState({isExpanded: false, isFadingOut: true}),
+                    )}
+                    className={greyElevated2ClassName}
+                    backgroundColor="grey-0"
+                    borderRadius="md"
+                    boxShadow="elevation-20"
+                >
+                    <TaskCollectionViewHeaderColorSelector
+                        onColorSelect={color => {
+                            setColorSelectorState({isExpanded: false, isFadingOut: false});
+                            onColorSelect(color);
+                        }}
+                    />
+                </Box>
+            }
+        >
+            <Box
+                // This element isn't focusable (no `tabindex`, no `<FocusRing>`) since it's
+                // purely an affordance for mouse users only. Keyboard users should go through
+                // the option in our menu.
+                {...mergeProps(hoverProps, pressProps)}
+                width="4"
+                height="4"
+                margin="-1"
+                borderRadius="full"
+                display="flex"
+                justifyContent="center"
+                alignItems="center"
+                backgroundColor={
+                    isPressed
+                        ? "grey-10"
+                        : isHovered || colorSelectorState.isExpanded
+                        ? "grey-5"
+                        : undefined
+                }
+            >
+                <Box
+                    // Carefully positioned so it aligns with the "+" icon in the
+                    // "Add filter" button.
+                    width="2"
+                    height="2"
+                    borderRadius="full"
+                    backgroundColor={getTaskCollectionColor(color)}
+                />
+            </Box>
+        </OverlayAnimated>
+    );
+}
+
+// This component implements the toolbar role:
+// https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/toolbar_role
+function TaskCollectionViewHeaderColorSelector({
+    onColorSelect,
+}: {
+    onColorSelect: (color: ThemeColor | null) => void;
+}) {
+    const buttonRefs = useRef<Array<HTMLDivElement | null>>([]);
+    const [lastFocusedIndex, setLastFocusedIndex] = useState(0);
+
+    const hasInitiallyMountedRef = useRef(false);
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (hasInitiallyMountedRef.current) return;
+        hasInitiallyMountedRef.current = true;
+
+        if (getInteractionModality() === "keyboard") {
+            assertExists(buttonRefs.current[0]).focus();
+        }
+    }, []);
+
+    return (
+        <Box
+            paddingX="1"
+            display="flex"
+            role="toolbar"
+            aria-label="Collection color selector"
+            aria-orientation="horizontal"
+            onKeyDown={event => {
+                switch (event.key) {
+                    case "ArrowLeft": {
+                        event.preventDefault();
+                        event.stopPropagation();
+
+                        assertExists(
+                            buttonRefs.current[
+                                lastFocusedIndex !== 0
+                                    ? lastFocusedIndex - 1
+                                    : buttonRefs.current.length - 1
+                            ],
+                        ).focus();
+                        break;
+                    }
+                    case "ArrowRight": {
+                        event.preventDefault();
+                        event.stopPropagation();
+
+                        assertExists(
+                            buttonRefs.current[
+                                lastFocusedIndex !== buttonRefs.current.length - 1
+                                    ? lastFocusedIndex + 1
+                                    : 0
+                            ],
+                        ).focus();
+                        break;
+                    }
+                    case "Home": {
+                        event.preventDefault();
+                        event.stopPropagation();
+
+                        assertExists(buttonRefs.current[0]).focus();
+                        break;
+                    }
+                    case "End": {
+                        event.preventDefault();
+                        event.stopPropagation();
+
+                        assertExists(buttonRefs.current[buttonRefs.current.length - 1]).focus();
+                        break;
+                    }
+                }
+            }}
+        >
+            <TaskCollectionViewHeaderColorSelectorButton
+                description="None"
+                color={null}
+                onColorSelect={onColorSelect}
+                buttonRef={useCallback(ref => (buttonRefs.current[0] = ref), [])}
+                wasLastFocused={lastFocusedIndex === 0}
+                onFocus={() => setLastFocusedIndex(0)}
+            />
+            <TaskCollectionViewHeaderColorSelectorButton
+                description="Red"
+                color="red"
+                onColorSelect={onColorSelect}
+                buttonRef={useCallback(ref => (buttonRefs.current[1] = ref), [])}
+                wasLastFocused={lastFocusedIndex === 1}
+                onFocus={() => setLastFocusedIndex(1)}
+            />
+            <TaskCollectionViewHeaderColorSelectorButton
+                description="Orange"
+                color="orange"
+                onColorSelect={onColorSelect}
+                buttonRef={useCallback(ref => (buttonRefs.current[2] = ref), [])}
+                wasLastFocused={lastFocusedIndex === 2}
+                onFocus={() => setLastFocusedIndex(2)}
+            />
+            <TaskCollectionViewHeaderColorSelectorButton
+                description="Yellow"
+                color="yellow"
+                onColorSelect={onColorSelect}
+                buttonRef={useCallback(ref => (buttonRefs.current[3] = ref), [])}
+                wasLastFocused={lastFocusedIndex === 3}
+                onFocus={() => setLastFocusedIndex(3)}
+            />
+            <TaskCollectionViewHeaderColorSelectorButton
+                description="Green"
+                color="green"
+                onColorSelect={onColorSelect}
+                buttonRef={useCallback(ref => (buttonRefs.current[4] = ref), [])}
+                wasLastFocused={lastFocusedIndex === 4}
+                onFocus={() => setLastFocusedIndex(4)}
+            />
+            <TaskCollectionViewHeaderColorSelectorButton
+                description="Blue"
+                color="blue"
+                onColorSelect={onColorSelect}
+                buttonRef={useCallback(ref => (buttonRefs.current[5] = ref), [])}
+                wasLastFocused={lastFocusedIndex === 5}
+                onFocus={() => setLastFocusedIndex(5)}
+            />
+            <TaskCollectionViewHeaderColorSelectorButton
+                description="Purple"
+                color="purple"
+                onColorSelect={onColorSelect}
+                buttonRef={useCallback(ref => (buttonRefs.current[6] = ref), [])}
+                wasLastFocused={lastFocusedIndex === 6}
+                onFocus={() => setLastFocusedIndex(6)}
+            />
+            <TaskCollectionViewHeaderColorSelectorButton
+                description="Pink"
+                color="pink"
+                onColorSelect={onColorSelect}
+                buttonRef={useCallback(ref => (buttonRefs.current[7] = ref), [])}
+                wasLastFocused={lastFocusedIndex === 7}
+                onFocus={() => setLastFocusedIndex(7)}
+            />
+        </Box>
+    );
+}
+
+function TaskCollectionViewHeaderColorSelectorButton({
+    description,
+    color,
+    onColorSelect,
+    buttonRef,
+    wasLastFocused,
+    onFocus,
+}: {
+    description: string;
+    color: ThemeColor | null;
+    onColorSelect: (color: ThemeColor | null) => void;
+    buttonRef: RefCallback<HTMLDivElement>;
+    wasLastFocused: boolean;
+    onFocus: () => void;
+}) {
+    const {hoverProps, isHovered} = useHover({});
+
+    const {pressProps, isPressed} = usePress({
+        onPress: () => onColorSelect(color),
+    });
+
+    const [isVisible, targetRef] = useIsFocusRingVisible();
+
+    return (
+        <Tooltip placement="bottom" fallbackPlacements={[]} content={description}>
+            <Box
+                {...mergeProps(hoverProps, pressProps)}
+                ref={useMergedRefs<HTMLDivElement>(buttonRef, targetRef)}
+                paddingY="1"
+                tabIndex={wasLastFocused ? 0 : -1}
+                onFocus={onFocus}
+            >
+                <FocusRing isVisible={isVisible} offset="border">
+                    <Box
+                        padding="2"
+                        borderRadius="base"
+                        backgroundColor={isPressed ? "grey-10" : isHovered ? "grey-5" : undefined}
+                    >
+                        <Box
+                            width="2"
+                            height="2"
+                            borderRadius="full"
+                            backgroundColor={getTaskCollectionColor(color)}
+                        />
+                    </Box>
+                </FocusRing>
+            </Box>
+        </Tooltip>
     );
 }

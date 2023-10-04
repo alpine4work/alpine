@@ -39,7 +39,7 @@ import {
     RootNavigationContextProvider,
     WaitForNavigationContextProvider,
 } from "~/client/remix/use_navigate.js";
-import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title.js";
+import {UpdateMetaTitleContextProvider} from "~/app/internal/use_update_meta_title.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {spacing} from "~/shared/design/spacing.js";

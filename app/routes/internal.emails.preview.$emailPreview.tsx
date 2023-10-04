@@ -7,7 +7,7 @@ import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
+import {metaTitlePostfix} from "~/app/internal/use_update_meta_title.js";
 import {useUrlSearchParamState} from "~/client/remix/use_url_search_param_state.js";
 import {getEmailTemplatePreviewBySlug} from "~/server/emails/get_email_template_preview_by_slug.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";

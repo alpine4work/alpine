@@ -10,10 +10,11 @@ import {
     useRef,
     useState,
 } from "react";
-import {useHover, usePress} from "react-aria";
+import {mergeProps, useHover, usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
-import {FocusRing} from "~/client/design/focus_ring.js";
+import {FocusRing, useIsFocusRingVisible} from "~/client/design/focus_ring.js";
 import {Tooltip} from "~/client/design/tooltip.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {HighlightColor, colorByHighlightColor} from "~/shared/design/highlight_color.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
@@ -141,6 +142,7 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
                         const buttonElement = buttonRefs.current[buttonRefs.current.length - 1];
                         assert(buttonElement);
                         buttonElement.focus();
+                        break;
                     }
                 }
             }}
@@ -242,20 +244,18 @@ function ContentEditorHighlightSelectorButton({
 
     const isActive = highlightColor !== null && mark?.attrs.color === highlightColor;
 
+    const [isVisible, targetRef] = useIsFocusRingVisible();
+
     return (
-        <Tooltip
-            placement="top"
-            fallbackPlacements={[]}
-            // The hover bounding box for our button is larger than the button itself so
-            // we want to show the tooltip when a child is focused.
-            isVisibleWhenFocusWithin={true}
-            content={description}
-        >
+        <Tooltip placement="top" fallbackPlacements={[]} content={description}>
             <Box
-                {...hoverProps}
+                {...mergeProps(hoverProps, pressProps)}
+                ref={useMergedRefs<HTMLDivElement>(targetRef, buttonRef)}
+                tabIndex={isFocusable ? (wasLastFocused ? 0 : -1) : undefined}
                 // y-padding is on the button so the tooltip is appropriately
                 // offset from the toolbar.
                 paddingY="1"
+                onFocus={onFocus}
             >
                 <Box
                     // We implement dividers in this funky way so that as the mouse scrubs left and
@@ -265,17 +265,13 @@ function ContentEditorHighlightSelectorButton({
                     borderRight={dividerRight ? "grey-5" : undefined}
                     paddingLeft={dividerLeft ? "1" : "0"}
                 >
-                    <FocusRing offset="0">
+                    <FocusRing isVisible={isVisible} offset="border">
                         <Box
-                            {...pressProps}
-                            ref={buttonRef}
                             padding="1"
                             borderRadius="base"
                             backgroundColor={
                                 isPressed || isActive ? "grey-10" : isHovered ? "grey-5" : undefined
                             }
-                            tabIndex={isFocusable ? (wasLastFocused ? 0 : -1) : undefined}
-                            onFocus={onFocus}
                         >
                             <Box
                                 display="flex"

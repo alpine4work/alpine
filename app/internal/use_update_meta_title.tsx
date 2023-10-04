@@ -21,6 +21,9 @@ const UpdateMetaTitleContext = createContext<Memo<(title: string) => void> | nul
  * Update the title of the page from what we returned from the Remix `meta()`
  * function. This is a hook which consumes context because Remix embeds update
  * a different title.
+ *
+ * Lives in `app/internal` so you can only use it directly in route modules.
+ * Try to avoid leaking knowledge of the meta title to sub-components.
  */
 export function useUpdateMetaTitle(): Memo<(title: string) => void> {
     const updateMetaTitle = useContext(UpdateMetaTitleContext);

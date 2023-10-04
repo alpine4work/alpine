@@ -92,5 +92,5 @@ function TaskCollectionChipBase(
 
 export function getTaskCollectionColor(color: ThemeColor | null): Sprinkles["color"] {
     if (color === null) return "grey-20";
-    return `${color}-50-const`;
+    return `${color}-50`;
 }

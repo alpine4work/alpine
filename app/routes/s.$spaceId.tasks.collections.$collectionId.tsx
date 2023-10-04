@@ -1,6 +1,7 @@
 import {useEffect} from "react";
 import {useParams} from "react-router";
 import {useSearchParams} from "react-router-dom";
+import {metaTitlePostfix, useUpdateMetaTitle} from "~/app/internal/use_update_meta_title.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
@@ -272,6 +273,26 @@ function TaskCollectionRouteInner({collectionId}: {collectionId: TaskCollectionI
             window.history.replaceState(null, "", url);
         }
     }, [collectionSubscription]);
+
+    const updateMetaTitle = useUpdateMetaTitle();
+
+    // Update our document's title whenever the task's title changes.
+    useEffect(() => {
+        const update = () => {
+            const collectionEntryStore = collectionSubscription?.collectionEntryStore;
+
+            updateMetaTitle(
+                `${
+                    collectionEntryStore
+                        ? collectionEntryStore.getSnapshot().collection?.getName() ?? ""
+                        : newTaskCollectionNamePlaceholder
+                }${metaTitlePostfix}`,
+            );
+        };
+
+        update();
+        return collectionSubscription?.collectionEntryStore.subscribe(update);
+    }, [collectionSubscription?.collectionEntryStore, updateMetaTitle]);
 
     useAddTaskCollectionViewingTimeAffinityPoints(collectionSubscription);
 

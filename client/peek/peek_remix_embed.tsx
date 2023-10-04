@@ -21,7 +21,7 @@ import {
 import {StaticRouterProvider} from "react-router-dom/server.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
-import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title.js";
+import {UpdateMetaTitleContextProvider} from "~/app/internal/use_update_meta_title.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
