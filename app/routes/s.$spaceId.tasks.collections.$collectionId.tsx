@@ -3,8 +3,10 @@ import {useParams} from "react-router";
 import {useSearchParams} from "react-router-dom";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/app/internal/use_update_meta_title.js";
 import {useAppContext} from "~/client/context/app_context.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
+import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
@@ -50,10 +52,10 @@ const LoaderSchema = Schema.object({
         Exists: Schema.object({
             type: Schema.value("Exists"),
             initialMetaTitleText: Schema.string,
-            childrenGridViewExpansionState: TaskGridViewExpansionStateSchema,
-            initialBottomGhostTaskId: Schema.id<TaskId>(),
+            gridViewExpansionState: TaskGridViewExpansionStateSchema,
         }),
     }),
+    initialBottomGhostTaskId: Schema.id<TaskId>(),
 });
 
 export const meta = createMetaFunction(LoaderSchema, ({data: {collectionState}}) => [
@@ -81,6 +83,7 @@ export async function loader({request, params, context: _context}: LoaderArgs) {
                 collectionState: {
                     type: "NotExists",
                 },
+                initialBottomGhostTaskId: generateId<TaskId>(),
             },
             {
                 propagateEventData: {
@@ -178,9 +181,9 @@ export async function loader({request, params, context: _context}: LoaderArgs) {
             collectionState: {
                 type: "Exists",
                 initialMetaTitleText: collection?.getName() ?? "",
-                childrenGridViewExpansionState: queryOutput.gridViewExpansionState,
-                initialBottomGhostTaskId: generateId<TaskId>(),
+                gridViewExpansionState: queryOutput.gridViewExpansionState,
             },
+            initialBottomGhostTaskId: generateId<TaskId>(),
         },
         {
             propagateEventData: {
@@ -236,6 +239,7 @@ function TaskCollectionRouteInner({collectionId}: {collectionId: TaskCollectionI
 
     const store = useTaskClientStore();
 
+    const {collectionState, initialBottomGhostTaskId} = useLoaderDataWithSchema(LoaderSchema);
     const {
         queries: [query],
         collectionSubscriptions: [collectionSubscription],
@@ -301,7 +305,13 @@ function TaskCollectionRouteInner({collectionId}: {collectionId: TaskCollectionI
             store={store}
             collectionId={collectionId}
             collectionSubscription={collectionSubscription ?? null}
-            createCollection={async name => {
+            query={query ?? null}
+            initialGridViewExpansionState={
+                collectionState.type === "Exists" ? collectionState.gridViewExpansionState : null
+            }
+            initialBottomGhostTaskId={initialBottomGhostTaskId}
+            // eslint-disable-next-line @typescript-eslint/no-misused-promises
+            createCollection={useEvent(async name => {
                 const newSearchParams = new URLSearchParams(searchParams);
                 newSearchParams.set("create", name);
 
@@ -311,7 +321,7 @@ function TaskCollectionRouteInner({collectionId}: {collectionId: TaskCollectionI
                     }/tasks/collections/${collectionId}?${newSearchParams.toString()}`,
                     {replace: true},
                 );
-            }}
+            })}
         />
     );
 }

@@ -12,10 +12,12 @@ export function useOutOfBoundsClickSelection({
     isDisabled,
     onSelect,
     onSelectAll,
+    accept = event => event.target === event.currentTarget,
 }: {
     isDisabled?: boolean;
     onSelect: () => void;
     onSelectAll: () => void;
+    accept?: (event: MouseEvent) => boolean;
 }): {
     onClick: (event: MouseEvent) => void;
     onDoubleClick: (event: MouseEvent) => void;
@@ -27,9 +29,7 @@ export function useOutOfBoundsClickSelection({
     return {
         onClick: event => {
             if (isDisabled) return;
-
-            // Only accept direct clicks on the element.
-            if (event.target !== event.currentTarget) return;
+            if (!accept(event)) return;
 
             if (
                 lastDoubleClickTimeRef.current === null ||
@@ -42,9 +42,7 @@ export function useOutOfBoundsClickSelection({
         },
         onDoubleClick: event => {
             if (isDisabled) return;
-
-            // Only accept direct clicks on the element.
-            if (event.target !== event.currentTarget) return;
+            if (!accept(event)) return;
 
             if (
                 lastDoubleClickTimeRef.current === null ||
@@ -57,9 +55,7 @@ export function useOutOfBoundsClickSelection({
         },
         onMouseDown: event => {
             if (isDisabled) return;
-
-            // Only accept direct clicks on the element.
-            if (event.target !== event.currentTarget) return;
+            if (!accept(event)) return;
 
             // `mousedown` will unfocus whatever is focused. If the user is actively
             // double, triple, whatever clicking don't unfocus.
@@ -75,9 +71,7 @@ export function useOutOfBoundsClickSelection({
         // event finishes bubbling up.
         onContextMenu: event => {
             if (isDisabled) return;
-
-            // Only accept direct clicks on the element.
-            if (event.target !== event.currentTarget) return;
+            if (!accept(event)) return;
 
             onSelect();
         },

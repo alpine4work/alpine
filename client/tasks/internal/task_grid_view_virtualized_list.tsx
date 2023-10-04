@@ -97,6 +97,7 @@ export function useTaskGridViewVirtualizedList({
     onRenderedRangeChange: (renderedRange: {startIndex: number; endIndex: number} | null) => void;
     modals: ReactNode;
     focusStart: Memo<() => void>;
+    focusEnd: Memo<() => void>;
 } {
     const context = useAppContext();
 
@@ -134,6 +135,15 @@ export function useTaskGridViewVirtualizedList({
                 if (!taskRow) continue;
 
                 taskRow.focusTitleStart();
+                break;
+            }
+        },
+        focusEnd: () => {
+            for (let index = itemCount - 1; index >= 0; index--) {
+                const taskRow = taskRowByItemIndexRef.current.get(index);
+                if (!taskRow) continue;
+
+                taskRow.focusTitleEnd();
                 break;
             }
         },
@@ -1100,6 +1110,7 @@ export function useTaskGridViewVirtualizedList({
             />
         ),
         focusStart: events.focusStart,
+        focusEnd: events.focusEnd,
     };
 }
 

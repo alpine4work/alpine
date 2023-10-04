@@ -1,7 +1,11 @@
 import jsonStableStringify from "json-stable-stringify";
 import {computeStore} from "~/client/helpers/store/compute_store.js";
 import {Store} from "~/client/helpers/store/store.js";
-import {TaskClientStoreTaskEntry} from "~/client/tasks/task_client_store.js";
+import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
+import {
+    TaskClientStoreCollectionEntry,
+    TaskClientStoreTaskEntry,
+} from "~/client/tasks/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -75,28 +79,12 @@ export function getTaskSubscriptionAccessStore(
                     taskSubscription.getReferencedCollectionEntryStore(collectionId),
                 );
 
-                // The collection is not loaded. Assume we don't have permission. Principle of
-                // least privilege.
-                if (!collectionEntry.collection) continue;
-
-                // If the collection is marked as unauthorized, we don't have permission. Even
-                // if the task was previously loaded. Our client might not see the action which
-                // makes the task unauthorized.
-                if (!collectionEntry.isAuthorized) continue;
-
-                const accessPolicy = collectionEntry.collection.getAccessPolicy();
-
-                if (accessPolicy.defaultGrant) {
-                    // If we ever add other default grant types then TypeScript will error here
-                    // forcing us to update this code.
-                    cast<"Space">(accessPolicy.defaultGrant.type);
-
-                    accessLevels.push(accessPolicy.defaultGrant.level);
-                }
-
-                const accountGrant = accessPolicy.accountGrantById.get(currentAccountId);
-                if (accountGrant) {
-                    accessLevels.push(accountGrant.level);
+                const collectionAccess = computeTaskCollectionSubscriptionAccess(
+                    currentAccountId,
+                    collectionEntry,
+                );
+                if (collectionAccess.type === "PermissionGranted") {
+                    accessLevels.push(collectionAccess.level);
                 }
             }
 
@@ -130,4 +118,66 @@ export function getTaskSubscriptionAccessStore(
             () => access,
         );
     });
+}
+
+/**
+ * Determines whether our client has access to the provided collection and at
+ * what access level. This is a client-side implementation of the server-side
+ * collection authorization functions (e.g.
+ * `isTaskCollectionAccessAuthorized()`).
+ */
+export function getTaskCollectionSubscriptionAccessStore(
+    currentAccountId: AccountId,
+    collectionSubscription: TaskClientCollectionSubscription,
+): Store<TaskAccess> {
+    return collectionSubscription.collectionEntryStore.map(collectionEntry => {
+        const access = computeTaskCollectionSubscriptionAccess(currentAccountId, collectionEntry);
+
+        return getOrSetDefaultMapValue(
+            taskAccessInternMap,
+            jsonStableStringify(access),
+            () => access,
+        );
+    });
+}
+
+function computeTaskCollectionSubscriptionAccess(
+    currentAccountId: AccountId,
+    collectionEntry: TaskClientStoreCollectionEntry,
+): TaskAccess {
+    // The collection is not loaded. Assume we don't have permission. Principle of
+    // least privilege.
+    if (!collectionEntry.collection) return {type: "PermissionDenied"};
+
+    // If the collection is marked as unauthorized, we don't have permission. Even
+    // if the task was previously loaded. Our client might not see the action which
+    // makes the task unauthorized.
+    if (!collectionEntry.isAuthorized) return {type: "PermissionDenied"};
+
+    // Delete collections don't grant access.
+    if (collectionEntry.collection.isDeleted()) return {type: "Deleted"};
+
+    const accessPolicy = collectionEntry.collection.getAccessPolicy();
+
+    const accessLevels: Array<TaskCollectionAccessLevel> = [];
+
+    if (accessPolicy.defaultGrant) {
+        // If we ever add other default grant types then TypeScript will error here
+        // forcing us to update this code.
+        cast<"Space">(accessPolicy.defaultGrant.type);
+
+        accessLevels.push(accessPolicy.defaultGrant.level);
+    }
+
+    const accountGrant = accessPolicy.accountGrantById.get(currentAccountId);
+    if (accountGrant) {
+        accessLevels.push(accountGrant.level);
+    }
+
+    if (accessLevels.length === 0) return {type: "PermissionDenied"};
+
+    return {
+        type: "PermissionGranted",
+        level: accessLevels.slice(1).reduce(maxTaskCollectionAccessLevel, accessLevels[0]!),
+    };
 }
